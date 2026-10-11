@@ -1031,6 +1031,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 24px; letter-spacing: 0.04em; color: #f6d77a;
   text-shadow: 0 0 18px rgba(246, 215, 122, 0.45); }
 #provincePicker .ppQuiet { font-size: 13px; }
+#provincePicker .ppSound svg, #soundToggle svg { display: block; margin: 0 auto; }
 #provincePicker .ppSkip { font-size: 15px; padding: 6px 20px; border-color: rgba(246, 215, 122, 0.7); color: #f6d77a; }
 #provincePicker .ppContinue { border-color: rgba(246, 215, 122, 0.6); color: #f6d77a; }
 #provincePicker .ppClock { font-size: 20px; font-weight: 300; letter-spacing: 0.04em; color: rgba(238, 243, 239, 0.85); margin-left: 6px; }
@@ -1059,6 +1060,9 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 
 /* Down to the land: the province's real starting map on the national map, and its resources */
 #provincePicker .ppTerrainLayer { opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+/* Glow filters over a deep zoom make browsers skip drawing the provinces, so the land drops them */
+#provincePicker .ppSvg.terrain .ppProvinces, #provincePicker .ppSvg.terrain .ppProvince.selected { filter: none; }
+#provincePicker .ppSvg.terrain .ppProvince { transition: opacity 0.6s ease; }
 #provincePicker .ppTerrainLayer.shown { opacity: 1; }
 #provincePicker .ppTerrainLayer.leaving { opacity: 0; transition-duration: 0.4s; }
 #provincePicker .ppTerrainOutline { fill: none; stroke: #f6d77a; stroke-width: 2; vector-effect: non-scaling-stroke;

@@ -21,6 +21,16 @@ function browserStorage(): Storage | null {
 
 export const audio = new AudioEngine({ storage: typeof window === "undefined" ? null : browserStorage() });
 
+// A speaker drawn in SVG (emoji speakers are missing from some fonts), with sound waves or a cross when muted
+export function soundIcon(muted: boolean): string {
+  const waves = muted
+    ? '<path d="M16 9l5 6M21 9l-5 6"/>'
+    : '<path d="M16 9.5a4 4 0 0 1 0 5"/><path d="M18.5 7a7.5 7.5 0 0 1 0 10"/>';
+  return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>' +
+    waves + '</svg>';
+}
+
 // A sound from each channel, so moving its slider lets the player hear the new level
 const CHANNEL_PREVIEW: Partial<Record<Channel, string>> = { effects: "tool.zone", ui: "ui.click" };
 
@@ -32,7 +42,7 @@ function bindSoundControls(doc: Document): void {
   const render = (): void => {
     const { settings } = audio;
     if (toggle) {
-      toggle.textContent = settings.muted ? "🔇" : "🔊";
+      toggle.innerHTML = soundIcon(settings.muted);
       toggle.title = t(settings.muted ? "sound.toggle_on" : "sound.toggle_off");
       toggle.setAttribute("aria-label", toggle.title);
       toggle.setAttribute("aria-pressed", String(settings.muted));

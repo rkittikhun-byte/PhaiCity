@@ -11,7 +11,7 @@
 //      game difficulty and a start button.
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
-import { audio } from "./audio/index";
+import { audio, soundIcon } from "./audio/index";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
 import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
@@ -80,7 +80,7 @@ interface Tile {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const OVERLAY_ID = "provincePicker";
 const TERRAIN_PIXELS_PER_TILE = 3;
-const TERRAIN_MARGIN = 0.45;
+const TERRAIN_MARGIN = 0.16;
 const FLY_MS = 1400;
 const HERO_LEAVE_MS = 350;
 const MIN_SCENE_MS = 4200;
@@ -349,7 +349,7 @@ function destroyShell(): void {
 
 function renderSound(target: View | null = view): void {
   if (!target) return;
-  target.sound.textContent = audio.settings.muted ? "🔇" : "🔊";
+  target.sound.innerHTML = soundIcon(audio.settings.muted);
   target.sound.title = t(audio.settings.muted ? "sound.toggle_on" : "sound.toggle_off");
 }
 
@@ -948,6 +948,7 @@ function provinceBox(provinceId: string): ViewBox {
 
 function leaveTerrain(): void {
   terrainToken++;
+  view?.svg?.classList.remove("terrain");
   const layer = view?.svg?.querySelector(".ppTerrainLayer");
   if (!layer) return;
   layer.classList.add("leaving");
@@ -990,6 +991,7 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
   window.setTimeout(() => {
     if (token !== terrainToken || !cardOpen()) return;
     layer.classList.add("shown");
+    svg.classList.add("terrain");
     flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [x, y, x + width, y + height] }], TERRAIN_MARGIN));
   }, FLY_MS * 0.85);
 }
