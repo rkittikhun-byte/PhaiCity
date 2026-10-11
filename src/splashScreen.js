@@ -15,6 +15,7 @@ import $ from "jquery";
 
 import { Config } from './config.js';
 import { Game } from './game.js';
+import { decodePresetCells } from './geo/presetMap.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { Simulation } from './simulation.js';
 import { SplashCanvas } from './splashCanvas.js';
@@ -29,6 +30,48 @@ import { Storage } from './storage.js';
  */
 
 var onresize = null;
+
+var PROVINCE_ID = /^TH-\d{2}$/;
+var MAX_CITY_NAME_LENGTH = 15;
+
+
+// index.html?province=TH-50 starts from that province's real-geography preset map
+var getRequestedProvince = function() {
+  var id = new URLSearchParams(window.location.search).get('province');
+  return id !== null && PROVINCE_ID.test(id) ? id : null;
+};
+
+
+var fetchJson = function(url) {
+  return fetch(url).then(function(response) {
+    if (!response.ok)
+      throw new Error(url + ' returned ' + response.status);
+    return response.json();
+  });
+};
+
+
+// Replaces the generated map with the province preset once it has loaded. Until then, or if loading
+// fails, the randomly generated map stays in place.
+var loadProvince = function(provinceId) {
+  var self = this;
+
+  Promise.all([
+    fetchJson('data/maps/' + provinceId + '.json'),
+    fetchJson('data/thailand-provinces.json')
+  ]).then(function(results) {
+    var preset = results[0];
+    var province = results[1].provinces.find(function(p) { return p.id === provinceId; });
+    var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset));
+
+    map.provinceId = provinceId;
+    self.map = map;
+    self.provinceName = province ? province.nameTh : null;
+    self.splashCanvas.paint(map);
+  }).catch(function(error) {
+    console.warn('Could not load province ' + provinceId + ': ' + error.message);
+  });
+};
 
 
 // If the window is initially too small, try and relaunch if it gets bigger
@@ -68,6 +111,11 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   this.splashCanvas = new SplashCanvas('splashContainer', tileSet);
   this.splashCanvas.paint(this.map);
 
+  this.provinceName = null;
+  var provinceId = getRequestedProvince();
+  if (provinceId !== null)
+    loadProvince.call(this, provinceId);
+
   // Let's get some bits on screen!
   $('.awaitGeneration').toggle();
   $('#splashPlay').focus();
@@ -79,6 +127,7 @@ var regenerateMap = function(e) {
   e.preventDefault();
 
   this.map = MapGenerator();
+  this.provinceName = null;
   this.splashCanvas.paint(this.map);
 };
 
@@ -124,6 +173,10 @@ var acquireNameAndDifficulty = function(e) {
 
   // When the form is submitted, we'll be ready to launch the game
   $('#playForm').submit(play.bind(this));
+
+  // A province city is named after its province unless the player changes it
+  if (this.provinceName)
+    $('#nameForm').val(this.provinceName.slice(0, MAX_CITY_NAME_LENGTH));
 
   // Display the name and difficulty form
   $('#start').toggle();

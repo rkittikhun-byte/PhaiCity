@@ -51,9 +51,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
     this.gameMap = gameMap;
     savedGame = null;
   } else {
-    this.gameMap = new GameMap(120, 100);
+    // Province maps are larger than the classic 120x100, so size the map from the save itself
+    this.gameMap = new GameMap(gameMap.width || 120, gameMap.height || 100);
     savedGame = gameMap;
   }
+
+  // Which province and online world this city belongs to (both null for offline random maps)
+  var source = savedGame || gameMap;
+  this.provinceId = source.provinceId || null;
+  this.worldId = source.worldId || null;
 
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
@@ -248,7 +254,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 
 
 Game.prototype.save = function() {
-  var saveData = {name: this.name, everClicked: this.everClicked};
+  var saveData = {name: this.name, everClicked: this.everClicked,
+                  provinceId: this.provinceId, worldId: this.worldId};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 

@@ -78,23 +78,30 @@ function SplashCanvas(parentID, tileSet, id) {
 }
 
 
-// Paint an individual tile at the given map coordinates, with the tile scaled down to 3x3
-SplashCanvas.prototype._paintTile = function(tileVal, x, y, ctx) {
+// Paint an individual tile at the given map coordinates, scaled down to size x size pixels
+SplashCanvas.prototype._paintTile = function(tileVal, x, y, size, ctx) {
   var src = this._tileSet[tileVal];
-  ctx.drawImage(src, x * 3, y * 3, 3, 3);
+  ctx.drawImage(src, x * size, y * size, size, size);
 };
 
 
-// Loop through the given map, painting each tile scaled down
+// Loop through the given map, painting each tile scaled down. Classic 120x100 maps use 3 pixels per
+// tile; larger province maps shrink to fit the canvas and are centred.
 SplashCanvas.prototype.paint = function(map) {
   var ctx = this._canvas.getContext('2d');
   ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 
+  var size = Math.min(3, this._canvas.width / map.width, this._canvas.height / map.height);
+  ctx.save();
+  ctx.translate((this._canvas.width - map.width * size) / 2, (this._canvas.height - map.height * size) / 2);
+
   for (var y = 0; y < map.height; y++) {
     for (var x = 0; x < map.width; x++) {
-      this._paintTile(map.getTileValue(x, y), x, y, ctx);
+      this._paintTile(map.getTileValue(x, y), x, y, size, ctx);
     }
   }
+
+  ctx.restore();
 };
 
 

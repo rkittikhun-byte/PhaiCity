@@ -508,4 +508,41 @@ var smoothWater = function(map) {
 };
 
 
+// Builds a map from a real-geography province preset (docs/geo/GEO_SPEC.md section 10).
+// cells holds one code per tile, row-major: 0 land, 1 water, 2 woods. Water and woods go through the
+// same edge smoothing as generated maps, so shores and forest edges use the usual edge tiles.
+// Water touching the map border stays open water rather than becoming a shore.
+var PRESET_WATER = 1;
+var PRESET_WOODS = 2;
+
+var fromPresetCells = function(width, height, cells) {
+  if (cells.length !== width * height)
+    throw new Error('Preset has ' + cells.length + ' cells, expected ' + (width * height));
+
+  var map = new GameMap(width, height);
+  var isWater = function(x, y) {
+    return x < 0 || y < 0 || x >= width || y >= height || cells[x + y * width] === PRESET_WATER;
+  };
+
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      var code = cells[x + y * width];
+      if (code === PRESET_WATER) {
+        var open = isWater(x - 1, y) && isWater(x + 1, y) && isWater(x, y - 1) && isWater(x, y + 1);
+        map.setTile(x, y, open ? RIVER : REDGE, 0);
+      } else if (code === PRESET_WOODS) {
+        map.setTile(x, y, WOODS, BLBNBIT);
+      }
+    }
+  }
+
+  smoothRiver(map);
+  smoothTrees(map);
+  smoothTrees(map);
+  return map;
+};
+
+MapGenerator.fromPresetCells = fromPresetCells;
+
+
 export { MapGenerator };

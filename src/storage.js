@@ -53,6 +53,12 @@ var transitionOldSave = function(savedGame) {
       savedGame.cityCentreX = Math.floor(savedGame.width / 2);
       savedGame.cityCentreY = Math.floor(savedGame.height / 2);
 
+      /* falls through */
+    case 3:
+      // Version 4 records the province and online world of a city; older saves were offline random maps
+      savedGame.provinceId = null;
+      savedGame.worldId = null;
+
       break;
 
     default:
@@ -68,7 +74,7 @@ var Storage = {
 };
 
 
-Object.defineProperty(Storage, 'CURRENT_VERSION', MiscUtils.makeConstantDescriptor(3));
+Object.defineProperty(Storage, 'CURRENT_VERSION', MiscUtils.makeConstantDescriptor(4));
 Object.defineProperty(Storage, 'KEY', MiscUtils.makeConstantDescriptor('micropolisJSGame'));
 Object.defineProperty(Storage, 'canStore', MiscUtils.makeConstantDescriptor(window.localStorage !== undefined));
 

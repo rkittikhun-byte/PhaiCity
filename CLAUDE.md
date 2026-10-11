@@ -95,7 +95,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - **The UI is bilingual: Thai (default) and English, with a language switch.**
     Every UI string needs both languages; a planned `src/i18n/` will replace the single-language `src/text.js`.
     In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
-- **Saves:** localStorage key `micropolisJSGame` (`src/storage.js`).
+- **Saves:** localStorage key `micropolisJSGame` (`src/storage.js`), version 4.
+  Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
+- **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
+  through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
 - **Code style:**
   - ES modules with explicit file extensions in imports (`./foo.js`, `./bar.ts`).
   - The old JS uses `var` and prototypes; follow each file's existing style when editing it.
