@@ -18,14 +18,14 @@ import { decodePresetCells } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
-import { hasSeenIntro, openStartScreen } from './provincePicker.ts';
+import { openStartScreen } from './provincePicker.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
 
 /*
  *
  * The SplashScreen launches the game once the tiles and sprites have loaded. PhaiCity starts on the dark,
- * full-screen map of Thailand (src/provincePicker.ts): the story on first launch, then a region and a
+ * full-screen map of Thailand (src/provincePicker.ts): the story each time the game opens, then a region and a
  * province. From there the player starts a province city, continues the saved city, or practises on a
  * random map.
  *
@@ -85,7 +85,8 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
     practice: function() {
       launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'));
     }.bind(this)
-  }, {intro: requested === null && !hasSeenIntro(), provinceId: requested});
+  // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026)
+  }, {intro: requested === null, provinceId: requested});
 }
 
 

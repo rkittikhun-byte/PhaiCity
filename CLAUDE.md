@@ -121,7 +121,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   The game opens on a dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in
-  `src/geo/nationalMap.ts`; there is no other start page): a story that plays by itself on first launch
+  `src/geo/nationalMap.ts`; there is no other start page): a story that plays by itself each time the game opens (skippable)
   (the Golden Peninsula in gold, then each region), then the player clicks a region, the camera flies in, and
   a province card (treasury, terrain, resources, city name, game difficulty) starts the city. The card's
   numbers come from `src/geo/provinceProfile.ts` (less open land means more starting money). Small buttons

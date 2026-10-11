@@ -5,7 +5,7 @@
 // The start of the game (docs/ONLINE_PLAN.md phase 1), styled like a game console's home screen:
 // a swaying bamboo grove behind a glowing map of Thailand built from real province shapes, big text on
 // the left, and a row of large tiles at the bottom that the mouse or the arrow keys move through.
-//   1. intro: a story about Thailand and its six regions that plays by itself (first launch, replayable)
+//   1. intro: a story about Thailand and its six regions that plays by itself each time the game opens
 //   2. region: one tile per region; the camera flies to the focused region
 //   3. province: one tile per province of that region; choosing one slides in a card with the city name,
 //      game difficulty and a start button.
@@ -79,7 +79,6 @@ interface Tile {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const OVERLAY_ID = "provincePicker";
-const INTRO_SEEN_KEY = "phaicity.introSeen";
 const TERRAIN_PIXELS_PER_TILE = 3;
 const TERRAIN_MARGIN = 0.45;
 const FLY_MS = 1400;
@@ -152,21 +151,6 @@ let drag: { x: number; y: number; box: ViewBox; moved: boolean } | null = null;
 let suppressClick = false;
 const presets = new Map<string, Promise<PresetMap>>();
 
-export function hasSeenIntro(): boolean {
-  try {
-    return window.localStorage.getItem(INTRO_SEEN_KEY) === "1";
-  } catch {
-    return true; // Without storage the story would replay on every visit; show it on request only
-  }
-}
-
-function markIntroSeen(): void {
-  try {
-    window.localStorage.setItem(INTRO_SEEN_KEY, "1");
-  } catch {
-    // Nothing to remember it in
-  }
-}
 
 const localName = (item: { nameTh: string; nameEn: string }): string =>
   getLanguage() === "en" ? item.nameEn : item.nameTh;
@@ -769,7 +753,6 @@ const traits = (regionId: string): string =>
 function playIntro(from = 0): void {
   if (!view) return;
   mode = "intro";
-  markIntroSeen();
   closeCard();
   setChrome({ skip: true, dots: true });
   const list = scenes();
