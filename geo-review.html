@@ -1,0 +1,71 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity — ตรวจแผนที่จังหวัด</title>
+    <style>
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+      :root { --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57; --flag: #b3261e;
+              --land: #c8794a; --water: #3f7fb8; --woods: #3f8a46; }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 Sarabun, system-ui, sans-serif; }
+      header, main { max-width: 1440px; margin: auto; padding: 24px 32px; }
+      header { border-bottom: 1px solid var(--line); }
+      .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: 4px 0; font-size: clamp(24px, 3vw, 34px); font-weight: 600; }
+      h2 { font-size: 21px; margin: 28px 0 10px; }
+      p { margin: 4px 0; color: var(--muted); }
+      a { color: var(--accent); }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 14px; }
+      .legend { display: flex; gap: 14px; align-items: center; color: var(--muted); font-size: 13px; }
+      .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(256px, 1fr)); gap: 14px; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px; cursor: pointer; }
+      .card:hover { border-color: var(--accent); }
+      .card canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; border-radius: 4px; }
+      .card h3 { margin: 6px 0 0; font-size: 16px; }
+      .meta { font-size: 12px; color: var(--muted); }
+      .flags { color: var(--flag); font-size: 12px; font-weight: 700; }
+      .missing { padding: 40px 0; text-align: center; color: var(--muted); }
+      dialog { border: 1px solid var(--line); border-radius: 10px; padding: 16px; max-width: min(96vw, 680px); }
+      dialog canvas { width: 100%; height: auto; image-rendering: pixelated; }
+      dialog pre { background: #eef1e8; padding: 8px; border-radius: 6px; font-size: 12px; overflow-x: auto; }
+      dialog button { font: inherit; padding: 4px 14px; }
+      footer { max-width: 1440px; margin: auto; padding: 16px 32px 32px; color: var(--muted); font-size: 12px; }
+      @media (max-width: 600px) { header, main, footer { padding-left: 16px; padding-right: 16px; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">PhaiCity / Geo G2</div>
+      <h1>ตรวจแผนที่ตั้งต้น 77 จังหวัด</h1>
+      <p id="summary">กำลังโหลด…</p>
+      <div class="toolbar">
+        <label><input type="checkbox" id="flaggedOnly"> แสดงเฉพาะจังหวัดที่มี flag</label>
+        <span class="legend">
+          <span><span class="swatch" style="background: var(--land)"></span>ที่ดิน</span>
+          <span><span class="swatch" style="background: var(--water)"></span>น้ำ</span>
+          <span><span class="swatch" style="background: var(--woods)"></span>ป่า/สวน</span>
+          <span><span class="swatch" style="background: #fff; border: 1px solid #999"></span>จุดกลางเมือง</span>
+        </span>
+      </div>
+      <p>คลิกแผนที่เพื่อขยาย ถ้าจุดกลางไม่ตรง ให้คัดลอกพิกัดไปใส่ใน <code>data/geo/center-overrides.json</code> แล้วรัน <code>npm run geo:maps -- --only TH-xx</code></p>
+    </header>
+    <main id="regions"></main>
+    <dialog id="detail">
+      <h2 id="detailTitle"></h2>
+      <canvas id="detailCanvas"></canvas>
+      <p id="detailMeta"></p>
+      <p>ตัวอย่างสำหรับ <code>data/geo/center-overrides.json</code>:</p>
+      <pre id="detailOverride"></pre>
+      <p><a id="detailOsm" target="_blank" rel="noopener">เปิดตำแหน่งนี้ใน OpenStreetMap</a></p>
+      <form method="dialog"><button>ปิด</button></form>
+    </dialog>
+    <footer>ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL) · รูปร่างจังหวัด: Natural Earth · แผนที่ประกอบเกม ไม่ใช่แผนที่ทางการ</footer>
+  </body>
+</html>

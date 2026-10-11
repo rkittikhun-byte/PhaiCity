@@ -37,9 +37,21 @@ function copyStaticAssets() {
       recursivelyCopy('images'),
       recursivelyCopy('sprites'),
       recursivelyCopy('assets'),
+      // Province data and preset maps, fetched at runtime; raw downloads stay out of the build.
+      {from: 'data', to: 'data', toType: 'dir', globOptions: {ignore: ['**/cache/**']}},
       'LICENSE',
       'COPYING',
     ]
+  });
+}
+
+function injectGeoReviewBundle() {
+  return new HtmlWebpackPlugin({
+    template: './geo-review.html',
+    filename: 'geo-review.html',
+    chunks: ['geo-review'],
+    inject: true,
+    hash: true,
   });
 }
 
@@ -123,6 +135,7 @@ function commonOptions() {
     entry: {
       micropolis: './src/micropolis.js',
       'model-gallery': './src/render3d/gallery/gallery.ts',
+      'geo-review': './src/geoReview/geoReview.ts',
     },
     resolve: {
       extensions: ADD_TS_EXTENSIONS_TO_WEPACK,
@@ -147,6 +160,7 @@ function commonOptions() {
       copyStaticAssets(),
       injectBundleIntoHTML(buildId),
       injectGalleryBundle(),
+      injectGeoReviewBundle(),
       injectBuildIdIntoAbout(buildId),
       injectBuildIdIntoNameLicense(buildId),
     ],
