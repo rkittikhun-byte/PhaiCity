@@ -5,6 +5,11 @@
 > - **ราคาในเกม [รอตัดสินใจ]:** ร่างนี้แปลง $ เป็น ฿ โดยใช้ตัวเลขเดิม ถนนจึงราคา ฿10 ซึ่งไม่สมจริง
 >   ทางเลือกคือคูณตัวเลขที่แสดงบนจอ เช่น ×1,000 โดยไม่แก้ระบบจำลอง หรือปล่อยไว้แบบเกม
 > - ข้อความเครื่องหมายการค้า Micropolis คงภาษาอังกฤษตามเดิม (CLAUDE.md กฎ license ข้อ 7)
+>
+> **ใช้งานจริงแล้ว:** ตารางนี้คือต้นฉบับของ `src/i18n/strings.ts` แก้คำแปลที่นี่ แล้วรัน `npm run i18n:import`
+> - ตัวแปรเขียนเป็น `{name}` (ตัวอังกฤษ) และต้องมีชุดเดียวกันทั้งสองภาษา `test/i18n.ts` ตรวจให้
+> - ไม่ได้ใช้: `footer.appeal` (เอาออกจากหน้าเว็บเพื่อให้เครดิตที่จำเป็นพอดีฟุตเตอร์) และ `footer.license` (คงภาษาอังกฤษ)
+> - ยังไม่ได้แปล: หน้า `about.html` ข้อความ `alt` ของรูปที่ซ่อนไว้ และรายการ debug ในหน้าต่าง Query
 
 เอกสารนี้รวบรวมข้อความทั้งหมดที่ผู้เล่นสามารถมองเห็นได้ในเกม (Player-Visible Strings) จาก:
 - `index.html`
@@ -66,10 +71,9 @@
 | Key | File | Current English | New English | Thai | Notes |
 |---|---|---|---|---|---|
 | `infobar.name.default` | `index.html` | `Your Name Here` | `City Name` | `ชื่อเมืองของคุณ` | ค่าเริ่มต้นก่อนตั้งชื่อ |
-| `infobar.date` | `src/infoBar.js` | `{Month} {Year}` (e.g. `Jan 1900`) | `{Month} {Year}` | `{เดือน} {ปี พ.ศ.}` | แปลงปีเป็น พ.ศ. (+543) |
+| `infobar.date` | `src/infoBar.js` | `{Month} {Year}` (e.g. `Jan 1900`) | `{month} {year}` | `{month} {year}` | {month} มาจาก `month.*`, {year} ผ่าน formatYear (พ.ศ. ในภาษาไทย) |
 | `infobar.funds` | `index.html` | `Funds ${funds}` | `Treasury ฿{funds}` | `คลังเมือง: ฿{funds}` | สกุลเงินบาท |
 | `infobar.score` | `index.html` | `Score: {score}` | `Score: {score}` | `คะแนนเมือง: {score}` | คะแนนประเมินผล |
-| `infobar.cclass` | `src/infoBar.js` | `{Class}` (e.g. `VILLAGE`) | `{Class}` | `{ระดับเมือง}` | แสดงระดับเมือง |
 | `infobar.population` | `index.html` | `Population:<br /> {pop}` | `Population:<br /> {pop}` | `ประชากร:<br /> {pop}` | จำนวนราษฎร |
 
 ---
@@ -84,7 +88,8 @@
 | `menu.save` | `index.html` | `Save` | `Save City` | `บันทึกเมือง` | กว้าง 140px |
 | `menu.settings` | `index.html` | `Settings` | `Settings` | `ตั้งค่า` | กว้าง 140px |
 | `menu.screenshot` | `index.html` | `Take Picture` | `Snapshot` | `ถ่ายภาพเมือง` | กว้าง 140px |
-| `menu.pause` | `index.html` | `Pause` | `Pause / Run` | `หยุด / เดินเวลา` | สลับสถานะหยุดเวลา |
+| `menu.pause` | `index.html` | `Pause` | `Pause` | `หยุดเวลา` | ปุ่มสลับกับ `menu.play` |
+| `menu.play` | `src/inputStatus.js` | `Play` | `Resume` | `เดินเวลาต่อ` | ปุ่มสลับกับ `menu.pause` |
 
 ---
 
@@ -304,7 +309,8 @@
 | `screenshot.btn.cancel` | `index.html` | `Cancel` | `Cancel` | `ยกเลิก` | ปุ่มยกเลิก |
 | `screenshot.btn.ok` | `index.html` | `OK` | `Capture` | `ถ่ายภาพ` | ปุ่มยืนยัน |
 | `screenshot.link.title` | `index.html` | `Take Picture` | `Picture Ready` | `ภาพถ่ายเมืองของคุณ` | หัวหน้าต่างผลลัพธ์ |
-| `screenshot.link.message` | `index.html` | `Click <a id="screenshotLink" target="_blank">here</a> to view your picture (right-click to save)` | `Click <a id="screenshotLink" target="_blank">here</a> to view your snapshot (right-click to save)` | `คลิก <a id="screenshotLink" target="_blank">ที่นี่</a> เพื่อเปิดดูภาพถ่ายเมือง (คลิกขวาเพื่อบันทึกรูปภาพ)` | ลิงก์รูป |
+| `screenshot.link.message` | `index.html` | `Click <a id="screenshotLink" target="_blank">here</a> to view your picture (right-click to save)` | `Click {link} to view your snapshot (right-click to save)` | `คลิก {link} เพื่อเปิดดูภาพถ่ายเมือง (คลิกขวาเพื่อบันทึกรูปภาพ)` | {link} คือลิงก์ `screenshot.link.here` |
+| `screenshot.link.here` | `index.html` | `here` | `here` | `ที่นี่` | ข้อความลิงก์ใน `screenshot.link.message` |
 | `screenshot.link.btn.ok` | `index.html` | `OK` | `OK` | `ตกลง` | ปุ่มปิด |
 | `congrats.title` | `index.html` | `Congratulations!` | `Congratulations!` | `ขอแสดงความยินดีด้วย!` | หัวหน้าต่างเลื่อนขั้น |
 | `congrats.message_prefix` | `src/game.js` | `{name} is now a ` | `{name} has grown into a ` | `{name} ได้รับการยกฐานะขึ้นเป็น` | ตัวเชื่อมข้อความ |
@@ -418,10 +424,11 @@
 | `touch.p3` | `index.html` | `However, if you're wanting to give it a shot, I won't stop you!` | `Feel free to explore and build, but desktop play is recommended!` | `อย่างไรก็ตาม หากคุณต้องการทดลองสร้างเมืองต่อ ก็สามารถเล่นได้ทันที!` | ย่อหน้าที่ 3 |
 | `touch.btn.ok` | `index.html` | `OK` | `Understood` | `รับทราบและเริ่มเล่น` | ปุ่มปิด |
 | `footer.appeal` | `index.html` | `Enjoyed micropolisJS? <a href="https://www.refuweegee.co.uk/your-donations">Click here to donate to a charity whose work I love!</a>` | `Enjoyed PhaiCity? Build, share, and rule your city!` | `เพลิดเพลินกับการสร้างเมือง PhaiCity? ร่วมพัฒนาและแลกเปลี่ยนกับเพื่อนเจ้าเมือง!` | ลบการขอรับบริจาคเดิมออก |
-| `footer.author` | `index.html` | `Brought to you by <a rel="author" href="http://www.graememcc.co.uk" target="_blank">Graeme McCutcheon</a>...` | `Developed for PhaiCity. Open-source under GPL v3.` | `พัฒนาสำหรับ PhaiCity ร่วมพัฒนาภายใต้สัญญาอนุญาต GPL v3` | เครดิตผู้พัฒนา |
-| `footer.build` | `index.html` | `Build: <%= htmlWebpackPlugin.options.gitHash %>` | `Build: <%= htmlWebpackPlugin.options.gitHash %>` | `เวอร์ชัน: <%= htmlWebpackPlugin.options.gitHash %>` | เลขบิลด์ |
+| `footer.author` | `index.html` | `Brought to you by <a rel="author" href="http://www.graememcc.co.uk" target="_blank">Graeme McCutcheon</a>...` | `Modified from micropolisJS by {author} and {contributors}, adapted from Micropolis. See LICENSE and COPYING.` | `ดัดแปลงจาก micropolisJS โดย {author} และ{contributors} ซึ่งพัฒนาต่อจาก Micropolis ดูรายละเอียดใน LICENSE และ COPYING` | **แก้โดย Claude Code:** ร่างเดิมลบชื่อผู้สร้างเดิมออก ซึ่งผิดเงื่อนไข LICENSE ("modified versions must be marked as such") ต้องคงเครดิตนี้ไว้ {author} = ลิงก์ชื่อ Graeme McCutcheon, {contributors} = ลิงก์ `footer.contributors` |
+| `footer.contributors` | `index.html` | `contributors` | `contributors` | `ผู้ร่วมพัฒนา` | ลิงก์รายชื่อผู้ร่วมพัฒนา micropolisJS |
+| `footer.build` | `index.html` | `Build: <%= htmlWebpackPlugin.options.gitHash %>` | `Build: {hash}` | `เวอร์ชัน: {hash}` | {hash} ใส่โดย webpack ตอน build |
 | `footer.license` | `index.html` | `Micropolis is a registered trademark of <a href="https://www.micropolis.com">Micropolis Corporation (Micropolis GmbH)</a> and is licensed here as a courtesy of the owner under the <a href="name_license.html">Micropolis Public Name License</a>.` | *(Unchanged English Trademark Line)* | *(คงภาษาอังกฤษไว้ตามเดิมตามกฎหมาย)* | **ห้ามแก้/ห้ามแปลตามข้อกำหนด** |
-| `nag.title` | `index.html` | `micropolisJS` | `PhaiCity Playing Milestone` | `เตือนเวลาการเล่น PhaiCity` | ป๊อปอัปเตือนเวลา 30 นาที |
+| `nag.title` | `index.html` | `micropolisJS` | `PhaiCity` | `PhaiCity` | ชื่อเกม เหมือนต้นฉบับ |
 | `nag.message` | `index.html` | `Whoa! You've been playing this thing for half an hour?!? This is the point I used to solicit donations...` | `You have been ruling your city for over 30 minutes! Take a short stretch, check your treasury, and plan your next expansion.` | `คุณบริหารและพัฒนาเมืองต่อเนื่องมาครบ 30 นาทีแล้ว! พักสายตาและผ่อนคลายสักครู่ แล้วกลับมาวางผังเมืองกันต่อ` | ดัดแปลงเป็นคำเตือนสุขภาพและให้กำลังใจ |
 | `nag.btn.ok` | `index.html` | `OK` | `Continue Building` | `บริหารเมืองต่อ` | ปุ่มปิด |
 
@@ -469,6 +476,31 @@
 | `about.settings.speed` | `about.html` | `Speed: Time flies when you max out the game speed` | `Speed: Adjust simulation pace between slow, medium, and fast.` | `ความเร็วเวลา: เลือกระดับความเร็วในการจำลองเมือง ทั้งระดับช้า ปานกลาง หรือเร็ว` | คำอธิบายตัวเลือก |
 
 ---
+
+## 15A. หน้าเลือกจังหวัดและปุ่มภาษา (Province Picker & Language)
+
+เพิ่มโดย Claude Code ตอนทำ G4 และระบบสองภาษา
+
+| Key | File | Current English | New English | Thai | Notes |
+|---|---|---|---|---|---|
+| `picker.button` | `src/provincePicker.ts` | `-` | `Choose a province` | `เลือกจังหวัด` | ปุ่มในหน้าแรก |
+| `picker.title` | `src/provincePicker.ts` | `-` | `Choose the province you will rule` | `เลือกจังหวัดที่จะเป็นเจ้าเมือง` | หัวหน้าเลือกจังหวัด |
+| `picker.hint` | `src/provincePicker.ts` | `-` | `Point at a province to see its name, then click to choose` | `ชี้ที่จังหวัดเพื่อดูชื่อ แล้วคลิกเพื่อเลือก` | |
+| `picker.loading` | `src/provincePicker.ts` | `-` | `Loading the map…` | `กำลังโหลดแผนที่…` | |
+| `picker.load_failed` | `src/provincePicker.ts` | `-` | `Could not load the map` | `โหลดแผนที่ไม่ได้` | |
+| `picker.neighbors` | `src/provincePicker.ts` | `-` | `Neighbouring provinces` | `จังหวัดเพื่อนบ้าน` | |
+| `picker.preview` | `src/provincePicker.ts` | `-` | `Starting map, 2 × 2 km` | `แผนที่ตั้งต้น 2 × 2 กม.` | |
+| `picker.no_preview` | `src/provincePicker.ts` | `-` | `No starting map for this province yet` | `ยังไม่มีแผนที่ตั้งต้นของจังหวัดนี้` | |
+| `picker.land` | `src/provincePicker.ts` | `-` | `Land` | `ที่ดิน` | |
+| `picker.water` | `src/provincePicker.ts` | `-` | `Water` | `น้ำ` | |
+| `picker.woods` | `src/provincePicker.ts` | `-` | `Woods` | `ป่า` | |
+| `picker.start` | `src/provincePicker.ts` | `-` | `Become its ruler` | `เริ่มเป็นเจ้าเมือง` | |
+| `picker.close` | `src/provincePicker.ts` | `-` | `Close` | `ปิด` | |
+| `picker.note` | `src/provincePicker.ts` | `-` | `Illustrative game map, not an official map` | `แผนที่ประกอบเกม ไม่ใช่แผนที่ทางการ` | GEO_SPEC ข้อ 11 |
+| `picker.credits` | `src/provincePicker.ts` | `-` | `© OpenStreetMap contributors · Natural Earth` | `© OpenStreetMap contributors · Natural Earth` | เครดิตตามกฎหมาย ใช้ข้อความเดียวกันทั้งสองภาษา |
+| `lang.switch_to` | `index.html` | `-` | `ภาษาไทย` | `English` | ปุ่มสลับภาษา แสดงชื่อภาษาที่จะสลับไป |
+| `lang.switch_title` | `index.html` | `-` | `Switch language` | `เปลี่ยนภาษา` | tooltip ของปุ่มสลับภาษา |
+| `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

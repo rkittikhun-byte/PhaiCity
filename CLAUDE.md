@@ -53,6 +53,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
+| `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 
 **Test status:**
 - Jest runs using the CommonJS `jest.config.cjs` in this ES module project.
@@ -91,10 +92,21 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.
 - **UI:**
   - Windows live in `index.html` and use jQuery.
-  - In-game text lives in `src/text.js` and `src/messages.ts`. Never hardcode UI text elsewhere.
-  - **The UI is bilingual: Thai (default) and English, with a language switch.**
-    Every UI string needs both languages; a planned `src/i18n/` will replace the single-language `src/text.js`.
-    In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
+  - **The UI is bilingual: Thai (default) and English**, switched by the header button and remembered in
+    localStorage (`phaicity.language`). Never hardcode UI text: every string is a key in `src/i18n/`.
+    - Translations are edited in `docs/i18n/UI_STRINGS.md` (the source of truth), then `npm run i18n:import`
+      regenerates `src/i18n/strings.ts`. Never edit `strings.ts` by hand.
+    - Code calls `t(key, params)`; `{name}` placeholders are filled from params. `formatYear` shows Buddhist-era
+      years in Thai, `formatMoney` shows baht.
+    - `index.html` uses `data-i18n` (text), `data-i18n-value` / `-title` / `-placeholder` (attributes) and
+      `data-i18n-template` with `data-i18n-slot` children for mixed text. Never put `data-i18n` on an element
+      the game writes into (city name, date, funds and so on).
+    - `src/text.js` keeps its old API, but its properties are getters that return the current language.
+      Code that shows words must translate when it displays them (and redraw on `onLanguageChange`),
+      never compare against displayed text.
+    - The Micropolis trademark line stays in English. The micropolisJS credit and the OpenStreetMap credit
+      must stay visible in both languages (`test/i18n.ts` checks this).
+    - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
 - **Saves:** localStorage key `micropolisJSGame` (`src/storage.js`), version 4.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`

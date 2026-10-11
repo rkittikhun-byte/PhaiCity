@@ -25,7 +25,8 @@
     "geo:edges": "node scripts/geo/edges.mjs",
     "geo:maps": "node scripts/geo/maps.mjs",
     "geo:review": "webpack serve --mode development --open /geo-review.html",
-    "test:geo": "node --test \"test/geo/*.test.mjs\""
+    "test:geo": "node --test \"test/geo/*.test.mjs\"",
+    "i18n:import": "node scripts/i18n/import-ui-strings.mjs"
   },
   "devDependencies": {
     "@types/jest": "30.0.0",

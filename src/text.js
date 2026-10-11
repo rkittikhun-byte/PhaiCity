@@ -14,53 +14,55 @@
 import { Evaluation } from './evaluation.js';
 import * as Messages from './messages.ts';
 import { Simulation } from './simulation.js';
+import { t } from './i18n/index.ts';
 
-// TODO Some kind of rudimentary L20N based on navigator.language?
+// Every player-visible string is an i18n key (src/i18n, translations in docs/i18n/UI_STRINGS.md).
+// The Text properties below are getters, so they always return the current language.
 
 // Query tool strings
-var densityStrings = ['Low', 'Medium', 'High', 'Very High'];
-var landValueStrings = ['Slum', 'Lower Class', 'Middle Class', 'High'];
-var crimeStrings = ['Safe', 'Light', 'Moderate', 'Dangerous'];
-var pollutionStrings = ['None', 'Moderate', 'Heavy', 'Very Heavy'];
-var rateStrings = ['Declining', 'Stable', 'Slow Growth', 'Fast Growth'];
-var zoneTypes = ['Clear', 'Water', 'Trees', 'Rubble', 'Flood', 'Radioactive Waste',
-                 'Fire', 'Road', 'Power', 'Rail', 'Residential', 'Commercial',
-                 'Industrial', 'Seaport', 'Airport', 'Coal Power', 'Fire Department',
-                 'Police Department', 'Stadium', 'Nuclear Power', 'Draw Bridge',
-                 'Radar Dish', 'Fountain', 'Industrial', 'Steelers 38  Bears 3',
-                 'Draw Bridge', 'Ur 238'];
+var densityKeys = ['density.low', 'density.med', 'density.high', 'density.vhigh'];
+var landValueKeys = ['landval.slum', 'landval.lclass', 'landval.mclass', 'landval.high'];
+var crimeKeys = ['crime.safe', 'crime.light', 'crime.mod', 'crime.danger'];
+var pollutionKeys = ['poll.none', 'poll.mod', 'poll.heavy', 'poll.vheavy'];
+var rateKeys = ['growth.declining', 'growth.stable', 'growth.slow', 'growth.fast'];
+var zoneTypeKeys = ['zone.clear', 'zone.water', 'zone.trees', 'zone.rubble', 'zone.flood', 'zone.radwaste',
+                    'zone.fire', 'zone.road', 'zone.power', 'zone.rail', 'zone.residential', 'zone.commercial',
+                    'zone.industrial', 'zone.seaport', 'zone.airport', 'zone.coal', 'zone.fire_dept',
+                    'zone.police_dept', 'zone.stadium', 'zone.nuclear', 'zone.drawbridge',
+                    'zone.radardish', 'zone.fountain', 'zone.industrial', 'zone.easter_egg',
+                    'zone.drawbridge', 'zone.ur238'];
 
 // Evaluation window
-var gameLevel = {};
-gameLevel['' + Simulation.LEVEL_EASY] = 'Easy';
-gameLevel['' + Simulation.LEVEL_MED] = 'Medium';
-gameLevel['' + Simulation.LEVEL_HARD] = 'Hard';
+var gameLevelKeys = {};
+gameLevelKeys['' + Simulation.LEVEL_EASY] = 'diff.easy';
+gameLevelKeys['' + Simulation.LEVEL_MED] = 'diff.med';
+gameLevelKeys['' + Simulation.LEVEL_HARD] = 'diff.hard';
 
-var cityClass = {};
-cityClass[Evaluation.CC_VILLAGE] = 'VILLAGE';
-cityClass[Evaluation.CC_TOWN] = 'TOWN';
-cityClass[Evaluation.CC_CITY] = 'CITY';
-cityClass[Evaluation.CC_CAPITAL] = 'CAPITAL';
-cityClass[Evaluation.CC_METROPOLIS] = 'METROPOLIS';
-cityClass[Evaluation.CC_MEGALOPOLIS] = 'MEGALOPOLIS';
+var cityClassKeys = {};
+cityClassKeys[Evaluation.CC_VILLAGE] = 'city.village';
+cityClassKeys[Evaluation.CC_TOWN] = 'city.town';
+cityClassKeys[Evaluation.CC_CITY] = 'city.city';
+cityClassKeys[Evaluation.CC_CAPITAL] = 'city.capital';
+cityClassKeys[Evaluation.CC_METROPOLIS] = 'city.metropolis';
+cityClassKeys[Evaluation.CC_MEGALOPOLIS] = 'city.megalopolis';
 
-var problems = {};
-problems[Evaluation.CRIME] = 'Crime';
-problems[Evaluation.POLLUTION] = 'Pollution';
-problems[Evaluation.HOUSING] = 'Housing';
-problems[Evaluation.TAXES] = 'Taxes';
-problems[Evaluation.TRAFFIC] = 'Traffic';
-problems[Evaluation.UNEMPLOYMENT] = 'Unemployment';
-problems[Evaluation.FIRE] = 'Fire';
+var problemKeys = {};
+problemKeys[Evaluation.CRIME] = 'prob.crime';
+problemKeys[Evaluation.POLLUTION] = 'prob.pollution';
+problemKeys[Evaluation.HOUSING] = 'prob.housing';
+problemKeys[Evaluation.TAXES] = 'prob.taxes';
+problemKeys[Evaluation.TRAFFIC] = 'prob.traffic';
+problemKeys[Evaluation.UNEMPLOYMENT] = 'prob.unemployment';
+problemKeys[Evaluation.FIRE] = 'prob.fire';
 
 // months
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var monthKeys = ['month.jan', 'month.feb', 'month.mar', 'month.apr', 'month.may', 'month.jun',
+                 'month.jul', 'month.aug', 'month.sep', 'month.oct', 'month.nov', 'month.dec'];
 
 // Tool strings
-var toolMessages = {
-  noMoney: 'Insufficient funds to build that',
-  needsDoze: 'Area must be bulldozed first'
+var toolMessageKeys = {
+  noMoney: 'tool.msg.no_money',
+  needsDoze: 'tool.msg.needs_doze'
 };
 
 // Message strings
@@ -109,102 +111,81 @@ goodMessages[Messages.REACHED_MEGALOPOLIS] = true;
 goodMessages[Messages.REACHED_METROPOLIS] = true;
 goodMessages[Messages.REACHED_TOWN] = true;
 
-var messageText = {};
-messageText[Messages.FIRE_STATION_NEEDS_FUNDING] = 'Fire departments need funding';
-messageText[Messages.NEED_AIRPORT] = 'Commerce requires an Airport';
-messageText[Messages.NEED_FIRE_STATION] = 'Citizens demand a Fire Department';
-messageText[Messages.NEED_ELECTRICITY] = 'Build a Power Plant';
-messageText[Messages.NEED_MORE_INDUSTRIAL] = 'More industrial zones needed';
-messageText[Messages.NEED_MORE_COMMERCIAL] = 'More commercial zones needed';
-messageText[Messages.NEED_MORE_RESIDENTIAL] = 'More residential zones needed';
-messageText[Messages.NEED_MORE_RAILS] = 'Inadequate rail system';
-messageText[Messages.NEED_MORE_ROADS] = 'More roads required';
-messageText[Messages.NEED_POLICE_STATION] = 'Citizens demand a Police Department';
-messageText[Messages.NEED_SEAPORT] = 'Industry requires a Sea Port';
-messageText[Messages.NEED_STADIUM] = 'Residents demand a Stadium';
-messageText[Messages.ROAD_NEEDS_FUNDING] = 'Roads deteriorating, due to lack of funds';
-messageText[Messages.POLICE_NEEDS_FUNDING] = 'Police departments need funding';
-messageText[Messages.WELCOME] = 'Welcome to micropolisJS';
-messageText[Messages.BLACKOUTS_REPORTED] = 'Brownouts, build another Power Plant';
-messageText[Messages.EARTHQUAKE] = 'Major earthquake reported !!';
-messageText[Messages.EXPLOSION_REPORTED] = 'Explosion detected ';
-messageText[Messages.FLOODING_REPORTED] = 'Flooding reported !';
-messageText[Messages.FIRE_REPORTED] = 'Fire reported ';
-messageText[Messages.HEAVY_TRAFFIC] = 'Heavy Traffic reported';
-messageText[Messages.HELICOPTER_CRASHED] = 'A helicopter crashed ';
-messageText[Messages.HIGH_CRIME] = 'Crime very high';
-messageText[Messages.HIGH_POLLUTION] = 'Pollution very high';
-messageText[Messages.MONSTER_SIGHTED] = 'A Monster has been sighted !';
-messageText[Messages.NO_MONEY] = 'YOUR CITY HAS GONE BROKE';
-messageText[Messages.NOT_ENOUGH_POWER] = 'Blackouts reported: insufficient power capacity';
-messageText[Messages.NUCLEAR_MELTDOWN] = 'A Nuclear Meltdown has occurred !!';
-messageText[Messages.PLANE_CRASHED] = 'A plane has crashed ';
-messageText[Messages.SHIP_CRASHED] = 'Shipwreck reported ';
-messageText[Messages.TAX_TOO_HIGH] = 'Citizens upset. The tax rate is too high';
-messageText[Messages.TORNADO_SIGHTED] = 'Tornado reported !';
-messageText[Messages.TRAFFIC_JAMS] = 'Frequent traffic jams reported';
-messageText[Messages.TRAIN_CRASHED] = 'A train crashed ';
-messageText[Messages.REACHED_CAPITAL] = 'Population has reached 50,000';
-messageText[Messages.REACHED_CITY] = 'Population has reached 10,000';
-messageText[Messages.REACHED_MEGALOPOLIS] = 'Population has reached 500,000';
-messageText[Messages.REACHED_METROPOLIS] = 'Population has reached 100,000';
-messageText[Messages.REACHED_TOWN] = 'Population has reached 2,000';
+var messageKeys = {};
+messageKeys[Messages.FIRE_STATION_NEEDS_FUNDING] = 'msg.fund.fire';
+messageKeys[Messages.NEED_AIRPORT] = 'msg.need.airport';
+messageKeys[Messages.NEED_FIRE_STATION] = 'msg.need.fire_station';
+messageKeys[Messages.NEED_ELECTRICITY] = 'msg.need.electricity';
+messageKeys[Messages.NEED_MORE_INDUSTRIAL] = 'msg.need.more_ind';
+messageKeys[Messages.NEED_MORE_COMMERCIAL] = 'msg.need.more_com';
+messageKeys[Messages.NEED_MORE_RESIDENTIAL] = 'msg.need.more_res';
+messageKeys[Messages.NEED_MORE_RAILS] = 'msg.need.more_rails';
+messageKeys[Messages.NEED_MORE_ROADS] = 'msg.need.more_roads';
+messageKeys[Messages.NEED_POLICE_STATION] = 'msg.need.police_station';
+messageKeys[Messages.NEED_SEAPORT] = 'msg.need.seaport';
+messageKeys[Messages.NEED_STADIUM] = 'msg.need.stadium';
+messageKeys[Messages.ROAD_NEEDS_FUNDING] = 'msg.fund.road';
+messageKeys[Messages.POLICE_NEEDS_FUNDING] = 'msg.fund.police';
+messageKeys[Messages.WELCOME] = 'msg.welcome';
+messageKeys[Messages.BLACKOUTS_REPORTED] = 'msg.bad.blackouts';
+messageKeys[Messages.EARTHQUAKE] = 'msg.bad.earthquake';
+messageKeys[Messages.EXPLOSION_REPORTED] = 'msg.bad.explosion';
+messageKeys[Messages.FLOODING_REPORTED] = 'msg.bad.flooding';
+messageKeys[Messages.FIRE_REPORTED] = 'msg.bad.fire';
+messageKeys[Messages.HEAVY_TRAFFIC] = 'msg.bad.heavy_traffic';
+messageKeys[Messages.HELICOPTER_CRASHED] = 'msg.bad.helicopter_crash';
+messageKeys[Messages.HIGH_CRIME] = 'msg.bad.high_crime';
+messageKeys[Messages.HIGH_POLLUTION] = 'msg.bad.high_pollution';
+messageKeys[Messages.MONSTER_SIGHTED] = 'msg.bad.monster';
+messageKeys[Messages.NO_MONEY] = 'msg.bad.no_money';
+messageKeys[Messages.NOT_ENOUGH_POWER] = 'msg.bad.not_enough_power';
+messageKeys[Messages.NUCLEAR_MELTDOWN] = 'msg.bad.meltdown';
+messageKeys[Messages.PLANE_CRASHED] = 'msg.bad.plane_crash';
+messageKeys[Messages.SHIP_CRASHED] = 'msg.bad.ship_crash';
+messageKeys[Messages.TAX_TOO_HIGH] = 'msg.bad.tax_too_high';
+messageKeys[Messages.TORNADO_SIGHTED] = 'msg.bad.tornado';
+messageKeys[Messages.TRAFFIC_JAMS] = 'msg.bad.traffic_jams';
+messageKeys[Messages.TRAIN_CRASHED] = 'msg.bad.train_crash';
+messageKeys[Messages.REACHED_CAPITAL] = 'msg.good.reach_capital';
+messageKeys[Messages.REACHED_CITY] = 'msg.good.reach_city';
+messageKeys[Messages.REACHED_MEGALOPOLIS] = 'msg.good.reach_megalopolis';
+messageKeys[Messages.REACHED_METROPOLIS] = 'msg.good.reach_metro';
+messageKeys[Messages.REACHED_TOWN] = 'msg.good.reach_town';
 
-// Province picker. Bilingual; Thai is the default until src/i18n replaces this file.
-var provincePicker = {
-  th: {
-    button: 'เลือกจังหวัด',
-    title: 'เลือกจังหวัดที่จะเป็นเจ้าเมือง',
-    hint: 'ชี้ที่จังหวัดเพื่อดูชื่อ แล้วคลิกเพื่อเลือก',
-    loading: 'กำลังโหลดแผนที่…',
-    loadFailed: 'โหลดแผนที่ไม่ได้',
-    neighbors: 'จังหวัดเพื่อนบ้าน',
-    preview: 'แผนที่ตั้งต้น 2 × 2 กม.',
-    noPreview: 'ยังไม่มีแผนที่ตั้งต้นของจังหวัดนี้',
-    land: 'ที่ดิน',
-    water: 'น้ำ',
-    woods: 'ป่า',
-    start: 'เริ่มเป็นเจ้าเมือง',
-    close: 'ปิด',
-    note: 'แผนที่ประกอบเกม ไม่ใช่แผนที่ทางการ'
-  },
-  en: {
-    button: 'Choose a province',
-    title: 'Choose the province you will rule',
-    hint: 'Point at a province to see its name, then click to choose',
-    loading: 'Loading the map…',
-    loadFailed: 'Could not load the map',
-    neighbors: 'Neighbouring provinces',
-    preview: 'Starting map, 2 × 2 km',
-    noPreview: 'No starting map for this province yet',
-    land: 'Land',
-    water: 'Water',
-    woods: 'Woods',
-    start: 'Become its ruler',
-    close: 'Close',
-    note: 'Illustrative game map, not an official map'
-  },
-  // Map data credits are legal attributions and stay the same in both languages
-  credits: '© OpenStreetMap contributors · Natural Earth'
+
+var translateList = function(keys) {
+  return keys.map(function(key) { return t(key); });
+};
+
+var translateTable = function(keys) {
+  var result = {};
+  Object.keys(keys).forEach(function(id) { result[id] = t(keys[id]); });
+  return result;
 };
 
 var Text = {
   badMessages: badMessages,
-  provincePicker: provincePicker,
-  cityClass: cityClass,
-  crimeStrings: crimeStrings,
-  densityStrings: densityStrings,
-  gameLevel: gameLevel,
   goodMessages: goodMessages,
-  landValueStrings: landValueStrings,
-  messageText: messageText,
-  months: months,
-  neutralMessages: neutralMessages,
-  problems: problems,
-  pollutionStrings: pollutionStrings,
-  rateStrings: rateStrings,
-  toolMessages: toolMessages,
-  zoneTypes: zoneTypes
+  neutralMessages: neutralMessages
 };
+
+var translated = {
+  cityClass: translateTable.bind(null, cityClassKeys),
+  crimeStrings: translateList.bind(null, crimeKeys),
+  densityStrings: translateList.bind(null, densityKeys),
+  gameLevel: translateTable.bind(null, gameLevelKeys),
+  landValueStrings: translateList.bind(null, landValueKeys),
+  messageText: translateTable.bind(null, messageKeys),
+  months: translateList.bind(null, monthKeys),
+  problems: translateTable.bind(null, problemKeys),
+  pollutionStrings: translateList.bind(null, pollutionKeys),
+  rateStrings: translateList.bind(null, rateKeys),
+  toolMessages: translateTable.bind(null, toolMessageKeys),
+  zoneTypes: translateList.bind(null, zoneTypeKeys)
+};
+
+Object.keys(translated).forEach(function(name) {
+  Object.defineProperty(Text, name, {get: translated[name], enumerable: true});
+});
 
 export { Text };

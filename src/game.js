@@ -22,6 +22,7 @@ import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
 import { GameCanvas } from './gameCanvas.js';
 import { GameMap } from './gameMap.js';
+import { t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import * as Messages from './messages.ts';
@@ -482,7 +483,7 @@ Game.prototype.handleTool = function(data) {
       break;
 
     default:
-      $('#toolOutput').html('Tools');
+      $('#toolOutput').text(t('tool.header'));
   }
 };
 
@@ -548,41 +549,41 @@ Game.prototype.processFrontEndMessage = function(message) {
   var d = new Date();
 
   if (Text.goodMessages[subject] !== undefined) {
-    var cMessage = this.name + ' is now a ';
+    var milestone = null;
 
     switch (subject) {
       case Messages.REACHED_CAPITAL:
         if (!this._reachedCapital) {
           this._reachedCapital = true;
-          cMessage += 'capital!';
+          milestone = 'capital';
         }
         break;
 
       case Messages.REACHED_CITY:
         if (!this._reachedCity) {
           this._reachedCity = true;
-          cMessage += 'city!';
+          milestone = 'city';
         }
         break;
 
       case Messages.REACHED_MEGALOPOLIS:
         if (!this._reachedMegalopolis) {
           this._reachedMegalopolis = true;
-          cMessage += 'megalopolis!';
+          milestone = 'megalopolis';
         }
         break;
 
       case Messages.REACHED_METROPOLIS:
         if (!this._reachedMetropolis) {
           this._reachedMetropolis = true;
-          cMessage += 'metropolis!';
+          milestone = 'metropolis';
         }
         break;
 
       case Messages.REACHED_TOWN:
         if (!this._reachedTown) {
           this._reachedTown = true;
-          cMessage += 'town!';
+          milestone = 'town';
         }
         break;
     }
@@ -592,10 +593,11 @@ Game.prototype.processFrontEndMessage = function(message) {
       this._notificationBar.goodNews(message);
     }
 
-    if (cMessage !== (this.name + ' is now a ')) {
+    if (milestone !== null) {
       this.dialogOpen = true;
       this._openWindow = 'congratsWindow';
-      this.congratsWindow.open(cMessage);
+      this.congratsWindow.open(t('congrats.message_prefix', {name: this.name}) + ' ' +
+                               t('congrats.milestone.' + milestone));
     }
 
     return;

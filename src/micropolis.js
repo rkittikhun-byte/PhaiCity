@@ -14,6 +14,7 @@
 import $ from "jquery";
 
 import { Config } from './config.js';
+import { applyTranslations, getLanguage, setLanguage } from './i18n/index.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
@@ -84,6 +85,14 @@ var tileSetError = function() {
   fallbackImage.onerror = onFallbackError;
   fallbackImage.src = TileSetURI;
 };
+
+
+// Show the page in the player's language (Thai unless they chose English), and let them switch at any time
+applyTranslations();
+$('#languageToggle').click(function(e) {
+  e.preventDefault();
+  setLanguage(getLanguage() === 'th' ? 'en' : 'th');
+});
 
 
 // Check for debug parameter in URL

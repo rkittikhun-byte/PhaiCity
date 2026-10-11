@@ -14,13 +14,13 @@
  *
  * -->
 
-<html lang="en">
+<html lang="th">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no">
-    <meta name="description" content="Play micropolisJS and build a virtual city in your browser! micropolisJS is a handwritten HTML5/Javascript port of Micropolis, the open-source release of SimCity (the 1989 version).">
+    <meta name="description" content="PhaiCity: build and rule a Thai city in your browser. A modified version of micropolisJS.">
     <link rel="stylesheet" media="screen" type="text/css" href="css/style.css">
-    <title>micropolisJS</title>
+    <title data-i18n="app.title">PhaiCity</title>
   </head>
   <body>
     <img id="tiles" class="imageData" src="images/tiles.png" alt="These are the game's principal tiles">
@@ -28,11 +28,12 @@
     <img id="sprites" class="imageData" src="images/sprites.png" alt="These are the game's sprites">
     <header id="header" class="chunk border-bottom padding10">
       <div class="left inlineblock">
-        <h1 id="title" class="white fontlarge">micropolisJS</h1>
+        <h1 id="title" class="white fontlarge" data-i18n="app.title">PhaiCity</h1>
       </div>
       <nav class="white right padding10 inlineblock">
         <ul>
-          <li class="padding10"><a href="about.html" target="_blank">About</a></li>
+          <li class="padding10"><button id="languageToggle" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button></li>
+          <li class="padding10"><a href="about.html" target="_blank" data-i18n="nav.about">About</a></li>
           <li class="padding10"><a href="https://github.com/graememcc/micropolisJS" target="_blank">GitHub</a></li>
         </ul>
       </nav>
@@ -40,31 +41,31 @@
     <div id="wrapper">
       <main id="canvasContainer">
         <div class="hidden" id="opaque"></div>
-        <div data-hasscript="false" id="loadingBanner" class="alignCenter padding10 mintcream chunk shadow centred">Loading</div>
+        <div data-hasscript="false" id="loadingBanner" data-i18n="splash.loading" class="alignCenter padding10 mintcream chunk shadow centred">Loading</div>
         <div id="splash" class="mintcream awaitGeneration open shadow padding10 centred">
-          <h2 class="chunk alignCenter">Welcome!</h2>
-          <p>micropolisJS is a handmade Javascript port of the open-source city simulator <cite>Micropolis</cite></p>
+          <h2 class="chunk alignCenter" data-i18n="splash.welcome">Welcome!</h2>
+          <p data-i18n="splash.intro">PhaiCity is a browser-based city builder inspired by classic simulation.</p>
           <div id="splashContainer"></div>
           <div id="splashButtonContainer">
             <div id="splashButtons">
-              <button id="splashLoad" class="width140 block loadSave splashButton" disabled>Load game</button>
-              <button id="splashPlay" class="width140 block margin10 splashButton">Play this map</button>
-              <button id="splashGenerate" class="width140 block margin10 splashButton">Generate another</button>
-              <button id="splashProvince" class="width140 block margin10 splashButton"></button>
+              <button id="splashLoad" data-i18n="splash.btn.load" class="width140 block loadSave splashButton" disabled>Load game</button>
+              <button id="splashPlay" data-i18n="splash.btn.play" class="width140 block margin10 splashButton">Play this map</button>
+              <button id="splashGenerate" data-i18n="splash.btn.generate" class="width140 block margin10 splashButton">Generate another</button>
+              <button id="splashProvince" class="width140 block margin10 splashButton" data-i18n="picker.button">Choose a province</button>
             </div>
           </div>
         </div>
         <div id="start" class="mintcream open shadow padding10 centred">
-          <h2 class="chunk alignCenter">New Game</h2>
+          <h2 class="chunk alignCenter" data-i18n="start.title">New Game</h2>
           <form id="playForm">
-            <label for="nameForm">City name (max 15 letters)</label>
+            <label for="nameForm" data-i18n="start.label.name">City name (max 15 letters)</label>
             <input id="nameForm" autofocus required class="margin10" type="text" maxlength="15">
-            Difficulty
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyEasy" value="0" checked="checked"><label for="difficultyEasy">Easy</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyMed" value="1"><label for="difficultyMed">Medium</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyHard" value="2"><label for="difficultyHard">Hard</label>
+            <span data-i18n="start.label.difficulty">Difficulty</span>
+            <input type="radio" class="difficulty" name="difficulty" id="difficultyEasy" value="0" checked="checked"><label for="difficultyEasy" data-i18n="start.diff.easy">Easy</label>
+            <input type="radio" class="difficulty" name="difficulty" id="difficultyMed" value="1"><label for="difficultyMed" data-i18n="start.diff.med">Medium</label>
+            <input type="radio" class="difficulty" name="difficulty" id="difficultyHard" value="2"><label for="difficultyHard" data-i18n="start.diff.hard">Hard</label>
             <div id="playSubmitDiv">
-              <input id="playit" type="submit" value="Play!">
+              <input id="playit" data-i18n-value="start.btn.play" type="submit" value="Play!">
             </div>
           </form>
         </div>
@@ -76,65 +77,65 @@
             <div>
               <span id="date">Jan 1900</span>
             </div>
-            <div class="elided">
-              Funds $<span id="funds">20000</span>
+            <div class="elided" data-i18n-template="infobar.funds">
+              Funds $<span id="funds" data-i18n-slot="funds">20000</span>
             </div>
-            <div class="elided">
-              Score: <span id="score">0</span>
+            <div class="elided" data-i18n-template="infobar.score">
+              Score: <span id="score" data-i18n-slot="score">0</span>
             </div>
             <div>
               <span id="cclass">VILLAGE</span>
             </div>
-            <div class="elided">
-              Population:<br /> <span id="population">0</span>
+            <div class="elided" data-i18n-template="infobar.population">
+              Population:<br /> <span id="population" data-i18n-slot="pop">0</span>
             </div>
           </div>
         </div>
         <div id="miscButtons" class="alignCenter leftedge open controlShadow width140 padding10 mintcream z1 initialHidden">
           <div class="inner">
             <div>
-              <button id="budgetRequest" class="miscButton">Budget</button>
+              <button id="budgetRequest" data-i18n="menu.budget" class="miscButton">Budget</button>
             </div>
             <div>
-              <button id="evalRequest" class="miscButton">Evaluation</button>
+              <button id="evalRequest" data-i18n="menu.evaluation" class="miscButton">Evaluation</button>
             </div>
             <div>
-              <button id="disasterRequest" class="miscButton">Disasters</button>
+              <button id="disasterRequest" data-i18n="menu.disasters" class="miscButton">Disasters</button>
             </div>
             <div>
-              <button id="saveRequest" class="miscButton loadSave" disabled>Save</button>
+              <button id="saveRequest" data-i18n="menu.save" class="miscButton loadSave" disabled>Save</button>
             </div>
             <div>
-              <button id="settingsRequest" class="miscButton">Settings</button>
+              <button id="settingsRequest" data-i18n="menu.settings" class="miscButton">Settings</button>
             </div>
             <div>
-              <button id="screenshotRequest" class="miscButton">Take Picture</button>
+              <button id="screenshotRequest" data-i18n="menu.screenshot" class="miscButton">Take Picture</button>
             </div>
             <div>
-              <button id="pauseRequest" class="miscButton">Pause</button>
+              <button id="pauseRequest" data-i18n="menu.pause" class="miscButton">Pause</button>
             </div>
           </div>
         </div>
         <div id="RCIContainer" class="controlShadow leftedge width140 padding10 mintcream z1 initialHidden"></div>
         <div id="controls" class="controlShadow mintcream z1 initialHidden rightedge open">
-          <div id="toolInfo" class="alignCenter"><span id="toolOutput">Tools</span></div>
+          <div id="toolInfo" class="alignCenter"><span id="toolOutput" data-i18n="tool.header">Tools</span></div>
           <div id="buttons">
-            <button id="residentialButton" data-size="3" data-tool="residential" data-colour="lime" class="toolButton unselected">Residential $100</button>
-            <button id="nuclearButton" data-size="4" data-tool="nuclear" data-colour="mistyrose" class="toolButton unselected">Nuclear $5000</button>
-            <button id="commercialButton" data-size="3" data-tool="commercial" data-colour="blue" class="toolButton unselected">Commercial $100</button>
-            <button id="coalButton" data-size="4" data-tool="coal" data-colour="gray" class="toolButton unselected">Coal $3000</button>
-            <button id="industrialButton" data-size="3" data-tool="industrial" data-colour="yellow" class="toolButton unselected">Industrial $100</button>
-            <button id="policeButton" data-size="3" data-tool="police" data-colour="darkblue" class="toolButton unselected">Police $500</button>
-            <button id="roadButton" data-size="1" data-tool="road" data-colour="black" class="toolButton unselected">Road $10</button>
-            <button id="fireButton" data-size="3" data-tool="fire" data-colour="red" class="toolButton unselected">Fire $500</button>
-            <button id="railButton" data-size="1" data-tool="rail" data-colour="brown" class="toolButton unselected">Rail $20</button>
-            <button id="portButton" data-size="4" data-tool="port" data-colour="dodgerblue" class="toolButton unselected">Port $3000</button>
-            <button id="wireButton" data-size="1" data-tool="wire" data-colour="khaki" class="toolButton unselected">Wire $5</button>
-            <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
-            <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
-            <button id="airportButton" data-size="6" data-tool="airport" data-colour="violet" class="toolButton unselected">Airport $10000</button>
-            <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
-            <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
+            <button id="residentialButton" data-size="3" data-tool="residential" data-i18n="tool.residential" data-colour="lime" class="toolButton unselected">Residential $100</button>
+            <button id="nuclearButton" data-size="4" data-tool="nuclear" data-i18n="tool.nuclear" data-colour="mistyrose" class="toolButton unselected">Nuclear $5000</button>
+            <button id="commercialButton" data-size="3" data-tool="commercial" data-i18n="tool.commercial" data-colour="blue" class="toolButton unselected">Commercial $100</button>
+            <button id="coalButton" data-size="4" data-tool="coal" data-i18n="tool.coal" data-colour="gray" class="toolButton unselected">Coal $3000</button>
+            <button id="industrialButton" data-size="3" data-tool="industrial" data-i18n="tool.industrial" data-colour="yellow" class="toolButton unselected">Industrial $100</button>
+            <button id="policeButton" data-size="3" data-tool="police" data-i18n="tool.police" data-colour="darkblue" class="toolButton unselected">Police $500</button>
+            <button id="roadButton" data-size="1" data-tool="road" data-i18n="tool.road" data-colour="black" class="toolButton unselected">Road $10</button>
+            <button id="fireButton" data-size="3" data-tool="fire" data-i18n="tool.fire" data-colour="red" class="toolButton unselected">Fire $500</button>
+            <button id="railButton" data-size="1" data-tool="rail" data-i18n="tool.rail" data-colour="brown" class="toolButton unselected">Rail $20</button>
+            <button id="portButton" data-size="4" data-tool="port" data-i18n="tool.port" data-colour="dodgerblue" class="toolButton unselected">Port $3000</button>
+            <button id="wireButton" data-size="1" data-tool="wire" data-i18n="tool.wire" data-colour="khaki" class="toolButton unselected">Wire $5</button>
+            <button id="stadiumButton" data-size="4" data-tool="stadium" data-i18n="tool.stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
+            <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-i18n="tool.bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
+            <button id="airportButton" data-size="6" data-tool="airport" data-i18n="tool.airport" data-colour="violet" class="toolButton unselected">Airport $10000</button>
+            <button id="queryButton" data-size="1" data-tool="query" data-i18n="tool.query" data-colour="cyan" class="toolButton unselected">Query</button>
+            <button id="parkButton" data-size="1" data-tool="park" data-i18n="tool.park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
           </div>
         </div>
         <div id="tw" class="z1 rightedge initialHidden">
@@ -145,97 +146,96 @@
             <div id="tvContainer">
             </div>
             <form id="monsterTVForm">
-              <input type="submit" value="Close" class="width140 cancel">
+              <input type="submit" value="Close" class="width140 cancel" data-i18n-value="monstertv.btn.close">
             </form>
           </div>
         </div>
         <div id="debug" class="alignCenter z1 rightedge padding10 mintcream controlShadow open">
-          <div id="fps">
-            <span id="fpsValue">0</span> FPS
+          <div id="fps" data-i18n-template="debug.fps">
+            <span id="fpsValue" data-i18n-slot="val">0</span> FPS
           </div>
           <div>
-            <button id="debugRequest">Debug</button>
+            <button id="debugRequest" data-i18n="debug.btn.debug">Debug</button>
           </div>
         </div>
         <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
-        <div id="tooSmall" data-hasscript="false" class="mintcream open"><div id="tooSmallInner" class="alignCenter padding10"><h2 class="chunk">Uh-oh!</h2><p>This screen is too small&mdash;I won't be able to fit in all the controls, buttons and gizmos! Sorry!</p></div></div>
+        <div id="tooSmall" data-hasscript="false" class="mintcream open"><div id="tooSmallInner" class="alignCenter padding10"><h2 class="chunk" data-i18n="screen.toosmall.title">Uh-oh!</h2><p data-i18n="screen.toosmall.msg">This screen is too small&mdash;I won't be able to fit in all the controls, buttons and gizmos! Sorry!</p></div></div>
         <noscript>
           <div id="noscript" class="open mintcream centred padding10">
-            <h1 class="chunk alignCenter">micropolisJS</h1>
-            <p class="padding10">Hey, thanks for your interest in micropolisJS!</p>
-            <p class="padding10">Unfortunately, the <abbr title="Javascript">JS</abbr> stands for "<em>Javascript</em>", which appears to be disabled on your system. Consult your browser's documentation on how to enable Javascript!</p>
+            <h1 class="chunk alignCenter">PhaiCity</h1>
+            <p class="padding10" lang="th">เบราว์เซอร์ของคุณปิดการทำงานของ JavaScript อยู่ ซึ่งจำเป็นต้องใช้ในการประมวลผลระบบจำลองและแสดงผลเมือง โปรดเปิดใช้งาน JavaScript ในการตั้งค่าเบราว์เซอร์</p>
+            <p class="padding10" lang="en">JavaScript appears to be disabled in your browser. PhaiCity requires JavaScript to simulate and render your city. Please enable it in browser settings.</p>
           </div>
         </noscript>
       </main>
       <footer id="footer" class="alignCenter chunk white padding10">
-        Enjoyed micropolisJS? <a href="https://www.refuweegee.co.uk/your-donations">Click here to donate to a charity whose work I love!</a>
-        <div id="author" class="open">Brought to you by <a rel="author" href="http://www.graememcc.co.uk" target="_blank">Graeme McCutcheon</a><i><a rel="author" href="https://twitter.com/graememcc" target="_blank">(@graememcc)</a></i> and <a rel="author" href="https://github.com/graememcc/micropolisJS/graphs/contributors" target="_blank">contributors</a>
-          <div id="build">Build: <%= htmlWebpackPlugin.options.gitHash %></div>
+        <div id="author" class="open"><span data-i18n-template="footer.author">Modified from micropolisJS by <a rel="author" href="http://www.graememcc.co.uk" target="_blank" data-i18n-slot="author">Graeme McCutcheon</a> and <a rel="author" href="https://github.com/graememcc/micropolisJS/graphs/contributors" target="_blank" data-i18n-slot="contributors" data-i18n="footer.contributors">contributors</a>, adapted from Micropolis. See LICENSE and COPYING.</span>
+          <div id="build" data-i18n-template="footer.build">Build: <span data-i18n-slot="hash"><%= htmlWebpackPlugin.options.gitHash %></span></div>
         </div>
         <div class="nameLicense">
           Micropolis is a registered trademark of <a href="https://www.micropolis.com">Micropolis Corporation (Micropolis GmbH)</a> and is licensed here as a courtesy of the owner under the <a href="name_license.html">Micropolis Public Name License</a>.
         </div>
-        <div class="mapCredit">
-          Province maps: map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) · province shapes from <a href="https://www.naturalearthdata.com/">Natural Earth</a>.
+        <div class="mapCredit" data-i18n-template="footer.map_credit">
+          Province maps: map data © <a href="https://www.openstreetmap.org/copyright" data-i18n-slot="osm">OpenStreetMap contributors</a> (ODbL) · province shapes from <a href="https://www.naturalearthdata.com/" data-i18n-slot="ne">Natural Earth</a>.
         </div>
       </footer>
       <div class="hidden modal shadow" id="budget">
-        <header id="budgetHeader" class="budgetHeader padding10 chunk alignCenter">
+        <header id="budgetHeader" data-i18n="budget.title" class="budgetHeader padding10 chunk alignCenter">
            Budget
         </header>
         <div id="budgetFormContainer" class="padding10 open">
           <form id="budgetForm">
-            <div id="taxInfo" class="elided budgetData">Tax Collected: <span id="taxesCollected"></span></div>
-            <div id="cashInfo" class="elided budgetRight budgetData">Cashflow: <span id="cashFlow"></span></div>
-            <div id="previousInfo" class="elided budgetData">Previous funds: <span id="previousFunds"></span></div>
-            <div id="currentInfo" class="elided budgetRight budgetData">Current funds: <span id="currentFunds"></span></div>
+            <div id="taxInfo" class="elided budgetData"><span data-i18n="budget.tax_collected">Tax Collected:</span> <span id="taxesCollected"></span></div>
+            <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
+            <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>
+            <div id="currentInfo" class="elided budgetRight budgetData"><span data-i18n="budget.current_funds">Current funds:</span> <span id="currentFunds"></span></div>
             <fieldset>
-              <legend>Roads</legend>
+              <legend data-i18n="budget.roads">Roads</legend>
               <input type="range" id="roadRate" min="0" max="100" step="1" data-source="roadMaintenanceBudget">
               <div>
                 <label for="roadRate" class="elided budgetData" id="roadRateLabel">100% of $100 = $100</label>
               </div>
             </fieldset>
             <fieldset class="budgetRight">
-              <legend>Fire</legend>
+              <legend data-i18n="budget.fire">Fire</legend>
               <input type="range" id="fireRate" min="0" max="100" step="1" data-source="fireMaintenanceBudget">
               <div>
                 <label for="fireRate" class="elided budgetData" id="fireRateLabel">100% of $100 = $100</label>
               </div>
             </fieldset>
             <fieldset>
-              <legend>Police</legend>
+              <legend data-i18n="budget.police">Police</legend>
               <input type="range" id="policeRate" min="0" max="100" step="1" data-source="policeMaintenanceBudget">
               <div>
                 <label for="policeRate" class="elided budgetData" id="policeRateLabel">100% of $100 = $100</label>
               </div>
             </fieldset>
             <fieldset class="budgetRight">
-              <legend>Tax</legend>
+              <legend data-i18n="budget.tax">Tax</legend>
               <input type="range" id="taxRate" min="0" max="20" step="1">
               <div>
                 <label for="taxRate" class="elided budgetData" id="taxRateLabel">100% of $100 = $100</label>
               </div>
             </fieldset>
             <div id="budgetButtons" class="alignCenter">
-              <button id="budgetReset">Reset</button>
-              <button id="budgetCancel" class="width140 cancel">Cancel</button>
-              <input type="submit" id="budgetOK" class="width140 dialogOK" value="OK">
+              <button id="budgetReset" data-i18n="budget.btn.reset">Reset</button>
+              <button id="budgetCancel" data-i18n="budget.btn.cancel" class="width140 cancel">Cancel</button>
+              <input type="submit" id="budgetOK" data-i18n-value="budget.btn.ok" class="width140 dialogOK" value="OK">
             </div>
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="evalWindow">
-        <header id="evalHeader" class="evalHeader padding10 chunk alignCenter">
+        <header id="evalHeader" data-i18n="eval.title" class="evalHeader padding10 chunk alignCenter">
            Evaluation
         </header>
         <div id="evalContainer" class="padding10 open">
           <section id="opinion">
-            <h2 class="alignCenter">Public opinion</h2>
+            <h2 class="alignCenter" data-i18n="eval.opinion.title">Public opinion</h2>
             <dl class="opinionList alignCenter">
-              <dt class="evalItem opinionItem">Is the mayor doing a good job?</dt>
-              <dd class="evalItem opinionItem opinionRight">Yes: <span id="evalYes"></span>% No: <span id="evalNo"></span>%</dd>
-              <dt>What are the worst problems?</dt>
+              <dt class="evalItem opinionItem" data-i18n="eval.opinion.job">Is the mayor doing a good job?</dt>
+              <dd class="evalItem opinionItem opinionRight" data-i18n-template="eval.opinion.yesno">Yes: <span id="evalYes" data-i18n-slot="yes"></span>% No: <span id="evalNo" data-i18n-slot="no"></span>%</dd>
+              <dt data-i18n="eval.opinion.worst">What are the worst problems?</dt>
               <dd class="evalItem opinionItem opinionRight"><ol id="problemList">
                 <li id="evalProb1"></li> <li id="evalProb2"></li>
                 <li id="evalProb3"></li> <li id="evalProb4"></li>
@@ -243,60 +243,60 @@
             </dl>
           </section>
           <section id="statistics">
-            <h2 class="alignCenter">Statistics</h2>
+            <h2 class="alignCenter" data-i18n="eval.stats.title">Statistics</h2>
             <dl id="statisticsList">
-              <dt class="evalItem statisticsItem">Population:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalPopulation"></dd>
-              <dt class="evalItem statisticsItem">Net Migration:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalMigration"></dd>
-              <dt class="evalItem statisticsItem">Assessed Value:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalValue"></dd>
-              <dt class="evalItem statisticsItem">Category:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalClass"></dd>
-              <dt class="evalItem statisticsItem">Game Level:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalLevel"></dd>
-              <dt class="evalItem statisticsItem">Score:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalScore"></dd>
-              <dt class="evalItem statisticsItem">Annual change:</dt><dd class=" elided statisticsRight evalItem evalRight" id="evalScoreDelta"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.population">Population:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalPopulation"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.migration">Net Migration:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalMigration"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.value">Assessed Value:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalValue"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.category">Category:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalClass"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.level">Game Level:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalLevel"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.score">Score:</dt><dd class="elided statisticsRight evalItem evalRight" id="evalScore"></dd>
+              <dt class="evalItem statisticsItem" data-i18n="eval.stats.change">Annual change:</dt><dd class=" elided statisticsRight evalItem evalRight" id="evalScoreDelta"></dd>
 	    </dl>
 	  </section>
           <form id="evalButtons" class="alignCenter margin10">
-            <input type="submit" id="evalOK" class="width140 dialogOK" value="OK">
+            <input type="submit" id="evalOK" data-i18n-value="eval.btn.ok" class="width140 dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="disasterWindow">
-        <header id="disasterHeader" class="disasterHeader padding10 chunk alignCenter">
+        <header id="disasterHeader" data-i18n="disaster.title" class="disasterHeader padding10 chunk alignCenter">
            Disasters
         </header>
         <div id="disasterContainer" class="padding10 open">
           <form id="disasterForm">
             <div id="disasterSelectContainer" class="alignCenter">
-              <label id="disasterLabel" for="disasterSelect">What disaster do you want to befall this unsuspecting world?</label>
+              <label id="disasterLabel" data-i18n="disaster.prompt" for="disasterSelect">What disaster do you want to befall this unsuspecting world?</label>
               <select id="disasterSelect">
-                <option id="disasterNone" value="None">None</option>
-                <option id="disasterMonster" value="Monster">Monster</option>
-                <option id="disasterFire" value="None">Fire</option>
-                <option id="disasterFlood" value="Flood">Flood</option>
-                <option id="disasterCrash" value="Crash">Crash</option>
-                <option id="disasterMeltdown" value="Meltdown">Meltdown</option>
-                <option id="disasterTornado" value="Tornado">Tornado</option>
+                <option id="disasterNone" data-i18n="disaster.opt.none" value="None">None</option>
+                <option id="disasterMonster" data-i18n="disaster.opt.monster" value="Monster">Monster</option>
+                <option id="disasterFire" data-i18n="disaster.opt.fire" value="None">Fire</option>
+                <option id="disasterFlood" data-i18n="disaster.opt.flood" value="Flood">Flood</option>
+                <option id="disasterCrash" data-i18n="disaster.opt.crash" value="Crash">Crash</option>
+                <option id="disasterMeltdown" data-i18n="disaster.opt.meltdown" value="Meltdown">Meltdown</option>
+                <option id="disasterTornado" data-i18n="disaster.opt.tornado" value="Tornado">Tornado</option>
               </select>
             </div>
             <div id="disasterButtons" class="alignCenter margin10">
-              <button id="disasterCancel" class="cancel">Cancel</button>
-              <input type="submit" id="disasterOK" class="dialogOK" value="OK">
+              <button id="disasterCancel" data-i18n="disaster.btn.cancel" class="cancel">Cancel</button>
+              <input type="submit" id="disasterOK" data-i18n-value="disaster.btn.ok" class="dialogOK" value="OK">
             </div>
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="queryWindow">
-        <header id="queryHeader" class="queryHeader padding10 chunk alignCenter">
+        <header id="queryHeader" data-i18n="query.title" class="queryHeader padding10 chunk alignCenter">
            Query
         </header>
         <div id="queryContainer" class="padding10 open">
           <div class="queryList">
             <dl>
-              <dt class="queryItem">Zone</dt><dd class="queryItem queryRight" id="queryZoneType"></dd>
-              <dt class="queryItem">Density</dt><dd class="queryItem queryRight" id="queryDensity"></dd>
-              <dt class="queryItem">Value</dt><dd class="queryItem queryRight" id="queryLandValue"></dd>
-              <dt class="queryItem">Crime</dt><dd class="queryItem queryRight" id="queryCrime"></dd>
-              <dt class="queryItem">Pollution</dt><dd class="queryItem queryRight" id="queryPollution"></dd>
-              <dt class="queryItem">Growth</dt><dd class="queryItem queryRight" id="queryRate"></dd>
+              <dt class="queryItem" data-i18n="query.label.zone">Zone</dt><dd class="queryItem queryRight" id="queryZoneType"></dd>
+              <dt class="queryItem" data-i18n="query.label.density">Density</dt><dd class="queryItem queryRight" id="queryDensity"></dd>
+              <dt class="queryItem" data-i18n="query.label.value">Value</dt><dd class="queryItem queryRight" id="queryLandValue"></dd>
+              <dt class="queryItem" data-i18n="query.label.crime">Crime</dt><dd class="queryItem queryRight" id="queryCrime"></dd>
+              <dt class="queryItem" data-i18n="query.label.pollution">Pollution</dt><dd class="queryItem queryRight" id="queryPollution"></dd>
+              <dt class="queryItem" data-i18n="query.label.growth">Growth</dt><dd class="queryItem queryRight" id="queryRate"></dd>
             </dl>
             <div id="queryDebugList" class="queryDebug hidden">
               <dl>
@@ -342,141 +342,141 @@
             </table>
           </div>
           <form id="queryForm" class="alignCenter margin10">
-            <input type="submit" id="queryOK" class="dialogOK" value="OK">
+            <input type="submit" id="queryOK" data-i18n-value="query.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="congratsWindow">
-        <header id="congratsHeader" class="congratsHeader padding10 chunk alignCenter">
+        <header id="congratsHeader" data-i18n="congrats.title" class="congratsHeader padding10 chunk alignCenter">
            Congratulations!
         </header>
         <div id="congratsContainer" class="padding10 open">
           <div id="congratsMessage" class="alignCenter">Congratulations!</div>
           <form id="congratsForm" class="alignCenter margin10">
-            <input type="submit" id="congratsOK" class="dialogOK" value="OK">
+            <input type="submit" id="congratsOK" data-i18n-value="congrats.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="nagWindow">
-        <header id="nagHeader" class="nagHeader padding10 chunk white alignCenter">
+        <header id="nagHeader" data-i18n="nag.title" class="nagHeader padding10 chunk white alignCenter">
            micropolisJS
         </header>
         <div id="nagContainer" class="padding10 open">
-          <div id="nagMessage" class="alignCenter">
+          <div id="nagMessage" class="alignCenter" data-i18n="nag.message">
 -            Whoa! You've been playing this thing for half an hour?!? This is the point I used to solicit donations, back when life was less kind. These days I'd prefer to see your money reach <a class="nag" href="https://www.refuweegee.co.uk/your-donations" target="_blank">Refuweegee</a>, a charity whose work I admire!
           </div>
           <form id="nagForm" class="alignCenter margin10">
-            <input type="submit" id="nagOK" class="dialogOK" value="OK">
+            <input type="submit" id="nagOK" data-i18n-value="nag.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="saveWindow">
-        <header id="saveHeader" class="saveHeader padding10 chunk alignCenter">
+        <header id="saveHeader" data-i18n="save.title" class="saveHeader padding10 chunk alignCenter">
           Save
         </header>
         <div id="saveContainer" class="alignCenter padding10 open">
-          Game Saved!
+          <span data-i18n="save.message">Game Saved!</span>
           <form id="saveForm" class="alignCenter margin10">
-            <input type="submit" id="saveOK" class="dialogOK" value="OK">
+            <input type="submit" id="saveOK" data-i18n-value="save.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="screenshotLinkWindow">
-        <header id="screenshotLinkHeader" class="screenshotHeader padding10 chunk alignCenter">
+        <header id="screenshotLinkHeader" data-i18n="screenshot.link.title" class="screenshotHeader padding10 chunk alignCenter">
            Take Picture
         </header>
         <div id="screenshotLinkContainer" class="padding10 open">
-          <div id="screenshotLinkMessage" class="alignCenter">
-            Click <a id="screenshotLink" target="_blank">here</a> to view your picture (right-click to save)
+          <div id="screenshotLinkMessage" class="alignCenter" data-i18n-template="screenshot.link.message">
+            Click <a id="screenshotLink" target="_blank" data-i18n-slot="link" data-i18n="screenshot.link.here">here</a> to view your picture (right-click to save)
           </div>
           <form id="screenshotLinkForm" class="alignCenter margin10">
-            <input type="submit" id="screenshotLinkOK" class="dialogOK" value="OK">
+            <input type="submit" id="screenshotLinkOK" data-i18n-value="screenshot.link.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="screenshotWindow">
-        <header id="screenshotHeader" class="screenshotHeader white padding10 chunk alignCenter">
+        <header id="screenshotHeader" data-i18n="screenshot.title" class="screenshotHeader white padding10 chunk alignCenter">
            Take Picture
         </header>
         <div id="screenshotContainer" class="padding10 open">
           <form id="screenshotForm" class="alignCenter margin10">
             <div id="screenshotContainerDiv">
-              Area to take picture of:
-              <input type="radio" class="screenshotType" name="screenshotType" id="screenshotVisible" value="visible" checked="checked"><label for="screenshotVisible">Visible Map</label>
-              <input type="radio" class="screenshotType" name="screenshotType" id="screenshotAll" value="all"><label for="screenshotAll">Full map</label>
+              <span data-i18n="screenshot.area_prompt">Area to take picture of:</span>
+              <input type="radio" class="screenshotType" name="screenshotType" id="screenshotVisible" value="visible" checked="checked"><label for="screenshotVisible" data-i18n="screenshot.opt.visible">Visible Map</label>
+              <input type="radio" class="screenshotType" name="screenshotType" id="screenshotAll" value="all"><label for="screenshotAll" data-i18n="screenshot.opt.all">Full map</label>
             </div>
-            <button id="screenshotCancel" class="cancel">Cancel</button>
-            <input type="submit" id="screenshotOK" class="dialogOK" value="OK">
+            <button id="screenshotCancel" data-i18n="screenshot.btn.cancel" class="cancel">Cancel</button>
+            <input type="submit" id="screenshotOK" data-i18n-value="screenshot.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="settingsWindow">
-        <header id="settingsHeader" class="settingsHeader white padding10 chunk alignCenter">
+        <header id="settingsHeader" data-i18n="settings.title" class="settingsHeader white padding10 chunk alignCenter">
            Settings
         </header>
         <div id="settingsContainer" class="padding10 open">
           <form id="settingsForm" class="alignCenter margin10">
             <div id="settingsFormContainer">
               <div id="autoBudgetSelect" class="padding10">
-                Autobudget:
-                <input type="radio" class="autoBudgetSetting" name="autoBudgetSetting" id="autoBudgetYes" value="true" checked="checked"><label for="autoBudgetYes">Yes</label>
-                <input type="radio" class="autoBudgetSetting" name="autoBudgetSetting" id="autoBudgetNo" value="false"><label for="autoBudgetNo">No</label>
+                <span data-i18n="settings.autobudget">Autobudget:</span>
+                <input type="radio" class="autoBudgetSetting" name="autoBudgetSetting" id="autoBudgetYes" value="true" checked="checked"><label for="autoBudgetYes" data-i18n="settings.opt.yes">Yes</label>
+                <input type="radio" class="autoBudgetSetting" name="autoBudgetSetting" id="autoBudgetNo" value="false"><label for="autoBudgetNo" data-i18n="settings.opt.no">No</label>
               </div>
               <div id="autoBulldozeSelect" class="padding10">
-                Autobulldoze:
-                <input type="radio" class="autoBulldozeSetting" name="autoBulldozeSetting" id="autoBulldozeYes" value="true" checked="checked"><label for="autoBulldozeYes">Yes</label>
-                <input type="radio" class="autoBulldozeSetting" name="autoBulldozeSetting" id="autoBulldozeNo" value="false"><label for="autoBulldozeNo">No</label>
+                <span data-i18n="settings.autobulldoze">Autobulldoze:</span>
+                <input type="radio" class="autoBulldozeSetting" name="autoBulldozeSetting" id="autoBulldozeYes" value="true" checked="checked"><label for="autoBulldozeYes" data-i18n="settings.opt.yes">Yes</label>
+                <input type="radio" class="autoBulldozeSetting" name="autoBulldozeSetting" id="autoBulldozeNo" value="false"><label for="autoBulldozeNo" data-i18n="settings.opt.no">No</label>
               </div>
               <div id="speedSelect" class="padding10">
-                Speed:
-                <input type="radio" class="speedSetting" name="speedSetting" id="speedSlow" value="1" checked="checked"><label for="speedSlow">Slow</label>
-                <input type="radio" class="speedSetting" name="speedSetting" id="speedMed" value="2"><label for="speedMed">Medium</label>
-                <input type="radio" class="speedSetting" name="speedSetting" id="speedFast" value="3"><label for="speedFast">Fast</label>
+                <span data-i18n="settings.speed">Speed:</span>
+                <input type="radio" class="speedSetting" name="speedSetting" id="speedSlow" value="1" checked="checked"><label for="speedSlow" data-i18n="settings.speed.slow">Slow</label>
+                <input type="radio" class="speedSetting" name="speedSetting" id="speedMed" value="2"><label for="speedMed" data-i18n="settings.speed.med">Medium</label>
+                <input type="radio" class="speedSetting" name="speedSetting" id="speedFast" value="3"><label for="speedFast" data-i18n="settings.speed.fast">Fast</label>
               </div>
               <div id="disastersSelect" class="padding10">
-                Disasters:
-                <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersYes" value="true" checked="checked"><label for="disastersYes">Yes</label>
-                <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersNo" value="false"><label for="disastersNo">No</label>
+                <span data-i18n="settings.disasters">Disasters:</span>
+                <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersYes" value="true" checked="checked"><label for="disastersYes" data-i18n="settings.opt.yes">Yes</label>
+                <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersNo" value="false"><label for="disastersNo" data-i18n="settings.opt.no">No</label>
               </div>
             </div>
-            <button id="settingsCancel" class="cancel">Cancel</button>
-            <input type="submit" id="settingsOK" class="dialogOK" value="OK">
+            <button id="settingsCancel" data-i18n="settings.btn.cancel" class="cancel">Cancel</button>
+            <input type="submit" id="settingsOK" data-i18n-value="settings.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="debugWindow">
-        <header id="debugHeader" class="debugHeader white padding10 chunk alignCenter">
+        <header id="debugHeader" data-i18n="debug.window.title" class="debugHeader white padding10 chunk alignCenter">
            Debug
         </header>
         <div id="debugContainer" class="padding10 open">
           <form id="debugForm" class="alignCenter margin10">
             <div id="debugFundContainer">
-              Add funds:
-              <input type="radio" class="debugAdd" name="debugAdd" id="fundsYes" value="true" checked="checked"><label for="fundsYes">Yes</label>
-              <input type="radio" class="debugAdd" name="debugAdd" id="fundsNo" value="false"><label for="fundsNo">No</label>
+              <span data-i18n="debug.window.funds">Add funds:</span>
+              <input type="radio" class="debugAdd" name="debugAdd" id="fundsYes" value="true" checked="checked"><label for="fundsYes" data-i18n="settings.opt.yes">Yes</label>
+              <input type="radio" class="debugAdd" name="debugAdd" id="fundsNo" value="false"><label for="fundsNo" data-i18n="settings.opt.no">No</label>
             </div>
-            <button id="debugCancel" class="cancel">Cancel</button>
-            <input type="submit" id="debugOK" class="dialogOK" value="OK">
+            <button id="debugCancel" data-i18n="debug.window.btn.cancel" class="cancel">Cancel</button>
+            <input type="submit" id="debugOK" data-i18n-value="debug.window.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>
       <div class="hidden modal shadow" id="touchWarnWindow">
-        <header id="touchHeader" class="touchHeader white padding10 chunk alignCenter">
+        <header id="touchHeader" data-i18n="touch.title" class="touchHeader white padding10 chunk alignCenter">
            Hello, touchscreen user!
         </header>
         <div id="touchContainer" class="padding10 open">
-          <h2 class="alignCenter">Hi!</h2>
-          <p class="padding10">
+          <h2 class="alignCenter" data-i18n="touch.greeting">Hi!</h2>
+          <p class="padding10" data-i18n="touch.p1">
              It seems you're using a touchscreen device!
           </p>
-          <p class="padding10">
+          <p class="padding10" data-i18n="touch.p2">
             Just to warn you, micropolisJS isn't really geared towards touch devices&mdash;I don't own a tablet&mdash;so you might be in for a bad time.
           </p>
-          <p class="padding10">
+          <p class="padding10" data-i18n="touch.p3">
             However, if you're wanting to give it a shot, I won't stop you!
           </p>
           <form id="touchForm" class="alignCenter margin10">
-            <input type="submit" id="touchOK" class="dialogOK" value="OK">
+            <input type="submit" id="touchOK" data-i18n-value="touch.btn.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>

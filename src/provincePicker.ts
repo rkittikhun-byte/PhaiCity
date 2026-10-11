@@ -7,7 +7,7 @@
 
 import { groupCentroid, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
 import { drawPresetMap, PresetMap } from "./geo/presetMap";
-import { Text } from "./text.js";
+import { getLanguage, onLanguageChange, t } from "./i18n/index";
 
 interface Province {
   id: string;
@@ -36,10 +36,18 @@ const REGION_COLORS: Record<string, string> = {
   south: "#6cc3a9",
 };
 
-const strings = Text.provincePicker.th;
-
 let overlay: HTMLElement | null = null;
 let startCallback: (provinceId: string) => void = () => undefined;
+
+// The picker is built in the current language; rebuild it after a language switch.
+onLanguageChange(() => {
+  overlay?.remove();
+  overlay = null;
+});
+
+// Province and region names in the current language.
+const localName = (item: { nameTh: string; nameEn: string }): string =>
+  getLanguage() === "en" ? item.nameEn : item.nameTh;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -82,17 +90,17 @@ function buildShell(): { map: HTMLElement; hover: HTMLElement; detail: HTMLEleme
 
   // A div rather than <header>: the game's stylesheet gives every <header> the striped title bar
   const header = element("div", "ppHeader");
-  const title = element("h2", undefined, strings.title);
+  const title = element("h2", undefined, t("picker.title"));
   title.id = "ppTitle";
-  const closeButton = element("button", "ppClose", strings.close);
+  const closeButton = element("button", "ppClose", t("picker.close"));
   closeButton.type = "button";
   closeButton.addEventListener("click", close);
-  header.append(title, element("p", "ppHint", strings.hint), closeButton);
+  header.append(title, element("p", "ppHint", t("picker.hint")), closeButton);
 
   const body = element("div", "ppBody");
   const mapWrap = element("div", "ppMapWrap");
-  const map = element("div", "ppMap", strings.loading);
-  mapWrap.append(map, element("p", "ppNote", `${strings.note} · ${Text.provincePicker.credits}`));
+  const map = element("div", "ppMap", t("picker.loading"));
+  mapWrap.append(map, element("p", "ppNote", `${t("picker.note")} · ${t("picker.credits")}`));
 
   const panel = element("aside", "ppPanel");
   const hover = element("p", "ppHover");
@@ -111,36 +119,36 @@ function renderDetail(detail: HTMLElement, province: Province, regions: Map<stri
   detail.replaceChildren();
   const region = regions.get(province.region);
   detail.append(
-    element("h3", undefined, province.nameTh),
-    element("p", "ppSub", `${province.nameEn} · ${region ? region.nameTh : ""}`),
-    element("h4", undefined, strings.neighbors),
+    element("h3", undefined, localName(province)),
+    element("p", "ppSub", `${getLanguage() === "en" ? province.nameTh : province.nameEn} ·${region ? localName(region) : ""}`),
+    element("h4", undefined, t("picker.neighbors")),
   );
 
   const neighbors = element("div", "ppNeighbors");
   for (const id of province.neighbors) {
     const neighbor = provinces.get(id);
     if (!neighbor) continue;
-    const button = element("button", "ppNeighbor", neighbor.nameTh);
+    const button = element("button", "ppNeighbor", localName(neighbor));
     button.type = "button";
     button.addEventListener("click", () => select(id));
     neighbors.appendChild(button);
   }
   detail.appendChild(neighbors);
 
-  detail.appendChild(element("h4", undefined, strings.preview));
-  const preview = element("div", "ppPreview", strings.loading);
+  detail.appendChild(element("h4", undefined, t("picker.preview")));
+  const preview = element("div", "ppPreview", t("picker.loading"));
   detail.appendChild(preview);
   fetchJson<PresetMap>(`data/maps/${province.id}.json`).then((map) => {
     const canvas = element("canvas");
     drawPresetMap(canvas, map, PREVIEW_PIXELS_PER_TILE);
     preview.replaceChildren(canvas, element("p", "ppStats",
-      `${strings.land} ${percent(map.stats.land)} · ${strings.water} ${percent(map.stats.water)} · ` +
-      `${strings.woods} ${percent(map.stats.woods)}`));
+      `${t("picker.land")} ${percent(map.stats.land)} · ${t("picker.water")} ${percent(map.stats.water)} · ` +
+      `${t("picker.woods")} ${percent(map.stats.woods)}`));
   }).catch(() => {
-    preview.textContent = strings.noPreview;
+    preview.textContent = t("picker.no_preview");
   });
 
-  const start = element("button", "ppStart", strings.start);
+  const start = element("button", "ppStart", t("picker.start"));
   start.type = "button";
   start.addEventListener("click", () => {
     close();
@@ -174,14 +182,14 @@ function renderMap(container: HTMLElement, hover: HTMLElement, detail: HTMLEleme
       fill: REGION_COLORS[province.region] ?? "#ccc",
       tabindex: "0",
       role: "button",
-      "aria-label": province.nameTh,
+      "aria-label": localName(province),
     });
     const title = svgElement("title", {});
-    title.textContent = province.nameTh;
+    title.textContent = localName(province);
     path.appendChild(title);
     path.addEventListener("mouseenter", () => {
       const region = regions.get(province.region);
-      hover.textContent = `${province.nameTh} · ${region ? region.nameTh : ""}`;
+      hover.textContent = `${localName(province)} · ${region ? localName(region) : ""}`;
     });
     path.addEventListener("click", () => select(province.id));
     path.addEventListener("keydown", (event) => {
@@ -198,7 +206,7 @@ function renderMap(container: HTMLElement, hover: HTMLElement, detail: HTMLEleme
     const members: ProjectedProvince[] = projected.provinces.filter((p) => provinces.get(p.id)?.region === region.id);
     const [x, y] = groupCentroid(members);
     const label = svgElement("text", { x: x.toFixed(1), y: y.toFixed(1), class: "ppRegionLabel" });
-    label.textContent = region.nameTh;
+    label.textContent = localName(region);
     svg.appendChild(label);
   }
 
@@ -221,6 +229,6 @@ export function openProvincePicker(onStart: (provinceId: string) => void): void 
   ]).then(([data, topology]) => {
     renderMap(map, hover, detail, topology, data);
   }).catch(() => {
-    map.textContent = strings.loadFailed;
+    map.textContent = t("picker.load_failed");
   });
 }

@@ -25,8 +25,13 @@
   src: local('ChunkFive'), url(chunk.woff) format('woff');
 }
 
+/* Thai letters only (unicode-range), so the original Latin fonts look the same in both languages */
+@font-face { font-family: 'Sarabun Thai'; src: url('../assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; unicode-range: U+0E00-0E7F; }
+@font-face { font-family: 'Sarabun Thai'; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; unicode-range: U+0E00-0E7F; }
+
 body {
   background-image: url('../images/dirtbg.png');
+  font-family: 'Sarabun Thai', serif;
 }
 
 button, input[type="submit"] {
@@ -35,7 +40,7 @@ button, input[type="submit"] {
   border-radius: 3px;
   cursor: pointer;
   border: none;
-  font-family: sans-serif;
+  font-family: 'Sarabun Thai', sans-serif;
 }
 
 footer {
@@ -50,7 +55,7 @@ footer {
 header {
   background-color: darkslategray;
   background-image: repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(255, 255, 255, 0.2) 35px, rgba(255, 255, 255, 0.2) 70px);
-  font-family: 'Chunk', serif;
+  font-family: 'Chunk', 'Sarabun Thai', serif;
   height: 35px;
 }
 
@@ -80,6 +85,19 @@ footer a, footer a:link, footer a:visited, footer a:hover {
 
 nav li {
   display: inline;
+}
+
+#languageToggle {
+  width: auto;
+  height: auto;
+  padding: 1px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: transparent;
+  color: white;
+}
+
+#languageToggle:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .alignCenter {
@@ -126,7 +144,7 @@ nav li {
 }
 
 .chunk {
-  font-family: 'Chunk', serif;
+  font-family: 'Chunk', 'Sarabun Thai', serif;
   font-weight: normal;
 }
 
@@ -213,7 +231,7 @@ nav li {
 }
 
 .open {
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Open Sans', 'Sarabun Thai', sans-serif;
 }
 
 .opinion, .statistics {
@@ -306,8 +324,12 @@ nav li {
 }
 
 .nameLicense {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
+}
+
+.mapCredit {
+  font-size: 0.8em;
 }
 
 #budgetForm > div:nth-child(9) {

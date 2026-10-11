@@ -16,6 +16,7 @@ import $ from "jquery";
 import { EventEmitter } from './eventEmitter.js';
 import { GameCanvas } from './gameCanvas.js';
 import { GameTools } from './gameTools.js';
+import { t } from './i18n/index.ts';
 import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 
@@ -258,7 +259,7 @@ var toolButtonHandler = function(e) {
   this.toolWidth = $(e.target).attr('data-size');
   this.currentTool = this.gameTools[this.toolName];
   this.toolColour = $(e.target).attr('data-colour');
-  $(toolOutputID).html('Tools');
+  $(toolOutputID).text(t('tool.header'));
 
   if (this.toolName !== 'query') {
     $(this.canvasID).removeClass('helpPointer');
@@ -273,9 +274,10 @@ var toolButtonHandler = function(e) {
 
 
 InputStatus.prototype.speedChangeHandler = function(e) {
-  var requestedSpeed = $('#pauseRequest').text();
-  var newRequest = requestedSpeed === 'Pause' ? 'Play' : 'Pause';
-  $('#pauseRequest').text(newRequest);
+  // The button's i18n key, not its translated text, records whether it currently offers Pause or Resume
+  var requestedSpeed = $('#pauseRequest').attr('data-i18n') === 'menu.pause' ? 'Pause' : 'Play';
+  var newKey = requestedSpeed === 'Pause' ? 'menu.play' : 'menu.pause';
+  $('#pauseRequest').attr('data-i18n', newKey).text(t(newKey));
   this._emitEvent(Messages.SPEED_CHANGE, requestedSpeed);
 };
 

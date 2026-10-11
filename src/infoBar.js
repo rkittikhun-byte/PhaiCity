@@ -13,11 +13,10 @@
 
 import $ from "jquery";
 
+import { formatYear, onLanguageChange, t } from './i18n/index.ts';
 import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 import { Text } from './text.js';
-
-// TODO L20N
 
 var InfoBar = function(classification, population, score, funds, date, name) {
   var classificationSelector = MiscUtils.normaliseDOMid(classification);
@@ -28,16 +27,34 @@ var InfoBar = function(classification, population, score, funds, date, name) {
   var nameSelector = MiscUtils.normaliseDOMid(name);
 
   return function(dataSource, initialValues) {
-    $(classificationSelector).text(initialValues.classification);
+    // The city class and date are words in the player's language, so keep the values to redraw them after a switch
+    var currentClass = initialValues.classification;
+    var currentDate = initialValues.date;
+
+    var showClassification = function() {
+      $(classificationSelector).text(Text.cityClass[currentClass]);
+    };
+
+    var showDate = function() {
+      $(dateSelector).text(t('infobar.date', {month: Text.months[currentDate.month], year: formatYear(currentDate.year)}));
+    };
+
+    showClassification();
     $(populationSelector).text(initialValues.population);
     $(scoreSelector).text(initialValues.score);
     $(fundsSelector).text(initialValues.funds);
-    $(dateSelector).text([Text.months[initialValues.date.month], initialValues.date.year].join(' '));
+    showDate();
     $(nameSelector).text(initialValues.name);
+
+    onLanguageChange(function() {
+      showClassification();
+      showDate();
+    });
 
     // Add the various listeners
     dataSource.addEventListener(Messages.CLASSIFICATION_UPDATED, function(classification) {
-      $(classificationSelector).text(classification);
+      currentClass = classification;
+      showClassification();
     });
 
     dataSource.addEventListener(Messages.POPULATION_UPDATED, function(population) {
@@ -53,7 +70,8 @@ var InfoBar = function(classification, population, score, funds, date, name) {
     });
 
     dataSource.addEventListener(Messages.DATE_UPDATED, function(date) {
-      $(dateSelector).text([Text.months[date.month], date.year].join(' '));
+      currentDate = date;
+      showDate();
     });
   };
 };

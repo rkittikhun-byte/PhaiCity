@@ -17,7 +17,7 @@ import { Config } from './config.js';
 import { Game } from './game.js';
 import { decodePresetCells } from './geo/presetMap.ts';
 import { openProvincePicker } from './provincePicker.ts';
-import { Text } from './text.js';
+import { getLanguage } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { Simulation } from './simulation.js';
 import { SplashCanvas } from './splashCanvas.js';
@@ -68,7 +68,7 @@ var loadProvince = function(provinceId) {
 
     map.provinceId = provinceId;
     self.map = map;
-    self.provinceName = province ? province.nameTh : null;
+    self.provinceName = province ? (getLanguage() === 'en' ? province.nameEn : province.nameTh) : null;
     self.splashCanvas.paint(map);
     return true;
   }).catch(function(error) {
@@ -118,7 +118,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   // Set up listeners on buttons. When play is clicked, we will move on to get the player's desired
   // difficulty level and city name before launching the game properly
   $('#splashGenerate').click(regenerateMap.bind(this));
-  $('#splashProvince').text(Text.provincePicker.th.button).click(chooseProvince.bind(this));
+  $('#splashProvince').click(chooseProvince.bind(this));
   $('#splashPlay').click(acquireNameAndDifficulty.bind(this));
   $('#splashLoad').click(handleLoad.bind(this));
 
