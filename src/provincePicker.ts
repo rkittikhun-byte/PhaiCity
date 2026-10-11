@@ -145,6 +145,11 @@ let terrainToken = 0;
 const paths = new Map<string, SVGElement>();
 const regionLabels = new Map<string, SVGElement>();
 const provinceLabels = new Map<string, SVGElement>();
+// Each province label's shape bounds, to hide names that don't fit at the current zoom
+const labelBounds = new Map<SVGElement, [number, number, number, number]>();
+// Dragging the map: where the drag started, and whether it has moved far enough to count as a drag
+let drag: { x: number; y: number; box: ViewBox; moved: boolean } | null = null;
+let suppressClick = false;
 const presets = new Map<string, Promise<PresetMap>>();
 
 export function hasSeenIntro(): boolean {
@@ -287,6 +292,20 @@ function buildShell(): View {
   const track = element("div", "ppTrack");
   track.append(previous, tileList, next);
   row.append(rowTitle, track);
+  const zoom = element("div", "ppZoom");
+  const zoomButton = (text: string, key: string, onClick: () => void): HTMLButtonElement => {
+    const control = button("ppZoomButton", text, onClick);
+    control.title = t(key);
+    control.setAttribute("aria-label", control.title);
+    return control;
+  };
+  zoom.append(
+    zoomButton("+", "picker.zoom_in", () => zoomAt(0.6)),
+    zoomButton("−", "picker.zoom_out", () => zoomAt(1 / 0.6)),
+    zoomButton("⟲", "picker.zoom_reset", () => {
+      if (framedBox) flyTo(framedBox);
+    }),
+  );
   const dots = element("div", "ppDots");
   const panel = element("aside", "ppPanel");
   panel.hidden = true;
@@ -298,15 +317,21 @@ function buildShell(): View {
     if (line) credits.appendChild(line.cloneNode(true));
   }
 
-  overlay.append(backdropLayer, stage, vignette, top, hero, row, dots, panel, credits);
+  overlay.append(backdropLayer, stage, vignette, top, hero, row, zoom, dots, panel, credits);
   document.body.appendChild(overlay);
 
   // Clicking anywhere outside the card closes it (tiles and provinces open the next card themselves)
-  overlay.addEventListener("pointerdown", (event) => {
+  overlay.addEventListener("click", (event) => {
+    if (suppressClick) {
+      suppressClick = false;
+      event.stopPropagation();
+      return;
+    }
     const target = event.target as Element;
-    if (panel.hidden || panel.contains(target) || target.closest(".ppTile, .ppProvince, .ppTop")) return;
+    if (panel.hidden || panel.contains(target) || target.closest(".ppTile, .ppProvince, .ppTop, .ppZoom, .ppRow")) return;
     closeCard();
-  });
+  }, true);
+  installZoomAndPan(stage);
 
   const updateClock = (): void => {
     clock.textContent = new Date().toLocaleTimeString(getLanguage() === "en" ? "en-GB" : "th-TH", { hour: "2-digit", minute: "2-digit" });
@@ -331,6 +356,7 @@ function destroyShell(): void {
   paths.clear();
   regionLabels.clear();
   provinceLabels.clear();
+  labelBounds.clear();
   tiles = [];
 }
 
@@ -459,6 +485,7 @@ function buildMap(): void {
     });
     label.textContent = localName(province);
     provinceLabels.set(province.id, label);
+    labelBounds.set(label, shape.bounds);
     provinceLabelLayer.appendChild(label);
   }
 
@@ -476,7 +503,7 @@ function buildMap(): void {
       y: (weight ? y / weight : 0).toFixed(1),
       class: "ppRegionLabel hidden",
     });
-    label.textContent = localName(region);
+    label.textContent = t(`region.${region.id}.short`);
     regionLabels.set(region.id, label);
     regionLabelLayer.appendChild(label);
   }
@@ -544,13 +571,77 @@ function frame(box: ViewBox): ViewBox {
 }
 
 function scaleLabels(target: ViewBox): void {
-  const sizes: Array<[Map<string, SVGElement>, number]> = [[regionLabels, target[3] / 26], [provinceLabels, target[3] / 48]];
+  const sizes: Array<[Map<string, SVGElement>, number]> = [[regionLabels, target[3] / 40], [provinceLabels, target[3] / 62]];
   for (const [labels, size] of sizes) {
     for (const label of labels.values()) {
       label.setAttribute("font-size", size.toFixed(2));
       label.setAttribute("stroke-width", (size * 0.2).toFixed(2));
     }
   }
+  // A province's name shows only when the province is about as wide on screen as its name
+  const unitsPerPixel = target[2] / (view?.stage.clientWidth || 1);
+  const fontPx = target[3] / 62 / unitsPerPixel;
+  for (const [label, bounds] of labelBounds) {
+    const shapePx = (bounds[2] - bounds[0]) / unitsPerPixel;
+    // Thai vowel and tone marks sit above or below their letter and take no width
+    const textPx = (label.textContent ?? "").replace(/[\u0e31\u0e34-\u0e3a\u0e47-\u0e4e]/g, "").length * fontPx * 0.55;
+    label.classList.toggle("tight", shapePx < textPx * 0.85);
+  }
+}
+
+function setViewBox(box: ViewBox): void {
+  currentViewBox = box;
+  view?.svg?.setAttribute("viewBox", box.map((v) => v.toFixed(3)).join(" "));
+  scaleLabels(box);
+}
+
+// --- Zoom and pan by the player: wheel, drag, and the + - buttons ---
+
+function zoomAt(factor: number, clientX?: number, clientY?: number): void {
+  if (!view?.svg || mode === "intro" || !data) return;
+  cancelAnimationFrame(flyFrame);
+  const rect = view.stage.getBoundingClientRect();
+  const px = clientX === undefined ? 0.5 : (clientX - rect.left) / rect.width;
+  const py = clientY === undefined ? 0.5 : (clientY - rect.top) / rect.height;
+  const [x, y, width, height] = currentViewBox;
+  const widest = frame(countryBox())[2] * 1.6;
+  const next = Math.min(widest, Math.max(1.2, width * factor));
+  const scale = next / width;
+  // Keep the point under the pointer where it is
+  setViewBox([x + width * px * (1 - scale), y + height * py * (1 - scale), width * scale, height * scale]);
+}
+
+function installZoomAndPan(stage: HTMLElement): void {
+  stage.addEventListener("wheel", (event) => {
+    if (mode === "intro") return;
+    event.preventDefault();
+    zoomAt(Math.exp(event.deltaY * (event.ctrlKey ? 0.01 : 0.0015)), event.clientX, event.clientY);
+  }, { passive: false });
+  stage.addEventListener("pointerdown", (event) => {
+    if (mode === "intro" || event.button !== 0) return;
+    drag = { x: event.clientX, y: event.clientY, box: [...currentViewBox] as ViewBox, moved: false };
+  });
+  stage.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < 6) return;
+      drag.moved = true;
+      cancelAnimationFrame(flyFrame);
+      stage.setPointerCapture(event.pointerId);
+      stage.classList.add("dragging");
+    }
+    const unitsPerPixel = drag.box[2] / (stage.clientWidth || 1);
+    setViewBox([drag.box[0] - dx * unitsPerPixel, drag.box[1] - dy * unitsPerPixel, drag.box[2], drag.box[3]]);
+  });
+  const endDrag = (): void => {
+    if (drag?.moved) suppressClick = true; // the click that ends a drag picks nothing
+    drag = null;
+    stage.classList.remove("dragging");
+  };
+  stage.addEventListener("pointerup", endDrag);
+  stage.addEventListener("pointercancel", endDrag);
 }
 
 // Moves the camera to frame box, smoothly unless the player prefers less motion.
@@ -578,8 +669,9 @@ function flyTo(box: ViewBox, instant = false): void {
     const centreX = from[0] + from[2] / 2 + (target[0] + target[2] / 2 - from[0] - from[2] / 2) * zoomShare;
     const centreY = from[1] + from[3] / 2 + (target[1] + target[3] / 2 - from[1] - from[3] / 2) * zoomShare;
     currentViewBox = [centreX - width / 2, centreY - height / 2, width, height];
-    svg.setAttribute("viewBox", currentViewBox.map((v) => v.toFixed(2)).join(" "));
+    svg.setAttribute("viewBox", currentViewBox.map((v) => v.toFixed(3)).join(" "));
     if (k < 1) flyFrame = requestAnimationFrame(step);
+    else scaleLabels(target);
   };
   flyFrame = requestAnimationFrame(step);
 }
@@ -596,6 +688,7 @@ function onMapHover(province: Province | null): void {
       : path === paths.get(province.id));
     path.classList.toggle("hover", same);
   }
+  for (const [id, label] of provinceLabels) label.classList.toggle("hover", province !== null && id === province.id);
 }
 
 function onMapPick(province: Province): void {

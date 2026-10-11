@@ -547,6 +547,15 @@
 | `region.south.desc` | `src/provincePicker.ts` | `-` | `A long peninsula between two seas, the Gulf of Thailand and the Andaman.` | `คาบสมุทรยาวระหว่างทะเลสองฝั่ง อ่าวไทยและอันดามัน` | เรื่องเล่าและการ์ดภาค |
 | `region.south.pros` | `src/provincePicker.ts` | `-` | `Tourism and seaports` | `การท่องเที่ยว และท่าเรือ` | ONLINE_PLAN 5.2 |
 | `region.south.cons` | `src/provincePicker.ts` | `-` | `Storms` | `พายุ` | ONLINE_PLAN 5.2 |
+| `region.north.short` | `src/provincePicker.ts` | `-` | `North` | `เหนือ` | ชื่อสั้นบนแผนที่ |
+| `region.northeast.short` | `src/provincePicker.ts` | `-` | `Northeast` | `อีสาน` | ชื่อสั้นบนแผนที่ |
+| `region.central.short` | `src/provincePicker.ts` | `-` | `Central` | `กลาง` | ชื่อสั้นบนแผนที่ |
+| `region.east.short` | `src/provincePicker.ts` | `-` | `East` | `ตะวันออก` | ชื่อสั้นบนแผนที่ |
+| `region.west.short` | `src/provincePicker.ts` | `-` | `West` | `ตะวันตก` | ชื่อสั้นบนแผนที่ |
+| `region.south.short` | `src/provincePicker.ts` | `-` | `South` | `ใต้` | ชื่อสั้นบนแผนที่ |
+| `picker.zoom_in` | `src/provincePicker.ts` | `-` | `Zoom in` | `ซูมเข้า` | ปุ่มซูม |
+| `picker.zoom_out` | `src/provincePicker.ts` | `-` | `Zoom out` | `ซูมออก` | ปุ่มซูม |
+| `picker.zoom_reset` | `src/provincePicker.ts` | `-` | `Back to the view` | `กลับมุมเดิม` | ปุ่มซูม |
 | `picker.region_title` | `src/provincePicker.ts` | `-` | `Choose the region you will live in` | `เลือกภาคที่จะไปอยู่` | หัวขั้นเลือกภาค |
 | `picker.region_hint` | `src/provincePicker.ts` | `-` | `Point at a region, then click to see it` | `ชี้ที่ภาคเพื่อดู แล้วคลิกเพื่อเลือก` |  |
 | `picker.region_provinces` | `src/provincePicker.ts` | `-` | `{count} provinces` | `{count} จังหวัด` |  |
