@@ -12,7 +12,7 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → 5 → 6 → **6A** → 7 → 8 → … → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 18
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
    - **Prompt 6A (ชุดสไตล์ประจำภาค) ต้องทำก่อน Prompt 7 ถึง 15** เพราะอาคารพวกนั้นดึงหลังคา สี และของประกอบจาก 6A
@@ -328,6 +328,46 @@ Every piece must join its neighbors seamlessly.
 
 Seed-driven props: kilometer posts, warning signs, small signal cabinets.
 
+Follow the Definition of Done in MODEL_SPEC section 9.
+```
+
+## Prompt 5B — รถไฟความเร็วสูงและรถไฟฟ้า (หน้าตา)
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Look at the Prompt 5 rail pieces in src/render3d/models/rail/ first.
+
+Task: build elevated rail variants. The simulation has only one kind of rail. Later, the renderer
+will pick the look per rail tile:
+- high-speed rail on lines that reach a map edge (intercity, toward neighbor provinces)
+- urban metro (BTS-style) in dense commercial or high-density residential areas
+- the Prompt 5 diesel railway everywhere else
+
+So every piece must use the same connection masks, footprint and edge alignment as the Prompt 5
+pieces, letting the renderer swap them tile by tile.
+
+High-speed rail (category: rail, tier R3):
+- rail.hsr_straight, rail.hsr_corner, rail.hsr_t, rail.hsr_cross, rail.hsr_end:
+  - concrete box-girder viaduct, deck at 12 m, on one round pier per tile
+  - standard-gauge (1.435 m) double track
+  - an overhead catenary mast on every tile
+  - noise barriers along the deck edges
+- rail.hsr_ramp with variant 0–2: a 3-tile ramp from ground track height up to 12 m (0–4, 4–8, 8–12 m).
+
+Urban metro (category: rail, tier R3):
+- rail.metro_straight, rail.metro_corner, rail.metro_t, rail.metro_cross, rail.metro_end:
+  - slim concrete guideway at 10 m on T-shaped piers
+  - double track with a third-rail look
+  - maintenance walkway
+- rail.metro_ramp with variant 0–2: the same idea as the HSR ramp, up to 10 m.
+
+Vehicles (category: veh):
+- veh.train_hsr: a sleek high-speed trainset, nose car + 2 cars, about 25 m each.
+  Fictional livery "ไผ่เอ็กซ์เพรส" in bamboo green and white, with a pantograph.
+  It must not resemble any real operator.
+- veh.metro: a 3-car metro train, about 20 m per car, in a fictional livery.
+
+No real logos and no State Railway of Thailand, BTS or MRT branding.
 Follow the Definition of Done in MODEL_SPEC section 9.
 ```
 
