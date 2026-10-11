@@ -109,6 +109,10 @@ var startProvince = function(provinceId, cityName, difficulty) {
 
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
+  // Leave the dark start: the game's own header, footer and background come back
+  document.body.classList.remove('starting');
+  // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
+  window.dispatchEvent(new Event('resize'));
   var g = new Game(map, this.tileSet, this.snowTileSet, this.spriteSheet, difficulty, name);
 };
 

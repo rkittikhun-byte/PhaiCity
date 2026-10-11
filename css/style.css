@@ -935,6 +935,28 @@ nav li {
   opacity: 0.7;
 }
 
+/* While the game starts (body.starting, removed by src/splashScreen.js when a city starts) the whole page is
+   the dark start: no game header or footer, and a glowing gold logo while the tiles load */
+body.starting {
+  background: radial-gradient(ellipse at 60% 45%, #16241f 0%, #070b0a 70%, #030504 100%) fixed;
+}
+body.starting #header, body.starting #footer { display: none; }
+body.starting #loadingBanner {
+  width: auto; border: none; background: none; box-shadow: none;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+body.starting #loadingBanner[data-hasscript=false] { display: none; }
+.loadingBrand { display: none; }
+body.starting .loadingBrand {
+  display: block; font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 64px; letter-spacing: 0.04em; color: #f6d77a;
+  animation: loadingGlow 1.6s ease-in-out infinite alternate;
+}
+body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size: 14px; letter-spacing: 0.12em; color: rgba(238, 243, 239, 0.55); }
+@keyframes loadingGlow {
+  from { opacity: 0.55; text-shadow: 0 0 10px rgba(246, 215, 122, 0.2); }
+  to { opacity: 1; text-shadow: 0 0 34px rgba(246, 215, 122, 0.7); }
+}
+
 /* The start of the game (src/provincePicker.ts): a dark, full-screen, cinematic map of Thailand */
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }

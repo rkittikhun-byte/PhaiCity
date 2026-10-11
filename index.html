@@ -22,7 +22,8 @@
     <link rel="stylesheet" media="screen" type="text/css" href="css/style.css">
     <title data-i18n="app.title">PhaiCity</title>
   </head>
-  <body>
+  <!-- body.starting: the dark start (loading, story, choosing a province); removed when a city starts -->
+  <body class="starting">
     <img id="tiles" class="imageData" src="images/tiles.png" alt="These are the game's principal tiles">
     <img id="snowtiles" class="imageData" src="images/tilessnow.png" alt="These are the game's alternate tiles">
     <img id="sprites" class="imageData" src="images/sprites.png" alt="These are the game's sprites">
@@ -42,7 +43,7 @@
     <div id="wrapper">
       <main id="canvasContainer">
         <div class="hidden" id="opaque"></div>
-        <div data-hasscript="false" id="loadingBanner" data-i18n="splash.loading" class="alignCenter padding10 mintcream chunk shadow centred">Loading</div>
+        <div data-hasscript="false" id="loadingBanner" class="alignCenter padding10 mintcream chunk shadow centred"><span class="loadingBrand">PhaiCity</span><span class="loadingText" data-i18n="splash.loading">Loading</span></div>
         <!-- The start of the game is the full-screen map of Thailand built by src/provincePicker.ts -->
         <div id="infobar" class="alignCenter leftedge open width140 padding10 controlShadow mintcream z1 initialHidden">
           <div class="inner">
