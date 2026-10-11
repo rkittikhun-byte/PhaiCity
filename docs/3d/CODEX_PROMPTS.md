@@ -23,11 +23,11 @@
 
 | ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
 |---|---|---|
-| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **16B** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 17 → 18 |
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **16B** → **16C** → **16D** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 17 → 18 |
 | ~~Antigravity~~ | ~~worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics`~~ | ทำ **16** ยานพาหนะ (ในโฟลเดอร์หลัก) แล้วเลิกใช้ |
 
 - **11 ต.ค. 2026:** เจ้าของโปรเจคเลิกใช้ Antigravity กับงานกราฟิก เพราะรถจาก Prompt 16 เป็นกล่องและสีเพี้ยน
-  Prompt 16B, 17 และ 14 ย้ายมาให้ Codex ทั้งหมด (16B แทรกต่อจาก Prompt 5 เพราะเจ้าของต้องการแก้รถก่อน)
+  Prompt 16B, 16C, 16D, 17 และ 14 ย้ายมาให้ Codex ทั้งหมด (16B–16D แทรกต่อจาก Prompt 5 เพราะเจ้าของต้องการแก้รถก่อน)
 - Prompt 18 (ตรวจภาพรวม) ทำได้หลังทุก prompt ก่อนหน้า commit เข้า `main` แล้วเท่านั้น
 - ห้ามสลับไปทำในโฟลเดอร์ของอีกฝั่ง ทำทีละ prompt และ commit ทุกครั้ง
 
@@ -977,40 +977,47 @@ Follow the Definition of Done in MODEL_SPEC section 9
 (category veh is exempt from the footprint check).
 ```
 
-## Prompt 16B — ยกระดับหน้าตารถ (ทำต่อจาก Prompt 16)
+## Prompt 16B — ยกระดับหน้าตารถ: ชุดเครื่องมือ วัสดุ กระบะ เก๋ง สองแถว
 
 เจ้าของโปรเจคดู `veh.pickup` จาก Prompt 16 แล้วเห็นว่า "เป็นเหลี่ยมๆ ไม่สวย" สาเหตุจากโค้ด:
 ตัวรถเป็นกล่องตรงหลายก้อนวางซ้อนกัน ไม่มีขอบมน ใช้วัสดุ `metal_painted` ซึ่งเป็น texture เหล็กทาสีเก่าของอาคาร
 (สีรถจึงดูมีรอยขีดข่วนและสกปรก) กระจกเป็นกล่องจมอยู่ในกล่องห้องโดยสาร และใช้สามเหลี่ยมแค่ 656 จากงบ 4,000
 ยานพาหนะคันอื่นใน gallery ก็เป็นแบบเดียวกันหมด (400–900 สามเหลี่ยม สีเกือบดำเพราะ `tint()` คูณกับ texture สีเข้ม)
-Prompt นี้ทำชุดเครื่องมือสร้างรถที่ใช้ร่วมกัน แล้วสร้างยานพาหนะใหม่ทุกคัน
 
-**ก่อนวาง prompt นี้:** งานของ Prompt 16 ต้อง commit บน `main` แล้ว และ Codex ทำ Prompt 5 เสร็จแล้ว
-ให้ Codex ทำ (ต่อท้ายด้วยข้อความต่อท้ายของ Codex ตามปกติ)
+งานแก้แบ่งเป็น 3 prompt เพื่อให้แต่ละอันเสร็จและ commit ได้ในโควตารอบเดียวของ Codex:
+- **16B:** ชุดเครื่องมือสร้างรถ วัสดุของรถ และรถที่เห็นบ่อยที่สุด (กระบะ เก๋ง สองแถว)
+- **16C:** รถบนถนนที่เหลือ (รถเมล์ รถบรรทุก อีแต๋น ตุ๊กตุ๊ก มอเตอร์ไซค์)
+- **16D:** รถไฟ อากาศยาน และเรือ
+
+**ก่อนวาง 16B:** งานของ Prompt 16 ต้อง commit บน `main` แล้ว และ Codex ทำ Prompt 5 เสร็จแล้ว
+ทั้งสาม prompt ให้ Codex ทำ ต่อท้ายด้วยข้อความต่อท้ายของ Codex ตามปกติ
+และควรเริ่มแต่ละ prompt ตอนโควตาเพิ่งรีเซ็ต
 
 ```text
 Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
-Look at the road vehicles from Prompt 16 in src/render3d/models/vehicles/ first.
+Look at the vehicles from Prompt 16 in src/render3d/models/vehicles/ first.
 
-Problem: the owner finds veh.pickup blocky and ugly. In the code, every vehicle is a stack of
-axis-aligned boxes with no rounded edges, the body uses metal_painted (a weathered building texture,
-so the paint looks scratched and dirty), the glass is boxes sunk inside the cab box, and the pickup uses
-only 656 of its 4,000 triangles. Rebuild the road vehicles so that, seen up close in the gallery, they read
-as real modern cars, not as toy blocks.
+Problem: the owner finds the vehicles blocky and ugly. In the code, every vehicle is a stack of
+axis-aligned boxes with no rounded edges, the body uses metal_painted (a weathered building texture, so the
+paint looks scratched and renders almost black once tint() multiplies it), the glass is boxes sunk inside the
+cab box, and each vehicle uses only 400-900 of its 4,000 triangles. This is the first of three prompts
+(16B, 16C, 16D) that rebuild them so that, seen up close in the gallery, they read as real modern vehicles.
+This prompt builds the shared kit and materials, then the three most common vehicles. Leave the other
+vehicles unchanged; 16C and 16D will rebuild them with this kit.
 
-1. Shared vehicle kit (src/render3d/models/vehicles/kit.ts, used by every road vehicle):
+1. Shared vehicle kit (src/render3d/models/vehicles/kit.ts, documented so later prompts can reuse it):
    - Body from a side profile: draw the side silhouette in the Z-Y plane as a Shape with curves
      (a sloped hood, a raked windshield, a rounded roof line and tail), extrude it across the width with
      bevelEnabled (bevel about 0.04-0.06 m, 2-3 bevel segments, curveSegments 6 or more),
      so the hood, pillars, roof and tail are one continuous rounded body, not separate boxes.
    - Wheel arches: cut a round arch into the bottom of the profile around each wheel
-     (wheel radius + 0.06 m). Pickups and trucks get flared fender lips around the arches.
+     (wheel radius + 0.06 m), with optional flared fender lips for pickups and trucks.
    - Greenhouse with tumblehome: the cabin narrows towards the roof (roof about 85-90 % of the beltline
      width). Side, front and rear glass sit 1-2 cm inside the body surface, with dark pillars between the
      windows. Never place glass boxes inside body boxes.
    - Wheels: tires with 16 or more segments and rounded sidewalls (a LatheGeometry profile), rims with
      5 or 6 spokes or a dished hub, sitting inside the arches with a small visible gap.
-   - Details that make a car read as a car: shaped headlight clusters, red tail lights, amber turn signals,
+   - Parts that make a car read as a car: shaped headlight clusters, red tail lights, amber turn signals,
      a grille with horizontal slats, black plastic lower bumpers and trim, side mirrors on stalks,
      door handles. Panel lines are optional.
 2. Vehicle materials (add them to the material library, which is your file):
@@ -1020,24 +1027,81 @@ as real modern cars, not as toy blocks.
      (dark tint, slightly reflective). Lamps glow at night through the existing night mode.
    - Never use building or ground materials (metal_painted, asphalt, concrete and so on) on vehicles.
    - At most 8 draw calls per vehicle, as before.
-3. veh.pickup, the most common vehicle in Thailand, rebuilt first:
+3. veh.pickup, the most common vehicle in Thailand:
    - Real proportions: about 5.3 m long, 1.85 m wide and 1.8 m high, with high ground clearance
      (a "hi-lander" look), a long flat bed with walls about 0.5 m high and a tailgate with a handle.
    - Seeds choose double cab (4 doors, the most common), extended cab or single cab,
      and add an optional canopy or roll bar as before.
    - Colors weighted by seed: white most often, then silver, grey, black, dark blue, red and bronze.
    - A generic design: no badges, and not a copy of any real model.
-4. Then rebuild veh.sedan, veh.songthaew (start from the new pickup), veh.bus, veh.truck, veh.etan,
-   veh.tuktuk and veh.motorbike with the same kit and materials, keeping what each prompt asked for.
-5. Every other vehicle from Prompt 16 has the same problems (stacked boxes, 400-900 triangles, and paint
-   that renders almost black because tint() multiplies a dark weathered texture): rebuild veh.train_loco,
-   veh.train_car, veh.helicopter, veh.airplane, veh.ship, veh.longtail_boat and veh.korlae_boat as well,
-   with rounded hulls and fuselages (lathe or lofted shapes), proper materials and real detail.
-6. Keep every id, category, anchor, animation node, seed behavior and the region rules from Prompt 16.
-   Budgets: 4,000 triangles for cars, motorbikes, tuk-tuks and long-tail boats, 8,000 for trains, aircraft,
-   ships and helicopters. Aim for 50-90 % of the budget so the detail is really used.
-7. Check each vehicle in the gallery both up close and from the normal city camera distance, and attach
-   before and after screenshots of veh.pickup, veh.sedan, veh.bus and veh.ship to your report.
+4. veh.sedan with the same kit and materials, and veh.songthaew built from the new pickup
+   (keep its roof, two bench rows and the region colors from Prompt 16).
+5. Keep every id, category, anchor, animation node, seed behavior and region rule from Prompt 16.
+   Stay within 4,000 triangles per vehicle and aim for 2,000-3,500, so the detail is really used.
+6. Check each rebuilt vehicle in the gallery both up close and from the normal city camera distance,
+   and attach before and after screenshots of veh.pickup and veh.sedan to your report.
+
+Follow the Definition of Done in MODEL_SPEC section 9
+(category veh is exempt from the footprint check).
+```
+
+## Prompt 16C — ยกระดับหน้าตารถ: รถบนถนนที่เหลือ
+
+ทำหลัง 16B commit แล้ว
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Read src/render3d/models/vehicles/kit.ts and the new veh.pickup and veh.sedan from Prompt 16B first.
+
+Task: rebuild the remaining road vehicles from Prompt 16 with the 16B vehicle kit and vehicle materials,
+to the same quality as the new veh.pickup: rounded profile bodies, wheel arches, inset glass,
+proper wheels and lamps, and no building or ground materials.
+
+- veh.bus: a city bus with a low floor, large side windows in a continuous band, folding doors,
+  a destination display with a fictional route number, and a rounded roof with an AC unit.
+- veh.truck: a 6-wheel truck with a cab-over cab, a separate cargo box or flat bed by seed,
+  and twin rear wheels.
+- veh.etan (รถอีแต๋น): an open wooden bed on a simple frame with an exposed engine and radiator at the front;
+  wood and painted metal here may use the wood materials, since this vehicle is homemade.
+- veh.tuktuk: a curved sheet-metal body around the driver, the brightly colored roof canopy by seed,
+  and a passenger bench at the back.
+- veh.motorbike: a step-through scooter body, a helmeted rider, and the motorbike-taxi orange vest by seed.
+
+Keep every id, category, anchor, animation node, seed behavior and region rule from Prompt 16.
+Stay within 4,000 triangles per vehicle and aim for 50-90 % of it.
+Check each vehicle in the gallery up close and from the city camera distance, and attach before and
+after screenshots of veh.bus and veh.tuktuk to your report.
+
+Follow the Definition of Done in MODEL_SPEC section 9
+(category veh is exempt from the footprint check).
+```
+
+## Prompt 16D — ยกระดับหน้าตารถ: รถไฟ อากาศยาน และเรือ
+
+ทำหลัง 16C commit แล้ว
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Read src/render3d/models/vehicles/kit.ts and the vehicle materials from Prompt 16B first.
+
+Task: rebuild the rail, air and water vehicles from Prompt 16. They have the same problems as the old road
+vehicles: stacked boxes, 400-900 triangles, and paint that renders almost black because tint() multiplies
+a dark weathered texture. Use the 16B vehicle materials (add marine or aircraft variants to the material
+library if needed) and rounded shapes built with lathe or lofted geometry.
+
+- veh.train_loco and veh.train_car: rounded cab ends and roof edges, a recessed window band, bogies with
+  visible wheels for 1 m gauge, couplers and handrails. Keep the generic, non-real livery.
+- veh.helicopter: a teardrop fuselage, a tail boom, skids, and the existing rotor animation nodes.
+- veh.airplane: a round lathe fuselage with a tapered nose and tail, swept wings with engines,
+  a cockpit window band, and the fictional "ไผ่แอร์" (Phai Air) livery in bamboo green and white.
+- veh.ship: a real hull shape (flared bow, flat bottom, rounded stern), the bridge at the stern,
+  and stacked containers in several colors.
+- veh.longtail_boat and veh.korlae_boat: curved wooden hulls; keep the long-tail engine and ribbons,
+  and the hand-painted colors and high bow of the kolae boat.
+
+Keep every id, category, anchor, animation node, seed behavior and region rule from Prompt 16.
+Budgets: 8,000 triangles for trains, aircraft, ships and helicopters, and 4,000 for the two small boats;
+aim for 50-90 % of the budget. Attach before and after screenshots of veh.airplane and veh.ship to your report.
 
 Follow the Definition of Done in MODEL_SPEC section 9
 (category veh is exempt from the footprint check).
