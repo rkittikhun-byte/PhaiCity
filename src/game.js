@@ -17,6 +17,7 @@ import { attachGameAudio } from './audio/gameAudio.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
+import { CityCommands } from './cityCommands.ts';
 import { Config } from './config.js';
 import { CongratsWindow } from './congratsWindow.js';
 import { DebugWindow } from './debugWindow.js';
@@ -89,6 +90,20 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   this.gameCanvas = new GameCanvas('canvasContainer');
   this.gameCanvas.init(this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth);
+
+  // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
+  var simulation = this.simulation;
+  this.commands = new CityCommands({
+    width: this.gameMap.width,
+    height: this.gameMap.height,
+    tools: this.inputStatus.gameTools,
+    get blockMaps() { return simulation.blockMaps; },
+    budget: simulation.budget,
+    disasters: simulation.disasterManager,
+    sprites: simulation.spriteManager,
+    setSpeed: simulation.setSpeed.bind(simulation),
+    setAutoBulldoze: BaseTool.setAutoBulldoze
+  });
 
   // Sound only listens to the game; it never changes the city
   this.gameAudio = attachGameAudio(this, audio, Text);
@@ -344,30 +359,24 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
   if (request === DisasterWindow.DISASTER_NONE)
     return;
 
-  switch (request) {
-    case DisasterWindow.DISASTER_MONSTER:
-      this.simulation.spriteManager.makeMonster();
-      break;
+  var disasters = {};
+  disasters[DisasterWindow.DISASTER_MONSTER] = 'monster';
+  disasters[DisasterWindow.DISASTER_FIRE] = 'fire';
+  disasters[DisasterWindow.DISASTER_FLOOD] = 'flood';
+  disasters[DisasterWindow.DISASTER_CRASH] = 'crash';
+  disasters[DisasterWindow.DISASTER_MELTDOWN] = 'meltdown';
+  disasters[DisasterWindow.DISASTER_TORNADO] = 'tornado';
 
-    case DisasterWindow.DISASTER_FIRE:
-      this.simulation.disasterManager.makeFire();
-      break;
+  this.applyCommand({type: 'disaster', disaster: disasters[request]});
+};
 
-    case DisasterWindow.DISASTER_FLOOD:
-      this.simulation.disasterManager.makeFlood();
-      break;
 
-    case DisasterWindow.DISASTER_CRASH:
-      this.simulation.disasterManager.makeCrash();
-      break;
-
-    case DisasterWindow.DISASTER_MELTDOWN:
-      this.simulation.disasterManager.makeMeltdown();
-      break;
-
-    case DisasterWindow.DISASTER_TORNADO:
-      this.simulation.spriteManager.makeTornado();
-  }
+// The one way the player changes the city (src/cityCommands.ts)
+Game.prototype.applyCommand = function(command) {
+  var outcome = this.commands.apply(command);
+  if (!outcome.accepted)
+    console.warn('Command refused: ' + outcome.reason, command);
+  return outcome;
 };
 
 
@@ -379,20 +388,20 @@ Game.prototype.handleSettingsWindowClosure = function(actions) {
 
     switch (a.action) {
       case SettingsWindow.AUTOBUDGET:
-        this.simulation.budget.setAutoBudget(a.data);
+        this.applyCommand({type: 'setting', setting: 'autoBudget', on: a.data});
         break;
 
       case SettingsWindow.AUTOBULLDOZE:
-        BaseTool.setAutoBulldoze(a.data);
+        this.applyCommand({type: 'setting', setting: 'autoBulldoze', on: a.data});
         break;
 
       case SettingsWindow.SPEED:
         this.defaultSpeed = a.data;
-        this.simulation.setSpeed(this.defaultSpeed);
+        this.applyCommand({type: 'speed', speed: this.defaultSpeed});
         break;
 
       case SettingsWindow.DISASTERS_CHANGED:
-        this.simulation.disasterManager.disastersEnabled = a.data;
+        this.applyCommand({type: 'setting', setting: 'disasters', on: a.data});
         break;
 
       default:
@@ -410,7 +419,7 @@ Game.prototype.handleDebugWindowClosure = function(actions) {
 
     switch (a.action) {
       case DebugWindow.ADD_FUNDS:
-        this.simulation.budget.spend(-20000);
+        this.applyCommand({type: 'debugFunds'});
         break;
 
       default:
@@ -442,16 +451,15 @@ Game.prototype.handleBudgetWindowClosure = function(data) {
   this.dialogOpen = false;
 
   if (!data.cancelled) {
-    this.simulation.budget.roadPercent = data.roadPercent / 100;
-    this.simulation.budget.firePercent = data.firePercent / 100;
-    this.simulation.budget.policePercent = data.policePercent / 100;
-    this.simulation.budget.setTax(data.taxPercent - 0);
-    if (this.simNeededBudget) {
-      this.simulation.budget.doBudgetWindow();
-      this.simNeededBudget = false;
-    } else {
-      this.simulation.budget.updateFundEffects();
-    }
+    this.applyCommand({
+      type: 'budget',
+      tax: Number(data.taxPercent),
+      road: Number(data.roadPercent),
+      fire: Number(data.firePercent),
+      police: Number(data.policePercent),
+      yearEnd: this.simNeededBudget
+    });
+    this.simNeededBudget = false;
   }
 };
 
@@ -516,15 +524,18 @@ Game.prototype.handleTool = function(data) {
     return;
 
   var tool = this.inputStatus.currentTool;
+  var toolName = this.inputStatus.toolName;
+  var result;
 
-  var budget = this.simulation.budget;
-  var evaluation = this.simulation.evaluation;
+  if (toolName === 'query') {
+    // Looking at a tile changes nothing, so it is not a command
+    tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
+    result = tool.result;
+  } else {
+    result = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y}).toolResult;
+  }
 
-  // do it!
-  tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
-
-  tool.modifyIfEnoughFunding(budget);
-  switch (tool.result) {
+  switch (result) {
     case tool.TOOLRESULT_NEEDS_BULLDOZE:
       $('#toolOutput').text(Text.toolMessages.needsDoze);
       break;
@@ -537,7 +548,7 @@ Game.prototype.handleTool = function(data) {
       $('#toolOutput').text(t('tool.header'));
   }
 
-  this.gameAudio.toolUsed(this.inputStatus.toolName, tool.result, x);
+  this.gameAudio.toolUsed(toolName, result, x);
 };
 
 
@@ -556,11 +567,7 @@ Game.prototype.handlePause = function() {
   // No real difference among the speeds until we optimise
   // the sim
   this.isPaused = !this.isPaused;
-
-  if (this.isPaused)
-    this.simulation.setSpeed(Simulation.SPEED_PAUSED);
-  else
-    this.simulation.setSpeed(this.defaultSpeed);
+  this.applyCommand({type: 'speed', speed: this.isPaused ? Simulation.SPEED_PAUSED : this.defaultSpeed});
 };
 
 

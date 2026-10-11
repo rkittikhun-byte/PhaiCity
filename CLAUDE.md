@@ -173,6 +173,9 @@ Even before any server exists, all new code must keep this future possible:
 
 1. **Player actions are serializable commands**, e.g. `{ type: 'tool', tool: 'road', x: 10, y: 5 }`.
    They are applied through a single entry point, never by mutating the map straight from input handlers.
+   That entry point is `game.applyCommand` → `CityCommands` (`src/cityCommands.ts`), which checks every command
+   (`commandProblem`) before changing the city: tools, budget, disasters, settings, speed. A new player action gets
+   a new command type there.
 2. **Renderers only read city state.** They never write it back.
 3. **The simulation stays free of DOM, jQuery and `window`**, so it can run in Node on a server.
 4. **Saves support multiple cities** and carry optional `worldId` / `provinceId` fields.
