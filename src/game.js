@@ -25,7 +25,7 @@ import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
 import { GameCanvas } from './gameCanvas.js';
 import { GameMap } from './gameMap.js';
-import { t } from './i18n/index.ts';
+import { onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
@@ -37,6 +37,7 @@ import { Notification } from './notification.js';
 import { QueryWindow } from './queryWindow.js';
 import { Random } from './random.ts';
 import { RCI } from './rci.js';
+import { keepHigherRank, rankForCityClass } from './rulerRank.ts';
 import { SaveWindow } from './saveWindow.js';
 import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
@@ -47,6 +48,14 @@ import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
 
 var disasterTimeout = 20 * 1000;
+
+// Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
+var MILESTONES = {};
+MILESTONES[Messages.REACHED_TOWN] = {name: 'town', cityClass: 'TOWN'};
+MILESTONES[Messages.REACHED_CITY] = {name: 'city', cityClass: 'CITY'};
+MILESTONES[Messages.REACHED_CAPITAL] = {name: 'capital', cityClass: 'CAPITAL'};
+MILESTONES[Messages.REACHED_METROPOLIS] = {name: 'metropolis', cityClass: 'METROPOLIS'};
+MILESTONES[Messages.REACHED_MEGALOPOLIS] = {name: 'megalopolis', cityClass: 'MEGALOPOLIS'};
 
 
 function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
@@ -83,6 +92,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 
   if (savedGame)
     this.load(savedGame);
+
+  // The ruler's rank follows the city's size and is never lost (src/rulerRank.ts); older saves have none yet
+  this.rulerRank = keepHigherRank(savedGame ? savedGame.rulerRank : null,
+                                  rankForCityClass(this.simulation.evaluation.cityClass));
 
   this.rci = new RCI('RCIContainer', this.simulation);
 
@@ -258,11 +271,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
     name: this.name
   };
   this.infoBar(this.simulation, initialValues);
+  this.showRulerRank();
+  onLanguageChange(this.showRulerRank.bind(this));
 
   this._notificationBar = new Notification('#notifications', this.gameCanvas, Text.messageText[Messages.WELCOME]);
 
-  // Track when various milestones are first reached
-  this._reachedTown = this._reachedCity = this._reachedCapital = this._reachedMetropolis = this._reacedMegalopolis = false;
   this.congratsWindow = new CongratsWindow(opacityLayerID, 'congratsWindow');
   this.congratsWindow.addEventListener(Messages.CONGRATS_WINDOW_CLOSED, this.genericDialogClosure);
 
@@ -295,7 +308,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 // Saves this city in its own slot. Returns false when the browser's storage is full.
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
-                  provinceId: this.provinceId, worldId: this.worldId};
+                  provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -304,7 +317,7 @@ Game.prototype.save = function() {
     this.cityId = saveCity(saveData, {
       name: this.name, provinceId: this.provinceId, worldId: this.worldId,
       population: this.simulation.evaluation.cityPop, funds: this.simulation.budget.totalFunds,
-      year: date.year, month: date.month
+      year: date.year, month: date.month, rank: this.rulerRank
     }, this.cityId);
     return true;
   } catch (e) {
@@ -320,6 +333,12 @@ Game.prototype.load = function(saveData) {
   this.everClicked = saveData.everClicked;
   BaseTool.load(saveData);
   this.simulation.load(saveData);
+};
+
+
+// The rank's name in the info bar, in the player's language
+Game.prototype.showRulerRank = function() {
+  $('#rulerRank').text(t('rank.' + this.rulerRank));
 };
 
 
@@ -611,43 +630,14 @@ Game.prototype.processFrontEndMessage = function(message) {
   var d = new Date();
 
   if (Text.goodMessages[subject] !== undefined) {
-    var milestone = null;
-
-    switch (subject) {
-      case Messages.REACHED_CAPITAL:
-        if (!this._reachedCapital) {
-          this._reachedCapital = true;
-          milestone = 'capital';
-        }
-        break;
-
-      case Messages.REACHED_CITY:
-        if (!this._reachedCity) {
-          this._reachedCity = true;
-          milestone = 'city';
-        }
-        break;
-
-      case Messages.REACHED_MEGALOPOLIS:
-        if (!this._reachedMegalopolis) {
-          this._reachedMegalopolis = true;
-          milestone = 'megalopolis';
-        }
-        break;
-
-      case Messages.REACHED_METROPOLIS:
-        if (!this._reachedMetropolis) {
-          this._reachedMetropolis = true;
-          milestone = 'metropolis';
-        }
-        break;
-
-      case Messages.REACHED_TOWN:
-        if (!this._reachedTown) {
-          this._reachedTown = true;
-          milestone = 'town';
-        }
-        break;
+    // A bigger city raises the ruler's rank; it is celebrated once, the first time each rank is earned
+    var milestone = MILESTONES[subject];
+    var promoted = false;
+    if (milestone !== undefined) {
+      var rank = keepHigherRank(this.rulerRank, rankForCityClass(milestone.cityClass));
+      promoted = rank !== this.rulerRank;
+      this.rulerRank = rank;
+      this.showRulerRank();
     }
 
     if (this.lastBadMessageTime === null || d - this.lastBadMessageTime > disasterTimeout) {
@@ -655,11 +645,12 @@ Game.prototype.processFrontEndMessage = function(message) {
       this._notificationBar.goodNews(message);
     }
 
-    if (milestone !== null) {
+    if (promoted) {
       this.dialogOpen = true;
       this._openWindow = 'congratsWindow';
       this.congratsWindow.open(t('congrats.message_prefix', {name: this.name}) + ' ' +
-                               t('congrats.milestone.' + milestone));
+                               t('congrats.milestone.' + milestone.name) + ' ' +
+                               t('congrats.promoted', {rank: t('rank.' + this.rulerRank)}));
     }
 
     return;

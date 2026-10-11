@@ -422,6 +422,13 @@ nav li {
   height: 150px;
 }
 
+/* The ruler's rank (src/rulerRank.ts) under the city name */
+#infobar .rulerRank {
+  color: #8a5a00;
+  font-weight: 600;
+  cursor: help;
+}
+
 #loadingBanner[data-hasscript=false] {
   display: none;
 }
@@ -1036,6 +1043,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 15px; color: #93a79f; }
 #provincePicker .ppHeroText { margin: 0 0 12px; font-size: clamp(16px, 1.35vw, 21px); color: #cdd8d2; }
 #provincePicker .ppHeroExtra { margin: 0 0 12px; font-size: 14px; color: #93a79f; }
+#provincePicker .ppHeroRank { margin: 0 0 6px; font-size: 18px; font-weight: 700; letter-spacing: 0.04em; color: #f6d77a; }
 #provincePicker .ppHeroHint { margin: 14px 0 0; font-size: 14px; color: #f6d77a; letter-spacing: 0.02em; }
 @keyframes ppHeroIn { from { opacity: 0; transform: translateY(calc(-50% + 30px)); filter: blur(6px); } }
 @keyframes ppHeroOut { to { opacity: 0; transform: translateY(calc(-50% - 20px)); filter: blur(4px); } }

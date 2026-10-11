@@ -127,6 +127,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   The save format and its migrations are still `src/storage.js` (version 4); the old single save
   `micropolisJSGame` is copied in once and left untouched. "My cities" on the start screen carries on or deletes them.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
+- **Ruler rank (ยศเจ้าเมือง):** `src/rulerRank.ts` maps the game's city classes to หมื่น … เจ้าพระยา. A rank only
+  rises (`keepHigherRank`), is saved as `rulerRank` (and `rank` in the city list), shows under the city name, and the
+  congratulations window opens once per new rank (`game.processFrontEndMessage`).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   The game opens on a dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in

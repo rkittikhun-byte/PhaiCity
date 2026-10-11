@@ -20,6 +20,7 @@ import { difficultyStars, fundsBonus, provinceResources, resourceNotes, starting
 import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
+import { keepHigherRank, rankForPopulation } from "./rulerRank";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
 
 interface Province {
@@ -823,6 +824,11 @@ function cityPlace(city: CityMeta): string {
   return province ? localName(province) : t("cities.practice");
 }
 
+// "ยศขุน" / "Rank: Khun"; cities saved before ranks get the one their population earns
+function cityRank(city: CityMeta): string {
+  return t("rank.label", { rank: t(`rank.${keepHigherRank(city.rank, rankForPopulation(city.population))}`) });
+}
+
 function showCities(): void {
   if (!view || !data || !actions) return;
   if (actions.cities.length === 0) {
@@ -837,7 +843,7 @@ function showCities(): void {
   setTiles(t("cities.title"), actions.cities.map((city) => ({
     id: city.id,
     name: city.name,
-    meta: `${cityPlace(city)} · ${t("cities.population", { count: city.population.toLocaleString("en-US") })}`,
+    meta: `${cityPlace(city)} · ${cityRank(city)}`,
     color: REGION_COLORS[cityProvince(city)?.region ?? ""] ?? "#8a8f7a",
   })));
   focusIndex = -1;
@@ -860,6 +866,7 @@ function showCityHero(id: string): void {
   view.backdrop.setTint(province ? REGION_COLORS[province.region] ?? GOLD : GOLD);
 
   const body = element("div", "ppStats");
+  const rank = element("p", "ppHeroRank", cityRank(city));
   const funds = element("div", "ppFunds");
   funds.append(element("span", undefined, t("cities.population", { count: "" }).trim()),
     element("strong", undefined, city.population.toLocaleString("en-US")));
@@ -869,7 +876,7 @@ function showCityHero(id: string): void {
     when: new Date(city.savedAt).toLocaleDateString(getLanguage() === "en" ? "en-GB" : "th-TH",
       { day: "numeric", month: "short", year: "numeric" }),
   }));
-  body.append(funds, facts, saved);
+  body.append(rank, funds, facts, saved);
   setHero({
     title: city.name,
     sub: region ? `${cityPlace(city)} · ${localName(region)}` : cityPlace(city),

@@ -74,7 +74,7 @@
 | `infobar.date` | `src/infoBar.js` | `{Month} {Year}` (e.g. `Jan 1900`) | `{month} {year}` | `{month} {year}` | {month} มาจาก `month.*`, {year} ผ่าน formatYear (พ.ศ. ในภาษาไทย) |
 | `infobar.funds` | `index.html` | `Funds ${funds}` | `Treasury ฿{funds}` | `คลังเมือง: ฿{funds}` | สกุลเงินบาท |
 | `infobar.score` | `index.html` | `Score: {score}` | `Score: {score}` | `คะแนนเมือง: {score}` | คะแนนประเมินผล |
-| `infobar.population` | `index.html` | `Population:<br /> {pop}` | `Population:<br /> {pop}` | `ประชากร:<br /> {pop}` | จำนวนราษฎร |
+| `infobar.population` | `index.html` | `Population:<br /> {pop}` | `Pop. {pop}` | `ประชากร: {pop}` | จำนวนราษฎร (บรรทัดเดียว เพื่อเว้นที่ให้ยศเจ้าเมือง; แถบกว้าง 140 px จึงย่อคำอังกฤษ ให้ตัวเลข 7 หลักยังพอดี) |
 
 ---
 
@@ -178,12 +178,20 @@
 
 | Key | File | Current English | New English | Thai | Notes |
 |---|---|---|---|---|---|
-| `city.village` | `src/text.js` | `VILLAGE` | `Village (หมื่น)` | `หมู่บ้าน` | ประชากร < 2,000 / ยศหมื่น |
-| `city.town` | `src/text.js` | `TOWN` | `Town (ขุน)` | `ตำบล` | ประชากร ≥ 2,000 / ยศขุน |
-| `city.city` | `src/text.js` | `CITY` | `City (หลวง)` | `อำเภอ` | ประชากร ≥ 10,000 / ยศหลวง |
-| `city.capital` | `src/text.js` | `CAPITAL` | `Province Center (พระ)` | `จังหวัด` | ประชากร ≥ 50,000 / ยศพระ |
-| `city.metropolis` | `src/text.js` | `METROPOLIS` | `Metropolis (พระยา)` | `นคร` | ประชากร ≥ 100,000 / ยศพระยา |
-| `city.megalopolis` | `src/text.js` | `MEGALOPOLIS` | `Megalopolis (เจ้าพระยา)` | `มหานคร` | ประชากร ≥ 500,000 / ยศเจ้าพระยา |
+| `city.village` | `src/text.js` | `VILLAGE` | `Village` | `หมู่บ้าน` | ประชากร < 2,000 / ยศหมื่น (ยศแสดงแยกด้วย `rank.*`) |
+| `city.town` | `src/text.js` | `TOWN` | `Town` | `ตำบล` | ประชากร ≥ 2,000 / ยศขุน |
+| `city.city` | `src/text.js` | `CITY` | `City` | `อำเภอ` | ประชากร ≥ 10,000 / ยศหลวง |
+| `city.capital` | `src/text.js` | `CAPITAL` | `Province Center` | `จังหวัด` | ประชากร ≥ 50,000 / ยศพระ |
+| `city.metropolis` | `src/text.js` | `METROPOLIS` | `Metropolis` | `นคร` | ประชากร ≥ 100,000 / ยศพระยา |
+| `city.megalopolis` | `src/text.js` | `MEGALOPOLIS` | `Megalopolis` | `มหานคร` | ประชากร ≥ 500,000 / ยศเจ้าพระยา |
+| `rank.label` | `src/game.js`, `src/provincePicker.ts` | — | `Rank: {rank}` | `ยศ{rank}` | ยศเจ้าเมือง (`src/rulerRank.ts`, Claude Code 12 ต.ค. 2026) |
+| `rank.hint` | `index.html` | — | `Your title as the city's ruler. It rises as the city grows and is never taken away.` | `ยศของคุณในฐานะเจ้าเมือง เลื่อนขึ้นเมื่อเมืองเติบโต และไม่ถูกลดลง` | คำอธิบายเมื่อชี้ที่ยศ |
+| `rank.muen` | `src/rulerRank.ts` | — | `Muen` | `หมื่น` | หมู่บ้าน |
+| `rank.khun` | `src/rulerRank.ts` | — | `Khun` | `ขุน` | ตำบล |
+| `rank.luang` | `src/rulerRank.ts` | — | `Luang` | `หลวง` | อำเภอ |
+| `rank.phra` | `src/rulerRank.ts` | — | `Phra` | `พระ` | จังหวัด |
+| `rank.phraya` | `src/rulerRank.ts` | — | `Phraya` | `พระยา` | นคร |
+| `rank.chaophraya` | `src/rulerRank.ts` | — | `Chao Phraya` | `เจ้าพระยา` | มหานคร |
 | `diff.easy` | `src/text.js` | `Easy` | `Easy` | `ง่าย` | ระดับความยาก |
 | `diff.med` | `src/text.js` | `Medium` | `Medium` | `ปานกลาง` | ระดับความยาก |
 | `diff.hard` | `src/text.js` | `Hard` | `Hard` | `ยาก` | ระดับความยาก |
@@ -314,11 +322,12 @@
 | `screenshot.link.btn.ok` | `index.html` | `OK` | `OK` | `ตกลง` | ปุ่มปิด |
 | `congrats.title` | `index.html` | `Congratulations!` | `Congratulations!` | `ขอแสดงความยินดีด้วย!` | หัวหน้าต่างเลื่อนขั้น |
 | `congrats.message_prefix` | `src/game.js` | `{name} is now a ` | `{name} has grown into a ` | `{name} ได้รับการยกฐานะขึ้นเป็น` | ตัวเชื่อมข้อความ |
-| `congrats.milestone.town` | `src/game.js` | `town!` | `Town!` | `ตำบล! (ยศขุน)` | ประชากรถึง 2 พัน |
-| `congrats.milestone.city` | `src/game.js` | `city!` | `City!` | `อำเภอ! (ยศหลวง)` | ประชากรถึง 1 หมื่น |
-| `congrats.milestone.capital`| `src/game.js` | `capital!` | `Province Center!` | `จังหวัด! (ยศพระ)` | ประชากรถึง 5 หมื่น |
-| `congrats.milestone.metropolis`| `src/game.js` | `metropolis!` | `Metropolis!` | `นคร! (ยศพระยา)` | ประชากรถึง 1 แสน |
-| `congrats.milestone.megalopolis`| `src/game.js` | `megalopolis!` | `Megalopolis!` | `มหานคร! (ยศเจ้าพระยา)` | ประชากรถึง 5 แสน |
+| `congrats.milestone.town` | `src/game.js` | `town!` | `Town!` | `ตำบล!` | ประชากรถึง 2 พัน (ยศต่อท้ายด้วย `congrats.promoted`) |
+| `congrats.milestone.city` | `src/game.js` | `city!` | `City!` | `อำเภอ!` | ประชากรถึง 1 หมื่น |
+| `congrats.milestone.capital`| `src/game.js` | `capital!` | `Province Center!` | `จังหวัด!` | ประชากรถึง 5 หมื่น |
+| `congrats.milestone.metropolis`| `src/game.js` | `metropolis!` | `Metropolis!` | `นคร!` | ประชากรถึง 1 แสน |
+| `congrats.milestone.megalopolis`| `src/game.js` | `megalopolis!` | `Megalopolis!` | `มหานคร!` | ประชากรถึง 5 แสน |
+| `congrats.promoted` | `src/game.js` | — | `You rise to the rank of {rank}.` | `คุณได้เลื่อนยศเป็น{rank}` | ต่อท้ายข้อความยินดีเมื่อยศสูงขึ้น |
 | `congrats.btn.ok` | `index.html` | `OK` | `Celebrate!` | `ร่วมยินดี!` | ปุ่มรับทราบ |
 
 ---
@@ -444,6 +453,7 @@
 | `about.appeal.body` | `about.html` | `This is just the beginning...` | `PhaiCity is a Thai city-building game that runs in your browser. Choose one of Thailand's 77 provinces, start on its real land of rivers, coasts and forests, and grow a village into a great city as its ruler. It is free and open source.` | `PhaiCity คือเกมสร้างเมืองไทยที่เล่นบนเว็บเบราว์เซอร์ เลือกหนึ่งใน 77 จังหวัด เริ่มต้นบนผืนดินจริงที่มีแม่น้ำ ชายฝั่ง และป่าไม้ แล้วสร้างหมู่บ้านเล็ก ๆ ให้เติบโตเป็นมหานครในฐานะเจ้าเมือง เป็นเกมฟรีและเปิดซอร์สโค้ด` | แนะนำเกม (ไม่อ้างถึงของที่ยังไม่มี เช่น สถาปัตยกรรม 6 ภาค) |
 | `about.welcome.title` | `about.html` | `Welcome to your city!` | `How to play` | `วิธีเล่น` | หัวข้อการเล่น |
 | `about.welcome.body` | `about.html` | `micropolisJS is a handmade port of <a href="http://code.google.com/p/micropolis/">Micropolis</a> to Javascript...` | `As the city's ruler, balance the budget, growth and your citizens' happiness. Pick a tool from the toolbar, then click the map to build.` | `ในฐานะเจ้าเมือง คุณต้องรักษาสมดุลระหว่างงบประมาณ การเติบโต และความสุขของประชาชน เลือกเครื่องมือจากแถบเครื่องมือ แล้วคลิกบนแผนที่เพื่อสร้าง` | คู่มือการเล่น |
+| `about.rank` | `about.html` | — | `The bigger your city, the higher your title as its ruler: Muen, Khun, Luang, Phra, Phraya and at last Chao Phraya. A rank once earned is never taken away.` | `เมืองยิ่งใหญ่ ยศเจ้าเมืองยิ่งสูง ตั้งแต่หมื่น ขุน หลวง พระ พระยา จนถึงเจ้าพระยา ยศที่ได้แล้วจะไม่ถูกลดลง` | ยศเจ้าเมือง (`src/rulerRank.ts`) |
 | `about.zone.res` | `about.html` | `Residential zones: Your citizens need somewhere to live!...` | `Residential zones: Citizens need homes! Zone neighborhoods and watch towns grow, but keep pollution away.` | `เขตที่อยู่อาศัย: ราษฎรต้องการบ้านเรือน จัดสรรพื้นที่ชุมชนให้ผู้คนย้ายเข้ามาอยู่ และระวังอย่าให้มีมลพิษรบกวน` | คำอธิบายโซน |
 | `about.zone.com` | `about.html` | `Commercial zones: Sometimes your citizens need to pop round to the shops...` | `Commercial zones: Shops, markets, and offices that power commerce, services, and local trade.` | `เขตพาณิชยกรรม: แหล่งค้าขาย ร้านรวง ตลาด และสำนักงาน เพื่อขับเคลื่อนเศรษฐกิจท้องถิ่นและการจ้างงาน` | คำอธิบายโซน |
 | `about.zone.ind` | `about.html` | `Industrial zones: There's only so much daytime television...` | `Industrial zones: Factories and manufacturing hubs providing productive jobs and driving industrial output.` | `เขตอุตสาหกรรม: โรงงานและศูนย์การผลิต สร้างผลผลิตและอาชีพให้ประชาชน แต่ต้องระวังควันพิษ` | คำอธิบายโซน |

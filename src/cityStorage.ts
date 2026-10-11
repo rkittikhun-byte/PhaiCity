@@ -24,6 +24,8 @@ export interface CityMeta {
   funds: number;
   year: number;
   month: number;
+  /** The ruler's rank (src/rulerRank.ts); cities saved before ranks have none. */
+  rank?: string;
 }
 
 type Store = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
