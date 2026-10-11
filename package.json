@@ -17,10 +17,12 @@
     "test:watch": "jest --watch",
     "lint": "tslint src/*.ts test/*.ts",
     "dev": "webpack serve --mode development",
+    "gallery": "webpack serve --mode development --open /model-gallery.html",
     "production": "webpack serve --mode production"
   },
   "devDependencies": {
     "@types/jest": "30.0.0",
+    "@types/three": "0.186.0",
     "clean-webpack-plugin": "4.0.0",
     "copy-webpack-plugin": "13.0.0",
     "git-revision-webpack-plugin": "5.0.0",
@@ -37,6 +39,7 @@
   "license": "GPL-3.0",
   "readmeFilename": "README.md",
   "dependencies": {
-    "jquery": "3.7.1"
+    "jquery": "3.7.1",
+    "three": "0.186.1"
   }
 }

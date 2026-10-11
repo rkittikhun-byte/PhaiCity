@@ -36,6 +36,7 @@ function copyStaticAssets() {
       recursivelyCopy('css'),
       recursivelyCopy('images'),
       recursivelyCopy('sprites'),
+      recursivelyCopy('assets'),
       'LICENSE',
       'COPYING',
     ]
@@ -48,6 +49,7 @@ function injectBundleIntoHTML(gitHash) {
     inject: true,
     hash: true,
     template: './index.html',
+    chunks: ['micropolis'],
     filename: 'index.html'
   });
 }
@@ -59,6 +61,16 @@ function injectBuildIdIntoAbout(gitHash) {
     hash: true,
     template: './about.html',
     filename: 'about.html'
+  });
+}
+
+function injectGalleryBundle() {
+  return new HtmlWebpackPlugin({
+    template: './model-gallery.html',
+    filename: 'model-gallery.html',
+    chunks: ['model-gallery'],
+    inject: true,
+    hash: true,
   });
 }
 
@@ -74,10 +86,10 @@ function injectBuildIdIntoNameLicense(gitHash) {
 
 function addDevelopmentConfigTo(options) {
   options.devServer = {
-    contentBase: `./${OUTPUT_DIRECTORY}`
+    static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY) }
   };
 
-  options.devtool = 'source-maps';
+  options.devtool = 'source-map';
   options.mode = 'development';
 }
 
@@ -108,24 +120,33 @@ function commonOptions() {
   const buildId = getBuildId();
 
   const options = {
-    entry: './src/micropolis.js',
+    entry: {
+      micropolis: './src/micropolis.js',
+      'model-gallery': './src/render3d/gallery/gallery.ts',
+    },
     resolve: {
       extensions: ADD_TS_EXTENSIONS_TO_WEPACK,
       extensionAlias: SUPPORT_FULLY_QUALIFIED_TS_ESM_IMPORTS,
     },
     module: {
       rules: [
-        HANDLE_TYPESCRIPT_WITH_TS_LOADER,
+        { ...HANDLE_TYPESCRIPT_WITH_TS_LOADER, exclude: path.resolve(__dirname, 'src/render3d') },
+        {
+          ...HANDLE_TYPESCRIPT_WITH_TS_LOADER,
+          include: path.resolve(__dirname, 'src/render3d'),
+          options: { compilerOptions: { module: 'esnext' } },
+        },
       ],
     },
     output: {
       path: path.resolve(__dirname, OUTPUT_DIRECTORY),
-      filename: 'src/micropolis.js'
+      filename: 'src/[name].js'
     },
     plugins: [
       cleanUpLeftovers(),
       copyStaticAssets(),
       injectBundleIntoHTML(buildId),
+      injectGalleryBundle(),
       injectBuildIdIntoAbout(buildId),
       injectBuildIdIntoNameLicense(buildId),
     ],
@@ -137,7 +158,7 @@ function commonOptions() {
 export default function(env, argv) {
   let options = commonOptions();
 
-  if (env.development) {
+  if (argv.mode === 'development') {
     addDevelopmentConfigTo(options);
   } else {
     addProductionConfigTo(options);

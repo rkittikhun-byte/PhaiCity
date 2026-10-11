@@ -4,3 +4,7 @@ coverage/
 dist/
 node_modules/
 TODO
+
+# Raw downloads and recordings (large, regenerated or kept outside git)
+data/geo/cache/
+assets/audio/_raw/

@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2020",
+    "types": ["node", "jest"],
     "module": "commonjs",
     "allowJs": true,
     "outDir": "dist/src",

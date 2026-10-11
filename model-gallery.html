@@ -1,0 +1,118 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity — Model Gallery</title>
+    <style>
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+      :root { color-scheme: light; --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57; }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 Sarabun, system-ui, sans-serif; }
+      body[data-night="true"] { color-scheme: dark; --ink: #e0eee7; --muted: #a5b7ae; --paper: #172925; --line: #3f554d; --card: #20372f; --accent: #94d6b4; }
+      header, main { max-width: 1440px; margin: auto; padding: 28px 32px; }
+      header { display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 1px solid var(--line); }
+      .eyebrow { color: var(--accent); font-size: 12px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: 4px 0; font-size: clamp(26px, 3vw, 38px); font-weight: 600; letter-spacing: -.03em; }
+      h2 { font-size: 23px; margin: 18px 0 6px; }
+      p { margin: 4px 0; color: var(--muted); }
+      a { color: var(--accent); }
+      .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 16px 22px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+      .field { display: grid; gap: 6px; font-size: 12px; font-weight: 650; color: var(--muted); }
+      input, select, button { font: inherit; color: var(--ink); }
+      input[type=number], #state, select { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-height: 39px; }
+      input[type=number] { width: 90px; }
+      #seed { width: 116px; }
+      #state { width: 116px; }
+      input[type=range] { width: 132px; accent-color: var(--accent); }
+      input[type=checkbox] { accent-color: var(--accent); }
+      .toggle { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; }
+      button { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; background: var(--card); padding: 9px 14px; }
+      button:hover { border-color: var(--accent); }
+      button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+      .library-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 24px 0 14px; }
+      .library-heading p { font-size: 13px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+      .tabs { display: flex; gap: 10px; margin-bottom: 22px; }
+      .tabs [aria-selected="true"] { color: var(--card); background: var(--accent); border-color: var(--accent); }
+      .material-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+      .material-card .preview { cursor: grab; }
+      .caption a { display: inline-block; margin-top: 6px; font-size: 12px; }
+      .caption .material-label { font-family: inherit; }
+      .swatches { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 24px; }
+      .swatch { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+      .swatch i { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #0002; }
+      .signs-heading { margin-top: 32px; }
+      .model-card { text-align: left; padding: 0; overflow: hidden; background: var(--card); border-radius: 8px; }
+      .preview { height: 235px; }
+      .caption { padding: 17px 18px; border-top: 1px solid var(--line); }
+      .caption strong { font: 600 15px ui-monospace, monospace; }
+      .caption small { display: block; margin-top: 5px; color: var(--muted); }
+      .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 24px; margin-top: 20px; }
+      .stage { height: min(65vh, 680px); min-height: 350px; touch-action: none; border: 1px solid var(--line); }
+      .hint { margin-top: 12px; font-size: 13px; }
+      dl { display: grid; grid-template-columns: 1fr auto; gap: 12px; border-top: 1px solid var(--line); padding-top: 20px; }
+      dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+      .model-id { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+      .render-surface { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+      .error { border: 1px solid #c87558; padding: 20px; margin-top: 24px; }
+      footer { max-width: 1440px; margin: 24px auto; padding: 0 32px; font-size: 12px; color: var(--muted); }
+      @media (max-width: 760px) { header, main { padding: 20px; } header { align-items: start; } .detail-layout { grid-template-columns: 1fr; } .stage { height: 48vh; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div><div class="eyebrow">PhaiCity / 3D foundation</div><h1>Model Gallery</h1><p>ดูขนาด แสง และโครงสร้างโมเดลก่อนนำเข้าเมือง</p></div>
+      <a href="index.html">เปิดเกม ↗</a>
+    </header>
+    <main>
+      <nav class="tabs" role="tablist" aria-label="ประเภทตัวอย่าง">
+        <button id="models-tab" type="button" role="tab" aria-controls="library" aria-selected="true">Models</button>
+        <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1">Materials</button>
+      </nav>
+      <section class="toolbar" aria-label="ตัวเลือกแสดงโมเดล">
+        <label class="field">หมวดหมู่<select id="category"><option value="all">ทั้งหมด</option></select></label>
+        <label class="field">Seed<input id="seed" type="number" min="0" max="4294967295" step="1" value="1"></label>
+        <label class="field">Variant<input id="variant" type="number" min="0" max="15" step="1" value="0"></label>
+        <label class="field">State<input id="state" type="text" list="states" value="solid"><datalist id="states"></datalist></label>
+        <label class="field">มุมสูงดวงอาทิตย์ <output id="sun-value">55°</output><input id="sun-angle" type="range" min="5" max="85" value="55"></label>
+        <label class="toggle"><input id="night" type="checkbox">กลางคืน</label>
+        <label class="toggle"><input id="grid" type="checkbox" checked>กริด 10 ม.</label>
+        <label class="toggle"><input id="footprint" type="checkbox" checked>ขอบเขตพื้นที่</label>
+      </section>
+      <p id="error" class="error" role="alert" hidden></p>
+      <section id="library" role="tabpanel" aria-labelledby="models-tab">
+        <div class="library-heading"><p id="model-count"></p><p>คลิกโมเดลเพื่อหมุนดู</p></div>
+        <div id="cards" class="cards"></div>
+        <p id="empty" hidden>ไม่มีโมเดลในหมวดหมู่นี้</p>
+      </section>
+      <section id="materials" role="tabpanel" aria-labelledby="materials-tab" hidden>
+        <div class="library-heading"><p>32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม.</p><p>คลิกตัวอย่างเพื่อหมุนดู</p></div>
+        <p id="sky-status" class="hint" aria-live="polite">กำลังโหลดแสงท้องฟ้า HDRI 1K</p>
+        <div id="material-cards" class="cards"></div>
+        <h2>สีพาสเทลตึกแถว</h2><p>12 สี · เลือกซ้ำได้ด้วย seed เดิม</p><div id="pastels" class="swatches"></div>
+        <h2 class="signs-heading">ป้ายภาษาไทย</h2><p>แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ</p>
+        <div id="sign-cards" class="cards"></div>
+      </section>
+      <section id="detail" aria-label="ดูโมเดลเดี่ยว" hidden>
+        <p style="margin-top: 20px"><button id="back" type="button">← โมเดลทั้งหมด</button></p>
+        <div class="detail-layout">
+          <div><div id="stage" class="stage" role="img" aria-label="โมเดล 3D หมุนและซูมได้"></div><p class="hint">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกขวาแล้วลากเพื่อเลื่อนมุมมอง</p></div>
+          <aside><div class="eyebrow">Model inspector</div><h2 id="detail-id" class="model-id"></h2><p id="detail-category"></p>
+            <dl><dt>Triangles</dt><dd id="detail-triangles"></dd><dt>Draw calls</dt><dd id="detail-calls"></dd><dt>Footprint</dt><dd id="detail-footprint"></dd><dt>Triangle budget</dt><dd id="detail-budget"></dd></dl>
+            <p class="hint">Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู</p>
+            <button id="reset-camera" type="button">รีเซ็ตมุมกล้อง</button>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <footer>PhaiCity · GPL v3 · Textures / HDRI: CC0 · Font: Sarabun (OFL) · <a href="assets/CREDITS.md">เครดิตและที่มา</a><br>
+      Powered by <a href="https://polyhaven.com/">Poly Haven</a> · <a href="https://ambientcg.com/">ambientCG</a><br>
+      Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.</footer>
+    <noscript>กรุณาเปิด JavaScript เพื่อดูโมเดล</noscript>
+  </body>
+</html>
