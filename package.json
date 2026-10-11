@@ -19,7 +19,11 @@
     "dev": "webpack serve --mode development",
     "gallery": "webpack serve --mode development --open /model-gallery.html",
     "production": "webpack serve --mode production",
-    "textures:convert": "node src/render3d/dev/convert-textures.ts"
+    "textures:convert": "node src/render3d/dev/convert-textures.ts",
+    "geo:national": "node scripts/geo/national.mjs",
+    "geo:centers": "node scripts/geo/centers.mjs",
+    "geo:edges": "node scripts/geo/edges.mjs",
+    "test:geo": "node --test \"test/geo/*.test.mjs\""
   },
   "devDependencies": {
     "@types/jest": "30.0.0",
@@ -29,6 +33,7 @@
     "git-revision-webpack-plugin": "5.0.0",
     "html-webpack-plugin": "5.6.3",
     "jest": "30.0.4",
+    "mapshaper": "0.7.83",
     "sharp": "0.35.5",
     "ts-jest": "29.4.0",
     "ts-loader": "9.5.2",

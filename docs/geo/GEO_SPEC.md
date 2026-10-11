@@ -136,6 +136,8 @@ Bangkok has no single capital town. Use the old city (Rattanakosin) as its defau
   - S = 135°–225°
   - W = 225°–315°
 - When several neighbors share one edge, split that edge into equal segments, ordered by bearing.
+- Positions `from`/`to` (0–1) run **west→east on N and S edges** and **north→south on E and W edges**.
+- An edge with no neighbor faces another country, the sea or open land; it has no "ด่าน".
 - Phuket's only neighbor is Phang Nga, linked by the Sarasin bridge.
 
 ## 9. Quality gates (every map)
