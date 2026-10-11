@@ -68,7 +68,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 - **Simulation** (do not touch unless asked):
   - `simulation.js`, `residential.js`, `commercial.js`, `industrial.js`, `traffic.js`
   - `powerManager.js`, `evaluation.js`, `budget.js`, `census.js`, `disasterManager.js`, etc.
-- **Map:** `gameMap.js`, 120×100 tiles. Each tile has
+- **Map:** `gameMap.js`, 120×100 tiles for random maps; province preset maps are 200×200. Each tile has
   - a tile value 0–1023 (`src/tileValues.ts`)
   - flags (`src/tileFlags.ts`) in the bits from `0x400` upward
 - **Zone tile formulas** (center tile):
@@ -134,7 +134,7 @@ Even before any server exists, all new code must keep this future possible:
 ## Real geography
 
 - The national province picker uses real province shapes. Each province starts from the real natural
-  geography (water, coast, woods) of a 1.2 × 1 km area around its city center. No real roads or buildings.
+  geography (water, coast, woods) of a 2 × 2 km area (200×200 tiles) around its city center. No real roads or buildings.
 - Read `docs/geo/GEO_SPEC.md` before touching `scripts/geo/`, `data/geo/` or `data/maps/`.
   The prompts are in `docs/geo/CODEX_PROMPTS.md`.
 - Only the data sources listed in GEO_SPEC section 3 are allowed:
@@ -156,6 +156,12 @@ Even before any server exists, all new code must keep this future possible:
    and must be recorded in `assets/CREDITS.md` (textures, fonts, HDRIs), `assets/audio/CREDITS.md` (sound and music)
    or `data/CREDITS.md` (map data). The sound plan, including forbidden music, is in `docs/audio/AUDIO_PLAN.md`.
    If unsure about a license, ask first.
-7. No real brands or logos, no Garuda emblem or royal symbols, no Red Cross emblem.
+7. **Required on-screen credits:**
+   - The micropolisJS/GPL notice ("Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.")
+     and the Micropolis trademark attribution, in the footer or About/credits page.
+   - "© OpenStreetMap contributors" wherever real province maps are shown.
+   - CC0 sources (Poly Haven, ambientCG, Kenney, Freesound CC0, Natural Earth) are optional;
+     list them on one credits page.
+8. No real brands or logos, no Garuda emblem or royal symbols, no Red Cross emblem.
    No Buddha images and no religious buildings of any faith (temples, mosques, churches, Chinese shrines);
    spirit houses are the only exception. No temple or palace roof ornaments on houses (ช่อฟ้า, ใบระกา, หางหงส์).

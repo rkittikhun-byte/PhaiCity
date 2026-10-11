@@ -73,47 +73,69 @@ export async function download(url, dest) {
   return dest;
 }
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Public Overpass instances listed on the OSM wiki. The main one is often overloaded (504),
+// so busy responses rotate to the next instance.
+const OVERPASS_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
 const OVERPASS_MIN_INTERVAL_MS = 2000;
-const OVERPASS_MAX_ATTEMPTS = 5;
+const OVERPASS_MAX_ATTEMPTS = 12;
+const OVERPASS_BUSY_STATUSES = new Set([429, 502, 503, 504]);
 let lastOverpassRequest = 0;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Cached, rate-limited Overpass request. Retries with backoff on 429/504 (GEO_SPEC section 12).
+// Cached, rate-limited Overpass request. Retries with backoff and rotates instances when
+// a server is busy (GEO_SPEC section 12).
 export async function overpass(query, cacheName) {
   const cacheFile = path.join(CACHE_DIR, 'overpass', `${cacheName}.json`);
   if (fs.existsSync(cacheFile)) {
     return readJson(cacheFile);
   }
 
+  let lastProblem = '';
   for (let attempt = 0; attempt < OVERPASS_MAX_ATTEMPTS; attempt++) {
     const wait = lastOverpassRequest + OVERPASS_MIN_INTERVAL_MS - Date.now();
     if (wait > 0) {
       await sleep(wait);
     }
     lastOverpassRequest = Date.now();
+    const url = OVERPASS_URLS[attempt % OVERPASS_URLS.length];
 
-    const response = await fetch(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ data: query }),
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ data: query }),
+      });
+    } catch (error) {
+      lastProblem = `${url}: ${error.message}`;
+      await sleep(3000 * 2 ** Math.floor(attempt / OVERPASS_URLS.length));
+      continue;
+    }
 
-    if (response.status === 429 || response.status === 504) {
-      await sleep(5000 * 2 ** attempt);
+    if (OVERPASS_BUSY_STATUSES.has(response.status)) {
+      lastProblem = `${url}: HTTP ${response.status}`;
+      await sleep(3000 * 2 ** Math.floor(attempt / OVERPASS_URLS.length));
       continue;
     }
     if (!response.ok) {
-      throw new Error(`Overpass request "${cacheName}" failed with ${response.status}`);
+      throw new Error(`Overpass request "${cacheName}" failed with ${response.status} at ${url}`);
     }
 
     const json = await response.json();
+    if (json.remark && /runtime error|timed out/i.test(json.remark)) {
+      // Overpass reports query timeouts inside a 200 response; never cache a partial result.
+      lastProblem = `${url}: ${json.remark}`;
+      continue;
+    }
     writeJson(cacheFile, json);
     return json;
   }
 
-  throw new Error(`Overpass request "${cacheName}" kept failing after ${OVERPASS_MAX_ATTEMPTS} attempts`);
+  throw new Error(`Overpass request "${cacheName}" kept failing after ${OVERPASS_MAX_ATTEMPTS} attempts (${lastProblem})`);
 }
 
 // mapshaper resolves file paths against the working directory, so scripts run from the repo root.

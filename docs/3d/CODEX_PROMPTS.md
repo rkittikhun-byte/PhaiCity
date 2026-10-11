@@ -12,12 +12,39 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → 5 → 6 → **6A** → 7 → 8 → … → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 18
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
    - **Prompt 6A (ชุดสไตล์ประจำภาค) ต้องทำก่อน Prompt 7 ถึง 15** เพราะอาคารพวกนั้นดึงหลังคา สี และของประกอบจาก 6A
    - 6A จะเพิ่มวัสดุที่ Prompt 1 ยังไม่มีให้เอง (ไม้ไผ่ หลังคาจาก หญ้าคา แป้นเกล็ด กระเบื้องเคลือบ) ไม่ต้องรัน Prompt 1 ใหม่
 5. ทุก prompt สั่งให้ Codex สรุปงานกลับมาเป็นภาษาไทย
+
+## แบ่งงานระหว่าง Codex กับ Antigravity
+
+| ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
+|---|---|---|
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 15 → 18 |
+| **Antigravity** | worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics` | **16** ยานพาหนะ → **17** ภัยพิบัติและเอฟเฟกต์ → **14** โรงไฟฟ้า |
+
+- Prompt 16, 17 และ 14 ไม่ต้องใช้ผลงานจาก prompt อื่นที่ยังไม่เสร็จ จึงทำคู่กับ Codex ได้
+- Prompt 18 (ตรวจภาพรวม) ทำได้หลัง Claude Code merge งานของทั้งสองฝั่งเข้า `main` แล้วเท่านั้น
+- ห้ามสลับไปทำในโฟลเดอร์ของอีกฝั่ง ทำทีละ prompt และ commit ทุกครั้ง
+
+**ข้อความต่อท้ายทุก prompt ของ Codex:**
+
+```text
+Commit only your own changes on main with the message "Codex prompt N: <short summary>". Do not merge, rebase or push.
+```
+
+**ข้อความนำหน้าทุก prompt ของ Antigravity** (แล้วค่อยวาง prompt จากไฟล์นี้ต่อท้าย):
+
+```text
+For this task you take the graphics role (the "Codex" side of the work split in AGENTS.md and CLAUDE.md).
+Work only in this folder: it is a git worktree on branch ag/graphics. Never touch the main folder or any other worktree.
+Codex is working on different prompts at the same time in the main folder, so only create or edit files this prompt needs.
+When done, commit only your own changes on ag/graphics with the message "Prompt N (Antigravity): <short summary>".
+Do not merge, rebase or push. Report to me in Thai.
+```
 
 **ตัวเลขในวงเล็บ** คือเลข tile ในเกม (จาก `src/tileValues.ts`) ใช้ผูกโมเดลกับระบบเกมตอนทำ renderer
 
@@ -303,6 +330,31 @@ The renderer will drive vehicles from Prompt 16 along them.
 Follow the Definition of Done in MODEL_SPEC section 9.
 ```
 
+## Prompt 4B — สะพานขึงข้ามแม่น้ำ
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Look at road.bridge from Prompt 4 in src/render3d/models/road/ first.
+
+Task: build a cable-stayed bridge for wide rivers.
+The simulation only knows ordinary bridge tiles (64, 65). Later, the renderer will draw any straight run
+of 8 or more bridge tiles as this cable-stayed bridge instead of road.bridge.
+Design: inspired by Bangkok's single-pylon river bridges, but never an exact copy, and never with a real name.
+
+- road.bridge_cable_deck: one tile of deck, same cross-section and edge alignment as road.bridge,
+  with stay-cable anchor points along both edges.
+  variant = distance in tiles from the pylon (0–20), so the renderer can draw cables at the right angle.
+- road.bridge_cable_pylon: the pylon tile.
+  - one tall, slender inverted-Y pylon, 120 m high, with a small lit crown
+  - with variant = side (0 or 1), it fans stay cables out to up to 20 deck tiles on that side
+    (draw the cables as thin lines merged into one mesh)
+  - deck at y = 0, matching road.bridge, with the pier going down to the riverbed
+- Night lighting along the cables, using emissive_window or a tinted emissive material from the library.
+- Tier R3. No real bridge names, plaques or royal emblems.
+
+Follow the Definition of Done in MODEL_SPEC section 9.
+```
+
 ## Prompt 5 — ทางรถไฟ
 
 ```text
@@ -328,6 +380,46 @@ Every piece must join its neighbors seamlessly.
 
 Seed-driven props: kilometer posts, warning signs, small signal cabinets.
 
+Follow the Definition of Done in MODEL_SPEC section 9.
+```
+
+## Prompt 5B — รถไฟความเร็วสูงและรถไฟฟ้า (หน้าตา)
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Look at the Prompt 5 rail pieces in src/render3d/models/rail/ first.
+
+Task: build elevated rail variants. The simulation has only one kind of rail. Later, the renderer
+will pick the look per rail tile:
+- high-speed rail on lines that reach a map edge (intercity, toward neighbor provinces)
+- urban metro (BTS-style) in dense commercial or high-density residential areas
+- the Prompt 5 diesel railway everywhere else
+
+So every piece must use the same connection masks, footprint and edge alignment as the Prompt 5
+pieces, letting the renderer swap them tile by tile.
+
+High-speed rail (category: rail, tier R3):
+- rail.hsr_straight, rail.hsr_corner, rail.hsr_t, rail.hsr_cross, rail.hsr_end:
+  - concrete box-girder viaduct, deck at 12 m, on one round pier per tile
+  - standard-gauge (1.435 m) double track
+  - an overhead catenary mast on every tile
+  - noise barriers along the deck edges
+- rail.hsr_ramp with variant 0–2: a 3-tile ramp from ground track height up to 12 m (0–4, 4–8, 8–12 m).
+
+Urban metro (category: rail, tier R3):
+- rail.metro_straight, rail.metro_corner, rail.metro_t, rail.metro_cross, rail.metro_end:
+  - slim concrete guideway at 10 m on T-shaped piers
+  - double track with a third-rail look
+  - maintenance walkway
+- rail.metro_ramp with variant 0–2: the same idea as the HSR ramp, up to 10 m.
+
+Vehicles (category: veh):
+- veh.train_hsr: a sleek high-speed trainset, nose car + 2 cars, about 25 m each.
+  Fictional livery "ไผ่เอ็กซ์เพรส" in bamboo green and white, with a pantograph.
+  It must not resemble any real operator.
+- veh.metro: a 3-car metro train, about 20 m per car, in a fictional livery.
+
+No real logos and no State Railway of Thailand, BTS or MRT branding.
 Follow the Definition of Done in MODEL_SPEC section 9.
 ```
 
@@ -675,6 +767,15 @@ Land value 3:
                        abstract contemporary-Thai pattern, event plaza in front.
 - com.block_3_4 (607)  60-storey mixed-use skyscraper: tapering stepped form, LED-lit crown.
                        Max height 150 m; this is the tallest building in the game.
+
+Landmark variants of com.block_3_4. variant 0 is the default described above;
+the renderer will pick 1 or 2 for a few top-level towers in big cities.
+Both are inspired by Bangkok skyscrapers, but never exact copies and never with real names or logos:
+- variant 1, "ตึกระฟ้ายอดแหลม": a slender square tower with a tall pointed spire on top and a
+  rotating observation deck ring near the top (anim_deck). Max height 150 m.
+- variant 2, "ตึกพิกเซล": a glass tower with a spiral band of pixel-like voids carved into the facade,
+  as if blocks were removed, revealing balconies inside. Max height 150 m.
+Footprint, tile value and anchors stay the same as variant 0.
 
 Regional tiers: R2 for com.block_2_0 and com.block_3_1 (roofs, palette and plants from the kit).
 Every other model here is R3.

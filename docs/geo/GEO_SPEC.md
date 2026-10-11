@@ -18,9 +18,9 @@ Province ids, names, regions and neighbors come from `data/thailand-provinces.js
 
 ## 2. Scale and projection
 
-- **Default map:** 120 × 100 tiles at 10 m per tile, i.e. 1,200 × 1,000 m.
+- **Default map:** 200 × 200 tiles at 10 m per tile, i.e. 2,000 × 2,000 m (decided 11 Oct 2026: at 120 × 100 the Chiang Mai moat fell outside the map).
   - Every script takes `width`, `height` and `tileSizeM` as parameters.
-  - Larger maps (e.g. 200 × 200) may be tested later, so never hardcode the size.
+  - Never hardcode the size: the game map and every tool must read it from the preset.
 - **North up:** map x → east, map y → south.
 - **Projection:** local equirectangular around the map center (lat0, lon0):
   - `x_m = (lon − lon0) × cos(lat0) × 111320`
@@ -64,8 +64,8 @@ If unsure, stop and ask the project owner.
 {
   "format": 1,
   "provinceId": "TH-50",
-  "width": 120,
-  "height": 100,
+  "width": 200,
+  "height": 200,
   "tileSizeM": 10,
   "center": { "lat": 18.7883, "lon": 98.9853 },
   "bbox": [98.9796, 18.7838, 98.9910, 18.7928],
