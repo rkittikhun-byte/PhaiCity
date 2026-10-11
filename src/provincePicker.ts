@@ -222,7 +222,10 @@ function buildShell(): View {
   overlay.setAttribute("aria-label", "PhaiCity");
 
   const backdropLayer = element("div", "ppBackdrop");
-  const stage = element("div", "ppStage", t("picker.loading"));
+  // While the map loads: the same thin gold line as the loading screen, and the words for screen readers
+  const stage = element("div", "ppStage");
+  stage.setAttribute("aria-label", t("picker.loading"));
+  stage.appendChild(element("span", "loadingBar"));
   const vignette = element("div", "ppVignette");
 
   const top = element("div", "ppTop");
