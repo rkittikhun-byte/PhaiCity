@@ -957,7 +957,8 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
   to { opacity: 1; text-shadow: 0 0 34px rgba(246, 215, 122, 0.7); }
 }
 
-/* The start of the game (src/provincePicker.ts): a dark, full-screen, cinematic map of Thailand */
+/* The start of the game (src/provincePicker.ts), like a game console's home screen: a swaying bamboo grove
+   (src/startBackdrop.ts) behind a glowing map, big text on the left and a row of tiles at the bottom */
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
 
@@ -976,21 +977,28 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 #provincePicker button { font: inherit; cursor: pointer; width: auto; height: auto; min-height: 30px; line-height: 1.4;
   border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(255, 255, 255, 0.07);
   color: #eef3ef; padding: 4px 14px; backdrop-filter: blur(6px); }
-#provincePicker button:hover { background: rgba(255, 255, 255, 0.16); box-shadow: 0 0 18px rgba(120, 220, 180, 0.25); }
+#provincePicker button:hover { background: rgba(255, 255, 255, 0.16); box-shadow: 0 0 18px rgba(246, 205, 110, 0.25); }
 #provincePicker button[hidden] { display: none; }
 
-/* The map fills the screen; the camera is the SVG viewBox */
-#provincePicker .ppStage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #8fa39b; }
+/* Layers: bamboo, map, a darkening vignette for legible text, then the interface */
+#provincePicker .ppBackdrop, #provincePicker .ppStage, #provincePicker .ppVignette { position: absolute; inset: 0; }
+#provincePicker .ppBackdropCanvas { width: 100%; height: 100%; display: block; }
+#provincePicker .ppStage { display: flex; align-items: center; justify-content: center; color: #8fa39b; }
+#provincePicker .ppVignette { pointer-events: none;
+  background: linear-gradient(90deg, rgba(3, 6, 5, 0.82) 0%, rgba(3, 6, 5, 0.35) 34%, rgba(3, 6, 5, 0) 55%),
+              linear-gradient(0deg, rgba(3, 6, 5, 0.9) 0%, rgba(3, 6, 5, 0) 32%); }
+
+/* The map; the camera is the SVG viewBox */
 #provincePicker .ppSvg { width: 100%; height: 100%; }
 #provincePicker .ppSvg[data-mode="intro"] { pointer-events: none; }
 #provincePicker .ppProvinces { filter: drop-shadow(0 0 22px rgba(110, 200, 170, 0.18)); }
 #provincePicker .ppSvg.plain .ppProvinces { filter: drop-shadow(0 0 26px rgba(255, 196, 70, 0.45)); }
-#provincePicker .ppProvince { stroke: #0a1210; stroke-width: 0.8; vector-effect: non-scaling-stroke; cursor: pointer;
+#provincePicker .ppProvince { stroke: #0a1210; stroke-width: 0.8; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: 0.92;
   transition: fill 0.9s ease, opacity 0.6s ease, filter 0.15s; }
-#provincePicker .ppSvg.plain .ppProvince { fill: url(#ppGold); stroke: rgba(80, 55, 10, 0.55); }
-#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus, #provincePicker .ppProvince.hover { filter: brightness(1.3); outline: none; }
+#provincePicker .ppSvg.plain .ppProvince { fill: url(#ppGold); stroke: rgba(80, 55, 10, 0.55); fill-opacity: 1; }
+#provincePicker .ppProvince:hover, #provincePicker .ppProvince.hover { filter: brightness(1.3); }
 #provincePicker .ppProvince.dim { opacity: 0.12; pointer-events: none; }
-#provincePicker .ppProvince.selected { stroke: #ffffff; stroke-width: 2.5; filter: brightness(1.25); }
+#provincePicker .ppProvince.selected { stroke: #ffffff; stroke-width: 2.5; filter: brightness(1.3); }
 #provincePicker .ppRegionLabel, #provincePicker .ppProvinceLabel { font-family: Sarabun, sans-serif; fill: #f4f7f3; text-anchor: middle;
   dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3, 6, 5, 0.85); stroke-linejoin: round;
   transition: opacity 0.6s ease 0.5s; }
@@ -1000,25 +1008,74 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 
 /* Top bar */
 #provincePicker .ppTop { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; padding: 16px 24px; animation: motionFromAbove 0.6s 0.2s ease-out backwards; }
+  gap: 12px; padding: 16px 28px; animation: motionFromAbove 0.6s 0.2s ease-out backwards; }
 #provincePicker .ppTopLeft, #provincePicker .ppTopRight { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #provincePicker .ppBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 24px; letter-spacing: 0.04em; color: #f6d77a;
   text-shadow: 0 0 18px rgba(246, 215, 122, 0.45); }
-#provincePicker .ppQuiet { font-size: 13px; }
+#provincePicker .ppQuiet, #provincePicker .ppSkip { font-size: 13px; }
 #provincePicker .ppContinue { border-color: rgba(246, 215, 122, 0.6); color: #f6d77a; }
-#provincePicker .ppSkip { font-size: 13px; }
+#provincePicker .ppClock { font-size: 20px; font-weight: 300; letter-spacing: 0.04em; color: rgba(238, 243, 239, 0.85); margin-left: 6px; }
 
-/* Captions, like film subtitles on the left */
-#provincePicker .ppCaption { position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); width: min(420px, 30vw); pointer-events: none; }
-#provincePicker .ppCaptionInner { position: absolute; top: 50%; transform: translateY(-50%); width: 100%;
-  animation: ppCaptionIn 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
-#provincePicker .ppCaptionInner.leaving { animation: ppCaptionOut 0.35s ease-in forwards; }
-#provincePicker .ppCaption h2 { margin: 0 0 12px; font-size: clamp(30px, 3.4vw, 52px); line-height: 1.15; font-weight: 700; }
-#provincePicker .ppCaptionText { margin: 0 0 12px; font-size: clamp(16px, 1.35vw, 21px); color: #cdd8d2; }
-#provincePicker .ppCaptionExtra { margin: 0 0 12px; font-size: 14px; color: #93a79f; }
-#provincePicker .ppCaptionHint { margin: 0; min-height: 1.5em; font-size: 15px; color: #f6d77a; }
-@keyframes ppCaptionIn { from { opacity: 0; transform: translateY(calc(-50% + 30px)); filter: blur(6px); } }
-@keyframes ppCaptionOut { to { opacity: 0; transform: translateY(calc(-50% - 20px)); filter: blur(4px); } }
+/* The big text on the left: the story's captions, then whatever tile is in focus */
+#provincePicker .ppHero { position: absolute; left: 6vw; top: 70px; bottom: 230px; width: min(460px, 32vw); pointer-events: none; }
+#provincePicker .ppHeroInner { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; pointer-events: auto;
+  animation: ppHeroIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker .ppHeroInner.leaving { animation: ppHeroOut 0.35s ease-in forwards; pointer-events: none; }
+#provincePicker .ppHero h2 { margin: 0 0 8px; font-size: clamp(32px, 3.6vw, 58px); line-height: 1.1; font-weight: 700; }
+#provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 15px; color: #93a79f; }
+#provincePicker .ppHeroText { margin: 0 0 12px; font-size: clamp(16px, 1.35vw, 21px); color: #cdd8d2; }
+#provincePicker .ppHeroExtra { margin: 0 0 12px; font-size: 14px; color: #93a79f; }
+#provincePicker .ppHeroHint { margin: 14px 0 0; font-size: 14px; color: #f6d77a; letter-spacing: 0.02em; }
+@keyframes ppHeroIn { from { opacity: 0; transform: translateY(calc(-50% + 30px)); filter: blur(6px); } }
+@keyframes ppHeroOut { to { opacity: 0; transform: translateY(calc(-50% - 20px)); filter: blur(4px); } }
+#provincePicker .ppFunds { display: flex; flex-direction: column; margin: 4px 0 8px; }
+#provincePicker .ppFunds span, #provincePicker .ppTerrain span { color: #93a79f; font-size: 13px; }
+#provincePicker .ppFunds strong { font-size: 40px; line-height: 1.1; color: #f6d77a; text-shadow: 0 0 22px rgba(246, 215, 122, 0.35); }
+#provincePicker .ppFunds small, #provincePicker .ppTerrain small { color: #93a79f; }
+#provincePicker .ppTerrain { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+#provincePicker .ppStars { color: #f6d77a; letter-spacing: 3px; }
+#provincePicker .ppChips, #provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppChip { border-radius: 999px; padding: 2px 10px; font-size: 13px; background: rgba(110, 200, 170, 0.14);
+  border: 1px solid rgba(110, 200, 170, 0.3); color: #cfeee2; }
+
+/* The row of tiles */
+#provincePicker .ppRow { position: absolute; left: 0; right: 0; bottom: 52px; padding: 0 6vw;
+  animation: motionFromBelow 0.6s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker .ppRow.motionLeave { animation: ppRowOut 0.2s ease-in forwards; }
+@keyframes ppRowOut { to { opacity: 0; transform: translateY(30px); } }
+#provincePicker .ppRowTitle { margin: 0 0 4px; font-size: 15px; color: rgba(238, 243, 239, 0.8); letter-spacing: 0.03em;
+  border: none; background: none; padding: 2px 0; min-height: 0; backdrop-filter: none; }
+#provincePicker .ppRowTitle:hover { background: none; box-shadow: none; color: #ffffff; }
+#provincePicker .ppRowTitle::after { content: "  ▾"; display: inline-block; transition: transform 0.3s; }
+#provincePicker .ppRow.collapsed .ppRowTitle::after { transform: rotate(-90deg); }
+#provincePicker .ppRow .ppTiles { max-height: 180px; transition: max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s, padding 0.4s; }
+#provincePicker .ppRow.collapsed .ppTiles { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; pointer-events: none; }
+#provincePicker .ppTiles { display: flex; gap: 14px; overflow-x: auto; padding: 14px 6px 18px; scroll-snap-type: x proximity;
+  scrollbar-width: none; }
+#provincePicker .ppTiles::-webkit-scrollbar { display: none; }
+#provincePicker .ppTile { flex: 0 0 auto; width: 172px; height: 104px; border-radius: 16px; padding: 12px 14px; scroll-snap-align: start;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; text-align: left;
+  border: 2px solid transparent; color: #ffffff;
+  background: linear-gradient(160deg, var(--tile-color) 0%, color-mix(in srgb, var(--tile-color) 35%, #050807) 100%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45); opacity: 0.78;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, opacity 0.25s, border-color 0.25s;
+  animation: motionFromBelow 0.45s calc(var(--i, 0) * 45ms + 0.1s) ease-out backwards; }
+#provincePicker .ppTile:hover { background: linear-gradient(160deg, var(--tile-color) 0%, color-mix(in srgb, var(--tile-color) 35%, #050807) 100%); }
+#provincePicker .ppTile.focused { transform: scale(1.12); opacity: 1; border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12), 0 0 34px color-mix(in srgb, var(--tile-color) 70%, transparent), 0 16px 34px rgba(0, 0, 0, 0.5); }
+#provincePicker .ppTileName { font-size: 18px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
+#provincePicker .ppTileMeta { font-size: 12px; opacity: 0.9; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); min-height: 1.4em; }
+
+/* Hide menus (button or H): only the bamboo, the map and the required credits remain */
+#provincePicker .ppHero, #provincePicker .ppRow, #provincePicker .ppPanel, #provincePicker .ppTopRight > *, #provincePicker .ppTopLeft .ppBack,
+#provincePicker .ppVignette { transition: opacity 0.4s ease, transform 0.4s ease; }
+#provincePicker.ppMenusHidden .ppHero, #provincePicker.ppMenusHidden .ppRow, #provincePicker.ppMenusHidden .ppPanel,
+#provincePicker.ppMenusHidden .ppTopRight > :not(.ppMenus), #provincePicker.ppMenusHidden .ppTopLeft .ppBack {
+  opacity: 0; pointer-events: none; }
+#provincePicker.ppMenusHidden .ppRow { transform: translateY(40px); }
+#provincePicker.ppMenusHidden .ppPanel { transform: translateX(40px); }
+#provincePicker.ppMenusHidden .ppHero { transform: translateX(-40px); }
+#provincePicker.ppMenusHidden .ppVignette { opacity: 0.35; }
 
 /* Story progress */
 #provincePicker .ppDots { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); display: flex; gap: 8px; }
@@ -1026,29 +1083,19 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 #provincePicker .ppDots span { width: 26px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); transition: background 0.6s; }
 #provincePicker .ppDots span.on { background: #f6d77a; }
 
-/* Province card: dark glass on the right */
+/* The card that starts a city: dark glass on the right */
 #provincePicker .ppPanel { position: absolute; top: 76px; right: 24px; bottom: 64px; width: 400px; overflow-y: auto; box-sizing: border-box;
-  padding: 22px 24px; border-radius: 18px; background: rgba(12, 20, 17, 0.72); backdrop-filter: blur(16px);
+  padding: 22px 24px; border-radius: 18px; background: rgba(12, 20, 17, 0.78); backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
   animation: motionFromRight 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 #provincePicker .ppPanel.motionLeave { animation: ppPanelOut 0.2s ease-in forwards; }
 @keyframes ppPanelOut { to { opacity: 0; transform: translateX(40px); } }
 #provincePicker .ppCard > * { animation: motionFromBelow 0.45s ease-out backwards; }
-#provincePicker .ppCard h3 { margin: 0; font-size: 30px; line-height: 1.2; }
-#provincePicker .ppCard h4 { margin: 16px 0 6px; font-size: 13px; font-weight: 400; color: #93a79f; text-transform: uppercase; letter-spacing: 0.05em; }
-#provincePicker .ppSub { margin: 2px 0 10px; color: #93a79f; }
-#provincePicker .ppFunds { display: flex; flex-direction: column; margin: 8px 0; }
-#provincePicker .ppFunds span, #provincePicker .ppTerrain span { color: #93a79f; font-size: 13px; }
-#provincePicker .ppFunds strong { font-size: 34px; line-height: 1.15; color: #f6d77a; text-shadow: 0 0 20px rgba(246, 215, 122, 0.3); }
-#provincePicker .ppFunds small, #provincePicker .ppTerrain small { color: #93a79f; }
-#provincePicker .ppTerrain { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-#provincePicker .ppStars { color: #f6d77a; letter-spacing: 3px; }
-#provincePicker .ppChips, #provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
-#provincePicker .ppChip { border-radius: 999px; padding: 2px 10px; font-size: 13px; background: rgba(110, 200, 170, 0.14);
-  border: 1px solid rgba(110, 200, 170, 0.3); color: #cfeee2; }
+#provincePicker .ppCard h3 { margin: 0 0 10px; font-size: 30px; line-height: 1.2; }
+#provincePicker .ppCard h4 { margin: 16px 0 6px; font-size: 13px; font-weight: 400; color: #93a79f; letter-spacing: 0.05em; }
+#provincePicker .ppSmall { margin: 4px 0 0; font-size: 12px; color: #93a79f; }
 #provincePicker .ppChipButton { font-size: 13px; min-height: 26px; padding: 2px 10px; }
-#provincePicker .ppPreview { margin-top: 12px; }
-#provincePicker .ppPreview canvas { width: 100%; max-width: 200px; image-rendering: pixelated; border-radius: 8px; display: block; opacity: 0.9; }
+#provincePicker .ppPreview canvas { width: 100%; max-width: 220px; image-rendering: pixelated; border-radius: 10px; display: block; opacity: 0.92; }
 #provincePicker .ppLevels { display: flex; gap: 6px; }
 #provincePicker .ppLevel { flex: 1; }
 #provincePicker .ppLevel input { position: absolute; opacity: 0; }
@@ -1066,15 +1113,14 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 #provincePicker .ppStart:hover { filter: brightness(1.08); box-shadow: 0 12px 36px rgba(246, 215, 122, 0.45); }
 
 /* The required credits: tiny and quiet at the bottom */
-#provincePicker .ppCredits { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 10px; line-height: 1.5;
+#provincePicker .ppCredits { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 10px; line-height: 1.5;
   color: rgba(238, 243, 239, 0.42); }
 #provincePicker .ppCredits a { color: inherit; margin-left: 4px; }
 #provincePicker .ppCredits > * { display: block; margin: 0; }
 
 @media (max-width: 900px) {
-  #provincePicker .ppCaption { left: 20px; right: 20px; top: auto; bottom: 90px; transform: none; width: auto; }
-  #provincePicker .ppCaptionInner { position: relative; top: auto; transform: none; }
-  #provincePicker .ppPanel { top: auto; left: 12px; right: 12px; bottom: 50px; width: auto; max-height: 55vh; }
+  #provincePicker .ppHero { left: 20px; right: 20px; width: auto; top: 80px; bottom: 260px; }
+  #provincePicker .ppPanel { top: auto; left: 12px; right: 12px; bottom: 50px; width: auto; max-height: 60vh; }
 }
 
 /* Motion (src/motion.ts): screens, windows, panels and buttons slide and fade in; .motionLeave plays the way out.
@@ -1115,6 +1161,19 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 button, input[type="submit"] { border-radius: 5px; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s; }
 button:not(:disabled):hover, input[type="submit"]:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); filter: brightness(1.06); }
 button:not(:disabled):active, input[type="submit"]:not(:disabled):active { transform: translateY(0) scale(0.97); box-shadow: none; }
+
+/* Collapsible game panels (src/panelCollapse.ts): each slides to its side, leaving its handle on screen */
+.collapsible { transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.collapsible.fromLeft.collapsed { transform: translateX(calc(-100% - 50px + 28px)); }
+.collapsible.fromRight.collapsed { transform: translateX(calc(100% + 50px - 28px)); }
+.panelToggle {
+  position: absolute; top: 6px; z-index: 2; width: 22px; height: 22px; min-height: 0; padding: 0;
+  border: none; border-radius: 50%; background: rgba(34, 107, 87, 0.92); color: white;
+  font-size: 16px; line-height: 20px; text-align: center; cursor: pointer;
+}
+.fromLeft > .panelToggle { right: 4px; }
+.fromRight > .panelToggle { left: 4px; }
+#opaque { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }

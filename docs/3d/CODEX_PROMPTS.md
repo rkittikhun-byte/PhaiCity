@@ -23,7 +23,7 @@
 
 | ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
 |---|---|---|
-| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **16B** → **16C** → **16D** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 17 → 18 |
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **19** → **16B** → **16C** → **16D** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 17 → 18 |
 | ~~Antigravity~~ | ~~worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics`~~ | ทำ **16** ยานพาหนะ (ในโฟลเดอร์หลัก) แล้วเลิกใช้ |
 
 - **11 ต.ค. 2026:** เจ้าของโปรเจคเลิกใช้ Antigravity กับงานกราฟิก เพราะรถจาก Prompt 16 เป็นกล่องและสีเพี้ยน
@@ -1177,6 +1177,48 @@ Follow the Definition of Done in MODEL_SPEC section 9.
 ```
 
 ---
+
+## Prompt 19 — ป่าไผ่ 3D หลังหน้าเริ่มเกม
+
+เจ้าของโปรเจคอยากให้หน้าเริ่มเกมเหมือนหน้าโฮมของเครื่องเกมคอนโซล มีต้นไผ่ไหวพริ้วอยู่ด้านหลัง
+ตอนนี้ Claude Code ทำเวอร์ชัน 2D ชั่วคราวไว้ใน `src/startBackdrop.ts` (เจ้าของอนุญาตแล้ว)
+Prompt นี้ให้ Codex ทำเวอร์ชัน three.js ของจริงที่ใช้ช่องเสียบเดียวกัน พอเสร็จ Claude Code จะเปลี่ยน import แค่บรรทัดเดียว
+ทำได้ทุกเมื่อ ไม่ต้องรอ prompt อื่น
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Look at src/startBackdrop.ts (Claude Code's temporary 2D version, read only) and at the start screen in
+src/provincePicker.ts (read only) to see how the backdrop is used.
+
+Task: build the start screen's living background in three.js: a dark bamboo grove swaying in the wind.
+
+1. New module src/render3d/start/backdrop.ts exporting exactly this interface (same as src/startBackdrop.ts):
+     export interface StartBackdrop {
+       setTint(color: string): void;      // "#rrggbb": shift the key light towards a region's colour over ~1.6 s
+       setPaused(paused: boolean): void;  // stop rendering while the start screen is hidden
+       dispose(): void;                   // free the renderer, geometry, materials and listeners
+     }
+     export function mountStartBackdrop(container: HTMLElement): StartBackdrop;
+   It appends one canvas that fills the container and follows its size.
+2. The scene:
+   - A dense grove of bamboo culms in three depths (far, middle, near), built once with instancing.
+     Reuse bambooCulmMaterial() and the bamboo parts from the vegetation work where they fit.
+   - Wind: culms bend more towards the top and leaves flutter, in the vertex shader, with slow gusts.
+     No per-frame geometry rebuilds.
+   - Mood: almost black, warm golden key light from the upper right, soft fog, and a few glowing motes
+     drifting upwards. The left third and the bottom quarter must stay dark enough for white text on top.
+   - The camera drifts very slowly (a few centimetres a second), never fast enough to distract.
+3. Performance: a steady 60 fps on a mid-range laptop at 1920x1080, devicePixelRatio capped at 2,
+   at most 8 draw calls, and a lighter mode (fewer culms, no motes) when the frame time stays above 20 ms.
+   With prefers-reduced-motion, render one still frame and stop.
+4. No new external assets unless they are CC0 and recorded in assets/CREDITS.md.
+5. Add a "Start backdrop" entry to the model gallery that mounts it full screen with buttons for the six
+   region tints, so the owner can check it.
+6. Do not edit src/startBackdrop.ts, src/provincePicker.ts or any other file outside your paths.
+   Report in Thai, and tell the owner that Claude Code must switch the import in src/provincePicker.ts.
+
+Follow the Definition of Done in MODEL_SPEC section 9 where it applies (this is not a tile model).
+```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)
 

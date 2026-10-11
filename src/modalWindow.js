@@ -17,6 +17,20 @@ import { EventEmitter } from './eventEmitter.js';
 import { MiscUtils } from './miscUtils.js';
 import { hide, isShown, show } from './motion.ts';
 
+// Clicking the dimmed background closes the open window, as its Cancel button would (or OK, when it has none)
+$(document).on('click', '#opaque', function() {
+  var open = $('.modal:visible').not('.motionLeave').last();
+  if (open.length === 0)
+    return;
+
+  var cancel = open.find('.cancel:visible').first();
+  if (cancel.length > 0)
+    cancel.trigger('click');
+  else
+    open.find('input[type=submit]:visible').first().trigger('click');
+});
+
+
 var ModalWindow = function(constructorFunction, focusID) {
   focusID = focusID ? MiscUtils.normaliseDOMid(focusID) : null;
 

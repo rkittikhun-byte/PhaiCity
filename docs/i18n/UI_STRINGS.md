@@ -581,6 +581,13 @@
 | `start.practice` | `src/provincePicker.ts` | `-` | `Practise on a random map` | `ฝึกเล่นบนแผนที่สุ่ม` | ปุ่มเล็กบนแถบบน |
 | `start.sound` | `src/provincePicker.ts` | `-` | `Sound` | `เสียง` | tooltip ปุ่มลำโพงบนแถบบน |
 | `practice.city` | `src/splashScreen.js` | `-` | `Practice` | `เมืองฝึกหัด` | ชื่อเมืองในโหมดฝึก (ไม่เกิน 15 ตัวอักษร) |
+| `picker.region_enter` | `src/provincePicker.ts` | `-` | `Press Enter or click to go there` | `กด Enter หรือคลิก เพื่อไปภาคนี้` | คำแนะนำใต้ข้อมูลภาค |
+| `picker.province_enter` | `src/provincePicker.ts` | `-` | `Press Enter or click to rule it` | `กด Enter หรือคลิก เพื่อเป็นเจ้าเมือง` | คำแนะนำใต้ข้อมูลจังหวัด |
+| `picker.provinces_of` | `src/provincePicker.ts` | `-` | `Provinces of {region}` | `จังหวัดใน{region}` | หัวแถวการ์ดจังหวัด |
+| `ui.hide_menus` | `src/provincePicker.ts` | `-` | `Hide menus` | `ซ่อนเมนู` | ปุ่มซ่อนเมนูทั้งหมดเพื่อดูฉาก |
+| `ui.show_menus` | `src/provincePicker.ts` | `-` | `Show menus` | `แสดงเมนู` | ปุ่มเดียวกันตอนซ่อนอยู่ |
+| `ui.collapse` | `src/panelCollapse.ts` | `-` | `Collapse` | `ยุบ` | tooltip ปุ่มยุบแผง |
+| `ui.expand` | `src/panelCollapse.ts` | `-` | `Expand` | `ขยาย` | tooltip ปุ่มขยายแผง |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

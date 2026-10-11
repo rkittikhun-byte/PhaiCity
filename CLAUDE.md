@@ -127,6 +127,11 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   numbers come from `src/geo/provinceProfile.ts` (less open land means more starting money). Small buttons
   at the top continue the saved city or start a practice game on a random map; "Main menu" in the game
   returns here. Credits stay small at the bottom, copied from the footer.
+- **Start screen look:** styled like a game console home screen: a swaying bamboo grove behind the map
+  (`src/startBackdrop.ts`, a temporary 2D canvas until Codex delivers the three.js grove of Prompt 19 with the
+  same `StartBackdrop` interface), big text on the left, a row of tiles (mouse or arrow keys), "H" hides the menus.
+- **Panels and windows:** every game panel can slide away to its side (`src/panelCollapse.ts`), and clicking
+  outside a window or card closes it.
 - **Motion:** windows, screens, panels and buttons slide and fade in (CSS, "Motion" in `css/style.css`).
   Show and hide them through `src/motion.ts` (`show`/`hide`) so the exit animates too; never jQuery `toggle()`.
 - **Code style:**

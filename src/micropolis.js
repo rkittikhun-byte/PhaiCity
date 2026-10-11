@@ -17,6 +17,7 @@ import { Config } from './config.js';
 import { installAudio } from './audio/index.ts';
 import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from './i18n/index.ts';
 import { stagger } from './motion.ts';
+import { installPanelCollapse } from './panelCollapse.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
@@ -102,7 +103,7 @@ applyTranslations();
 fitGameAreaToFooter();
 
 // Menus and buttons slide in one after another (css/style.css, "Motion")
-['#miscButtons button', '#buttons .toolButton'].forEach(function(selector) {
+['#miscButtons .miscButton', '#buttons .toolButton'].forEach(function(selector) {
   stagger(document, selector);
 });
 window.addEventListener('resize', fitGameAreaToFooter, false);
@@ -118,6 +119,9 @@ $('#languageToggle').click(function(e) {
 
 // Sound starts after the player's first click or key press (browsers block it before then)
 installAudio();
+
+// Every game panel can slide away to its side of the screen
+installPanelCollapse();
 
 
 // Check for debug parameter in URL

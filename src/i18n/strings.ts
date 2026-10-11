@@ -406,4 +406,11 @@ export const STRINGS: Record<string, Translation> = {
   "start.practice": { en: "Practise on a random map", th: "ฝึกเล่นบนแผนที่สุ่ม" },
   "start.sound": { en: "Sound", th: "เสียง" },
   "practice.city": { en: "Practice", th: "เมืองฝึกหัด" },
+  "picker.region_enter": { en: "Press Enter or click to go there", th: "กด Enter หรือคลิก เพื่อไปภาคนี้" },
+  "picker.province_enter": { en: "Press Enter or click to rule it", th: "กด Enter หรือคลิก เพื่อเป็นเจ้าเมือง" },
+  "picker.provinces_of": { en: "Provinces of {region}", th: "จังหวัดใน{region}" },
+  "ui.hide_menus": { en: "Hide menus", th: "ซ่อนเมนู" },
+  "ui.show_menus": { en: "Show menus", th: "แสดงเมนู" },
+  "ui.collapse": { en: "Collapse", th: "ยุบ" },
+  "ui.expand": { en: "Expand", th: "ขยาย" },
 };
