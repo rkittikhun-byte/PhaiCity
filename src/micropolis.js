@@ -102,7 +102,7 @@ applyTranslations();
 fitGameAreaToFooter();
 
 // Menus and buttons slide in one after another (css/style.css, "Motion")
-['#splash > *', '#splashMain > *', '#miscButtons button', '#buttons .toolButton'].forEach(function(selector) {
+['#miscButtons button', '#buttons .toolButton'].forEach(function(selector) {
   stagger(document, selector);
 });
 window.addEventListener('resize', fitGameAreaToFooter, false);

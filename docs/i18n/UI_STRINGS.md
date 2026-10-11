@@ -523,7 +523,7 @@
 | `intro.next` | `src/provincePicker.ts` | `-` | `Next` | `ถัดไป` | ปุ่มเลื่อนไปฉากถัดไป |
 | `intro.scroll` | `src/provincePicker.ts` | `-` | `Scroll down` | `เลื่อนลง` | คำแนะนำฉากแรก |
 | `intro.thailand.title` | `src/provincePicker.ts` | `-` | `Thailand` | `ประเทศไทย` | ฉาก 1 |
-| `intro.thailand.text` | `src/provincePicker.ts` | `-` | `A land at the heart of mainland Southeast Asia, with mountains in the north, a wide plateau, a great river plain and two seas.` | `ดินแดนใจกลางแผ่นดินใหญ่เอเชียตะวันออกเฉียงใต้ มีเทือกเขาทางเหนือ ที่ราบสูงกว้างใหญ่ ที่ราบลุ่มแม่น้ำ และทะเลสองฝั่ง` | ฉาก 1 |
+| `intro.thailand.text` | `src/provincePicker.ts` | `-` | `The Golden Peninsula: a land at the heart of mainland Southeast Asia, with mountains in the north, a wide plateau, a great river plain and two seas.` | `แหลมทอง ดินแดนใจกลางแผ่นดินใหญ่เอเชียตะวันออกเฉียงใต้ มีเทือกเขาทางเหนือ ที่ราบสูงกว้างใหญ่ ที่ราบลุ่มแม่น้ำ และทะเลสองฝั่ง` | ฉาก 1 แผนที่สีทอง (เจ้าของโปรเจคขอ) |
 | `intro.regions.title` | `src/provincePicker.ts` | `-` | `77 provinces, 6 regions` | `77 จังหวัด 6 ภาค` | ฉาก 2 |
 | `intro.regions.text` | `src/provincePicker.ts` | `-` | `Each region has its own landscape, homes and way of life.` | `แต่ละภาคมีภูมิประเทศ บ้านเรือน และวิถีชีวิตเป็นของตัวเอง` | ฉาก 2 |
 | `intro.final.title` | `src/provincePicker.ts` | `-` | `Become a city ruler` | `มาเป็นเจ้าเมือง` | ฉากสุดท้าย |
@@ -559,7 +559,7 @@
 | `picker.back_regions` | `src/provincePicker.ts` | `-` | `← Other regions` | `← เลือกภาคอื่น` | ปุ่ม |
 | `picker.funds` | `src/provincePicker.ts` | `-` | `Starting treasury` | `เงินตั้งต้น` |  |
 | `picker.funds_bonus` | `src/provincePicker.ts` | `-` | `+{pct}% because there is less open land to build on` | `+{pct}% เพราะที่ราบสร้างได้มีน้อย` |  |
-| `picker.difficulty` | `src/provincePicker.ts` | `-` | `Difficulty` | `ความยาก` |  |
+| `picker.difficulty` | `src/provincePicker.ts` | `-` | `Terrain` | `ภูมิประเทศ` | ความยากของพื้นที่ ไม่ใช่ระดับเกม |
 | `picker.difficulty.1` | `src/provincePicker.ts` | `-` | `Easy` | `ง่าย` |  |
 | `picker.difficulty.2` | `src/provincePicker.ts` | `-` | `Medium` | `ปานกลาง` |  |
 | `picker.difficulty.3` | `src/provincePicker.ts` | `-` | `Hard` | `ยาก` |  |
@@ -578,6 +578,9 @@
 | `mainmenu.save_quit` | `index.html` | `-` | `Save and leave` | `บันทึกแล้วออก` | ปุ่ม |
 | `mainmenu.quit` | `index.html` | `-` | `Leave without saving` | `ออกโดยไม่บันทึก` | ปุ่ม |
 | `mainmenu.stay` | `index.html` | `-` | `Keep playing` | `เล่นต่อ` | ปุ่ม |
+| `start.practice` | `src/provincePicker.ts` | `-` | `Practise on a random map` | `ฝึกเล่นบนแผนที่สุ่ม` | ปุ่มเล็กบนแถบบน |
+| `start.sound` | `src/provincePicker.ts` | `-` | `Sound` | `เสียง` | tooltip ปุ่มลำโพงบนแถบบน |
+| `practice.city` | `src/splashScreen.js` | `-` | `Practice` | `เมืองฝึกหัด` | ชื่อเมืองในโหมดฝึก (ไม่เกิน 15 ตัวอักษร) |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

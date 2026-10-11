@@ -43,41 +43,7 @@
       <main id="canvasContainer">
         <div class="hidden" id="opaque"></div>
         <div data-hasscript="false" id="loadingBanner" data-i18n="splash.loading" class="alignCenter padding10 mintcream chunk shadow centred">Loading</div>
-        <div id="splash" class="mintcream awaitGeneration open shadow padding10 centred">
-          <h2 class="chunk alignCenter" data-i18n="splash.welcome">Welcome!</h2>
-          <p class="alignCenter" data-i18n="splash.tagline">Choose a province of Thailand and build it up as its ruler.</p>
-          <!-- The main way in: rule a real province. The saved city's name is filled in by src/splashScreen.js -->
-          <div id="splashMain">
-            <button id="splashProvince" class="splashPrimary" data-i18n="splash.btn.province">Choose your province</button>
-            <button id="splashLoad" class="splashContinue loadSave" hidden disabled></button>
-            <button id="splashIntro" type="button" class="splashLink" data-i18n="splash.replay_intro">Watch the story again</button>
-          </div>
-          <!-- The original random maps, kept as a practice mode -->
-          <div id="splashPractice">
-            <h3 data-i18n="splash.practice">Or practise on a random map</h3>
-            <div id="splashPracticeBody">
-              <div id="splashContainer"></div>
-              <div id="splashButtons">
-                <button id="splashPlay" data-i18n="splash.btn.play" class="width140 block splashButton">Play this map</button>
-                <button id="splashGenerate" data-i18n="splash.btn.generate" class="width140 block splashButton">Generate another</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="start" class="mintcream open shadow padding10 centred">
-          <h2 class="chunk alignCenter" data-i18n="start.title">New Game</h2>
-          <form id="playForm">
-            <label for="nameForm" data-i18n="start.label.name">City name (max 15 letters)</label>
-            <input id="nameForm" autofocus required class="margin10" type="text" maxlength="15">
-            <span data-i18n="start.label.difficulty">Difficulty</span>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyEasy" value="0" checked="checked"><label for="difficultyEasy" data-i18n="start.diff.easy">Easy</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyMed" value="1"><label for="difficultyMed" data-i18n="start.diff.med">Medium</label>
-            <input type="radio" class="difficulty" name="difficulty" id="difficultyHard" value="2"><label for="difficultyHard" data-i18n="start.diff.hard">Hard</label>
-            <div id="playSubmitDiv">
-              <input id="playit" data-i18n-value="start.btn.play" type="submit" value="Play!">
-            </div>
-          </form>
-        </div>
+        <!-- The start of the game is the full-screen map of Thailand built by src/provincePicker.ts -->
         <div id="infobar" class="alignCenter leftedge open width140 padding10 controlShadow mintcream z1 initialHidden">
           <div class="inner">
             <div class="semibold chunk">

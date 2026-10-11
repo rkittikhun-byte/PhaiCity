@@ -2,17 +2,19 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The way into a province (docs/ONLINE_PLAN.md phase 1), on one full-screen map of Thailand built from
-// real province shapes:
-//   1. intro: a scrolling story about Thailand and its six regions (shown on first launch, replayable)
-//   2. region: pick the region to live in
-//   3. province: the map zooms into that region; pick a province from its card (treasury, difficulty,
-//      resources, starting map). Choosing a province calls onStart(provinceId).
+// The start of the game (docs/ONLINE_PLAN.md phase 1): one dark, full-screen, cinematic map of Thailand
+// built from real province shapes.
+//   1. intro: a story about Thailand and its six regions that plays by itself (first launch, replayable)
+//   2. region: the player clicks the region to live in, and the camera flies into it
+//   3. province: clicking a province opens its card (treasury, terrain, resources, starting map, city name
+//      and game difficulty), which starts the city.
+// Small buttons at the top continue the saved city or start a practice game on a random map.
 
-import { groupCentroid, groupViewBox, NationalMap, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
+import { audio } from "./audio/index";
+import { groupViewBox, NationalMap, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
 import { drawPresetMap, PresetMap } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, startingFunds } from "./geo/provinceProfile";
-import { getLanguage, onLanguageChange, t } from "./i18n/index";
+import { getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { hide, show } from "./motion";
 
 interface Province {
@@ -40,26 +42,46 @@ interface Scene {
   title: string;
   text: string;
   extra?: string;
-  plain: boolean;
+  plain?: boolean;
+  reveal?: boolean;
   focus: string | null;
-  final?: boolean;
+}
+
+export interface SavedCity {
+  name: string;
+  provinceId: string | null;
+}
+
+export interface StartActions {
+  saved: SavedCity | null;
+  /** difficulty is a Simulation level: 0 easy, 1 medium, 2 hard */
+  start(provinceId: string, cityName: string, difficulty: number): void;
+  continueSaved(): void;
+  practice(): void;
+}
+
+export interface StartOptions {
+  /** Play the story first. */
+  intro?: boolean;
+  /** Open straight on this province's card (index.html?province=TH-xx). */
+  provinceId?: string | null;
 }
 
 type ViewBox = [number, number, number, number];
 type Mode = "intro" | "region" | "province";
 
-export interface PickerOptions {
-  /** Start with the story about Thailand instead of the region map. */
-  intro?: boolean;
-}
-
 const SVG_NS = "http://www.w3.org/2000/svg";
 const OVERLAY_ID = "provincePicker";
 const INTRO_SEEN_KEY = "phaicity.introSeen";
 const PREVIEW_PIXELS_PER_TILE = 1;
-const ZOOM_MS = 700;
-const REGION_LABEL_SIZE = 30;
-const PROVINCE_LABELS_PER_WIDTH = 55;
+const FLY_MS = 1400;
+const CAPTION_LEAVE_MS = 350;
+const MIN_SCENE_MS = 4200;
+const MS_PER_CHARACTER = 45;
+const REVEAL_STEP_MS = 280;
+const MAX_CITY_NAME_LENGTH = 15;
+const WIDE_LAYOUT_PX = 900;
+const CARD_WIDTH_PX = 400;
 
 const REGION_COLORS: Record<string, string> = {
   north: "#8cbf7a",
@@ -70,43 +92,38 @@ const REGION_COLORS: Record<string, string> = {
   south: "#6cc3a9",
 };
 
+const LEVELS: Array<[number, string]> = [[0, "start.diff.easy"], [1, "start.diff.med"], [2, "start.diff.hard"]];
+
 interface View {
   overlay: HTMLElement;
-  title: HTMLElement;
-  hint: HTMLElement;
-  skip: HTMLButtonElement;
-  back: HTMLButtonElement;
-  mapWrap: HTMLElement;
-  map: HTMLElement;
+  stage: HTMLElement;
+  caption: HTMLElement;
+  dots: HTMLElement;
   panel: HTMLElement;
+  back: HTMLButtonElement;
+  skip: HTMLButtonElement;
+  replay: HTMLButtonElement;
+  sound: HTMLButtonElement;
   svg?: SVGSVGElement;
 }
 
 let view: View | null = null;
 let dataPromise: Promise<PickerData> | null = null;
 let data: PickerData | null = null;
-let startCallback: (provinceId: string) => void = () => undefined;
+let actions: StartActions | null = null;
 let mode: Mode = "region";
 let currentRegion: string | null = null;
-let fullViewBox: ViewBox = [0, 0, 1, 1];
+let selectedProvince: string | null = null;
+let sceneIndex = 0;
+let sceneTimer = 0;
+let framedBox: ViewBox | null = null;
 let currentViewBox: ViewBox = [0, 0, 1, 1];
-let zoomFrame = 0;
-let introObserver: IntersectionObserver | null = null;
+let flyFrame = 0;
 let cardToken = 0;
 const paths = new Map<string, SVGElement>();
 const regionLabels = new Map<string, SVGElement>();
 const provinceLabels = new Map<string, SVGElement>();
 const presets = new Map<string, Promise<PresetMap>>();
-
-// The picker is built in the current language; rebuild it after a language switch.
-onLanguageChange(() => {
-  introObserver?.disconnect();
-  view?.overlay.remove();
-  view = null;
-  paths.clear();
-  regionLabels.clear();
-  provinceLabels.clear();
-});
 
 export function hasSeenIntro(): boolean {
   try {
@@ -129,6 +146,8 @@ const localName = (item: { nameTh: string; nameEn: string }): string =>
 const otherName = (item: { nameTh: string; nameEn: string }): string =>
   getLanguage() === "en" ? item.nameTh : item.nameEn;
 const money = (amount: number): string => `฿${amount.toLocaleString("en-US")}`;
+const reducedMotion = (): boolean =>
+  typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -181,80 +200,122 @@ function loadPreset(provinceId: string): Promise<PresetMap> {
   return preset;
 }
 
-function close(): void {
-  if (view) hide(view.overlay, true);
-  document.removeEventListener("keydown", onKeyDown);
-}
-
-function onKeyDown(event: KeyboardEvent): void {
-  if (event.key === "Escape") close();
-}
-
 // --- Shell ---
 
 function buildShell(): View {
-  const overlay = element("div");
+  const overlay = element("div", "ppCinema");
   overlay.id = OVERLAY_ID;
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
-  overlay.setAttribute("aria-labelledby", "ppTitle");
+  overlay.setAttribute("aria-label", "PhaiCity");
 
-  // A div rather than <header>: the game's stylesheet gives every <header> the striped title bar
-  const header = element("div", "ppHeader");
-  const back = button("ppBack", t("picker.back_regions"), () => showRegions());
-  const title = element("h2");
-  title.id = "ppTitle";
-  const hint = element("p", "ppHint");
-  hint.setAttribute("aria-live", "polite");
-  const skip = button("ppSkip", t("intro.skip"), () => showRegions());
-  header.append(back, title, hint, skip, button("ppClose", t("picker.close"), close));
+  const stage = element("div", "ppStage", t("picker.loading"));
 
-  const body = element("div", "ppBody");
-  const mapWrap = element("div", "ppMapWrap");
-  const map = element("div", "ppMap", t("picker.loading"));
-  mapWrap.append(map, element("p", "ppNote", `${t("picker.note")} · ${t("picker.credits")}`));
+  const top = element("div", "ppTop");
+  const back = button("ppBack", t("picker.back_regions"), () => showRegions(false));
+  const skip = button("ppSkip", `${t("intro.skip")} ›`, () => showRegions(true));
+  const replay = button("ppQuiet", t("splash.replay_intro"), () => playIntro());
+  const sound = button("ppQuiet ppSound", "", () => {
+    audio.unlock();
+    audio.setMuted(!audio.settings.muted);
+  });
+  const language = button("ppQuiet", t("lang.switch_to"), () => setLanguage(getLanguage() === "th" ? "en" : "th"));
+  const left = element("div", "ppTopLeft");
+  left.append(element("span", "ppBrand", "PhaiCity"), back);
+  const right = element("div", "ppTopRight");
+  const saved = actions?.saved;
+  if (saved) {
+    right.appendChild(button("ppQuiet ppContinue", t("splash.btn.continue", { city: saved.name }), () => leaveTo(() => actions?.continueSaved())));
+  }
+  right.append(button("ppQuiet", t("start.practice"), () => leaveTo(() => actions?.practice())), replay, sound, language, skip);
+  top.append(left, right);
+
+  const caption = element("div", "ppCaption");
+  caption.setAttribute("aria-live", "polite");
+  const dots = element("div", "ppDots");
   const panel = element("aside", "ppPanel");
-  body.append(mapWrap, panel);
-  overlay.append(header, body);
+  panel.hidden = true;
+
+  // The required credits, small, at the bottom: copies of the game footer's lines
+  const credits = element("div", "ppCredits");
+  for (const selector of ["#author > span", "#footer .nameLicense", "#footer .mapCredit"]) {
+    const line = document.querySelector(selector);
+    if (line) credits.appendChild(line.cloneNode(true));
+  }
+
+  overlay.append(stage, top, caption, dots, panel, credits);
   document.body.appendChild(overlay);
 
-  // Scrolling over the map moves the story along too
-  mapWrap.addEventListener("wheel", (event) => {
-    const scenes = panel.querySelector(".ppScenes");
-    if (mode !== "intro" || !scenes) return;
-    event.preventDefault();
-    scenes.scrollBy({ top: event.deltaY, behavior: "smooth" });
-  }, { passive: false });
-
-  return { overlay, title, hint, skip, back, mapWrap, map, panel };
+  const view: View = { overlay, stage, caption, dots, panel, back, skip, replay, sound };
+  renderSound(view);
+  return view;
 }
 
-function setHeader(title: string, hint: string, options: { back?: boolean; skip?: boolean } = {}): void {
+function renderSound(target: View | null = view): void {
+  if (!target) return;
+  target.sound.textContent = audio.settings.muted ? "🔇" : "🔊";
+  target.sound.title = t(audio.settings.muted ? "sound.toggle_on" : "sound.toggle_off");
+}
+
+function setChrome(options: { back?: boolean; skip?: boolean; dots?: boolean }): void {
   if (!view) return;
-  view.title.textContent = title;
-  view.hint.textContent = hint;
   view.back.hidden = !options.back;
   view.skip.hidden = !options.skip;
+  view.replay.hidden = !!options.skip;
+  view.dots.hidden = !options.dots;
 }
 
-// --- Map ---
+interface CaptionContent {
+  title: string;
+  text?: string;
+  extra?: string;
+  hint?: string;
+}
+
+// Each caption fades and slides in; the previous one drifts out.
+function setCaption(content: CaptionContent): void {
+  if (!view) return;
+  for (const old of Array.from(view.caption.children)) {
+    old.classList.add("leaving");
+    window.setTimeout(() => old.remove(), CAPTION_LEAVE_MS);
+  }
+  const inner = element("div", "ppCaptionInner");
+  inner.appendChild(element("h2", undefined, content.title));
+  if (content.text) inner.appendChild(element("p", "ppCaptionText", content.text));
+  if (content.extra) inner.appendChild(element("p", "ppCaptionExtra", content.extra));
+  if (content.hint !== undefined) inner.appendChild(element("p", "ppCaptionHint", content.hint));
+  view.caption.appendChild(inner);
+}
+
+function setCaptionHint(text: string): void {
+  const hint = view?.caption.querySelector(".ppCaptionInner:not(.leaving) .ppCaptionHint");
+  if (hint) hint.textContent = text;
+}
+
+function leaveTo(next: () => void): void {
+  window.clearTimeout(sceneTimer);
+  if (view) hide(view.overlay, true);
+  next();
+}
+
+// --- Map and camera ---
 
 function regionMembers(regionId: string): ProjectedProvince[] {
   return data ? data.map.provinces.filter((p) => data!.provinces.get(p.id)?.region === regionId) : [];
 }
 
+function countryBox(): ViewBox {
+  return data ? groupViewBox(data.map.provinces, 0.03) : [0, 0, 1, 1];
+}
+
 function buildMap(): void {
   if (!view || !data) return;
-  const projected = data.map;
-  fullViewBox = [...projected.viewBox] as ViewBox;
-  currentViewBox = [...fullViewBox] as ViewBox;
-
-  const svg = svgElement("svg", { viewBox: fullViewBox.join(" "), class: "ppSvg", role: "group" }) as SVGSVGElement;
+  const svg = svgElement("svg", { class: "ppSvg", role: "group", preserveAspectRatio: "xMidYMid meet" }) as SVGSVGElement;
   const provinceLayer = svgElement("g", { class: "ppProvinces" });
   const provinceLabelLayer = svgElement("g", { class: "ppProvinceLabels" });
   const regionLabelLayer = svgElement("g", { class: "ppRegionLabels" });
 
-  for (const shape of projected.provinces) {
+  for (const shape of data.map.provinces) {
     const province = data.provinces.get(shape.id);
     if (!province) continue;
     const path = svgElement("path", {
@@ -285,7 +346,7 @@ function buildMap(): void {
     const label = svgElement("text", {
       x: shape.centroid[0].toFixed(1),
       y: shape.centroid[1].toFixed(1),
-      class: "ppProvinceLabel",
+      class: "ppProvinceLabel hidden",
       "data-region": province.region,
     });
     label.textContent = localName(province);
@@ -294,27 +355,66 @@ function buildMap(): void {
   }
 
   for (const region of data.regions) {
-    const [x, y] = groupCentroid(regionMembers(region.id));
-    const label = svgElement("text", { x: x.toFixed(1), y: y.toFixed(1), class: "ppRegionLabel" });
+    const members = regionMembers(region.id);
+    let weight = 0;
+    let x = 0;
+    let y = 0;
+    for (const p of members) {
+      weight += p.area;
+      x += p.centroid[0] * p.area;
+      y += p.centroid[1] * p.area;
+    }
+    const label = svgElement("text", {
+      x: (weight ? x / weight : 0).toFixed(1),
+      y: (weight ? y / weight : 0).toFixed(1),
+      class: "ppRegionLabel hidden",
+    });
     label.textContent = localName(region);
     regionLabels.set(region.id, label);
     regionLabelLayer.appendChild(label);
   }
 
-  svg.append(provinceLayer, provinceLabelLayer, regionLabelLayer);
-  view.map.replaceChildren(svg);
+  svg.append(goldDefinitions(countryBox()), provinceLayer, provinceLabelLayer, regionLabelLayer);
+  view.stage.replaceChildren(svg);
   view.svg = svg;
+  currentViewBox = frame(countryBox());
+  svg.setAttribute("viewBox", currentViewBox.join(" "));
+}
+
+// The opening scene shows Thailand as the Golden Peninsula (แหลมทอง): one gold gradient across the whole
+// country, so province borders don't break it, with a highlight that sweeps slowly across.
+function goldDefinitions(box: ViewBox): SVGElement {
+  const defs = svgElement("defs", {});
+  const gradient = svgElement("linearGradient", {
+    id: "ppGold",
+    gradientUnits: "userSpaceOnUse",
+    x1: box[0].toFixed(1),
+    y1: box[1].toFixed(1),
+    x2: (box[0] + box[2]).toFixed(1),
+    y2: (box[1] + box[3]).toFixed(1),
+  });
+  const stops: Array<[string, string]> = [["0", "#7a5410"], ["0.35", "#d4a83a"], ["0.5", "#fff1b8"], ["0.65", "#d4a83a"], ["1", "#7a5410"]];
+  for (const [offset, color] of stops) gradient.appendChild(svgElement("stop", { offset, "stop-color": color }));
+  if (!reducedMotion()) {
+    gradient.appendChild(svgElement("animateTransform", {
+      attributeName: "gradientTransform",
+      type: "translate",
+      values: `${-box[2]} ${-box[3] / 2}; ${box[2]} ${box[3] / 2}`,
+      dur: "6s",
+      repeatCount: "indefinite",
+    }));
+  }
+  gradient.setAttribute("spreadMethod", "reflect");
+  defs.appendChild(gradient);
+  return defs;
 }
 
 interface MapState {
-  /** All provinces in one quiet colour (the opening scene). */
   plain?: boolean;
-  /** Colour this region and fade the others. */
   focus?: string | null;
-  /** Outline this province. */
-  selected?: string | null;
-  /** Show province names of the focused region. */
+  regionNames?: boolean;
   provinceNames?: boolean;
+  selected?: string | null;
 }
 
 function applyMapState(state: MapState): void {
@@ -327,195 +427,194 @@ function applyMapState(state: MapState): void {
     path.classList.toggle("selected", id === state.selected);
     path.classList.remove("hover");
   }
-  for (const [id, label] of regionLabels) {
-    label.classList.toggle("hidden", !!state.plain || state.provinceNames === true || (!!state.focus && id !== state.focus));
-  }
+  for (const label of regionLabels.values()) label.classList.toggle("hidden", !state.regionNames);
   for (const [id, label] of provinceLabels) {
     label.classList.toggle("hidden", !state.provinceNames || label.getAttribute("data-region") !== state.focus);
     label.classList.toggle("selected", id === state.selected);
   }
 }
 
-// Labels are sized in map units, so scale them with the zoom to keep them readable.
+// The space the map may use: the caption covers the left of a wide screen, the card the right.
+function insets(): { left: number; right: number } {
+  const width = view?.stage.clientWidth ?? 0;
+  if (width < WIDE_LAYOUT_PX) return { left: 0, right: 0 };
+  return {
+    left: Math.min(480, width * 0.34),
+    right: view && !view.panel.hidden && !view.panel.classList.contains("motionLeave") ? CARD_WIDTH_PX + 24 : 0,
+  };
+}
+
+// The viewBox that shows box inside the free part of the stage, with the stage's own aspect ratio.
+function frame(box: ViewBox): ViewBox {
+  const width = view?.stage.clientWidth || 1;
+  const height = view?.stage.clientHeight || 1;
+  const { left, right } = insets();
+  const usable = Math.max(0.3, (width - left - right) / width);
+  const aspect = width / height;
+  const viewWidth = Math.max(box[2] / usable, box[3] * aspect);
+  const viewHeight = viewWidth / aspect;
+  const centre = (left + (width - left - right) / 2) / width;
+  return [box[0] + box[2] / 2 - viewWidth * centre, box[1] + box[3] / 2 - viewHeight / 2, viewWidth, viewHeight];
+}
+
 function scaleLabels(target: ViewBox): void {
-  const regionSize = REGION_LABEL_SIZE * (target[2] / fullViewBox[2]);
-  const provinceSize = target[2] / PROVINCE_LABELS_PER_WIDTH;
-  const sizes: Array<[Map<string, SVGElement>, number]> = [[regionLabels, regionSize], [provinceLabels, provinceSize]];
+  const sizes: Array<[Map<string, SVGElement>, number]> = [[regionLabels, target[3] / 26], [provinceLabels, target[3] / 48]];
   for (const [labels, size] of sizes) {
     for (const label of labels.values()) {
       label.setAttribute("font-size", size.toFixed(2));
-      label.setAttribute("stroke-width", (size * 0.22).toFixed(2)); // the white halo
+      label.setAttribute("stroke-width", (size * 0.2).toFixed(2));
     }
   }
 }
 
-function zoomTo(target: ViewBox): void {
+// Moves the camera to frame box, smoothly unless the player prefers less motion.
+function flyTo(box: ViewBox, instant = false): void {
   const svg = view?.svg;
   if (!svg) return;
-  cancelAnimationFrame(zoomFrame);
+  framedBox = box;
+  const target = frame(box);
+  cancelAnimationFrame(flyFrame);
   scaleLabels(target);
-  const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduceMotion) {
-    currentViewBox = [...target] as ViewBox;
-    svg.setAttribute("viewBox", currentViewBox.join(" "));
+  if (instant || reducedMotion()) {
+    currentViewBox = target;
+    svg.setAttribute("viewBox", target.join(" "));
     return;
   }
   const from = [...currentViewBox] as ViewBox;
   const started = performance.now();
   const step = (now: number): void => {
-    const k = Math.min(1, (now - started) / ZOOM_MS);
-    const eased = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const k = Math.min(1, (now - started) / FLY_MS);
+    const eased = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
     currentViewBox = from.map((value, i) => value + (target[i] - value) * eased) as ViewBox;
     svg.setAttribute("viewBox", currentViewBox.map((v) => v.toFixed(2)).join(" "));
-    if (k < 1) zoomFrame = requestAnimationFrame(step);
+    if (k < 1) flyFrame = requestAnimationFrame(step);
   };
-  zoomFrame = requestAnimationFrame(step);
+  flyFrame = requestAnimationFrame(step);
 }
 
+window.addEventListener("resize", () => {
+  if (framedBox && view && !view.overlay.hidden) flyTo(framedBox, true);
+});
+
 function onHover(province: Province | null): void {
-  if (!view || !data || mode === "intro") return;
+  if (!data || mode === "intro") return;
   if (mode === "region") {
     for (const path of paths.values()) {
       path.classList.toggle("hover", province !== null && path.getAttribute("data-region") === province.region);
     }
     const region = province ? data.regions.find((r) => r.id === province.region) : null;
-    view.hint.textContent = region ? localName(region) : t("picker.region_hint");
+    setCaptionHint(region ? `${localName(region)} · ${t("picker.region_provinces", { count: regionMembers(region.id).length })}` : "");
   } else if (province?.region === currentRegion) {
-    view.hint.textContent = localName(province);
-  } else {
-    view.hint.textContent = t("picker.hint");
+    setCaptionHint(localName(province));
   }
 }
 
 function onPick(province: Province): void {
-  if (mode === "region") showRegionCard(province.region);
+  if (mode === "region") flyIntoRegion(province.region);
   else if (mode === "province" && province.region === currentRegion) showProvinceCard(province.id);
 }
 
-// --- Step 1: the story ---
+// --- 1. The story, playing by itself ---
 
 function scenes(): Scene[] {
-  const regions = data?.regions ?? [];
   return [
     { title: t("intro.thailand.title"), text: t("intro.thailand.text"), plain: true, focus: null },
-    { title: t("intro.regions.title"), text: t("intro.regions.text"), plain: false, focus: null },
-    ...regions.map((region) => ({
+    { title: t("intro.regions.title"), text: t("intro.regions.text"), reveal: true, focus: null },
+    ...(data?.regions ?? []).map((region) => ({
       title: localName(region),
       text: t(`region.${region.id}.desc`),
       extra: `${t("picker.region_pros")}: ${t(`region.${region.id}.pros`)} · ${t("picker.region_cons")}: ${t(`region.${region.id}.cons`)}`,
-      plain: false,
       focus: region.id,
     })),
-    { title: t("intro.final.title"), text: t("intro.final.text"), plain: false, focus: null, final: true },
   ];
 }
 
-function showIntro(): void {
+function playIntro(from = 0): void {
   if (!view) return;
   mode = "intro";
   markIntroSeen();
-  setHeader(t("intro.title"), "", { skip: true });
-
+  hidePanel();
+  setChrome({ skip: true, dots: true });
   const list = scenes();
-  const scroller = element("div", "ppScenes");
-  scroller.tabIndex = -1;
-  const sections = list.map((scene, index) => {
-    const section = element("section", "ppScene");
-    section.dataset.index = String(index);
-    const card = element("div", "ppSceneCard");
-    card.append(element("h3", undefined, scene.title), element("p", undefined, scene.text));
-    if (scene.extra) card.appendChild(element("p", "ppSceneExtra", scene.extra));
-    if (scene.final) {
-      card.appendChild(button("ppStart", t("intro.final.button"), () => showRegions()));
-    } else {
-      const next = button("ppNext", `${t(index === 0 ? "intro.scroll" : "intro.next")} ↓`, () => {
-        sections[index + 1]?.scrollIntoView({ behavior: "smooth" });
-      });
-      card.appendChild(next);
-    }
-    section.appendChild(card);
-    return section;
-  });
-  scroller.append(...sections);
-  view.panel.classList.add("ppStory");
-  view.panel.replaceChildren(scroller);
-
-  introObserver?.disconnect();
-  introObserver = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      const scene = list[Number((entry.target as HTMLElement).dataset.index)];
-      sections.forEach((s) => s.classList.toggle("active", s === entry.target));
-      applyMapState({ plain: scene.plain, focus: scene.focus });
-      zoomTo(scene.focus ? groupViewBox(regionMembers(scene.focus)) : fullViewBox);
-    }
-  }, { root: scroller, threshold: 0.6 });
-  sections.forEach((section) => introObserver!.observe(section));
-
-  applyMapState({ plain: true });
-  zoomTo(fullViewBox);
-  scroller.focus({ preventScroll: true });
+  view.dots.replaceChildren(...list.map(() => element("span")));
+  playScene(list, from);
 }
 
-// --- Step 2: regions ---
-
-function showRegions(): void {
-  if (!view || !data) return;
-  introObserver?.disconnect();
-  introObserver = null;
-  mode = "region";
-  currentRegion = null;
-  setHeader(t("picker.region_title"), t("picker.region_hint"));
-  view.panel.classList.remove("ppStory");
-  view.panel.replaceChildren(element("p", "ppPrompt", t("picker.region_pick")));
-  applyMapState({});
-  zoomTo(fullViewBox);
-}
-
-function showRegionCard(regionId: string): void {
-  if (!view || !data) return;
-  const region = data.regions.find((r) => r.id === regionId);
-  if (!region) return;
-  applyMapState({ focus: regionId });
-  const count = regionMembers(regionId).length;
-  const card = element("div", "ppDetail");
-  const traits = element("dl", "ppTraits");
-  traits.append(
-    element("dt", undefined, t("picker.region_pros")), element("dd", undefined, t(`region.${regionId}.pros`)),
-    element("dt", undefined, t("picker.region_cons")), element("dd", undefined, t(`region.${regionId}.cons`)),
-  );
-  card.append(
-    element("h3", undefined, localName(region)),
-    element("p", "ppSub", `${otherName(region)} · ${t("picker.region_provinces", { count })}`),
-    element("p", undefined, t(`region.${regionId}.desc`)),
-    traits,
-    element("p", "ppSmall", t("picker.region_note")),
-    button("ppStart", t("picker.region_go"), () => showProvinces(regionId)),
-  );
-  view.panel.replaceChildren(card);
-}
-
-// --- Step 3: provinces in one region ---
-
-function showProvinces(regionId: string, selected: string | null = null): void {
-  if (!view || !data) return;
-  const region = data.regions.find((r) => r.id === regionId);
-  if (!region) return;
-  mode = "province";
-  currentRegion = regionId;
-  setHeader(`${t("picker.title")} · ${localName(region)}`, t("picker.hint"), { back: true });
-  applyMapState({ focus: regionId, provinceNames: true, selected });
-  zoomTo(groupViewBox(regionMembers(regionId)));
-
-  if (selected) {
-    showProvinceCard(selected);
+function playScene(list: Scene[], index: number): void {
+  if (!view || mode !== "intro") return;
+  if (index >= list.length) {
+    showRegions(true);
     return;
   }
-  const list = element("div", "ppNeighbors");
-  const provinces = [...data.provinces.values()].filter((p) => p.region === regionId)
-    .sort((a, b) => localName(a).localeCompare(localName(b), getLanguage()));
-  for (const province of provinces) list.appendChild(button("ppNeighbor", localName(province), () => showProvinceCard(province.id)));
-  view.panel.replaceChildren(element("p", "ppPrompt", t("picker.province_pick")), list);
+  sceneIndex = index;
+  const scene = list[index];
+  Array.from(view.dots.children).forEach((dot, i) => dot.classList.toggle("on", i <= index));
+
+  if (scene.reveal) revealRegions();
+  applyMapState({ plain: scene.plain, focus: scene.focus, regionNames: !scene.plain && !scene.focus });
+  flyTo(scene.focus ? groupViewBox(regionMembers(scene.focus)) : countryBox(), index === 0);
+  setCaption({ title: scene.title, text: scene.text, extra: scene.extra });
+
+  const length = scene.title.length + scene.text.length + (scene.extra?.length ?? 0);
+  window.clearTimeout(sceneTimer);
+  sceneTimer = window.setTimeout(() => playScene(list, index + 1), Math.max(MIN_SCENE_MS, length * MS_PER_CHARACTER));
+}
+
+// The regions take their colours one after another
+function revealRegions(): void {
+  if (!data) return;
+  const order = new Map(data.regions.map((r, i) => [r.id, i]));
+  for (const path of paths.values()) {
+    (path as SVGElement & { style: CSSStyleDeclaration }).style.transitionDelay =
+      `${(order.get(path.getAttribute("data-region") ?? "") ?? 0) * REVEAL_STEP_MS}ms`;
+  }
+  window.setTimeout(() => {
+    for (const path of paths.values()) (path as SVGElement & { style: CSSStyleDeclaration }).style.transitionDelay = "";
+  }, data.regions.length * REVEAL_STEP_MS + 800);
+}
+
+// --- 2. Choosing a region ---
+
+function showRegions(afterIntro: boolean): void {
+  if (!view || !data) return;
+  window.clearTimeout(sceneTimer);
+  mode = "region";
+  currentRegion = null;
+  selectedProvince = null;
+  hidePanel();
+  setChrome({});
+  applyMapState({ regionNames: true });
+  flyTo(countryBox());
+  setCaption(afterIntro
+    ? { title: t("intro.final.title"), text: t("intro.final.text"), hint: "" }
+    : { title: t("picker.region_title"), text: t("picker.region_hint"), hint: "" });
+}
+
+// --- 3. One region, then a province ---
+
+function flyIntoRegion(regionId: string, selected: string | null = null): void {
+  if (!view || !data) return;
+  const region = data.regions.find((r) => r.id === regionId);
+  if (!region) return;
+  window.clearTimeout(sceneTimer);
+  mode = "province";
+  currentRegion = regionId;
+  selectedProvince = null;
+  if (!selected) hidePanel();
+  setChrome({ back: true });
+  applyMapState({ focus: regionId, provinceNames: true });
+  flyTo(groupViewBox(regionMembers(regionId)));
+  setCaption({
+    title: localName(region),
+    text: t(`region.${regionId}.desc`),
+    extra: `${t("picker.region_pros")}: ${t(`region.${regionId}.pros`)} · ${t("picker.region_cons")}: ${t(`region.${regionId}.cons`)}`,
+    hint: t("picker.province_pick"),
+  });
+  if (selected) showProvinceCard(selected);
+}
+
+function hidePanel(): void {
+  if (view && !view.panel.hidden) hide(view.panel, true);
 }
 
 function showProvinceCard(provinceId: string): void {
@@ -523,37 +622,65 @@ function showProvinceCard(provinceId: string): void {
   const province = data.provinces.get(provinceId);
   if (!province) return;
   if (province.region !== currentRegion) {
-    showProvinces(province.region, provinceId);
+    flyIntoRegion(province.region, provinceId);
     return;
   }
+  selectedProvince = provinceId;
   applyMapState({ focus: province.region, provinceNames: true, selected: provinceId });
   const region = data.regions.find((r) => r.id === province.region);
   const token = ++cardToken;
 
-  const card = element("div", "ppDetail");
+  const card = element("div", "ppCard");
   card.append(
     element("h3", undefined, localName(province)),
     element("p", "ppSub", `${otherName(province)} · ${region ? localName(region) : ""}`),
   );
   const profile = element("div", "ppProfile", t("picker.loading"));
-  card.appendChild(profile);
+  const preview = element("div", "ppPreview");
+  card.append(profile, preview);
 
   card.appendChild(element("h4", undefined, t("picker.neighbors")));
   const neighbors = element("div", "ppNeighbors");
   for (const id of province.neighbors) {
     const neighbor = data.provinces.get(id);
-    if (neighbor) neighbors.appendChild(button("ppNeighbor", localName(neighbor), () => showProvinceCard(id)));
+    if (neighbor) neighbors.appendChild(button("ppChipButton", localName(neighbor), () => showProvinceCard(id)));
   }
   card.appendChild(neighbors);
 
-  card.appendChild(element("h4", undefined, t("picker.preview")));
-  const preview = element("div", "ppPreview", t("picker.loading"));
-  card.appendChild(preview);
-  card.appendChild(button("ppStart", t("picker.start"), () => {
-    close();
-    startCallback(province.id);
-  }));
+  // The city: its name and how hard the game is
+  const nameLabel = element("label", "ppField");
+  const nameInput = element("input", "ppName");
+  nameInput.type = "text";
+  nameInput.maxLength = MAX_CITY_NAME_LENGTH;
+  nameInput.value = localName(province).slice(0, MAX_CITY_NAME_LENGTH);
+  nameLabel.append(element("span", undefined, t("start.label.name")), nameInput);
+  const levels = element("div", "ppLevels");
+  levels.setAttribute("role", "radiogroup");
+  levels.setAttribute("aria-label", t("start.label.difficulty"));
+  for (const [level, key] of LEVELS) {
+    const option = element("label", "ppLevel");
+    const radio = element("input");
+    radio.type = "radio";
+    radio.name = "ppLevel";
+    radio.value = String(level);
+    radio.checked = level === 0;
+    option.append(radio, element("span", undefined, t(key)));
+    levels.appendChild(option);
+  }
+  const start = button("ppStart", t("picker.start"), () => {
+    const name = nameInput.value.trim() || localName(province);
+    const level = Number((levels.querySelector("input:checked") as HTMLInputElement | null)?.value ?? 0);
+    leaveTo(() => actions?.start(province.id, name.slice(0, MAX_CITY_NAME_LENGTH), level));
+  });
+  nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") start.click();
+  });
+  card.append(element("h4", undefined, t("start.label.difficulty")), levels, nameLabel, start);
+
   view.panel.replaceChildren(card);
+  if (view.panel.hidden) show(view.panel);
+  flyTo(groupViewBox(regionMembers(province.region))); // make room for the card
+  setCaptionHint(localName(province));
 
   loadPreset(province.id).then((map) => {
     if (token !== cardToken) return; // The player has already picked another province
@@ -562,8 +689,8 @@ function showProvinceCard(provinceId: string): void {
     const funds = element("div", "ppFunds");
     funds.append(element("span", undefined, t("picker.funds")), element("strong", undefined, money(startingFunds(map.stats))));
     if (bonus > 0) funds.appendChild(element("small", undefined, t("picker.funds_bonus", { pct: bonus })));
-    const difficulty = element("div", "ppDifficulty");
-    difficulty.append(
+    const terrain = element("div", "ppTerrain");
+    terrain.append(
       element("span", undefined, t("picker.difficulty")),
       element("strong", "ppStars", "★".repeat(stars) + "☆".repeat(3 - stars)),
       element("small", undefined, t(`picker.difficulty.${stars}`)),
@@ -572,22 +699,47 @@ function showProvinceCard(provinceId: string): void {
     for (const resource of provinceResources(province.tags ?? [], map.stats)) {
       chips.appendChild(element("span", "ppChip", t(resource.key, resource.pct === undefined ? undefined : { pct: resource.pct })));
     }
-    profile.replaceChildren(funds, difficulty, element("h4", undefined, t("picker.resources")), chips);
-
+    profile.replaceChildren(funds, terrain, chips);
     const canvas = element("canvas");
     drawPresetMap(canvas, map, PREVIEW_PIXELS_PER_TILE);
     preview.replaceChildren(canvas);
   }).catch(() => {
     if (token !== cardToken) return;
-    profile.textContent = "";
-    preview.textContent = t("picker.no_preview");
+    profile.textContent = t("picker.no_preview");
   });
 }
 
 // --- Entry point ---
 
-export function openProvincePicker(onStart: (provinceId: string) => void, options: PickerOptions = {}): void {
-  startCallback = onStart;
+function onKeyDown(event: KeyboardEvent): void {
+  if (!view || view.overlay.hidden || event.key !== "Escape") return;
+  if (mode === "intro") showRegions(true);
+  else if (mode === "province") showRegions(false);
+}
+
+// The view is built in the current language: rebuild it after a switch and carry on where the player was.
+onLanguageChange(() => {
+  if (!view) return;
+  const wasOpen = !view.overlay.hidden;
+  window.clearTimeout(sceneTimer);
+  view.overlay.remove();
+  view = null;
+  paths.clear();
+  regionLabels.clear();
+  provinceLabels.clear();
+  if (!wasOpen || !data) return;
+  view = buildShell();
+  buildMap();
+  if (mode === "intro") playIntro(sceneIndex);
+  else if (mode === "province" && currentRegion) flyIntoRegion(currentRegion, selectedProvince);
+  else showRegions(false);
+});
+
+audio.onChange(() => renderSound());
+
+export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
+  actions = startActions;
+  document.removeEventListener("keydown", onKeyDown);
   document.addEventListener("keydown", onKeyDown);
   view ??= buildShell();
   show(view.overlay);
@@ -596,9 +748,11 @@ export function openProvincePicker(onStart: (provinceId: string) => void, option
     data = loaded;
     if (!view) return;
     if (!view.svg) buildMap();
-    if (options.intro) showIntro();
-    else showRegions();
+    const requested = options.provinceId ? data.provinces.get(options.provinceId) : undefined;
+    if (requested) flyIntoRegion(requested.region, requested.id);
+    else if (options.intro) playIntro();
+    else showRegions(false);
   }).catch(() => {
-    if (view) view.map.textContent = t("picker.load_failed");
+    if (view) view.stage.textContent = t("picker.load_failed");
   });
 }

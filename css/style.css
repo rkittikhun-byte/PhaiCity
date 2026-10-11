@@ -64,9 +64,11 @@ header h1 {
 
 /* The footer holds the required credits: the game area stops where it starts (src/micropolis.js sets --footer-height) */
 #footer {
-  padding: 4px 10px;
-  font-size: 12px;
-  line-height: 1.4;
+  padding: 3px 10px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: 'Sarabun Thai', sans-serif;
 }
 
 main {
@@ -489,85 +491,6 @@ nav li {
   color: dodgerblue;
 }
 
-/* Start screen (src/splashScreen.js): ruling a province comes first, random maps are practice */
-#splash {
-  position: absolute;
-  width: 560px;
-}
-
-#splashMain {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 16px;
-}
-
-#splashMain .splashPrimary, #splashMain .splashContinue {
-  width: 340px;
-  height: auto;
-  padding: 10px 16px;
-  border-radius: 6px;
-}
-
-#splashMain .splashPrimary {
-  background-color: #226b57;
-  color: white;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-#splashMain .splashContinue {
-  font-size: 16px;
-}
-
-#splashMain .splashContinue[hidden] {
-  display: none;
-}
-
-.splashLink {
-  width: auto;
-  height: auto;
-  background: none;
-  color: #226b57;
-  text-decoration: underline;
-}
-
-#splashPractice {
-  border-top: 1px solid #c5d1c8;
-  padding-top: 8px;
-}
-
-#splashPractice h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: normal;
-  text-align: center;
-}
-
-#splashPracticeBody {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-}
-
-#SplashCanvas {
-  width: 240px;
-  height: 200px;
-  image-rendering: pixelated;
-}
-
-#splashButton {
-  margin-bottom: 10px;
-}
-
-#splashButtons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .mainMenuHeader {
   background-color: #226b57;
 }
@@ -581,15 +504,6 @@ nav li {
   width: auto;
   padding: 0 12px;
   margin: 0 4px;
-}
-
-#splashGenerate {
-  background-color: dodgerBlue;
-  color: white
-}
-
-#splashPlay {
-  background-color: lightgreen;
 }
 
 #start {
@@ -1021,7 +935,7 @@ nav li {
   opacity: 0.7;
 }
 
-/* Province picker (src/provincePicker.ts): a full-screen map of Thailand */
+/* The start of the game (src/provincePicker.ts): a dark, full-screen, cinematic map of Thailand */
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
 
@@ -1029,75 +943,116 @@ nav li {
   position: fixed;
   inset: 0;
   z-index: 300;
-  display: flex;
-  flex-direction: column;
-  background: #f2f4ed;
-  color: #213b38;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 60% 45%, #16241f 0%, #070b0a 70%, #030504 100%);
+  color: #eef3ef;
   font: 15px/1.5 Sarabun, system-ui, sans-serif;
 }
 #provincePicker[hidden] { display: none; }
 #provincePicker h2, #provincePicker h3, #provincePicker h4, #provincePicker p {
-  font-family: Sarabun, system-ui, sans-serif; color: #213b38; text-shadow: none; }
-#provincePicker .ppHeader { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid #d6ddd1; background: #fffef8; }
-#provincePicker .ppHeader h2 { margin: 0; font-size: 22px; }
-#provincePicker .ppHint { margin: 0; flex: 1; color: #667a73; }
-#provincePicker button { font: inherit; cursor: pointer; border: 1px solid #b9c4b4; border-radius: 6px; background: #fffef8; padding: 4px 12px;
-  width: auto; height: auto; min-height: 30px; line-height: 1.4; color: #213b38; }
+  font-family: Sarabun, system-ui, sans-serif; color: inherit; text-shadow: none; }
+#provincePicker button { font: inherit; cursor: pointer; width: auto; height: auto; min-height: 30px; line-height: 1.4;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(255, 255, 255, 0.07);
+  color: #eef3ef; padding: 4px 14px; backdrop-filter: blur(6px); }
+#provincePicker button:hover { background: rgba(255, 255, 255, 0.16); box-shadow: 0 0 18px rgba(120, 220, 180, 0.25); }
 #provincePicker button[hidden] { display: none; }
-#provincePicker .ppBody { flex: 1; display: flex; min-height: 0; }
-#provincePicker .ppMapWrap { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px 12px; }
-#provincePicker .ppMap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+
+/* The map fills the screen; the camera is the SVG viewBox */
+#provincePicker .ppStage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #8fa39b; }
 #provincePicker .ppSvg { width: 100%; height: 100%; }
 #provincePicker .ppSvg[data-mode="intro"] { pointer-events: none; }
-#provincePicker .ppProvince { stroke: #ffffff; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: pointer;
-  transition: opacity .4s, fill .4s, filter .1s; }
-#provincePicker .ppSvg.plain .ppProvince { fill: #c9d4be; }
-#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus, #provincePicker .ppProvince.hover { filter: brightness(0.85); outline: none; }
-#provincePicker .ppProvince.dim { opacity: .25; pointer-events: none; }
-#provincePicker .ppProvince.selected { stroke: #213b38; stroke-width: 2.5; filter: brightness(0.8); }
-#provincePicker .ppRegionLabel, #provincePicker .ppProvinceLabel { font-family: Sarabun, sans-serif; fill: #213b38; text-anchor: middle;
-  dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: #ffffff; stroke-linejoin: round; }
-#provincePicker .ppRegionLabel { font-weight: 700; opacity: .85; }
-#provincePicker .ppProvinceLabel.selected { font-weight: 700; }
-#provincePicker .ppRegionLabel.hidden, #provincePicker .ppProvinceLabel.hidden { display: none; }
-#provincePicker .ppNote { margin: 4px 0 0; font-size: 12px; color: #667a73; text-align: center; }
-#provincePicker .ppPanel { width: 340px; padding: 12px 20px; border-left: 1px solid #d6ddd1; overflow-y: auto; }
-#provincePicker .ppPrompt { color: #667a73; }
-#provincePicker .ppDetail h3 { margin: 0; font-size: 24px; }
-#provincePicker .ppDetail h4 { margin: 14px 0 6px; font-size: 14px; color: #667a73; }
-#provincePicker .ppSub { margin: 0 0 8px; color: #667a73; }
-#provincePicker .ppSmall { font-size: 12px; color: #667a73; }
-#provincePicker .ppTraits { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; }
-#provincePicker .ppTraits dt { font-weight: 700; }
-#provincePicker .ppTraits dd { margin: 0; }
-#provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
-#provincePicker .ppFunds { display: flex; flex-direction: column; margin: 12px 0 8px; }
-#provincePicker .ppFunds strong { font-size: 26px; color: #226b57; line-height: 1.2; }
-#provincePicker .ppFunds small, #provincePicker .ppDifficulty small { color: #667a73; }
-#provincePicker .ppDifficulty { display: flex; align-items: baseline; gap: 8px; }
-#provincePicker .ppStars { color: #d99a00; letter-spacing: 2px; }
-#provincePicker .ppChips { display: flex; flex-wrap: wrap; gap: 6px; }
-#provincePicker .ppChip { background: #e3ebdc; border-radius: 12px; padding: 2px 10px; font-size: 13px; }
-#provincePicker .ppPreview canvas { width: 100%; max-width: 240px; image-rendering: pixelated; border-radius: 4px; display: block; }
-#provincePicker .ppStart { margin-top: 16px; width: 100%; padding: 10px; font-size: 17px; font-weight: 700;
-  background: #226b57; border-color: #226b57; color: #ffffff; }
+#provincePicker .ppProvinces { filter: drop-shadow(0 0 22px rgba(110, 200, 170, 0.18)); }
+#provincePicker .ppSvg.plain .ppProvinces { filter: drop-shadow(0 0 26px rgba(255, 196, 70, 0.45)); }
+#provincePicker .ppProvince { stroke: #0a1210; stroke-width: 0.8; vector-effect: non-scaling-stroke; cursor: pointer;
+  transition: fill 0.9s ease, opacity 0.6s ease, filter 0.15s; }
+#provincePicker .ppSvg.plain .ppProvince { fill: url(#ppGold); stroke: rgba(80, 55, 10, 0.55); }
+#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus, #provincePicker .ppProvince.hover { filter: brightness(1.3); outline: none; }
+#provincePicker .ppProvince.dim { opacity: 0.12; pointer-events: none; }
+#provincePicker .ppProvince.selected { stroke: #ffffff; stroke-width: 2.5; filter: brightness(1.25); }
+#provincePicker .ppRegionLabel, #provincePicker .ppProvinceLabel { font-family: Sarabun, sans-serif; fill: #f4f7f3; text-anchor: middle;
+  dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3, 6, 5, 0.85); stroke-linejoin: round;
+  transition: opacity 0.6s ease 0.5s; }
+#provincePicker .ppRegionLabel { font-weight: 700; letter-spacing: 0.02em; }
+#provincePicker .ppProvinceLabel.selected { font-weight: 700; fill: #ffffff; }
+#provincePicker .ppRegionLabel.hidden, #provincePicker .ppProvinceLabel.hidden { opacity: 0; transition-delay: 0s; }
 
-/* The story scrolls one scene at a time beside the map */
-#provincePicker .ppPanel.ppStory { width: 420px; padding: 0; overflow: hidden; }
-#provincePicker .ppScenes { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; outline: none; }
-#provincePicker .ppScene { height: 100%; box-sizing: border-box; padding: 32px 28px; display: flex; align-items: center; scroll-snap-align: start; }
-#provincePicker .ppSceneCard { opacity: .3; transform: translateY(20px); transition: opacity .5s, transform .5s; }
-#provincePicker .ppScene.active .ppSceneCard { opacity: 1; transform: none; }
-#provincePicker .ppSceneCard h3 { margin: 0 0 10px; font-size: 32px; line-height: 1.2; }
-#provincePicker .ppSceneCard p { margin: 0 0 10px; font-size: 18px; }
-#provincePicker .ppSceneCard .ppSceneExtra { font-size: 14px; color: #667a73; }
-#provincePicker .ppNext { margin-top: 12px; }
+/* Top bar */
+#provincePicker .ppTop { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 16px 24px; animation: motionFromAbove 0.6s 0.2s ease-out backwards; }
+#provincePicker .ppTopLeft, #provincePicker .ppTopRight { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#provincePicker .ppBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 24px; letter-spacing: 0.04em; color: #f6d77a;
+  text-shadow: 0 0 18px rgba(246, 215, 122, 0.45); }
+#provincePicker .ppQuiet { font-size: 13px; }
+#provincePicker .ppContinue { border-color: rgba(246, 215, 122, 0.6); color: #f6d77a; }
+#provincePicker .ppSkip { font-size: 13px; }
+
+/* Captions, like film subtitles on the left */
+#provincePicker .ppCaption { position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); width: min(420px, 30vw); pointer-events: none; }
+#provincePicker .ppCaptionInner { position: absolute; top: 50%; transform: translateY(-50%); width: 100%;
+  animation: ppCaptionIn 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker .ppCaptionInner.leaving { animation: ppCaptionOut 0.35s ease-in forwards; }
+#provincePicker .ppCaption h2 { margin: 0 0 12px; font-size: clamp(30px, 3.4vw, 52px); line-height: 1.15; font-weight: 700; }
+#provincePicker .ppCaptionText { margin: 0 0 12px; font-size: clamp(16px, 1.35vw, 21px); color: #cdd8d2; }
+#provincePicker .ppCaptionExtra { margin: 0 0 12px; font-size: 14px; color: #93a79f; }
+#provincePicker .ppCaptionHint { margin: 0; min-height: 1.5em; font-size: 15px; color: #f6d77a; }
+@keyframes ppCaptionIn { from { opacity: 0; transform: translateY(calc(-50% + 30px)); filter: blur(6px); } }
+@keyframes ppCaptionOut { to { opacity: 0; transform: translateY(calc(-50% - 20px)); filter: blur(4px); } }
+
+/* Story progress */
+#provincePicker .ppDots { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); display: flex; gap: 8px; }
+#provincePicker .ppDots[hidden] { display: none; }
+#provincePicker .ppDots span { width: 26px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); transition: background 0.6s; }
+#provincePicker .ppDots span.on { background: #f6d77a; }
+
+/* Province card: dark glass on the right */
+#provincePicker .ppPanel { position: absolute; top: 76px; right: 24px; bottom: 64px; width: 400px; overflow-y: auto; box-sizing: border-box;
+  padding: 22px 24px; border-radius: 18px; background: rgba(12, 20, 17, 0.72); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  animation: motionFromRight 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker .ppPanel.motionLeave { animation: ppPanelOut 0.2s ease-in forwards; }
+@keyframes ppPanelOut { to { opacity: 0; transform: translateX(40px); } }
+#provincePicker .ppCard > * { animation: motionFromBelow 0.45s ease-out backwards; }
+#provincePicker .ppCard h3 { margin: 0; font-size: 30px; line-height: 1.2; }
+#provincePicker .ppCard h4 { margin: 16px 0 6px; font-size: 13px; font-weight: 400; color: #93a79f; text-transform: uppercase; letter-spacing: 0.05em; }
+#provincePicker .ppSub { margin: 2px 0 10px; color: #93a79f; }
+#provincePicker .ppFunds { display: flex; flex-direction: column; margin: 8px 0; }
+#provincePicker .ppFunds span, #provincePicker .ppTerrain span { color: #93a79f; font-size: 13px; }
+#provincePicker .ppFunds strong { font-size: 34px; line-height: 1.15; color: #f6d77a; text-shadow: 0 0 20px rgba(246, 215, 122, 0.3); }
+#provincePicker .ppFunds small, #provincePicker .ppTerrain small { color: #93a79f; }
+#provincePicker .ppTerrain { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+#provincePicker .ppStars { color: #f6d77a; letter-spacing: 3px; }
+#provincePicker .ppChips, #provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppChip { border-radius: 999px; padding: 2px 10px; font-size: 13px; background: rgba(110, 200, 170, 0.14);
+  border: 1px solid rgba(110, 200, 170, 0.3); color: #cfeee2; }
+#provincePicker .ppChipButton { font-size: 13px; min-height: 26px; padding: 2px 10px; }
+#provincePicker .ppPreview { margin-top: 12px; }
+#provincePicker .ppPreview canvas { width: 100%; max-width: 200px; image-rendering: pixelated; border-radius: 8px; display: block; opacity: 0.9; }
+#provincePicker .ppLevels { display: flex; gap: 6px; }
+#provincePicker .ppLevel { flex: 1; }
+#provincePicker .ppLevel input { position: absolute; opacity: 0; }
+#provincePicker .ppLevel span { display: block; text-align: center; padding: 6px 0; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); transition: background 0.2s, border-color 0.2s; }
+#provincePicker .ppLevel input:checked + span { background: rgba(246, 215, 122, 0.18); border-color: #f6d77a; color: #f6d77a; }
+#provincePicker .ppLevel input:focus-visible + span { outline: 2px solid #f6d77a; }
+#provincePicker .ppField { display: block; margin-top: 14px; }
+#provincePicker .ppField span { display: block; font-size: 13px; color: #93a79f; margin-bottom: 4px; }
+#provincePicker .ppName { width: 100%; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 17px; color: #ffffff;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; }
+#provincePicker .ppName:focus { outline: none; border-color: #f6d77a; }
+#provincePicker .ppStart { margin-top: 18px; width: 100%; padding: 12px; font-size: 18px; font-weight: 700; border: none;
+  background: linear-gradient(135deg, #f6d77a, #d29a2c); color: #1c1405; box-shadow: 0 10px 30px rgba(210, 154, 44, 0.35); }
+#provincePicker .ppStart:hover { filter: brightness(1.08); box-shadow: 0 12px 36px rgba(246, 215, 122, 0.45); }
+
+/* The required credits: tiny and quiet at the bottom */
+#provincePicker .ppCredits { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 10px; line-height: 1.5;
+  color: rgba(238, 243, 239, 0.42); }
+#provincePicker .ppCredits a { color: inherit; margin-left: 4px; }
+#provincePicker .ppCredits > * { display: block; margin: 0; }
 
 @media (max-width: 900px) {
-  #provincePicker .ppBody { flex-direction: column; }
-  #provincePicker .ppPanel, #provincePicker .ppPanel.ppStory { width: auto; border-left: 0; border-top: 1px solid #d6ddd1; max-height: 45vh; }
-  #provincePicker .ppHint { display: none; }
-}
+  #provincePicker .ppCaption { left: 20px; right: 20px; top: auto; bottom: 90px; transform: none; width: auto; }
+  #provincePicker .ppCaptionInner { position: relative; top: auto; transform: none; }
+  #provincePicker .ppPanel { top: auto; left: 12px; right: 12px; bottom: 50px; width: auto; max-height: 55vh; }
 }
 
 /* Motion (src/motion.ts): screens, windows, panels and buttons slide and fade in; .motionLeave plays the way out.
@@ -1112,8 +1067,8 @@ nav li {
 @keyframes motionFromAbove { from { opacity: 0; transform: translateY(-18px); } }
 @keyframes motionNoticeIn { from { opacity: 0; transform: translate(-50%, 24px); } }
 
-.modal, #splash, #start { animation: motionRise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
-.modal.motionLeave, #splash.motionLeave, #start.motionLeave { animation: motionSink 0.2s ease-in forwards; }
+.modal { animation: motionRise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.modal.motionLeave { animation: motionSink 0.2s ease-in forwards; }
 #opaque { animation: motionFadeIn 0.25s ease-out backwards; backdrop-filter: blur(3px); }
 #opaque.motionLeave { animation: motionFadeOut 0.2s ease-in forwards; }
 
@@ -1127,16 +1082,13 @@ nav li {
 /* ... and so do the buttons inside them; --i is each button's place (src/motion.ts stagger) */
 #miscButtons button { animation: motionFromLeft 0.35s calc(var(--i, 0) * 40ms + 0.2s) ease-out backwards; }
 #buttons .toolButton { animation: motionFromRight 0.35s calc(var(--i, 0) * 25ms + 0.2s) ease-out backwards; }
-#splash > *, #splashMain > * { animation: motionFromBelow 0.4s calc(var(--i, 0) * 70ms + 0.12s) ease-out backwards; }
 #provincePicker { animation: motionFadeIn 0.35s ease-out backwards; }
 #provincePicker.motionLeave { animation: motionFadeOut 0.2s ease-in forwards; }
-#provincePicker .ppHeader { animation: motionFromAbove 0.45s 0.1s ease-out backwards; }
-#provincePicker .ppPanel > * { animation: motionFromRight 0.4s ease-out backwards; }
 
 /* Console-style finish: rounded panels, soft deep shadows, buttons that lift under the pointer */
-.modal, #splash, #start, #infobar, #miscButtons, #RCIContainer, #controls { border: none; border-radius: 12px; }
+.modal, #infobar, #miscButtons, #RCIContainer, #controls { border: none; border-radius: 12px; }
 .modal { overflow: hidden; box-shadow: 0 24px 70px rgba(10, 20, 18, 0.45); }
-#splash, #start, #infobar, #miscButtons, #RCIContainer, #controls { box-shadow: 0 14px 40px rgba(10, 20, 18, 0.4); }
+#infobar, #miscButtons, #RCIContainer, #controls { box-shadow: 0 14px 40px rgba(10, 20, 18, 0.4); }
 #notifications { border: none; border-radius: 8px; box-shadow: 0 8px 24px rgba(10, 20, 18, 0.35); }
 button, input[type="submit"] { border-radius: 5px; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s; }
 button:not(:disabled):hover, input[type="submit"]:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); filter: brightness(1.06); }
