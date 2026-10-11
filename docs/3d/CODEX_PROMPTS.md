@@ -338,18 +338,21 @@ Look at road.bridge from Prompt 4 in src/render3d/models/road/ first.
 
 Task: build a cable-stayed bridge for wide rivers.
 The simulation only knows ordinary bridge tiles (64, 65). Later, the renderer will draw any straight run
-of 8 or more bridge tiles as this cable-stayed bridge instead of road.bridge.
+of 8 or more bridge tiles as this bridge instead of road.bridge.
 Design: inspired by Bangkok's single-pylon river bridges, but never an exact copy, and never with a real name.
+Every model must stay inside its own 1×1 tile footprint, so the stay cables are NOT part of any model.
+Models only expose anchor points, and the renderer draws the cables between them.
 
-- road.bridge_cable_deck: one tile of deck, same cross-section and edge alignment as road.bridge,
-  with stay-cable anchor points along both edges.
-  variant = distance in tiles from the pylon (0–20), so the renderer can draw cables at the right angle.
+- road.bridge_cable_deck: one tile of deck, with the same cross-section and edge alignment as road.bridge.
+  - one cable anchor on each deck edge: anchor_cable_left and anchor_cable_right
 - road.bridge_cable_pylon: the pylon tile.
+  - deck at y = 0 matching road.bridge, with the pier going down to the riverbed
   - one tall, slender inverted-Y pylon, 120 m high, with a small lit crown
-  - with variant = side (0 or 1), it fans stay cables out to up to 20 deck tiles on that side
-    (draw the cables as thin lines merged into one mesh)
-  - deck at y = 0, matching road.bridge, with the pier going down to the riverbed
-- Night lighting along the cables, using emissive_window or a tinted emissive material from the library.
+  - 20 cable anchors on each side of the upper mast, from 60 m to 115 m high:
+    anchor_cable_<side>_<n>, with side 0 or 1 and n from 0 to 19
+- In the gallery (your file), add a "cable bridge" preview: one pylon plus 10 deck tiles on each side,
+  with cables drawn as thin lines between matching anchors, so the look can be checked.
+- Night lighting on the crown and along the deck edges, using an emissive material from the library.
 - Tier R3. No real bridge names, plaques or royal emblems.
 
 Follow the Definition of Done in MODEL_SPEC section 9.
