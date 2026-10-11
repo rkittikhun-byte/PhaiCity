@@ -96,7 +96,7 @@ describe('Prompt 4 roads: seeded props, budgets and special pieces', () => {
         for (const prop of active.userData.props ?? []) {
           // Bounds are calculated from the unmerged construction buffers. Trees include every leaf card.
           for (const x of [prop.min[0], (prop.min[0] + prop.max[0]) / 2, prop.max[0]]) for (const z of [prop.min[2], (prop.min[2] + prop.max[2]) / 2, prop.max[2]]) {
-            if (kind === 'bridge' || kind === 'drawbridge') expect(Math.abs(x)).toBeGreaterThan(3.5);
+            if (kind.includes('bridge')) expect(Math.abs(x)).toBeGreaterThan(3.5);
             else if (kind === 'rail_crossing') expect(Math.abs(x)).toBeGreaterThan(3.5);
             else {
               root.updateMatrixWorld(true);

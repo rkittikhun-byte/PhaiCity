@@ -2,15 +2,16 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { BoxGeometry, BufferGeometry, Float32BufferAttribute, Group, Object3D, PlaneGeometry } from 'three';
+import { BoxGeometry, BufferGeometry, Float32BufferAttribute, Group, PlaneGeometry } from 'three';
 import { getMaterial, railwaySignalMaterial, roadConcrete } from '../../materials/library.js';
 import { thaiSign } from '../../materials/signs.js';
-import { catenaryWire, countTriangles } from '../../util/geometry.js';
+import { countTriangles } from '../../util/geometry.js';
 import type { ModelOptions } from '../registry.js';
 import { point } from '../vegetation/builder.js';
 import { RoadBuilder } from './builder.js';
 import { roadBase, roadProps, streetLamp } from './basic.js';
 import { POWER_INTERFACE, RAIL_INTERFACE } from './interfaces.js';
+import { crossingPowerLines } from './power-lines.js';
 
 export const DRAWBRIDGE_ANGLE = 70;
 export const DRAWBRIDGE_HINGE = [0, -0.35, -3.5] as const;
@@ -42,10 +43,15 @@ function bridgeSupports(builder: RoadBuilder): void {
   streetLamp(builder, 4.52, 3.85, 0);
 }
 
+/** Shared bridge edge profile: full-width deck at y=0, paint and flush railings. */
+export function bridgeDeck(builder: RoadBuilder): void {
+  builder.box(point(0, -0.175, 0), point(10, 0.35, 10), roadConcrete());
+  deckLines(builder, -5, 5); railings(builder, -4.95, 4.95);
+}
+
 export function createBridge(options: ModelOptions, tiles: readonly number[]): Group {
   const builder = new RoadBuilder(options);
-  builder.box(point(0, -0.175, 0), point(10, 0.35, 10), roadConcrete());
-  deckLines(builder, -5, 5); railings(builder, -4.95, 4.95); bridgeSupports(builder);
+  bridgeDeck(builder); bridgeSupports(builder);
   const root = builder.finishRoad('road.bridge', tiles, 5);
   root.userData.crossSection.sidewalk = 0; root.userData.deckY = 0; root.userData.riverbedY = -3;
   return root;
@@ -163,28 +169,9 @@ export function createRailCrossing(options: ModelOptions, tiles: readonly number
 }
 
 export function createPowerCrossing(options: ModelOptions, tiles: readonly number[]): Group {
-  const builder = new RoadBuilder(options), attachments: Object3D[] = [];
+  const builder = new RoadBuilder(options);
   roadBase(builder, 'straight', false); roadProps(builder, 'straight', options, false);
-  for (const x of [-4.32, 4.32]) builder.prop('utility_pole', () => {
-    builder.box(point(x, 6.075, 0), point(0.26, 11.85, 0.26), roadConcrete());
-    for (const y of [10.72, 5.72]) builder.box(point(x, y, 0), point(0.16, 0.13, 2.15), getMaterial('metal_steel'));
-    for (const offset of POWER_INTERFACE.offsets) builder.cylinder(point(x, 10.88, offset), 0.09, 0.24, roadConcrete(), 6);
-  });
-  const wires = [...POWER_INTERFACE.offsets.map((z, index) => ({ z, y: POWER_INTERFACE.powerY, kind: `power_${index}`, radius: 0.018 })),
-    { z: 0, y: POWER_INTERFACE.telecomY, kind: 'telecom', radius: 0.055 }];
-  for (const wire of wires) {
-    for (const [start, end, sag, segments] of [[-5, -4.32, 0.015, 2], [-4.32, 4.32, 0.26, 9], [4.32, 5, 0.015, 2]]) {
-      const geometry = catenaryWire(point(start, wire.y, wire.z), point(end, wire.y, wire.z), sag, wire.radius, segments);
-      const positions = geometry.getAttribute('position');
-      for (let i = 0; i < positions.count; i++) positions.setX(i, Math.max(-5, Math.min(5, positions.getX(i))));
-      builder.world(geometry, getMaterial('metal_steel'));
-    }
-    for (const side of [-1, 1]) {
-      const anchor = new Object3D(); anchor.name = `road.power_crossing/wire_${side < 0 ? 'W' : 'E'}_${wire.kind}`;
-      anchor.position.set(side * 5, wire.y, wire.z); anchor.userData = { kind: wire.kind, attachment: true };
-      attachments.push(anchor);
-    }
-  }
+  const attachments = crossingPowerLines(builder, 'road.power_crossing');
   const root = builder.finishRoad('road.power_crossing', tiles, 5); root.add(...attachments);
   root.userData.power = { ...POWER_INTERFACE, offsets: [...POWER_INTERFACE.offsets] };
   return root;

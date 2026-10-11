@@ -103,7 +103,7 @@
       </section>
       <p id="error" class="error" role="alert" hidden></p>
       <section id="library" role="tabpanel" aria-labelledby="models-tab">
-        <div class="library-heading"><p id="model-count"></p><p data-th="คลิกโมเดลเพื่อหมุนดู" data-en="Click a model to orbit">คลิกโมเดลเพื่อหมุนดู</p></div>
+        <div class="library-heading"><p id="model-count"></p><button id="cable-bridge-preview" type="button" data-th="ตัวอย่างสะพานขึง" data-en="Cable bridge preview">ตัวอย่างสะพานขึง</button><p data-th="คลิกโมเดลเพื่อหมุนดู" data-en="Click a model to orbit">คลิกโมเดลเพื่อหมุนดู</p></div>
         <div id="cards" class="cards"></div>
         <p id="empty" hidden data-th="ไม่มีโมเดลในหมวดหมู่นี้" data-en="No models in this category">ไม่มีโมเดลในหมวดหมู่นี้</p>
       </section>
@@ -122,6 +122,7 @@
           <aside><div class="eyebrow" data-th="รายละเอียดโมเดล" data-en="Model inspector">รายละเอียดโมเดล</div><h2 id="detail-id" class="model-id"></h2><p id="detail-category"></p>
             <dl><dt data-th="สามเหลี่ยม" data-en="Triangles">สามเหลี่ยม</dt><dd id="detail-triangles"></dd><dt>Draw calls</dt><dd id="detail-calls"></dd><dt data-th="พื้นที่" data-en="Footprint">พื้นที่</dt><dd id="detail-footprint"></dd><dt data-th="งบสามเหลี่ยม" data-en="Triangle budget">งบสามเหลี่ยม</dt><dd id="detail-budget"></dd></dl>
             <p class="hint" data-th="Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู" data-en="Draw calls count visible model surfaces; shadows and guides are excluded.">Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู</p>
+            <p id="assembly-note" class="hint" hidden data-th="เสาหลัก 1 ช่อง + deck ฝั่งละ 10 ช่อง สายขึงเชื่อม anchors และนับเพิ่ม 1 draw call เปิดกลางคืนเพื่อดูไฟขอบสะพานและยอดเสา" data-en="One pylon + ten deck tiles each way. Stays join anchors and add one draw call. Switch to night to inspect edge and crown lighting.">เสาหลัก 1 ช่อง + deck ฝั่งละ 10 ช่อง สายขึงเชื่อม anchors และนับเพิ่ม 1 draw call เปิดกลางคืนเพื่อดูไฟขอบสะพานและยอดเสา</p>
             <button id="reset-camera" type="button" data-th="รีเซ็ตมุมกล้อง" data-en="Reset camera">รีเซ็ตมุมกล้อง</button>
           </aside>
         </div>

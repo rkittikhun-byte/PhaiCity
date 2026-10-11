@@ -110,7 +110,7 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
               });
             }
             if (object.name.startsWith('anchor')) {
-              expect(object.name).toMatch(/^anchor_(smoke|steam|fire|light|water)_\d+$/);
+              expect(object.name).toMatch(/^anchor_((smoke|steam|fire|light|water)_\d+|cable_(left|right|[01]_(?:[0-9]|1[0-9])))$/);
               expect(object).not.toBeInstanceOf(Mesh);
               expect(object.children).toHaveLength(0);
             }
