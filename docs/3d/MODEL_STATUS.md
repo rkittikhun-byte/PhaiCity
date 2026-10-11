@@ -3,6 +3,176 @@
 
 # สถานะโมเดล
 
+## Prompt 16 — ยานพาหนะ
+
+วันที่ 2026-10-11: เพิ่มโมเดลยานพาหนะ 15 แบบใน `src/render3d/models/vehicles/` (หมวด `veh`)
+หันหน้าไปทาง +Z, ล้อ/ท้องเรือแตะพื้น y = 0 (`bounds.min.y >= -0.01` และ `<= 0.05`)
+สีและรายละเอียดสุ่มตาม seed อย่างเป็นระบบ โดยขนาด bounding box คงที่ทุก seed (exact invariance)
+ไม่มีโลโก้ ลวดลาย หรือตราสินค้าของบริษัทจริง (ห้ามตราการบินไทยม่วง-ทอง; Phai Air ใช้สีเขียวไผ่-ขาว)
+ใช้วัสดุจาก library เท่านั้น และจำกัด draw calls ไม่เกิน 8 ต่อโมเดล
+
+| ID | คำอธิบาย | Budget | Draw calls สูงสุด | ขนาด (กว้าง × สูง × ยาว ม.) | Region Tier | ฟังก์ชันพิเศษ / แอนิเมชัน |
+|---|---|---:|---:|---|---|---|
+| veh.train_loco | รถจักรดีเซลทรงไทย (Diesel loco) | 8,000 | 5 | 2.8 × 3.8 × 15.0 | R3 | ราง 1.0 ม., โบกี้ 2 ชุด, `anchor_smoke_0` ปล่องไอเสีย |
+| veh.train_car | ตู้โดยสารชั้น 3 (3rd-class car) | 8,000 | 5 | 2.8 × 3.6 × 15.0 | R3 | ราง 1.0 ม., หน้าต่างเปิดโล่ง, ม้านั่งไม้สักยาว |
+| veh.helicopter | เฮลิคอปเตอร์ข่าวจราจร (Traffic news) | 4,000 | 6 | 8.2 × 3.2 × 7.3 | R3 | `anim_rotor_main` (ใบพัดหลัก), `anim_rotor_tail` (ใบพัดหาง), กล้องข่าวใต้จมูก |
+| veh.airplane | เครื่องบินโดยสารแคบ 28 ม. (Airliner) | 8,000 | 6 | 24.0 × 7.2 × 28.0 | R3 | สายการบินสมมติ "ไผ่แอร์" (Phai Air) เขียวไผ่-ขาว, เครื่องยนต์ใต้ปีก |
+| veh.ship | เรือตู้คอนเทนเนอร์ 35 ม. (Container feeder) | 8,000 | 8 | 7.6 × 10.6 × 35.0 | R3 | ตู้คอนเทนเนอร์บนดาดฟ้าหน้า, สะพานเดินเรือท้ายเรือ, `anchor_smoke_0` ปล่องควัน |
+| veh.sedan | รถยนต์นั่งส่วนบุคคลซีดาน | 4,000 | 5 | 1.8 × 1.4 × 4.6 | R3 | หลากสีตาม seed (เทาเข้ม, ขาว, ดำ, บรอนซ์เงิน, แดงเบอร์กันดี) |
+| veh.pickup | รถกระบะ (Pickup truck) | 4,000 | 6 | 1.9 × 1.8 × 5.2 | R3 | กระบะยอดนิยม; seed สลับมีหลังคาแครี่บอย (canopy) หรือสปอร์ตบาร์ |
+| veh.tuktuk | รถตุ๊กตุ๊ก (Tuk-tuk) | 4,000 | 6 | 1.3 × 1.8 × 2.6 | R3 | 3 ล้อ, แฮนด์บังคับ, หลังคาผ้าใบสีสดใส, เบาะผู้โดยสารท้าย |
+| veh.motorbike | มอเตอร์ไซค์พร้อมคนขับ | 4,000 | 6 | 0.8 × 1.6 × 2.0 | R3 | คนขับสวมหมวกกันน็อก; seed คู่เป็นวินมอเตอร์ไซค์สวมเสื้อกั๊กส้มสะท้อนแสง |
+| veh.songthaew | รถสองแถว (Songthaew) | 4,000 | 6 | 1.9 × 2.2 × 5.2 | R2 | ภาคเหนือ: สองแถวแดงเชียงใหม่; ภาคอื่น: น้ำเงิน/เขียว/ขาว ตาม seed |
+| veh.bus | รถประจำทางในเมือง (City bus) | 8,000 | 6 | 2.5 × 3.2 × 11.2 | R3 | ครีม-แดง / ฟ้า-ขาว, ป้ายไฟสายสมมติ, ประตูคู่, ล้อคู่หลัง |
+| veh.truck | รถบรรทุก 6 ล้อ (6-wheel truck) | 8,000 | 6 | 2.4 × 3.1 × 7.8 | R3 | คอกไม้กระบะบรรทุกทรงไทย, ถังน้ำมันข้างแซสซี, ล้อคู่หลัง |
+| veh.longtail_boat | เรือหางยาว (Long-tail boat) | 4,000 | 6 | 1.6 × 1.8 × 11.0 | R3 | เครื่องยนต์ท้ายเรือบนแท่นสวิงพร้อมเพลาใบพัดยาว, ผูกผ้าสามสีมงคลที่หัวเรือ |
+| veh.etan | รถอีแต๋นเพื่อการเกษตร (E-tan) | 4,000 | 5 | 1.9 × 2.0 × 4.6 | R2 | เครื่องยนต์สูบเดียวสายพานเปลือยหน้ารถ, โครงกระบะไม้, เหนือ/อีสาน/กลาง |
+| veh.korlae_boat | เรือกอและประมง (Korlae boat) | 4,000 | 5 | 2.0 × 2.6 × 8.5 | R2 | ลวดลายจิตรกรรมพื้นบ้านภาคใต้สีสันสดใส, หัวและท้ายเรือเชิดสูง, เฉพาะภาคใต้ |
+
+- Category `veh` ได้รับการยกเว้นการตรวจ footprint ชนขอบ 10×10 ม. (เนื่องจากขนาดยานพาหนะจริงมีตั้งแต่ 2 ม. ถึง 35 ม.) แต่ระบุ footprint integer tuple ที่ถูกต้องใน metadata เช่น `[1, 1]`, `[1, 2]`, `[1, 4]`, `[3, 3]`
+- รถไฟใช้ gauge 1.000 ม. (ความกว้างรางมาตรฐาน รฟท.) วางล้อพอดีบนสันรางของ `rail.*` และ `road.rail_crossing`
+- รถจักรและเรือมี `anchor_smoke_0` สำหรับ particle ควัน/ไอเสีย
+- เฮลิคอปเตอร์มี Object3D nodes `anim_rotor_main` และ `anim_rotor_tail` สำหรับหมุนใบพัด
+- เครื่องบินความยาว 28 ม. พอดี ใช้ livery "ไผ่แอร์" เขียวไผ่-ขาว ไม่เลียนแบบตราสินค้าจริง
+- โมเดลทั้งหมดผ่าน tests 36 ข้อใน `test/render3d/vehicles.test.ts` และ 788 ข้อใน `test/render3d/models.test.ts`
+
+## Prompt 5 — ทางรถไฟ
+
+วันที่ 2026-10-11: เพิ่มราง 7 โมเดลใน `src/render3d/models/rail/`
+ทุกแบบเป็น R3 รองรับ `opts.region` ทั้ง 6 ภาค, footprint 1×1 ช่อง, budget 1,500 สามเหลี่ยม
+รูปทรงหลักและความสูงคงเดิมทุก seed; seed เปลี่ยนตำแหน่ง props และเลขหลักกิโลเมตร
+จำนวนด้านล่างใช้ seed=1, variant=0 และ worldOrigin=[0,0]; phase หมอนอื่นอาจเปลี่ยนจำนวนด้านที่ถูกตัดตรงขอบ
+
+| ID | Triangles | Draw calls | Tiles / connections |
+|---|---:|---:|---|
+| rail.straight | 396 | 6 | 226, 227 / N–S |
+| rail.corner | 942 | 6 | 228–236 / N–E |
+| rail.t | 1,143 | 6 | 228–236 / N–E–S |
+| rail.cross | 660 | 6 | 228–236 / N–E–S–W |
+| rail.end | 436 | 8 | 228–236 / N |
+| rail.bridge | 936 | 6 | 224, 225 / N–S |
+| rail.power_crossing | 1,028 | 6 | 221, 222 / N–S |
+
+- Gauge วัดระหว่างผิวด้านในของหัวรางได้ 1.000 ม.; หัวรางกว้าง 0.08 ม. และผิวบนสูง 0.42 ม.
+  ตรงกับ `road.rail_crossing`; มีหัวราง web และฐานรางแยกหน้าตัดแต่ merge เป็น material เดียว
+- หมอนคอนกรีต 1.8×0.08×0.22 ม. ห่าง 0.6 ม., clone จาก geometry ต้นแบบเดียวแล้ว merge
+  ตัดสามเหลี่ยมที่ขอบ tile โดยคงจุดศูนย์กลางจริงของหมอน รวมหมอนครึ่งชิ้นที่รอยต่อ
+- Ballast กว้าง 3.2 ม., สูง 0.3 ม., ผิวบนกว้าง 2.4 ม. และไหล่ลาดลงสู่ดิน
+  T/cross ใช้ผิว ballast รวมเพียงผิวเดียว ไม่มีพื้นซ้อนที่ทางแยก
+  โค้งใช้รัศมี centerline 5 ม. มีจุดสัมผัสขอบ N/E ตรงกับรางตรง
+- รอบ ballast มีดินลูกรังและหญ้าขอบไม่เป็นเหลี่ยม; หลักกิโลเมตร ป้าย “ระวังรถไฟ” และตู้สัญญาณ
+  อยู่พ้นทางราง ป้ายใช้ canvas atlas เดียวสำหรับข้อความเตือนและหลักกิโลเมตร จึงไม่เพิ่ม draw calls แยกกัน
+- ปลายรางมี buffer stop เหล็กทรงค้ำยัน พร้อมแถบสีแดง–ขาวทั้งด้านหน้าและด้านหลัง
+- สะพานใช้ truss เหล็กสีเทาเข้มสูง 4.88 ม., deck รอง ballast ที่ y=0,
+  เสาคอนกรีตลงถึง riverbed −3 ม., ทางเดินเหล็กด้านข้างสูง 0.3 ม. พร้อมราว
+- `road/power-lines.ts` ใช้ร่วมกันระหว่างถนนและราง: power 3 เส้นที่ y=11 ม., telecom ที่ y=6 ม.,
+  terminals E/W ที่ X=±5 ม., power offsets Z=−0.8/0/0.8 ม.
+  geometry และจำนวนของ `road.power_crossing` เดิมยังคง 870 triangles / 7 draw calls
+- ทุกผิวใช้วัสดุ library ที่ cache ไว้; หนึ่ง mesh ต่อ material และไม่ใช้ addons ใน Jest
+
+### Interface สำหรับ renderer
+
+`railForMask(mask)` คืน `{ id, quarterTurns, rotationY }` สำหรับ mask 1–15:
+N=1, E=2, S=4, W=8, หมุน canonical model ด้วย `rotationY = −quarterTurns * π/2`
+mask=0 คืน undefined เพราะ prompt นี้ไม่มีโมเดลรางเดี่ยวไม่มีการเชื่อมต่อ
+รหัส 228–236 ของ corner/t/cross/end ใช้ร่วมกันตามโจทย์; renderer ต้องเลือกจาก mask แทนการ map รหัสอย่างเดียว
+
+- `opts.worldOrigin: [x,z]` คือศูนย์กลาง tile ในโลก ใช้ bake world UV และ phase หมอนตรง
+- `opts.worldRotationY` คือมุมหมุนที่จะใช้วาง canonical model; ใส่ค่าก่อน factory แล้วหมุน root ด้วยมุมเดียวกัน
+  ทำให้ UV ของพื้นและ ballast ไม่หมุนตาม tile หรือเริ่มใหม่ตรงรอยต่อ
+- `opts.sleeperOffset` คือระยะตามเส้นทางที่จุดเริ่ม canonical เพื่อให้หมอนต่อ phase เดิมผ่านโค้ง
+  โค้งยาว `5*π/2` ม.; เมื่อเส้นทางกลับทิศใช้ station เครื่องหมายตรงข้าม
+  รางตรงที่ไม่ส่ง offset ใช้ `worldOrigin.z−5` (หรือ X สำหรับแนว WE ของ cross)
+- Metadata มี `connections`, `rail`, `sleepers`, `props`, `worldOrigin`; power crossing มี `power`
+  จุดสายไฟเป็น empty `<id>/wire_<E|W>_<power_0|power_1|power_2|telecom>` และ `userData.attachment=true`
+  ไม่ใช้ชื่อ `anchor_` ของ effect คนละประเภท
+
+### Gallery และผลตรวจ
+
+มีหมวดทางรถไฟ / rail และ preview 3×3 ต่อรางตรงกับทิศของโมเดลกลาง
+preview ส่ง worldOrigin, yaw และ phase หมอนให้ข้างเคียง; inspector นับเฉพาะโมเดลกลาง
+ตรวจภาพครบ 7 แบบ, โค้ง/T ต่อข้างเคียง, OrbitControls, seed/variant/state/region, แสงกลางวัน/กลางคืน
+และ UI ไทย/อังกฤษแล้ว; ภาพหลักเป็น junction T พร้อมข้างเคียงและสะพาน truss
+
+- `test/render3d/rail.test.ts` ตรวจ gauge จริง, หน้าตัดทุก mask/ทุกทิศ, รัศมีโค้ง,
+  ผิว ballast ทางแยก, spacing/partial sleepers, UV หลังหมุน, budgets ทุก region/seed/phase,
+  buffer สีสองด้าน, walkway/piers และ terminals ร่วมกับถนน
+- Tests ราง 41 ข้อและ registered rail contracts 49 ข้อผ่านครบในรอบสุดท้าย
+- Tests รวม: `npm test -- --coverage=false --silent --maxWorkers=2 --testTimeout=15000`
+  ผ่าน 1,200 ข้อ / ไม่ผ่าน 2 ข้อ จาก 18 suites (17 ผ่าน)
+  มีเฉพาะ `test/bounds.ts:24,31` เดิมที่โจทย์ให้คงไว้; ไม่แก้ tests ดังกล่าว
+  ใช้ timeout 15 วินาทีผ่าน CLI เพราะ asset metadata test อ่านหลายไฟล์และเคยเกินค่า default 5 วินาที
+  ระหว่างรันพร้อม build; ไม่มีการเปลี่ยน Jest config
+- `npm run build` และ `npx tsc --noEmit` รอบสุดท้ายผ่าน; build มี performance warnings 3 รายการ
+- เกมเดิม: เมือง PhaiRailQA เดินจาก Jan ถึง Jul 1900, วางรางแล้วหักเงิน 20,000 → 19,980 ได้
+- `git diff --check` ผ่าน; gallery ไม่มี console warnings/errors ในช่วงตรวจ Prompt 5
+- ไม่แก้ game/simulation, config ที่ใช้ร่วมกัน, dependencies หรือ assets ใน Prompt 5
+  คงงาน vehicles ที่มีอยู่จาก task อื่นไว้ทั้งหมด
+
+ข้อจำกัด: T/cross เป็นรูปทรงคงที่ ยังไม่มี animation ของประแจสับราง
+renderer จริงต้องเลือก mask/rotation และส่ง world origin/route phase ตอนประกอบแผนที่
+ระยะหมอน 0.6 ม. ไม่หาร tile 10 ม. ลงตัว จึงควรส่ง phase ต่อเนื่องตามเส้นทางแทนการ reset ทุก tile
+
+## Prompt 4B — สะพานขึงข้ามแม่น้ำ
+
+วันที่ 2026-10-11: เพิ่ม 2 โมเดล (43 โมเดล ณ production build ที่ตรวจสำหรับ Prompt 4B)
+ทั้งสองเป็น R3, footprint 1×1 ช่อง (10×10 ม.), budget 1,500 สามเหลี่ยม
+รองรับ `opts.region` ทั้ง 6 ภาค โดยรูปทรง ความสูง และ anchors คงเดิมทุก seed/variant/state
+
+| ID | Triangles | Draw calls | ความสูง / ฐาน | Tiles |
+|---|---:|---:|---|---|
+| road.bridge_cable_deck | 290 | 4 | deck y=0 | renderer เลือกจาก run ของ 64/65 |
+| road.bridge_cable_pylon | 430 | 4 | ยอด 120 ม. / ฐาน −3 ม. | renderer เลือกจาก run ของ 64/65 |
+
+- Deck ใช้ `bridgeDeck()` ร่วมกับ `road.bridge`: ผิวคอนกรีตเต็ม 10 ม., ช่องจราจร 7 ม.,
+  ไม่มีทางเท้ายกสูง, สีตีเส้นและราวต่อขอบ N/S เดิมได้ พร้อม world UV จาก `opts.worldOrigin`
+- Pylon เป็นเสา Y กลับหัวหนึ่งต้น มีมุมลบเล็กน้อยและ mast เรียวลงด้านบน
+  ขาสองข้างเว้นช่องจราจรโล่งถึงความสูง 8 ม., ฐานและ pile cap ลงถึง riverbed −3 ม.
+- แถบไฟต่อเนื่องอยู่ด้านนอกราวภายใน X=±5 ม. และมียอดเสาขนาดเล็กเรืองแสง
+  ใช้ `emissive_window` ของ library; ความสว่างเพิ่มเมื่อ gallery เปิดกลางคืน
+- โมเดลแต่ละ tile ไม่มี geometry ของสายขึง มีเพียง empty anchors
+  ไม่มีชื่อสะพานจริง ป้ายชื่อ หรือสัญลักษณ์ราชการ/ราชวงศ์
+
+### Interface สำหรับ renderer
+
+`road.bridge` ยังเป็นโมเดลเดียวที่ map tile 64/65 โดยตรง
+สองโมเดลใหม่มี `tiles: []`; การเลือกแทน straight bridge run ตั้งแต่ 8 ช่องขึ้นไปเป็นงาน renderer ภายหลัง
+
+Deck มี `anchor_cable_left` ที่ `[−4.78, 0.93, 0]` และ `anchor_cable_right` ที่ `[4.78, 0.93, 0]`
+Pylon มี `anchor_cable_<side>_<n>` จำนวน 40 จุด: side=0 คือ X ลบ (ซ้าย), side=1 คือ X บวก (ขวา)
+n=0–19, Y=`60 + 55*n/19` ม.; n คู่หัน N (Z ลบ), n คี่หัน S (Z บวก)
+ตำแหน่ง X อยู่บนผิว mast ที่เรียวตามความสูง ใช้ `getWorldPosition()` หลังหมุน/วางโมเดลเพื่อเชื่อมสาย
+มี `anchor_light_0` ที่ยอดเสาสำหรับ renderer เพิ่มแสงหรือเอฟเฟกต์ภายหลัง
+
+### Gallery และผลตรวจ
+
+ปุ่ม “ตัวอย่างสะพานขึง / Cable bridge preview” เปิดเสาหลัก 1 ช่องและ deck ฝั่งละ 10 ช่อง
+รวมความยาว 210 ม., สายขึง 40 เส้นใช้ LineSegments ชุดเดียวใน `gallery/cable-bridge-preview.ts`
+จับคู่ anchor n กับ deck ที่ `Z = (n คู่ ? −1 : +1) * (floor(n/2)+1) * 10`
+ตัวอย่างรวม 6,230 สามเหลี่ยม / 85 surface draw calls (21×4 + สายขึง 1)
+ตัวอย่างหลายช่องนี้ไม่อยู่ใน registry และไม่ใช่โมเดล footprint 1×1
+รองรับ OrbitControls, seed/variant/state/region, แสงกลางวัน/กลางคืน, grid และ footprint outline
+เมื่อเปลี่ยนตัวอย่าง จะ dispose geometry และ material ของสายขึงโดยไม่ dispose วัสดุ library
+
+- Tests สะพานขึง 8 ข้อผ่าน: footprint/ความสูง, ทุก region/seed, anchors, ขอบต่อ/world UV,
+  ช่องจราจรโล่ง, tile mapping, จุดปลายสายครบทุกจุด, ไฟกลางคืน และการคืนทรัพยากร
+- หลังขยับแถบไฟออกจากราว: tests สะพานขึง + registered model contracts + foundation ผ่าน 34 ข้อ
+- ชุดรวม `npm test -- --runInBand --coverage=false --silent`: 893 ผ่าน / 3 ไม่ผ่าน
+  เป็น `test/bounds.ts:24,31` เดิม 2 ข้อ และ asset metadata test เกิน timeout 5 วินาที 1 ข้อ
+  รัน `test/render3d/materials.test.ts` ซ้ำแยกหลัง build จบแล้วผ่าน 7/7 (ข้อ asset ใช้ 2.154 วินาที)
+  ไม่แก้ bounds หรือเพิ่ม timeout ใน config
+- `npx tsc --noEmit` และ `git diff --check` ผ่าน
+- `npm run build` ผ่าน; มี webpack performance warnings 3 รายการเกี่ยวกับขนาด bundle/assets
+- ตรวจภาพกลางวัน/กลางคืน, โมเดลเดี่ยว, UI ไทย/อังกฤษ และการเปลี่ยน seed/variant/state/region แล้ว
+- เกมเดิม: เมืองทดสอบ PhaiBridgeQA เดินเวลาจาก Jan ถึง Aug 1900, วางถนนและหักเงิน 20,000 → 19,990 ได้
+- ไม่แก้ game/simulation, shared config, dependencies หรือ assets; ไม่มีไฟล์ shared ที่เปลี่ยนใน Prompt 4B
+
+ระหว่างตรวจรอบท้ายมีงาน `models/vehicles/` และ registrations จาก task อื่นเพิ่มเข้ามา
+คงงานนั้นไว้ทั้งหมด; ผล build/tests และภาพในส่วนนี้เป็นเวอร์ชันสะพานที่ตรวจเสร็จก่อนรายการ vehicles ถูกเพิ่ม
+
+ข้อจำกัด: สายขึงเป็นเส้นบาง ไม่มี bloom จึงเห็นแสงขอบเป็นเส้นเล็กเมื่อดูสะพานเต็มช่วง
+renderer จริงยังต้องทำการตรวจ bridge run, เลือกตำแหน่ง pylon/anchors และวาดสายเองตามที่ prompt กำหนด
+
 ## Prompt 4 — ถนนและสะพาน
 
 วันที่ 2026-10-11: เพิ่มถนน 10 แบบ รวมใน gallery เป็น 41 โมเดล

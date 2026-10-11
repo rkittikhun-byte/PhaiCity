@@ -20,9 +20,11 @@ import { applyWorldUV, countDrawCalls, countTriangles, disposeModel, visibleBoun
 import { scrollWaterNormals } from '../util/water-animation.js';
 import { terrainNeighbors } from './terrain-neighbors.js';
 import { roadNeighbors } from './road-neighbors.js';
+import { railNeighbors } from './rail-neighbors.js';
+import { CABLE_PREVIEW, CABLE_PREVIEW_ID, disposeCableBridgePreview } from './cable-bridge-preview.js';
 
 const modelNeighbors = (id: string, options: ModelOptions): Group => id.startsWith('road.')
-  ? roadNeighbors(id, options) : terrainNeighbors(id, options);
+  ? roadNeighbors(id, options) : id.startsWith('rail.') ? railNeighbors(id, options) : terrainNeighbors(id, options);
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -45,7 +47,7 @@ function translatePage(): void {
 
 interface View {
   id: string;
-  kind: 'model' | 'material' | 'sign';
+  kind: 'model' | 'assembly' | 'material' | 'sign';
   entry: ModelRegistration;
   scene: Scene;
   camera: PerspectiveCamera;
@@ -58,6 +60,9 @@ interface View {
   outline: LineLoop;
   metrics?: HTMLElement;
 }
+
+const isModelView = (view: Pick<View, 'kind'>): boolean => view.kind === 'model' || view.kind === 'assembly';
+const freeRoot = (view: View): void => view.kind === 'assembly' ? disposeCableBridgePreview(view.root) : disposeModel(view.root);
 
 function startGallery(): void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -151,8 +156,23 @@ function startGallery(): void {
     const aspect = rect.width > 0 && rect.height > 0 ? rect.width / rect.height : 1;
     const halfVerticalFov = view.camera.fov * Math.PI / 360;
     const halfFov = Math.min(halfVerticalFov, Math.atan(Math.tan(halfVerticalFov) * aspect));
-    const distance = Math.max(size.length() / 2, view.kind === 'model' ? TILE_M / 2 : 1) / Math.sin(halfFov) * 1.12;
-    view.camera.position.copy(center).add(new Vector3(0.65, 0.85, 0.85).normalize().multiplyScalar(distance));
+    let distance = Math.max(size.length() / 2, isModelView(view) ? TILE_M / 2 : 1) / Math.sin(halfFov) * 1.12;
+    const direction = new Vector3(0.65, 0.85, 0.85).normalize();
+    if (view.kind === 'assembly') {
+      // Fit the long span in screen space, with a broadside view of both cable fans.
+      direction.set(1, 0.7, 0.25).normalize();
+      const right = new Vector3().crossVectors(new Vector3(0, 1, 0), direction).normalize();
+      const up = new Vector3().crossVectors(direction, right);
+      distance = 0;
+      for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+        const corner = new Vector3(x * size.x / 2, y * size.y / 2, z * size.z / 2);
+        distance = Math.max(distance, corner.dot(direction) + Math.max(
+          Math.abs(corner.dot(right)) / (Math.tan(halfVerticalFov) * aspect),
+          Math.abs(corner.dot(up)) / Math.tan(halfVerticalFov)));
+      }
+      distance *= 1.12;
+    }
+    view.camera.position.copy(center).add(direction.multiplyScalar(distance));
     view.camera.lookAt(center);
     if (selected === view && controls) {
       controls.target.copy(center);
@@ -163,15 +183,16 @@ function startGallery(): void {
   }
 
   function updateMetrics(view: View): void {
-    const triangles = countTriangles(view.root), calls = countDrawCalls(view.root);
+    const triangles = countTriangles(view.root), calls = countDrawCalls(view.root) + (view.kind === 'assembly' ? 1 : 0);
     if (view.metrics) localText(view.metrics, `${view.entry.category} · ${triangles.toLocaleString()} สามเหลี่ยม · ${calls} draw calls`, `${view.entry.category} · ${triangles.toLocaleString()} triangles · ${calls} draw calls`);
     if (selected === view) {
       element('detail-id').textContent = view.id;
-      element('detail-category').textContent = view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
+      element('detail-category').textContent = view.kind === 'assembly' ? words('สะพานขึง · 21 ช่อง · สายขึง 40 เส้น', 'Cable bridge · 21 tiles · 40 stays') : view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
       element('detail-triangles').textContent = triangles.toLocaleString();
       element('detail-calls').textContent = String(calls);
-      element('detail-footprint').textContent = view.kind === 'model' ? `${view.entry.footprint.join(' × ')} ${words('ช่อง', 'tiles')}` : words('ตัวอย่างผิว', 'Surface sample');
+      element('detail-footprint').textContent = isModelView(view) ? `${view.entry.footprint.join(' × ')} ${words('ช่อง', 'tiles')}` : words('ตัวอย่างผิว', 'Surface sample');
       element('detail-budget').textContent = view.kind === 'model' ? view.entry.budget.toLocaleString() : '—';
+      element('assembly-note').hidden = view.kind !== 'assembly';
     }
   }
 
@@ -185,22 +206,22 @@ function startGallery(): void {
     skyMaterial.uniforms.top.value.setHex(top);
     skyMaterial.uniforms.horizon.value.setHex(horizon);
     views.forEach(view => {
-      view.scene.fog = new Fog(horizon, 180, 1400);
+      view.scene.fog = new Fog(horizon, view.kind === 'assembly' ? 400 : 180, 1400);
       view.sun.color.setHex(night.checked ? 0xb0c7e6 : 0xffe3b0);
       view.sun.intensity = night.checked ? 0.35 : 3.4;
       view.ambient.intensity = night.checked ? 0.3 : 1.25;
       view.scene.environment = night.checked ? null : environment ?? null;
       view.scene.environmentIntensity = 0.65;
       view.sun.position.set(-Math.cos(elevation) * 180 * 0.8, Math.sin(elevation) * 180, Math.cos(elevation) * 180 * 0.6);
-      view.grid.visible = gridToggle.checked && view.kind === 'model';
-      view.outline.visible = footprintToggle.checked && view.kind === 'model';
+      view.grid.visible = gridToggle.checked && isModelView(view);
+      view.outline.visible = footprintToggle.checked && isModelView(view);
     });
   }
 
   function createView(id: string, entry: ModelRegistration, region: HTMLElement, metrics?: HTMLElement, kind: View['kind'] = 'model'): View {
     const scene = new Scene();
     const root = entry.factory(options());
-    const neighbors = region === stage && neighborToggle.checked
+    const neighbors = kind === 'model' && region === stage && neighborToggle.checked
       ? modelNeighbors(id, options()) : new Group();
     scene.add(neighbors);
     scene.add(root, new Mesh(skyGeometry, skyMaterial));
@@ -240,7 +261,7 @@ function startGallery(): void {
   }
 
   function freeView(view: View): void {
-    disposeModel(view.root);
+    freeRoot(view);
     disposeModel(view.neighbors);
     view.grid.geometry.dispose();
     view.grid.material.dispose();
@@ -263,7 +284,7 @@ function startGallery(): void {
     updateStateChoices();
   }
 
-  function showModel(view: View): void {
+  function showModel(view: Pick<View, 'id' | 'entry' | 'kind'>): void {
     if (view.entry.states?.length && !view.entry.states.includes(state.value)) state.value = view.entry.states[0];
     element('library').hidden = true;
     element('materials').hidden = true;
@@ -327,13 +348,13 @@ function startGallery(): void {
   function rebuildModels(): void {
     window.clearTimeout(rebuildTimer); rebuildTimer = undefined;
     const opts = options();
-    (selected ? [selected] : views).filter(view => view.kind === 'model').forEach(view => {
+    (selected ? [selected] : views).filter(isModelView).forEach(view => {
       view.scene.remove(view.root);
-      disposeModel(view.root);
+      freeRoot(view);
       view.root = view.entry.factory(opts);
       view.scene.add(view.root);
       view.scene.remove(view.neighbors); disposeModel(view.neighbors);
-      view.neighbors = selected === view && neighborToggle.checked ? modelNeighbors(view.id, opts) : new Group();
+      view.neighbors = view.kind === 'model' && selected === view && neighborToggle.checked ? modelNeighbors(view.id, opts) : new Group();
       view.scene.add(view.neighbors);
       frameModel(view);
       updateMetrics(view);
@@ -439,7 +460,7 @@ function startGallery(): void {
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
     const option = document.createElement('option');
     option.value = name;
-    localText(option, name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
+    localText(option, name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
   category.addEventListener('change', buildLibrary);
@@ -455,6 +476,7 @@ function startGallery(): void {
   element('reset-camera').addEventListener('click', () => { if (selected) frameModel(selected); });
   element('models-tab').addEventListener('click', () => switchTab('models'));
   element('materials-tab').addEventListener('click', () => switchTab('materials'));
+  element('cable-bridge-preview').addEventListener('click', () => showModel({ id: CABLE_PREVIEW_ID, entry: CABLE_PREVIEW, kind: 'assembly' }));
   ['models', 'materials'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault(); switchTab(activeTab === 'models' ? 'materials' : 'models'); element(activeTab + '-tab').focus();

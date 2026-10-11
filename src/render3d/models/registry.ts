@@ -10,6 +10,13 @@ import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
 import { createTerrain, TERRAIN_KINDS, TERRAIN_TILES } from './terrain/terrain.js';
 import { createRoad, ROAD_KINDS, ROAD_TILES } from './road/road.js';
+import { createRail, RAIL_KINDS, RAIL_TILES } from './rail/rail.js';
+import {
+  createTrainLoco, createTrainCar, createHelicopter, createAirplane,
+  createShip, createLongtailBoat, createKorlaeBoat, createSedan,
+  createPickup, createTuktuk, createMotorbike, createSongthaew,
+  createBus, createTruck, createEtan,
+} from './vehicles/index.js';
 
 export interface ModelOptions {
   seed?: number;
@@ -22,6 +29,10 @@ export interface ModelOptions {
   bankStyle?: 'earth' | 'concrete' | 'brick';
   /** Tile center in world X/Z; required when baking adjacent terrain UVs. */
   worldOrigin?: readonly [number, number];
+  /** World-space yaw used to bake rail UVs before the caller rotates the canonical model. */
+  worldRotationY?: number;
+  /** Distance along a connected rail route at its canonical start; preserves 0.6 m sleeper phase on curves. */
+  sleeperOffset?: number;
 }
 export type ModelFactory = (opts?: ModelOptions) => Group;
 export type ModelCategory = 'terrain' | 'vegetation' | 'veg' | 'park' | 'road' | 'rail' | 'power'
@@ -46,11 +57,16 @@ export interface ModelRegistration {
 }
 
 export const registry: Readonly<Record<string, ModelRegistration>> = Object.freeze({
+  ...Object.fromEntries(RAIL_KINDS.map(kind => [`rail.${kind}`, {
+    factory: (options?: ModelOptions) => createRail(kind, options), category: 'rail', footprint: [1, 1],
+    tiles: RAIL_TILES[kind], budget: TRIANGLE_BUDGETS.tile, regionTier: 'R3', tiling: true,
+    ...(kind === 'bridge' ? { ground: 'bridge' } : {}),
+  } as ModelRegistration])),
   ...Object.fromEntries(ROAD_KINDS.map(kind => [`road.${kind}`, {
     factory: (options?: ModelOptions) => createRoad(kind, options),
     category: 'road', footprint: [1, 1], tiles: ROAD_TILES[kind], budget: TRIANGLE_BUDGETS.tile,
     regionTier: 'R3', tiling: true,
-    ...(['bridge', 'drawbridge'].includes(kind) ? { ground: 'bridge' } : {}),
+    ...(kind.includes('bridge') ? { ground: 'bridge' } : {}),
     ...(['drawbridge', 'rail_crossing'].includes(kind) ? { states: ['closed', 'open'] } : {}),
   } as ModelRegistration])),
   ...Object.fromEntries(TERRAIN_KINDS.map(kind => [`terrain.${kind}`, {
@@ -84,5 +100,125 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     regionTier: 'R3',
     variants: [0, 1, 2, 3],
     states: ['solid', 'lit'],
+  },
+  'veh.train_loco': {
+    factory: createTrainLoco,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.train_car': {
+    factory: createTrainCar,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.helicopter': {
+    factory: createHelicopter,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.airplane': {
+    factory: createAirplane,
+    category: 'veh',
+    footprint: [3, 3],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.ship': {
+    factory: createShip,
+    category: 'veh',
+    footprint: [1, 4],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.sedan': {
+    factory: createSedan,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R3',
+  },
+  'veh.pickup': {
+    factory: createPickup,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R3',
+  },
+  'veh.tuktuk': {
+    factory: createTuktuk,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R3',
+  },
+  'veh.motorbike': {
+    factory: createMotorbike,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R3',
+  },
+  'veh.songthaew': {
+    factory: createSongthaew,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R2',
+  },
+  'veh.bus': {
+    factory: createBus,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.truck': {
+    factory: createTruck,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle,
+    regionTier: 'R3',
+  },
+  'veh.longtail_boat': {
+    factory: createLongtailBoat,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R3',
+  },
+  'veh.etan': {
+    factory: createEtan,
+    category: 'veh',
+    footprint: [1, 1],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R2',
+  },
+  'veh.korlae_boat': {
+    factory: createKorlaeBoat,
+    category: 'veh',
+    footprint: [1, 2],
+    tiles: [],
+    budget: TRIANGLE_BUDGETS.smallVehicle,
+    regionTier: 'R2',
   },
 });
