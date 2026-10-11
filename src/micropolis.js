@@ -16,6 +16,7 @@ import $ from "jquery";
 import { Config } from './config.js';
 import { installAudio } from './audio/index.ts';
 import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from './i18n/index.ts';
+import { setLoadingProgress, trackImages } from './loadingProgress.ts';
 import { stagger } from './motion.ts';
 import { installPanelCollapse } from './panelCollapse.ts';
 import { SplashScreen } from './splashScreen.js';
@@ -97,6 +98,10 @@ var fitGameAreaToFooter = function() {
   document.documentElement.style.setProperty('--footer-height', footer.offsetHeight + 'px');
 };
 
+
+// The gold loading line: the script has arrived, now the tile and sprite images (0.1 to 0.7)
+setLoadingProgress(0.1);
+trackImages(Array.prototype.slice.call(document.querySelectorAll('img.imageData')), 0.1, 0.7);
 
 // Show the page in the player's language (Thai unless they chose English), and let them switch at any time
 applyTranslations();

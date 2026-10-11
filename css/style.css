@@ -956,10 +956,13 @@ body.starting .loadingText { position: absolute; width: 1px; height: 1px; overfl
 .loadingBar { display: none; }
 body.starting .loadingBar, #provincePicker .ppStage > .loadingBar {
   display: block; position: relative; width: 220px; height: 2px; border-radius: 2px; overflow: hidden; background: rgba(246, 215, 122, 0.15); }
+/* The fill follows real loading progress (--load, src/loadingProgress.ts), with a soft sheen running over it */
 body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after {
-  content: ""; position: absolute; top: 0; left: -40%; width: 40%; height: 100%;
-  background: linear-gradient(90deg, transparent, #f6d77a, transparent); animation: loadingSweep 1.3s ease-in-out infinite; }
-@keyframes loadingSweep { to { left: 100%; } }
+  content: ""; position: absolute; top: 0; left: 0; height: 100%; width: calc(var(--load, 0) * 100%);
+  background: linear-gradient(90deg, #b8862c, #f6d77a 60%, #fff3c4 80%, #f6d77a) 0 0 / 200% 100%;
+  box-shadow: 0 0 10px rgba(246, 215, 122, 0.7); transition: width 0.35s ease-out;
+  animation: loadingSheen 1.4s linear infinite; }
+@keyframes loadingSheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @keyframes loadingGlow {
   from { opacity: 0.55; text-shadow: 0 0 10px rgba(246, 215, 122, 0.2); }
   to { opacity: 1; text-shadow: 0 0 34px rgba(246, 215, 122, 0.7); }
@@ -1038,8 +1041,16 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 
 /* The big text on the left: the story's captions, then whatever tile is in focus */
 #provincePicker .ppHero { position: absolute; left: 6vw; top: 70px; bottom: 230px; width: min(460px, 32vw); pointer-events: none; }
-#provincePicker .ppHeroInner { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; pointer-events: auto;
-  animation: ppHeroIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker .ppHeroInner { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; pointer-events: auto; }
+/* Each line rises from below, one after another (--i from setHero) */
+#provincePicker .ppHeroInner > * { animation: ppLineUp 0.7s calc(var(--i, 0) * 110ms) cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+@keyframes ppLineUp { from { opacity: 0; transform: translateY(46px); filter: blur(4px); } }
+#provincePicker .ppHeroHint.waiting { opacity: 0; }
+#provincePicker .ppHeroHint { transition: opacity 0.5s; }
+#provincePicker .ppCaret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em;
+  background: #f6d77a; box-shadow: 0 0 8px rgba(246, 215, 122, 0.8); animation: ppCaretBlink 0.9s steps(1) infinite; }
+@keyframes ppCaretBlink { 50% { opacity: 0; } }
+#provincePicker[data-mode="intro"] .ppZoom { opacity: 0; pointer-events: none; }
 #provincePicker .ppHeroInner.leaving { animation: ppHeroOut 0.35s ease-in forwards; pointer-events: none; }
 #provincePicker .ppHero h2 { margin: 0 0 8px; font-size: clamp(28px, 3vw, 48px); line-height: 1.15; font-weight: 700; }
 #provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 15px; color: #93a79f; }
@@ -1065,6 +1076,11 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppSvg.terrain .ppProvince { transition: opacity 0.6s ease; }
 #provincePicker .ppTerrainLayer.shown { opacity: 1; }
 #provincePicker .ppTerrainLayer.leaving { opacity: 0; transition-duration: 0.4s; }
+#provincePicker .ppLensLeader { stroke: #f6d77a; stroke-dasharray: 4 3; opacity: 0.8; }
+#provincePicker .ppLandMarker { fill: #f6d77a; stroke: #ffffff; filter: drop-shadow(0 0 6px rgba(246, 215, 122, 0.9)); }
+#provincePicker .ppLandPulse { fill: none; stroke: #f6d77a; transform-box: fill-box; transform-origin: center;
+  animation: ppPulse 1.8s ease-out infinite; }
+@keyframes ppPulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
 #provincePicker .ppTerrainOutline { fill: none; stroke: #f6d77a; stroke-width: 2; vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 0 8px rgba(246, 215, 122, 0.6)); }
 #provincePicker .ppTerrainLabel { fill: #f6d77a; text-anchor: middle; font-family: Sarabun, sans-serif; font-weight: 700;

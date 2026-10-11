@@ -16,6 +16,7 @@ import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedPro
 import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
 import { getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
+import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
 
@@ -80,9 +81,11 @@ interface Tile {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const OVERLAY_ID = "provincePicker";
 const TERRAIN_PIXELS_PER_TILE = 3;
-const TERRAIN_MARGIN = 0.16;
 const FLY_MS = 1400;
 const HERO_LEAVE_MS = 350;
+const TYPE_MS = 26;
+const TYPE_START_MS = 380;
+const TYPE_LINE_PAUSE_MS = 220;
 const MIN_SCENE_MS = 4200;
 const MS_PER_CHARACTER = 45;
 const REVEAL_STEP_MS = 280;
@@ -188,9 +191,14 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 function loadData(): Promise<PickerData> {
+  // The rest of the loading line: the province list, then the province shapes (0.7 to 0.95)
+  const track = <T>(promise: Promise<T>, share: number): Promise<T> => promise.then((value) => {
+    setLoadingProgress(Math.max(0.7, 0.7 + share));
+    return value;
+  });
   dataPromise ??= Promise.all([
-    fetchJson<{ regions: Region[]; provinces: Province[] }>("data/thailand-provinces.json"),
-    fetchJson<unknown>("data/geo/thailand-provinces.topo.json"),
+    track(fetchJson<{ regions: Region[]; provinces: Province[] }>("data/thailand-provinces.json"), 0.08),
+    track(fetchJson<unknown>("data/geo/thailand-provinces.topo.json"), 0.25),
   ]).then(([json, topology]) => ({
     regions: json.regions,
     provinces: new Map(json.provinces.map((p) => [p.id, p])),
@@ -382,12 +390,62 @@ function setHero(content: HeroContent): HTMLElement | null {
   const inner = element("div", "ppHeroInner");
   inner.appendChild(element("h2", undefined, content.title));
   if (content.sub) inner.appendChild(element("p", "ppHeroSub", content.sub));
-  if (content.text) inner.appendChild(element("p", "ppHeroText", content.text));
-  if (content.extra) inner.appendChild(element("p", "ppHeroExtra", content.extra));
+  const typed: HTMLElement[] = [];
+  if (content.text) typed.push(inner.appendChild(element("p", "ppHeroText", content.text)));
+  if (content.extra) typed.push(inner.appendChild(element("p", "ppHeroExtra", content.extra)));
   if (content.body) inner.appendChild(content.body);
-  if (content.hint) inner.appendChild(element("p", "ppHeroHint", content.hint));
+  const hint = content.hint ? inner.appendChild(element("p", "ppHeroHint", content.hint)) : null;
+  // Each line rises from below, one after another
+  Array.from(inner.children).forEach((child, index) => (child as HTMLElement).style.setProperty("--i", String(index)));
   view.hero.appendChild(inner);
+  typeOut(inner, typed, hint);
   return inner;
+}
+
+// Splits text into what the eye reads as single characters, so Thai vowels and tone marks arrive with
+// their consonant instead of on their own.
+function graphemes(text: string): string[] {
+  const Segmenter = (Intl as unknown as { Segmenter?: new (locale: string, options: object) => { segment(text: string): Iterable<{ segment: string }> } }).Segmenter;
+  if (!Segmenter) return Array.from(text);
+  return Array.from(new Segmenter("th", { granularity: "grapheme" }).segment(text), (part) => part.segment);
+}
+
+// The descriptions type themselves out behind a blinking caret, then the hint appears.
+// Screen readers get each line whole, from its aria-label.
+function typeOut(inner: HTMLElement, lines: HTMLElement[], hint: HTMLElement | null): void {
+  if (reducedMotion() || lines.length === 0) return;
+  hint?.classList.add("waiting");
+  const queue = lines.map((line) => {
+    const text = line.textContent ?? "";
+    line.setAttribute("aria-label", text);
+    const shown = element("span");
+    shown.setAttribute("aria-hidden", "true");
+    line.replaceChildren(shown);
+    return { line, shown, parts: graphemes(text) };
+  });
+  let lineIndex = 0;
+  let partIndex = 0;
+  const caret = element("span", "ppCaret");
+  caret.setAttribute("aria-hidden", "true");
+  const step = (): void => {
+    if (!inner.isConnected || inner.classList.contains("leaving")) return;
+    const current = queue[lineIndex];
+    if (!current) {
+      caret.remove();
+      hint?.classList.remove("waiting");
+      return;
+    }
+    if (partIndex === 0) current.line.appendChild(caret);
+    current.shown.textContent += current.parts[partIndex++] ?? "";
+    if (partIndex >= current.parts.length) {
+      lineIndex++;
+      partIndex = 0;
+      window.setTimeout(step, TYPE_LINE_PAUSE_MS);
+    } else {
+      window.setTimeout(step, TYPE_MS);
+    }
+  };
+  window.setTimeout(step, TYPE_START_MS);
 }
 
 function leaveTo(next: () => void): void {
@@ -514,6 +572,7 @@ function applyMapState(state: MapState): void {
   if (!view?.svg) return;
   view.svg.classList.toggle("plain", state.plain === true);
   view.svg.dataset.mode = mode;
+  view.overlay.dataset.mode = mode;
   for (const [id, path] of paths) {
     const region = path.getAttribute("data-region");
     path.classList.toggle("dim", !!state.focus && region !== state.focus);
@@ -948,7 +1007,6 @@ function provinceBox(provinceId: string): ViewBox {
 
 function leaveTerrain(): void {
   terrainToken++;
-  view?.svg?.classList.remove("terrain");
   const layer = view?.svg?.querySelector(".ppTerrainLayer");
   if (!layer) return;
   layer.classList.add("leaving");
@@ -957,43 +1015,72 @@ function leaveTerrain(): void {
 
 function diveIntoTerrain(province: Province, map: PresetMap): void {
   const svg = view?.svg;
-  if (!svg) return;
+  const shape = data?.map.provinces.find((p) => p.id === province.id);
+  if (!svg || !shape) return;
   leaveTerrain();
   const token = terrainToken;
 
-  // The land itself, drawn from the preset map and placed on its real longitude/latitude box
-  const [x, y, width, height] = projectBox(map.bbox);
+  // The whole province stays in view. At this scale the 2 x 2 km starting land is a speck, so a glowing
+  // marker shows where it is, and a lens beside the province shows the land itself, enlarged.
+  const [px0, py0, px1, py1] = shape.bounds;
+  const provinceWidth = px1 - px0;
+  const provinceHeight = py1 - py0;
+  const [lx, ly, lw, lh] = projectBox(map.bbox);
+  const landX = lx + lw / 2;
+  const landY = ly + lh / 2;
+  const size = Math.max(provinceWidth, provinceHeight) * 0.62;
+  const gap = Math.max(provinceWidth, provinceHeight) * 0.14;
+  const lensX = px1 + gap;
+  const lensY = Math.min(Math.max(landY - size / 2, py0), Math.max(py0, py1 - size));
+  const unit = size / 100; // strokes and text follow the lens size
+
   const canvas = element("canvas");
   drawPresetMap(canvas, map, TERRAIN_PIXELS_PER_TILE);
   const layer = svgElement("g", { class: "ppTerrainLayer" });
+  const leader = svgElement("line", {
+    class: "ppLensLeader",
+    x1: landX.toFixed(3), y1: landY.toFixed(3), x2: lensX.toFixed(3), y2: (lensY + size / 2).toFixed(3),
+    "stroke-width": (unit * 0.5).toFixed(3),
+  });
+  const marker = svgElement("circle", {
+    class: "ppLandMarker",
+    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 2.2).toFixed(3),
+    "stroke-width": (unit * 0.6).toFixed(3),
+  });
+  const pulse = svgElement("circle", {
+    class: "ppLandPulse",
+    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 2.2).toFixed(3),
+    "stroke-width": (unit * 0.5).toFixed(3),
+  });
   const image = svgElement("image", {
     href: canvas.toDataURL("image/png"),
-    x: x.toFixed(4), y: y.toFixed(4), width: width.toFixed(4), height: height.toFixed(4),
+    x: lensX.toFixed(3), y: lensY.toFixed(3), width: size.toFixed(3), height: size.toFixed(3),
     preserveAspectRatio: "none",
   });
-  const outline = svgElement("rect", {
+  const frameRect = svgElement("rect", {
     class: "ppTerrainOutline",
-    x: x.toFixed(4), y: y.toFixed(4), width: width.toFixed(4), height: height.toFixed(4),
+    x: lensX.toFixed(3), y: lensY.toFixed(3), width: size.toFixed(3), height: size.toFixed(3),
+    rx: (unit * 2).toFixed(3),
   });
   const label = svgElement("text", {
     class: "ppTerrainLabel",
-    x: (x + width / 2).toFixed(4), y: (y - height * 0.06).toFixed(4),
-    "font-size": (height * 0.06).toFixed(4),
-    "stroke-width": (height * 0.012).toFixed(4),
+    x: (lensX + size / 2).toFixed(3), y: (lensY - unit * 4).toFixed(3),
+    "font-size": (unit * 6).toFixed(3),
+    "stroke-width": (unit * 1.2).toFixed(3),
   });
   label.textContent = t("picker.preview");
-  layer.append(image, outline, label);
+  layer.append(leader, pulse, marker, image, frameRect, label);
   svg.querySelector(".ppProvinceLabels")?.before(layer);
 
-  // First the whole province, then down to the land
+  // Frame the province and the lens together
+  const top = Math.min(py0, lensY - unit * 12);
+  const bottom = Math.max(py1, lensY + size);
+  const right = lensX + size;
   applyMapState({ focus: province.region, selected: province.id });
-  flyTo(provinceBox(province.id));
+  flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [px0, top, right, bottom] }], 0.06));
   window.setTimeout(() => {
-    if (token !== terrainToken || !cardOpen()) return;
-    layer.classList.add("shown");
-    svg.classList.add("terrain");
-    flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [x, y, x + width, y + height] }], TERRAIN_MARGIN));
-  }, FLY_MS * 0.85);
+    if (token === terrainToken && cardOpen()) layer.classList.add("shown");
+  }, FLY_MS * 0.6);
 }
 
 // The text on the left while looking at the land: what the province has to build with
@@ -1170,6 +1257,7 @@ export function openStartScreen(startActions: StartActions, options: StartOption
     data = loaded;
     if (!view) return;
     if (!view.svg) buildMap();
+    setLoadingProgress(1);
     const requested = options.provinceId ? data.provinces.get(options.provinceId) : undefined;
     if (requested) enterRegion(requested.region, requested.id);
     else if (options.intro) playIntro();
