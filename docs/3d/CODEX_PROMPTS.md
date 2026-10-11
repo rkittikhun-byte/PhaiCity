@@ -19,6 +19,33 @@
    - 6A จะเพิ่มวัสดุที่ Prompt 1 ยังไม่มีให้เอง (ไม้ไผ่ หลังคาจาก หญ้าคา แป้นเกล็ด กระเบื้องเคลือบ) ไม่ต้องรัน Prompt 1 ใหม่
 5. ทุก prompt สั่งให้ Codex สรุปงานกลับมาเป็นภาษาไทย
 
+## แบ่งงานระหว่าง Codex กับ Antigravity
+
+| ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
+|---|---|---|
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 5 → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 15 → 18 |
+| **Antigravity** | worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics` | **16** ยานพาหนะ → **17** ภัยพิบัติและเอฟเฟกต์ → **14** โรงไฟฟ้า |
+
+- Prompt 16, 17 และ 14 ไม่ต้องใช้ผลงานจาก prompt อื่นที่ยังไม่เสร็จ จึงทำคู่กับ Codex ได้
+- Prompt 18 (ตรวจภาพรวม) ทำได้หลัง Claude Code merge งานของทั้งสองฝั่งเข้า `main` แล้วเท่านั้น
+- ห้ามสลับไปทำในโฟลเดอร์ของอีกฝั่ง ทำทีละ prompt และ commit ทุกครั้ง
+
+**ข้อความต่อท้ายทุก prompt ของ Codex:**
+
+```text
+Commit only your own changes on main with the message "Codex prompt N: <short summary>". Do not merge, rebase or push.
+```
+
+**ข้อความนำหน้าทุก prompt ของ Antigravity** (แล้วค่อยวาง prompt จากไฟล์นี้ต่อท้าย):
+
+```text
+For this task you take the graphics role (the "Codex" side of the work split in AGENTS.md and CLAUDE.md).
+Work only in this folder: it is a git worktree on branch ag/graphics. Never touch the main folder or any other worktree.
+Codex is working on different prompts at the same time in the main folder, so only create or edit files this prompt needs.
+When done, commit only your own changes on ag/graphics with the message "Prompt N (Antigravity): <short summary>".
+Do not merge, rebase or push. Report to me in Thai.
+```
+
 **ตัวเลขในวงเล็บ** คือเลข tile ในเกม (จาก `src/tileValues.ts`) ใช้ผูกโมเดลกับระบบเกมตอนทำ renderer
 
 **หน้าตาตามภาค:** แต่ละภาคมีบ้านเรือนต่างกัน โมเดลจึงแบ่งเป็น 3 ระดับ (`MODEL_SPEC.md` ข้อ 6A)
