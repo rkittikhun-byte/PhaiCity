@@ -572,6 +572,13 @@
 | `resource.flat` | `src/provincePicker.ts` | `-` | `Open land {pct}%` | `ที่ราบ {pct}%` | จากแผนที่ตั้งต้น |
 | `resource.forest` | `src/provincePicker.ts` | `-` | `Forest {pct}%` | `ป่าไม้ {pct}%` | จากแผนที่ตั้งต้น |
 | `resource.water` | `src/provincePicker.ts` | `-` | `Water {pct}%` | `แหล่งน้ำ {pct}%` | จากแผนที่ตั้งต้น |
+| `resource.note.flat` | `src/provincePicker.ts` | `-` | `Wide open land: easy to build on` | `ที่ราบกว้าง สร้างเมืองได้ง่าย` | ตอนซูมดูภูมิประเทศ |
+| `resource.note.forest` | `src/provincePicker.ts` | `-` | `Thick forest: clear it before you build` | `ป่าไม้อุดมสมบูรณ์ ต้องถางก่อนสร้าง` | ตอนซูมดูภูมิประเทศ |
+| `resource.note.water` | `src/provincePicker.ts` | `-` | `Plenty of water: you will need bridges` | `มีแหล่งน้ำมาก ต้องสร้างสะพานข้าม` | ตอนซูมดูภูมิประเทศ |
+| `resource.note.coast` | `src/provincePicker.ts` | `-` | `On the coast: a natural place for a seaport` | `ติดทะเล เหมาะสร้างท่าเรือ` | ตอนซูมดูภูมิประเทศ |
+| `resource.note.river` | `src/provincePicker.ts` | `-` | `On a great river: fertile land and trade` | `อยู่ริมแม่น้ำสายใหญ่ ดินดีและเหมาะค้าขาย` | ตอนซูมดูภูมิประเทศ |
+| `resource.note.island` | `src/provincePicker.ts` | `-` | `An island: building land is limited` | `เป็นเกาะ ที่ดินสร้างได้มีจำกัด` | ตอนซูมดูภูมิประเทศ |
+| `picker.terrain_title` | `src/provincePicker.ts` | `-` | `Your land` | `ผืนดินของคุณ` | ตอนซูมดูภูมิประเทศ |
 | `menu.main` | `index.html` | `-` | `Main menu` | `เมนูหลัก` | ปุ่มในเกม |
 | `mainmenu.title` | `index.html` | `-` | `Back to the main menu` | `กลับเมนูหลัก` | หน้าต่าง |
 | `mainmenu.question` | `src/mainMenuWindow.js` | `-` | `Save {city} before you leave?` | `บันทึกเมือง {city} ก่อนออกไหม` |  |

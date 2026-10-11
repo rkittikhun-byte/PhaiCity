@@ -59,3 +59,15 @@ export function provinceResources(tags: readonly string[], stats: MapStats): Res
   if (stats.water >= 0.05) resources.push({ key: "resource.water", pct: percent(stats.water) });
   return resources;
 }
+
+/** Short notes (i18n keys) on what the land means for building, in order of importance. */
+export function resourceNotes(tags: readonly string[], stats: MapStats): string[] {
+  const notes: string[] = [];
+  if (tags.some((tag) => tag.startsWith("coast_"))) notes.push("resource.note.coast");
+  if (tags.includes("island")) notes.push("resource.note.island");
+  if (tags.some((tag) => tag.startsWith("river_"))) notes.push("resource.note.river");
+  if (stats.woods >= 0.15) notes.push("resource.note.forest");
+  if (stats.water >= 0.15) notes.push("resource.note.water");
+  if (stats.land >= 0.85) notes.push("resource.note.flat");
+  return notes;
+}

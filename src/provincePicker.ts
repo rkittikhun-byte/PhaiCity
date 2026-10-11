@@ -12,9 +12,9 @@
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
 import { audio } from "./audio/index";
-import { groupViewBox, NationalMap, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
-import { drawPresetMap, PresetMap } from "./geo/presetMap";
-import { difficultyStars, fundsBonus, provinceResources, startingFunds } from "./geo/provinceProfile";
+import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
+import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
+import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
 import { getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { hide, show } from "./motion";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
@@ -80,7 +80,8 @@ interface Tile {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const OVERLAY_ID = "provincePicker";
 const INTRO_SEEN_KEY = "phaicity.introSeen";
-const PREVIEW_PIXELS_PER_TILE = 1;
+const TERRAIN_PIXELS_PER_TILE = 3;
+const TERRAIN_MARGIN = 0.45;
 const FLY_MS = 1400;
 const HERO_LEAVE_MS = 350;
 const MIN_SCENE_MS = 4200;
@@ -140,6 +141,7 @@ let framedBox: ViewBox | null = null;
 let currentViewBox: ViewBox = [0, 0, 1, 1];
 let flyFrame = 0;
 let heroToken = 0;
+let terrainToken = 0;
 const paths = new Map<string, SVGElement>();
 const regionLabels = new Map<string, SVGElement>();
 const provinceLabels = new Map<string, SVGElement>();
@@ -266,7 +268,25 @@ function buildShell(): View {
   });
   const tileList = element("div", "ppTiles");
   tileList.setAttribute("role", "listbox");
-  row.append(rowTitle, tileList);
+  // More tiles than fit: the wheel scrolls sideways, arrow buttons appear at the ends, the edges fade
+  const scrollPage = (direction: number): void =>
+    tileList.scrollBy({ left: direction * tileList.clientWidth * 0.8, behavior: reducedMotion() ? "auto" : "smooth" });
+  const previous = button("ppRowScroll ppRowPrev", "‹", () => scrollPage(-1));
+  const next = button("ppRowScroll ppRowNext", "›", () => scrollPage(1));
+  const updateEnds = (): void => {
+    row.classList.toggle("canLeft", tileList.scrollLeft > 4);
+    row.classList.toggle("canRight", tileList.scrollLeft + tileList.clientWidth < tileList.scrollWidth - 4);
+  };
+  tileList.addEventListener("scroll", updateEnds);
+  window.addEventListener("resize", updateEnds);
+  tileList.addEventListener("wheel", (event) => {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    tileList.scrollBy({ left: event.deltaY * 1.5 });
+  }, { passive: false });
+  const track = element("div", "ppTrack");
+  track.append(previous, tileList, next);
+  row.append(rowTitle, track);
   const dots = element("div", "ppDots");
   const panel = element("aside", "ppPanel");
   panel.hidden = true;
@@ -551,7 +571,13 @@ function flyTo(box: ViewBox, instant = false): void {
   const step = (now: number): void => {
     const k = Math.min(1, (now - started) / FLY_MS);
     const eased = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    currentViewBox = from.map((value, i) => value + (target[i] - value) * eased) as ViewBox;
+    // Zoom at a steady rate even across a big change of scale: the size moves geometrically, the centre with it
+    const width = from[2] * Math.pow(target[2] / from[2], eased);
+    const height = from[3] * Math.pow(target[3] / from[3], eased);
+    const zoomShare = from[2] === target[2] ? eased : (width - from[2]) / (target[2] - from[2]);
+    const centreX = from[0] + from[2] / 2 + (target[0] + target[2] / 2 - from[0] - from[2] / 2) * zoomShare;
+    const centreY = from[1] + from[3] / 2 + (target[1] + target[3] / 2 - from[1] - from[3] / 2) * zoomShare;
+    currentViewBox = [centreX - width / 2, centreY - height / 2, width, height];
     svg.setAttribute("viewBox", currentViewBox.map((v) => v.toFixed(2)).join(" "));
     if (k < 1) flyFrame = requestAnimationFrame(step);
   };
@@ -575,11 +601,7 @@ function onMapHover(province: Province | null): void {
 function onMapPick(province: Province): void {
   if (mode === "region") enterRegion(province.region);
   else if (mode === "province" && province.region === currentRegion) {
-    const index = tiles.findIndex((tile) => tile.id === province.id);
-    if (index >= 0) {
-      focusTile(index);
-      openCard(province.id);
-    }
+    openCard(province.id);
   }
 }
 
@@ -594,11 +616,15 @@ function setTiles(title: string, items: Array<{ id: string; name: string; meta: 
     tile.style.setProperty("--tile-color", item.color);
     tile.style.setProperty("--i", String(index));
     tile.append(element("span", "ppTileName", item.name), element("span", "ppTileMeta", item.meta));
-    tile.addEventListener("mouseenter", () => focusTile(index));
+    tile.addEventListener("mouseenter", () => {
+      if (!cardOpen()) focusTile(index);
+    });
     tile.addEventListener("focus", () => focusTile(index));
     return { id: item.id, element: tile };
   });
   view.tiles.replaceChildren(...tiles.map((tile) => tile.element));
+  view.tiles.scrollLeft = 0;
+  view.tiles.dispatchEvent(new Event("scroll"));
 }
 
 function focusTile(index: number): void {
@@ -610,7 +636,9 @@ function focusTile(index: number): void {
     tile.element.classList.toggle("focused", i === next);
     tile.element.setAttribute("aria-selected", String(i === next));
   });
-  tiles[next].element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+  const list = view.tiles;
+  const tile = tiles[next].element;
+  list.scrollTo({ left: tile.offsetLeft - (list.clientWidth - tile.offsetWidth) / 2, behavior: reducedMotion() ? "auto" : "smooth" });
   if (!changed) return;
   audio.play("ui.select");
   if (mode === "region") showRegionHero(tiles[next].id);
@@ -814,10 +842,107 @@ function showProvinceHero(provinceId: string): void {
 
 // --- The card that starts a city ---
 
+function cardOpen(): boolean {
+  return !!view && !view.panel.hidden && !view.panel.classList.contains("motionLeave");
+}
+
 function closeCard(): void {
-  if (!view || view.panel.hidden || view.panel.classList.contains("motionLeave")) return;
+  if (!view || !cardOpen()) return;
+  view.overlay.classList.remove("ppCardOpen");
   hide(view.panel, true);
-  if (framedBox) flyTo(framedBox);
+  leaveTerrain();
+  if (mode === "province" && currentRegion) {
+    if (tiles[focusIndex]) showProvinceHero(tiles[focusIndex].id);
+    applyMapState({ focus: currentRegion, provinceNames: true, selected: selectedProvince });
+    flyTo(groupViewBox(regionMembers(currentRegion)));
+  } else if (framedBox) {
+    flyTo(framedBox);
+  }
+}
+
+// --- Down to the land: the province, then its real 2 x 2 km starting map, laid exactly where it is ---
+
+function provinceBox(provinceId: string): ViewBox {
+  const shape = data?.map.provinces.find((p) => p.id === provinceId);
+  return shape ? groupViewBox([shape], 0.12) : countryBox();
+}
+
+function leaveTerrain(): void {
+  terrainToken++;
+  const layer = view?.svg?.querySelector(".ppTerrainLayer");
+  if (!layer) return;
+  layer.classList.add("leaving");
+  window.setTimeout(() => layer.remove(), 500);
+}
+
+function diveIntoTerrain(province: Province, map: PresetMap): void {
+  const svg = view?.svg;
+  if (!svg) return;
+  leaveTerrain();
+  const token = terrainToken;
+
+  // The land itself, drawn from the preset map and placed on its real longitude/latitude box
+  const [x, y, width, height] = projectBox(map.bbox);
+  const canvas = element("canvas");
+  drawPresetMap(canvas, map, TERRAIN_PIXELS_PER_TILE);
+  const layer = svgElement("g", { class: "ppTerrainLayer" });
+  const image = svgElement("image", {
+    href: canvas.toDataURL("image/png"),
+    x: x.toFixed(4), y: y.toFixed(4), width: width.toFixed(4), height: height.toFixed(4),
+    preserveAspectRatio: "none",
+  });
+  const outline = svgElement("rect", {
+    class: "ppTerrainOutline",
+    x: x.toFixed(4), y: y.toFixed(4), width: width.toFixed(4), height: height.toFixed(4),
+  });
+  const label = svgElement("text", {
+    class: "ppTerrainLabel",
+    x: (x + width / 2).toFixed(4), y: (y - height * 0.06).toFixed(4),
+    "font-size": (height * 0.06).toFixed(4),
+    "stroke-width": (height * 0.012).toFixed(4),
+  });
+  label.textContent = t("picker.preview");
+  layer.append(image, outline, label);
+  svg.querySelector(".ppProvinceLabels")?.before(layer);
+
+  // First the whole province, then down to the land
+  applyMapState({ focus: province.region, selected: province.id });
+  flyTo(provinceBox(province.id));
+  window.setTimeout(() => {
+    if (token !== terrainToken || !cardOpen()) return;
+    layer.classList.add("shown");
+    flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [x, y, x + width, y + height] }], TERRAIN_MARGIN));
+  }, FLY_MS * 0.85);
+}
+
+// The text on the left while looking at the land: what the province has to build with
+function showTerrainHero(province: Province, map: PresetMap): void {
+  const region = data?.regions.find((r) => r.id === province.region);
+  const body = element("div", "ppResources");
+  body.appendChild(element("h4", undefined, t("picker.resources")));
+  const list = element("ul", "ppResourceList");
+  const swatches: Record<string, string> = {
+    "resource.flat": PRESET_COLORS[0],
+    "resource.water": PRESET_COLORS[1],
+    "resource.forest": PRESET_COLORS[2],
+  };
+  for (const resource of provinceResources(province.tags ?? [], map.stats)) {
+    const item = element("li");
+    const dot = element("span", "ppSwatch");
+    dot.style.background = swatches[resource.key] ?? GOLD;
+    item.append(dot, element("span", undefined, t(resource.key, resource.pct === undefined ? undefined : { pct: resource.pct })));
+    list.appendChild(item);
+  }
+  body.appendChild(list);
+  for (const note of resourceNotes(province.tags ?? [], map.stats)) body.appendChild(element("p", "ppNote", t(note)));
+  const summary = element("p", "ppHeroExtra",
+    `${t("picker.funds")} ${money(startingFunds(map.stats))} · ${t("picker.difficulty")} ${stars(difficultyStars(map.stats))}`);
+  body.appendChild(summary);
+  setHero({
+    title: localName(province),
+    sub: `${t("picker.terrain_title")} · ${region ? localName(region) : ""}`,
+    body,
+  });
 }
 
 // Hides every menu, card and text so only the bamboo and the map remain; the toggle itself stays.
@@ -828,15 +953,16 @@ function setMenusHidden(hidden: boolean): void {
   if (framedBox) flyTo(framedBox);
 }
 
-function openCard(provinceId: string): void {
+// The card always shows the province in focus, so the text, the map and the card agree.
+function openCard(provinceId: string, focusName = true): void {
   if (!view || !data) return;
   const province = data.provinces.get(provinceId);
   if (!province) return;
+  const index = tiles.findIndex((tile) => tile.id === provinceId);
+  if (index >= 0 && index !== focusIndex) focusTile(index);
 
   const card = element("div", "ppCard");
   card.append(element("h3", undefined, localName(province)));
-  const preview = element("div", "ppPreview");
-  card.appendChild(preview);
 
   const nameLabel = element("label", "ppField");
   const nameInput = element("input", "ppName");
@@ -875,7 +1001,6 @@ function openCard(provinceId: string): void {
     if (!neighbor) continue;
     neighbors.appendChild(button("ppChipButton", localName(neighbor), () => {
       if (neighbor.region === currentRegion) {
-        focusTile(tiles.findIndex((tile) => tile.id === id));
         openCard(id);
       } else {
         enterRegion(neighbor.region, id);
@@ -886,17 +1011,20 @@ function openCard(provinceId: string): void {
   card.append(nameLabel, element("h4", undefined, t("start.label.difficulty")), levels, start,
     element("h4", undefined, t("picker.neighbors")), neighbors);
   view.panel.replaceChildren(card);
-  if (view.panel.hidden) show(view.panel);
-  flyTo(groupViewBox(regionMembers(province.region))); // make room for the card
-  nameInput.focus({ preventScroll: true });
-  nameInput.select();
+  if (!cardOpen()) show(view.panel);
+  view.overlay.classList.add("ppCardOpen");
+  if (focusName) {
+    nameInput.focus({ preventScroll: true });
+    nameInput.select();
+  }
 
+  const token = ++heroToken;
   loadPreset(province.id).then((map) => {
-    const canvas = element("canvas");
-    drawPresetMap(canvas, map, PREVIEW_PIXELS_PER_TILE);
-    preview.replaceChildren(canvas, element("p", "ppSmall", t("picker.preview")));
+    if (token !== heroToken || !cardOpen()) return; // The player has moved on
+    diveIntoTerrain(province, map);
+    showTerrainHero(province, map);
   }).catch(() => {
-    preview.textContent = t("picker.no_preview");
+    if (token === heroToken) flyTo(provinceBox(province.id));
   });
 }
 
@@ -914,11 +1042,12 @@ function onKeyDown(event: KeyboardEvent): void {
   }
   switch (event.key) {
     case "ArrowRight":
-      focusTile(focusIndex < 0 ? 0 : focusIndex + 1);
+    case "ArrowLeft": {
+      const step = event.key === "ArrowRight" ? 1 : -1;
+      focusTile(focusIndex < 0 ? 0 : focusIndex + step);
+      if (mode === "province" && cardOpen()) openCard(tiles[focusIndex].id, false);
       break;
-    case "ArrowLeft":
-      focusTile(focusIndex < 0 ? 0 : focusIndex - 1);
-      break;
+    }
     case "Enter":
       if (focusIndex >= 0) selectTile(focusIndex);
       break;

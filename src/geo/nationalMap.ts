@@ -128,3 +128,11 @@ export function groupViewBox(provinces: ProjectedProvince[], margin = 0.08): [nu
   const padY = (maxY - minY) * margin;
   return [minX - padX, minY - padY, maxX - minX + 2 * padX, maxY - minY + 2 * padY];
 }
+
+// The SVG box [x, y, width, height] of a [west, south, east, north] longitude/latitude box, in the same
+// projection as the map; used to lay a province's starting map exactly where it is.
+export function projectBox(bbox: readonly [number, number, number, number]): [number, number, number, number] {
+  const [left, top] = project([bbox[0], bbox[3]]);
+  const [right, bottom] = project([bbox[2], bbox[1]]);
+  return [left, top, right - left, bottom - top];
+}

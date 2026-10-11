@@ -4,15 +4,15 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { groupViewBox, projectNationalMap } from "../src/geo/nationalMap";
+import { groupViewBox, projectBox, projectNationalMap } from "../src/geo/nationalMap";
 import {
-  BASE_FUNDS, difficultyStars, fundsBonus, MapStats, provinceResources, startingFunds,
+  BASE_FUNDS, difficultyStars, fundsBonus, MapStats, provinceResources, resourceNotes, startingFunds,
 } from "../src/geo/provinceProfile";
 import { hasKey } from "../src/i18n/index";
 
 const dataDir = path.join(__dirname, "..", "data");
 const provinceData = JSON.parse(fs.readFileSync(path.join(dataDir, "thailand-provinces.json"), "utf8"));
-const presets: Array<{ provinceId: string; stats: MapStats }> = fs.readdirSync(path.join(dataDir, "maps"))
+const presets: Array<{ provinceId: string; stats: MapStats; bbox: [number, number, number, number] }> = fs.readdirSync(path.join(dataDir, "maps"))
   .filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(fs.readFileSync(path.join(dataDir, "maps", f), "utf8")));
 
@@ -101,5 +101,34 @@ describe("region text and zoom", () => {
       expect(w * h).toBeLessThan(map.viewBox[2] * map.viewBox[3]);
     }
     expect(groupViewBox([])).toEqual([0, 0, 0, 0]);
+  });
+
+  test("each starting map lies inside its own province on the national map", () => {
+    const byId = new Map(map.provinces.map((p) => [p.id, p]));
+    for (const preset of presets) {
+      const [x, y, w, h] = projectBox(preset.bbox);
+      const bounds = byId.get(preset.provinceId)!.bounds;
+      expect(w).toBeGreaterThan(1.5);
+      expect(w).toBeLessThan(2.2);
+      expect(x + w / 2).toBeGreaterThanOrEqual(bounds[0]);
+      expect(x + w / 2).toBeLessThanOrEqual(bounds[2]);
+      expect(y + h / 2).toBeGreaterThanOrEqual(bounds[1]);
+      expect(y + h / 2).toBeLessThanOrEqual(bounds[3]);
+    }
+  });
+});
+
+describe("resource notes", () => {
+  test("describe the coast, rivers, forest, water and open land", () => {
+    expect(resourceNotes(["coast_andaman", "island"], { land: 0.88, water: 0.02, woods: 0.1 }))
+      .toEqual(["resource.note.coast", "resource.note.island", "resource.note.flat"]);
+    expect(resourceNotes(["river_mekong"], { land: 0.6, water: 0.2, woods: 0.2 }))
+      .toEqual(["resource.note.river", "resource.note.forest", "resource.note.water"]);
+  });
+
+  test("every note has text in both languages", () => {
+    for (const province of provinceData.provinces) {
+      for (const key of resourceNotes(province.tags, { land: 0.9, water: 0.2, woods: 0.2 })) expect(hasKey(key)).toBe(true);
+    }
   });
 });
