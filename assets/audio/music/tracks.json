@@ -1,9 +1,9 @@
 {
   "_comment": "Music files in this folder, per playlist (theme for the start screen, then the six regions). Only listed files are played; an empty playlist stays quiet. Credit every file in CREDITS.md next to this file. How to add music: docs/audio/SOUND_LIST.md section 12.",
-  "theme": [],
-  "north": [],
-  "northeast": [],
-  "central": [],
+  "theme": ["theme.ogg"],
+  "north": ["north_01.ogg", "north_02.ogg"],
+  "northeast": ["northeast_01.ogg", "northeast_02.ogg"],
+  "central": ["central_01.ogg"],
   "east": [],
   "west": [],
   "south": []
