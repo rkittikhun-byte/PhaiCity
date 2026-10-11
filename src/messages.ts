@@ -38,6 +38,7 @@ export const HEAVY_TRAFFIC = "Heavy traffic reported";
 export const HELICOPTER_CRASHED = "Helicopter crashed";
 export const HIGH_CRIME = "High crime";
 export const HIGH_POLLUTION = "High pollution";
+export const MAIN_MENU_WINDOW_CLOSED = "Main menu window closed";
 export const MONSTER_SIGHTED = "Monster sighted";
 export const NAG_WINDOW_CLOSED = "Nag window closed";
 export const NEED_AIRPORT = "Airport needed";

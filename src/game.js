@@ -27,6 +27,7 @@ import { GameMap } from './gameMap.js';
 import { t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
+import { MainMenuWindow } from './mainMenuWindow.js';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { NagWindow } from './nagWindow.js';
@@ -68,6 +69,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   this.snowTileSet = snowTileSet;
   this.defaultSpeed = Simulation.SPEED_MED;
   this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame);
+
+  // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
+  if (!savedGame && gameMap.startingFunds)
+    this.simulation.budget.setFunds(gameMap.startingFunds);
 
   this.name = name || 'MyTown';
   this.everClicked = false;
@@ -182,6 +187,14 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   // ... the save confirmation window
   this.saveWindow = new SaveWindow(opacityLayerID, 'saveWindow');
   this.saveWindow.addEventListener(Messages.SAVE_WINDOW_CLOSED, this.genericDialogClosure);
+
+  // ... the window that leads back to the start screen
+  this.handleMainMenuRequest = makeWindowOpenHandler('mainMenu', function() {
+    return [this.name, Storage.canStore];
+  }.bind(this));
+  this.mainMenuWindow = new MainMenuWindow(opacityLayerID, 'mainMenuWindow');
+  this.mainMenuWindow.addEventListener(Messages.MAIN_MENU_WINDOW_CLOSED, this.handleMainMenuClosure.bind(this));
+  $('#mainMenuRequest').on('click', this.handleMainMenuRequest.bind(this));
 
   // ... the nag confirmation window
   this.nagWindow = new NagWindow(opacityLayerID, 'nagWindow');
@@ -444,6 +457,18 @@ var makeWindowOpenHandler = function(winName, customFn) {
 
     this[win].open.apply(this[win], data);
   };
+};
+
+
+// Going back to the start screen reloads the page, which drops the running game cleanly
+Game.prototype.handleMainMenuClosure = function(choice) {
+  this.genericDialogClosure();
+  if (choice === 'stay')
+    return;
+
+  if (choice === 'save')
+    this.save();
+  window.location.assign(window.location.pathname);
 };
 
 

@@ -428,7 +428,7 @@ nav li {
 #miscButtons {
   position: absolute;
   top: 250px;
-  height: 162px;
+  height: 186px;
 }
 
 #monstertv {
@@ -489,10 +489,73 @@ nav li {
   color: dodgerblue;
 }
 
+/* Start screen (src/splashScreen.js): ruling a province comes first, random maps are practice */
 #splash {
   position: absolute;
-  width: 540px;
-  height: 380px;
+  width: 560px;
+}
+
+#splashMain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+#splashMain .splashPrimary, #splashMain .splashContinue {
+  width: 340px;
+  height: auto;
+  padding: 10px 16px;
+  border-radius: 6px;
+}
+
+#splashMain .splashPrimary {
+  background-color: #226b57;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#splashMain .splashContinue {
+  font-size: 16px;
+}
+
+#splashMain .splashContinue[hidden] {
+  display: none;
+}
+
+.splashLink {
+  width: auto;
+  height: auto;
+  background: none;
+  color: #226b57;
+  text-decoration: underline;
+}
+
+#splashPractice {
+  border-top: 1px solid #c5d1c8;
+  padding-top: 8px;
+}
+
+#splashPractice h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: normal;
+  text-align: center;
+}
+
+#splashPracticeBody {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+#SplashCanvas {
+  width: 240px;
+  height: 200px;
+  image-rendering: pixelated;
 }
 
 #splashButton {
@@ -500,21 +563,24 @@ nav li {
 }
 
 #splashButtons {
-  position: absolute;
-  left: 10px;
-  top: 105px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-#splashButtonContainer {
-  position: absolute;
-  top: 90px;
-  left: 390px;
+.mainMenuHeader {
+  background-color: #226b57;
 }
 
-#splashContainer {
-  position: absolute;
-  top: 90px;
-  left: 20px;
+#mainMenuRequest {
+  background-color: #226b57;
+  color: white;
+}
+
+.mainMenuButton {
+  width: auto;
+  padding: 0 12px;
+  margin: 0 4px;
 }
 
 #splashGenerate {
@@ -796,7 +862,7 @@ nav li {
   }
 
   #RCIContainer {
-    top: 382px;
+    top: 392px;
   }
 
   #tw {
@@ -830,7 +896,7 @@ nav li {
   }
 
   #RCIContainer {
-    top: 352px;
+    top: 362px;
   }
 
   #tw {
@@ -977,29 +1043,105 @@ nav li {
 #provincePicker .ppHint { margin: 0; flex: 1; color: #667a73; }
 #provincePicker button { font: inherit; cursor: pointer; border: 1px solid #b9c4b4; border-radius: 6px; background: #fffef8; padding: 4px 12px;
   width: auto; height: auto; min-height: 30px; line-height: 1.4; color: #213b38; }
+#provincePicker button[hidden] { display: none; }
 #provincePicker .ppBody { flex: 1; display: flex; min-height: 0; }
 #provincePicker .ppMapWrap { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px 12px; }
 #provincePicker .ppMap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 #provincePicker .ppSvg { width: 100%; height: 100%; }
-#provincePicker .ppProvince { stroke: #ffffff; stroke-width: 1.2; cursor: pointer; transition: filter .1s; }
-#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus { filter: brightness(0.82); outline: none; }
-#provincePicker .ppProvince.selected { stroke: #213b38; stroke-width: 3; filter: brightness(0.75); }
-#provincePicker .ppRegionLabel { font: 700 30px Sarabun, sans-serif; fill: #213b38; text-anchor: middle; pointer-events: none;
-  paint-order: stroke; stroke: #ffffff; stroke-width: 6px; stroke-linejoin: round; opacity: .85; }
+#provincePicker .ppSvg[data-mode="intro"] { pointer-events: none; }
+#provincePicker .ppProvince { stroke: #ffffff; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: pointer;
+  transition: opacity .4s, fill .4s, filter .1s; }
+#provincePicker .ppSvg.plain .ppProvince { fill: #c9d4be; }
+#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus, #provincePicker .ppProvince.hover { filter: brightness(0.85); outline: none; }
+#provincePicker .ppProvince.dim { opacity: .25; pointer-events: none; }
+#provincePicker .ppProvince.selected { stroke: #213b38; stroke-width: 2.5; filter: brightness(0.8); }
+#provincePicker .ppRegionLabel, #provincePicker .ppProvinceLabel { font-family: Sarabun, sans-serif; fill: #213b38; text-anchor: middle;
+  dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: #ffffff; stroke-linejoin: round; }
+#provincePicker .ppRegionLabel { font-weight: 700; opacity: .85; }
+#provincePicker .ppProvinceLabel.selected { font-weight: 700; }
+#provincePicker .ppRegionLabel.hidden, #provincePicker .ppProvinceLabel.hidden { display: none; }
 #provincePicker .ppNote { margin: 4px 0 0; font-size: 12px; color: #667a73; text-align: center; }
-#provincePicker .ppPanel { width: 300px; padding: 12px 20px; border-left: 1px solid #d6ddd1; overflow-y: auto; }
-#provincePicker .ppHover { min-height: 1.5em; margin: 0 0 8px; color: #667a73; }
+#provincePicker .ppPanel { width: 340px; padding: 12px 20px; border-left: 1px solid #d6ddd1; overflow-y: auto; }
+#provincePicker .ppPrompt { color: #667a73; }
 #provincePicker .ppDetail h3 { margin: 0; font-size: 24px; }
 #provincePicker .ppDetail h4 { margin: 14px 0 6px; font-size: 14px; color: #667a73; }
-#provincePicker .ppSub { margin: 0; color: #667a73; }
+#provincePicker .ppSub { margin: 0 0 8px; color: #667a73; }
+#provincePicker .ppSmall { font-size: 12px; color: #667a73; }
+#provincePicker .ppTraits { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; }
+#provincePicker .ppTraits dt { font-weight: 700; }
+#provincePicker .ppTraits dd { margin: 0; }
 #provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppFunds { display: flex; flex-direction: column; margin: 12px 0 8px; }
+#provincePicker .ppFunds strong { font-size: 26px; color: #226b57; line-height: 1.2; }
+#provincePicker .ppFunds small, #provincePicker .ppDifficulty small { color: #667a73; }
+#provincePicker .ppDifficulty { display: flex; align-items: baseline; gap: 8px; }
+#provincePicker .ppStars { color: #d99a00; letter-spacing: 2px; }
+#provincePicker .ppChips { display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppChip { background: #e3ebdc; border-radius: 12px; padding: 2px 10px; font-size: 13px; }
 #provincePicker .ppPreview canvas { width: 100%; max-width: 240px; image-rendering: pixelated; border-radius: 4px; display: block; }
-#provincePicker .ppStats { margin: 4px 0 0; font-size: 12px; color: #667a73; }
 #provincePicker .ppStart { margin-top: 16px; width: 100%; padding: 10px; font-size: 17px; font-weight: 700;
   background: #226b57; border-color: #226b57; color: #ffffff; }
 
+/* The story scrolls one scene at a time beside the map */
+#provincePicker .ppPanel.ppStory { width: 420px; padding: 0; overflow: hidden; }
+#provincePicker .ppScenes { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; outline: none; }
+#provincePicker .ppScene { height: 100%; box-sizing: border-box; padding: 32px 28px; display: flex; align-items: center; scroll-snap-align: start; }
+#provincePicker .ppSceneCard { opacity: .3; transform: translateY(20px); transition: opacity .5s, transform .5s; }
+#provincePicker .ppScene.active .ppSceneCard { opacity: 1; transform: none; }
+#provincePicker .ppSceneCard h3 { margin: 0 0 10px; font-size: 32px; line-height: 1.2; }
+#provincePicker .ppSceneCard p { margin: 0 0 10px; font-size: 18px; }
+#provincePicker .ppSceneCard .ppSceneExtra { font-size: 14px; color: #667a73; }
+#provincePicker .ppNext { margin-top: 12px; }
+
 @media (max-width: 900px) {
   #provincePicker .ppBody { flex-direction: column; }
-  #provincePicker .ppPanel { width: auto; border-left: 0; border-top: 1px solid #d6ddd1; max-height: 45vh; }
+  #provincePicker .ppPanel, #provincePicker .ppPanel.ppStory { width: auto; border-left: 0; border-top: 1px solid #d6ddd1; max-height: 45vh; }
   #provincePicker .ppHint { display: none; }
+}
+}
+
+/* Motion (src/motion.ts): screens, windows, panels and buttons slide and fade in; .motionLeave plays the way out.
+   Entrance keyframes only give the starting point, so each element ends at its own normal position. */
+@keyframes motionFadeIn { from { opacity: 0; } }
+@keyframes motionFadeOut { to { opacity: 0; } }
+@keyframes motionRise { from { opacity: 0; transform: translate(-50%, calc(-50% + 28px)) scale(0.96); } }
+@keyframes motionSink { to { opacity: 0; transform: translate(-50%, calc(-50% + 18px)) scale(0.97); } }
+@keyframes motionFromLeft { from { opacity: 0; transform: translateX(-60px); } }
+@keyframes motionFromRight { from { opacity: 0; transform: translateX(60px); } }
+@keyframes motionFromBelow { from { opacity: 0; transform: translateY(18px); } }
+@keyframes motionFromAbove { from { opacity: 0; transform: translateY(-18px); } }
+@keyframes motionNoticeIn { from { opacity: 0; transform: translate(-50%, 24px); } }
+
+.modal, #splash, #start { animation: motionRise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.modal.motionLeave, #splash.motionLeave, #start.motionLeave { animation: motionSink 0.2s ease-in forwards; }
+#opaque { animation: motionFadeIn 0.25s ease-out backwards; backdrop-filter: blur(3px); }
+#opaque.motionLeave { animation: motionFadeOut 0.2s ease-in forwards; }
+
+/* The game's panels slide in from their side of the screen, one after another */
+#infobar { animation: motionFromLeft 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#miscButtons { animation: motionFromLeft 0.45s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#RCIContainer { animation: motionFromLeft 0.45s 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#controls { animation: motionFromRight 0.45s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#notifications { animation: motionNoticeIn 0.45s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+
+/* ... and so do the buttons inside them; --i is each button's place (src/motion.ts stagger) */
+#miscButtons button { animation: motionFromLeft 0.35s calc(var(--i, 0) * 40ms + 0.2s) ease-out backwards; }
+#buttons .toolButton { animation: motionFromRight 0.35s calc(var(--i, 0) * 25ms + 0.2s) ease-out backwards; }
+#splash > *, #splashMain > * { animation: motionFromBelow 0.4s calc(var(--i, 0) * 70ms + 0.12s) ease-out backwards; }
+#provincePicker { animation: motionFadeIn 0.35s ease-out backwards; }
+#provincePicker.motionLeave { animation: motionFadeOut 0.2s ease-in forwards; }
+#provincePicker .ppHeader { animation: motionFromAbove 0.45s 0.1s ease-out backwards; }
+#provincePicker .ppPanel > * { animation: motionFromRight 0.4s ease-out backwards; }
+
+/* Console-style finish: rounded panels, soft deep shadows, buttons that lift under the pointer */
+.modal, #splash, #start, #infobar, #miscButtons, #RCIContainer, #controls { border: none; border-radius: 12px; }
+.modal { overflow: hidden; box-shadow: 0 24px 70px rgba(10, 20, 18, 0.45); }
+#splash, #start, #infobar, #miscButtons, #RCIContainer, #controls { box-shadow: 0 14px 40px rgba(10, 20, 18, 0.4); }
+#notifications { border: none; border-radius: 8px; box-shadow: 0 8px 24px rgba(10, 20, 18, 0.35); }
+button, input[type="submit"] { border-radius: 5px; transition: transform 0.12s, box-shadow 0.12s, filter 0.12s; }
+button:not(:disabled):hover, input[type="submit"]:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); filter: brightness(1.06); }
+button:not(:disabled):active, input[type="submit"]:not(:disabled):active { transform: translateY(0) scale(0.97); box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }
 }

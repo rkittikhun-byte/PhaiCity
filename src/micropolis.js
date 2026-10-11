@@ -16,6 +16,7 @@ import $ from "jquery";
 import { Config } from './config.js';
 import { installAudio } from './audio/index.ts';
 import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from './i18n/index.ts';
+import { stagger } from './motion.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
@@ -99,6 +100,11 @@ var fitGameAreaToFooter = function() {
 // Show the page in the player's language (Thai unless they chose English), and let them switch at any time
 applyTranslations();
 fitGameAreaToFooter();
+
+// Menus and buttons slide in one after another (css/style.css, "Motion")
+['#splash > *', '#splashMain > *', '#miscButtons button', '#buttons .toolButton'].forEach(function(selector) {
+  stagger(document, selector);
+});
 window.addEventListener('resize', fitGameAreaToFooter, false);
 onLanguageChange(function() {
   fitGameAreaToFooter();

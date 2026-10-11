@@ -12,6 +12,8 @@ export interface ProjectedProvince {
   path: string;
   centroid: [number, number];
   area: number;
+  /** [minX, minY, maxX, maxY] in SVG units */
+  bounds: [number, number, number, number];
 }
 
 export interface NationalMap {
@@ -60,6 +62,7 @@ export function projectNationalMap(topology: any, layer = "provinces"): National
     let path = "";
     let totalArea = 0;
     let largest = { area: -1, centroid: [0, 0] as [number, number] };
+    const bounds: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
 
     for (const polygon of polygons) {
       polygon.forEach((ring, ringIndex) => {
@@ -69,6 +72,10 @@ export function projectNationalMap(topology: any, layer = "provinces"): National
           minY = Math.min(minY, y);
           maxX = Math.max(maxX, x);
           maxY = Math.max(maxY, y);
+          bounds[0] = Math.min(bounds[0], x);
+          bounds[1] = Math.min(bounds[1], y);
+          bounds[2] = Math.max(bounds[2], x);
+          bounds[3] = Math.max(bounds[3], y);
           path += `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
         });
         path += "Z";
@@ -81,7 +88,7 @@ export function projectNationalMap(topology: any, layer = "provinces"): National
     }
 
     // Labels go at the centroid of the largest outer ring, so islands don't pull them into the sea.
-    return { id: String(f.id ?? f.properties?.id), path, centroid: largest.centroid, area: totalArea };
+    return { id: String(f.id ?? f.properties?.id), path, centroid: largest.centroid, area: totalArea, bounds };
   });
 
   return {
@@ -101,4 +108,23 @@ export function groupCentroid(provinces: ProjectedProvince[]): [number, number] 
     y += p.centroid[1] * p.area;
   }
   return weight > 0 ? [x / weight, y / weight] : [0, 0];
+}
+
+// The viewBox [x, y, width, height] that frames a group of provinces with a margin (a share of its size),
+// used to zoom the province picker into one region.
+export function groupViewBox(provinces: ProjectedProvince[], margin = 0.08): [number, number, number, number] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of provinces) {
+    minX = Math.min(minX, p.bounds[0]);
+    minY = Math.min(minY, p.bounds[1]);
+    maxX = Math.max(maxX, p.bounds[2]);
+    maxY = Math.max(maxY, p.bounds[3]);
+  }
+  if (!Number.isFinite(minX)) return [0, 0, 0, 0];
+  const padX = (maxX - minX) * margin;
+  const padY = (maxY - minY) * margin;
+  return [minX - padX, minY - padY, maxX - minX + 2 * padX, maxY - minY + 2 * padY];
 }

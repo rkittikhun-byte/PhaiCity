@@ -14,10 +14,12 @@
 import $ from "jquery";
 
 import { Config } from './config.js';
+import { hide, show } from './motion.ts';
 import { Game } from './game.js';
 import { decodePresetCells } from './geo/presetMap.ts';
-import { openProvincePicker } from './provincePicker.ts';
-import { getLanguage } from './i18n/index.ts';
+import { startingFunds } from './geo/provinceProfile.ts';
+import { hasSeenIntro, openProvincePicker } from './provincePicker.ts';
+import { getLanguage, onLanguageChange, t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { Simulation } from './simulation.js';
 import { SplashCanvas } from './splashCanvas.js';
@@ -67,6 +69,8 @@ var loadProvince = function(provinceId) {
     var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset));
 
     map.provinceId = provinceId;
+    // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
+    map.startingFunds = startingFunds(preset.stats);
     self.map = map;
     self.provinceName = province ? (getLanguage() === 'en' ? province.nameEn : province.nameTh) : null;
     self.splashCanvas.paint(map);
@@ -78,9 +82,11 @@ var loadProvince = function(provinceId) {
 };
 
 
-// The province picker hands back a province; load it and go straight to naming the city
-var chooseProvince = function(e) {
-  e.preventDefault();
+// The province picker hands back a province; load it and go straight to naming the city.
+// With intro set, the picker first tells the story of Thailand and its regions.
+var chooseProvince = function(intro, e) {
+  if (e)
+    e.preventDefault();
   var self = this;
 
   openProvincePicker(function(provinceId) {
@@ -88,7 +94,26 @@ var chooseProvince = function(e) {
       if (loaded)
         acquireNameAndDifficulty.call(self, {preventDefault: function() {}});
     });
-  });
+  }, {intro: intro});
+};
+
+
+// "Continue: <city> · <province>" for the saved city, in the current language
+var labelContinueButton = function(savedGame) {
+  var setLabel = function(provinceName) {
+    var city = provinceName && provinceName !== savedGame.name ? savedGame.name + ' · ' + provinceName : savedGame.name;
+    $('#splashLoad').text(t('splash.btn.continue', {city: city}));
+  };
+
+  setLabel(null);
+  if (!savedGame.provinceId)
+    return;
+
+  fetchJson('data/thailand-provinces.json').then(function(data) {
+    var province = data.provinces.find(function(p) { return p.id === savedGame.provinceId; });
+    if (province)
+      setLabel(getLanguage() === 'en' ? province.nameEn : province.nameTh);
+  }).catch(function() {});
 };
 
 
@@ -118,13 +143,19 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   // Set up listeners on buttons. When play is clicked, we will move on to get the player's desired
   // difficulty level and city name before launching the game properly
   $('#splashGenerate').click(regenerateMap.bind(this));
-  $('#splashProvince').click(chooseProvince.bind(this));
+  $('#splashProvince').click(chooseProvince.bind(this, false));
+  $('#splashIntro').click(chooseProvince.bind(this, true));
   $('#splashPlay').click(acquireNameAndDifficulty.bind(this));
   $('#splashLoad').click(handleLoad.bind(this));
 
-  // Conditionally enable load/save buttons
+  // Saving needs storage; "continue" appears only when there is a saved city
   $('#saveRequest').prop('disabled', !Storage.canStore);
-  $('#splashLoad').prop('disabled', !(Storage.canStore && Storage.getSavedGame() !== null));
+  var savedGame = Storage.canStore ? Storage.getSavedGame() : null;
+  if (savedGame !== null) {
+    $('#splashLoad').prop('disabled', false).prop('hidden', false);
+    labelContinueButton(savedGame);
+    onLanguageChange(function() { labelContinueButton(savedGame); });
+  }
 
   // Paint the minimap
   this.splashCanvas = new SplashCanvas('splashContainer', tileSet);
@@ -137,7 +168,11 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 
   // Let's get some bits on screen!
   $('.awaitGeneration').toggle();
-  $('#splashPlay').focus();
+  $('#splashProvince').focus();
+
+  // First launch: tell the story of Thailand, which leads into choosing a region and a province
+  if (provinceId === null && !hasSeenIntro())
+    chooseProvince.call(this, true);
 }
 
 
@@ -164,10 +199,11 @@ var handleLoad = function(e) {
   $('#splashLoad').off('click');
   $('#splashGenerate').off('click');
   $('#splashProvince').off('click');
+  $('#splashIntro').off('click');
   $('#splashPlay').off('click');
 
   // Hide the splashscreen UI
-  $('#splash').toggle();
+  hide($('#splash')[0]);
 
   // Launch
   var g = new Game(savedGame, this.tileSet, this.snowTileSet, this.spriteSheet, Simulation.LEVEL_EASY, name);
@@ -183,10 +219,11 @@ var acquireNameAndDifficulty = function(e) {
   $('#splashLoad').off('click');
   $('#splashGenerate').off('click');
   $('#splashProvince').off('click');
+  $('#splashIntro').off('click');
   $('#splashPlay').off('click');
 
   // Get rid of the initial splash screen
-  $('#splash').toggle();
+  hide($('#splash')[0]);
 
   // As a convenience, the city name is not mandatory in debug mode
   if (Config.debug)
@@ -200,7 +237,7 @@ var acquireNameAndDifficulty = function(e) {
     $('#nameForm').val(this.provinceName.slice(0, MAX_CITY_NAME_LENGTH));
 
   // Display the name and difficulty form
-  $('#start').toggle();
+  show($('#start')[0], 'block');
   $('#nameForm').focus();
 };
 
@@ -212,7 +249,7 @@ var play = function(e) {
 
   // As usual, uninstall event listeners, and hide the UI
   $('#playForm').off('submit');
-  $('#start').toggle();
+  hide($('#start')[0]);
 
   // What values did the player specify?
   var difficulty = $('.difficulty:checked').val() - 0;

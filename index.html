@@ -45,14 +45,22 @@
         <div data-hasscript="false" id="loadingBanner" data-i18n="splash.loading" class="alignCenter padding10 mintcream chunk shadow centred">Loading</div>
         <div id="splash" class="mintcream awaitGeneration open shadow padding10 centred">
           <h2 class="chunk alignCenter" data-i18n="splash.welcome">Welcome!</h2>
-          <p data-i18n="splash.intro">PhaiCity is a browser-based city builder inspired by classic simulation.</p>
-          <div id="splashContainer"></div>
-          <div id="splashButtonContainer">
-            <div id="splashButtons">
-              <button id="splashLoad" data-i18n="splash.btn.load" class="width140 block loadSave splashButton" disabled>Load game</button>
-              <button id="splashPlay" data-i18n="splash.btn.play" class="width140 block margin10 splashButton">Play this map</button>
-              <button id="splashGenerate" data-i18n="splash.btn.generate" class="width140 block margin10 splashButton">Generate another</button>
-              <button id="splashProvince" class="width140 block margin10 splashButton" data-i18n="picker.button">Choose a province</button>
+          <p class="alignCenter" data-i18n="splash.tagline">Choose a province of Thailand and build it up as its ruler.</p>
+          <!-- The main way in: rule a real province. The saved city's name is filled in by src/splashScreen.js -->
+          <div id="splashMain">
+            <button id="splashProvince" class="splashPrimary" data-i18n="splash.btn.province">Choose your province</button>
+            <button id="splashLoad" class="splashContinue loadSave" hidden disabled></button>
+            <button id="splashIntro" type="button" class="splashLink" data-i18n="splash.replay_intro">Watch the story again</button>
+          </div>
+          <!-- The original random maps, kept as a practice mode -->
+          <div id="splashPractice">
+            <h3 data-i18n="splash.practice">Or practise on a random map</h3>
+            <div id="splashPracticeBody">
+              <div id="splashContainer"></div>
+              <div id="splashButtons">
+                <button id="splashPlay" data-i18n="splash.btn.play" class="width140 block splashButton">Play this map</button>
+                <button id="splashGenerate" data-i18n="splash.btn.generate" class="width140 block splashButton">Generate another</button>
+              </div>
             </div>
           </div>
         </div>
@@ -114,6 +122,9 @@
             </div>
             <div>
               <button id="pauseRequest" data-i18n="menu.pause" class="miscButton">Pause</button>
+            </div>
+            <div>
+              <button id="mainMenuRequest" data-i18n="menu.main" class="miscButton">Main menu</button>
             </div>
           </div>
         </div>
@@ -379,6 +390,19 @@
           <span data-i18n="save.message">Game Saved!</span>
           <form id="saveForm" class="alignCenter margin10">
             <input type="submit" id="saveOK" data-i18n-value="save.btn.ok" class="dialogOK" value="OK">
+          </form>
+        </div>
+      </div>
+      <div class="hidden modal shadow" id="mainMenuWindow">
+        <header id="mainMenuHeader" data-i18n="mainmenu.title" class="mainMenuHeader white padding10 chunk alignCenter">
+          Back to the main menu
+        </header>
+        <div id="mainMenuContainer" class="alignCenter padding10 open">
+          <p id="mainMenuQuestion"></p>
+          <form id="mainMenuForm" class="alignCenter margin10">
+            <button id="mainMenuSave" type="button" data-i18n="mainmenu.save_quit" class="mainMenuButton loadSave">Save and leave</button>
+            <button id="mainMenuQuit" type="button" data-i18n="mainmenu.quit" class="mainMenuButton">Leave without saving</button>
+            <input type="submit" id="mainMenuStay" data-i18n-value="mainmenu.stay" class="dialogOK" value="Keep playing">
           </form>
         </div>
       </div>

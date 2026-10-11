@@ -120,8 +120,13 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
-  The splash "เลือกจังหวัด" button opens the province picker (`src/provincePicker.ts`, geometry in
-  `src/geo/nationalMap.ts`), which leads to the same flow.
+  The start screen's main button opens the province picker (`src/provincePicker.ts`, geometry in
+  `src/geo/nationalMap.ts`): a scrolling story about Thailand (first launch only, replayable), then a region,
+  then a zoomed region map to pick the province. The province card's starting treasury, difficulty and
+  resources come from `src/geo/provinceProfile.ts` (less open land means more starting money).
+  Random maps remain as a practice mode; "Main menu" in the game returns to the start screen.
+- **Motion:** windows, screens, panels and buttons slide and fade in (CSS, "Motion" in `css/style.css`).
+  Show and hide them through `src/motion.ts` (`show`/`hide`) so the exit animates too; never jQuery `toggle()`.
 - **Code style:**
   - ES modules with explicit file extensions in imports (`./foo.js`, `./bar.ts`).
   - The old JS uses `var` and prototypes; follow each file's existing style when editing it.

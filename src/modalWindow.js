@@ -15,6 +15,7 @@ import $ from "jquery";
 
 import { EventEmitter } from './eventEmitter.js';
 import { MiscUtils } from './miscUtils.js';
+import { hide, isShown, show } from './motion.ts';
 
 var ModalWindow = function(constructorFunction, focusID) {
   focusID = focusID ? MiscUtils.normaliseDOMid(focusID) : null;
@@ -37,8 +38,15 @@ var ModalWindow = function(constructorFunction, focusID) {
     if (modalWindow === null)
       throw new Error('Node ' + this._windowID + ' not found');
 
-    opacityLayer.toggle();
-    modalWindow.toggle();
+    // Open or close with an animation (src/motion.ts) rather than an instant toggle
+    if (isShown(modalWindow[0])) {
+      hide(modalWindow[0]);
+      hide(opacityLayer[0]);
+      return;
+    }
+
+    show(opacityLayer[0], 'block');
+    show(modalWindow[0], 'block');
 
     if (focusID !== null)
       $(focusID).focus();

@@ -509,6 +509,76 @@
 | `sound.toggle_on` | `src/audio/index.ts` | `-` | `Turn sound on` | `เปิดเสียง` | tooltip ปุ่มลำโพงตอนปิดเสียงอยู่ |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
+## 15B. เรื่องเล่าเปิดเกม เลือกภาค เลือกจังหวัด และเมนูหลัก (Claude Code, 11 ต.ค. 2026)
+
+| Key | File | Current English | New English | Thai | Notes |
+|---|---|---|---|---|---|
+| `splash.tagline` | `index.html` | `-` | `Choose a province of Thailand and build it up as its ruler.` | `เลือกจังหวัดในประเทศไทย แล้วสร้างบ้านแปงเมืองในฐานะเจ้าเมือง` | หน้าแรก |
+| `splash.btn.province` | `index.html` | `-` | `Choose your province` | `เลือกจังหวัดที่จะเป็นเจ้าเมือง` | ปุ่มหลักหน้าแรก |
+| `splash.btn.continue` | `src/splashScreen.js` | `-` | `Continue: {city}` | `เล่นต่อ: {city}` | เมืองที่บันทึกไว้ |
+| `splash.practice` | `index.html` | `-` | `Or practise on a random map` | `หรือฝึกเล่นบนแผนที่สุ่ม` | หัวข้อโหมดฝึก |
+| `splash.replay_intro` | `index.html` | `-` | `Watch the story again` | `ดูเรื่องเล่าเปิดเกมอีกครั้ง` | ลิงก์หน้าแรก |
+| `intro.title` | `src/provincePicker.ts` | `-` | `The land awaits its builders` | `แผ่นดินรอผู้สร้าง` | หัวเรื่องเล่า |
+| `intro.skip` | `src/provincePicker.ts` | `-` | `Skip the story` | `ข้ามเรื่องเล่า` | ปุ่ม |
+| `intro.next` | `src/provincePicker.ts` | `-` | `Next` | `ถัดไป` | ปุ่มเลื่อนไปฉากถัดไป |
+| `intro.scroll` | `src/provincePicker.ts` | `-` | `Scroll down` | `เลื่อนลง` | คำแนะนำฉากแรก |
+| `intro.thailand.title` | `src/provincePicker.ts` | `-` | `Thailand` | `ประเทศไทย` | ฉาก 1 |
+| `intro.thailand.text` | `src/provincePicker.ts` | `-` | `A land at the heart of mainland Southeast Asia, with mountains in the north, a wide plateau, a great river plain and two seas.` | `ดินแดนใจกลางแผ่นดินใหญ่เอเชียตะวันออกเฉียงใต้ มีเทือกเขาทางเหนือ ที่ราบสูงกว้างใหญ่ ที่ราบลุ่มแม่น้ำ และทะเลสองฝั่ง` | ฉาก 1 |
+| `intro.regions.title` | `src/provincePicker.ts` | `-` | `77 provinces, 6 regions` | `77 จังหวัด 6 ภาค` | ฉาก 2 |
+| `intro.regions.text` | `src/provincePicker.ts` | `-` | `Each region has its own landscape, homes and way of life.` | `แต่ละภาคมีภูมิประเทศ บ้านเรือน และวิถีชีวิตเป็นของตัวเอง` | ฉาก 2 |
+| `intro.final.title` | `src/provincePicker.ts` | `-` | `Become a city ruler` | `มาเป็นเจ้าเมือง` | ฉากสุดท้าย |
+| `intro.final.text` | `src/provincePicker.ts` | `-` | `Every province is waiting for someone to build it up. Choose the region you want to live in, then your province.` | `ทุกจังหวัดกำลังรอผู้สร้าง เลือกภาคที่คุณอยากไปอยู่ แล้วเลือกจังหวัดของคุณ` | ฉากสุดท้าย |
+| `intro.final.button` | `src/provincePicker.ts` | `-` | `Choose a region` | `เลือกภาค` | ปุ่มฉากสุดท้าย |
+| `region.north.desc` | `src/provincePicker.ts` | `-` | `High mountains, teak forests and cool winters.` | `ภูเขาสูง ป่าสัก และหน้าหนาวที่อากาศเย็น` | เรื่องเล่าและการ์ดภาค |
+| `region.north.pros` | `src/provincePicker.ts` | `-` | `Tourism and strong demand for shops` | `การท่องเที่ยว และความต้องการร้านค้าสูง` | ONLINE_PLAN 5.2 |
+| `region.north.cons` | `src/provincePicker.ts` | `-` | `Thick forest to clear before building` | `ป่าทึบ ต้องถางก่อนสร้าง` | ONLINE_PLAN 5.2 |
+| `region.northeast.desc` | `src/provincePicker.ts` | `-` | `A wide plateau of rice fields, bounded by the Mekong River.` | `ที่ราบสูงกว้างใหญ่ ทุ่งนา และแม่น้ำโขง` | เรื่องเล่าและการ์ดภาค |
+| `region.northeast.pros` | `src/provincePicker.ts` | `-` | `Cheap land and farm industry` | `ที่ดินถูก และอุตสาหกรรมการเกษตร` | ONLINE_PLAN 5.2 |
+| `region.northeast.cons` | `src/provincePicker.ts` | `-` | `Droughts` | `ภัยแล้ง` | ONLINE_PLAN 5.2 |
+| `region.central.desc` | `src/provincePicker.ts` | `-` | `The Chao Phraya river plain, the rice bowl of the country.` | `ที่ราบลุ่มแม่น้ำเจ้าพระยา อู่ข้าวอู่น้ำของประเทศ` | เรื่องเล่าและการ์ดภาค |
+| `region.central.pros` | `src/provincePicker.ts` | `-` | `Trade and strong demand for shops` | `การค้า และความต้องการร้านค้าสูง` | ONLINE_PLAN 5.2 |
+| `region.central.cons` | `src/provincePicker.ts` | `-` | `Frequent floods` | `น้ำท่วมบ่อย` | ONLINE_PLAN 5.2 |
+| `region.east.desc` | `src/provincePicker.ts` | `-` | `The Gulf of Thailand coast, deep-sea ports and fruit orchards.` | `ชายฝั่งอ่าวไทย ท่าเรือน้ำลึก และสวนผลไม้` | เรื่องเล่าและการ์ดภาค |
+| `region.east.pros` | `src/provincePicker.ts` | `-` | `Industry and seaports` | `อุตสาหกรรม และท่าเรือ` | ONLINE_PLAN 5.2 |
+| `region.east.cons` | `src/provincePicker.ts` | `-` | `High pollution` | `มลพิษสูง` | ONLINE_PLAN 5.2 |
+| `region.west.desc` | `src/provincePicker.ts` | `-` | `Forested ranges along the border and large dams.` | `เทือกเขาป่าไม้ตามแนวชายแดน และเขื่อนขนาดใหญ่` | เรื่องเล่าและการ์ดภาค |
+| `region.west.pros` | `src/provincePicker.ts` | `-` | `Hydropower: cheap electricity to sell` | `ไฟฟ้าพลังน้ำ ไฟถูกและขายได้` | ONLINE_PLAN 5.2 |
+| `region.west.cons` | `src/provincePicker.ts` | `-` | `Little flat land` | `พื้นที่ราบน้อย` | ONLINE_PLAN 5.2 |
+| `region.south.desc` | `src/provincePicker.ts` | `-` | `A long peninsula between two seas, the Gulf of Thailand and the Andaman.` | `คาบสมุทรยาวระหว่างทะเลสองฝั่ง อ่าวไทยและอันดามัน` | เรื่องเล่าและการ์ดภาค |
+| `region.south.pros` | `src/provincePicker.ts` | `-` | `Tourism and seaports` | `การท่องเที่ยว และท่าเรือ` | ONLINE_PLAN 5.2 |
+| `region.south.cons` | `src/provincePicker.ts` | `-` | `Storms` | `พายุ` | ONLINE_PLAN 5.2 |
+| `picker.region_title` | `src/provincePicker.ts` | `-` | `Choose the region you will live in` | `เลือกภาคที่จะไปอยู่` | หัวขั้นเลือกภาค |
+| `picker.region_hint` | `src/provincePicker.ts` | `-` | `Point at a region, then click to see it` | `ชี้ที่ภาคเพื่อดู แล้วคลิกเพื่อเลือก` |  |
+| `picker.region_provinces` | `src/provincePicker.ts` | `-` | `{count} provinces` | `{count} จังหวัด` |  |
+| `picker.region_pros` | `src/provincePicker.ts` | `-` | `Strengths` | `จุดเด่น` |  |
+| `picker.region_cons` | `src/provincePicker.ts` | `-` | `Challenges` | `ความท้าทาย` |  |
+| `picker.region_note` | `src/provincePicker.ts` | `-` | `Regional strengths and challenges will affect play in a later version.` | `จุดเด่นและความท้าทายของภาคจะมีผลต่อการเล่นในเวอร์ชันถัดไป` | ยังเป็นข้อมูลอย่างเดียว |
+| `picker.region_go` | `src/provincePicker.ts` | `-` | `Go to this region` | `ไปภาคนี้` | ปุ่ม |
+| `picker.region_pick` | `src/provincePicker.ts` | `-` | `Click a region on the map.` | `คลิกภาคบนแผนที่` | แผงด้านขวาก่อนเลือก |
+| `picker.province_pick` | `src/provincePicker.ts` | `-` | `Click a province on the map.` | `คลิกจังหวัดบนแผนที่` | แผงด้านขวาก่อนเลือก |
+| `picker.back_regions` | `src/provincePicker.ts` | `-` | `← Other regions` | `← เลือกภาคอื่น` | ปุ่ม |
+| `picker.funds` | `src/provincePicker.ts` | `-` | `Starting treasury` | `เงินตั้งต้น` |  |
+| `picker.funds_bonus` | `src/provincePicker.ts` | `-` | `+{pct}% because there is less open land to build on` | `+{pct}% เพราะที่ราบสร้างได้มีน้อย` |  |
+| `picker.difficulty` | `src/provincePicker.ts` | `-` | `Difficulty` | `ความยาก` |  |
+| `picker.difficulty.1` | `src/provincePicker.ts` | `-` | `Easy` | `ง่าย` |  |
+| `picker.difficulty.2` | `src/provincePicker.ts` | `-` | `Medium` | `ปานกลาง` |  |
+| `picker.difficulty.3` | `src/provincePicker.ts` | `-` | `Hard` | `ยาก` |  |
+| `picker.resources` | `src/provincePicker.ts` | `-` | `Resources` | `ทรัพยากร` |  |
+| `resource.coast_gulf` | `src/provincePicker.ts` | `-` | `Gulf of Thailand coast` | `ชายฝั่งอ่าวไทย` | แท็กจังหวัด |
+| `resource.coast_andaman` | `src/provincePicker.ts` | `-` | `Andaman Sea coast` | `ชายฝั่งทะเลอันดามัน` | แท็กจังหวัด |
+| `resource.island` | `src/provincePicker.ts` | `-` | `Island` | `เกาะ` | แท็กจังหวัด |
+| `resource.river_mekong` | `src/provincePicker.ts` | `-` | `Mekong River` | `แม่น้ำโขง` | แท็กจังหวัด |
+| `resource.river_chao_phraya` | `src/provincePicker.ts` | `-` | `Chao Phraya River` | `แม่น้ำเจ้าพระยา` | แท็กจังหวัด |
+| `resource.flat` | `src/provincePicker.ts` | `-` | `Open land {pct}%` | `ที่ราบ {pct}%` | จากแผนที่ตั้งต้น |
+| `resource.forest` | `src/provincePicker.ts` | `-` | `Forest {pct}%` | `ป่าไม้ {pct}%` | จากแผนที่ตั้งต้น |
+| `resource.water` | `src/provincePicker.ts` | `-` | `Water {pct}%` | `แหล่งน้ำ {pct}%` | จากแผนที่ตั้งต้น |
+| `menu.main` | `index.html` | `-` | `Main menu` | `เมนูหลัก` | ปุ่มในเกม |
+| `mainmenu.title` | `index.html` | `-` | `Back to the main menu` | `กลับเมนูหลัก` | หน้าต่าง |
+| `mainmenu.question` | `src/mainMenuWindow.js` | `-` | `Save {city} before you leave?` | `บันทึกเมือง {city} ก่อนออกไหม` |  |
+| `mainmenu.save_quit` | `index.html` | `-` | `Save and leave` | `บันทึกแล้วออก` | ปุ่ม |
+| `mainmenu.quit` | `index.html` | `-` | `Leave without saving` | `ออกโดยไม่บันทึก` | ปุ่ม |
+| `mainmenu.stay` | `index.html` | `-` | `Keep playing` | `เล่นต่อ` | ปุ่ม |
+
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 
 ส่วนนี้รวบรวมข้อความที่มีความคลุมเครือ อ้างอิงวัฒนธรรมภายนอก หรือมีข้อจำกัดทางเทคนิคที่ควรได้รับการตัดสินใจเชิงนโยบาย:
