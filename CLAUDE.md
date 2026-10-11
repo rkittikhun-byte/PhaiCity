@@ -115,6 +115,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     the `SOUND_*` signals forwarded by `spriteManager.js`, and the tiles on screen. It never changes game state.
   - Sound ids, files and volumes are in `src/audio/catalog.ts`; every file must come through
     `npm run audio:build` so it is CC0 and credited.
+  - Music (`src/audio/music.ts`) streams `assets/audio/music/`: the `theme` playlist on the start screen,
+    the region's playlist in a city. Tracks are listed in `assets/audio/music/tracks.json` and credited by hand
+    in `assets/audio/music/CREDITS.md` (`test/music.ts` checks both); how to add one: `docs/audio/SOUND_LIST.md` §12.
   - Nothing plays before the player's first click or key press (browser rule).
 - **Saves:** many cities (`src/cityStorage.ts`): an index in `phaicity.cities` and one save per city in
   `phaicity.city.<id>`, with the map run-length encoded (a 200×200 city is about 20 KB instead of 560 KB).
@@ -194,8 +197,8 @@ Even before any server exists, all new code must keep this future possible:
    but keep the attribution text in the footer, the About page and the README.
 5. The project is **GPL v3**. All added code is GPL v3 too.
 6. External assets must be CC0, or under a license that allows redistribution in a web game,
-   and must be recorded in `assets/CREDITS.md` (textures, fonts, HDRIs), `assets/audio/CREDITS.md` (sound and music)
-   or `data/CREDITS.md` (map data). The sound plan, including forbidden music, is in `docs/audio/AUDIO_PLAN.md`.
+   and must be recorded in `assets/CREDITS.md` (textures, fonts, HDRIs), `assets/audio/CREDITS.md` (sound effects),
+   `assets/audio/music/CREDITS.md` (music, with each track's license) or `data/CREDITS.md` (map data). The sound plan, including forbidden music, is in `docs/audio/AUDIO_PLAN.md`.
    If unsure about a license, ask first.
 7. **Required on-screen credits:**
    - The micropolisJS/GPL notice ("Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.")

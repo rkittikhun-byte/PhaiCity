@@ -11,7 +11,8 @@
 //      game difficulty and a start button.
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
-import { audio, soundIcon } from "./audio/index";
+import { audio, music, soundIcon } from "./audio/index";
+import { THEME } from "./audio/music";
 import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
 import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
@@ -1384,6 +1385,7 @@ audio.onChange(() => renderSound());
 
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;
+  music.play(THEME); // starts with the first click or key, as browsers require
   document.removeEventListener("keydown", onKeyDown);
   document.addEventListener("keydown", onKeyDown);
   view ??= buildShell();

@@ -90,6 +90,7 @@ export class AudioEngine {
   private readonly lastStarted = new Map<string, number>();
   private readonly loops = new Map<string, LoopState>();
   private readonly listeners = new Set<(settings: AudioSettings) => void>();
+  private readonly unlockListeners = new Set<() => void>();
 
   constructor(options: EngineOptions = {}) {
     this.sounds = options.sounds ?? SOUNDS;
@@ -140,6 +141,32 @@ export class AudioEngine {
     for (const [id, loop] of this.loops) {
       if (loop.level > 0) this.startLoop(id);
     }
+    this.unlockListeners.forEach((listener) => listener());
+  }
+
+  /** Runs once audio is allowed (right away if it already is). */
+  onUnlock(listener: () => void): void {
+    if (this.context) listener();
+    else this.unlockListeners.add(listener);
+  }
+
+  /**
+   * Routes a media element (long music, streamed rather than decoded whole) into a channel, through its own
+   * gain for fading. Null before unlock or without Web Audio.
+   */
+  connectMedia(element: HTMLMediaElement, channel: Channel): GainNode | null {
+    const context = this.context;
+    const output = this.channels.get(channel);
+    if (!context || !output) return null;
+    const gain = context.createGain();
+    context.createMediaElementSource(element).connect(gain);
+    gain.connect(output);
+    return gain;
+  }
+
+  /** The audio clock, for scheduling fades. */
+  get time(): number {
+    return this.context?.currentTime ?? 0;
   }
 
   play(id: string, options: PlayOptions = {}): void {

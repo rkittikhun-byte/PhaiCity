@@ -331,6 +331,7 @@ export const STRINGS: Record<string, Translation> = {
   "lang.switch_to": { en: "ภาษาไทย", th: "English" },
   "lang.switch_title": { en: "Switch language", th: "เปลี่ยนภาษา" },
   "sound.title": { en: "Sound", th: "เสียง" },
+  "sound.music": { en: "Music", th: "เพลง" },
   "sound.effects": { en: "Effects", th: "เสียงเอฟเฟกต์" },
   "sound.ambience": { en: "Ambience", th: "เสียงบรรยากาศ" },
   "sound.ui": { en: "Buttons", th: "เสียงปุ่ม" },

@@ -501,6 +501,7 @@
 | `lang.switch_to` | `index.html` | `-` | `ภาษาไทย` | `English` | ปุ่มสลับภาษา แสดงชื่อภาษาที่จะสลับไป |
 | `lang.switch_title` | `index.html` | `-` | `Switch language` | `เปลี่ยนภาษา` | tooltip ของปุ่มสลับภาษา |
 | `sound.title` | `index.html` | `-` | `Sound` | `เสียง` | หัวข้อในหน้าต่างตั้งค่า |
+| `sound.music` | `index.html` | `-` | `Music` | `เพลง` | แถบปรับเสียง |
 | `sound.effects` | `index.html` | `-` | `Effects` | `เสียงเอฟเฟกต์` | แถบปรับเสียง |
 | `sound.ambience` | `index.html` | `-` | `Ambience` | `เสียงบรรยากาศ` | แถบปรับเสียง |
 | `sound.ui` | `index.html` | `-` | `Buttons` | `เสียงปุ่ม` | แถบปรับเสียง |

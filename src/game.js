@@ -14,7 +14,7 @@
 import $ from "jquery";
 
 import { attachGameAudio } from './audio/gameAudio.ts';
-import { audio } from './audio/index.ts';
+import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { Config } from './config.js';
@@ -92,6 +92,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 
   // Sound only listens to the game; it never changes the city
   this.gameAudio = attachGameAudio(this, audio, Text);
+  // The music of the city's region (the main theme on practice maps)
+  music.playForProvince(this.provinceId);
 
   this.dialogOpen = false;
   this._openWindow = null;

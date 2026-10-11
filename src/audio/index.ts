@@ -9,6 +9,7 @@
 import { onLanguageChange, t } from "../i18n/index";
 import type { Channel } from "./catalog";
 import { AudioEngine } from "./engine";
+import { MusicPlayer } from "./music";
 import { installUiSounds } from "./uiSounds";
 
 function browserStorage(): Storage | null {
@@ -20,6 +21,7 @@ function browserStorage(): Storage | null {
 }
 
 export const audio = new AudioEngine({ storage: typeof window === "undefined" ? null : browserStorage() });
+export const music = new MusicPlayer(audio);
 
 // A speaker drawn in SVG (emoji speakers are missing from some fonts), with sound waves or a cross when muted
 export function soundIcon(muted: boolean): string {
@@ -78,7 +80,10 @@ export function installAudio(doc: Document = document): void {
   const unlock = (): void => audio.unlock();
   doc.addEventListener("pointerdown", unlock, true);
   doc.addEventListener("keydown", unlock, true);
-  doc.addEventListener("visibilitychange", () => audio.setPageHidden(doc.hidden));
+  doc.addEventListener("visibilitychange", () => {
+    audio.setPageHidden(doc.hidden);
+    music.setPaused(doc.hidden);
+  });
   installUiSounds(doc, audio);
   bindSoundControls(doc);
 }

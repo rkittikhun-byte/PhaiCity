@@ -36,7 +36,8 @@ function copyStaticAssets() {
       recursivelyCopy('css'),
       recursivelyCopy('images'),
       recursivelyCopy('sprites'),
-      recursivelyCopy('assets'),
+      // Raw sound downloads (assets/audio/_raw/, gitignored) stay out of the build.
+      {from: 'assets', to: 'assets', toType: 'dir', globOptions: {ignore: ['**/_raw/**']}},
       // Province data and preset maps, fetched at runtime; raw downloads stay out of the build.
       {from: 'data', to: 'data', toType: 'dir', globOptions: {ignore: ['**/cache/**']}},
       'LICENSE',
