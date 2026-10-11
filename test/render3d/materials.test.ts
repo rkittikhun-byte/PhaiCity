@@ -4,29 +4,15 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CanvasTexture, Texture, TextureLoader } from 'three';
+import { CanvasTexture, NoColorSpace, Texture, TextureLoader } from 'three';
+import sharp from 'sharp';
 import { DAY_SKY_URL, TEXTURE_CATALOG, TextureDefinition } from '../../src/render3d/materials/catalog.js';
 import { getMaterial, isLibraryMaterial, MATERIAL_KEYS, materialTextureStatus, setNightMode, shophousePastel, SHOPHOUSE_PASTELS, tint, whenMaterialReady } from '../../src/render3d/materials/library.js';
 import { FICTIONAL_THAI_SIGNS, thaiSign } from '../../src/render3d/materials/signs.js';
 import { loadTexture } from '../../src/render3d/materials/textures.js';
 
-/** Read JPEG SOF dimensions without adding a browser or an image decoder dependency. */
-function jpegDimensions(bytes: Buffer): [number, number] {
-  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Error('Not a JPEG');
-  let offset = 2;
-  while (offset < bytes.length) {
-    if (bytes[offset++] !== 0xff) throw new Error('Invalid JPEG marker');
-    let marker = bytes[offset++];
-    while (marker === 0xff) marker = bytes[offset++];
-    const length = bytes.readUInt16BE(offset);
-    if ([0xc0, 0xc1, 0xc2].includes(marker)) return [bytes.readUInt16BE(offset + 5), bytes.readUInt16BE(offset + 3)];
-    offset += length;
-  }
-  throw new Error('No JPEG dimensions');
-}
-
 describe('bundled licensed assets', () => {
-  it('covers every material with local, genuine 1K maps and source credits', () => {
+  it('covers every material with local, genuine 1K maps and source credits', async () => {
     expect(Object.keys(TEXTURE_CATALOG).sort()).toEqual([...MATERIAL_KEYS].sort());
     const credits = readFileSync(resolve('assets/CREDITS.md'), 'utf8');
     for (const key of MATERIAL_KEYS) {
@@ -35,14 +21,15 @@ describe('bundled licensed assets', () => {
       entry.sources.forEach(source => expect(credits).toContain(source));
       expect(entry.maps.normal).toBeDefined();
       expect(entry.maps.roughness).toBeDefined();
-      Object.values(entry.maps).forEach(asset => {
-        const dimensions = jpegDimensions(readFileSync(resolve(asset.file)));
+      for (const asset of Object.values(entry.maps)) {
+        const image = await sharp(resolve(asset.file)).metadata();
+        const dimensions = [image.width!, image.height!];
         // Poly Haven's 1K Cotton Jersey export is 1024 × 1025, preserving scan aspect.
         expect(Math.max(...dimensions)).toBeGreaterThanOrEqual(1024);
         expect(Math.max(...dimensions)).toBeLessThanOrEqual(1025);
         expect(Math.min(...dimensions)).toBeGreaterThan(0);
         expect(asset.meters.every(value => Number.isFinite(value) && value > 0)).toBe(true);
-      });
+      }
     }
     expect(TEXTURE_CATALOG.foliage_tropical.maps.alpha).toBeDefined();
     const sky = readFileSync(resolve(DAY_SKY_URL));
@@ -90,6 +77,9 @@ describe('headless fallback and lazy loading', () => {
     callbacks.forEach(callback => callback());
     expect(await whenMaterialReady('plaster_white')).toBe(true);
     expect(clone.map).toBe(base.map); expect(clone.normalMap).toBe(base.normalMap);
+    expect(base.aoMap).toBe(base.roughnessMap);
+    expect(base.roughnessMap?.colorSpace).toBe(NoColorSpace);
+    expect(loader).toHaveBeenCalledTimes(3); // Albedo, normal and one shared ORM.
     expect(clone.color.getHex()).toBe(0xddbbaa);
     const late = tint('plaster_white', '#abcdef');
     expect(late.map).toBe(base.map);

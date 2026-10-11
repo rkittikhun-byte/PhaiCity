@@ -17,7 +17,10 @@ export interface TextureDefinition {
   pattern?: 'cement' | 'curb' | 'water';
 }
 
-/** Source dimensions convert metre-based UVs into physically scaled repeats. */
+/** Source dimensions preserve world-scale repeats. Scalar maps alias one source ORM
+ * image: AO reads R, roughness reads G, metalness reads B, all in NoColorSpace.
+ * Cement roofing retains its independent AO and roughness source scales.
+ */
 export const TEXTURE_CATALOG = {
   "plaster_white": {
     "label": "ปูนขาวเก่าคราบฝน",
@@ -26,7 +29,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/plaster_white/color.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/color.jpg",
         "identity": "white_plaster_rough_01:Diffuse",
         "meters": [
           1.0,
@@ -34,7 +37,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/plaster_white/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/normal.jpg",
         "identity": "white_plaster_rough_01:nor_gl",
         "meters": [
           1.0,
@@ -42,16 +45,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/plaster_white/roughness.jpg",
-        "identity": "white_plaster_rough_01:Rough",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/plaster_white/ao.jpg",
-        "identity": "white_plaster_rough_01:AO",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
@@ -66,7 +69,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/plaster_cream/color.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/color.jpg",
         "identity": "white_plaster_rough_01:Diffuse",
         "meters": [
           1.0,
@@ -74,7 +77,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/plaster_cream/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/normal.jpg",
         "identity": "white_plaster_rough_01:nor_gl",
         "meters": [
           1.0,
@@ -82,16 +85,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/plaster_cream/roughness.jpg",
-        "identity": "white_plaster_rough_01:Rough",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/plaster_cream/ao.jpg",
-        "identity": "white_plaster_rough_01:AO",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
@@ -106,7 +109,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/plaster_tint/color.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/color.jpg",
         "identity": "white_plaster_rough_01:Diffuse",
         "meters": [
           1.0,
@@ -114,7 +117,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/plaster_tint/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_rough_01/normal.jpg",
         "identity": "white_plaster_rough_01:nor_gl",
         "meters": [
           1.0,
@@ -122,16 +125,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/plaster_tint/roughness.jpg",
-        "identity": "white_plaster_rough_01:Rough",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/plaster_tint/ao.jpg",
-        "identity": "white_plaster_rough_01:AO",
+        "file": "assets/textures/sources/white_plaster_rough_01/orm.jpg",
+        "identity": "white_plaster_rough_01:ORM",
         "meters": [
           1.0,
           1.0
@@ -146,7 +149,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/concrete_raw/color.jpg",
+        "file": "assets/textures/sources/concrete_wall_006/color.jpg",
         "identity": "concrete_wall_006:Diffuse",
         "meters": [
           2.0,
@@ -154,7 +157,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/concrete_raw/normal.jpg",
+        "file": "assets/textures/sources/concrete_wall_006/normal.jpg",
         "identity": "concrete_wall_006:nor_gl",
         "meters": [
           2.0,
@@ -162,16 +165,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/concrete_raw/roughness.jpg",
-        "identity": "concrete_wall_006:Rough",
+        "file": "assets/textures/sources/concrete_wall_006/orm.jpg",
+        "identity": "concrete_wall_006:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/concrete_raw/ao.jpg",
-        "identity": "concrete_wall_006:AO",
+        "file": "assets/textures/sources/concrete_wall_006/orm.jpg",
+        "identity": "concrete_wall_006:ORM",
         "meters": [
           2.0,
           2.0
@@ -186,7 +189,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/concrete_weathered/color.jpg",
+        "file": "assets/textures/sources/concrete_floor_02/color.jpg",
         "identity": "concrete_floor_02:Diffuse",
         "meters": [
           2.0,
@@ -194,7 +197,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/concrete_weathered/normal.jpg",
+        "file": "assets/textures/sources/concrete_floor_02/normal.jpg",
         "identity": "concrete_floor_02:nor_gl",
         "meters": [
           2.0,
@@ -202,16 +205,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/concrete_weathered/roughness.jpg",
-        "identity": "concrete_floor_02:Rough",
+        "file": "assets/textures/sources/concrete_floor_02/orm.jpg",
+        "identity": "concrete_floor_02:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/concrete_weathered/ao.jpg",
-        "identity": "concrete_floor_02:AO",
+        "file": "assets/textures/sources/concrete_floor_02/orm.jpg",
+        "identity": "concrete_floor_02:ORM",
         "meters": [
           2.0,
           2.0
@@ -226,7 +229,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/brick_red/color.jpg",
+        "file": "assets/textures/sources/red_brick/color.jpg",
         "identity": "red_brick:Diffuse",
         "meters": [
           1.399999976158142,
@@ -234,7 +237,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/brick_red/normal.jpg",
+        "file": "assets/textures/sources/red_brick/normal.jpg",
         "identity": "red_brick:nor_gl",
         "meters": [
           1.399999976158142,
@@ -242,16 +245,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/brick_red/roughness.jpg",
-        "identity": "red_brick:Rough",
+        "file": "assets/textures/sources/red_brick/orm.jpg",
+        "identity": "red_brick:ORM",
         "meters": [
           1.399999976158142,
           1.399999976158142
         ]
       },
       "ao": {
-        "file": "assets/textures/brick_red/ao.jpg",
-        "identity": "red_brick:AO",
+        "file": "assets/textures/sources/red_brick/orm.jpg",
+        "identity": "red_brick:ORM",
         "meters": [
           1.399999976158142,
           1.399999976158142
@@ -266,7 +269,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roof_clay_tile/color.jpg",
+        "file": "assets/textures/sources/clay_roof_tiles/color.jpg",
         "identity": "clay_roof_tiles:Diffuse",
         "meters": [
           4.0,
@@ -274,7 +277,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roof_clay_tile/normal.jpg",
+        "file": "assets/textures/sources/clay_roof_tiles/normal.jpg",
         "identity": "clay_roof_tiles:nor_gl",
         "meters": [
           4.0,
@@ -282,16 +285,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roof_clay_tile/roughness.jpg",
-        "identity": "clay_roof_tiles:Rough",
+        "file": "assets/textures/sources/clay_roof_tiles/orm.jpg",
+        "identity": "clay_roof_tiles:ORM",
         "meters": [
           4.0,
           4.0
         ]
       },
       "ao": {
-        "file": "assets/textures/roof_clay_tile/ao.jpg",
-        "identity": "clay_roof_tiles:AO",
+        "file": "assets/textures/sources/clay_roof_tiles/orm.jpg",
+        "identity": "clay_roof_tiles:ORM",
         "meters": [
           4.0,
           4.0
@@ -307,7 +310,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roof_cement_tile/color.jpg",
+        "file": "assets/textures/sources/concrete_wall_006/color.jpg",
         "identity": "concrete_wall_006:Diffuse",
         "meters": [
           2.0,
@@ -315,7 +318,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roof_cement_tile/normal.jpg",
+        "file": "assets/textures/sources/corrugated_iron/normal.jpg",
         "identity": "corrugated_iron:nor_gl",
         "meters": [
           1.1200000047683716,
@@ -323,16 +326,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roof_cement_tile/roughness.jpg",
-        "identity": "concrete_wall_006:Rough",
+        "file": "assets/textures/sources/concrete_wall_006/orm.jpg",
+        "identity": "concrete_wall_006:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/roof_cement_tile/ao.jpg",
-        "identity": "corrugated_iron:AO",
+        "file": "assets/textures/sources/corrugated_iron/orm.jpg",
+        "identity": "corrugated_iron:ORM",
         "meters": [
           1.1200000047683716,
           1.1200000047683716
@@ -348,7 +351,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roof_metal_corrugated/color.jpg",
+        "file": "assets/textures/sources/corrugated_iron/color.jpg",
         "identity": "corrugated_iron:Diffuse",
         "meters": [
           1.1200000047683716,
@@ -356,7 +359,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roof_metal_corrugated/normal.jpg",
+        "file": "assets/textures/sources/corrugated_iron/normal.jpg",
         "identity": "corrugated_iron:nor_gl",
         "meters": [
           1.1200000047683716,
@@ -364,24 +367,24 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roof_metal_corrugated/roughness.jpg",
-        "identity": "corrugated_iron:Rough",
+        "file": "assets/textures/sources/corrugated_iron/orm.jpg",
+        "identity": "corrugated_iron:ORM",
         "meters": [
           1.1200000047683716,
           1.1200000047683716
         ]
       },
       "ao": {
-        "file": "assets/textures/roof_metal_corrugated/ao.jpg",
-        "identity": "corrugated_iron:AO",
+        "file": "assets/textures/sources/corrugated_iron/orm.jpg",
+        "identity": "corrugated_iron:ORM",
         "meters": [
           1.1200000047683716,
           1.1200000047683716
         ]
       },
       "metalness": {
-        "file": "assets/textures/roof_metal_corrugated/metalness.jpg",
-        "identity": "corrugated_iron:Metal",
+        "file": "assets/textures/sources/corrugated_iron/orm.jpg",
+        "identity": "corrugated_iron:ORM",
         "meters": [
           1.1200000047683716,
           1.1200000047683716
@@ -396,7 +399,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roof_metal_rusty/color.jpg",
+        "file": "assets/textures/sources/rusty_corrugated_iron/color.jpg",
         "identity": "rusty_corrugated_iron:Diffuse",
         "meters": [
           2.0,
@@ -404,7 +407,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roof_metal_rusty/normal.jpg",
+        "file": "assets/textures/sources/rusty_corrugated_iron/normal.jpg",
         "identity": "rusty_corrugated_iron:nor_gl",
         "meters": [
           2.0,
@@ -412,16 +415,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roof_metal_rusty/roughness.jpg",
-        "identity": "rusty_corrugated_iron:Rough",
+        "file": "assets/textures/sources/rusty_corrugated_iron/orm.jpg",
+        "identity": "rusty_corrugated_iron:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/roof_metal_rusty/ao.jpg",
-        "identity": "rusty_corrugated_iron:AO",
+        "file": "assets/textures/sources/rusty_corrugated_iron/orm.jpg",
+        "identity": "rusty_corrugated_iron:ORM",
         "meters": [
           2.0,
           2.0
@@ -436,7 +439,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roof_metal_sheet/color.jpg",
+        "file": "assets/textures/sources/box_profile_metal_sheet/color.jpg",
         "identity": "box_profile_metal_sheet:Diffuse",
         "meters": [
           2.0,
@@ -444,7 +447,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roof_metal_sheet/normal.jpg",
+        "file": "assets/textures/sources/box_profile_metal_sheet/normal.jpg",
         "identity": "box_profile_metal_sheet:nor_gl",
         "meters": [
           2.0,
@@ -452,24 +455,24 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roof_metal_sheet/roughness.jpg",
-        "identity": "box_profile_metal_sheet:Rough",
+        "file": "assets/textures/sources/box_profile_metal_sheet/orm.jpg",
+        "identity": "box_profile_metal_sheet:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/roof_metal_sheet/ao.jpg",
-        "identity": "box_profile_metal_sheet:AO",
+        "file": "assets/textures/sources/box_profile_metal_sheet/orm.jpg",
+        "identity": "box_profile_metal_sheet:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "metalness": {
-        "file": "assets/textures/roof_metal_sheet/metalness.jpg",
-        "identity": "box_profile_metal_sheet:Metal",
+        "file": "assets/textures/sources/box_profile_metal_sheet/orm.jpg",
+        "identity": "box_profile_metal_sheet:ORM",
         "meters": [
           2.0,
           2.0
@@ -484,7 +487,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/wood_teak/color.jpg",
+        "file": "assets/textures/sources/teak_veneer/color.jpg",
         "identity": "teak_veneer:Diffuse",
         "meters": [
           1.0,
@@ -492,7 +495,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/wood_teak/normal.jpg",
+        "file": "assets/textures/sources/teak_veneer/normal.jpg",
         "identity": "teak_veneer:nor_gl",
         "meters": [
           1.0,
@@ -500,16 +503,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/wood_teak/roughness.jpg",
-        "identity": "teak_veneer:Rough",
+        "file": "assets/textures/sources/teak_veneer/orm.jpg",
+        "identity": "teak_veneer:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/wood_teak/ao.jpg",
-        "identity": "teak_veneer:AO",
+        "file": "assets/textures/sources/teak_veneer/orm.jpg",
+        "identity": "teak_veneer:ORM",
         "meters": [
           1.0,
           1.0
@@ -524,7 +527,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/wood_painted/color.jpg",
+        "file": "assets/textures/sources/white_planks_clean/color.jpg",
         "identity": "white_planks_clean:Diffuse",
         "meters": [
           1.8000000715255737,
@@ -532,7 +535,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/wood_painted/normal.jpg",
+        "file": "assets/textures/sources/white_planks_clean/normal.jpg",
         "identity": "white_planks_clean:nor_gl",
         "meters": [
           1.8000000715255737,
@@ -540,16 +543,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/wood_painted/roughness.jpg",
-        "identity": "white_planks_clean:Rough",
+        "file": "assets/textures/sources/white_planks_clean/orm.jpg",
+        "identity": "white_planks_clean:ORM",
         "meters": [
           1.8000000715255737,
           1.8000000715255737
         ]
       },
       "ao": {
-        "file": "assets/textures/wood_painted/ao.jpg",
-        "identity": "white_planks_clean:AO",
+        "file": "assets/textures/sources/white_planks_clean/orm.jpg",
+        "identity": "white_planks_clean:ORM",
         "meters": [
           1.8000000715255737,
           1.8000000715255737
@@ -564,7 +567,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/metal_steel/color.jpg",
+        "file": "assets/textures/sources/Metal032/color.jpg",
         "identity": "Metal032:Color",
         "meters": [
           1.0,
@@ -572,7 +575,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/metal_steel/normal.jpg",
+        "file": "assets/textures/sources/Metal032/normal.jpg",
         "identity": "Metal032:NormalGL",
         "meters": [
           1.0,
@@ -580,16 +583,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/metal_steel/roughness.jpg",
-        "identity": "Metal032:Roughness",
+        "file": "assets/textures/sources/Metal032/orm.jpg",
+        "identity": "Metal032:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "metalness": {
-        "file": "assets/textures/metal_steel/metalness.jpg",
-        "identity": "Metal032:Metalness",
+        "file": "assets/textures/sources/Metal032/orm.jpg",
+        "identity": "Metal032:ORM",
         "meters": [
           1.0,
           1.0
@@ -604,7 +607,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/metal_painted/color.jpg",
+        "file": "assets/textures/sources/blue_metal_plate/color.jpg",
         "identity": "blue_metal_plate:Diffuse",
         "meters": [
           2.5,
@@ -612,7 +615,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/metal_painted/normal.jpg",
+        "file": "assets/textures/sources/blue_metal_plate/normal.jpg",
         "identity": "blue_metal_plate:nor_gl",
         "meters": [
           2.5,
@@ -620,16 +623,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/metal_painted/roughness.jpg",
-        "identity": "blue_metal_plate:Rough",
+        "file": "assets/textures/sources/blue_metal_plate/orm.jpg",
+        "identity": "blue_metal_plate:ORM",
         "meters": [
           2.5,
           2.5
         ]
       },
       "ao": {
-        "file": "assets/textures/metal_painted/ao.jpg",
-        "identity": "blue_metal_plate:AO",
+        "file": "assets/textures/sources/blue_metal_plate/orm.jpg",
+        "identity": "blue_metal_plate:ORM",
         "meters": [
           2.5,
           2.5
@@ -644,7 +647,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/roller_shutter/color.jpg",
+        "file": "assets/textures/sources/painted_metal_shutter/color.jpg",
         "identity": "painted_metal_shutter:Diffuse",
         "meters": [
           2.0,
@@ -652,7 +655,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/roller_shutter/normal.jpg",
+        "file": "assets/textures/sources/painted_metal_shutter/normal.jpg",
         "identity": "painted_metal_shutter:nor_gl",
         "meters": [
           2.0,
@@ -660,16 +663,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/roller_shutter/roughness.jpg",
-        "identity": "painted_metal_shutter:Rough",
+        "file": "assets/textures/sources/painted_metal_shutter/orm.jpg",
+        "identity": "painted_metal_shutter:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/roller_shutter/ao.jpg",
-        "identity": "painted_metal_shutter:AO",
+        "file": "assets/textures/sources/painted_metal_shutter/orm.jpg",
+        "identity": "painted_metal_shutter:ORM",
         "meters": [
           2.0,
           2.0
@@ -684,7 +687,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "normal": {
-        "file": "assets/textures/glass_clear/normal.jpg",
+        "file": "assets/textures/sources/SurfaceImperfections001/normal.jpg",
         "identity": "SurfaceImperfections001:NormalGL",
         "meters": [
           1.0,
@@ -692,8 +695,8 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/glass_clear/roughness.jpg",
-        "identity": "SurfaceImperfections001:Opacity",
+        "file": "assets/textures/sources/SurfaceImperfections001/orm.jpg",
+        "identity": "SurfaceImperfections001:ORM",
         "meters": [
           1.0,
           1.0
@@ -708,7 +711,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "normal": {
-        "file": "assets/textures/glass_tinted/normal.jpg",
+        "file": "assets/textures/sources/SurfaceImperfections001/normal.jpg",
         "identity": "SurfaceImperfections001:NormalGL",
         "meters": [
           1.0,
@@ -716,8 +719,8 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/glass_tinted/roughness.jpg",
-        "identity": "SurfaceImperfections001:Opacity",
+        "file": "assets/textures/sources/SurfaceImperfections001/orm.jpg",
+        "identity": "SurfaceImperfections001:ORM",
         "meters": [
           1.0,
           1.0
@@ -732,7 +735,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/asphalt/color.jpg",
+        "file": "assets/textures/sources/clean_asphalt/color.jpg",
         "identity": "clean_asphalt:Diffuse",
         "meters": [
           2.0999999046325684,
@@ -740,7 +743,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/asphalt/normal.jpg",
+        "file": "assets/textures/sources/clean_asphalt/normal.jpg",
         "identity": "clean_asphalt:nor_gl",
         "meters": [
           2.0999999046325684,
@@ -748,16 +751,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/asphalt/roughness.jpg",
-        "identity": "clean_asphalt:Rough",
+        "file": "assets/textures/sources/clean_asphalt/orm.jpg",
+        "identity": "clean_asphalt:ORM",
         "meters": [
           2.0999999046325684,
           2.0999999046325684
         ]
       },
       "ao": {
-        "file": "assets/textures/asphalt/ao.jpg",
-        "identity": "clean_asphalt:AO",
+        "file": "assets/textures/sources/clean_asphalt/orm.jpg",
+        "identity": "clean_asphalt:ORM",
         "meters": [
           2.0999999046325684,
           2.0999999046325684
@@ -772,7 +775,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/road_marking_white/color.jpg",
+        "file": "assets/textures/sources/white_plaster_02/color.jpg",
         "identity": "white_plaster_02:Diffuse",
         "meters": [
           1.0,
@@ -780,7 +783,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/road_marking_white/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_02/normal.jpg",
         "identity": "white_plaster_02:nor_gl",
         "meters": [
           1.0,
@@ -788,16 +791,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/road_marking_white/roughness.jpg",
-        "identity": "white_plaster_02:Rough",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/road_marking_white/ao.jpg",
-        "identity": "white_plaster_02:AO",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
@@ -812,7 +815,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/road_marking_yellow/color.jpg",
+        "file": "assets/textures/sources/white_plaster_02/color.jpg",
         "identity": "white_plaster_02:Diffuse",
         "meters": [
           1.0,
@@ -820,7 +823,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/road_marking_yellow/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_02/normal.jpg",
         "identity": "white_plaster_02:nor_gl",
         "meters": [
           1.0,
@@ -828,16 +831,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/road_marking_yellow/roughness.jpg",
-        "identity": "white_plaster_02:Rough",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/road_marking_yellow/ao.jpg",
-        "identity": "white_plaster_02:AO",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
@@ -852,7 +855,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/sidewalk_tile/color.jpg",
+        "file": "assets/textures/sources/checkered_pavement_tiles/color.jpg",
         "identity": "checkered_pavement_tiles:Diffuse",
         "meters": [
           2.0,
@@ -860,7 +863,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/sidewalk_tile/normal.jpg",
+        "file": "assets/textures/sources/checkered_pavement_tiles/normal.jpg",
         "identity": "checkered_pavement_tiles:nor_gl",
         "meters": [
           2.0,
@@ -868,16 +871,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/sidewalk_tile/roughness.jpg",
-        "identity": "checkered_pavement_tiles:Rough",
+        "file": "assets/textures/sources/checkered_pavement_tiles/orm.jpg",
+        "identity": "checkered_pavement_tiles:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/sidewalk_tile/ao.jpg",
-        "identity": "checkered_pavement_tiles:AO",
+        "file": "assets/textures/sources/checkered_pavement_tiles/orm.jpg",
+        "identity": "checkered_pavement_tiles:ORM",
         "meters": [
           2.0,
           2.0
@@ -892,7 +895,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/curb_red_white/color.jpg",
+        "file": "assets/textures/sources/white_plaster_02/color.jpg",
         "identity": "white_plaster_02:Diffuse",
         "meters": [
           1.0,
@@ -900,7 +903,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/curb_red_white/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_02/normal.jpg",
         "identity": "white_plaster_02:nor_gl",
         "meters": [
           1.0,
@@ -908,16 +911,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/curb_red_white/roughness.jpg",
-        "identity": "white_plaster_02:Rough",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/curb_red_white/ao.jpg",
-        "identity": "white_plaster_02:AO",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
@@ -933,7 +936,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/grass/color.jpg",
+        "file": "assets/textures/sources/grass_ground/color.jpg",
         "identity": "grass_ground:Diffuse",
         "meters": [
           2.509999990463257,
@@ -941,7 +944,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/grass/normal.jpg",
+        "file": "assets/textures/sources/grass_ground/normal.jpg",
         "identity": "grass_ground:nor_gl",
         "meters": [
           2.509999990463257,
@@ -949,16 +952,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/grass/roughness.jpg",
-        "identity": "grass_ground:Rough",
+        "file": "assets/textures/sources/grass_ground/orm.jpg",
+        "identity": "grass_ground:ORM",
         "meters": [
           2.509999990463257,
           2.509999990463257
         ]
       },
       "ao": {
-        "file": "assets/textures/grass/ao.jpg",
-        "identity": "grass_ground:AO",
+        "file": "assets/textures/sources/grass_ground/orm.jpg",
+        "identity": "grass_ground:ORM",
         "meters": [
           2.509999990463257,
           2.509999990463257
@@ -973,7 +976,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/dirt_laterite/color.jpg",
+        "file": "assets/textures/sources/red_laterite_soil_stones/color.jpg",
         "identity": "red_laterite_soil_stones:Diffuse",
         "meters": [
           2.0,
@@ -981,7 +984,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/dirt_laterite/normal.jpg",
+        "file": "assets/textures/sources/red_laterite_soil_stones/normal.jpg",
         "identity": "red_laterite_soil_stones:nor_gl",
         "meters": [
           2.0,
@@ -989,16 +992,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/dirt_laterite/roughness.jpg",
-        "identity": "red_laterite_soil_stones:Rough",
+        "file": "assets/textures/sources/red_laterite_soil_stones/orm.jpg",
+        "identity": "red_laterite_soil_stones:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/dirt_laterite/ao.jpg",
-        "identity": "red_laterite_soil_stones:AO",
+        "file": "assets/textures/sources/red_laterite_soil_stones/orm.jpg",
+        "identity": "red_laterite_soil_stones:ORM",
         "meters": [
           2.0,
           2.0
@@ -1013,7 +1016,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/gravel_ballast/color.jpg",
+        "file": "assets/textures/sources/gravel_floor_02/color.jpg",
         "identity": "gravel_floor_02:Diffuse",
         "meters": [
           2.0,
@@ -1021,7 +1024,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/gravel_ballast/normal.jpg",
+        "file": "assets/textures/sources/gravel_floor_02/normal.jpg",
         "identity": "gravel_floor_02:nor_gl",
         "meters": [
           2.0,
@@ -1029,16 +1032,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/gravel_ballast/roughness.jpg",
-        "identity": "gravel_floor_02:Rough",
+        "file": "assets/textures/sources/gravel_floor_02/orm.jpg",
+        "identity": "gravel_floor_02:ORM",
         "meters": [
           2.0,
           2.0
         ]
       },
       "ao": {
-        "file": "assets/textures/gravel_ballast/ao.jpg",
-        "identity": "gravel_floor_02:AO",
+        "file": "assets/textures/sources/gravel_floor_02/orm.jpg",
+        "identity": "gravel_floor_02:ORM",
         "meters": [
           2.0,
           2.0
@@ -1053,7 +1056,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "normal": {
-        "file": "assets/textures/water_river/normal.jpg",
+        "file": "assets/textures/sources/SurfaceImperfections001/normal.jpg",
         "identity": "SurfaceImperfections001:NormalGL",
         "meters": [
           1.0,
@@ -1061,8 +1064,8 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/water_river/roughness.jpg",
-        "identity": "SurfaceImperfections001:Opacity",
+        "file": "assets/textures/sources/SurfaceImperfections001/orm.jpg",
+        "identity": "SurfaceImperfections001:ORM",
         "meters": [
           1.0,
           1.0
@@ -1078,7 +1081,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "normal": {
-        "file": "assets/textures/water_flood/normal.jpg",
+        "file": "assets/textures/sources/SurfaceImperfections001/normal.jpg",
         "identity": "SurfaceImperfections001:NormalGL",
         "meters": [
           1.0,
@@ -1086,8 +1089,8 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/water_flood/roughness.jpg",
-        "identity": "SurfaceImperfections001:Opacity",
+        "file": "assets/textures/sources/SurfaceImperfections001/orm.jpg",
+        "identity": "SurfaceImperfections001:ORM",
         "meters": [
           1.0,
           1.0
@@ -1103,7 +1106,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/foliage_tropical/color.jpg",
+        "file": "assets/textures/sources/Leaf001/color.jpg",
         "identity": "Leaf001:Color",
         "meters": [
           1.0,
@@ -1111,7 +1114,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/foliage_tropical/normal.jpg",
+        "file": "assets/textures/sources/Leaf001/normal.jpg",
         "identity": "Leaf001:NormalGL",
         "meters": [
           1.0,
@@ -1119,23 +1122,23 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/foliage_tropical/roughness.jpg",
-        "identity": "Leaf001:Roughness",
+        "file": "assets/textures/sources/Leaf001/orm.jpg",
+        "identity": "Leaf001:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/foliage_tropical/ao.jpg",
-        "identity": "Leaf001:AmbientOcclusion",
+        "file": "assets/textures/sources/Leaf001/orm.jpg",
+        "identity": "Leaf001:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "alpha": {
-        "file": "assets/textures/foliage_tropical/alpha.jpg",
+        "file": "assets/textures/sources/Leaf001/alpha.webp",
         "identity": "Leaf001:Opacity",
         "meters": [
           1.0,
@@ -1151,7 +1154,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/fabric_canvas/color.jpg",
+        "file": "assets/textures/sources/cotton_jersey/color.jpg",
         "identity": "cotton_jersey:Diffuse",
         "meters": [
           0.2636027473872483,
@@ -1159,7 +1162,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/fabric_canvas/normal.jpg",
+        "file": "assets/textures/sources/cotton_jersey/normal.jpg",
         "identity": "cotton_jersey:nor_gl",
         "meters": [
           0.2636027473872483,
@@ -1167,24 +1170,24 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/fabric_canvas/roughness.jpg",
-        "identity": "cotton_jersey:Rough",
+        "file": "assets/textures/sources/cotton_jersey/orm.jpg",
+        "identity": "cotton_jersey:ORM",
         "meters": [
           0.2636027473872483,
           0.2637999951839447
         ]
       },
       "ao": {
-        "file": "assets/textures/fabric_canvas/ao.jpg",
-        "identity": "cotton_jersey:AO",
+        "file": "assets/textures/sources/cotton_jersey/orm.jpg",
+        "identity": "cotton_jersey:ORM",
         "meters": [
           0.2636027473872483,
           0.2637999951839447
         ]
       },
       "metalness": {
-        "file": "assets/textures/fabric_canvas/metalness.jpg",
-        "identity": "cotton_jersey:Metal",
+        "file": "assets/textures/sources/cotton_jersey/orm.jpg",
+        "identity": "cotton_jersey:ORM",
         "meters": [
           0.2636027473872483,
           0.2637999951839447
@@ -1199,7 +1202,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/sign_thai/color.jpg",
+        "file": "assets/textures/sources/white_plaster_02/color.jpg",
         "identity": "white_plaster_02:Diffuse",
         "meters": [
           1.0,
@@ -1207,7 +1210,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/sign_thai/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_02/normal.jpg",
         "identity": "white_plaster_02:nor_gl",
         "meters": [
           1.0,
@@ -1215,16 +1218,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/sign_thai/roughness.jpg",
-        "identity": "white_plaster_02:Rough",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/sign_thai/ao.jpg",
-        "identity": "white_plaster_02:AO",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
@@ -1239,7 +1242,7 @@ export const TEXTURE_CATALOG = {
     ],
     "maps": {
       "color": {
-        "file": "assets/textures/emissive_window/color.jpg",
+        "file": "assets/textures/sources/white_plaster_02/color.jpg",
         "identity": "white_plaster_02:Diffuse",
         "meters": [
           1.0,
@@ -1247,7 +1250,7 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "normal": {
-        "file": "assets/textures/emissive_window/normal.jpg",
+        "file": "assets/textures/sources/white_plaster_02/normal.jpg",
         "identity": "white_plaster_02:nor_gl",
         "meters": [
           1.0,
@@ -1255,16 +1258,16 @@ export const TEXTURE_CATALOG = {
         ]
       },
       "roughness": {
-        "file": "assets/textures/emissive_window/roughness.jpg",
-        "identity": "white_plaster_02:Rough",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0
         ]
       },
       "ao": {
-        "file": "assets/textures/emissive_window/ao.jpg",
-        "identity": "white_plaster_02:AO",
+        "file": "assets/textures/sources/white_plaster_02/orm.jpg",
+        "identity": "white_plaster_02:ORM",
         "meters": [
           1.0,
           1.0

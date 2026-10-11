@@ -134,7 +134,7 @@ function commonOptions() {
         {
           ...HANDLE_TYPESCRIPT_WITH_TS_LOADER,
           include: path.resolve(__dirname, 'src/render3d'),
-          options: { compilerOptions: { module: 'esnext' } },
+          options: { compilerOptions: { module: 'esnext', moduleResolution: 'node' } },
         },
       ],
     },

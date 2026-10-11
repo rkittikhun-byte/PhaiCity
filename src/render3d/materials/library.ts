@@ -67,6 +67,8 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
   const painted = ['road_marking_white', 'road_marking_yellow', 'sign_thai', 'emissive_window', 'curb_red_white'].includes(key);
   if (!material.userData.keepColorMap && !painted) material.map = maps.color ?? null;
   material.normalMap = maps.normal ?? null;
+  // Shared ORM images use three.js's native R (AO), G (roughness), B (metalness).
+  // A composite material can retain separate source repeats, such as cement roofing.
   material.roughnessMap = maps.roughness ?? null;
   material.aoMap = maps.ao ?? null;
   material.aoMapIntensity = 0.65;

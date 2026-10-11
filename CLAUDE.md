@@ -43,6 +43,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm install` | Install dependencies |
 | `npm run dev` | Dev server at http://localhost:8080 (or the next free port, e.g. 8081, if 8080 is busy) |
 | `npm run gallery` | Dev server and open http://localhost:8080/model-gallery.html |
+| `npm run textures:convert -- --input RAW --output NEW` | Dev-only 1K JPEG/ORM conversion from original source directories; requires Node 22.18+; refuses to overwrite NEW |
 | `npm run build` | Production build into `dist/`: game (`src/micropolis.js`) and model gallery (`src/model-gallery.js`) |
 | `npm test` | Jest; 2 known failures in `test/bounds.ts`, see below |
 | `npm test -- --runInBand test/render3d/models.test.ts` | Validate all registered 3D models and geometry helpers |
