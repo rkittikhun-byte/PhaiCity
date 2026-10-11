@@ -83,11 +83,15 @@ const OVERLAY_ID = "provincePicker";
 const TERRAIN_PIXELS_PER_TILE = 3;
 const FLY_MS = 1400;
 const HERO_LEAVE_MS = 350;
-const TYPE_MS = 26;
-const TYPE_START_MS = 380;
-const TYPE_LINE_PAUSE_MS = 220;
-const MIN_SCENE_MS = 4200;
-const MS_PER_CHARACTER = 45;
+// Typing pace: a beat at each space between phrases, a longer one after ":" and "·", a breath between lines
+const TYPE_MS = 48;
+const TYPE_SPACE_MS = 160;
+const TYPE_MARK_MS = 380;
+const TYPE_START_MS = 450;
+const TYPE_LINE_PAUSE_MS = 650;
+// After the typing, time to read before the next scene
+const READ_AFTER_TYPING_MS = 2600;
+const MIN_SCENE_MS = 4500;
 const REVEAL_STEP_MS = 280;
 const MAX_CITY_NAME_LENGTH = 15;
 const WIDE_LAYOUT_PX = 900;
@@ -402,6 +406,16 @@ function setHero(content: HeroContent): HTMLElement | null {
   return inner;
 }
 
+// How long typeOut takes for these lines, so each scene waits until the reader has caught up
+function typingTime(lines: string[]): number {
+  let total = TYPE_START_MS;
+  for (const line of lines.filter((text) => text !== "")) {
+    for (const part of graphemes(line)) total += /[:·]/.test(part) ? TYPE_MARK_MS : part === " " ? TYPE_SPACE_MS : TYPE_MS;
+    total += TYPE_LINE_PAUSE_MS;
+  }
+  return total;
+}
+
 // Splits text into what the eye reads as single characters, so Thai vowels and tone marks arrive with
 // their consonant instead of on their own.
 function graphemes(text: string): string[] {
@@ -442,7 +456,8 @@ function typeOut(inner: HTMLElement, lines: HTMLElement[], hint: HTMLElement | n
       partIndex = 0;
       window.setTimeout(step, TYPE_LINE_PAUSE_MS);
     } else {
-      window.setTimeout(step, TYPE_MS);
+      const typedNow = current.parts[partIndex - 1] ?? "";
+      window.setTimeout(step, /[:·]/.test(typedNow) ? TYPE_MARK_MS : typedNow === " " ? TYPE_SPACE_MS : TYPE_MS);
     }
   };
   window.setTimeout(step, TYPE_START_MS);
@@ -838,9 +853,9 @@ function playScene(list: Scene[], index: number): void {
   view.backdrop.setTint(scene.focus ? REGION_COLORS[scene.focus] : GOLD);
   setHero({ title: scene.title, text: scene.text, extra: scene.extra });
 
-  const length = scene.title.length + scene.text.length + (scene.extra?.length ?? 0);
+  const length = typingTime([scene.text, scene.extra ?? ""]) + READ_AFTER_TYPING_MS;
   window.clearTimeout(sceneTimer);
-  sceneTimer = window.setTimeout(() => playScene(list, index + 1), Math.max(MIN_SCENE_MS, length * MS_PER_CHARACTER));
+  sceneTimer = window.setTimeout(() => playScene(list, index + 1), Math.max(MIN_SCENE_MS, length));
 }
 
 // The regions take their colours one after another
@@ -1028,8 +1043,8 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
   const [lx, ly, lw, lh] = projectBox(map.bbox);
   const landX = lx + lw / 2;
   const landY = ly + lh / 2;
-  const size = Math.max(provinceWidth, provinceHeight) * 0.62;
-  const gap = Math.max(provinceWidth, provinceHeight) * 0.14;
+  const size = Math.max(provinceWidth, provinceHeight) * 0.95;
+  const gap = Math.max(provinceWidth, provinceHeight) * 0.18;
   const lensX = px1 + gap;
   const lensY = Math.min(Math.max(landY - size / 2, py0), Math.max(py0, py1 - size));
   const unit = size / 100; // strokes and text follow the lens size
@@ -1040,17 +1055,17 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
   const leader = svgElement("line", {
     class: "ppLensLeader",
     x1: landX.toFixed(3), y1: landY.toFixed(3), x2: lensX.toFixed(3), y2: (lensY + size / 2).toFixed(3),
-    "stroke-width": (unit * 0.5).toFixed(3),
+    "stroke-width": (unit * 0.8).toFixed(3),
   });
   const marker = svgElement("circle", {
     class: "ppLandMarker",
-    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 2.2).toFixed(3),
-    "stroke-width": (unit * 0.6).toFixed(3),
+    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 3.2).toFixed(3),
+    "stroke-width": (unit * 0.8).toFixed(3),
   });
   const pulse = svgElement("circle", {
     class: "ppLandPulse",
-    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 2.2).toFixed(3),
-    "stroke-width": (unit * 0.5).toFixed(3),
+    cx: landX.toFixed(3), cy: landY.toFixed(3), r: (unit * 3.2).toFixed(3),
+    "stroke-width": (unit * 0.8).toFixed(3),
   });
   const image = svgElement("image", {
     href: canvas.toDataURL("image/png"),
@@ -1069,7 +1084,12 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
     "stroke-width": (unit * 1.2).toFixed(3),
   });
   label.textContent = t("picker.preview");
-  layer.append(leader, pulse, marker, image, frameRect, label);
+  const shadow = svgElement("rect", {
+    class: "ppLensShadow",
+    x: lensX.toFixed(3), y: lensY.toFixed(3), width: size.toFixed(3), height: size.toFixed(3),
+    rx: (unit * 2).toFixed(3),
+  });
+  layer.append(leader, pulse, marker, shadow, image, frameRect, label);
   svg.querySelector(".ppProvinceLabels")?.before(layer);
 
   // Frame the province and the lens together

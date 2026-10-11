@@ -1022,7 +1022,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppStage.dragging { cursor: grabbing; }
 #provincePicker .ppZoom { position: absolute; right: 24px; bottom: 236px; display: flex; flex-direction: column; gap: 8px;
   transition: right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s; }
-#provincePicker.ppCardOpen .ppZoom { right: 448px; }
+/* With the card open the zoom buttons step aside (the wheel still zooms) so they never cover the land */
+#provincePicker.ppCardOpen .ppZoom { opacity: 0; pointer-events: none; }
 #provincePicker .ppZoomButton { width: 40px; height: 40px; min-height: 0; padding: 0; font-size: 20px; line-height: 38px; text-align: center;
   background: rgba(12, 20, 17, 0.7); }
 #provincePicker.ppMenusHidden .ppZoom { opacity: 0; pointer-events: none; }
@@ -1076,7 +1077,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppSvg.terrain .ppProvince { transition: opacity 0.6s ease; }
 #provincePicker .ppTerrainLayer.shown { opacity: 1; }
 #provincePicker .ppTerrainLayer.leaving { opacity: 0; transition-duration: 0.4s; }
-#provincePicker .ppLensLeader { stroke: #f6d77a; stroke-dasharray: 4 3; opacity: 0.8; }
+#provincePicker .ppLensLeader { stroke: #f6d77a; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 2px; }
+#provincePicker .ppLensShadow { fill: #050807; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.7)); }
 #provincePicker .ppLandMarker { fill: #f6d77a; stroke: #ffffff; filter: drop-shadow(0 0 6px rgba(246, 215, 122, 0.9)); }
 #provincePicker .ppLandPulse { fill: none; stroke: #f6d77a; transform-box: fill-box; transform-origin: center;
   animation: ppPulse 1.8s ease-out infinite; }
