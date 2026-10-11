@@ -1082,9 +1082,11 @@ body.starting .loadingText { font-family: 'Sarabun Thai', sans-serif; font-size:
 #provincePicker .ppRowTitle:hover { background: none; box-shadow: none; color: #ffffff; }
 #provincePicker .ppRowTitle::after { content: "  ▾"; display: inline-block; transition: transform 0.3s; }
 #provincePicker .ppRow.collapsed .ppRowTitle::after { transform: rotate(-90deg); }
-#provincePicker .ppRow .ppTiles { max-height: 180px; transition: max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s, padding 0.4s; }
+#provincePicker .ppRow .ppTiles { max-height: 210px; transition: max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s, padding 0.4s; }
 #provincePicker .ppRow.collapsed .ppTiles { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; pointer-events: none; }
-#provincePicker .ppTiles { display: flex; gap: 14px; overflow-x: auto; padding: 14px 6px 18px; scroll-snap-type: x proximity;
+/* Room around the tiles for the focused one, which grows and glows, so the scrolling edge never cuts it */
+#provincePicker .ppTiles { display: flex; gap: 14px; overflow-x: auto; padding: 34px 34px 34px; margin: -20px -34px -18px;
+  scroll-padding-inline: 34px; scroll-snap-type: x proximity;
   scrollbar-width: none; }
 #provincePicker .ppTiles::-webkit-scrollbar { display: none; }
 #provincePicker .ppTrack { position: relative; }
