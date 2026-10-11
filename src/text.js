@@ -150,8 +150,47 @@ messageText[Messages.REACHED_MEGALOPOLIS] = 'Population has reached 500,000';
 messageText[Messages.REACHED_METROPOLIS] = 'Population has reached 100,000';
 messageText[Messages.REACHED_TOWN] = 'Population has reached 2,000';
 
+// Province picker. Bilingual; Thai is the default until src/i18n replaces this file.
+var provincePicker = {
+  th: {
+    button: 'เลือกจังหวัด',
+    title: 'เลือกจังหวัดที่จะเป็นเจ้าเมือง',
+    hint: 'ชี้ที่จังหวัดเพื่อดูชื่อ แล้วคลิกเพื่อเลือก',
+    loading: 'กำลังโหลดแผนที่…',
+    loadFailed: 'โหลดแผนที่ไม่ได้',
+    neighbors: 'จังหวัดเพื่อนบ้าน',
+    preview: 'แผนที่ตั้งต้น 2 × 2 กม.',
+    noPreview: 'ยังไม่มีแผนที่ตั้งต้นของจังหวัดนี้',
+    land: 'ที่ดิน',
+    water: 'น้ำ',
+    woods: 'ป่า',
+    start: 'เริ่มเป็นเจ้าเมือง',
+    close: 'ปิด',
+    note: 'แผนที่ประกอบเกม ไม่ใช่แผนที่ทางการ'
+  },
+  en: {
+    button: 'Choose a province',
+    title: 'Choose the province you will rule',
+    hint: 'Point at a province to see its name, then click to choose',
+    loading: 'Loading the map…',
+    loadFailed: 'Could not load the map',
+    neighbors: 'Neighbouring provinces',
+    preview: 'Starting map, 2 × 2 km',
+    noPreview: 'No starting map for this province yet',
+    land: 'Land',
+    water: 'Water',
+    woods: 'Woods',
+    start: 'Become its ruler',
+    close: 'Close',
+    note: 'Illustrative game map, not an official map'
+  },
+  // Map data credits are legal attributions and stay the same in both languages
+  credits: '© OpenStreetMap contributors · Natural Earth'
+};
+
 var Text = {
   badMessages: badMessages,
+  provincePicker: provincePicker,
   cityClass: cityClass,
   crimeStrings: crimeStrings,
   densityStrings: densityStrings,

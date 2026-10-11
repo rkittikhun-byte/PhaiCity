@@ -918,3 +918,52 @@ nav li {
   left: 5px;
   bottom: 5px;
 }
+
+/* Province picker (src/provincePicker.ts): a full-screen map of Thailand */
+@font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Sarabun; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+
+#provincePicker {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  background: #f2f4ed;
+  color: #213b38;
+  font: 15px/1.5 Sarabun, system-ui, sans-serif;
+}
+#provincePicker[hidden] { display: none; }
+#provincePicker h2, #provincePicker h3, #provincePicker h4, #provincePicker p {
+  font-family: Sarabun, system-ui, sans-serif; color: #213b38; text-shadow: none; }
+#provincePicker .ppHeader { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid #d6ddd1; background: #fffef8; }
+#provincePicker .ppHeader h2 { margin: 0; font-size: 22px; }
+#provincePicker .ppHint { margin: 0; flex: 1; color: #667a73; }
+#provincePicker button { font: inherit; cursor: pointer; border: 1px solid #b9c4b4; border-radius: 6px; background: #fffef8; padding: 4px 12px;
+  width: auto; height: auto; min-height: 30px; line-height: 1.4; color: #213b38; }
+#provincePicker .ppBody { flex: 1; display: flex; min-height: 0; }
+#provincePicker .ppMapWrap { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 8px 12px; }
+#provincePicker .ppMap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#provincePicker .ppSvg { width: 100%; height: 100%; }
+#provincePicker .ppProvince { stroke: #ffffff; stroke-width: 1.2; cursor: pointer; transition: filter .1s; }
+#provincePicker .ppProvince:hover, #provincePicker .ppProvince:focus { filter: brightness(0.82); outline: none; }
+#provincePicker .ppProvince.selected { stroke: #213b38; stroke-width: 3; filter: brightness(0.75); }
+#provincePicker .ppRegionLabel { font: 700 30px Sarabun, sans-serif; fill: #213b38; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: #ffffff; stroke-width: 6px; stroke-linejoin: round; opacity: .85; }
+#provincePicker .ppNote { margin: 4px 0 0; font-size: 12px; color: #667a73; text-align: center; }
+#provincePicker .ppPanel { width: 300px; padding: 12px 20px; border-left: 1px solid #d6ddd1; overflow-y: auto; }
+#provincePicker .ppHover { min-height: 1.5em; margin: 0 0 8px; color: #667a73; }
+#provincePicker .ppDetail h3 { margin: 0; font-size: 24px; }
+#provincePicker .ppDetail h4 { margin: 14px 0 6px; font-size: 14px; color: #667a73; }
+#provincePicker .ppSub { margin: 0; color: #667a73; }
+#provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppPreview canvas { width: 100%; max-width: 240px; image-rendering: pixelated; border-radius: 4px; display: block; }
+#provincePicker .ppStats { margin: 4px 0 0; font-size: 12px; color: #667a73; }
+#provincePicker .ppStart { margin-top: 16px; width: 100%; padding: 10px; font-size: 17px; font-weight: 700;
+  background: #226b57; border-color: #226b57; color: #ffffff; }
+
+@media (max-width: 900px) {
+  #provincePicker .ppBody { flex-direction: column; }
+  #provincePicker .ppPanel { width: auto; border-left: 0; border-top: 1px solid #d6ddd1; max-height: 45vh; }
+  #provincePicker .ppHint { display: none; }
+}

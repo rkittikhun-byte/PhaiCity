@@ -99,6 +99,8 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
+  The splash "เลือกจังหวัด" button opens the province picker (`src/provincePicker.ts`, geometry in
+  `src/geo/nationalMap.ts`), which leads to the same flow.
 - **Code style:**
   - ES modules with explicit file extensions in imports (`./foo.js`, `./bar.ts`).
   - The old JS uses `var` and prototypes; follow each file's existing style when editing it.

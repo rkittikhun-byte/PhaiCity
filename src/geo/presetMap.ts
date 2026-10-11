@@ -26,6 +26,26 @@ export interface PresetMap {
   generatedAt: string;
 }
 
+// Colors for drawing a preset map at a few pixels per tile: land, water, woods.
+export const PRESET_COLORS = ["#c8794a", "#3f7fb8", "#3f8a46"];
+
+// Draws a preset map onto a canvas, pixelsPerTile pixels per tile. Used by the map review page
+// and the province picker.
+export function drawPresetMap(canvas: HTMLCanvasElement, map: PresetMap, pixelsPerTile: number): void {
+  const cells = decodePresetCells(map);
+  canvas.width = map.width * pixelsPerTile;
+  canvas.height = map.height * pixelsPerTile;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  for (let row = 0; row < map.height; row++) {
+    for (let column = 0; column < map.width; column++) {
+      context.fillStyle = PRESET_COLORS[cells[row * map.width + column]] ?? "#000";
+      context.fillRect(column * pixelsPerTile, row * pixelsPerTile, pixelsPerTile, pixelsPerTile);
+    }
+  }
+}
+
 // Decodes the run-length encoded "count:code,count:code" cells into one code per tile, row-major.
 export function decodePresetCells(map: Pick<PresetMap, "cells" | "width" | "height">): Uint8Array {
   const expected = map.width * map.height;

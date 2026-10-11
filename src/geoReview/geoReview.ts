@@ -5,7 +5,7 @@
 // Owner-facing review page for the preset province maps (docs/geo/CODEX_PROMPTS.md, G2).
 // It reads the committed data files at runtime and draws each map at a few pixels per tile.
 
-import { decodePresetCells, PresetFlag, PresetMap } from "../geo/presetMap";
+import { drawPresetMap, PresetFlag, PresetMap } from "../geo/presetMap";
 
 interface Province {
   id: string;
@@ -25,7 +25,6 @@ interface CenterInfo {
 
 const CARD_PIXELS_PER_TILE = 2;
 const DETAIL_PIXELS_PER_TILE = 5;
-const COLORS = ["#c8794a", "#3f7fb8", "#3f8a46"];
 
 const FLAG_TEXT: Record<PresetFlag, string> = {
   too_much_water: "น้ำเยอะเกินไป (ที่ดินน้อยกว่า 40%)",
@@ -52,18 +51,9 @@ async function loadJson<T>(url: string): Promise<T | null> {
 }
 
 function drawMap(canvas: HTMLCanvasElement, map: PresetMap, pixelsPerTile: number): void {
-  const cells = decodePresetCells(map);
-  canvas.width = map.width * pixelsPerTile;
-  canvas.height = map.height * pixelsPerTile;
+  drawPresetMap(canvas, map, pixelsPerTile);
   const context = canvas.getContext("2d");
   if (!context) return;
-
-  for (let row = 0; row < map.height; row++) {
-    for (let column = 0; column < map.width; column++) {
-      context.fillStyle = COLORS[cells[row * map.width + column]] ?? "#000";
-      context.fillRect(column * pixelsPerTile, row * pixelsPerTile, pixelsPerTile, pixelsPerTile);
-    }
-  }
 
   // The map center sits in the middle of the grid by construction.
   const radius = Math.max(3, pixelsPerTile * 1.5);
