@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// npm run geo:maps [-- --only TH-50,TH-83] [-- --width 120 --height 100 --tile 10]
+// npm run geo:maps [-- --only TH-50,TH-83] [-- --width 200 --height 200 --tile 10]
 // Builds a preset starting map per province from OpenStreetMap water, coast and woods
 // (GEO_SPEC sections 5, 6 and 9) and writes data/maps/TH-xx.json. Run geo:centers first.
 
@@ -17,7 +17,7 @@ const FETCH_MARGIN_M = 300;
 const MIN_LAND_FRACTION = 0.4;
 
 function parseArgs(argv) {
-  const options = { only: null, width: 120, height: 100, tileSizeM: 10 };
+  const options = { only: null, width: 200, height: 200, tileSizeM: 10 };
   for (let i = 0; i < argv.length; i++) {
     const value = argv[i + 1];
     switch (argv[i]) {
