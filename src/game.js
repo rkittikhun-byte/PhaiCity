@@ -18,12 +18,13 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands } from './cityCommands.ts';
+import { SPRITE_UNITS_PER_TILE } from './cityView.ts';
+import { createCityView2D } from './cityView2d.ts';
 import { Config } from './config.js';
 import { CongratsWindow } from './congratsWindow.js';
 import { DebugWindow } from './debugWindow.js';
 import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
-import { GameCanvas } from './gameCanvas.js';
 import { GameMap } from './gameMap.js';
 import { onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
@@ -99,9 +100,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 
   this.rci = new RCI('RCIContainer', this.simulation);
 
-  // Note: must init canvas before inputStatus
-  this.gameCanvas = new GameCanvas('canvasContainer');
-  this.gameCanvas.init(this.gameMap, this.tileSet, spriteSheet);
+  // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
+  // Note: must create the view before inputStatus, which listens to the view's canvas
+  this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth);
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
@@ -153,7 +154,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   }
 
   // Initialise monsterTV
-  this.monsterTV = new MonsterTV(this.gameMap, tileSet, spriteSheet, this.gameCanvas.animationManager);
+  // (a small 2D view that follows disasters; it shares the 2D view's tile animations)
+  this.monsterTV = new MonsterTV(this.gameMap, tileSet, spriteSheet, this.cityView.canvas.animationManager);
 
   var opacityLayerID = 'opaque';
 
@@ -274,7 +276,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   this.showRulerRank();
   onLanguageChange(this.showRulerRank.bind(this));
 
-  this._notificationBar = new Notification('#notifications', this.gameCanvas, Text.messageText[Messages.WELCOME]);
+  this._notificationBar = new Notification('#notifications', this.cityView, Text.messageText[Messages.WELCOME]);
 
   this.congratsWindow = new CongratsWindow(opacityLayerID, 'congratsWindow');
   this.congratsWindow.addEventListener(Messages.CONGRATS_WINDOW_CLOSED, this.genericDialogClosure);
@@ -365,10 +367,11 @@ var genericDialogClosure = function() {
 
 
 Game.prototype.onDateChange = function(date) {
+  // Snow tiles exist only in the 2D view
   if (date.month === 10 && Random.getChance(10))
-    this.gameCanvas.changeTileSet(this.snowTileSet);
+    this.cityView.canvas.changeTileSet(this.snowTileSet);
   else if (date.month === 1)
-    this.gameCanvas.changeTileSet(this.tileSet);
+    this.cityView.canvas.changeTileSet(this.tileSet);
 };
 
 
@@ -456,9 +459,9 @@ Game.prototype.handleScreenshotWindowClosure = function(action) {
 
   var dataURI;
   if (action === ScreenshotWindow.SCREENSHOT_VISIBLE)
-    dataURI = this.gameCanvas.screenshotVisible();
+    dataURI = this.cityView.screenshotVisible();
   else if (action === ScreenshotWindow.SCREENSHOT_ALL)
-    dataURI = this.gameCanvas.screenshotMap();
+    dataURI = this.cityView.screenshotMap();
 
   this.dialogOpen = true;
   this._openWindow = 'screenshotLinkWindow';
@@ -536,8 +539,8 @@ Game.prototype.handleTool = function(data) {
   var x = data.x;
   var y = data.y;
 
-  // Were was the tool clicked?
-  var tileCoords = this.gameCanvas.canvasCoordinateToTileCoordinate(x, y);
+  // Which map tile was clicked? (null outside the map)
+  var tileCoords = this.cityView.tileAt(x, y);
 
   if (tileCoords === null)
     return;
@@ -595,13 +598,13 @@ Game.prototype.handleInput = function() {
     // Handle keyboard movement
 
     if (this.inputStatus.left)
-      this.gameCanvas.moveWest();
+      this.cityView.moveWest();
     else if (this.inputStatus.up)
-      this.gameCanvas.moveNorth();
+      this.cityView.moveNorth();
     else if (this.inputStatus.right)
-      this.gameCanvas.moveEast();
+      this.cityView.moveEast();
     else if (this.inputStatus.down)
-      this.gameCanvas.moveSouth();
+      this.cityView.moveSouth();
   }
 
   if (this.inputStatus.escape) {
@@ -683,39 +686,29 @@ Game.prototype.processFrontEndMessage = function(message) {
 };
 
 
+// The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
-  // Determine whether we need to draw a tool outline in the
-  // canvas
-  var mouse = null;
+  if (this.inputStatus.mouseX === -1 || !(this.inputStatus.toolWidth > 0))
+    return null;
 
-  if (this.inputStatus.mouseX !== -1 && this.inputStatus.toolWidth > 0) {
-    var tileCoords = this.gameCanvas.canvasCoordinateToTileOffset(this.inputStatus.mouseX, this.inputStatus.mouseY);
-    if (tileCoords !== null) {
-      mouse = {};
+  var tile = this.cityView.tileAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
+  if (tile === null)
+    return null;
 
-      mouse.x = tileCoords.x;
-      mouse.y = tileCoords.y;
-
-      // The inputStatus fields came from DOM attributes, so will be strings.
-      // Coerce back to numbers.
-      mouse.width = this.inputStatus.toolWidth - 0;
-      mouse.height = this.inputStatus.toolWidth - 0;
-      mouse.colour = this.inputStatus.toolColour || 'yellow';
-    }
-  }
-
-  return mouse;
+  // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
+  return {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
 };
 
 
-Game.prototype.calculateSpritesForPaint = function(canvas) {
-  var origin = canvas.getTileOrigin();
-  var spriteList = this.simulation.spriteManager.getSpritesInView(origin.x, origin.y, canvas.canvasWidth, canvas.canvasHeight);
-
-  if (spriteList.length === 0)
+// The sprites within a rectangle of map tiles, or null when there are none
+Game.prototype.spritesIn = function(rect) {
+  if (rect === null)
     return null;
 
-  return spriteList;
+  var spriteList = this.simulation.spriteManager.getSpritesInView(rect.x0, rect.y0,
+    (rect.x1 - rect.x0 + 1) * SPRITE_UNITS_PER_TILE, (rect.y1 - rect.y0 + 1) * SPRITE_UNITS_PER_TILE);
+
+  return spriteList.length === 0 ? null : spriteList;
 };
 
 
@@ -748,11 +741,12 @@ var commonAnimate = function() {
   if (!this.isPaused)
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
 
-  var sprites = this.calculateSpritesForPaint(this.gameCanvas);
-  this.gameCanvas.paint(this.mouse, sprites, this.isPaused);
+  this.cityView.paint(this.mouse, this.spritesIn(this.cityView.visibleTiles()), this.isPaused);
 
-  sprites = this.calculateSpritesForPaint(this.monsterTV.canvas);
-  this.monsterTV.paint(sprites, this.isPaused);
+  var tv = this.monsterTV.canvas;
+  var tvOrigin = tv.getTileOrigin();
+  var tvLast = tv.getMaxTile();
+  this.monsterTV.paint(this.spritesIn({x0: tvOrigin.x, y0: tvOrigin.y, x1: tvLast.x, y1: tvLast.y}), this.isPaused);
 
   nextFrame(this.animate);
 };

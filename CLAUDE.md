@@ -80,14 +80,13 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - Industrial: `625 + (type*4 + size)*9` (type 0–1, size 0–3)
   - For every zone size (3×3, 4×4, 6×6), the center tile is at (1,1) from the top-left.
 - **Rendering:**
-  - `gameCanvas.js` is the main renderer.
-  - It works with `tileSet.js`, `animationManager.js`, `spriteManager.js` (sprite positions), `monsterTV.js` and `splashCanvas.js`.
-  - `game.js` talks to `GameCanvas` only through these functions:
-    - `init`, `paint(mouse, sprites, isPaused)`
-    - `canvasCoordinateToTileCoordinate`, `canvasCoordinateToTileOffset`, `getTileOrigin`, `canvasWidth/Height`
-    - `moveNorth/East/South/West`, `centreOn`
-    - `changeTileSet`, `screenshotMap`, `screenshotVisible`, `shoogle`
-  - A 3D renderer must expose the same set of functions.
+  - The game talks to whatever draws the city only through the `CityView` interface (`src/cityView.ts`),
+    in map tiles, never pixels: `paint(hover, sprites, isPaused)`, `tileAt`, `visibleTiles`, `width/height`,
+    `moveNorth/East/South/West`, `centreOn`, `screenshotMap`, `screenshotVisible`, `shake`.
+  - Today that is the 2D view `src/cityView2d.ts`, around the original `gameCanvas.js` (with `tileSet.js`,
+    `animationManager.js`; `monsterTV.js` keeps its own small 2D canvas).
+  - The 3D view (Codex, `src/render3d/city/`) implements the same interface: spec `docs/3d/RENDERER_SPEC.md`,
+    prompts R1–R4 in `docs/3d/CODEX_PROMPTS.md`. Claude Code wires it in as `index.html?view=3d` after R1.
 - **Tools:**
   - `gameTools.js` defines each tool's cost and size.
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.

@@ -5,6 +5,7 @@
 // Turns what happens in a running game into sound. It only listens: simulation messages, tool results,
 // sprite and bulldozer sound signals, and the tiles currently on screen. It never changes game state.
 
+import type { CityView, TileRect } from "../cityView";
 import * as Messages from "../messages";
 import type { PlayOptions } from "./engine";
 
@@ -123,12 +124,7 @@ export interface TileSource {
   getTileValue(x: number, y: number): number;
 }
 
-export interface TileRect {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
+export type { TileRect };
 
 /** Counts tile kinds in the rectangle (inclusive), sampling a grid when the view is large. */
 export function sampleView(map: TileSource, rect: TileRect, maxSamples = 2500): ViewStats {
@@ -197,11 +193,8 @@ export interface GameLike {
   };
   inputStatus: Emitter & { gameTools: { bulldozer: Emitter } };
   gameMap: TileSource;
-  gameCanvas: {
-    canvasWidth: number;
-    canvasHeight: number;
-    canvasCoordinateToTileCoordinate(x: number, y: number): { x: number; y: number } | null;
-  };
+  /** The 2D or 3D view (src/cityView.ts): its width for panning, and the tiles on screen for ambience. */
+  cityView: Pick<CityView, "width" | "visibleTiles">;
 }
 
 export interface MessageGroups {
@@ -244,16 +237,13 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
   game.inputStatus.addEventListener(Messages.SAVE_REQUESTED, () => player.play("ui.save"));
 
   const updateAmbience = (): void => {
-    const canvas = game.gameCanvas;
-    let rect: TileRect;
+    let rect: TileRect | null;
     try {
-      const topLeft = canvas.canvasCoordinateToTileCoordinate(0, 0);
-      const bottomRight = canvas.canvasCoordinateToTileCoordinate(canvas.canvasWidth - 1, canvas.canvasHeight - 1);
-      if (!topLeft || !bottomRight) return;
-      rect = { x0: topLeft.x, y0: topLeft.y, x1: bottomRight.x, y1: bottomRight.y };
+      rect = game.cityView.visibleTiles();
     } catch {
-      return; // The canvas is not ready yet
+      return; // The view is not ready yet
     }
+    if (!rect) return;
     const stats = sampleView(game.gameMap, rect);
     const levels = ambienceLevels(stats);
     for (const id of AMBIENCE_BEDS) player.setLoop(id, levels[id] ?? 0);
@@ -267,7 +257,7 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
     toolUsed(tool, result, canvasX) {
       const id = soundForTool(tool, result);
       if (!id) return;
-      const width = game.gameCanvas.canvasWidth;
+      const width = game.cityView.width;
       const pan = canvasX !== undefined && width > 0 ? ((canvasX / width) * 2 - 1) * TOOL_PAN_WIDTH : 0;
       player.play(id, { pan });
     },

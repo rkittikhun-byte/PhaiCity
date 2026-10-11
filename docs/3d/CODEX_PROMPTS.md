@@ -12,7 +12,8 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **R1** → **6A** → 7 → 8 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
+   (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
    - **Prompt 6A (ชุดสไตล์ประจำภาค) ต้องทำก่อน Prompt 7 ถึง 15** เพราะอาคารพวกนั้นดึงหลังคา สี และของประกอบจาก 6A
@@ -23,7 +24,7 @@
 
 | ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
 |---|---|---|
-| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **19** → **16B** → **16C** → **16D** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 17 → 18 |
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **19** → **16B** → **16C** → **16D** → 5B → 6 → **R1** → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → **R2** → 17 → **R3** → **R4** → 18 |
 | ~~Antigravity~~ | ~~worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics`~~ | ทำ **16** ยานพาหนะ (ในโฟลเดอร์หลัก) แล้วเลิกใช้ |
 
 - **11 ต.ค. 2026:** เจ้าของโปรเจคเลิกใช้ Antigravity กับงานกราฟิก เพราะรถจาก Prompt 16 เป็นกล่องและสีเพี้ยน
@@ -56,8 +57,8 @@ Do not merge, rebase or push. Report to me in Thai.
 
 ในแกลเลอรีมีมุมมอง "6 ภาค" ไว้เทียบโมเดลเดียวกันทั้ง 6 ภาคเคียงกัน
 
-**สิ่งที่ชุดนี้ไม่รวม:** การเปลี่ยนเกมให้แสดงผลเป็น 3D (ThreeCanvas)
-ชุดนี้สร้างเฉพาะโมเดลและหน้าแกลเลอรี
+**ตัววาดเมือง 3D ในเกม** (แทน `src/gameCanvas.js`) อยู่ใน Prompt R1–R4 ท้ายไฟล์ สเปกคือ `docs/3d/RENDERER_SPEC.md`
+Prompt 0–19 สร้างเฉพาะโมเดลและหน้าแกลเลอรี
 
 ---
 
@@ -1218,6 +1219,104 @@ Task: build the start screen's living background in three.js: a dark bamboo grov
    Report in Thai, and tell the owner that Claude Code must switch the import in src/provincePicker.ts.
 
 Follow the Definition of Done in MODEL_SPEC section 9 where it applies (this is not a tile model).
+```
+
+---
+
+## Prompt R1–R4 — เมือง 3D ในเกม (renderer)
+
+Prompt 0–19 สร้างโมเดลอย่างเดียว ชุด R นี้คือตัววาดเมืองที่เอาโมเดลมาวางตามแผนที่จริงในเกม แทน `src/gameCanvas.js`
+สเปกอยู่ใน `docs/3d/RENDERER_SPEC.md` เกมฝั่ง Claude Code คุยกับตัววาดผ่าน `CityView` (`src/cityView.ts`) อยู่แล้ว
+ระหว่างทำ เกม 2D เดิมยังเป็นค่าเริ่มต้น พอ R1 เสร็จ Claude Code จะเพิ่ม `index.html?view=3d` ให้ลองเมือง 3D ได้
+
+| Prompt | งาน | ทำหลัง |
+|---|---|---|
+| R1 | โครงตัววาด: พื้น น้ำ ป่า ถนน สะพาน ราง สายไฟ, กล้อง, คลิกเลือกช่อง, กรอบเครื่องมือ, เมืองทดสอบในแกลเลอรี | Prompt 6 |
+| R2 | โซนและอาคารทั้งหมด บ้าน 1 ช่อง อาคารพิเศษ ไฟในหน้าต่าง | Prompt 15 |
+| R3 | ของที่เคลื่อนไหว: รถไฟ เรือ เครื่องบิน พญานาค พายุ ไฟไหม้ น้ำท่วม รถบนถนน | Prompt 17 |
+| R4 | เก็บงาน: ความเร็ว LOD เงา กลางวัน/กลางคืน ฤดูฝน ภาพถ่ายทั้งเมือง | R3 |
+
+### Prompt R1 — โครงตัววาดเมือง 3D
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md and docs/3d/RENDERER_SPEC.md in full before starting, and follow every
+rule in them. Read src/cityView.ts and src/cityView2d.ts (Claude Code's files, read only): your view implements
+the same CityView interface.
+
+Task: the first working 3D city view, in src/render3d/city/.
+
+1. createCityView3D(setup) exactly as in RENDERER_SPEC section 3, implementing every CityView function as in
+   section 4, with the camera and mouse of section 5 (right button rotates, middle pans, wheel zooms; the left
+   button stays with the game's tools) and the <canvas id="MicropolisCanvas"> of section 2.
+2. Tiles to models (section 6) for everything that already has a model: dirt, water and shores, woods, rubble,
+   roads (all masks, bridges, the drawbridge, crossings with rail and power), rail (all masks), power lines if
+   Prompt 6 is done. Traffic road values 80–206 draw as plain roads.
+   Zones and buildings have no models yet: draw each footprint as a plain block whose height follows the zone's
+   density, coloured by zone type, so the city reads. Everything else gets the debug model.
+3. Chunks of 16 × 16 tiles with instancing, and change detection with time-sliced rebuilds (section 8).
+4. The tool outline from toolFootprint(), tileAt() and visibleTiles() by raycasting, smooth centreOn(), shake(),
+   screenshotVisible() and screenshotMap() (section 4).
+5. Sprites: a simple placeholder per sprite type at the right place and height; real models come in R3.
+6. A "City" view in the model gallery: a test city built in code at 200 × 200 (roads, rail, a river with bridges,
+   woods, zones of every type and density), with a frame-time readout, draw calls and a region switch.
+7. Tests in test/render3d/ as listed in RENDERER_SPEC section 10.1.
+
+Do not edit src/game.js, src/cityView.ts, src/cityView2d.ts or anything outside your paths. The 2D game must play
+exactly as before. Report in Thai with measured frame times and draw calls for the 200 × 200 test city, and tell
+the owner that Claude Code can now add index.html?view=3d in src/game.js.
+```
+
+### Prompt R2 — โซนและอาคาร
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md and docs/3d/RENDERER_SPEC.md in full before starting, and follow every
+rule in them.
+
+Task: replace the placeholder zone blocks of prompt R1 with the real models from Prompts 7–15.
+1. Zones by centre tile and ZONEBIT, footprint covered, with land value, density and industry type from the
+   value formulas (RENDERER_SPEC section 6). 1-tile houses, hospitals, police, fire stations, stadiums, power
+   plants, ports and the airport. Models that still don't exist keep the R1 placeholder.
+2. Regions: every R1/R2 model built for setup.region; the gallery's "City" view switches region live.
+3. POWERBIT: lit windows at night, and the floating "no power" icon on unpowered zones (section 6).
+4. Seeds from (x, y) only, so a building keeps its look when its density changes; seed buckets for instancing.
+5. LOD for buildings far from the camera (section 8) so the 200 × 200 test city keeps the frame-rate targets.
+6. Tests: every zone value and density maps to the right model id and footprint, in all 6 regions.
+
+Report in Thai with frame times and draw calls before and after, per region.
+```
+
+### Prompt R3 — ของที่เคลื่อนไหวและภัยพิบัติ
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md and docs/3d/RENDERER_SPEC.md in full before starting, and follow every
+rule in them.
+
+Task: the moving city (RENDERER_SPEC section 7).
+1. Game sprites with the real models from Prompts 16–16D and 17: trains, helicopters, airplanes, ships, the naga,
+   tornadoes and explosions, placed from their 16-unit positions, facing their direction, eased to 60 fps.
+2. Animated tiles: fire, flood water, radiation and rubble with the fx models from Prompt 17.
+3. Visual-only road traffic and boats from the traffic overlay, by region, capped and deterministic; they never
+   touch the game. Crossing barriers, lights and drawbridges open and close for passing trains and ships.
+4. isPaused freezes all of it while the camera keeps working.
+5. Tests: sprite placement and facing for every type, traffic stays on road tiles and under its cap.
+
+Report in Thai with frame times with heavy traffic and a running disaster.
+```
+
+### Prompt R4 — เก็บงานเมือง 3D
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md and docs/3d/RENDERER_SPEC.md in full before starting, and follow every
+rule in them.
+
+Task: make the 3D city ready to become the default view.
+1. Meet every performance target of RENDERER_SPEC section 8 on the 200 × 200 test city; profile and fix the worst
+   frames (chunk rebuilds, shadows, traffic).
+2. Shadows fitted to the visible area; day and night from a slow clock; rain and darker skies in the wet season
+   (months 4–9 of setup.date()); light haze in the cool season.
+3. screenshotMap() as a clean top-down image of the whole map (at most 4096 px).
+4. prefers-reduced-motion: no camera shake or flights, slower water.
+5. A short list in Thai of anything that still looks worse than the 2D view, with suggestions.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)
