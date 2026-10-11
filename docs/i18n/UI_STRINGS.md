@@ -556,6 +556,20 @@
 | `picker.zoom_in` | `src/provincePicker.ts` | `-` | `Zoom in` | `ซูมเข้า` | ปุ่มซูม |
 | `picker.zoom_out` | `src/provincePicker.ts` | `-` | `Zoom out` | `ซูมออก` | ปุ่มซูม |
 | `picker.zoom_reset` | `src/provincePicker.ts` | `-` | `Back to the view` | `กลับมุมเดิม` | ปุ่มซูม |
+| `cities.button` | `src/provincePicker.ts` | `-` | `My cities ({count})` | `เมืองของฉัน ({count})` | ปุ่มบนแถบบน |
+| `cities.title` | `src/provincePicker.ts` | `-` | `My cities` | `เมืองของฉัน` | หัวแถวการ์ดเมือง |
+| `cities.practice` | `src/provincePicker.ts` | `-` | `Practice map` | `แผนที่ฝึก` | เมืองบนแผนที่สุ่ม |
+| `cities.population` | `src/provincePicker.ts` | `-` | `Population {count}` | `ประชากร {count}` |  |
+| `cities.date` | `src/provincePicker.ts` | `-` | `{month} {year}` | `{month} {year}` | วันที่ในเกม |
+| `cities.saved` | `src/provincePicker.ts` | `-` | `Saved {when}` | `บันทึกเมื่อ {when}` | เวลาจริงที่บันทึก |
+| `cities.hint` | `src/provincePicker.ts` | `-` | `Press Enter or click to carry on` | `กด Enter หรือคลิก เพื่อเล่นต่อ` |  |
+| `cities.continue` | `src/provincePicker.ts` | `-` | `Carry on with this city` | `เล่นเมืองนี้ต่อ` | ปุ่มหลักในการ์ดเมือง |
+| `cities.delete` | `src/provincePicker.ts` | `-` | `Delete this city` | `ลบเมืองนี้` |  |
+| `cities.delete_confirm` | `src/provincePicker.ts` | `-` | `Delete {city} for good?` | `ลบเมือง {city} ถาวรใช่ไหม` | ถามก่อนลบ |
+| `cities.delete_yes` | `src/provincePicker.ts` | `-` | `Delete` | `ลบ` |  |
+| `cities.delete_no` | `src/provincePicker.ts` | `-` | `Keep it` | `เก็บไว้` |  |
+| `picker.existing_city` | `src/provincePicker.ts` | `-` | `You already rule {city} here` | `คุณมีเมือง {city} ในจังหวัดนี้แล้ว` | ในการ์ดจังหวัด |
+| `save.full` | `src/provincePicker.ts` | `-` | `Not enough space to save. Delete an old city in My cities first.` | `พื้นที่บันทึกไม่พอ ลบเมืองเก่าในเมืองของฉันก่อน` | ตอนบันทึกไม่สำเร็จ |
 | `picker.region_title` | `src/provincePicker.ts` | `-` | `Choose the region you will live in` | `เลือกภาคที่จะไปอยู่` | หัวขั้นเลือกภาค |
 | `picker.region_hint` | `src/provincePicker.ts` | `-` | `Point at a region, then click to see it` | `ชี้ที่ภาคเพื่อดู แล้วคลิกเพื่อเลือก` |  |
 | `picker.region_provinces` | `src/provincePicker.ts` | `-` | `{count} provinces` | `{count} จังหวัด` |  |

@@ -28,6 +28,7 @@ import { t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
+import { saveCity, StorageFullError } from './cityStorage.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { NagWindow } from './nagWindow.js';
@@ -63,6 +64,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   // Which province and online world this city belongs to (both null for offline random maps)
   var source = savedGame || gameMap;
   this.provinceId = source.provinceId || null;
+  // Which saved city this is (src/cityStorage.ts); a new city gets its id when first saved
+  this.cityId = savedGame ? savedGame.cityId || null : null;
   this.worldId = source.worldId || null;
 
   this.tileSet = tileSet;
@@ -272,13 +275,26 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 }
 
 
+// Saves this city in its own slot. Returns false when the browser's storage is full.
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
                   provinceId: this.provinceId, worldId: this.worldId};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
-  Storage.saveGame(saveData);
+  var date = this.simulation.getDate();
+  try {
+    this.cityId = saveCity(saveData, {
+      name: this.name, provinceId: this.provinceId, worldId: this.worldId,
+      population: this.simulation.evaluation.cityPop, funds: this.simulation.budget.totalFunds,
+      year: date.year, month: date.month
+    }, this.cityId);
+    return true;
+  } catch (e) {
+    if (e instanceof StorageFullError)
+      return false;
+    throw e;
+  }
 };
 
 
@@ -466,8 +482,11 @@ Game.prototype.handleMainMenuClosure = function(choice) {
   if (choice === 'stay')
     return;
 
-  if (choice === 'save')
-    this.save();
+  // If the city could not be saved, stay and say so rather than lose it
+  if (choice === 'save' && !this.save()) {
+    this.handleSave();
+    return;
+  }
   window.location.assign(window.location.pathname);
 };
 
@@ -521,7 +540,9 @@ Game.prototype.handleTool = function(data) {
 
 
 Game.prototype.handleSave = function() {
-  this.save();
+  // The save window says whether it worked
+  var saved = this.save();
+  $('#saveContainer [data-i18n="save.message"]').text(t(saved ? 'save.message' : 'save.full'));
   this.dialogOpen = true;
   this._openWindow = 'saveWindow';
   this.saveWindow.open();

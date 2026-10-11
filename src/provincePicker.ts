@@ -12,10 +12,11 @@
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
 import { audio, soundIcon } from "./audio/index";
+import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
 import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
-import { getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
+import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
@@ -50,16 +51,13 @@ interface Scene {
   focus: string | null;
 }
 
-export interface SavedCity {
-  name: string;
-  provinceId: string | null;
-}
-
 export interface StartActions {
-  saved: SavedCity | null;
+  /** Saved cities, most recent first (src/cityStorage.ts) */
+  cities: CityMeta[];
   /** difficulty is a Simulation level: 0 easy, 1 medium, 2 hard */
   start(provinceId: string, cityName: string, difficulty: number): void;
-  continueSaved(): void;
+  continueCity(id: string): void;
+  deleteCity(id: string): void;
   practice(): void;
 }
 
@@ -71,7 +69,9 @@ export interface StartOptions {
 }
 
 type ViewBox = [number, number, number, number];
-type Mode = "intro" | "region" | "province";
+type Mode = "intro" | "region" | "province" | "cities";
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 interface Tile {
   id: string;
@@ -254,10 +254,8 @@ function buildShell(): View {
   const left = element("div", "ppTopLeft");
   left.append(element("span", "ppBrand", "PhaiCity"), back);
   const right = element("div", "ppTopRight");
-  const saved = actions?.saved;
-  if (saved) {
-    right.appendChild(button("ppQuiet ppContinue", t("splash.btn.continue", { city: saved.name }), () => leaveTo(() => actions?.continueSaved())));
-  }
+  const cityCount = actions?.cities.length ?? 0;
+  if (cityCount > 0) right.appendChild(button("ppQuiet ppContinue", t("cities.button", { count: cityCount }), () => showCities()));
   right.append(button("ppQuiet", t("start.practice"), () => leaveTo(() => actions?.practice())), replay, sound, language, menus, skip, clock);
   top.append(left, right);
 
@@ -797,6 +795,7 @@ function focusTile(index: number): void {
   audio.play("ui.select");
   if (mode === "region") showRegionHero(tiles[next].id);
   else if (mode === "province") showProvinceHero(tiles[next].id);
+  else if (mode === "cities") showCityHero(tiles[next].id);
 }
 
 function selectTile(index: number): void {
@@ -806,7 +805,113 @@ function selectTile(index: number): void {
   else if (mode === "province") {
     focusTile(index);
     openCard(tile.id);
+  } else if (mode === "cities") {
+    focusTile(index);
+    openCityCard(tile.id);
   }
+}
+
+// --- My cities: carry on with a saved city, or delete it ---
+
+function cityProvince(city: CityMeta): Province | undefined {
+  return city.provinceId ? data?.provinces.get(city.provinceId) : undefined;
+}
+
+function cityPlace(city: CityMeta): string {
+  const province = cityProvince(city);
+  return province ? localName(province) : t("cities.practice");
+}
+
+function showCities(): void {
+  if (!view || !data || !actions) return;
+  if (actions.cities.length === 0) {
+    showRegions(false);
+    return;
+  }
+  window.clearTimeout(sceneTimer);
+  mode = "cities";
+  currentRegion = null;
+  closeCard();
+  setChrome({ back: true, row: true });
+  setTiles(t("cities.title"), actions.cities.map((city) => ({
+    id: city.id,
+    name: city.name,
+    meta: `${cityPlace(city)} · ${t("cities.population", { count: city.population.toLocaleString("en-US") })}`,
+    color: REGION_COLORS[cityProvince(city)?.region ?? ""] ?? "#8a8f7a",
+  })));
+  focusIndex = -1;
+  focusTile(0);
+}
+
+function showCityHero(id: string): void {
+  if (!view || !data) return;
+  const city = actions?.cities.find((c) => c.id === id);
+  if (!city) return;
+  const province = cityProvince(city);
+  const region = province ? data.regions.find((r) => r.id === province.region) : undefined;
+  if (province) {
+    applyMapState({ focus: province.region, provinceNames: true, selected: province.id });
+    flyTo(provinceBox(province.id));
+  } else {
+    applyMapState({ regionNames: true });
+    flyTo(countryBox());
+  }
+  view.backdrop.setTint(province ? REGION_COLORS[province.region] ?? GOLD : GOLD);
+
+  const body = element("div", "ppStats");
+  const funds = element("div", "ppFunds");
+  funds.append(element("span", undefined, t("cities.population", { count: "" }).trim()),
+    element("strong", undefined, city.population.toLocaleString("en-US")));
+  const facts = element("p", "ppHeroExtra",
+    `${money(city.funds)} · ${t("cities.date", { month: t(`month.${MONTHS[city.month] ?? "jan"}`), year: formatYear(city.year) })}`);
+  const saved = element("p", "ppHeroExtra", t("cities.saved", {
+    when: new Date(city.savedAt).toLocaleDateString(getLanguage() === "en" ? "en-GB" : "th-TH",
+      { day: "numeric", month: "short", year: "numeric" }),
+  }));
+  body.append(funds, facts, saved);
+  setHero({
+    title: city.name,
+    sub: region ? `${cityPlace(city)} · ${localName(region)}` : cityPlace(city),
+    body,
+    hint: t("cities.hint"),
+  });
+}
+
+function openCityCard(id: string): void {
+  if (!view || !actions) return;
+  const city = actions.cities.find((c) => c.id === id);
+  if (!city) return;
+  const card = element("div", "ppCard");
+  card.append(element("h3", undefined, city.name), element("p", "ppSmall", cityPlace(city)));
+  card.appendChild(button("ppStart", t("cities.continue"), () => leaveTo(() => actions?.continueCity(id))));
+
+  // Deleting asks first, in place
+  const danger = element("div", "ppDanger");
+  const ask = button("ppChipButton", t("cities.delete"), () => {
+    const confirm = element("div", "ppConfirm");
+    confirm.append(
+      element("p", undefined, t("cities.delete_confirm", { city: city.name })),
+      button("ppChipButton ppDeleteYes", t("cities.delete_yes"), () => {
+        actions?.deleteCity(id);
+        if (actions) actions.cities = actions.cities.filter((c) => c.id !== id);
+        const counter = view?.overlay.querySelector(".ppContinue");
+        if (counter && actions) {
+          if (actions.cities.length > 0) counter.textContent = t("cities.button", { count: actions.cities.length });
+          else counter.remove();
+        }
+        showCities();
+      }),
+      button("ppChipButton", t("cities.delete_no"), () => danger.replaceChildren(ask)),
+    );
+    danger.replaceChildren(confirm);
+  });
+  danger.appendChild(ask);
+  card.appendChild(danger);
+
+  view.panel.replaceChildren(card);
+  if (!cardOpen()) show(view.panel);
+  view.overlay.classList.add("ppCardOpen");
+  if (framedBox) flyTo(framedBox);
 }
 
 // --- 1. The story, playing by itself ---
@@ -1151,6 +1256,15 @@ function openCard(provinceId: string, focusName = true): void {
 
   const card = element("div", "ppCard");
   card.append(element("h3", undefined, localName(province)));
+  const existing = actions?.cities.find((city) => city.provinceId === province.id);
+  if (existing) {
+    const note = element("div", "ppExisting");
+    note.append(
+      element("p", undefined, t("picker.existing_city", { city: existing.name })),
+      button("ppChipButton ppContinueChip", t("cities.continue"), () => leaveTo(() => actions?.continueCity(existing.id))),
+    );
+    card.appendChild(note);
+  }
 
   const nameLabel = element("label", "ppField");
   const nameInput = element("input", "ppName");
@@ -1234,6 +1348,7 @@ function onKeyDown(event: KeyboardEvent): void {
       const step = event.key === "ArrowRight" ? 1 : -1;
       focusTile(focusIndex < 0 ? 0 : focusIndex + step);
       if (mode === "province" && cardOpen()) openCard(tiles[focusIndex].id, false);
+      if (mode === "cities" && cardOpen()) openCityCard(tiles[focusIndex].id);
       break;
     }
     case "Enter":
@@ -1242,7 +1357,7 @@ function onKeyDown(event: KeyboardEvent): void {
     case "Escape":
     case "Backspace":
       if (!view.panel.hidden) closeCard();
-      else if (mode === "province") showRegions(false);
+      else if (mode === "province" || mode === "cities") showRegions(false);
       break;
     default:
       return;
@@ -1261,6 +1376,7 @@ onLanguageChange(() => {
   buildMap();
   if (mode === "intro") playIntro(sceneIndex);
   else if (mode === "province" && currentRegion) enterRegion(currentRegion, cardOpen ? selectedProvince : null);
+  else if (mode === "cities") showCities();
   else showRegions(false);
 });
 

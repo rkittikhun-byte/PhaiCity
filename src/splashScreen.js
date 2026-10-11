@@ -13,6 +13,7 @@
 
 import $ from "jquery";
 
+import { deleteCity, listCities, loadCity } from './cityStorage.ts';
 import { Game } from './game.js';
 import { decodePresetCells } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
@@ -75,13 +76,18 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   this.spriteSheet = spriteSheet;
 
   $('#saveRequest').prop('disabled', !Storage.canStore);
-  var savedGame = Storage.canStore ? Storage.getSavedGame() : null;
   var requested = getRequestedProvince();
 
   openStartScreen({
-    saved: savedGame === null ? null : {name: savedGame.name, provinceId: savedGame.provinceId || null},
+    cities: listCities(),
     start: startProvince.bind(this),
-    continueSaved: launch.bind(this, savedGame, Simulation.LEVEL_EASY, null),
+    // A saved city brings its own name and difficulty
+    continueCity: function(id) {
+      var savedGame = loadCity(id);
+      if (savedGame !== null)
+        launch.call(this, savedGame, Simulation.LEVEL_EASY, null);
+    }.bind(this),
+    deleteCity: deleteCity,
     practice: function() {
       launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'));
     }.bind(this)

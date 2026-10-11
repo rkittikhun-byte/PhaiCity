@@ -76,7 +76,9 @@ var Storage = {
 
 Object.defineProperty(Storage, 'CURRENT_VERSION', MiscUtils.makeConstantDescriptor(4));
 Object.defineProperty(Storage, 'KEY', MiscUtils.makeConstantDescriptor('micropolisJSGame'));
-Object.defineProperty(Storage, 'canStore', MiscUtils.makeConstantDescriptor(window.localStorage !== undefined));
+// Checked safely, so the save helpers also load in Node (tests, a future server)
+Object.defineProperty(Storage, 'canStore', MiscUtils.makeConstantDescriptor(
+  typeof window !== 'undefined' && window.localStorage !== undefined));
 
 
 export { Storage };

@@ -116,7 +116,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - Sound ids, files and volumes are in `src/audio/catalog.ts`; every file must come through
     `npm run audio:build` so it is CC0 and credited.
   - Nothing plays before the player's first click or key press (browser rule).
-- **Saves:** localStorage key `micropolisJSGame` (`src/storage.js`), version 4.
+- **Saves:** many cities (`src/cityStorage.ts`): an index in `phaicity.cities` and one save per city in
+  `phaicity.city.<id>`, with the map run-length encoded (a 200×200 city is about 20 KB instead of 560 KB).
+  The save format and its migrations are still `src/storage.js` (version 4); the old single save
+  `micropolisJSGame` is copied in once and left untouched. "My cities" on the start screen carries on or deletes them.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.

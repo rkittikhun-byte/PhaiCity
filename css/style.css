@@ -1191,6 +1191,15 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   background: linear-gradient(135deg, #f6d77a, #d29a2c); color: #1c1405; box-shadow: 0 10px 30px rgba(210, 154, 44, 0.35); }
 #provincePicker .ppStart:hover { filter: brightness(1.08); box-shadow: 0 12px 36px rgba(246, 215, 122, 0.45); }
 
+/* My cities */
+#provincePicker .ppDanger { margin-top: 26px; }
+#provincePicker .ppConfirm p { margin: 0 0 8px; color: #f3b0a0; }
+#provincePicker .ppDeleteYes { border-color: rgba(230, 110, 90, 0.8); color: #ffb3a3; margin-right: 6px; }
+#provincePicker .ppExisting { margin: 6px 0 4px; padding: 10px 12px; border-radius: 12px; background: rgba(246, 215, 122, 0.1);
+  border: 1px solid rgba(246, 215, 122, 0.35); }
+#provincePicker .ppExisting p { margin: 0 0 8px; font-size: 14px; }
+#provincePicker .ppContinueChip { border-color: #f6d77a; color: #f6d77a; }
+
 /* The required credits: tiny and quiet at the bottom */
 #provincePicker .ppCredits { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 10px; line-height: 1.5;
   color: rgba(238, 243, 239, 0.42); }
