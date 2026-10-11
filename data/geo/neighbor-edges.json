@@ -1,0 +1,2641 @@
+{
+  "_meta": {
+    "description": "Map edge facing each neighboring province. Positions run west→east on N/S edges and north→south on E/W edges (GEO_SPEC section 8).",
+    "license": "Derived from OpenStreetMap data, © OpenStreetMap contributors, ODbL 1.0",
+    "generatedAt": "2026-10-11T05:24:18.406Z"
+  },
+  "edges": {
+    "TH-50": [
+      {
+        "neighbor": "TH-57",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 35.4
+      },
+      {
+        "neighbor": "TH-63",
+        "edge": "S",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 176
+      },
+      {
+        "neighbor": "TH-51",
+        "edge": "S",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 174.6
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "S",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 135.8
+      },
+      {
+        "neighbor": "TH-58",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 298.2
+      }
+    ],
+    "TH-51": [
+      {
+        "neighbor": "TH-50",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 354.6
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 121.7
+      },
+      {
+        "neighbor": "TH-63",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 176.2
+      }
+    ],
+    "TH-52": [
+      {
+        "neighbor": "TH-50",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 315.9
+      },
+      {
+        "neighbor": "TH-57",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 11.1
+      },
+      {
+        "neighbor": "TH-56",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 23.6
+      },
+      {
+        "neighbor": "TH-54",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 103.5
+      },
+      {
+        "neighbor": "TH-63",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 194.1
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 166.4
+      },
+      {
+        "neighbor": "TH-51",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 301.9
+      }
+    ],
+    "TH-53": [
+      {
+        "neighbor": "TH-54",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 4.6
+      },
+      {
+        "neighbor": "TH-55",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 28.9
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 203.5
+      },
+      {
+        "neighbor": "TH-65",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 168.9
+      }
+    ],
+    "TH-54": [
+      {
+        "neighbor": "TH-56",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 347.5
+      },
+      {
+        "neighbor": "TH-55",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 43.2
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 195.2
+      },
+      {
+        "neighbor": "TH-53",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 184.7
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 283.7
+      }
+    ],
+    "TH-55": [
+      {
+        "neighbor": "TH-54",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 223.4
+      },
+      {
+        "neighbor": "TH-53",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 209.1
+      },
+      {
+        "neighbor": "TH-56",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 295.4
+      }
+    ],
+    "TH-56": [
+      {
+        "neighbor": "TH-57",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 355
+      },
+      {
+        "neighbor": "TH-55",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 115.1
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 203.8
+      },
+      {
+        "neighbor": "TH-54",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 167.4
+      }
+    ],
+    "TH-57": [
+      {
+        "neighbor": "TH-50",
+        "edge": "S",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 215.7
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "S",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 191.2
+      },
+      {
+        "neighbor": "TH-56",
+        "edge": "S",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 175
+      }
+    ],
+    "TH-58": [
+      {
+        "neighbor": "TH-50",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 117.9
+      },
+      {
+        "neighbor": "TH-63",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 155.4
+      }
+    ],
+    "TH-30": [
+      {
+        "neighbor": "TH-36",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 355.6
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 25.9
+      },
+      {
+        "neighbor": "TH-31",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 88.7
+      },
+      {
+        "neighbor": "TH-25",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 217.4
+      },
+      {
+        "neighbor": "TH-27",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 181.3
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "W",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 263.3
+      },
+      {
+        "neighbor": "TH-19",
+        "edge": "W",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 248.7
+      },
+      {
+        "neighbor": "TH-26",
+        "edge": "W",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 228.1
+      }
+    ],
+    "TH-31": [
+      {
+        "neighbor": "TH-40",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 349.7
+      },
+      {
+        "neighbor": "TH-44",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 8.7
+      },
+      {
+        "neighbor": "TH-32",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 106.8
+      },
+      {
+        "neighbor": "TH-27",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 220.6
+      },
+      {
+        "neighbor": "TH-30",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 268.9
+      }
+    ],
+    "TH-32": [
+      {
+        "neighbor": "TH-44",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 352
+      },
+      {
+        "neighbor": "TH-45",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 7.5
+      },
+      {
+        "neighbor": "TH-33",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 74
+      },
+      {
+        "neighbor": "TH-31",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 286.9
+      }
+    ],
+    "TH-33": [
+      {
+        "neighbor": "TH-45",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 325.4
+      },
+      {
+        "neighbor": "TH-35",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 345.4
+      },
+      {
+        "neighbor": "TH-34",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 77.5
+      },
+      {
+        "neighbor": "TH-32",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 254.2
+      }
+    ],
+    "TH-34": [
+      {
+        "neighbor": "TH-37",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 340.8
+      },
+      {
+        "neighbor": "TH-35",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 309.5
+      },
+      {
+        "neighbor": "TH-33",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 257.6
+      }
+    ],
+    "TH-35": [
+      {
+        "neighbor": "TH-49",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 36.7
+      },
+      {
+        "neighbor": "TH-37",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 81.2
+      },
+      {
+        "neighbor": "TH-34",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 129.3
+      },
+      {
+        "neighbor": "TH-33",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 165.4
+      },
+      {
+        "neighbor": "TH-45",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 299.1
+      }
+    ],
+    "TH-36": [
+      {
+        "neighbor": "TH-40",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 51
+      },
+      {
+        "neighbor": "TH-30",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 175.6
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 306.1
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 233.9
+      }
+    ],
+    "TH-37": [
+      {
+        "neighbor": "TH-49",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 8.2
+      },
+      {
+        "neighbor": "TH-34",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 160.7
+      },
+      {
+        "neighbor": "TH-35",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 261.3
+      }
+    ],
+    "TH-38": [
+      {
+        "neighbor": "TH-48",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 131.6
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 220.8
+      },
+      {
+        "neighbor": "TH-47",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 158.4
+      },
+      {
+        "neighbor": "TH-43",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 240.7
+      }
+    ],
+    "TH-39": [
+      {
+        "neighbor": "TH-41",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 58
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 153.8
+      },
+      {
+        "neighbor": "TH-42",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 293.1
+      }
+    ],
+    "TH-40": [
+      {
+        "neighbor": "TH-42",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 315.2
+      },
+      {
+        "neighbor": "TH-39",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 334
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 357.3
+      },
+      {
+        "neighbor": "TH-46",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 89.6
+      },
+      {
+        "neighbor": "TH-44",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 118.5
+      },
+      {
+        "neighbor": "TH-30",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 206.1
+      },
+      {
+        "neighbor": "TH-31",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 169.6
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 269.8
+      },
+      {
+        "neighbor": "TH-36",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 231.2
+      }
+    ],
+    "TH-41": [
+      {
+        "neighbor": "TH-43",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 355.6
+      },
+      {
+        "neighbor": "TH-38",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 40.5
+      },
+      {
+        "neighbor": "TH-47",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 100.4
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 177.3
+      },
+      {
+        "neighbor": "TH-46",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 144.7
+      },
+      {
+        "neighbor": "TH-42",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 274.8
+      },
+      {
+        "neighbor": "TH-39",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 238.1
+      }
+    ],
+    "TH-42": [
+      {
+        "neighbor": "TH-43",
+        "edge": "E",
+        "from": 0,
+        "to": 0.25,
+        "bearing": 67.9
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "E",
+        "from": 0.25,
+        "to": 0.5,
+        "bearing": 94.5
+      },
+      {
+        "neighbor": "TH-39",
+        "edge": "E",
+        "from": 0.5,
+        "to": 0.75,
+        "bearing": 112.9
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "E",
+        "from": 0.75,
+        "to": 1,
+        "bearing": 134.9
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 207.2
+      },
+      {
+        "neighbor": "TH-65",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 244.5
+      }
+    ],
+    "TH-43": [
+      {
+        "neighbor": "TH-38",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 60.4
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 175.6
+      },
+      {
+        "neighbor": "TH-42",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 248.2
+      }
+    ],
+    "TH-44": [
+      {
+        "neighbor": "TH-46",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 38.9
+      },
+      {
+        "neighbor": "TH-45",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 111.1
+      },
+      {
+        "neighbor": "TH-31",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 188.8
+      },
+      {
+        "neighbor": "TH-32",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 171.9
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 298.7
+      }
+    ],
+    "TH-45": [
+      {
+        "neighbor": "TH-46",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 339.7
+      },
+      {
+        "neighbor": "TH-49",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 64.7
+      },
+      {
+        "neighbor": "TH-35",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 119
+      },
+      {
+        "neighbor": "TH-32",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 187.5
+      },
+      {
+        "neighbor": "TH-33",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 145.2
+      },
+      {
+        "neighbor": "TH-44",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 291.2
+      }
+    ],
+    "TH-46": [
+      {
+        "neighbor": "TH-41",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 324.9
+      },
+      {
+        "neighbor": "TH-47",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 40.1
+      },
+      {
+        "neighbor": "TH-49",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 84.6
+      },
+      {
+        "neighbor": "TH-44",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 219
+      },
+      {
+        "neighbor": "TH-45",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 159.7
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 269.8
+      }
+    ],
+    "TH-47": [
+      {
+        "neighbor": "TH-38",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 338.5
+      },
+      {
+        "neighbor": "TH-48",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 68.5
+      },
+      {
+        "neighbor": "TH-46",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 220.2
+      },
+      {
+        "neighbor": "TH-49",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 138.3
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 280.8
+      }
+    ],
+    "TH-48": [
+      {
+        "neighbor": "TH-49",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 183.6
+      },
+      {
+        "neighbor": "TH-38",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 312
+      },
+      {
+        "neighbor": "TH-47",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 248.7
+      }
+    ],
+    "TH-49": [
+      {
+        "neighbor": "TH-47",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 318.5
+      },
+      {
+        "neighbor": "TH-48",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 3.6
+      },
+      {
+        "neighbor": "TH-35",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 216.9
+      },
+      {
+        "neighbor": "TH-37",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 188.2
+      },
+      {
+        "neighbor": "TH-46",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 264.9
+      },
+      {
+        "neighbor": "TH-45",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 245
+      }
+    ],
+    "TH-10": [
+      {
+        "neighbor": "TH-12",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 358
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 7.6
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 96.4
+      },
+      {
+        "neighbor": "TH-11",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 148.4
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 279.1
+      },
+      {
+        "neighbor": "TH-74",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 227
+      }
+    ],
+    "TH-11": [
+      {
+        "neighbor": "TH-10",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 328.4
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 78.4
+      }
+    ],
+    "TH-12": [
+      {
+        "neighbor": "TH-14",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 7.6
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 12.4
+      },
+      {
+        "neighbor": "TH-10",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 177.9
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 266.8
+      }
+    ],
+    "TH-13": [
+      {
+        "neighbor": "TH-14",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 5.1
+      },
+      {
+        "neighbor": "TH-19",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 36.2
+      },
+      {
+        "neighbor": "TH-26",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 74.4
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 122.4
+      },
+      {
+        "neighbor": "TH-12",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 192.4
+      },
+      {
+        "neighbor": "TH-10",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 187.6
+      }
+    ],
+    "TH-14": [
+      {
+        "neighbor": "TH-15",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 335.4
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 6.2
+      },
+      {
+        "neighbor": "TH-19",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 63.2
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "S",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 222.3
+      },
+      {
+        "neighbor": "TH-12",
+        "edge": "S",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 187.7
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "S",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 185.1
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 285.1
+      }
+    ],
+    "TH-15": [
+      {
+        "neighbor": "TH-17",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 350.4
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 36.9
+      },
+      {
+        "neighbor": "TH-14",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 155.3
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 249.3
+      }
+    ],
+    "TH-16": [
+      {
+        "neighbor": "TH-60",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 332.8
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 17.8
+      },
+      {
+        "neighbor": "TH-36",
+        "edge": "E",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 53.5
+      },
+      {
+        "neighbor": "TH-30",
+        "edge": "E",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 82.9
+      },
+      {
+        "neighbor": "TH-19",
+        "edge": "E",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 133.5
+      },
+      {
+        "neighbor": "TH-15",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 217
+      },
+      {
+        "neighbor": "TH-14",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 186.2
+      },
+      {
+        "neighbor": "TH-17",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 293.6
+      }
+    ],
+    "TH-17": [
+      {
+        "neighbor": "TH-18",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 317.9
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 342.5
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 113.5
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 212.8
+      },
+      {
+        "neighbor": "TH-15",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 170.3
+      }
+    ],
+    "TH-18": [
+      {
+        "neighbor": "TH-61",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 334.6
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 0.8
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 180.7
+      },
+      {
+        "neighbor": "TH-17",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 137.8
+      }
+    ],
+    "TH-19": [
+      {
+        "neighbor": "TH-30",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 68.4
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 216.3
+      },
+      {
+        "neighbor": "TH-26",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 138
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 313.6
+      },
+      {
+        "neighbor": "TH-14",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 243.3
+      }
+    ],
+    "TH-26": [
+      {
+        "neighbor": "TH-19",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 318
+      },
+      {
+        "neighbor": "TH-30",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 47.8
+      },
+      {
+        "neighbor": "TH-25",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 134.3
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 195.2
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 254.6
+      }
+    ],
+    "TH-60": [
+      {
+        "neighbor": "TH-63",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 320.5
+      },
+      {
+        "neighbor": "TH-62",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 323
+      },
+      {
+        "neighbor": "TH-66",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 15.3
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 53.9
+      },
+      {
+        "neighbor": "TH-61",
+        "edge": "S",
+        "from": 0,
+        "to": 0.25,
+        "bearing": 197.4
+      },
+      {
+        "neighbor": "TH-18",
+        "edge": "S",
+        "from": 0.25,
+        "to": 0.5,
+        "bearing": 180.8
+      },
+      {
+        "neighbor": "TH-17",
+        "edge": "S",
+        "from": 0.5,
+        "to": 0.75,
+        "bearing": 162.5
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "S",
+        "from": 0.75,
+        "to": 1,
+        "bearing": 152.7
+      }
+    ],
+    "TH-61": [
+      {
+        "neighbor": "TH-63",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 329.9
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 17.3
+      },
+      {
+        "neighbor": "TH-71",
+        "edge": "S",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 199.5
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "S",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 174.6
+      },
+      {
+        "neighbor": "TH-18",
+        "edge": "S",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 154.6
+      }
+    ],
+    "TH-62": [
+      {
+        "neighbor": "TH-63",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 315.9
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 27.5
+      },
+      {
+        "neighbor": "TH-65",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 64.1
+      },
+      {
+        "neighbor": "TH-66",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 92.2
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 142.8
+      }
+    ],
+    "TH-64": [
+      {
+        "neighbor": "TH-52",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 346.5
+      },
+      {
+        "neighbor": "TH-54",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 15.1
+      },
+      {
+        "neighbor": "TH-53",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 23.4
+      },
+      {
+        "neighbor": "TH-65",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 114.7
+      },
+      {
+        "neighbor": "TH-62",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 207.6
+      },
+      {
+        "neighbor": "TH-63",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 258.3
+      }
+    ],
+    "TH-65": [
+      {
+        "neighbor": "TH-53",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 348.9
+      },
+      {
+        "neighbor": "TH-42",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 64.1
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 114.8
+      },
+      {
+        "neighbor": "TH-66",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 168.3
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 294.8
+      },
+      {
+        "neighbor": "TH-62",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 244.3
+      }
+    ],
+    "TH-66": [
+      {
+        "neighbor": "TH-65",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 348.3
+      },
+      {
+        "neighbor": "TH-67",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 91.7
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 195.4
+      },
+      {
+        "neighbor": "TH-62",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 272.5
+      }
+    ],
+    "TH-67": [
+      {
+        "neighbor": "TH-42",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 27
+      },
+      {
+        "neighbor": "TH-40",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 89.3
+      },
+      {
+        "neighbor": "TH-36",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 125.9
+      },
+      {
+        "neighbor": "TH-16",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 197.9
+      },
+      {
+        "neighbor": "TH-65",
+        "edge": "W",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 295.1
+      },
+      {
+        "neighbor": "TH-66",
+        "edge": "W",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 271.9
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "W",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 234.2
+      }
+    ],
+    "TH-72": [
+      {
+        "neighbor": "TH-61",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 354.7
+      },
+      {
+        "neighbor": "TH-18",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 0.7
+      },
+      {
+        "neighbor": "TH-17",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 32.7
+      },
+      {
+        "neighbor": "TH-15",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 69.2
+      },
+      {
+        "neighbor": "TH-14",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 105
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 184.5
+      },
+      {
+        "neighbor": "TH-71",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 231.8
+      }
+    ],
+    "TH-73": [
+      {
+        "neighbor": "TH-72",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 4.5
+      },
+      {
+        "neighbor": "TH-14",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 42.2
+      },
+      {
+        "neighbor": "TH-12",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 86.7
+      },
+      {
+        "neighbor": "TH-10",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 99
+      },
+      {
+        "neighbor": "TH-70",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 220.3
+      },
+      {
+        "neighbor": "TH-74",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 142.8
+      },
+      {
+        "neighbor": "TH-71",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 291.6
+      }
+    ],
+    "TH-74": [
+      {
+        "neighbor": "TH-73",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 322.8
+      },
+      {
+        "neighbor": "TH-10",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 46.9
+      },
+      {
+        "neighbor": "TH-70",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 268.7
+      },
+      {
+        "neighbor": "TH-75",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 242.1
+      }
+    ],
+    "TH-75": [
+      {
+        "neighbor": "TH-74",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 62
+      },
+      {
+        "neighbor": "TH-76",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 189.7
+      },
+      {
+        "neighbor": "TH-70",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 306.6
+      }
+    ],
+    "TH-20": [
+      {
+        "neighbor": "TH-24",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 14.1
+      },
+      {
+        "neighbor": "TH-22",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 124.9
+      },
+      {
+        "neighbor": "TH-21",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 157.5
+      }
+    ],
+    "TH-21": [
+      {
+        "neighbor": "TH-20",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 337.6
+      },
+      {
+        "neighbor": "TH-22",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 95.3
+      }
+    ],
+    "TH-22": [
+      {
+        "neighbor": "TH-24",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 317.3
+      },
+      {
+        "neighbor": "TH-27",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 358.7
+      },
+      {
+        "neighbor": "TH-23",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 131.9
+      },
+      {
+        "neighbor": "TH-20",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 305.2
+      },
+      {
+        "neighbor": "TH-21",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 275.5
+      }
+    ],
+    "TH-23": [
+      {
+        "neighbor": "TH-22",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 312
+      }
+    ],
+    "TH-24": [
+      {
+        "neighbor": "TH-26",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 15.2
+      },
+      {
+        "neighbor": "TH-25",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 38.7
+      },
+      {
+        "neighbor": "TH-27",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 82.2
+      },
+      {
+        "neighbor": "TH-20",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 194.1
+      },
+      {
+        "neighbor": "TH-22",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 137.1
+      },
+      {
+        "neighbor": "TH-13",
+        "edge": "W",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 302.5
+      },
+      {
+        "neighbor": "TH-10",
+        "edge": "W",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 276.5
+      },
+      {
+        "neighbor": "TH-11",
+        "edge": "W",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 258.5
+      }
+    ],
+    "TH-25": [
+      {
+        "neighbor": "TH-30",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 37.3
+      },
+      {
+        "neighbor": "TH-27",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 109
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 218.8
+      },
+      {
+        "neighbor": "TH-26",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 314.4
+      }
+    ],
+    "TH-27": [
+      {
+        "neighbor": "TH-30",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 1.3
+      },
+      {
+        "neighbor": "TH-31",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 40.4
+      },
+      {
+        "neighbor": "TH-22",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 178.6
+      },
+      {
+        "neighbor": "TH-25",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 289.2
+      },
+      {
+        "neighbor": "TH-24",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 262.5
+      }
+    ],
+    "TH-63": [
+      {
+        "neighbor": "TH-58",
+        "edge": "N",
+        "from": 0,
+        "to": 0.25,
+        "bearing": 335.8
+      },
+      {
+        "neighbor": "TH-50",
+        "edge": "N",
+        "from": 0.25,
+        "to": 0.5,
+        "bearing": 356.1
+      },
+      {
+        "neighbor": "TH-51",
+        "edge": "N",
+        "from": 0.5,
+        "to": 0.75,
+        "bearing": 356.2
+      },
+      {
+        "neighbor": "TH-52",
+        "edge": "N",
+        "from": 0.75,
+        "to": 1,
+        "bearing": 14
+      },
+      {
+        "neighbor": "TH-64",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 78.1
+      },
+      {
+        "neighbor": "TH-71",
+        "edge": "S",
+        "from": 0,
+        "to": 0.25,
+        "bearing": 172.1
+      },
+      {
+        "neighbor": "TH-61",
+        "edge": "S",
+        "from": 0.25,
+        "to": 0.5,
+        "bearing": 149.7
+      },
+      {
+        "neighbor": "TH-60",
+        "edge": "S",
+        "from": 0.5,
+        "to": 0.75,
+        "bearing": 140.2
+      },
+      {
+        "neighbor": "TH-62",
+        "edge": "S",
+        "from": 0.75,
+        "to": 1,
+        "bearing": 135.8
+      }
+    ],
+    "TH-70": [
+      {
+        "neighbor": "TH-71",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 330
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 40.3
+      },
+      {
+        "neighbor": "TH-74",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 88.6
+      },
+      {
+        "neighbor": "TH-75",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 126.5
+      },
+      {
+        "neighbor": "TH-76",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 164
+      }
+    ],
+    "TH-71": [
+      {
+        "neighbor": "TH-63",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 352.2
+      },
+      {
+        "neighbor": "TH-61",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 19.4
+      },
+      {
+        "neighbor": "TH-72",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 51.6
+      },
+      {
+        "neighbor": "TH-73",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 111.5
+      },
+      {
+        "neighbor": "TH-70",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 150
+      }
+    ],
+    "TH-76": [
+      {
+        "neighbor": "TH-70",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 344
+      },
+      {
+        "neighbor": "TH-75",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 9.6
+      },
+      {
+        "neighbor": "TH-77",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 186.5
+      }
+    ],
+    "TH-77": [
+      {
+        "neighbor": "TH-76",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 6.4
+      },
+      {
+        "neighbor": "TH-86",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 204.9
+      }
+    ],
+    "TH-80": [
+      {
+        "neighbor": "TH-84",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 318.3
+      },
+      {
+        "neighbor": "TH-92",
+        "edge": "S",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 201.9
+      },
+      {
+        "neighbor": "TH-93",
+        "edge": "S",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 171.8
+      },
+      {
+        "neighbor": "TH-90",
+        "edge": "S",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 153.1
+      },
+      {
+        "neighbor": "TH-81",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 250.4
+      }
+    ],
+    "TH-81": [
+      {
+        "neighbor": "TH-82",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 316.3
+      },
+      {
+        "neighbor": "TH-84",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 20.5
+      },
+      {
+        "neighbor": "TH-80",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 70.3
+      },
+      {
+        "neighbor": "TH-92",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 126.5
+      }
+    ],
+    "TH-82": [
+      {
+        "neighbor": "TH-85",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 3.9
+      },
+      {
+        "neighbor": "TH-84",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 49
+      },
+      {
+        "neighbor": "TH-83",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 193.7
+      },
+      {
+        "neighbor": "TH-81",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 136.2
+      }
+    ],
+    "TH-83": [
+      {
+        "neighbor": "TH-82",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 13.7
+      }
+    ],
+    "TH-84": [
+      {
+        "neighbor": "TH-85",
+        "edge": "N",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 320.5
+      },
+      {
+        "neighbor": "TH-86",
+        "edge": "N",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 353.9
+      },
+      {
+        "neighbor": "TH-81",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 200.6
+      },
+      {
+        "neighbor": "TH-80",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 138.2
+      },
+      {
+        "neighbor": "TH-82",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 229.1
+      }
+    ],
+    "TH-85": [
+      {
+        "neighbor": "TH-86",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 45.1
+      },
+      {
+        "neighbor": "TH-82",
+        "edge": "S",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 183.9
+      },
+      {
+        "neighbor": "TH-84",
+        "edge": "S",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 140.4
+      }
+    ],
+    "TH-86": [
+      {
+        "neighbor": "TH-77",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 24.8
+      },
+      {
+        "neighbor": "TH-84",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 173.9
+      },
+      {
+        "neighbor": "TH-85",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 225.2
+      }
+    ],
+    "TH-90": [
+      {
+        "neighbor": "TH-80",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 333.2
+      },
+      {
+        "neighbor": "TH-94",
+        "edge": "E",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 116.8
+      },
+      {
+        "neighbor": "TH-95",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 132.7
+      },
+      {
+        "neighbor": "TH-91",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 222
+      },
+      {
+        "neighbor": "TH-93",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 309.6
+      }
+    ],
+    "TH-91": [
+      {
+        "neighbor": "TH-92",
+        "edge": "N",
+        "from": 0,
+        "to": 0.3333,
+        "bearing": 334.2
+      },
+      {
+        "neighbor": "TH-93",
+        "edge": "N",
+        "from": 0.3333,
+        "to": 0.6667,
+        "bearing": 0.8
+      },
+      {
+        "neighbor": "TH-90",
+        "edge": "N",
+        "from": 0.6667,
+        "to": 1,
+        "bearing": 41.9
+      }
+    ],
+    "TH-92": [
+      {
+        "neighbor": "TH-80",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 21.8
+      },
+      {
+        "neighbor": "TH-93",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 82.5
+      },
+      {
+        "neighbor": "TH-91",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 154.1
+      },
+      {
+        "neighbor": "TH-81",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 306.6
+      }
+    ],
+    "TH-93": [
+      {
+        "neighbor": "TH-80",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 351.8
+      },
+      {
+        "neighbor": "TH-90",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 129.6
+      },
+      {
+        "neighbor": "TH-91",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 180.8
+      },
+      {
+        "neighbor": "TH-92",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 262.5
+      }
+    ],
+    "TH-94": [
+      {
+        "neighbor": "TH-96",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 127.2
+      },
+      {
+        "neighbor": "TH-95",
+        "edge": "S",
+        "from": 0,
+        "to": 1,
+        "bearing": 172.6
+      },
+      {
+        "neighbor": "TH-90",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 296.9
+      }
+    ],
+    "TH-95": [
+      {
+        "neighbor": "TH-94",
+        "edge": "N",
+        "from": 0,
+        "to": 1,
+        "bearing": 352.6
+      },
+      {
+        "neighbor": "TH-96",
+        "edge": "E",
+        "from": 0,
+        "to": 1,
+        "bearing": 102.9
+      },
+      {
+        "neighbor": "TH-90",
+        "edge": "W",
+        "from": 0,
+        "to": 1,
+        "bearing": 312.8
+      }
+    ],
+    "TH-96": [
+      {
+        "neighbor": "TH-94",
+        "edge": "W",
+        "from": 0,
+        "to": 0.5,
+        "bearing": 307.3
+      },
+      {
+        "neighbor": "TH-95",
+        "edge": "W",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 283
+      }
+    ]
+  }
+}

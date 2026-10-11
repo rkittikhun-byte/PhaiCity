@@ -1,0 +1,625 @@
+{
+  "_meta": {
+    "description": "Automatic map centers for each province (GEO_SPEC section 7). data/geo/center-overrides.json always wins over these.",
+    "license": "Derived from OpenStreetMap data, © OpenStreetMap contributors, ODbL 1.0",
+    "generatedAt": "2026-10-11T05:23:37.286Z"
+  },
+  "centers": {
+    "TH-50": {
+      "lat": 18.788278,
+      "lon": 98.98588,
+      "name": "เชียงใหม่",
+      "place": "city",
+      "osm": "node/178056220",
+      "source": "admin_centre"
+    },
+    "TH-51": {
+      "lat": 18.577638,
+      "lon": 99.006903,
+      "name": "ลำพูน",
+      "place": "city",
+      "osm": "node/306247723",
+      "source": "admin_centre"
+    },
+    "TH-52": {
+      "lat": 18.289949,
+      "lon": 99.495853,
+      "name": "ลำปาง",
+      "place": "city",
+      "osm": "node/206600521",
+      "source": "admin_centre"
+    },
+    "TH-53": {
+      "lat": 17.621726,
+      "lon": 100.098182,
+      "name": "อุตรดิตถ์",
+      "place": "town",
+      "osm": "node/114123970",
+      "source": "admin_centre"
+    },
+    "TH-54": {
+      "lat": 18.14177,
+      "lon": 100.142564,
+      "name": "แพร่",
+      "place": "town",
+      "osm": "node/409978675",
+      "source": "admin_centre"
+    },
+    "TH-55": {
+      "lat": 18.777887,
+      "lon": 100.773732,
+      "name": "น่าน",
+      "place": "town",
+      "osm": "node/924671402",
+      "source": "admin_centre"
+    },
+    "TH-56": {
+      "lat": 19.166781,
+      "lon": 99.902108,
+      "name": "พะเยา",
+      "place": "town",
+      "osm": "node/367367305",
+      "source": "admin_centre"
+    },
+    "TH-57": {
+      "lat": 19.906887,
+      "lon": 99.833274,
+      "name": "เชียงราย",
+      "place": "city",
+      "osm": "node/249246784",
+      "source": "admin_centre"
+    },
+    "TH-58": {
+      "lat": 19.301507,
+      "lon": 97.966607,
+      "name": "แม่ฮ่องสอน",
+      "place": "town",
+      "osm": "node/301515447",
+      "source": "admin_centre"
+    },
+    "TH-30": {
+      "lat": 14.974939,
+      "lon": 102.098136,
+      "name": "นครราชสีมา",
+      "place": "city",
+      "osm": "node/1395854447",
+      "source": "admin_centre"
+    },
+    "TH-31": {
+      "lat": 14.995569,
+      "lon": 103.107919,
+      "name": "บุรีรัมย์",
+      "place": "city",
+      "osm": "node/257904596",
+      "source": "admin_centre"
+    },
+    "TH-32": {
+      "lat": 14.883245,
+      "lon": 103.490685,
+      "name": "สุรินทร์",
+      "place": "town",
+      "osm": "node/257904863",
+      "source": "admin_centre"
+    },
+    "TH-33": {
+      "lat": 15.114409,
+      "lon": 104.328868,
+      "name": "ศรีสะเกษ",
+      "place": "town",
+      "osm": "node/409686741",
+      "source": "admin_centre"
+    },
+    "TH-34": {
+      "lat": 15.227424,
+      "lon": 104.858946,
+      "name": "อุบลราชธานี",
+      "place": "city",
+      "osm": "node/257905362",
+      "source": "admin_centre"
+    },
+    "TH-35": {
+      "lat": 15.792675,
+      "lon": 104.14529,
+      "name": "ยโสธร",
+      "place": "town",
+      "osm": "node/409691951",
+      "source": "admin_centre"
+    },
+    "TH-36": {
+      "lat": 15.806808,
+      "lon": 102.0315,
+      "name": "ชัยภูมิ",
+      "place": "town",
+      "osm": "node/409694129",
+      "source": "admin_centre"
+    },
+    "TH-37": {
+      "lat": 15.864023,
+      "lon": 104.627806,
+      "name": "อำนาจเจริญ",
+      "place": "town",
+      "osm": "node/409647053",
+      "source": "admin_centre"
+    },
+    "TH-38": {
+      "lat": 18.367368,
+      "lon": 103.651592,
+      "name": "บึงกาฬ",
+      "place": "town",
+      "osm": "node/493885055",
+      "source": "admin_centre"
+    },
+    "TH-39": {
+      "lat": 17.202225,
+      "lon": 102.440702,
+      "name": "หนองบัวลำภู",
+      "place": "town",
+      "osm": "node/408351677",
+      "source": "admin_centre"
+    },
+    "TH-40": {
+      "lat": 16.430392,
+      "lon": 102.83559,
+      "name": "ขอนแก่น",
+      "place": "city",
+      "osm": "node/369493329",
+      "source": "admin_centre"
+    },
+    "TH-41": {
+      "lat": 17.408245,
+      "lon": 102.786811,
+      "name": "อุดรธานี",
+      "place": "city",
+      "osm": "node/257903167",
+      "source": "admin_centre"
+    },
+    "TH-42": {
+      "lat": 17.490375,
+      "lon": 101.728646,
+      "name": "เลย",
+      "place": "town",
+      "osm": "node/408089150",
+      "source": "admin_centre"
+    },
+    "TH-43": {
+      "lat": 17.882506,
+      "lon": 102.748228,
+      "name": "หนองคาย",
+      "place": "town",
+      "osm": "node/257903226",
+      "source": "admin_centre"
+    },
+    "TH-44": {
+      "lat": 16.188095,
+      "lon": 103.298735,
+      "name": "มหาสารคาม",
+      "place": "town",
+      "osm": "node/409666323",
+      "source": "admin_centre"
+    },
+    "TH-45": {
+      "lat": 16.056809,
+      "lon": 103.651429,
+      "name": "ร้อยเอ็ด",
+      "place": "town",
+      "osm": "node/409682242",
+      "source": "admin_centre"
+    },
+    "TH-46": {
+      "lat": 16.434034,
+      "lon": 103.50594,
+      "name": "กาฬสินธุ์",
+      "place": "town",
+      "osm": "node/257906398",
+      "source": "admin_centre"
+    },
+    "TH-47": {
+      "lat": 17.165122,
+      "lon": 104.150073,
+      "name": "สกลนคร",
+      "place": "city",
+      "osm": "node/257905923",
+      "source": "admin_centre"
+    },
+    "TH-48": {
+      "lat": 17.403213,
+      "lon": 104.785289,
+      "name": "นครพนม",
+      "place": "town",
+      "osm": "node/257905685",
+      "source": "admin_centre"
+    },
+    "TH-49": {
+      "lat": 16.541407,
+      "lon": 104.72907,
+      "name": "มุกดาหาร",
+      "place": "town",
+      "osm": "node/409675713",
+      "source": "admin_centre"
+    },
+    "TH-10": {
+      "lat": 13.752132,
+      "lon": 100.497134,
+      "name": "เกาะรัตนโกสินทร์",
+      "place": "island",
+      "osm": "relation/14038954",
+      "source": "osm_named_area",
+      "note": "Bangkok has no single capital town; using the old city (Rattanakosin) per GEO_SPEC section 7."
+    },
+    "TH-11": {
+      "lat": 13.594937,
+      "lon": 100.596649,
+      "name": "สมุทรปราการ",
+      "place": "city",
+      "osm": "node/304199925",
+      "source": "admin_centre"
+    },
+    "TH-12": {
+      "lat": 13.842896,
+      "lon": 100.493789,
+      "name": "นนทบุรี",
+      "place": "city",
+      "osm": "node/359862014",
+      "source": "admin_centre"
+    },
+    "TH-13": {
+      "lat": 14.020396,
+      "lon": 100.534043,
+      "name": "ปทุมธานี",
+      "place": "town",
+      "osm": "node/303801813",
+      "source": "admin_centre"
+    },
+    "TH-14": {
+      "lat": 14.353543,
+      "lon": 100.564568,
+      "name": "พระนครศรีอยุธยา",
+      "place": "city",
+      "osm": "node/373164985",
+      "source": "admin_centre"
+    },
+    "TH-15": {
+      "lat": 14.592464,
+      "lon": 100.451375,
+      "name": "อ่างทอง",
+      "place": "town",
+      "osm": "node/944871924",
+      "source": "admin_centre"
+    },
+    "TH-16": {
+      "lat": 14.802329,
+      "lon": 100.614686,
+      "name": "ลพบุรี",
+      "place": "town",
+      "osm": "node/114123520",
+      "source": "admin_centre"
+    },
+    "TH-17": {
+      "lat": 14.893528,
+      "lon": 100.398423,
+      "name": "สิงห์บุรี",
+      "place": "town",
+      "osm": "node/114123525",
+      "source": "admin_centre"
+    },
+    "TH-18": {
+      "lat": 15.185331,
+      "lon": 100.125057,
+      "name": "ชัยนาท",
+      "place": "town",
+      "osm": "node/942030709",
+      "source": "admin_centre"
+    },
+    "TH-19": {
+      "lat": 14.524947,
+      "lon": 100.916076,
+      "name": "สระบุรี",
+      "place": "town",
+      "osm": "node/366876767",
+      "source": "admin_centre"
+    },
+    "TH-26": {
+      "lat": 14.203647,
+      "lon": 101.214709,
+      "name": "นครนายก",
+      "place": "town",
+      "osm": "node/119012474",
+      "source": "admin_centre"
+    },
+    "TH-60": {
+      "lat": 15.705783,
+      "lon": 100.133005,
+      "name": "นครสวรรค์",
+      "place": "city",
+      "osm": "node/114123787",
+      "source": "admin_centre"
+    },
+    "TH-61": {
+      "lat": 15.38234,
+      "lon": 100.028055,
+      "name": "อุทัยธานี",
+      "place": "town",
+      "osm": "node/409983708",
+      "source": "admin_centre"
+    },
+    "TH-62": {
+      "lat": 16.474805,
+      "lon": 99.528007,
+      "name": "กำแพงเพชร",
+      "place": "town",
+      "osm": "node/409704578",
+      "source": "admin_centre"
+    },
+    "TH-64": {
+      "lat": 17.010918,
+      "lon": 99.820368,
+      "name": "สุโขทัย",
+      "place": "town",
+      "osm": "node/249060591",
+      "source": "admin_centre"
+    },
+    "TH-65": {
+      "lat": 16.815761,
+      "lon": 100.263442,
+      "name": "พิษณุโลก",
+      "place": "city",
+      "osm": "node/8643175475",
+      "source": "admin_centre"
+    },
+    "TH-66": {
+      "lat": 16.442809,
+      "lon": 100.343823,
+      "name": "พิจิตร",
+      "place": "town",
+      "osm": "node/409975309",
+      "source": "admin_centre"
+    },
+    "TH-67": {
+      "lat": 16.418027,
+      "lon": 101.155683,
+      "name": "เพชรบูรณ์",
+      "place": "town",
+      "osm": "node/407997799",
+      "source": "admin_centre"
+    },
+    "TH-72": {
+      "lat": 14.469905,
+      "lon": 100.116498,
+      "name": "สุพรรณบุรี",
+      "place": "town",
+      "osm": "node/457321994",
+      "source": "admin_centre"
+    },
+    "TH-73": {
+      "lat": 13.819007,
+      "lon": 100.063992,
+      "name": "นครปฐม",
+      "place": "city",
+      "osm": "node/360352320",
+      "source": "admin_centre"
+    },
+    "TH-74": {
+      "lat": 13.549778,
+      "lon": 100.274281,
+      "name": "สมุทรสาคร",
+      "place": "city",
+      "osm": "node/372810213",
+      "source": "admin_centre"
+    },
+    "TH-75": {
+      "lat": 13.408662,
+      "lon": 100.000494,
+      "name": "สมุทรสงคราม",
+      "place": "town",
+      "osm": "node/585128821",
+      "source": "admin_centre"
+    },
+    "TH-20": {
+      "lat": 13.366209,
+      "lon": 100.987219,
+      "name": "ชลบุรี",
+      "place": "town",
+      "osm": "node/366477502",
+      "source": "admin_centre"
+    },
+    "TH-21": {
+      "lat": 12.681791,
+      "lon": 101.277765,
+      "name": "ระยอง",
+      "place": "city",
+      "osm": "node/372811021",
+      "source": "admin_centre"
+    },
+    "TH-22": {
+      "lat": 12.606452,
+      "lon": 102.099667,
+      "name": "จันทบุรี",
+      "place": "town",
+      "osm": "node/369493469",
+      "source": "admin_centre"
+    },
+    "TH-23": {
+      "lat": 12.244056,
+      "lon": 102.512282,
+      "name": "ตราด",
+      "place": "town",
+      "osm": "node/297591741",
+      "source": "admin_centre"
+    },
+    "TH-24": {
+      "lat": 13.689178,
+      "lon": 101.070827,
+      "name": "ฉะเชิงเทรา",
+      "place": "town",
+      "osm": "node/1685715520",
+      "source": "admin_centre"
+    },
+    "TH-25": {
+      "lat": 14.054147,
+      "lon": 101.372428,
+      "name": "ปราจีนบุรี",
+      "place": "town",
+      "osm": "node/119012479",
+      "source": "admin_centre"
+    },
+    "TH-27": {
+      "lat": 13.81949,
+      "lon": 102.070254,
+      "name": "สระแก้ว",
+      "place": "town",
+      "osm": "node/1923857087",
+      "source": "admin_centre"
+    },
+    "TH-63": {
+      "lat": 16.872258,
+      "lon": 99.124836,
+      "name": "ตาก",
+      "place": "town",
+      "osm": "node/249060596",
+      "source": "admin_centre"
+    },
+    "TH-70": {
+      "lat": 13.539067,
+      "lon": 99.819704,
+      "name": "ราชบุรี",
+      "place": "town",
+      "osm": "node/971260269",
+      "source": "admin_centre"
+    },
+    "TH-71": {
+      "lat": 14.022707,
+      "lon": 99.532317,
+      "name": "กาญจนบุรี",
+      "place": "town",
+      "osm": "node/301331954",
+      "source": "admin_centre"
+    },
+    "TH-76": {
+      "lat": 13.105291,
+      "lon": 99.94753,
+      "name": "เพชรบุรี",
+      "place": "town",
+      "osm": "node/302845879",
+      "source": "admin_centre"
+    },
+    "TH-77": {
+      "lat": 11.805769,
+      "lon": 99.796727,
+      "name": "ประจวบคีรีขันธ์",
+      "place": "town",
+      "osm": "node/976428813",
+      "source": "admin_centre"
+    },
+    "TH-80": {
+      "lat": 8.432795,
+      "lon": 99.962797,
+      "name": "นครศรีธรรมราช",
+      "place": "city",
+      "osm": "node/372813341",
+      "source": "admin_centre"
+    },
+    "TH-81": {
+      "lat": 8.063464,
+      "lon": 98.916235,
+      "name": "กระบี่",
+      "osm": "node/485553598",
+      "source": "admin_centre"
+    },
+    "TH-82": {
+      "lat": 8.461204,
+      "lon": 98.531302,
+      "name": "พังงา",
+      "place": "town",
+      "osm": "node/984029824",
+      "source": "admin_centre"
+    },
+    "TH-83": {
+      "lat": 7.88479,
+      "lon": 98.38915,
+      "name": "ภูเก็ต",
+      "place": "city",
+      "osm": "node/252057835",
+      "source": "admin_centre"
+    },
+    "TH-84": {
+      "lat": 9.140414,
+      "lon": 99.324135,
+      "name": "สุราษฎร์ธานี",
+      "place": "city",
+      "osm": "node/372813885",
+      "source": "admin_centre"
+    },
+    "TH-85": {
+      "lat": 9.964128,
+      "lon": 98.634004,
+      "name": "ระนอง",
+      "place": "town",
+      "osm": "node/301181330",
+      "source": "admin_centre"
+    },
+    "TH-86": {
+      "lat": 10.496136,
+      "lon": 99.177873,
+      "name": "ชุมพร",
+      "place": "town",
+      "osm": "node/484267714",
+      "source": "admin_centre"
+    },
+    "TH-90": {
+      "lat": 7.197343,
+      "lon": 100.593205,
+      "name": "สงขลา",
+      "place": "city",
+      "osm": "node/297337782",
+      "source": "admin_centre"
+    },
+    "TH-91": {
+      "lat": 6.615158,
+      "lon": 100.066444,
+      "name": "สตูล",
+      "place": "town",
+      "osm": "node/302295621",
+      "source": "admin_centre"
+    },
+    "TH-92": {
+      "lat": 7.555778,
+      "lon": 99.60765,
+      "name": "ตรัง",
+      "place": "city",
+      "osm": "node/372812229",
+      "source": "admin_centre"
+    },
+    "TH-93": {
+      "lat": 7.617689,
+      "lon": 100.080943,
+      "name": "พัทลุง",
+      "place": "town",
+      "osm": "node/484263916",
+      "source": "admin_centre"
+    },
+    "TH-94": {
+      "lat": 6.867624,
+      "lon": 101.249814,
+      "name": "ปัตตานี",
+      "place": "town",
+      "osm": "node/2160837232",
+      "source": "admin_centre"
+    },
+    "TH-95": {
+      "lat": 6.556725,
+      "lon": 101.290252,
+      "name": "ยะลา",
+      "place": "city",
+      "osm": "node/372812084",
+      "source": "admin_centre"
+    },
+    "TH-96": {
+      "lat": 6.435035,
+      "lon": 101.822892,
+      "name": "นราธิวาส",
+      "place": "town",
+      "osm": "node/1597696141",
+      "source": "admin_centre"
+    }
+  }
+}

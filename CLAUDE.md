@@ -48,6 +48,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm test -- --runInBand test/render3d/models.test.ts` | Validate all registered 3D models and geometry helpers |
 | `npm test -- --runInBand test/render3d --coverage=false` | Model contracts, bundled assets, lazy materials and Thai signs |
 | `npm run lint` | **Broken**: tslint is not installed |
+| `npm run geo:national` | Thai province shapes from Natural Earth → `data/geo/thailand-provinces.topo.json` |
+| `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
+| `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
+| `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 
 **Test status:**
 - Jest runs using the CommonJS `jest.config.cjs` in this ES module project.
