@@ -48,7 +48,6 @@ footer {
   left: 0;
   right: 0;
   bottom: 0px;
-  height: 5em;
   background-color: darkslategray;
 }
 
@@ -63,10 +62,17 @@ header h1 {
   margin-left: 50px;
 }
 
+/* The footer holds the required credits: the game area stops where it starts (src/micropolis.js sets --footer-height) */
+#footer {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 main {
   position: absolute;
   top: 0;
-  bottom: 55px;
+  bottom: var(--footer-height, 55px);
   width: 100%;
   overflow: hidden;
 }
@@ -87,7 +93,7 @@ nav li {
   display: inline;
 }
 
-#languageToggle {
+#languageToggle, #soundToggle {
   width: auto;
   height: auto;
   padding: 1px 10px;
@@ -96,8 +102,29 @@ nav li {
   color: white;
 }
 
-#languageToggle:hover {
+#languageToggle:hover, #soundToggle:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+#soundSettings {
+  margin: 10px auto 0;
+  border: 1px solid #999;
+  text-align: left;
+}
+
+#soundSettings label {
+  display: block;
+  margin: 4px 0;
+}
+
+.soundSlider span {
+  display: inline-block;
+  min-width: 8em;
+}
+
+.soundSlider input {
+  width: 140px;
+  vertical-align: middle;
 }
 
 .alignCenter {
@@ -324,12 +351,7 @@ nav li {
 }
 
 .nameLicense {
-  margin-top: 0.5em;
-  margin-bottom: 0.25em;
-}
-
-.mapCredit {
-  font-size: 0.8em;
+  margin: 0;
 }
 
 #budgetForm > div:nth-child(9) {
@@ -651,11 +673,7 @@ nav li {
   }
 
   main {
-    bottom: 35px;
-  }
-
-  footer {
-    height: 4em;
+    bottom: var(--footer-height, 35px);
   }
 
   .border-bottom {
@@ -664,10 +682,6 @@ nav li {
 
   .fontlarge {
       font-size: 16px;
-  }
-
-  #author {
-    display: none;
   }
 
   #notifications {
@@ -936,9 +950,9 @@ nav li {
 }
 
 #build {
-  position: absolute;
-  left: 5px;
-  bottom: 5px;
+  display: inline;
+  margin-left: 0.75em;
+  opacity: 0.7;
 }
 
 /* Province picker (src/provincePicker.ts): a full-screen map of Thailand */

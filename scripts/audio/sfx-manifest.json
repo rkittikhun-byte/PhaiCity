@@ -1,0 +1,45 @@
+{
+  "_comment": "Sound effects copied into assets/audio/sfx by scripts/audio/build-sfx.mjs. Every source must be CC0. Sound ids and volumes live in src/audio/catalog.ts.",
+  "files": [
+    { "file": "ui-click.ogg", "freesound": 53403 },
+    { "file": "ui-select.ogg", "kenney": "interface-sounds/Audio/select_001.ogg" },
+    { "file": "ui-open.ogg", "kenney": "interface-sounds/Audio/open_001.ogg" },
+    { "file": "ui-close.ogg", "kenney": "interface-sounds/Audio/close_001.ogg" },
+    { "file": "ui-error.ogg", "kenney": "interface-sounds/Audio/error_004.ogg" },
+    { "file": "ui-save.ogg", "kenney": "interface-sounds/Audio/confirmation_002.ogg" },
+    { "file": "ui-coin.ogg", "kenney": "rpg-audio/Audio/handleCoins.ogg" },
+    { "file": "ui-switch.ogg", "kenney": "interface-sounds/Audio/switch_002.ogg" },
+    { "file": "ui-toggle.ogg", "kenney": "interface-sounds/Audio/toggle_002.ogg" },
+    { "file": "ui-notify-neutral.ogg", "kenney": "interface-sounds/Audio/bong_001.ogg" },
+    { "file": "ui-notify-bad.ogg", "kenney": "interface-sounds/Audio/error_006.ogg" },
+    { "file": "ui-notify-good.ogg", "kenney": "interface-sounds/Audio/confirmation_001.ogg" },
+    { "file": "gong.ogg", "freesound": 121800 },
+
+    { "file": "tool-zone.ogg", "kenney": "rpg-audio/Audio/chop.ogg" },
+    { "file": "tool-road.ogg", "kenney": "rpg-audio/Audio/dropLeather.ogg" },
+    { "file": "tool-rail.ogg", "kenney": "rpg-audio/Audio/metalClick.ogg" },
+    { "file": "tool-wire.ogg", "freesound": 512471 },
+    { "file": "tool-park.ogg", "kenney": "rpg-audio/Audio/cloth2.ogg" },
+    { "file": "tool-building.ogg", "kenney": "sci-fi-sounds/Audio/impactMetal_002.ogg" },
+    { "file": "tool-bulldoze.ogg", "kenney": "interface-sounds/Audio/scratch_002.ogg" },
+    { "file": "tool-query.ogg", "kenney": "interface-sounds/Audio/question_001.ogg" },
+    { "file": "crunch.ogg", "kenney": "sci-fi-sounds/Audio/explosionCrunch_000.ogg" },
+
+    { "file": "explosion-small.ogg", "freesound": 207322 },
+    { "file": "explosion-big.ogg", "freesound": 417691 },
+    { "file": "rumble.ogg", "freesound": 217657 },
+    { "file": "thunder.ogg", "freesound": 446753 },
+    { "file": "alarm.ogg", "freesound": 520200 },
+    { "file": "crash-metal.ogg", "freesound": 151624 },
+    { "file": "power-down.ogg", "kenney": "digital-audio/Audio/lowDown.ogg" },
+    { "file": "bankrupt.ogg", "kenney": "digital-audio/Audio/lowThreeTone.ogg" },
+    { "file": "helicopter.ogg", "freesound": 181071 },
+    { "file": "crowd.ogg", "freesound": 130568 },
+
+    { "file": "amb-nature.ogg", "freesound": 68065 },
+    { "file": "amb-industrial.ogg", "kenney": "sci-fi-sounds/Audio/spaceEngineLow_001.ogg" },
+    { "file": "seagull.ogg", "freesound": 586831 },
+    { "file": "rooster.ogg", "freesound": 435508 },
+    { "file": "airplane.ogg", "freesound": 145365 }
+  ]
+}

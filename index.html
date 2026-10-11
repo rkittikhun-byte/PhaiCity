@@ -32,6 +32,7 @@
       </div>
       <nav class="white right padding10 inlineblock">
         <ul>
+          <li class="padding10"><button id="soundToggle" type="button" aria-pressed="false">🔊</button></li>
           <li class="padding10"><button id="languageToggle" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button></li>
           <li class="padding10"><a href="about.html" target="_blank" data-i18n="nav.about">About</a></li>
           <li class="padding10"><a href="https://github.com/graememcc/micropolisJS" target="_blank">GitHub</a></li>
@@ -438,6 +439,14 @@
                 <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersYes" value="true" checked="checked"><label for="disastersYes" data-i18n="settings.opt.yes">Yes</label>
                 <input type="radio" class="enableDisastersSetting" name="disastersSetting" id="disastersNo" value="false"><label for="disastersNo" data-i18n="settings.opt.no">No</label>
               </div>
+              <!-- Sound settings apply immediately (src/audio/index.ts), so OK and Cancel do not affect them -->
+              <fieldset id="soundSettings" class="padding10">
+                <legend data-i18n="sound.title">Sound</legend>
+                <label class="soundSlider"><span data-i18n="sound.effects">Effects</span> <input type="range" min="0" max="100" step="5" data-sound-channel="effects"></label>
+                <label class="soundSlider"><span data-i18n="sound.ambience">Ambience</span> <input type="range" min="0" max="100" step="5" data-sound-channel="ambience"></label>
+                <label class="soundSlider"><span data-i18n="sound.ui">Buttons</span> <input type="range" min="0" max="100" step="5" data-sound-channel="ui"></label>
+                <label><input type="checkbox" id="soundMuted"> <span data-i18n="sound.mute_all">Mute all</span></label>
+              </fieldset>
             </div>
             <button id="settingsCancel" data-i18n="settings.btn.cancel" class="cancel">Cancel</button>
             <input type="submit" id="settingsOK" data-i18n-value="settings.btn.ok" class="dialogOK" value="OK">

@@ -500,6 +500,13 @@
 | `picker.credits` | `src/provincePicker.ts` | `-` | `© OpenStreetMap contributors · Natural Earth` | `© OpenStreetMap contributors · Natural Earth` | เครดิตตามกฎหมาย ใช้ข้อความเดียวกันทั้งสองภาษา |
 | `lang.switch_to` | `index.html` | `-` | `ภาษาไทย` | `English` | ปุ่มสลับภาษา แสดงชื่อภาษาที่จะสลับไป |
 | `lang.switch_title` | `index.html` | `-` | `Switch language` | `เปลี่ยนภาษา` | tooltip ของปุ่มสลับภาษา |
+| `sound.title` | `index.html` | `-` | `Sound` | `เสียง` | หัวข้อในหน้าต่างตั้งค่า |
+| `sound.effects` | `index.html` | `-` | `Effects` | `เสียงเอฟเฟกต์` | แถบปรับเสียง |
+| `sound.ambience` | `index.html` | `-` | `Ambience` | `เสียงบรรยากาศ` | แถบปรับเสียง |
+| `sound.ui` | `index.html` | `-` | `Buttons` | `เสียงปุ่ม` | แถบปรับเสียง |
+| `sound.mute_all` | `index.html` | `-` | `Mute all` | `ปิดเสียงทั้งหมด` | ช่องติ๊ก |
+| `sound.toggle_off` | `src/audio/index.ts` | `-` | `Turn sound off` | `ปิดเสียง` | tooltip ปุ่มลำโพงตอนเสียงเปิดอยู่ |
+| `sound.toggle_on` | `src/audio/index.ts` | `-` | `Turn sound on` | `เปิดเสียง` | tooltip ปุ่มลำโพงตอนปิดเสียงอยู่ |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)

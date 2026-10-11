@@ -330,5 +330,12 @@ export const STRINGS: Record<string, Translation> = {
   "picker.credits": { en: "© OpenStreetMap contributors · Natural Earth", th: "© OpenStreetMap contributors · Natural Earth" },
   "lang.switch_to": { en: "ภาษาไทย", th: "English" },
   "lang.switch_title": { en: "Switch language", th: "เปลี่ยนภาษา" },
+  "sound.title": { en: "Sound", th: "เสียง" },
+  "sound.effects": { en: "Effects", th: "เสียงเอฟเฟกต์" },
+  "sound.ambience": { en: "Ambience", th: "เสียงบรรยากาศ" },
+  "sound.ui": { en: "Buttons", th: "เสียงปุ่ม" },
+  "sound.mute_all": { en: "Mute all", th: "ปิดเสียงทั้งหมด" },
+  "sound.toggle_off": { en: "Turn sound off", th: "ปิดเสียง" },
+  "sound.toggle_on": { en: "Turn sound on", th: "เปิดเสียง" },
   "footer.map_credit": { en: "Province maps: map data © {osm} (ODbL) · province shapes from {ne}.", th: "แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}" },
 };

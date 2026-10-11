@@ -54,6 +54,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
+| `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |
 
 **Test status:**
 - Jest runs using the CommonJS `jest.config.cjs` in this ES module project.
@@ -107,6 +108,14 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     - The Micropolis trademark line stays in English. The micropolisJS credit and the OpenStreetMap credit
       must stay visible in both languages (`test/i18n.ts` checks this).
     - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
+- **Footer:** it holds the required credits, so the game area (`main`) ends where the footer starts:
+  `src/micropolis.js` sets `--footer-height` on load, resize and language change. Never let the map cover it.
+- **Sound:** `src/audio/` (plan and status in `docs/audio/AUDIO_PLAN.md`).
+  - It only listens: simulation messages, tool results (`game.handleTool` calls `gameAudio.toolUsed`),
+    the `SOUND_*` signals forwarded by `spriteManager.js`, and the tiles on screen. It never changes game state.
+  - Sound ids, files and volumes are in `src/audio/catalog.ts`; every file must come through
+    `npm run audio:build` so it is CC0 and credited.
+  - Nothing plays before the player's first click or key press (browser rule).
 - **Saves:** localStorage key `micropolisJSGame` (`src/storage.js`), version 4.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`

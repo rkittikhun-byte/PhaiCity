@@ -13,6 +13,8 @@
 
 import $ from "jquery";
 
+import { attachGameAudio } from './audio/gameAudio.ts';
+import { audio } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { Config } from './config.js';
@@ -79,6 +81,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   this.gameCanvas = new GameCanvas('canvasContainer');
   this.gameCanvas.init(this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth);
+
+  // Sound only listens to the game; it never changes the city
+  this.gameAudio = attachGameAudio(this, audio, Text);
 
   this.dialogOpen = false;
   this._openWindow = null;
@@ -485,6 +490,8 @@ Game.prototype.handleTool = function(data) {
     default:
       $('#toolOutput').text(t('tool.header'));
   }
+
+  this.gameAudio.toolUsed(this.inputStatus.toolName, tool.result, x);
 };
 
 

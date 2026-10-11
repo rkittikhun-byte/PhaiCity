@@ -26,10 +26,15 @@ import { CHANNEL, RIVER } from "./tileValues.ts";
 import { TornadoSprite } from './tornadoSprite.js';
 import { TrainSprite } from './trainSprite.js';
 
+var SOUND_MESSAGES = [Messages.SOUND_EXPLOSIONHIGH, Messages.SOUND_HEAVY_TRAFFIC, Messages.SOUND_HONKHONK,
+                      Messages.SOUND_MONSTER];
+
+
 var SpriteManager = EventEmitter(function(map) {
   this.spriteList = [];
   this.map = map;
   this.spriteCycle = 0;
+  this._soundTypes = [];
 });
 
 
@@ -103,6 +108,14 @@ SpriteManager.prototype.makeSprite = function(type, x, y) {
 
   if (type == SpriteConstants.SPRITE_HELICOPTER)
     newSprite.addEventListener(Messages.HEAVY_TRAFFIC, MiscUtils.reflectEvent.bind(this, Messages.HEAVY_TRAFFIC));
+
+  // Pass on the sound signals sprites emit (src/audio/gameAudio.ts plays them). Sprites of one type share
+  // their listeners, so each type is wired once per manager.
+  if (this._soundTypes.indexOf(type) === -1) {
+    this._soundTypes.push(type);
+    for (var j = 0; j < SOUND_MESSAGES.length; j++)
+      newSprite.addEventListener(SOUND_MESSAGES[j], MiscUtils.reflectEvent.bind(this, SOUND_MESSAGES[j]));
+  }
 
   this.spriteList.push(newSprite);
   return newSprite;

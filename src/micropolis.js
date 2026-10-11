@@ -14,7 +14,8 @@
 import $ from "jquery";
 
 import { Config } from './config.js';
-import { applyTranslations, getLanguage, setLanguage } from './i18n/index.ts';
+import { installAudio } from './audio/index.ts';
+import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from './i18n/index.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
@@ -87,12 +88,30 @@ var tileSetError = function() {
 };
 
 
+// The game area ends where the footer starts, so the credits in the footer are never covered by the map.
+// The footer's height changes with the window width and the language.
+var fitGameAreaToFooter = function() {
+  var footer = document.getElementById('footer');
+  document.documentElement.style.setProperty('--footer-height', footer.offsetHeight + 'px');
+};
+
+
 // Show the page in the player's language (Thai unless they chose English), and let them switch at any time
 applyTranslations();
+fitGameAreaToFooter();
+window.addEventListener('resize', fitGameAreaToFooter, false);
+onLanguageChange(function() {
+  fitGameAreaToFooter();
+  // Let the game canvas pick up its new size
+  window.dispatchEvent(new Event('resize'));
+});
 $('#languageToggle').click(function(e) {
   e.preventDefault();
   setLanguage(getLanguage() === 'th' ? 'en' : 'th');
 });
+
+// Sound starts after the player's first click or key press (browsers block it before then)
+installAudio();
 
 
 // Check for debug parameter in URL
