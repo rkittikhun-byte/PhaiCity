@@ -12,7 +12,7 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 18
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
    - **Prompt 6A (ชุดสไตล์ประจำภาค) ต้องทำก่อน Prompt 7 ถึง 15** เพราะอาคารพวกนั้นดึงหลังคา สี และของประกอบจาก 6A
@@ -23,7 +23,7 @@
 
 | ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
 |---|---|---|
-| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 5 → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 15 → 18 |
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 15 → 18 |
 | **Antigravity** | worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics` | **16** ยานพาหนะ → **17** ภัยพิบัติและเอฟเฟกต์ → **14** โรงไฟฟ้า |
 
 - Prompt 16, 17 และ 14 ไม่ต้องใช้ผลงานจาก prompt อื่นที่ยังไม่เสร็จ จึงทำคู่กับ Codex ได้
@@ -326,6 +326,31 @@ Special pieces:
 
 Note: congested road tiles (80–206) need no extra models.
 The renderer will drive vehicles from Prompt 16 along them.
+
+Follow the Definition of Done in MODEL_SPEC section 9.
+```
+
+## Prompt 4B — สะพานขึงข้ามแม่น้ำ
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting, and follow every rule in them.
+Look at road.bridge from Prompt 4 in src/render3d/models/road/ first.
+
+Task: build a cable-stayed bridge for wide rivers.
+The simulation only knows ordinary bridge tiles (64, 65). Later, the renderer will draw any straight run
+of 8 or more bridge tiles as this cable-stayed bridge instead of road.bridge.
+Design: inspired by Bangkok's single-pylon river bridges, but never an exact copy, and never with a real name.
+
+- road.bridge_cable_deck: one tile of deck, same cross-section and edge alignment as road.bridge,
+  with stay-cable anchor points along both edges.
+  variant = distance in tiles from the pylon (0–20), so the renderer can draw cables at the right angle.
+- road.bridge_cable_pylon: the pylon tile.
+  - one tall, slender inverted-Y pylon, 120 m high, with a small lit crown
+  - with variant = side (0 or 1), it fans stay cables out to up to 20 deck tiles on that side
+    (draw the cables as thin lines merged into one mesh)
+  - deck at y = 0, matching road.bridge, with the pier going down to the riverbed
+- Night lighting along the cables, using emissive_window or a tinted emissive material from the library.
+- Tier R3. No real bridge names, plaques or royal emblems.
 
 Follow the Definition of Done in MODEL_SPEC section 9.
 ```
@@ -742,6 +767,15 @@ Land value 3:
                        abstract contemporary-Thai pattern, event plaza in front.
 - com.block_3_4 (607)  60-storey mixed-use skyscraper: tapering stepped form, LED-lit crown.
                        Max height 150 m; this is the tallest building in the game.
+
+Landmark variants of com.block_3_4. variant 0 is the default described above;
+the renderer will pick 1 or 2 for a few top-level towers in big cities.
+Both are inspired by Bangkok skyscrapers, but never exact copies and never with real names or logos:
+- variant 1, "ตึกระฟ้ายอดแหลม": a slender square tower with a tall pointed spire on top and a
+  rotating observation deck ring near the top (anim_deck). Max height 150 m.
+- variant 2, "ตึกพิกเซล": a glass tower with a spiral band of pixel-like voids carved into the facade,
+  as if blocks were removed, revealing balconies inside. Max height 150 m.
+Footprint, tile value and anchors stay the same as variant 0.
 
 Regional tiers: R2 for com.block_2_0 and com.block_3_1 (roofs, palette and plants from the kit).
 Every other model here is R3.

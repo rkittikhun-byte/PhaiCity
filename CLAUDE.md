@@ -156,6 +156,12 @@ Even before any server exists, all new code must keep this future possible:
    and must be recorded in `assets/CREDITS.md` (textures, fonts, HDRIs), `assets/audio/CREDITS.md` (sound and music)
    or `data/CREDITS.md` (map data). The sound plan, including forbidden music, is in `docs/audio/AUDIO_PLAN.md`.
    If unsure about a license, ask first.
-7. No real brands or logos, no Garuda emblem or royal symbols, no Red Cross emblem.
+7. **Required on-screen credits:**
+   - The micropolisJS/GPL notice ("Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.")
+     and the Micropolis trademark attribution, in the footer or About/credits page.
+   - "© OpenStreetMap contributors" wherever real province maps are shown.
+   - CC0 sources (Poly Haven, ambientCG, Kenney, Freesound CC0, Natural Earth) are optional;
+     list them on one credits page.
+8. No real brands or logos, no Garuda emblem or royal symbols, no Red Cross emblem.
    No Buddha images and no religious buildings of any faith (temples, mosques, churches, Chinese shrines);
    spirit houses are the only exception. No temple or palace roof ornaments on houses (ช่อฟ้า, ใบระกา, หางหงส์).
