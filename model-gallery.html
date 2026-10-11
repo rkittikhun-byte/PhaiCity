@@ -66,53 +66,70 @@
   </head>
   <body>
     <header>
-      <div><div class="eyebrow">PhaiCity / 3D foundation</div><h1>Model Gallery</h1><p>ดูขนาด แสง และโครงสร้างโมเดลก่อนนำเข้าเมือง</p></div>
-      <a href="index.html">เปิดเกม ↗</a>
+      <div><div class="eyebrow">PhaiCity / 3D</div><h1 data-th="แกลเลอรีโมเดล" data-en="Model Gallery">แกลเลอรีโมเดล</h1><p data-th="ดูขนาด แสง และโครงสร้างโมเดลก่อนนำเข้าเมือง" data-en="Inspect scale, lighting and geometry before placing models in a city.">ดูขนาด แสง และโครงสร้างโมเดลก่อนนำเข้าเมือง</p></div>
+      <div><label class="field">ภาษา / Language<select id="language"><option value="th">ไทย</option><option value="en">English</option></select></label><a href="index.html" data-th="เปิดเกม ↗" data-en="Open game ↗">เปิดเกม ↗</a></div>
     </header>
     <main>
       <nav class="tabs" role="tablist" aria-label="ประเภทตัวอย่าง">
-        <button id="models-tab" type="button" role="tab" aria-controls="library" aria-selected="true">Models</button>
-        <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1">Materials</button>
+        <button id="models-tab" type="button" role="tab" aria-controls="library" aria-selected="true" data-th="โมเดล" data-en="Models">โมเดล</button>
+        <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1" data-th="วัสดุ" data-en="Materials">วัสดุ</button>
       </nav>
       <section class="toolbar" aria-label="ตัวเลือกแสดงโมเดล">
-        <label class="field">หมวดหมู่<select id="category"><option value="all">ทั้งหมด</option></select></label>
+        <label class="field"><span data-th="หมวดหมู่" data-en="Category">หมวดหมู่</span><select id="category"><option value="all" data-th="ทั้งหมด" data-en="All">ทั้งหมด</option></select></label>
+        <label class="field"><span data-th="ภูมิภาค" data-en="Region">ภูมิภาค</span><select id="region">
+          <option value="north" data-th="เหนือ" data-en="North">เหนือ</option>
+          <option value="northeast" data-th="อีสาน" data-en="Northeast">อีสาน</option>
+          <option value="central" selected data-th="กลาง" data-en="Central">กลาง</option>
+          <option value="east" data-th="ตะวันออก" data-en="East">ตะวันออก</option>
+          <option value="west" data-th="ตะวันตก" data-en="West">ตะวันตก</option>
+          <option value="south" data-th="ใต้" data-en="South">ใต้</option>
+        </select></label>
         <label class="field">Seed<input id="seed" type="number" min="0" max="4294967295" step="1" value="1"></label>
         <label class="field">Variant<input id="variant" type="number" min="0" max="15" step="1" value="0"></label>
         <label class="field">State<input id="state" type="text" list="states" value="solid"><datalist id="states"></datalist></label>
-        <label class="field">มุมสูงดวงอาทิตย์ <output id="sun-value">55°</output><input id="sun-angle" type="range" min="5" max="85" value="55"></label>
-        <label class="toggle"><input id="night" type="checkbox">กลางคืน</label>
-        <label class="toggle"><input id="grid" type="checkbox" checked>กริด 10 ม.</label>
-        <label class="toggle"><input id="footprint" type="checkbox" checked>ขอบเขตพื้นที่</label>
+        <label class="field"><span data-th="ฝั่งบก (mask)" data-en="Land sides (mask)">ฝั่งบก (mask)</span><input id="land-mask" type="number" min="0" max="15" step="1" value="0" title="N=1, E=2, S=4, W=8"></label>
+        <label class="field"><span data-th="ติดน้ำ (mask)" data-en="Water neighbors (mask)">ติดน้ำ (mask)</span><input id="water-mask" type="number" min="0" max="15" step="1" value="0" title="N=1, E=2, S=4, W=8"></label>
+        <label class="field"><span data-th="ริมฝั่ง" data-en="Bank style">ริมฝั่ง</span><select id="bank-style">
+          <option value="auto" data-th="ตาม seed" data-en="From seed">ตาม seed</option>
+          <option value="earth" data-th="ดินลาด" data-en="Earth slope">ดินลาด</option>
+          <option value="concrete" data-th="คอนกรีต" data-en="Concrete">คอนกรีต</option>
+          <option value="brick" data-th="อิฐเก่า / คูเมือง" data-en="Old brick / moat">อิฐเก่า / คูเมือง</option>
+        </select></label>
+        <label class="field"><span data-th="มุมสูงดวงอาทิตย์" data-en="Sun elevation">มุมสูงดวงอาทิตย์</span><output id="sun-value">55°</output><input id="sun-angle" type="range" min="5" max="85" value="55"></label>
+        <label class="toggle"><input id="night" type="checkbox"><span data-th="กลางคืน" data-en="Night">กลางคืน</span></label>
+        <label class="toggle"><input id="grid" type="checkbox" checked><span data-th="กริด 10 ม." data-en="10 m grid">กริด 10 ม.</span></label>
+        <label class="toggle"><input id="footprint" type="checkbox" checked><span data-th="ขอบเขตพื้นที่" data-en="Footprint outline">ขอบเขตพื้นที่</span></label>
+        <label class="toggle"><input id="neighbors" type="checkbox"><span data-th="พื้นที่รอบข้าง 3×3" data-en="3×3 surroundings">พื้นที่รอบข้าง 3×3</span></label>
       </section>
       <p id="error" class="error" role="alert" hidden></p>
       <section id="library" role="tabpanel" aria-labelledby="models-tab">
-        <div class="library-heading"><p id="model-count"></p><p>คลิกโมเดลเพื่อหมุนดู</p></div>
+        <div class="library-heading"><p id="model-count"></p><p data-th="คลิกโมเดลเพื่อหมุนดู" data-en="Click a model to orbit">คลิกโมเดลเพื่อหมุนดู</p></div>
         <div id="cards" class="cards"></div>
-        <p id="empty" hidden>ไม่มีโมเดลในหมวดหมู่นี้</p>
+        <p id="empty" hidden data-th="ไม่มีโมเดลในหมวดหมู่นี้" data-en="No models in this category">ไม่มีโมเดลในหมวดหมู่นี้</p>
       </section>
       <section id="materials" role="tabpanel" aria-labelledby="materials-tab" hidden>
-        <div class="library-heading"><p>32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม.</p><p>คลิกตัวอย่างเพื่อหมุนดู</p></div>
+        <div class="library-heading"><p data-th="32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม." data-en="32 materials · sphere and 2 × 2 m tile">32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม.</p><p data-th="คลิกตัวอย่างเพื่อหมุนดู" data-en="Click a sample to orbit">คลิกตัวอย่างเพื่อหมุนดู</p></div>
         <p id="sky-status" class="hint" aria-live="polite">กำลังโหลดแสงท้องฟ้า HDRI 1K</p>
         <div id="material-cards" class="cards"></div>
-        <h2>สีพาสเทลตึกแถว</h2><p>12 สี · เลือกซ้ำได้ด้วย seed เดิม</p><div id="pastels" class="swatches"></div>
-        <h2 class="signs-heading">ป้ายภาษาไทย</h2><p>แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ</p>
+        <h2 data-th="สีพาสเทลตึกแถว" data-en="Shophouse pastels">สีพาสเทลตึกแถว</h2><p data-th="12 สี · เลือกซ้ำได้ด้วย seed เดิม" data-en="12 colors · reproducible by seed">12 สี · เลือกซ้ำได้ด้วย seed เดิม</p><div id="pastels" class="swatches"></div>
+        <h2 class="signs-heading" data-th="ป้ายภาษาไทย" data-en="Thai signs">ป้ายภาษาไทย</h2><p data-th="แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ" data-en="Horizontal · vertical · lit — Sarabun font and fictional text">แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ</p>
         <div id="sign-cards" class="cards"></div>
       </section>
       <section id="detail" aria-label="ดูโมเดลเดี่ยว" hidden>
         <p style="margin-top: 20px"><button id="back" type="button">← โมเดลทั้งหมด</button></p>
         <div class="detail-layout">
-          <div><div id="stage" class="stage" role="img" aria-label="โมเดล 3D หมุนและซูมได้"></div><p class="hint">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกขวาแล้วลากเพื่อเลื่อนมุมมอง</p></div>
-          <aside><div class="eyebrow">Model inspector</div><h2 id="detail-id" class="model-id"></h2><p id="detail-category"></p>
-            <dl><dt>Triangles</dt><dd id="detail-triangles"></dd><dt>Draw calls</dt><dd id="detail-calls"></dd><dt>Footprint</dt><dd id="detail-footprint"></dd><dt>Triangle budget</dt><dd id="detail-budget"></dd></dl>
-            <p class="hint">Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู</p>
-            <button id="reset-camera" type="button">รีเซ็ตมุมกล้อง</button>
+          <div><div id="stage" class="stage" role="img" aria-label="โมเดล 3D หมุนและซูมได้"></div><p class="hint" data-th="ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกขวาแล้วลากเพื่อเลื่อนมุมมอง" data-en="Drag to orbit · scroll to zoom · right-drag to pan">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกขวาแล้วลากเพื่อเลื่อนมุมมอง</p></div>
+          <aside><div class="eyebrow" data-th="รายละเอียดโมเดล" data-en="Model inspector">รายละเอียดโมเดล</div><h2 id="detail-id" class="model-id"></h2><p id="detail-category"></p>
+            <dl><dt data-th="สามเหลี่ยม" data-en="Triangles">สามเหลี่ยม</dt><dd id="detail-triangles"></dd><dt>Draw calls</dt><dd id="detail-calls"></dd><dt data-th="พื้นที่" data-en="Footprint">พื้นที่</dt><dd id="detail-footprint"></dd><dt data-th="งบสามเหลี่ยม" data-en="Triangle budget">งบสามเหลี่ยม</dt><dd id="detail-budget"></dd></dl>
+            <p class="hint" data-th="Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู" data-en="Draw calls count visible model surfaces; shadows and guides are excluded.">Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู</p>
+            <button id="reset-camera" type="button" data-th="รีเซ็ตมุมกล้อง" data-en="Reset camera">รีเซ็ตมุมกล้อง</button>
           </aside>
         </div>
       </section>
     </main>
-    <footer>PhaiCity · GPL v3 · Textures / HDRI: CC0 · Font: Sarabun (OFL) · <a href="assets/CREDITS.md">เครดิตและที่มา</a><br>
+    <footer>PhaiCity · GPL v3 · Textures / HDRI: CC0 · Font: Sarabun (OFL) · <a href="assets/CREDITS.md" data-th="เครดิตและที่มา" data-en="Credits and sources">เครดิตและที่มา</a><br>
       Powered by <a href="https://polyhaven.com/">Poly Haven</a> · <a href="https://ambientcg.com/">ambientCG</a><br>
       Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.</footer>
-    <noscript>กรุณาเปิด JavaScript เพื่อดูโมเดล</noscript>
+    <noscript>กรุณาเปิด JavaScript เพื่อดูโมเดล / Enable JavaScript to view models.</noscript>
   </body>
 </html>

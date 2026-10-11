@@ -33,6 +33,6 @@ export function createDebugBox(options: ModelOptions = {}): Group {
   light.name = 'anchor_light_0';
   light.position.set(0, 12, 0);
   root.add(light);
-  root.userData = { id, category: 'debug', footprint: [3, 3], tiles: [], triangles: countTriangles(root) };
+  root.userData = { id, category: 'debug', footprint: [3, 3], tiles: [], triangles: countTriangles(root), regionTier: 'R3', region: options.region ?? 'central' };
   return root;
 }

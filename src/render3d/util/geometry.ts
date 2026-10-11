@@ -3,8 +3,8 @@
  */
 
 import {
-  BoxGeometry, BufferGeometry, Curve, Float32BufferAttribute, Group,
-  InstancedMesh, Material, Matrix4, Mesh, Object3D, TubeGeometry, Vector3,
+  Box3, BoxGeometry, BufferGeometry, Curve, Float32BufferAttribute, Group,
+  InstancedMesh, Material, Matrix4, Mesh, Object3D, Skeleton, SkinnedMesh, TubeGeometry, Vector3,
 } from 'three';
 
 function positive(value: number, label: string): void {
@@ -261,6 +261,23 @@ export function visibleMeshes(root: Object3D): Mesh[] {
   return meshes;
 }
 
+/** Frame the rendered pose; hidden states and unused bone bind poses must not move the camera. */
+export function visibleBounds(root: Object3D): Box3 {
+  root.updateMatrixWorld(true);
+  const result = new Box3();
+  visibleMeshes(root).forEach(mesh => {
+    let bounds: Box3 | null;
+    if (mesh instanceof SkinnedMesh || mesh instanceof InstancedMesh) {
+      mesh.computeBoundingBox(); bounds = mesh.boundingBox;
+    } else {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      bounds = mesh.geometry.boundingBox;
+    }
+    if (bounds) result.union(bounds.clone().applyMatrix4(mesh.matrixWorld));
+  });
+  return result;
+}
+
 function renderedRanges(mesh: Mesh): { start: number; count: number }[] {
   const geometry = mesh.geometry;
   const available = geometry.index?.count ?? geometry.getAttribute('position').count;
@@ -291,6 +308,11 @@ export function countDrawCalls(root: Object3D): number {
 /** Shared library materials survive gallery rebuilds; only owned model geometry is freed. */
 export function disposeModel(root: Object3D): void {
   const geometries = new Set<BufferGeometry>();
-  root.traverse(object => { if (object instanceof Mesh) geometries.add(object.geometry); });
+  const skeletons = new Set<Skeleton>();
+  root.traverse(object => {
+    if (object instanceof Mesh) geometries.add(object.geometry);
+    if (object instanceof SkinnedMesh) skeletons.add(object.skeleton);
+  });
   geometries.forEach(geometry => geometry.dispose());
+  skeletons.forEach(skeleton => skeleton.dispose());
 }

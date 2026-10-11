@@ -9,6 +9,7 @@ import { thaiSign } from '../../src/render3d/materials/signs.js';
 import { loadTexture } from '../../src/render3d/materials/textures.js';
 import { ModelOptions, registry } from '../../src/render3d/models/registry.js';
 import { seededRng } from '../../src/render3d/rng.js';
+import { REGIONS } from '../../src/render3d/regional/types.js';
 import { applyWorldUV, balconyRows, beveledBox, CatenaryCurve, catenaryWire, countDrawCalls, countTriangles, disposeModel, mergeByMaterial, visibleMeshes, windowRows } from '../../src/render3d/util/geometry.js';
 
 function materials(mesh: Mesh): Material[] {
@@ -50,8 +51,9 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
     describe(id, () => {
       const variants = entry.variants ?? [0];
       const states = entry.states ?? [undefined];
+      const regions = entry.regionTier === 'R3' ? [undefined] : REGIONS;
       const cases: ModelOptions[] = [undefined, 0, 1, 42, 4294967295].flatMap(seed =>
-        variants.flatMap(variant => states.map(state => ({ seed, variant, state }))),
+        variants.flatMap(variant => states.flatMap(state => regions.map(region => ({ seed, variant, state, region })))),
       );
 
       it('provides valid registration metadata', () => {
@@ -60,6 +62,7 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
         entry.tiles.forEach(value => { expect(Number.isInteger(value)).toBe(true); expect(value).toBeGreaterThanOrEqual(0); expect(value).toBeLessThan(1024); });
         expect(entry.budget).toBeGreaterThan(0);
         expect(Number.isInteger(entry.budget)).toBe(true);
+        expect(['R1', 'R2', 'R3']).toContain(entry.regionTier);
       });
 
       it.each(cases)('meets the contract for %j', opts => {
@@ -68,7 +71,7 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
           expect(root).toBeInstanceOf(Group);
           expect(root.name).toBe(id);
           expect(root.position.toArray()).toEqual([0, 0, 0]);
-          expect(root.userData).toMatchObject({ id, category: entry.category, footprint: [...entry.footprint], tiles: [...entry.tiles], triangles: countTriangles(root) });
+          expect(root.userData).toMatchObject({ id, category: entry.category, footprint: [...entry.footprint], tiles: [...entry.tiles], triangles: countTriangles(root), regionTier: entry.regionTier, region: opts.region ?? 'central' });
           root.updateMatrixWorld(true);
           const bounds = new Box3().setFromObject(root);
           expect(bounds.isEmpty()).toBe(false);
@@ -127,20 +130,29 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
         } finally { disposeModel(root); }
       });
 
-      it('repeats the same complete model for the same seed and preserves massing across seeds', () => {
-        for (const variant of variants) for (const state of states) {
-          const opts = { seed: 73, variant, state };
+      it('repeats the complete model for a seed and follows its massing policy', () => {
+        for (const variant of variants) for (const state of states) for (const region of regions) {
+          const opts = { seed: 73, variant, state, region };
           const first = entry.factory(opts), second = entry.factory(opts), changed = entry.factory({ ...opts, seed: 789 });
           try {
             expect(fingerprint(first)).toEqual(fingerprint(second));
             expect(new Box3().setFromObject(first)).toEqual(new Box3().setFromObject(second));
             expect(countTriangles(first)).toBe(countTriangles(second));
-            // Seeds may move details, but cannot change overall width, depth or height.
+            // Prompt 2 explicitly overrides fixed massing for seeded vegetation.
             const firstSize = new Box3().setFromObject(first).getSize(new Vector3());
             const changedSize = new Box3().setFromObject(changed).getSize(new Vector3());
-            expect(changedSize.x).toBeCloseTo(firstSize.x, 3);
-            expect(changedSize.y).toBeCloseTo(firstSize.y, 3);
-            expect(changedSize.z).toBeCloseTo(firstSize.z, 3);
+            if (entry.seededVegetation) {
+              expect(changedSize.y / firstSize.y).toBeGreaterThanOrEqual(0.85 / 1.15 - 0.001);
+              expect(changedSize.y / firstSize.y).toBeLessThanOrEqual(1.15 / 0.85 + 0.001);
+              if (entry.category === 'park') {
+                expect(firstSize.x).toBeCloseTo(9, 3); expect(firstSize.z).toBeCloseTo(9, 3);
+                expect(changedSize.x).toBeCloseTo(9, 3); expect(changedSize.z).toBeCloseTo(9, 3);
+              }
+            } else {
+              expect(changedSize.x).toBeCloseTo(firstSize.x, 3);
+              expect(changedSize.y).toBeCloseTo(firstSize.y, 3);
+              expect(changedSize.z).toBeCloseTo(firstSize.z, 3);
+            }
           } finally { [first, second, changed].forEach(disposeModel); }
         }
       });

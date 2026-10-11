@@ -64,6 +64,7 @@ export function getWaterNormal(): Texture {
   }
   waterNormal = new DataTexture(data, size, size, RGBAFormat);
   waterNormal.wrapS = waterNormal.wrapT = RepeatWrapping;
+  waterNormal.repeat.setScalar(1 / 8); // Broad 2–3 m wavelets with meter-based world UVs.
   waterNormal.needsUpdate = true;
   return waterNormal;
 }

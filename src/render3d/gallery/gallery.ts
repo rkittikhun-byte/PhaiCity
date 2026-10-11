@@ -3,24 +3,44 @@
  */
 
 import {
-  ACESFilmicToneMapping, BackSide, Box3, BoxGeometry, BufferGeometry, Color, DirectionalLight,
+  ACESFilmicToneMapping, BackSide, BoxGeometry, BufferGeometry, Color, DirectionalLight,
   Fog, GridHelper, Group, HemisphereLight, LineBasicMaterial, LineLoop, Mesh,
   PCFShadowMap, PerspectiveCamera, PlaneGeometry, Scene, ShaderMaterial,
   SphereGeometry, SRGBColorSpace, Texture, Vector3, WebGLRenderer, PMREMGenerator,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-import { TILE_M } from '../constants.js';
-import { getMaterial, getPreviewGround, MATERIAL_KEYS, MaterialKey, materialTextureStatus, setNightMode, SHOPHOUSE_PASTELS, whenMaterialReady } from '../materials/library.js';
+import { TILE_M, WATER_Y } from '../constants.js';
+import { getMaterial, getPreviewGround, MATERIAL_KEYS, MaterialKey, materialTextureStatus, setNightMode, SHOPHOUSE_PASTELS, updateRoadSignals, whenMaterialReady } from '../materials/library.js';
 import { DAY_SKY_URL, TEXTURE_CATALOG } from '../materials/catalog.js';
 import { FICTIONAL_THAI_SIGNS, thaiSign } from '../materials/signs.js';
 import { ModelOptions, ModelRegistration, registry } from '../models/registry.js';
-import { applyWorldUV, countDrawCalls, countTriangles, disposeModel } from '../util/geometry.js';
+import type { RegionId } from '../regional/types.js';
+import { applyWorldUV, countDrawCalls, countTriangles, disposeModel, visibleBounds } from '../util/geometry.js';
+import { scrollWaterNormals } from '../util/water-animation.js';
+import { terrainNeighbors } from './terrain-neighbors.js';
+import { roadNeighbors } from './road-neighbors.js';
+
+const modelNeighbors = (id: string, options: ModelOptions): Group => id.startsWith('road.')
+  ? roadNeighbors(id, options) : terrainNeighbors(id, options);
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
   if (!found) throw new Error(`Missing gallery element: ${id}`);
   return found as T;
+}
+
+let language: 'th' | 'en' = 'th';
+const words = (thai: string, english: string): string => language === 'th' ? thai : english;
+const englishName = (id: string): string => id.replace(/_/g, ' ');
+function localText(node: HTMLElement, thai: string, english: string): void {
+  node.dataset.th = thai; node.dataset.en = english; node.textContent = words(thai, english);
+}
+function translatePage(): void {
+  document.documentElement.lang = language;
+  document.querySelectorAll<HTMLElement>('[data-th]').forEach(node => { node.textContent = words(node.dataset.th!, node.dataset.en!); });
+  document.querySelectorAll<HTMLElement>('[data-th-aria]').forEach(node => { node.setAttribute('aria-label', words(node.dataset.thAria!, node.dataset.enAria!)); });
+  document.title = `PhaiCity — ${words('แกลเลอรีโมเดล', 'Model Gallery')}`;
 }
 
 interface View {
@@ -30,6 +50,7 @@ interface View {
   scene: Scene;
   camera: PerspectiveCamera;
   root: Group;
+  neighbors: Group;
   region: HTMLElement;
   sun: DirectionalLight;
   ambient: HemisphereLight;
@@ -51,9 +72,15 @@ function startGallery(): void {
   renderer.autoClear = false;
 
   const category = element<HTMLSelectElement>('category');
+  const regionPicker = element<HTMLSelectElement>('region');
+  const languagePicker = element<HTMLSelectElement>('language');
   const seed = element<HTMLInputElement>('seed');
   const variant = element<HTMLInputElement>('variant');
   const state = element<HTMLInputElement>('state');
+  const landMask = element<HTMLInputElement>('land-mask');
+  const waterMask = element<HTMLInputElement>('water-mask');
+  const bankStyle = element<HTMLSelectElement>('bank-style');
+  const neighborToggle = element<HTMLInputElement>('neighbors');
   const sunAngle = element<HTMLInputElement>('sun-angle');
   const night = element<HTMLInputElement>('night');
   const gridToggle = element<HTMLInputElement>('grid');
@@ -69,6 +96,7 @@ function startGallery(): void {
   let environment: Texture | undefined;
   let environmentTarget: ReturnType<PMREMGenerator['fromEquirectangular']> | undefined;
   let disposed = false;
+  let rebuildTimer: number | undefined;
 
   // Shared backdrop: a clear blue zenith fading into humid, pale horizon haze.
   const skyGeometry = new SphereGeometry(1800, 24, 12);
@@ -106,11 +134,16 @@ function startGallery(): void {
       seed: Number.isFinite(seedValue) ? Math.trunc(seedValue) >>> 0 : 1,
       variant: Number.isFinite(variantValue) ? Math.max(0, Math.min(15, Math.trunc(variantValue))) : 0,
       state: state.value.trim() || undefined,
+      region: regionPicker.value as RegionId,
+      landMask: Number(landMask.value) & 15,
+      waterMask: Number(waterMask.value) & 15,
+      bankStyle: bankStyle.value === 'auto' ? undefined : bankStyle.value as ModelOptions['bankStyle'],
     };
   }
 
   function frameModel(view: View): void {
-    const bounds = new Box3().setFromObject(view.root);
+    const bounds = visibleBounds(view.root);
+    if (view.neighbors.children.length) bounds.union(visibleBounds(view.neighbors));
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
     if (bounds.isEmpty()) { size.set(10, 10, 10); center.set(0, 5, 0); }
@@ -131,13 +164,13 @@ function startGallery(): void {
 
   function updateMetrics(view: View): void {
     const triangles = countTriangles(view.root), calls = countDrawCalls(view.root);
-    if (view.metrics) view.metrics.textContent = `${view.entry.category} · ${triangles.toLocaleString()} triangles · ${calls} draw call${calls === 1 ? '' : 's'}`;
+    if (view.metrics) localText(view.metrics, `${view.entry.category} · ${triangles.toLocaleString()} สามเหลี่ยม · ${calls} draw calls`, `${view.entry.category} · ${triangles.toLocaleString()} triangles · ${calls} draw calls`);
     if (selected === view) {
       element('detail-id').textContent = view.id;
-      element('detail-category').textContent = view.kind === 'model' ? view.entry.category : view.kind === 'material' ? 'วัสดุ PBR · 1K' : 'ป้ายภาษาไทย · Sarabun';
+      element('detail-category').textContent = view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
       element('detail-triangles').textContent = triangles.toLocaleString();
       element('detail-calls').textContent = String(calls);
-      element('detail-footprint').textContent = view.kind === 'model' ? `${view.entry.footprint.join(' × ')} tiles` : 'ตัวอย่างผิว';
+      element('detail-footprint').textContent = view.kind === 'model' ? `${view.entry.footprint.join(' × ')} ${words('ช่อง', 'tiles')}` : words('ตัวอย่างผิว', 'Surface sample');
       element('detail-budget').textContent = view.kind === 'model' ? view.entry.budget.toLocaleString() : '—';
     }
   }
@@ -167,10 +200,15 @@ function startGallery(): void {
   function createView(id: string, entry: ModelRegistration, region: HTMLElement, metrics?: HTMLElement, kind: View['kind'] = 'model'): View {
     const scene = new Scene();
     const root = entry.factory(options());
+    const neighbors = region === stage && neighborToggle.checked
+      ? modelNeighbors(id, options()) : new Group();
+    scene.add(neighbors);
     scene.add(root, new Mesh(skyGeometry, skyMaterial));
-    const ground = new Mesh(groundGeometry, groundMaterial);
+    const waterside = entry.ground === 'shore' || entry.ground === 'water' || entry.ground === 'bridge';
+    const terrainWater = waterside && id.startsWith('terrain.');
+    const ground = new Mesh(groundGeometry, waterside && !terrainWater ? getMaterial('water_river') : groundMaterial);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.015;
+    ground.position.y = terrainWater ? -3.015 : waterside ? WATER_Y - 0.015 : -0.015;
     ground.receiveShadow = true;
     scene.add(ground);
     const grid = new GridHelper(400, 400 / TILE_M, 0x657c74, 0x9ba89a);
@@ -194,7 +232,7 @@ function startGallery(): void {
     const ambient = new HemisphereLight(0xc6e6ff, 0x9a805c, 1.25);
     scene.add(sun, sun.target, ambient);
     const camera = new PerspectiveCamera(38, 1, 0.1, 4000);
-    const view = { id, kind, entry, scene, root, region, camera, sun, ambient, grid, outline, metrics };
+    const view = { id, kind, entry, scene, root, neighbors, region, camera, sun, ambient, grid, outline, metrics };
     views.push(view);
     frameModel(view);
     updateMetrics(view);
@@ -203,13 +241,14 @@ function startGallery(): void {
 
   function freeView(view: View): void {
     disposeModel(view.root);
+    disposeModel(view.neighbors);
     view.grid.geometry.dispose();
     view.grid.material.dispose();
     view.outline.geometry.dispose();
     view.sun.shadow.dispose();
   }
 
-  function showLibrary(): void {
+  function showLibrary(refresh = true): void {
     controls?.dispose();
     controls = undefined;
     if (selected) {
@@ -220,10 +259,12 @@ function startGallery(): void {
     element('detail').hidden = true;
     element('library').hidden = activeTab !== 'models';
     element('materials').hidden = activeTab !== 'materials';
+    if (refresh && activeTab === 'models') rebuildModels();
     updateStateChoices();
   }
 
   function showModel(view: View): void {
+    if (view.entry.states?.length && !view.entry.states.includes(state.value)) state.value = view.entry.states[0];
     element('library').hidden = true;
     element('materials').hidden = true;
     element('detail').hidden = false;
@@ -247,7 +288,7 @@ function startGallery(): void {
   }
 
   function buildLibrary(): void {
-    showLibrary();
+    showLibrary(false);
     views.forEach(freeView);
     views.length = 0;
     cards.replaceChildren();
@@ -262,7 +303,8 @@ function startGallery(): void {
       const card = document.createElement('button');
       card.className = 'model-card';
       card.type = 'button';
-      card.setAttribute('aria-label', `ดู ${id}`);
+      card.dataset.thAria = `ดู ${id}`; card.dataset.enAria = `View ${id}`;
+      card.setAttribute('aria-label', words(`ดู ${id}`, `View ${id}`));
       const preview = document.createElement('div');
       preview.className = 'preview';
       const caption = document.createElement('div');
@@ -276,25 +318,35 @@ function startGallery(): void {
       const view = createView(id, entry, preview, metrics);
       card.addEventListener('click', () => showModel(view));
     });
-    element('model-count').textContent = `${views.length} โมเดล · 1 หน่วย = 1 เมตร`;
+    localText(element('model-count'), `${views.length} โมเดล · 1 หน่วย = 1 เมตร`, `${views.length} models · 1 unit = 1 meter`);
     element('empty').hidden = views.length > 0;
     updateStateChoices();
     updateLighting();
   }
 
   function rebuildModels(): void {
+    window.clearTimeout(rebuildTimer); rebuildTimer = undefined;
     const opts = options();
-    views.filter(view => view.kind === 'model').forEach(view => {
+    (selected ? [selected] : views).filter(view => view.kind === 'model').forEach(view => {
       view.scene.remove(view.root);
       disposeModel(view.root);
       view.root = view.entry.factory(opts);
       view.scene.add(view.root);
+      view.scene.remove(view.neighbors); disposeModel(view.neighbors);
+      view.neighbors = selected === view && neighborToggle.checked ? modelNeighbors(view.id, opts) : new Group();
+      view.scene.add(view.neighbors);
+      frameModel(view);
       updateMetrics(view);
     });
   }
 
+  function queueRebuild(): void {
+    window.clearTimeout(rebuildTimer);
+    rebuildTimer = window.setTimeout(rebuildModels, 80);
+  }
+
   function sampleRegistration(factory: () => Group): ModelRegistration {
-    return { factory, category: 'ui', footprint: [1, 1], tiles: [], budget: 3000 };
+    return { factory, category: 'ui', footprint: [1, 1], tiles: [], budget: 3000, regionTier: 'R3' };
   }
 
   function materialSample(key: MaterialKey): Group {
@@ -319,14 +371,15 @@ function startGallery(): void {
     return group;
   }
 
-  function sampleCard(id: string, title: string, factory: () => Group, parent: HTMLElement, kind: View['kind']): HTMLElement {
+  function sampleCard(id: string, title: string, factory: () => Group, parent: HTMLElement, kind: View['kind'], englishTitle = englishName(id)): HTMLElement {
     const card = document.createElement('article'); card.className = 'material-card';
     const preview = document.createElement('div'); preview.className = 'preview';
-    preview.tabIndex = 0; preview.setAttribute('role', 'button'); preview.setAttribute('aria-label', `ดู ${id}`);
+    preview.tabIndex = 0; preview.setAttribute('role', 'button'); preview.dataset.thAria = `ดู ${id}`; preview.dataset.enAria = `View ${id}`;
+    preview.setAttribute('aria-label', words(`ดู ${id}`, `View ${id}`));
     const caption = document.createElement('div'); caption.className = 'caption';
-    const label = document.createElement('strong'); label.className = 'material-label'; label.textContent = title;
+    const label = document.createElement('strong'); label.className = 'material-label'; localText(label, title, englishTitle);
     const name = document.createElement('small'); name.textContent = id;
-    const status = document.createElement('small'); status.textContent = 'กำลังโหลด';
+    const status = document.createElement('small'); localText(status, 'กำลังโหลด', 'Loading');
     caption.append(label, name, status); card.append(preview, caption); parent.append(card);
     const view = createView(id, sampleRegistration(factory), preview, undefined, kind);
     const open = () => showModel(view);
@@ -340,21 +393,22 @@ function startGallery(): void {
       const definition = TEXTURE_CATALOG[key];
       const status = sampleCard(key, definition.label, () => materialSample(key), element('material-cards'), 'material');
       const source = document.createElement('a'); source.href = definition.sources[0];
-      source.textContent = 'ที่มา CC0 ↗'; source.target = '_blank'; source.rel = 'noopener';
+      localText(source, 'ที่มา CC0 ↗', 'CC0 source ↗'); source.target = '_blank'; source.rel = 'noopener';
       status.parentElement!.append(source);
       void whenMaterialReady(key).then(() => {
-        status.textContent = materialTextureStatus(key) === 'ready' ? 'PBR · 1K · CC0' : 'โหลด texture ไม่สำเร็จ · แสดงสีพื้น';
+        const ready = materialTextureStatus(key) === 'ready';
+        localText(status, ready ? 'PBR · 1K · CC0' : 'โหลด texture ไม่สำเร็จ · แสดงสีพื้น', ready ? 'PBR · 1K · CC0' : 'Texture unavailable · flat color fallback');
       });
     });
     element('pastels').replaceChildren(...SHOPHOUSE_PASTELS.map(pastel => {
       const swatch = document.createElement('span'); swatch.className = 'swatch';
       const dot = document.createElement('i'); dot.style.backgroundColor = `#${pastel.color.toString(16).padStart(6, '0')}`;
-      swatch.append(dot, document.createTextNode(pastel.label)); return swatch;
+      const name = document.createElement('span'); localText(name, pastel.label, englishName(pastel.name)); swatch.append(dot, name); return swatch;
     }));
     const signExamples = [
-      { id: 'sign.horizontal', title: 'ป้ายหน้าร้าน', text: 'ก๋วยเตี๋ยวบ้านสวน', size: [4, 1] as const, layout: 'horizontal' as const, lit: false },
-      { id: 'sign.vertical', title: 'ป้ายแนวตั้ง', text: 'ห้อง\nว่าง', size: [1, 3.5] as const, layout: 'vertical' as const, lit: false },
-      { id: 'sign.lit', title: 'ป้ายมีแสง', text: 'ครัวลมเย็น', size: [3.5, 1.2] as const, layout: 'horizontal' as const, lit: true },
+      { id: 'sign.horizontal', title: 'ป้ายหน้าร้าน', english: 'Shop-front sign', text: 'ก๋วยเตี๋ยวบ้านสวน', size: [4, 1] as const, layout: 'horizontal' as const, lit: false },
+      { id: 'sign.vertical', title: 'ป้ายแนวตั้ง', english: 'Vertical sign', text: 'ห้อง\nว่าง', size: [1, 3.5] as const, layout: 'vertical' as const, lit: false },
+      { id: 'sign.lit', title: 'ป้ายมีแสง', english: 'Lit sign', text: 'ครัวลมเย็น', size: [3.5, 1.2] as const, layout: 'horizontal' as const, lit: true },
     ];
     signExamples.forEach(example => {
       const status = sampleCard(example.id, example.title, () => {
@@ -362,10 +416,10 @@ function startGallery(): void {
         const mesh = new Mesh(new PlaneGeometry(...example.size), thaiSign(example.text, '#f3e8c7', '#25493e', example.size, example));
         mesh.position.y = example.size[1] / 2 + 0.25;
         mesh.castShadow = true; root.add(mesh); return root;
-      }, element('sign-cards'), 'sign');
-      status.textContent = example.text + (example.lit ? ' · เปิดกลางคืนเพื่อดูแสง' : '');
+      }, element('sign-cards'), 'sign', example.english);
+      localText(status, example.text + (example.lit ? ' · เปิดกลางคืนเพื่อดูแสง' : ''), example.text + (example.lit ? ' · switch to night to see illumination' : ''));
     });
-    element('back').textContent = '← วัสดุทั้งหมด';
+    localText(element('back'), '← วัสดุทั้งหมด', '← All materials');
   }
 
   function switchTab(tab: 'models' | 'materials'): void {
@@ -374,23 +428,30 @@ function startGallery(): void {
       const button = element(name + '-tab');
       button.setAttribute('aria-selected', String(tab === name)); button.tabIndex = tab === name ? 0 : -1;
     });
-    [category, seed, variant, state, gridToggle, footprintToggle].forEach(input => {
+    [category, regionPicker, seed, variant, state, landMask, waterMask, bankStyle, neighborToggle, gridToggle, footprintToggle].forEach(input => {
       input.disabled = tab !== 'models';
       (input.closest('label') as HTMLLabelElement).hidden = tab !== 'models';
     });
-    element('back').textContent = tab === 'models' ? '← โมเดลทั้งหมด' : '← วัสดุทั้งหมด';
+    localText(element('back'), tab === 'models' ? '← โมเดลทั้งหมด' : '← วัสดุทั้งหมด', tab === 'models' ? '← All models' : '← All materials');
     buildLibrary();
   }
 
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
     const option = document.createElement('option');
-    option.value = option.textContent = name;
+    option.value = name;
+    localText(option, name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
   category.addEventListener('change', buildLibrary);
-  [seed, variant, state].forEach(input => input.addEventListener('change', rebuildModels));
+  [seed, variant, state, regionPicker, landMask, waterMask, bankStyle].forEach(input => input.addEventListener('change', rebuildModels));
+  neighborToggle.addEventListener('change', rebuildModels);
+  [seed, variant, state, landMask, waterMask].forEach(input => input.addEventListener('input', queueRebuild));
+  languagePicker.addEventListener('change', () => {
+    language = languagePicker.value === 'en' ? 'en' : 'th';
+    translatePage(); views.forEach(updateMetrics);
+  });
   [sunAngle, night, gridToggle, footprintToggle].forEach(input => input.addEventListener('input', updateLighting));
-  element('back').addEventListener('click', showLibrary);
+  element('back').addEventListener('click', () => showLibrary());
   element('reset-camera').addEventListener('click', () => { if (selected) frameModel(selected); });
   element('models-tab').addEventListener('click', () => switchTab('models'));
   element('materials-tab').addEventListener('click', () => switchTab('materials'));
@@ -400,6 +461,15 @@ function startGallery(): void {
     }
   }));
   buildLibrary();
+  localText(element('back'), '← โมเดลทั้งหมด', '← All models');
+  localText(element('sky-status'), 'กำลังโหลดแสงท้องฟ้า HDRI 1K', 'Loading 1K daytime HDRI');
+  const ariaLabels: readonly [string, string, string][] = [
+    ['nav', 'ประเภทตัวอย่าง', 'Sample type'], ['.toolbar', 'ตัวเลือกแสดงโมเดล', 'Model display options'],
+    ['#detail', 'ดูโมเดลเดี่ยว', 'Model inspector'], ['#stage', 'โมเดล 3D หมุนและซูมได้', 'Orbitable 3D model'],
+    ['#sun-angle', 'มุมสูงดวงอาทิตย์', 'Sun elevation'],
+  ];
+  ariaLabels.forEach(([selector, th, en]) => { const node = document.querySelector<HTMLElement>(selector)!; node.dataset.thAria = th; node.dataset.enAria = en; });
+  translatePage();
 
   // IBL is local and lazy; the gradient sky remains readable at both day and night.
   new HDRLoader().load(DAY_SKY_URL, texture => {
@@ -408,9 +478,9 @@ function startGallery(): void {
     environmentTarget = generator.fromEquirectangular(texture);
     environment = environmentTarget.texture;
     texture.dispose(); generator.dispose();
-    element('sky-status').textContent = 'แสงท้องฟ้า HDRI 1K · Poly Haven · CC0';
+    localText(element('sky-status'), 'แสงท้องฟ้า HDRI 1K · Poly Haven · CC0', '1K daytime HDRI · Poly Haven · CC0');
     updateLighting();
-  }, undefined, () => { element('sky-status').textContent = 'โหลด HDRI ไม่สำเร็จ · ใช้แสงท้องฟ้าสีพื้น'; });
+  }, undefined, () => { localText(element('sky-status'), 'โหลด HDRI ไม่สำเร็จ · ใช้แสงท้องฟ้าสีพื้น', 'HDRI unavailable · gradient sky fallback'); });
 
   // One WebGL context for the entire library; scissor each visible thumbnail or inspector.
   function render(): void {
@@ -420,6 +490,8 @@ function startGallery(): void {
       renderer.setSize(width, height);
     }
     controls?.update();
+    scrollWaterNormals((selected ? [selected] : views).flatMap(view => [view.root, view.neighbors]), performance.now() / 1000);
+    updateRoadSignals(performance.now() / 1000);
     renderer.setScissorTest(false);
     renderer.setClearColor(0x000000, 0);
     renderer.clear();
@@ -440,6 +512,7 @@ function startGallery(): void {
   window.addEventListener('pagehide', event => {
     if (event.persisted) return;
     disposed = true;
+    window.clearTimeout(rebuildTimer);
     cancelAnimationFrame(frame);
     controls?.dispose();
     views.forEach(freeView);
@@ -454,5 +527,5 @@ try {
 } catch (error) {
   const message = element('error');
   message.hidden = false;
-  message.textContent = `เปิดภาพ 3D ไม่สำเร็จ กรุณาตรวจว่าเบราว์เซอร์รองรับ WebGL 2: ${error instanceof Error ? error.message : String(error)}`;
+  localText(message, `เปิดภาพ 3D ไม่สำเร็จ กรุณาตรวจว่าเบราว์เซอร์รองรับ WebGL 2: ${error instanceof Error ? error.message : String(error)}`, `Cannot open 3D. Check browser support for WebGL 2: ${error instanceof Error ? error.message : String(error)}`);
 }

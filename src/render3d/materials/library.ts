@@ -36,7 +36,7 @@ const definitions = {
   grass: { color: 0x748a4c, roughness: 1 },
   dirt_laterite: { color: 0xb9683e, roughness: 1 },
   gravel_ballast: { color: 0x88867e, roughness: 1 },
-  water_river: { color: 0x53766a, roughness: 0.3 },
+  water_river: { color: 0x66704d, roughness: 0.3 },
   water_flood: { color: 0x927951, roughness: 0.4 },
   foliage_tropical: { color: 0x8aad73, roughness: 0.95, side: DoubleSide, alphaTest: 0.45 },
   fabric_canvas: { color: 0xc79b60, roughness: 1, side: DoubleSide },
@@ -83,6 +83,7 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
     material.envMapIntensity = 1.4;
   }
   if (key === 'roof_cement_tile') material.metalness = 0;
+  if (material.userData.polishedStone) { material.roughness = 0.22; material.normalScale.setScalar(0.1); }
   if (maps.alpha) material.alphaTest = 0.45;
   if (key.startsWith('plaster_') || key === 'roof_cement_tile') {
     // A neutral painted coat retains scan grain while keeping seeded pastels legible.
@@ -95,7 +96,7 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
     };
     material.customProgramCacheKey = () => 'phaicity-painted-scan';
   }
-  if (key === 'curb_red_white') {
+  if (key === 'curb_red_white' && !material.userData.pathCurb) {
     if (!material.userData.tinted) material.color.setHex(0xffffff);
     material.onBeforeCompile = shader => {
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 curbPosition;')
@@ -108,6 +109,138 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
     material.customProgramCacheKey = () => 'phaicity-curb-bands';
   }
   material.needsUpdate = true;
+}
+
+/** Cached finishes retain the source scan while remaining library-owned. */
+function finishedMaterial(token: string, key: MaterialKey, color: ColorRepresentation,
+  configure: (material: MeshStandardMaterial) => void): MeshStandardMaterial {
+  const resolved = new Color(color), cacheKey = `${token}:${resolved.getHexString()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  const material = getMaterial(key).clone();
+  material.name = cacheKey; material.color.copy(resolved); material.userData.tinted = true;
+  configure(material); owned.add(material); cache.set(cacheKey, material);
+  void whenMaterialReady(key).then(ready => {
+    if (ready) void loadMaterialTextures(key).then(maps => { if (maps) applyTextures(material, key, maps); });
+  });
+  return material;
+}
+
+/** Smooth marble-like benches and fountain stone; no new texture payload. */
+export function polishedStone(color: ColorRepresentation = 0xe4e3d8): MeshStandardMaterial {
+  return finishedMaterial('polished-stone', 'concrete_raw', color, material => {
+    material.userData.polishedStone = true; material.roughness = 0.22; material.normalScale.setScalar(0.1);
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float grain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.87 + 0.13 * grain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-polished-stone';
+  });
+}
+
+/** Internode bands follow the height of baked culms without extra meshes or texture files. */
+export function bambooCulmMaterial(): MeshStandardMaterial {
+  return finishedMaterial('bamboo-culm', 'wood_painted', 0x738c49, material => {
+    material.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float culmHeight;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nculmHeight = position.y;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float culmHeight;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float node = 1.0 - smoothstep(0.018, 0.032, abs(fract(culmHeight / 0.48) - 0.5) * 0.48);
+          diffuseColor.rgb *= mix(vec3(0.88, 0.96, 0.72), vec3(1.12, 1.09, 0.85), node);`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-bamboo-nodes';
+  });
+}
+
+/** Subtle green contamination patch; emission remains faint in both gallery lighting modes. */
+export function contaminationGlow(): MeshStandardMaterial {
+  return finishedMaterial('contamination-glow', 'concrete_raw', 0x526c36, material => {
+    material.emissive.setHex(0x70ae3f); material.emissiveIntensity = 0.16; material.roughness = 1;
+    material.transparent = true; material.opacity = 0.24; material.depthWrite = false;
+    material.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 contaminationXZ;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ncontaminationXZ = position.xz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 contaminationXZ;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          diffuseColor.a *= 1.0 - smoothstep(0.2, 1.2, length(contaminationXZ - vec2(-0.5, 0.0)));`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-contamination-haze';
+  });
+}
+
+/** Opaque paint coat over a metal scan: neutral grain preserves bright safety colors. */
+export function paintedSteel(color: ColorRepresentation): MeshStandardMaterial {
+  return finishedMaterial('painted-steel', 'metal_painted', color, material => {
+    material.metalness = 0.08; material.roughness = 0.72;
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float grain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.8 + 0.2 * grain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-painted-steel';
+  });
+}
+
+/** Neutral concrete keeps scan wear without importing the scan's warm stone color. */
+export function roadConcrete(): MeshStandardMaterial {
+  return finishedMaterial('road-concrete', 'concrete_raw', 0xa6aba6, material => {
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float grain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.70 + 0.30 * grain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-road-concrete';
+  });
+}
+
+/** Road curbs measure paint bands along their path, including north/south and curved faces. */
+export function roadCurbMaterial(): MeshStandardMaterial {
+  return finishedMaterial('road-curb', 'curb_red_white', 0xffffff, material => {
+    material.userData.pathCurb = true;
+    material.polygonOffset = true; material.polygonOffsetFactor = -1; material.polygonOffsetUnits = -1;
+    material.onBeforeCompile = shader => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float curbDistance;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ncurbDistance = uv.x;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float curbDistance;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float band = mod(floor((curbDistance + 0.001) / 0.5), 2.0);
+          diffuseColor.rgb *= mix(vec3(0.68, 0.055, 0.04), vec3(0.88, 0.86, 0.80), band);`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-road-curb-path';
+  });
+}
+
+const signalClock = { value: 0 };
+/** UV.x selects alternating lamps (0/1), disabled lamps (2/3), or opaque red paint (-1). */
+export function railwaySignalMaterial(): MeshStandardMaterial {
+  return finishedMaterial('railway-signal', 'emissive_window', 0xe62b1b, material => {
+    material.userData.railwaySignal = true;
+    material.emissive.setHex(0xff1707); material.emissiveIntensity = 2.5;
+    material.onBeforeCompile = shader => {
+      shader.uniforms.railwayTime = signalClock;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float lampPhase;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nlampPhase = floor(uv.x);');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float railwayTime;\nvarying float lampPhase;')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          float isLamp = step(-0.5, lampPhase);
+          float flash = step(0.5, fract(railwayTime + lampPhase * 0.5)) * (1.0 - step(1.5, lampPhase)) * isLamp;
+          totalEmissiveRadiance *= flash;
+          diffuseColor.rgb *= mix(1.0, 0.18 + flash * 0.82, isLamp);`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-railway-flash';
+  });
+}
+
+export function updateRoadSignals(seconds: number): void {
+  if (Number.isFinite(seconds)) signalClock.value = seconds;
 }
 
 /** Returns immediately in Node; failures retain all original flat PBR parameters. */
@@ -197,6 +330,6 @@ export function setNightMode(night: boolean): void {
 }
 
 function applyNight(material: MeshStandardMaterial): void {
-  if (material.userData.materialKey === 'emissive_window') material.emissiveIntensity = nightMode ? 2.5 : 0.15;
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
   if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
 }
