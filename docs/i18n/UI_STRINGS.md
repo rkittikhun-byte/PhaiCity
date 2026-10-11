@@ -438,12 +438,12 @@
 
 | Key | File | Current English | New English | Thai | Notes |
 |---|---|---|---|---|---|
-| `about.meta.title` | `about.html` | `About | micropolisJS` | `About | PhaiCity` | `เกี่ยวกับ | PhaiCity` | ชื่อหน้าเบราว์เซอร์ |
+| `about.meta.title` | `about.html` | `About (micropolisJS)` | `About PhaiCity` | `เกี่ยวกับ PhaiCity` | ชื่อหน้าเบราว์เซอร์ (ห้ามใช้เส้นขีดตั้งในข้อความ เพราะ `npm run i18n:import` จะตัดคอลัมน์ผิด) |
 | `about.header.title` | `about.html` | `micropolisJS` | `PhaiCity` | `PhaiCity` | ส่วนหัว |
-| `about.appeal.title` | `about.html` | `Support micropolisJS` | `About PhaiCity Project` | `เกี่ยวกับโครงการ PhaiCity` | หัวข้อแนะนำ |
-| `about.appeal.body` | `about.html` | `This is just the beginning...` | `PhaiCity is a browser-based city simulation game that brings authentic Thai urban environments, 6 architectural regions, and 77 provinces to life under the open-source GPL v3 license.` | `PhaiCity คือเกมจำลองการสร้างเมืองบนเว็บเบราว์เซอร์ ที่ผสมผสานเอกลักษณ์เมืองไทย สถาปัตยกรรม 6 ภาค และภูมิศาสตร์ 77 จังหวัดเข้าด้วยกันอย่างสมจริง พัฒนาขึ้นภายใต้สัญญาอนุญาตโอเพนซอร์ส GPL v3` | แนะนำเกมใหม่ |
-| `about.welcome.title` | `about.html` | `Welcome to your city!` | `Rule Your Thai City!` | `สวมบทเจ้าเมืองและเนรมิตเมืองไทย!` | หัวข้อการเล่น |
-| `about.welcome.body` | `about.html` | `micropolisJS is a handmade port of <a href="http://code.google.com/p/micropolis/">Micropolis</a> to Javascript...` | `As a city ruler, balance budget, growth, and citizen happiness. Zone land, lay infrastructure, and develop regional landmarks using the toolbox.` | `ในฐานะเจ้าเมือง คุณต้องรักษาสมดุลระหว่างงบประมาณ การเติบโต และความสุขของประชาชน เลือกวางโซนประเภทต่าง ๆ วางโครงสร้างพื้นฐาน และพัฒนาเมืองของคุณให้เจริญรุ่งเรือง` | คู่มือการเล่น |
+| `about.appeal.title` | `about.html` | `Support micropolisJS` | `About PhaiCity` | `เกี่ยวกับ PhaiCity` | หัวข้อแนะนำ |
+| `about.appeal.body` | `about.html` | `This is just the beginning...` | `PhaiCity is a Thai city-building game that runs in your browser. Choose one of Thailand's 77 provinces, start on its real land of rivers, coasts and forests, and grow a village into a great city as its ruler. It is free and open source.` | `PhaiCity คือเกมสร้างเมืองไทยที่เล่นบนเว็บเบราว์เซอร์ เลือกหนึ่งใน 77 จังหวัด เริ่มต้นบนผืนดินจริงที่มีแม่น้ำ ชายฝั่ง และป่าไม้ แล้วสร้างหมู่บ้านเล็ก ๆ ให้เติบโตเป็นมหานครในฐานะเจ้าเมือง เป็นเกมฟรีและเปิดซอร์สโค้ด` | แนะนำเกม (ไม่อ้างถึงของที่ยังไม่มี เช่น สถาปัตยกรรม 6 ภาค) |
+| `about.welcome.title` | `about.html` | `Welcome to your city!` | `How to play` | `วิธีเล่น` | หัวข้อการเล่น |
+| `about.welcome.body` | `about.html` | `micropolisJS is a handmade port of <a href="http://code.google.com/p/micropolis/">Micropolis</a> to Javascript...` | `As the city's ruler, balance the budget, growth and your citizens' happiness. Pick a tool from the toolbar, then click the map to build.` | `ในฐานะเจ้าเมือง คุณต้องรักษาสมดุลระหว่างงบประมาณ การเติบโต และความสุขของประชาชน เลือกเครื่องมือจากแถบเครื่องมือ แล้วคลิกบนแผนที่เพื่อสร้าง` | คู่มือการเล่น |
 | `about.zone.res` | `about.html` | `Residential zones: Your citizens need somewhere to live!...` | `Residential zones: Citizens need homes! Zone neighborhoods and watch towns grow, but keep pollution away.` | `เขตที่อยู่อาศัย: ราษฎรต้องการบ้านเรือน จัดสรรพื้นที่ชุมชนให้ผู้คนย้ายเข้ามาอยู่ และระวังอย่าให้มีมลพิษรบกวน` | คำอธิบายโซน |
 | `about.zone.com` | `about.html` | `Commercial zones: Sometimes your citizens need to pop round to the shops...` | `Commercial zones: Shops, markets, and offices that power commerce, services, and local trade.` | `เขตพาณิชยกรรม: แหล่งค้าขาย ร้านรวง ตลาด และสำนักงาน เพื่อขับเคลื่อนเศรษฐกิจท้องถิ่นและการจ้างงาน` | คำอธิบายโซน |
 | `about.zone.ind` | `about.html` | `Industrial zones: There's only so much daytime television...` | `Industrial zones: Factories and manufacturing hubs providing productive jobs and driving industrial output.` | `เขตอุตสาหกรรม: โรงงานและศูนย์การผลิต สร้างผลผลิตและอาชีพให้ประชาชน แต่ต้องระวังควันพิษ` | คำอธิบายโซน |
@@ -468,12 +468,49 @@
 | `about.disaster.monster` | `about.html` | `Monster: Is it a bird? Is it a plane?...` | `Giant Naga: A legendary mythical water serpent emerges from the river, trampling structures.` | `พญานาค: สิ่งมีชีวิตในตำนานผุดขึ้นจากลำน้ำ ทำลายสิ่งปลูกสร้างตามเส้นทางที่เลื้อยผ่าน` | รายละเอียดภัย |
 | `about.disaster.plane` | `about.html` | `Plane crash: What goes up...` | `Airplane Crash: An aircraft crash-lands into urban districts, sparking sudden fires.` | `เครื่องบินตก: อากาศยานประสบอุบัติเหตุร่วงใส่ย่านชุมชน เกิดไฟลุกไหม้รุนแรงในทันที` | รายละเอียดภัย |
 | `about.disaster.tornado` | `about.html` | `Tornado: Your citizens won't want to watch...` | `Tornado: Destructive tropical waterspout or vortex tearing apart rooftops and infrastructure.` | `พายุงวงช้าง: ลมหมุนเขตร้อนกำลังแรงพัดกระโชก พัดพาหลังคาและโครงสร้างพื้นฐานพังเสียหาย` | รายละเอียดภัย |
-| `about.settings.title` | `about.html` | `Settings` | `System Settings` | `การตั้งค่าตัวเลือกของระบบ` | หัวข้อตั้งค่า |
-| `about.settings.body` | `about.html` | `You will find assorted helpful controls...` | `Customize your gameplay experience via the Settings panel on the sidebar.` | `ปรับแต่งการทำงานของเกมตามความถนัดผ่านแถบตั้งค่าทางด้านซ้ายของหน้าจอ` | รายละเอียดตั้งค่า |
+| `about.settings.title` | `about.html` | `Settings` | `Settings` | `การตั้งค่า` | หัวข้อตั้งค่า |
+| `about.settings.body` | `about.html` | `You will find assorted helpful controls...` | `Open Settings from the game's menu buttons.` | `เปิดได้จากปุ่ม “ตั้งค่า” ในเกม` | รายละเอียดตั้งค่า |
 | `about.settings.autobudget`| `about.html` | `Auto-budget: The simulator takes care of finances...` | `Auto-Budget: Lets the administration automate maintenance funding each January without pausing.` | `งบประมาณอัตโนมัติ: ระบบจะจัดสรรงบซ่อมบำรุงให้เองทุกเดือนมกราคมโดยไม่หยุดเกม` | คำอธิบายตัวเลือก |
 | `about.settings.autobulldoze`| `about.html`| `Auto-bulldoze: When building on areas that contain terrain...`| `Auto-Bulldoze: Automatically clears trees and rubble when laying new infrastructure (deducting costs).`| `รื้อถอนอัตโนมัติ: ปรับไถต้นไม้และสิ่งกีดขวางให้อัตโนมัติเมื่อวางสิ่งก่อสร้างทับ (หักเงินเพิ่มตามจริง)`| คำอธิบายตัวเลือก |
 | `about.settings.autodisasters`| `about.html`| `Auto-disasters: What's more fun than manually...` | `Random Disasters: Toggles unpredictable natural disasters during gameplay.` | `ภัยพิบัติสุ่ม: เปิดหรือปิดโอกาสการเกิดภัยพิบัติธรรมชาติแบบไม่คาดฝันในระหว่างการเล่น` | คำอธิบายตัวเลือก |
 | `about.settings.speed` | `about.html` | `Speed: Time flies when you max out the game speed` | `Speed: Adjust simulation pace between slow, medium, and fast.` | `ความเร็วเวลา: เลือกระดับความเร็วในการจำลองเมือง ทั้งระดับช้า ปานกลาง หรือเร็ว` | คำอธิบายตัวเลือก |
+| `about.settings.sound` | `about.html` | — | `Sound and music: the speaker button at the top turns all sound on or off, and Settings has separate sliders for music, effects, ambience and buttons. The music follows your city's region.` | `เสียงและเพลง: ปุ่มลำโพงด้านบนเปิดหรือปิดเสียงทั้งหมด ในหน้าตั้งค่าปรับเพลง เสียงเอฟเฟกต์ เสียงบรรยากาศ และเสียงปุ่มแยกกันได้ เพลงจะเปลี่ยนตามภาคของเมือง` | Claude Code, 11 ต.ค. 2026 |
+| `about.settings.language` | `about.html` | — | `Language: the button at the top switches between Thai and English.` | `ภาษา: ปุ่มด้านบนสลับระหว่างภาษาไทยและภาษาอังกฤษ` | |
+| `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |
+| `about.toc.label` | `about.html` | — | `On this page` | `ในหน้านี้` | aria-label ของสารบัญ |
+| `about.toc.start` | `about.html` | — | `Start` | `เริ่มเกม` | สารบัญ |
+| `about.toc.play` | `about.html` | — | `How to play` | `วิธีเล่น` | สารบัญ |
+| `about.toc.disasters` | `about.html` | — | `Disasters` | `ภัยพิบัติ` | สารบัญ |
+| `about.toc.settings` | `about.html` | — | `Settings` | `ตั้งค่า` | สารบัญ |
+| `about.toc.credits` | `about.html` | — | `Credits` | `เครดิต` | สารบัญ |
+| `about.start.title` | `about.html` | — | `Starting a city` | `เริ่มสร้างเมือง` | |
+| `about.start.story` | `about.html` | — | `Each time the game opens, a short story about the Golden Peninsula and its six regions plays. Press “Skip the story” to go straight on.` | `ทุกครั้งที่เปิดเกม จะมีเรื่องเล่าสั้น ๆ เกี่ยวกับแหลมทองและหกภาค กด “ข้ามเรื่องเล่า” เพื่อไปต่อได้ทันที` | ชื่อปุ่มตรงกับ `intro.skip` |
+| `about.start.choose` | `about.html` | — | `Click a region, then a province. Its card shows the starting treasury, the difficulty, the land and its resources. Name your city and press “Become its ruler”.` | `คลิกเลือกภาค แล้วเลือกจังหวัด การ์ดจังหวัดจะบอกเงินตั้งต้น ความยาก ภูมิประเทศ และทรัพยากร ตั้งชื่อเมืองแล้วกด “เริ่มเป็นเจ้าเมือง”` | ชื่อปุ่มตรงกับ `picker.start` |
+| `about.start.land` | `about.html` | — | `Your city starts on a real 2 × 2 km piece of land around the province's town, with its real rivers, coast and forest, but no roads or buildings yet.` | `เมืองของคุณเริ่มบนผืนดินจริงขนาด 2 × 2 กม. รอบตัวเมืองของจังหวัดนั้น มีแม่น้ำ ชายฝั่ง และป่าตามจริง แต่ยังไม่มีถนนหรืออาคาร` | |
+| `about.start.cities` | `about.html` | — | `“My cities” keeps every city you have saved, and “Practise on a random map” opens a practice game. In a city, “Main menu” brings you back to the start screen.` | `“เมืองของฉัน” เก็บทุกเมืองที่บันทึกไว้ ส่วน “ฝึกเล่นบนแผนที่สุ่ม” เปิดเกมฝึกหัด เมื่ออยู่ในเมือง กดปุ่ม “เมนูหลัก” เพื่อกลับมาหน้าเริ่มเกม` | ชื่อปุ่มตรงกับ `cities.title`, `start.practice`, `menu.main` |
+| `about.start.keys` | `about.html` | — | `Keys on the start screen: arrows to choose, Enter to confirm, Esc to go back, H to hide the menus.` | `ปุ่มลัดในหน้าเริ่มเกม: ลูกศรเพื่อเลือก Enter เพื่อยืนยัน Esc เพื่อย้อนกลับ และ H เพื่อซ่อนเมนู` | |
+| `about.credits.title` | `about.html` | — | `Credits` | `เครดิต` | |
+| `about.credits.intro` | `about.html` | — | `PhaiCity is built on the work of many people who shared it freely. Thank you all.` | `PhaiCity สร้างขึ้นจากผลงานของหลายคนที่แบ่งปันให้ใช้ได้อย่างเสรี ขอขอบคุณทุกท่าน` | |
+| `about.credits.original.title` | `about.html` | — | `The original game` | `เกมต้นแบบ` | |
+| `about.credits.original` | `about.html` | — | `PhaiCity is modified from {micropolisjs} by {author} and {contributors}, adapted from Micropolis, the open-source city simulation released under the GNU GPL.` | `PhaiCity ดัดแปลงจาก {micropolisjs} โดย {author} และ{contributors} ซึ่งพัฒนาต่อจาก Micropolis เกมจำลองเมืองที่เปิดซอร์สโค้ดภายใต้ GNU GPL` | เครดิตที่ LICENSE กำหนด ห้ามตัด; template มีลิงก์ |
+| `about.credits.original_art` | `about.html` | — | `The city's 2D pictures (map tiles and vehicles) still come from the original game, until the 3D city is ready.` | `ภาพเมือง 2D (ช่องแผนที่และยานพาหนะ) ตอนนี้ยังมาจากเกมต้นแบบ ระหว่างรอเมืองแบบ 3D` | |
+| `about.credits.charity` | `about.html` | — | `The author of micropolisJS asks players who enjoy it to consider a donation to {refuweegee}, a charity that helps refugees in Scotland.` | `ผู้สร้าง micropolisJS ชวนผู้ที่ชอบเกมนี้ให้พิจารณาบริจาคแก่ {refuweegee} องค์กรการกุศลที่ช่วยเหลือผู้ลี้ภัยในสกอตแลนด์` | คงคำขอของผู้สร้างเกมต้นแบบไว้ |
+| `about.credits.maps.title` | `about.html` | — | `Maps` | `แผนที่` | |
+| `about.credits.maps` | `about.html` | — | `Province map data © {osm} (ODbL). Province shapes from {ne} (public domain).` | `ข้อมูลแผนที่จังหวัด © {osm} (ODbL) รูปร่างจังหวัดจาก {ne} (สาธารณสมบัติ)` | ลิงก์ OSM คงข้อความ "OpenStreetMap contributors" |
+| `about.credits.art.title` | `about.html` | — | `Textures and sky` | `พื้นผิวและท้องฟ้า` | |
+| `about.credits.art` | `about.html` | — | `Surface textures and the sky of the 3D city come from {polyhaven} and {ambientcg}, all CC0.` | `พื้นผิววัสดุและท้องฟ้าของเมือง 3D มาจาก {polyhaven} และ {ambientcg} ทั้งหมดเป็น CC0` | |
+| `about.credits.fonts.title` | `about.html` | — | `Fonts` | `ฟอนต์` | |
+| `about.credits.fonts` | `about.html` | — | `{sarabun} by the Sarabun Project Authors, and Chunk by Meredith Mandel, both under the SIL Open Font License 1.1.` | `{sarabun} โดย Sarabun Project Authors และ Chunk โดย Meredith Mandel ทั้งสองใช้สัญญาอนุญาต SIL Open Font License 1.1` | |
+| `about.credits.sound.title` | `about.html` | — | `Sound effects` | `เสียงเอฟเฟกต์` | |
+| `about.credits.sound` | `about.html` | — | `Sound effects from {kenney} and members of {freesound}, all CC0.` | `เสียงเอฟเฟกต์จาก {kenney} และสมาชิก {freesound} ทั้งหมดเป็น CC0` | |
+| `about.credits.music.title` | `about.html` | — | `Music` | `เพลง` | |
+| `about.credits.music` | `about.html` | — | `For now, CC0 recordings shared on {freesound}, until music made for PhaiCity is ready.` | `ตอนนี้ใช้เพลง CC0 ที่แบ่งปันบน {freesound} ระหว่างรอเพลงที่ทำขึ้นเพื่อ PhaiCity` | เปลี่ยนเมื่อมีเพลงจริง |
+| `about.credits.full` | `about.html` | — | `Full list (in English)` | `รายการทั้งหมด (ภาษาอังกฤษ)` | เปิดอ่านจากไฟล์ CREDITS.md |
+| `about.credits.loading` | `about.html` | — | `Loading…` | `กำลังโหลด…` | |
+| `about.credits.load_failed` | `about.html` | — | `The list could not be loaded.` | `โหลดรายการไม่ได้` | |
+| `about.legal.title` | `about.html` | — | `License` | `สัญญาอนุญาต` | |
+| `about.legal.gpl` | `about.html` | — | `PhaiCity is free software: you may share and change it under the {gpl}, with the additional terms in the LICENSE file; the full license is in the COPYING file. It comes with no warranty.` | `PhaiCity เป็นซอฟต์แวร์เสรี แจกจ่ายและแก้ไขได้ตาม {gpl} พร้อมเงื่อนไขเพิ่มเติมในไฟล์ LICENSE ส่วนตัวเต็มของสัญญาอยู่ในไฟล์ COPYING โดยไม่มีการรับประกันใด ๆ` | ประกาศตาม GPL ข้อ 0 และ 5 |
+| `about.legal.assets` | `about.html` | — | `Pictures, sounds, music, fonts and map data keep their own licenses, listed above.` | `ภาพ เสียง เพลง ฟอนต์ และข้อมูลแผนที่ ใช้สัญญาอนุญาตของแต่ละชิ้นตามที่ระบุไว้ด้านบน` | |
 
 ---
 

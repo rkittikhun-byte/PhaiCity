@@ -80,7 +80,6 @@ main {
 }
 
 nav a, nav a:link, nav a:visited, nav a:hover, footer a, footer a:link, footer a:visited, footer a:hover,
-#aboutHeader a, #aboutHeader a:link, #aboutHeader a:visited, #aboutHeader a:hover,
 #licenseHeader a, #licenseHeader a:link, #licenseHeader a:visited, #licenseHeader a:hover {
   text-decoration: none;
   color: white;
@@ -506,12 +505,6 @@ nav li {
   margin: 0 4px;
 }
 
-#start {
-  display: none;
-  text-align: center;
-  font-size: 18px;
-}
-
 #statisticsList, .queryList {
   width: 400px;
   margin: 0 auto;
@@ -867,15 +860,15 @@ nav li {
   }
 }
 
-/* About/nag page styles */
+/* Name-licence and nag page styles (the About page has its own section at the end) */
 
-#aboutMain, #licenseMain {
+#licenseMain {
   position: relative;
   top: 50px;
   margin-bottom: 100px;
 }
 
-#aboutContainer, #licenseContainer {
+#licenseContainer {
   position: relative;
   left: 50%;
   border: 1px solid black;
@@ -885,32 +878,18 @@ nav li {
   transform: translate(-50%);
 }
 
-#aboutContainer p, #aboutContainer li, #aboutContainer h3, #licenseContainer p, #licenseContainer li, #licenseContainer h3 {
+#licenseContainer p, #licenseContainer li, #licenseContainer h3 {
   margin: 10px;
 }
 
-#aboutContainer h3, #licenseContainer h3 {
+#licenseContainer h3 {
   margin-top: 20px;
 }
 
-#aboutContainer ul {
-  margin-left: 50px;
-}
-
-#aboutFooter, #licenseFooter {
+#licenseFooter {
   position: relative;
 }
 
-#appeal {
-  border: 1px dotted grey;
-  font-size: 12px;
-  width: 50%;
-  margin: auto;
-  line-height: 1.5em;
-  background-color: lightyellow;
-}
-
-#aboutMain a, #aboutMain a:link, #aboutMain a:visited, #aboutMain a:hover,
 #licenseMain a, #licenseMain a:link, #licenseMain a:visited, #licenseMain a:hover,
 #nagContainer a, #nagContainer a:link, #nagContainer a:visited, #nagContainer a:hover {
   text-decoration: none;
@@ -1263,6 +1242,96 @@ button:not(:disabled):active, input[type="submit"]:not(:disabled):active { trans
 .fromLeft > .panelToggle { right: 4px; }
 .fromRight > .panelToggle { left: 4px; }
 #opaque { cursor: pointer; }
+
+/* About page (about.html, src/aboutPage.ts): the start screen's dark green and gold, one readable column */
+
+body.aboutPage {
+  --about-gold: #f6d77a;
+  --about-text: #e6e1d4;
+  --about-dim: rgba(230, 225, 212, 0.66);
+  --about-line: rgba(246, 215, 122, 0.16);
+  --about-card: rgba(255, 255, 255, 0.035);
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 70% -10%, #1d3129 0%, #0a100e 55%, #050807 100%) fixed;
+  color: var(--about-text);
+  font-family: 'Open Sans', 'Sarabun Thai', sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+body.aboutPage .aboutTop {
+  position: sticky; top: 0; z-index: 2; height: auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px max(16px, calc(50% - 430px));
+  background: rgba(5, 8, 7, 0.82); background-image: none;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--about-line);
+}
+body.aboutPage .aboutBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 26px; letter-spacing: 0.04em; color: var(--about-gold); text-decoration: none; }
+body.aboutPage .aboutNav { display: flex; gap: 8px; }
+body.aboutPage .aboutPill {
+  width: auto; height: auto; padding: 6px 16px; border-radius: 999px;
+  border: 1px solid rgba(246, 215, 122, 0.45); background: transparent; color: var(--about-gold);
+  font: 600 14px/1.4 'Open Sans', 'Sarabun Thai', sans-serif; text-decoration: none; cursor: pointer;
+}
+body.aboutPage .aboutPill:hover { background: rgba(246, 215, 122, 0.12); box-shadow: none; }
+body.aboutPage .aboutPlay { background: linear-gradient(135deg, #f6d77a, #d29a2c); color: #1c1405; border-color: transparent; }
+body.aboutPage .aboutPlay:hover { filter: brightness(1.08); background: linear-gradient(135deg, #f6d77a, #d29a2c); }
+
+body.aboutPage .aboutBody { position: static; max-width: 860px; margin: 0 auto; padding: 36px 16px 48px; box-sizing: border-box; }
+body.aboutPage section { animation: aboutRise 0.5s ease-out backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes aboutRise { from { opacity: 0; transform: translateY(14px); } }
+
+body.aboutPage h1 { font-family: 'Chunk', 'Sarabun Thai', serif; font-weight: 400; font-size: clamp(30px, 6vw, 44px); line-height: 1.2; color: var(--about-gold); margin-bottom: 12px; }
+body.aboutPage h2 { font-size: 22px; font-weight: 700; color: var(--about-gold); margin-bottom: 10px; }
+body.aboutPage h3 { font-size: 17px; font-weight: 700; color: var(--about-text); margin: 18px 0 6px; }
+body.aboutPage p { margin: 0 0 10px; }
+body.aboutPage a { color: var(--about-gold); }
+body.aboutPage .aboutLead { font-size: 18px; color: var(--about-text); max-width: 46em; }
+
+body.aboutPage .aboutToc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+body.aboutPage .aboutToc a { padding: 4px 12px; border-radius: 999px; background: var(--about-card); border: 1px solid var(--about-line); color: var(--about-dim); font-size: 14px; text-decoration: none; }
+body.aboutPage .aboutToc a:hover { color: var(--about-gold); border-color: rgba(246, 215, 122, 0.45); }
+
+body.aboutPage .aboutCard, body.aboutPage .aboutCredits {
+  margin: 22px 0; padding: 22px 24px; border-radius: 14px;
+  background: var(--about-card); border: 1px solid var(--about-line); scroll-margin-top: 80px;
+}
+body.aboutPage ul { margin: 6px 0 12px; padding-left: 1.2em; }
+body.aboutPage li { margin: 6px 0; }
+body.aboutPage li::marker { color: var(--about-gold); }
+body.aboutPage li strong { color: var(--about-gold); font-weight: 600; }
+
+body.aboutPage .aboutCreditGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
+body.aboutPage .aboutCredit { padding: 16px 18px; border-radius: 12px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--about-line); min-width: 0; }
+body.aboutPage .aboutCreditWide { grid-column: 1 / -1; }
+body.aboutPage .aboutCredit h3 { margin-top: 0; color: var(--about-gold); }
+body.aboutPage .aboutTrademark { font-size: 13px; color: var(--about-dim); }
+body.aboutPage details { margin-top: 8px; font-size: 14px; }
+body.aboutPage summary { cursor: pointer; color: var(--about-dim); }
+body.aboutPage summary:hover { color: var(--about-gold); }
+body.aboutPage .creditsBody { margin-top: 8px; color: var(--about-dim); overflow-wrap: anywhere; }
+body.aboutPage .creditsBody h4 { margin: 14px 0 4px; font-size: 14px; color: var(--about-text); }
+body.aboutPage .creditsBody h5 { margin: 10px 0 4px; font-size: 13px; color: var(--about-text); }
+body.aboutPage .creditsBody code { font-size: 12px; color: var(--about-text); }
+body.aboutPage .creditsTableWrap { overflow-x: auto; margin: 8px 0; }
+body.aboutPage .creditsBody table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
+body.aboutPage .creditsBody th, body.aboutPage .creditsBody td { padding: 4px 8px; border-bottom: 1px solid var(--about-line); text-align: left; vertical-align: top; }
+body.aboutPage .creditsBody th { color: var(--about-text); }
+
+body.aboutPage .aboutLegal { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--about-line); }
+
+body.aboutPage .aboutFooter {
+  position: static; padding: 18px 16px 26px; background: transparent;
+  text-align: center; font-size: 11px; line-height: 1.6; color: var(--about-dim);
+}
+body.aboutPage .aboutFooter a { color: var(--about-dim); margin-left: 0; }
+
+@media (max-width: 560px) {
+  body.aboutPage .aboutCard, body.aboutPage .aboutCredits { padding: 16px; }
+  body.aboutPage .aboutBrand { font-size: 22px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }

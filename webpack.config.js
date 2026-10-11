@@ -70,9 +70,10 @@ function injectBundleIntoHTML(gitHash) {
 function injectBuildIdIntoAbout(gitHash) {
   return new HtmlWebpackPlugin({
     gitHash,
-    inject: false,
+    inject: true,
     hash: true,
     template: './about.html',
+    chunks: ['about'],
     filename: 'about.html'
   });
 }
@@ -135,6 +136,7 @@ function commonOptions() {
   const options = {
     entry: {
       micropolis: './src/micropolis.js',
+      about: './src/aboutPage.ts',
       'model-gallery': './src/render3d/gallery/gallery.ts',
       'geo-review': './src/geoReview/geoReview.ts',
     },

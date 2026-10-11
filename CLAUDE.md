@@ -99,7 +99,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
       regenerates `src/i18n/strings.ts`. Never edit `strings.ts` by hand.
     - Code calls `t(key, params)`; `{name}` placeholders are filled from params. `formatYear` shows Buddhist-era
       years in Thai, `formatMoney` shows baht.
-    - `index.html` uses `data-i18n` (text), `data-i18n-value` / `-title` / `-placeholder` (attributes) and
+    - `index.html` uses `data-i18n` (text), `data-i18n-value` / `-title` / `-placeholder` / `-aria-label` (attributes) and
       `data-i18n-template` with `data-i18n-slot` children for mixed text. Never put `data-i18n` on an element
       the game writes into (city name, date, funds and so on).
     - `src/text.js` keeps its old API, but its properties are getters that return the current language.
@@ -110,6 +110,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
 - **Footer:** it holds the required credits, so the game area (`main`) ends where the footer starts:
   `src/micropolis.js` sets `--footer-height` on load, resize and language change. Never let the map cover it.
+- **About page:** `about.html` with its own bundle `src/aboutPage.ts`: how to play and every credit, in both
+  languages. Each credit group's full list is read at run time from the credits files (`src/creditsMarkdown.ts`),
+  so new credits only go in those files. `test/i18n.ts` checks it keeps the required credits like `index.html`.
 - **Sound:** `src/audio/` (plan and status in `docs/audio/AUDIO_PLAN.md`).
   - It only listens: simulation messages, tool results (`game.handleTool` calls `gameAudio.toolUsed`),
     the `SOUND_*` signals forwarded by `spriteManager.js`, and the tiles on screen. It never changes game state.

@@ -80,21 +80,28 @@ describe("string table", () => {
   });
 });
 
-describe("index.html", () => {
+const aboutHtml = fs.readFileSync(path.join(root, "about.html"), "utf8");
+
+describe.each([
+  ["index.html", indexHtml, 100, 5],
+  ["about.html", aboutHtml, 50, 8],
+])("%s", (_name, html, minKeys, minTemplates) => {
   test("every data-i18n key exists", () => {
-    const attributes = /data-i18n(?:-value|-title|-placeholder|-template)?="([^"]+)"/g;
-    const keys = [...indexHtml.matchAll(attributes)].map((m) => m[1]);
-    expect(keys.length).toBeGreaterThan(100);
+    const attributes = /data-i18n(?:-value|-title|-placeholder|-aria-label|-template)?="([^"]+)"/g;
+    const keys = [...html.matchAll(attributes)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(minKeys);
     expect(keys.filter((key) => !hasKey(key))).toEqual([]);
   });
 
   test("each template's placeholders match its slots", () => {
-    const templates = [...indexHtml.matchAll(/<\w+[^>]*data-i18n-template="([^"]+)"/g)];
-    expect(templates.length).toBeGreaterThan(5);
+    const templates = [...html.matchAll(/<\w+[^>]*data-i18n-template="([^"]+)"/g)];
+    expect(templates.length).toBeGreaterThan(minTemplates);
     for (const match of templates) {
-      const markup = elementAt(indexHtml, match.index!);
+      const markup = elementAt(html, match.index!);
       const slots = [...markup.matchAll(/data-i18n-slot="([^"]+)"/g)].map((m) => `{${m[1]}}`).sort();
-      expect({ key: match[1], slots }).toEqual({ key: match[1], slots: placeholders(STRINGS[match[1]].en) });
+      for (const language of ["en", "th"] as const) {
+        expect({ key: match[1], language, slots }).toEqual({ key: match[1], language, slots: placeholders(STRINGS[match[1]][language]) });
+      }
     }
   });
 
@@ -103,9 +110,25 @@ describe("index.html", () => {
     expect(t("footer.author")).toContain("micropolisJS");
     setLanguage("th");
     expect(t("footer.author")).toContain("micropolisJS");
-    expect(indexHtml).toContain(">Graeme McCutcheon</a>");
-    expect(indexHtml).toContain(">OpenStreetMap contributors</a>");
-    expect(indexHtml).toContain("Micropolis is a registered trademark of");
+    expect(html).toContain('data-i18n-template="footer.author"');
+    expect(html).toContain(">Graeme McCutcheon</a>");
+    expect(html).toContain(">OpenStreetMap contributors</a>");
+    expect(html).toContain("Micropolis is a registered trademark of");
+  });
+});
+
+describe("about.html", () => {
+  test("keeps the original licence header", () => {
+    expect(aboutHtml).toContain(" * micropolisJS. Adapted by Graeme McCutcheon from Micropolis.");
+    expect(aboutHtml).toContain('The name/term "MICROPOLIS" is a registered trademark of Micropolis');
+  });
+
+  test("never names the game micropolisJS or SimCity", () => {
+    expect(aboutHtml).not.toMatch(/simcity/i);
+    expect(aboutHtml).not.toMatch(/<title>[^<]*micropolis/i);
+    for (const key of Object.keys(STRINGS).filter((k) => k.startsWith("about."))) {
+      for (const language of ["en", "th"] as const) expect({ key, text: STRINGS[key][language] }).not.toMatchObject({ text: expect.stringMatching(/simcity/i) });
+    }
   });
 });
 

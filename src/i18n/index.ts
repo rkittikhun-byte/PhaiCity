@@ -25,6 +25,7 @@ const ATTRIBUTE_BINDINGS: Array<[string, string]> = [
   ["data-i18n-value", "value"],
   ["data-i18n-title", "title"],
   ["data-i18n-placeholder", "placeholder"],
+  ["data-i18n-aria-label", "aria-label"],
 ];
 
 const listeners = new Set<(language: Language) => void>();
