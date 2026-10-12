@@ -4,8 +4,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { hasKey } from "../src/i18n/index";
-import { shortcutFor, TOOL_KEYS } from "../src/toolShortcuts";
+import { hasKey, setLanguage, t } from "../src/i18n/index";
+import { shortcutFor, TOOL_DESCRIPTIONS, TOOL_KEYS, toolTitle } from "../src/toolShortcuts";
 
 const key = (code: string, modifiers: Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) =>
   ({ code, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...modifiers });
@@ -23,6 +23,21 @@ describe("tool shortcuts", () => {
     expect(shortcutFor(key("Digit1", { ctrlKey: true }))).toBeNull(); // browser tab switching
     expect(shortcutFor(key("KeyP", { metaKey: true }))).toBeNull(); // printing
     expect(shortcutFor(key("Digit2", { shiftKey: true }))).toBeNull();
+  });
+
+  test("every tool button explains itself: name, key if any, and what it does", () => {
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const tools = [...html.matchAll(/data-tool="([a-z]+)"/g)].map((m) => m[1]);
+    expect(tools.length).toBeGreaterThanOrEqual(16);
+    for (const tool of tools) {
+      expect({ tool, described: TOOL_DESCRIPTIONS[tool] !== undefined && hasKey(TOOL_DESCRIPTIONS[tool]) }).toEqual({ tool, described: true });
+    }
+    setLanguage("th");
+    const [first, second] = toolTitle("residential", "1").split("\n");
+    expect(first).toBe("ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)");
+    expect(second.startsWith("เขตที่อยู่อาศัย")).toBe(false); // the About page's "Name: " is left out
+    expect(second.length).toBeGreaterThan(10);
+    expect(toolTitle("airport", null).split("\n")[0]).toBe(t("tool.airport"));
   });
 
   test("every shortcut's tool has a button and a name", () => {

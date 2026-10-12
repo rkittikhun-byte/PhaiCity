@@ -24,6 +24,37 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
 
 export const PAUSE_CODE = "KeyP";
 
+/** What each tool does, for its tooltip: the About page's description (after its "Name: "), or a hint of its own. */
+export const TOOL_DESCRIPTIONS: Record<string, string> = {
+  residential: "about.zone.res",
+  commercial: "about.zone.com",
+  industrial: "about.zone.ind",
+  road: "about.infra.road_rail",
+  rail: "about.infra.road_rail",
+  wire: "about.infra.wire",
+  park: "about.building.park",
+  bulldozer: "tool.hint.bulldozer",
+  query: "tool.hint.query",
+  police: "about.building.police",
+  fire: "about.building.fire",
+  coal: "about.building.coal",
+  nuclear: "about.building.nuclear",
+  stadium: "about.building.stadium",
+  port: "about.building.port",
+  airport: "about.building.airport",
+};
+
+/** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
+export function toolTitle(tool: string, key: string | null): string {
+  const name = t(`tool.${tool}`);
+  const first = key ? t("shortcut.tool", { tool: name, key }) : name;
+  const descriptionKey = TOOL_DESCRIPTIONS[tool];
+  if (!descriptionKey) return first;
+  const description = t(descriptionKey);
+  const colon = description.indexOf(": ");
+  return `${first}\n${colon > 0 ? description.slice(colon + 2) : description}`;
+}
+
 interface KeyLike {
   code: string;
   ctrlKey: boolean;
@@ -51,14 +82,14 @@ function keysBelongElsewhere(doc: Document, target: EventTarget | null): boolean
 }
 
 export function installToolShortcuts(doc: Document = document): void {
-  // Each tool button shows its key, and says it when pointed at
+  // Each tool button says what it does when pointed at, and shows its key if it has one
   const label = (): void => {
-    for (const { key, tool } of TOOL_KEYS) {
-      const button = doc.querySelector<HTMLElement>(`.toolButton[data-tool="${tool}"]`);
-      if (!button) continue;
-      button.dataset.key = key;
-      button.title = t("shortcut.tool", { tool: t(`tool.${tool}`), key });
-    }
+    doc.querySelectorAll<HTMLElement>(".toolButton[data-tool]").forEach((button) => {
+      const tool = button.dataset.tool as string;
+      const key = TOOL_KEYS.find((k) => k.tool === tool)?.key ?? null;
+      if (key) button.dataset.key = key;
+      button.title = toolTitle(tool, key);
+    });
     const pause = doc.getElementById("pauseRequest");
     if (pause) pause.title = t("shortcut.pause");
   };

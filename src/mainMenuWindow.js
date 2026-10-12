@@ -4,7 +4,7 @@
 
 import $ from "jquery";
 
-import { t } from './i18n/index.ts';
+import { getLanguage, t } from './i18n/index.ts';
 import { MAIN_MENU_WINDOW_CLOSED } from './messages.ts';
 import { ModalWindow } from './modalWindow.js';
 
@@ -35,8 +35,21 @@ MainMenuWindow.prototype.close = function(choice) {
 };
 
 
-MainMenuWindow.prototype.open = function(cityName, canSave) {
+// When the city was last saved (by hand or by autosave): the time today, the date and time before today
+var savedWhen = function(time) {
+  var date = new Date(time);
+  var locale = getLanguage() === 'en' ? 'en-GB' : 'th-TH';
+  var today = new Date().toDateString() === date.toDateString();
+  return today ?
+    date.toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'}) :
+    date.toLocaleString(locale, {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+};
+
+
+// lastSavedAt: ms since 1970 of the city's last save, or null when it has never been saved
+MainMenuWindow.prototype.open = function(cityName, canSave, lastSavedAt) {
   $('#mainMenuQuestion').text(t('mainmenu.question', {city: cityName}));
+  $('#mainMenuNote').text(lastSavedAt ? t('mainmenu.last_saved', {when: savedWhen(lastSavedAt)}) : t('mainmenu.never_saved'));
   $(saveID).prop('disabled', !canSave);
   this._toggleDisplay();
   $(canSave ? saveID : stayID).focus();

@@ -33,7 +33,7 @@ import { onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
-import { saveCity, StorageFullError } from './cityStorage.ts';
+import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { NagWindow } from './nagWindow.js';
@@ -82,6 +82,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.provinceId = source.provinceId || null;
   // Which saved city this is (src/cityStorage.ts); a new city gets its id when first saved
   this.cityId = savedGame ? savedGame.cityId || null : null;
+  // When the city was last saved, for the main menu (ms since 1970, null for a city never saved)
+  var savedMeta = this.cityId ? listCities().find(function(city) { return city.id === this.cityId; }, this) : null;
+  this.lastSavedAt = savedMeta ? savedMeta.savedAt : null;
   this.worldId = source.worldId || null;
 
   this.tileSet = tileSet;
@@ -242,7 +245,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   // ... the window that leads back to the start screen
   this.handleMainMenuRequest = makeWindowOpenHandler('mainMenu', function() {
-    return [this.name, Storage.canStore];
+    return [this.name, Storage.canStore, this.lastSavedAt];
   }.bind(this));
   this.mainMenuWindow = new MainMenuWindow(opacityLayerID, 'mainMenuWindow');
   this.mainMenuWindow.addEventListener(Messages.MAIN_MENU_WINDOW_CLOSED, this.handleMainMenuClosure.bind(this));
@@ -351,6 +354,7 @@ Game.prototype.save = function() {
       population: this.simulation.evaluation.cityPop, funds: this.simulation.budget.totalFunds,
       year: date.year, month: date.month, rank: this.rulerRank
     }, this.cityId);
+    this.lastSavedAt = Date.now();
     return true;
   } catch (e) {
     if (e instanceof StorageFullError)
