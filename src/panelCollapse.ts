@@ -23,6 +23,11 @@ export const PANEL_ICONS = {
 };
 
 // The city card and the menu are not here: they became the icon strip on the left (src/menuRail.ts)
+// The open panel's arrow, drawn so it sits in the middle of its circle whatever the font (owner, 12 Oct 2026)
+const chevron = (path: string): string => '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" ' +
+  `stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+const CHEVRONS: Record<string, string> = { "‹": chevron("M14.5 5.5L8 12l6.5 6.5"), "›": chevron("M9.5 5.5L16 12l-6.5 6.5") };
+
 const PANELS: Array<{ id: string; side: "left" | "right"; icon: keyof typeof PANEL_ICONS }> = [
   { id: "RCIContainer", side: "left", icon: "demand" },
   { id: "controls", side: "right", icon: "tools" },
@@ -76,7 +81,7 @@ export function installPanelCollapse(doc: Document = document): void {
     const render = (): void => {
       const isCollapsed = panel.classList.contains("collapsed");
       if (isCollapsed) toggle.innerHTML = PANEL_ICONS[icon];
-      else toggle.textContent = handleArrow(side, false);
+      else toggle.innerHTML = CHEVRONS[handleArrow(side, false)];
       toggle.title = t(isCollapsed ? "ui.show_panel" : "ui.hide_panel", { name: t(`panel.${icon}`) });
       toggle.setAttribute("aria-label", toggle.title);
       toggle.setAttribute("aria-expanded", String(!isCollapsed));

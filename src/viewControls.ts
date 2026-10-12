@@ -62,6 +62,14 @@ export function panOf(view: ViewLike): ((dx: number, dy: number) => void) | null
   return null;
 }
 
+/** How to turn (and tilt) this view along with a mouse drag of dx, dy pixels, as a right-button drag does. */
+export function dragTurnOf(view: ViewLike): ((dx: number, dy: number) => void) | null {
+  const navigation = view.navigation;
+  if (navigation && typeof navigation.rotate === "function") return (dx, dy) => navigation.rotate?.(dx, dy);
+  if (typeof view.rotate === "function") return (dx) => view.rotate?.(-dx * RADIANS_PER_DRAG_PIXEL * 180 / Math.PI);
+  return null;
+}
+
 /** Pixels the mouse must move with the button down before a press becomes a drag. */
 export const DRAG_START_PX = 4;
 
@@ -72,13 +80,15 @@ export const DRAG_START_PX = 4;
  */
 export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document): void {
   const pan = panOf(view);
+  // With Shift held the same drag turns the city, for a touchpad where a right-button drag is awkward
+  const turn = dragTurnOf(view);
   const canvas = doc.getElementById("MicropolisCanvas");
   if (!pan || !canvas) return;
-  let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
+  let drag: { id: number; x: number; y: number; moved: boolean; turning: boolean } | null = null;
 
   canvas.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || holdingTool()) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, turning: event.shiftKey && turn !== null };
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
@@ -93,7 +103,8 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_START_PX) return;
     drag.moved = true;
     canvas.classList.add("panning");
-    pan(dx, dy);
+    if (drag.turning) turn?.(dx, dy);
+    else pan(dx, dy);
     drag.x = event.clientX;
     drag.y = event.clientY;
   });

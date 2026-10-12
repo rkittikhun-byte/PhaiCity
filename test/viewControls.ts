@@ -3,7 +3,7 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
+import { dragTurnOf, installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
 
 describe("3D view controls", () => {
   test("turn and reset with the view's own functions when it has them", () => {
@@ -41,6 +41,16 @@ describe("3D view controls", () => {
     expect(turnView(-1)).toBe(true);
     expect(turnView(1)).toBe(true);
     expect(turns).toEqual([-ROTATE_STEP, ROTATE_STEP]);
+  });
+
+  test("a Shift drag turns the view as a right-button drag does", () => {
+    const calls: number[][] = [];
+    dragTurnOf({ navigation: { rotate: (dx: number, dy: number) => calls.push([dx, dy]) } })!(10, -4);
+    expect(calls).toEqual([[10, -4]]);
+    const degrees: number[] = [];
+    dragTurnOf({ rotate: (d: number) => degrees.push(d) })!(10, 0);
+    expect(degrees[0]).toBeCloseTo(-10 * 0.006 * 180 / Math.PI, 6);
+    expect(dragTurnOf({})).toBeNull();
   });
 
   test("a mouse drag slides the view, with the 3D camera's own drag when the view has no pan", () => {

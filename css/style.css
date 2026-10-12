@@ -1385,9 +1385,11 @@ button:not(:disabled):active, input[type="submit"]:not(:disabled):active { trans
 .collapsible.fromRight.collapsed { transform: translateX(calc(100% + 50px - 28px)); }
 .panelToggle {
   position: absolute; top: 6px; z-index: 2; width: 22px; height: 22px; min-height: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 50%; background: rgba(34, 107, 87, 0.92); color: white;
-  font-size: 16px; line-height: 20px; text-align: center; cursor: pointer;
+  font-size: 16px; line-height: 1; cursor: pointer;
 }
+.panelToggle svg { flex: none; }
 .fromLeft > .panelToggle { right: 4px; }
 .fromRight > .panelToggle { left: 4px; }
 #opaque { cursor: pointer; }
