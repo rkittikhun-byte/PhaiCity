@@ -984,6 +984,16 @@ function scenes(): Scene[] {
 const traits = (regionId: string): string =>
   `${t("picker.region_pros")}: ${t(`region.${regionId}.pros`)} · ${t("picker.region_cons")}: ${t(`region.${regionId}.cons`)}`;
 
+/** The story's first look, Thailand in gold, without starting it: what comes out from behind the title page. */
+function showIntroLook(): void {
+  if (!view || !data) return;
+  const first = scenes()[0];
+  setChrome({ skip: true, dots: true });
+  applyMapState({ plain: first.plain, focus: first.focus, regionNames: !first.plain && !first.focus });
+  flyTo(countryBox(), true);
+  view.backdrop.setTint(GOLD);
+}
+
 function playIntro(from = 0): void {
   if (!view) return;
   mode = "intro";
@@ -1447,7 +1457,8 @@ onLanguageChange(() => {
   view = buildShell();
   view.overlay.classList.toggle("awaitGate", awaitingGate);
   buildMap();
-  if (mode === "intro") playIntro(sceneIndex);
+  if (awaitingGate && introAfterGate) showIntroLook();
+  else if (mode === "intro") playIntro(sceneIndex);
   else if (mode === "province" && currentRegion) enterRegion(currentRegion, cardOpen ? selectedProvince : null);
   else if (mode === "cities") showCities();
   else showRegions(false);
@@ -1457,7 +1468,9 @@ onLanguageChange(() => {
 // While the title page is up the start screen waits unseen behind it; when the player enters it comes out from
 // inside, and only then does the story start (owner, 12 Oct 2026)
 let awaitingGate = false;
-const EMERGE_MS = 900;
+// The story plays once the title page is gone: until then the screen shows its first look (Thailand in gold)
+let introAfterGate = false;
+const EMERGE_MS = 1500;
 
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;
@@ -1467,6 +1480,7 @@ export function openStartScreen(startActions: StartActions, options: StartOption
   view ??= buildShell();
   if (options.gate) {
     awaitingGate = true;
+    introAfterGate = options.intro === true;
     view.overlay.classList.add("awaitGate");
   }
   show(view.overlay);
@@ -1477,6 +1491,7 @@ export function openStartScreen(startActions: StartActions, options: StartOption
     data = loaded;
     if (view && !view.svg) buildMap();
     setLoadingProgress(1);
+    if (awaitingGate && introAfterGate) showIntroLook();
   });
   const entered = (options.gate ?? Promise.resolve()).then(() => {
     if (!awaitingGate) return undefined;

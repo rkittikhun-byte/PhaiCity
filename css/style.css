@@ -1291,8 +1291,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   animation: motionFadeIn 0.4s ease-out backwards;
 }
 /* Entering: the words and buttons sink and fade one after another, then the dark clears (src/titleGate.ts) */
-#titleGate.leaving { pointer-events: none; animation: gateClear 0.5s 0.4s ease-in forwards; }
-#titleGate.leaving .gatePanel > * { animation: gateSink 0.45s calc(var(--i, 0) * 50ms) cubic-bezier(0.5, 0, 0.8, 0.4) forwards; }
+#titleGate.leaving { pointer-events: none; animation: gateClear 0.8s 0.6s ease-in forwards; }
+#titleGate.leaving .gatePanel > * { animation: gateSink 0.65s calc(var(--i, 0) * 70ms) cubic-bezier(0.5, 0, 0.8, 0.4) forwards; }
 #titleGate .gatePanel > :nth-child(2) { --i: 1; }
 #titleGate .gatePanel > :nth-child(3) { --i: 2; }
 #titleGate .gatePanel > :nth-child(4) { --i: 3; }
@@ -1301,7 +1301,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 @keyframes gateSink { to { opacity: 0; transform: translateY(60px); } }
 /* Behind the title page the start screen waits unseen, then comes out from inside (src/provincePicker.ts) */
 #provincePicker.awaitGate { opacity: 0; animation: none; }
-#provincePicker.emerging { animation: ppEmerge 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#provincePicker.emerging { animation: ppEmerge 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 @keyframes ppEmerge { from { opacity: 0; transform: scale(0.86); filter: blur(8px); } }
 @keyframes gateClear { to { opacity: 0; } }
 /* The loading line would show through the title page, across its buttons (owner, 12 Oct 2026) */

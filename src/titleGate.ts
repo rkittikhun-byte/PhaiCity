@@ -15,8 +15,8 @@ import { show } from "./motion";
 
 const LANGUAGES: Language[] = ["th", "en"];
 /** How long the title page takes to go (css/style.css, "#titleGate.leaving"), and its words to sink away. */
-const LEAVE_MS = 900;
-const SINK_MS = 550;
+const LEAVE_MS = 1400;
+const SINK_MS = 800;
 
 /** Shows the title page and resolves when the player enters the game. */
 export function showTitleGate(doc: Document = document): Promise<void> {
