@@ -13,6 +13,7 @@
 
 import $ from "jquery";
 
+import { onLanguageChange } from './i18n/index.ts';
 import { MiscUtils } from './miscUtils.js';
 import { Text } from './text.js';
 
@@ -27,6 +28,8 @@ function Notification(element, map, initialText, log) {
   this._log = log || null;
   this._element = $(element);
   this._timeout = null;
+  // The message on show, kept so a language switch can redraw it
+  this._subject = null;
 
   this._handleClick = handleClick.bind(this);
 
@@ -38,6 +41,11 @@ function Notification(element, map, initialText, log) {
   this.close = close.bind(this);
   if (this._element.is(':visible'))
     this._element.toggle();
+
+  onLanguageChange(function() {
+    if (this._subject !== null)
+      this._element.text(Text.messageText[this._subject]);
+  }.bind(this));
 }
 
 
@@ -101,6 +109,8 @@ var handleClick = function(e) {
 Notification.prototype.createMessage = function(message, kind) {
   var hasPlace = message.hasOwnProperty('data') && message.data !== undefined && message.data.hasOwnProperty('x') &&
                  message.data.hasOwnProperty('y');
+
+  this._subject = message.subject;
 
   if (this._log !== null)
     this._log.add(kind || 'neutral', message.subject, hasPlace ? message.data.x : undefined, hasPlace ? message.data.y : undefined);

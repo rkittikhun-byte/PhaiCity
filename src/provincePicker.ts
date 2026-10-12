@@ -1360,7 +1360,11 @@ function onKeyDown(event: KeyboardEvent): void {
       break;
     }
     case "Enter":
-      if (focusIndex >= 0) selectTile(focusIndex);
+      // Buttons and fields in the card answer Enter themselves
+      if (event.target instanceof Node && view.panel.contains(event.target)) return;
+      // The first Enter opens a saved city's card, the second carries on with it
+      if (mode === "cities" && cardOpen()) view.panel.querySelector<HTMLButtonElement>(".ppStart")?.click();
+      else if (focusIndex >= 0) selectTile(focusIndex);
       break;
     case "Escape":
     case "Backspace":

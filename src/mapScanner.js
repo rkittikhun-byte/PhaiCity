@@ -43,8 +43,12 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
       if (tileValue < FLOOD)
         continue;
 
-      if (tile.isConductive())
+      if (tile.isConductive()) {
         simData.powerManager.setTilePower(x, y);
+        // Count the power just set, not the copy taken before it: a new power plant would otherwise count as
+        // an unpowered zone once and could raise a false "brownouts" warning
+        this._map.getTile(x, y, tile);
+      }
 
       if (tile.isZone()) {
         simData.repairManager.checkTile(x, y, simData.cityTime);

@@ -153,20 +153,18 @@ var getRelativeCoordinates = function(e) {
 
 
 var mouseEnterHandler = function(e) {
-  if (this.currentTool === null)
-    return;
-
+  // Listen whatever the tool, and let each handler check the tool when its event arrives: a tool picked from the
+  // keyboard while the mouse is already over the map must work on the first click
+  $(this.canvasID).off('mousemove mousedown click');
   $(this.canvasID).on('mousemove', this.mouseMoveHandler);
-
-  if (this.currentTool.isDraggable)
-    $(this.canvasID).on('mousedown', this.mouseDownHandler);
-  else
-    $(this.canvasID).on('click', this.canvasClickHandler);
+  $(this.canvasID).on('mousedown', this.mouseDownHandler);
+  $(this.canvasID).on('click', this.canvasClickHandler);
 };
 
 
 var mouseDownHandler = function(e) {
-  if (e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
+  if (this.currentTool === null || !this.currentTool.isDraggable ||
+      e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
     return;
 
   var coords = this.getRelativeCoordinates(e);
@@ -235,8 +233,9 @@ var mouseMoveHandler = function(e) {
 
 
 var canvasClickHandler = function(e) {
-  if (e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
-     this._mouseY === -1 || this._dragging)
+  if (this.currentTool === null || this.currentTool.isDraggable ||
+      e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
+      this.mouseY === -1 || this._dragging)
     return;
 
   this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY});
@@ -288,6 +287,8 @@ InputStatus.prototype.clearTool = function() {
     $(this.canvasID).addClass('pointer');
   }
 
+  // Forget the name too, or a click after Escape would still use the old tool
+  this.toolName = null;
   this.currentTool = null;
   this.toolWidth = 0;
   this.toolColour = '';
