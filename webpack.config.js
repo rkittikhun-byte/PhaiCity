@@ -138,6 +138,7 @@ function commonOptions() {
       micropolis: './src/micropolis.js',
       about: './src/aboutPage.ts',
       'model-gallery': './src/render3d/gallery/gallery.ts',
+      'city-model-worker': './src/render3d/city/model-worker.ts',
       'geo-review': './src/geoReview/geoReview.ts',
     },
     resolve: {
