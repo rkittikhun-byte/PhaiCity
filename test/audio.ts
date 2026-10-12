@@ -110,6 +110,48 @@ describe("settings", () => {
     expect(settings.volumes.ui).toBe(1);
     expect(settings.volumes.ambience).toBe(defaultSettings().volumes.ambience);
   });
+
+  test("the master volume is full until set, and stays between 0 and 1", () => {
+    expect(parseSettings(JSON.stringify({ muted: false })).volume).toBe(1);
+    expect(parseSettings(JSON.stringify({ volume: 0.25 })).volume).toBe(0.25);
+    expect(parseSettings(JSON.stringify({ volume: -2 })).volume).toBe(0);
+    expect(parseSettings(JSON.stringify({ volume: "half" })).volume).toBe(1);
+  });
+});
+
+describe("master volume", () => {
+  test("sets the level under the mute, and is remembered", () => {
+    const { engine, context, stored } = makeEngine();
+    const gains: FakeGain[] = [];
+    const create = context.createGain.bind(context);
+    context.createGain = () => {
+      const gain = create();
+      gains.push(gain);
+      return gain;
+    };
+    engine.unlock();
+    const master = gains[0];
+    engine.setMasterVolume(0.4);
+    expect(master.gain.value).toBe(0.4);
+    engine.setMuted(true);
+    expect(master.gain.value).toBe(0);
+    engine.setMuted(false);
+    expect(master.gain.value).toBe(0.4);
+    engine.setMasterVolume(3);
+    expect(engine.settings.volume).toBe(1);
+    expect(JSON.parse(stored.get("phaicity.audio")!).volume).toBe(1);
+  });
+
+  test("turned all the way down, no sound starts", async () => {
+    const { engine, context } = makeEngine();
+    engine.unlock();
+    engine.setMasterVolume(0);
+    await flush();
+    const before = context.sources.length;
+    engine.play("ui.click");
+    await flush();
+    expect(context.sources.length).toBe(before);
+  });
 });
 
 describe("AudioEngine", () => {

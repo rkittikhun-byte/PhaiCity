@@ -19,6 +19,10 @@ import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from '.
 import { setLoadingProgress, trackImages } from './loadingProgress.ts';
 import { stagger } from './motion.ts';
 import { installPanelCollapse } from './panelCollapse.ts';
+import { installCityStatus } from './cityStatus.ts';
+import { installCreditLine } from './creditLine.ts';
+import { showLanguageFlag } from './languageFlag.ts';
+import { installMenuRail } from './menuRail.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
@@ -127,8 +131,14 @@ $('#languageToggle').click(function(e) {
 // Sound starts after the player's first click or key press (browsers block it before then)
 installAudio();
 
-// Every game panel can slide away to its side of the screen
+// The flag on the language button (src/languageFlag.ts)
+showLanguageFlag(document.getElementById('languageToggle'));
+// The menu as icons down the left edge, the city's name, date and money above them, and the panels that slide away
+installMenuRail();
+installCityStatus();
 installPanelCollapse();
+// The map's credit line: out when a city opens, then behind the © button (src/creditLine.ts)
+installCreditLine();
 // 1–9 pick tools and P pauses (src/toolShortcuts.ts)
 installToolShortcuts();
 // Quick small tooltips on everything in the game that has a title (src/hudTooltip.ts)

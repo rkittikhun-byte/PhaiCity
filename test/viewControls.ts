@@ -3,7 +3,7 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { requestedCity, resetOf, turnOf } from "../src/viewControls";
+import { installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
 
 describe("3D view controls", () => {
   test("turn and reset with the view's own functions when it has them", () => {
@@ -29,6 +29,25 @@ describe("3D view controls", () => {
   test("the 2D view has neither", () => {
     expect(turnOf({})).toBeNull();
     expect(resetOf({})).toBeNull();
+    expect(panOf({})).toBeNull();
+  });
+
+  test("Q and E turn the open city's view a step at a time, and do nothing before a city opens", () => {
+    expect(turnView(1)).toBe(false);
+    const turns: number[] = [];
+    const reset = { hidden: true, title: "", setAttribute: () => undefined, addEventListener: () => undefined };
+    const doc = { getElementById: () => reset } as unknown as Document;
+    installViewControls({ rotate: (degrees: number) => turns.push(degrees) }, doc);
+    expect(turnView(-1)).toBe(true);
+    expect(turnView(1)).toBe(true);
+    expect(turns).toEqual([-ROTATE_STEP, ROTATE_STEP]);
+  });
+
+  test("a mouse drag slides the view, with the 3D camera's own drag when the view has no pan", () => {
+    const calls: number[][] = [];
+    panOf({ pan: (dx: number, dy: number) => calls.push([dx, dy]) })!(3, -4);
+    panOf({ height: 720, navigation: { pan: (dx: number, dy: number, height: number) => calls.push([dx, dy, height]) } })!(5, 6);
+    expect(calls).toEqual([[3, -4], [5, 6, 720]]);
   });
 
   test("reads the city to open from the address, and only a city id", () => {
@@ -40,7 +59,7 @@ describe("3D view controls", () => {
   });
 
   test("has its words in both languages", () => {
-    for (const key of ["view.rotate_left", "view.rotate_right", "view.reset", "hud.attribution", "hud.credits",
-      "sound.waiting", "sound.waiting_short"]) expect(hasKey(key)).toBe(true);
+    for (const key of ["view.reset", "view.mouse_hint", "hud.attribution",
+      "hud.credits", "sound.waiting", "sound.waiting_short", "sound.volume", "sound.control"]) expect(hasKey(key)).toBe(true);
   });
 });

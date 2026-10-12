@@ -188,7 +188,6 @@
 | `menu.tip.screenshot` | `index.html` | — | `Take a picture of the city` | `ถ่ายภาพเมือง` |  |
 | `menu.tip.main` | `index.html` | — | `Back to the map of Thailand (asks about saving first)` | `กลับไปหน้าแผนที่ประเทศไทย (ถามเรื่องบันทึกก่อน)` |  |
 | `menu.map` | `index.html` | — | `City map` | `แผนที่เมือง` | ปุ่มเมนู กว้าง 140px เปิด `src/mapWindow.js` (Claude Code 12 ต.ค. 2026) |
-| `shortcut.map` | `src/toolShortcuts.ts` | — | `The whole city, its power, traffic, pollution and more (shortcut M)` | `ดูทั้งเมือง ไฟฟ้า การจราจร มลพิษ และอื่น ๆ (ปุ่มลัด M)` | tooltip ปุ่มแผนที่เมือง |
 | `map.title` | `index.html` | — | `City map` | `แผนที่เมือง` | หัวหน้าต่าง |
 | `map.layer.city` | `src/mapWindow.js` | — | `Whole city` | `ทั้งเมือง` | ปุ่มชั้นข้อมูล |
 | `map.layer.power` | `src/mapWindow.js` | — | `Power` | `ไฟฟ้า` | |
@@ -565,20 +564,19 @@
 | `tool.hint.query` | `src/toolShortcuts.ts` | — | `Click any tile to see what is there: land value, pollution, crime and more.` | `คลิกช่องใดก็ได้ เพื่อดูข้อมูลที่ดินช่องนั้น เช่น มูลค่า มลพิษ และอาชญากรรม` | |
 | `mainmenu.last_saved` | `src/mainMenuWindow.js` | — | `Last saved {when}. Leaving without saving loses anything since then.` | `บันทึกล่าสุดเมื่อ {when} ถ้าออกโดยไม่บันทึก สิ่งที่ทำหลังจากนั้นจะหายไป` | รวมบันทึกอัตโนมัติ (Claude Code 12 ต.ค. 2026) |
 | `mainmenu.never_saved` | `src/mainMenuWindow.js` | — | `This city has never been saved. Leaving without saving loses it.` | `เมืองนี้ยังไม่เคยบันทึก ถ้าออกโดยไม่บันทึก เมืองจะหายไป` | |
-| `shortcut.pause` | `src/toolShortcuts.ts` | — | `Pause or resume time (shortcut P)` | `หยุดหรือเดินเวลา (ปุ่มลัด P)` | tooltip ปุ่มหยุดเวลา |
-| `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, M opens the city map, the arrows or W A S D move the map, and Esc closes a window or puts the tool down.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา M เปิดแผนที่เมือง ลูกศรหรือ W A S D เลื่อนแผนที่ และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
-| `news.button` | `src/newsLog.ts` | — | `News` | `ข่าว` | ปุ่มข้างแถบข่าว (Claude Code 12 ต.ค. 2026) |
+| `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, M opens the city map, the arrows or W A S D move the map, Q and E turn it, Ctrl+Z undoes the last building, and Esc closes a window or puts the tool down. Mouse: drag with the left button (with no tool in hand) or the middle button to move the city, drag with the right button to turn it, and scroll to zoom.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา M เปิดแผนที่เมือง ลูกศรหรือ W A S D เลื่อนแผนที่ Q กับ E หมุนแผนที่ Ctrl+Z ย้อนสิ่งที่สร้างล่าสุด และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง เมาส์: ลากด้วยปุ่มซ้าย (ตอนไม่ได้ถือเครื่องมือ) หรือปุ่มกลางเพื่อเลื่อนเมือง ลากด้วยปุ่มขวาเพื่อหมุน และหมุนลูกกลิ้งเพื่อซูม` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
+| `news.button` | `src/newsLog.ts` | — | `News` | `ข่าว` | ปุ่มในแถวปุ่มมุมขวาบน (Claude Code 12 ต.ค. 2026) |
 | `news.button_unread` | `src/newsLog.ts` | — | `News ({count})` | `ข่าว ({count})` | จำนวนข่าวที่ยังไม่ได้เปิดดู |
 | `news.title` | `index.html` | — | `Recent city news` | `ข่าวเมืองล่าสุด` | |
 | `news.empty` | `src/newsLog.ts` | — | `No news yet.` | `ยังไม่มีข่าว` | |
 | `news.goto` | `src/newsLog.ts` | — | `Go there` | `ไปดู` | พากล้องไปที่เกิดเหตุ |
 | `view.3d_missing` | `src/splashScreen.js` | — | `The 3D city isn't ready yet, so the 2D view is used for now.` | `เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน` | `index.html?view=3d` ก่อน Codex ทำ R1 เสร็จ (Claude Code 12 ต.ค. 2026) |
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
-| `view.rotate_left` | `src/viewControls.ts` | — | `Turn left (Q)` | `หมุนซ้าย (Q)` | ปุ่ม ⟲ มุมขวาบน เฉพาะ 3D (Claude Code 12 ต.ค. 2026) |
-| `view.rotate_right` | `src/viewControls.ts` | — | `Turn right (E)` | `หมุนขวา (E)` | ปุ่ม ⟳ |
 | `view.reset` | `src/viewControls.ts` | — | `Back to the starting view` | `กลับมุมตั้งต้น` | ปุ่ม ⌂ เฉพาะ 3D (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `view.mouse_hint` | `src/game.js` | — | `Mouse: drag with the left button to move the city (with no tool in hand), drag with the right button to turn it, and scroll to zoom.` | `เมาส์: กดปุ่มซ้ายค้างแล้วลากเพื่อเลื่อนเมือง (ตอนไม่ได้ถือเครื่องมือ) ลากด้วยปุ่มขวาเพื่อหมุน และหมุนลูกกลิ้งเพื่อซูม` | ขึ้นมุมขวาล่างครั้งแรกที่เปิดเมือง 3D ในเบราว์เซอร์นั้น (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `hud.attribution` | `index.html` | — | `Map © {osm} · modified from micropolisJS · {credits}` | `แผนที่ © {osm} · ดัดแปลงจาก micropolisJS · {credits}` | บรรทัดเครดิตเล็กบนแผนที่ในเมือง แทนแถบล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) {osm} คงข้อความ "OpenStreetMap contributors" |
 | `hud.credits` | `index.html` | — | `All credits` | `เครดิตทั้งหมด` | ลิงก์ไปหน้าเกี่ยวกับเกม |
+| `hud.credit_toggle` | `index.html` | — | `Map credits` | `เครดิตแผนที่` | ปุ่ม © มุมซ้ายล่าง เปิดบรรทัดเครดิตที่เก็บตัวเองหลังเปิดเมือง 8 วินาที (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |
 | `about.toc.label` | `about.html` | — | `On this page` | `ในหน้านี้` | aria-label ของสารบัญ |
 | `about.toc.start` | `about.html` | — | `Start` | `เริ่มเกม` | สารบัญ |
@@ -649,6 +647,8 @@
 | `sound.mute_all` | `index.html` | `-` | `Mute all` | `ปิดเสียงทั้งหมด` | ช่องติ๊ก |
 | `sound.toggle_off` | `src/audio/index.ts` | `-` | `Turn sound off` | `ปิดเสียง` | tooltip ปุ่มลำโพงตอนเสียงเปิดอยู่ |
 | `sound.toggle_on` | `src/audio/index.ts` | `-` | `Turn sound on` | `เปิดเสียง` | tooltip ปุ่มลำโพงตอนปิดเสียงอยู่ |
+| `sound.volume` | `index.html` | `-` | `Volume` | `ระดับเสียง` | แถบระดับเสียงรวม ข้างปุ่มลำโพงและในหน้าต่างตั้งค่า (Claude Code 12 ต.ค. 2026) |
+| `sound.control` | `src/audio/index.ts` | `-` | `Sound: click for the volume, click again to mute or unmute` | `เสียง: คลิกเพื่อปรับระดับเสียง คลิกอีกครั้งเพื่อปิดหรือเปิดเสียง` | tooltip ปุ่มลำโพงในเกมตอนแถบเสียงยังไม่เลื่อนออกมา |
 | `sound.waiting` | `src/audio/index.ts` | `-` | `Click anywhere, or here, to start the sound (browsers keep games silent until then)` | `คลิกที่ไหนก็ได้หรือที่ปุ่มนี้เพื่อเริ่มเสียง (เบราว์เซอร์ไม่ให้เกมมีเสียงจนกว่าจะคลิก)` | tooltip ก่อนคลิกครั้งแรก (Claude Code 12 ต.ค. 2026) |
 | `sound.waiting_short` | `src/provincePicker.ts` | `-` | `Sound on` | `เปิดเสียง` | ข้อความข้างลำโพงบนหน้าเริ่มเกม ก่อนคลิกครั้งแรก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
@@ -706,7 +706,7 @@
 | `cities.population` | `src/provincePicker.ts` | `-` | `Population {count}` | `ประชากร {count}` |  |
 | `cities.date` | `src/provincePicker.ts` | `-` | `{month} {year}` | `{month} {year}` | วันที่ในเกม |
 | `cities.saved` | `src/provincePicker.ts` | `-` | `Saved {when}` | `บันทึกเมื่อ {when}` | เวลาจริงที่บันทึก |
-| `cities.hint` | `src/provincePicker.ts` | `-` | `Press Enter or click to carry on` | `กด Enter หรือคลิก เพื่อเล่นต่อ` |  |
+| `cities.hint` | `src/provincePicker.ts` | `-` | `Press Enter, or click the city on the map, to carry on` | `กด Enter หรือคลิกเมืองบนแผนที่ เพื่อเล่นต่อ` | คลิกจังหวัดของเมืองบนแผนที่ก็เข้าเล่นได้ (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `cities.continue` | `src/provincePicker.ts` | `-` | `Carry on with this city` | `เล่นเมืองนี้ต่อ` | ปุ่มหลักในการ์ดเมือง |
 | `cities.delete` | `src/provincePicker.ts` | `-` | `Delete this city` | `ลบเมืองนี้` |  |
 | `cities.delete_confirm` | `src/provincePicker.ts` | `-` | `Delete {city} for good?` | `ลบเมือง {city} ถาวรใช่ไหม` | ถามก่อนลบ |
@@ -772,6 +772,7 @@
 | `resource.note.island` | `src/provincePicker.ts` | `-` | `An island: building land is limited` | `เป็นเกาะ ที่ดินสร้างได้มีจำกัด` | ตอนซูมดูภูมิประเทศ |
 | `picker.terrain_title` | `src/provincePicker.ts` | `-` | `Your land` | `ผืนดินของคุณ` | ตอนซูมดูภูมิประเทศ |
 | `menu.main` | `index.html` | `-` | `Main menu` | `เมนูหลัก` | ปุ่มในเกม |
+| `menu.city` | `index.html` | `-` | `City` | `ข้อมูลเมือง` | ไอคอนบนสุดของแถบเมนูซ้าย เปิดการ์ดเมือง (src/menuRail.ts, Claude Code 12 ต.ค. 2026) |
 | `mainmenu.title` | `index.html` | `-` | `Back to the main menu` | `กลับเมนูหลัก` | หน้าต่าง |
 | `mainmenu.question` | `src/mainMenuWindow.js` | `-` | `Save {city} before you leave?` | `บันทึกเมือง {city} ก่อนออกไหม` |  |
 | `mainmenu.save_quit` | `index.html` | `-` | `Save and leave` | `บันทึกแล้วออก` | ปุ่ม |
@@ -785,11 +786,14 @@
 | `picker.provinces_of` | `src/provincePicker.ts` | `-` | `Provinces of {region}` | `จังหวัดใน{region}` | หัวแถวการ์ดจังหวัด |
 | `ui.hide_menus` | `src/provincePicker.ts` | `-` | `Hide menus` | `ซ่อนเมนู` | ปุ่มซ่อนเมนูทั้งหมดเพื่อดูฉาก |
 | `ui.show_menus` | `src/provincePicker.ts` | `-` | `Show menus` | `แสดงเมนู` | ปุ่มเดียวกันตอนซ่อนอยู่ |
-| `ui.collapse` | `src/panelCollapse.ts` | `-` | `Collapse` | `ยุบ` | tooltip ปุ่มยุบแผง |
-| `ui.expand` | `src/panelCollapse.ts` | `-` | `Expand` | `ขยาย` | tooltip ปุ่มขยายแผง |
+| `ui.hide_panel` | `src/panelCollapse.ts` | `-` | `Slide the {name} away` | `เก็บ{name}` | tooltip ลูกศรมุมการ์ด {name} คือชื่อการ์ดด้านล่าง (Claude Code 12 ต.ค. 2026) |
+| `ui.show_panel` | `src/panelCollapse.ts` | `-` | `Show the {name}` | `แสดง{name}` | tooltip แถบไอคอนที่ยื่นจากขอบจอตอนการ์ดถูกเก็บ |
+| `panel.demand` | `src/panelCollapse.ts` | `-` | `demand bars` | `ความต้องการของเมือง` | การ์ดแท่ง R C I |
+| `panel.tools` | `src/panelCollapse.ts` | `-` | `tools` | `เครื่องมือ` | การ์ดเครื่องมือด้านขวา |
+| `panel.goals` | `src/panelCollapse.ts` | `-` | `ruler's tasks` | `ภารกิจเจ้าเมือง` | การ์ดภารกิจ |
 | `goals.title` | `index.html` | — | `Your first tasks` | `ภารกิจแรกของเจ้าเมือง` | การ์ดภารกิจ (`src/rulerGoals.ts`, Claude Code 12 ต.ค. 2026) |
 | `goals.progress` | `src/rulerGoals.ts` | — | `{done}/{total}` | `{done}/{total}` | |
-| `goals.close` | `index.html` | — | `Close` | `ปิดภารกิจ` | |
+| `goals.close` | `index.html` | — | `Put away` | `เก็บไว้ก่อน` | เก็บการ์ดเป็นแถบไอคอนที่ขอบขวา กดแถบเพื่อเปิดกลับ (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `goals.done_all` | `src/rulerGoals.ts` | — | `Well done! Every task is complete. The city is yours to grow.` | `ยอดเยี่ยม! ทำภารกิจครบทุกชุดแล้ว ต่อจากนี้เมืองเป็นของคุณ` | หลังชุดสุดท้าย |
 | `goals.homes` | `src/rulerGoals.ts` | — | `Zone some homes` | `วางเขตที่อยู่อาศัย` | ชื่อเครื่องมือในคำแนะนำต้องตรงกับ `tool.*` |
 | `goals.homes.hint` | `src/rulerGoals.ts` | — | `Pick Residential and click on open land. People move in once there is power and a road.` | `เลือก “ที่อยู่อาศัย” แล้วคลิกบนพื้นที่ว่าง ผู้คนจะย้ายเข้ามาเมื่อมีไฟฟ้าและถนน` | |

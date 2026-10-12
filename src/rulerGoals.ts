@@ -4,12 +4,13 @@
 
 // "ภารกิจแรกของเจ้าเมือง": a short checklist that teaches a new ruler the basics (homes, power, roads, jobs) and
 // ticks itself off as the city grows, followed by a chapter of tasks for each new rank up to พระ. It only reads the
-// city, every couple of seconds; a ticked task stays ticked. The card can be collapsed like the other panels or
-// closed for good, and its progress is saved with the city.
+// city, every couple of seconds; a ticked task stays ticked. The card slides away to a tab at the screen edge like
+// the other panels (its own button does the same), and its progress is saved with the city.
 
 import { type CityMapSource, powerCounts } from "./cityMap";
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, show } from "./motion";
+import { setPanelCollapsed } from "./panelCollapse";
 
 /** What the tasks look at, read from the simulation's census and evaluation. */
 export interface CityStats {
@@ -179,14 +180,14 @@ export interface RulerGoals {
 
 /**
  * Shows the task card (#rulerGoals in index.html) for this city. saved is the city's saved progress, if any.
- * A city that already has every task done, or whose ruler closed the card, never shows it. When a chapter is done
- * the card says so for a few seconds, then moves on to the next chapter, or goes away after the last.
+ * A city that already has every task done never shows it; one whose ruler put the card away shows only its tab. When
+ * a chapter is done the card says so for a few seconds, then moves on to the next chapter, or goes away after the last.
  */
 export function installRulerGoals(simulation: SimulationLike, saved: unknown, doc: Document = document): RulerGoals {
   const restored = parseState(saved);
   let done = tickGoals(new Set(restored?.done ?? []), readStats(simulation));
-  let dismissed = restored?.dismissed ?? false;
-  const result: RulerGoals = { state: () => ({ done: [...done], dismissed }) };
+  const putAway = restored?.dismissed ?? false;
+  const result: RulerGoals = { state: () => ({ done: [...done], dismissed: true }) };
 
   const card = doc.getElementById("rulerGoals");
   const title = doc.getElementById("goalsTitle");
@@ -196,10 +197,12 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
   const close = doc.getElementById("goalsClose");
   if (!card || !title || !list || !hint || !progress || !close) return result;
   let chapter = currentChapter(done);
-  if (dismissed || chapter === null) {
-    dismissed = true;
-    return result;
-  }
+  if (chapter === null) return result;
+  // Put away, the card waits as a tab at the screen edge (owner, 12 Oct 2026: it vanished with no way back);
+  // the city remembers whether its card was put away, or that every chapter is done
+  let finished = false;
+  result.state = () => ({ done: [...done], dismissed: finished || card.classList.contains("collapsed") });
+  if (putAway) setPanelCollapsed("rulerGoals", true);
   // The chapter on the card; when it is done it stays up for a moment before the next one comes
   let shown: Chapter = chapter;
 
@@ -207,11 +210,14 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
   let pointedTool: Element | null = null;
   let turning = false;
 
+  // The next task's tool glows in the tools, while the card is out
   const pointAt = (tool: string | null): void => {
     pointedTool?.classList.remove("goalHint");
-    pointedTool = tool ? doc.querySelector(`[data-tool="${tool}"]`) : null;
+    pointedTool = tool && !finished && !card.classList.contains("collapsed") ? doc.querySelector(`[data-tool="${tool}"]`) : null;
     pointedTool?.classList.add("goalHint");
   };
+  const nextTool = (): string | null => shown.goals.find((goal) => !done.has(goal.id))?.tool ?? null;
+  new MutationObserver(() => pointAt(nextTool())).observe(card, { attributes: true, attributeFilter: ["class"] });
 
   const render = (): void => {
     const current = shown.goals.find((goal) => !done.has(goal.id)) ?? null;
@@ -231,14 +237,14 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
   };
 
   const finish = (): void => {
-    dismissed = true;
+    finished = true;
     window.clearInterval(timer);
     pointAt(null);
     hide(card, true);
   };
 
-  close.addEventListener("click", finish);
-  onLanguageChange(() => { if (!dismissed) render(); });
+  close.addEventListener("click", () => setPanelCollapsed("rulerGoals", true));
+  onLanguageChange(() => { if (!finished) render(); });
   timer = window.setInterval(() => {
     const next = tickGoals(done, readStats(simulation));
     if (next.size === done.size) return;
@@ -249,7 +255,7 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
     turning = true;
     window.setTimeout(() => {
       turning = false;
-      if (dismissed) return;
+      if (finished) return;
       chapter = currentChapter(done);
       if (chapter === null) {
         finish();

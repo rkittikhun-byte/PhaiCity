@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { handleArrow } from "../src/panelCollapse";
+import { handleArrow, PANEL_ICONS } from "../src/panelCollapse";
 import { hasKey } from "../src/i18n/index";
 
 describe("collapsible panels", () => {
@@ -14,8 +14,15 @@ describe("collapsible panels", () => {
   });
 
   test("the handle and menu toggles have text in both languages", () => {
-    for (const key of ["ui.collapse", "ui.expand", "ui.hide_menus", "ui.show_menus", "picker.region_enter", "picker.province_enter"]) {
+    for (const key of ["ui.hide_panel", "ui.show_panel", "ui.hide_menus", "ui.show_menus", "picker.region_enter", "picker.province_enter"]) {
       expect(hasKey(key)).toBe(true);
+    }
+  });
+
+  test("every panel's tab has an icon and a name", () => {
+    for (const [name, icon] of Object.entries(PANEL_ICONS)) {
+      expect(icon).toMatch(/^<svg [^>]*>.+<\/svg>$/);
+      expect(hasKey(`panel.${name}`)).toBe(true);
     }
   });
 });

@@ -49,8 +49,10 @@ EvaluationWindow.prototype._populateWindow = function(evaluation) {
   $('#evalNo').text(100 - evaluation.cityYes);
   for (var i = 0; i < 4; i++) {
     var problemNo = evaluation.getProblemNumber(i);
-    if (problemNo !== null) {
-      var text = Text.problems[problemNo];
+    // PhaiCity: a place with no problem in it (none yet, or the evaluation's "no problem" number) stays hidden
+    // rather than showing as an empty numbered line
+    var text = problemNo !== null && problemNo !== undefined ? Text.problems[problemNo] : undefined;
+    if (text) {
       $('#evalProb' + (i + 1)).text(text);
       $('#evalProb' + (i + 1)).show();
     } else {

@@ -1,0 +1,126 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+ */
+
+// Game windows open beside the card that opened them instead of in the middle of the screen, and the city stays
+// in view around them (owner, 12 Oct 2026). A window opened from the menu sits right of the icon strip, level with
+// its icon; one opened from inside another window takes that window's place; one that opens by itself or from a key
+// goes beside its home (data-anchor in index.html: its menu icon, or the tools for the inspect window). Windows with
+// no home, such as a new rank's congratulations, stay in the middle.
+
+const GAP_PX = 10;
+const MARGIN_PX = 12;
+/** A press this recent counts as the one that opened the window. */
+const PRESS_MS = 1500;
+const CARDS = "#infobar, #miscButtons, #RCIContainer, #controls, #rulerGoals, #notifications, #newsLogButton";
+
+export interface Box { left: number; top: number; width: number; height: number }
+export interface Size { width: number; height: number }
+export interface Place { left: number; top: number; from: "left" | "right" }
+
+const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(value, high));
+
+function onScreen(left: number, top: number, size: Size, view: Size, from: "left" | "right"): Place {
+  return {
+    left: Math.round(clamp(left, MARGIN_PX, view.width - MARGIN_PX - size.width)),
+    top: Math.round(clamp(top, MARGIN_PX, view.height - MARGIN_PX - size.height)),
+    from,
+  };
+}
+
+/**
+ * Where a window goes beside a card: on the card's inner side (right of a card on the left half of the screen, left
+ * of one on the right half) and level with its top, moved as far as needed to stay on screen. `from` is the side the
+ * window slides in from.
+ */
+export function besidePosition(card: Box, size: Size, view: Size): Place {
+  const onLeft = card.left + card.width / 2 < view.width / 2;
+  const left = onLeft ? card.left + card.width + GAP_PX : card.left - GAP_PX - size.width;
+  return onScreen(left, card.top, size, view, onLeft ? "left" : "right");
+}
+
+/** Where a window goes that replaces another one: the same top and the same outer edge. */
+export function replacingPosition(other: Box, from: "left" | "right", size: Size, view: Size): Place {
+  const left = from === "left" ? other.left : other.left + other.width - size.width;
+  return onScreen(left, other.top, size, view, from);
+}
+
+let lastPress: { target: Element; time: number } | null = null;
+
+/** Remembers what the player last pressed, so a window can open beside it. */
+export function trackPresses(doc: Document = document): void {
+  doc.addEventListener("pointerdown", (event) => {
+    if (event.target instanceof Element) lastPress = { target: event.target, time: performance.now() };
+  }, true);
+}
+
+function visible(element: Element): boolean {
+  const box = element.getBoundingClientRect();
+  return box.width > 0 && box.height > 0;
+}
+
+/** What a window sits beside: a menu icon's own height at the edge of the icon strip, or a whole card. */
+function anchorBox(element: Element): Box {
+  const box = element.getBoundingClientRect();
+  const strip = element.closest("#miscButtons");
+  if (!strip || strip === element) return box;
+  const edge = strip.getBoundingClientRect();
+  return { left: edge.left, top: box.top, width: edge.width, height: box.height };
+}
+
+// Some windows fill in after they open (the city map draws its picture), so a docked window keeps its bottom on
+// screen as it grows or as the browser window changes size, staying as close to its card's level as it can
+let resizes: ResizeObserver | null = null;
+
+function refit(win: HTMLElement): void {
+  if (!win.classList.contains("docked")) return;
+  const height = win.getBoundingClientRect().height;
+  const top = clamp(Number(win.dataset.wantedTop) || MARGIN_PX, MARGIN_PX, window.innerHeight - MARGIN_PX - height);
+  win.style.top = `${Math.round(top)}px`;
+}
+
+function keepFitted(win: HTMLElement): void {
+  if (!resizes && typeof ResizeObserver !== "undefined") {
+    resizes = new ResizeObserver((entries) => entries.forEach((entry) => refit(entry.target as HTMLElement)));
+    window.addEventListener("resize", () => {
+      document.querySelectorAll<HTMLElement>(".modal.docked").forEach((open) => {
+        open.style.maxHeight = `${window.innerHeight - 2 * MARGIN_PX}px`;
+        refit(open);
+      });
+    });
+  }
+  resizes?.observe(win);
+}
+
+/** Moves a window that has just been shown beside the card that opened it, or leaves it in the middle. */
+export function placeWindow(win: HTMLElement): void {
+  win.classList.remove("docked", "dockFromLeft", "dockFromRight");
+  win.style.left = "";
+  win.style.top = "";
+  win.style.maxHeight = "";
+
+  const pressed = lastPress && performance.now() - lastPress.time < PRESS_MS ? lastPress.target : null;
+  const other = pressed?.closest<HTMLElement>(".modal.docked") ?? null;
+  const replacing = other !== null && other !== win ? other : null;
+  const home = win.dataset.anchor ? win.ownerDocument.getElementById(win.dataset.anchor) : null;
+  const card = replacing ? null : pressed?.closest(`#miscButtons .miscButton, ${CARDS}`) ?? (home && visible(home) ? home : null);
+  if (!replacing && !card) return;
+
+  win.classList.add("docked");
+  const view = { width: window.innerWidth, height: window.innerHeight };
+  win.style.maxHeight = `${view.height - 2 * MARGIN_PX}px`;
+  const size = win.getBoundingClientRect();
+  // The window being replaced is on its way out, sliding: where it was put, not where its exit animation has it now
+  const beside = replacing
+    ? { left: parseFloat(replacing.style.left), top: parseFloat(replacing.style.top), width: replacing.offsetWidth,
+      height: replacing.offsetHeight }
+    : anchorBox(card!);
+  const place = replacing
+    ? replacingPosition(beside, replacing.classList.contains("dockFromRight") ? "right" : "left", size, view)
+    : besidePosition(beside, size, view);
+  win.style.left = `${place.left}px`;
+  win.style.top = `${place.top}px`;
+  win.dataset.wantedTop = String(Math.round(beside.top));
+  win.classList.add(place.from === "left" ? "dockFromLeft" : "dockFromRight");
+  keepFitted(win);
+}

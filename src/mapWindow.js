@@ -173,8 +173,9 @@ MapWindow.prototype.open = function(map, overlays, view) {
   this._map = map;
   this._overlays = overlays;
   this._view = view || null;
-  this._toggleDisplay();
+  // Drawn first, so the window has its full size when it is placed beside the menu
   this._draw();
+  this._toggleDisplay();
   $('#mapOK').focus();
 };
 

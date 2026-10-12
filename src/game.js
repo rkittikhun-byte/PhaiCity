@@ -21,7 +21,7 @@ import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands } from './cityCommands.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
-import { showCornerNote } from './cornerNote.ts';
+import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
 import { Config } from './config.js';
 import { CongratsWindow } from './congratsWindow.js';
 import { DebugWindow } from './debugWindow.js';
@@ -37,7 +37,7 @@ import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { installViewControls } from './viewControls.ts';
+import { installMousePan, installViewControls, panOf } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -357,8 +357,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     shouldAutosave: function() { return self.provinceId !== null || self.cityId !== null; }
   }, {onSaved: showSavedNote, onFull: showFullNote});
 
-  // The 3D view's turn and reset buttons (src/viewControls.ts)
+  // The 3D view's turn and reset buttons, and sliding the city with the mouse when no tool is in hand
+  // (src/viewControls.ts), with a note on the mouse the first time
   installViewControls(this.cityView);
+  installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; });
+  if (panOf(this.cityView) !== null)
+    showCornerNoteOnce('phaicity.mouseHint', t('view.mouse_hint'), 10000);
 
   // Run the sim
   this.tick = tick.bind(this);

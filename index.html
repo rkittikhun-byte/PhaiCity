@@ -28,15 +28,23 @@
     <img id="snowtiles" class="imageData" src="images/tilessnow.png" alt="These are the game's alternate tiles">
     <img id="sprites" class="imageData" src="images/sprites.png" alt="These are the game's sprites">
     <!-- In a city: a few small buttons float in the top-right corner over the map (css/style.css "Game HUD") -->
+    <!-- The top of the screen in a city (owner, 12 Oct 2026): on the left, beside the menu icons, the city's name, date
+         and money, then ⌂, the sound and the language; on the right, the news -->
     <header id="header">
-      <nav class="hudButtons">
-        <button id="soundToggle" class="hudPill" type="button" aria-pressed="false"></button>
-        <button id="languageToggle" class="hudPill" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button>
-        <!-- Turn the 3D view (keys Q and E) and bring it back to where it started; shown only in 3D (src/viewControls.ts) -->
-        <button id="rotateLeft" class="hudPill hudRound" type="button" hidden>⟲</button>
-        <button id="rotateRight" class="hudPill hudRound" type="button" hidden>⟳</button>
+      <nav class="hudButtons hudLeft">
+        <!-- The city's name, date and money, always in view (src/cityStatus.ts copies them from the city card) -->
+        <div id="cityStatus" class="hudPill initialHidden" aria-hidden="true"><span id="statusName"></span><span id="statusDate"></span><span id="statusFunds"></span></div>
+        <!-- Bring the 3D view back to where it started; shown only in 3D (src/viewControls.ts) -->
         <button id="viewReset" class="hudPill hudRound" type="button" hidden>⌂</button>
-        <a class="hudPill" href="about.html" target="_blank" data-i18n="nav.about">About</a>
+        <!-- The speaker: a click slides out the volume, a second click mutes (src/audio/index.ts) -->
+        <div id="soundControl" class="hudPill">
+          <button id="soundToggle" type="button" aria-pressed="false" aria-expanded="false"></button>
+          <input id="soundVolume" type="range" min="0" max="100" step="5" data-sound-master data-i18n-aria-label="sound.volume" tabindex="-1">
+        </div>
+        <button id="languageToggle" class="hudPill" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button>
+      </nav>
+      <nav class="hudButtons hudRight">
+        <button id="newsLogButton" type="button" class="hudPill initialHidden">News</button>
       </nav>
     </header>
     <div id="wrapper">
@@ -69,8 +77,12 @@
             </div>
           </div>
         </div>
+        <!-- The menu: a strip of icons against the left edge (src/menuRail.ts); the city icon opens the card above -->
         <div id="miscButtons" class="alignCenter leftedge open controlShadow width140 padding10 mintcream z1 initialHidden">
           <div class="inner">
+            <div>
+              <button id="cityRequest" type="button" data-i18n="menu.city" class="miscButton">City</button>
+            </div>
             <div>
               <button id="budgetRequest" data-i18n="menu.budget" data-i18n-title="menu.tip.budget" class="miscButton">Budget</button>
             </div>
@@ -143,15 +155,17 @@
             <button id="debugRequest" data-i18n="debug.btn.debug">Debug</button>
           </div>
         </div>
+        <!-- City news appears at the top for a few seconds, then fades (src/notification.js) -->
         <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
-        <!-- Recent city news (src/newsLog.ts): the button sits by the news bar, the list opens above it -->
-        <button id="newsLogButton" type="button" class="z1 initialHidden">News</button>
+        <!-- Recent city news (src/newsLog.ts): its button is in the corner buttons, the list opens under them -->
         <div id="newsLog" class="z1 controlShadow" hidden>
           <h3 data-i18n="news.title">Recent city news</h3>
           <ol id="newsLogList"></ol>
         </div>
         <!-- In a city the footer gives way to the map: the full credits stay on the start screen and the About page,
-             and this one small line keeps the map's own credit on screen (CLAUDE.md, licence rule 7) -->
+             and this one small line keeps the map's own credit on screen (CLAUDE.md, licence rule 7). It shows when
+             the city opens, then waits behind the © button (src/creditLine.ts, OpenStreetMap's attribution guidelines) -->
+        <button id="creditToggle" type="button" class="z1 initialHidden" data-i18n-title="hud.credit_toggle" data-i18n-aria-label="hud.credit_toggle">©</button>
         <div id="mapAttribution" class="z1 initialHidden" data-i18n-template="hud.attribution">Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" data-i18n-slot="osm">OpenStreetMap contributors</a> · modified from micropolisJS · <a href="about.html#aboutCredits" target="_blank" data-i18n-slot="credits" data-i18n="hud.credits">All credits</a></div>
         <!-- A note that fades after a moment, e.g. "Autosaved 10:42" (src/cornerNote.ts) -->
         <div id="cornerNote" class="z1" role="status" aria-live="polite" hidden></div>
@@ -185,7 +199,7 @@
           Province maps: map data © <a href="https://www.openstreetmap.org/copyright" data-i18n-slot="osm">OpenStreetMap contributors</a> (ODbL) · province shapes from <a href="https://www.naturalearthdata.com/" data-i18n-slot="ne">Natural Earth</a>.
         </div>
       </footer>
-      <div class="hidden modal shadow" id="budget">
+      <div class="hidden modal shadow" id="budget" data-anchor="budgetRequest">
         <header id="budgetHeader" data-i18n="budget.title" class="budgetHeader padding10 chunk alignCenter">
            Budget
         </header>
@@ -231,7 +245,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="evalWindow">
+      <div class="hidden modal shadow" id="evalWindow" data-anchor="evalRequest">
         <header id="evalHeader" data-i18n="eval.title" class="evalHeader padding10 chunk alignCenter">
            Evaluation
         </header>
@@ -267,7 +281,7 @@
         </div>
       </div>
       <!-- City graphs (src/graphWindow.js, src/cityGraphs.ts), opened from the Evaluation window -->
-      <div class="hidden modal shadow" id="graphWindow">
+      <div class="hidden modal shadow" id="graphWindow" data-anchor="evalRequest">
         <header id="graphHeader" data-i18n="graphs.title" class="evalHeader padding10 chunk alignCenter">
            City graphs
         </header>
@@ -291,7 +305,7 @@
         </div>
       </div>
       <!-- City map (src/mapWindow.js, src/cityMap.ts): the whole city, or one of its overlays -->
-      <div class="hidden modal shadow" id="mapWindow">
+      <div class="hidden modal shadow" id="mapWindow" data-anchor="mapRequest">
         <header id="mapHeader" data-i18n="map.title" class="padding10 chunk alignCenter">
            City map
         </header>
@@ -306,7 +320,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="disasterWindow">
+      <div class="hidden modal shadow" id="disasterWindow" data-anchor="disasterRequest">
         <header id="disasterHeader" data-i18n="disaster.title" class="disasterHeader padding10 chunk alignCenter">
            Disasters
         </header>
@@ -331,7 +345,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="queryWindow">
+      <div class="hidden modal shadow" id="queryWindow" data-anchor="controls">
         <header id="queryHeader" data-i18n="query.title" class="queryHeader padding10 chunk alignCenter">
            Query
         </header>
@@ -418,7 +432,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="saveWindow">
+      <div class="hidden modal shadow" id="saveWindow" data-anchor="saveRequest">
         <header id="saveHeader" data-i18n="save.title" class="saveHeader padding10 chunk alignCenter">
           Save
         </header>
@@ -429,7 +443,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="mainMenuWindow">
+      <div class="hidden modal shadow" id="mainMenuWindow" data-anchor="mainMenuRequest">
         <header id="mainMenuHeader" data-i18n="mainmenu.title" class="mainMenuHeader white padding10 chunk alignCenter">
           Back to the main menu
         </header>
@@ -443,7 +457,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="screenshotLinkWindow">
+      <div class="hidden modal shadow" id="screenshotLinkWindow" data-anchor="screenshotRequest">
         <header id="screenshotLinkHeader" data-i18n="screenshot.link.title" class="screenshotHeader padding10 chunk alignCenter">
            Take Picture
         </header>
@@ -456,7 +470,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="screenshotWindow">
+      <div class="hidden modal shadow" id="screenshotWindow" data-anchor="screenshotRequest">
         <header id="screenshotHeader" data-i18n="screenshot.title" class="screenshotHeader white padding10 chunk alignCenter">
            Take Picture
         </header>
@@ -472,7 +486,7 @@
           </form>
         </div>
       </div>
-      <div class="hidden modal shadow" id="settingsWindow">
+      <div class="hidden modal shadow" id="settingsWindow" data-anchor="settingsRequest">
         <header id="settingsHeader" data-i18n="settings.title" class="settingsHeader white padding10 chunk alignCenter">
            Settings
         </header>
@@ -503,6 +517,7 @@
               <!-- Sound settings apply immediately (src/audio/index.ts), so OK and Cancel do not affect them -->
               <fieldset id="soundSettings" class="padding10">
                 <legend data-i18n="sound.title">Sound</legend>
+                <label class="soundSlider"><span data-i18n="sound.volume">Volume</span> <input type="range" min="0" max="100" step="5" data-sound-master></label>
                 <label class="soundSlider"><span data-i18n="sound.music">Music</span> <input type="range" min="0" max="100" step="5" data-sound-channel="music"></label>
                 <label class="soundSlider"><span data-i18n="sound.effects">Effects</span> <input type="range" min="0" max="100" step="5" data-sound-channel="effects"></label>
                 <label class="soundSlider"><span data-i18n="sound.ambience">Ambience</span> <input type="range" min="0" max="100" step="5" data-sound-channel="ambience"></label>

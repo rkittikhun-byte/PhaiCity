@@ -3,13 +3,15 @@
  */
 
 // A small Web Audio engine: one-shot sounds, looping ambience beds that fade in and out, and a volume
-// per channel (effects, ambience, interface, music) behind a master mute. Settings persist in localStorage.
+// per channel (effects, ambience, interface, music) under a master volume and mute. Settings persist in localStorage.
 // Browsers only allow audio after the player has clicked or pressed a key, so nothing plays until unlock().
 
 import { Channel, SOUNDS, SoundDef } from "./catalog";
 
 export interface AudioSettings {
   muted: boolean;
+  /** The master volume, 0-1: the slider beside the speaker button. */
+  volume: number;
   volumes: Record<Channel, number>;
 }
 
@@ -46,7 +48,7 @@ const LOOP_FADE_SECONDS = 2;
 const SETTINGS_SMOOTHING_SECONDS = 0.05;
 
 export function defaultSettings(): AudioSettings {
-  return { muted: false, volumes: { effects: 0.8, ambience: 0.5, ui: 0.6, music: 0.6 } };
+  return { muted: false, volume: 1, volumes: { effects: 0.8, ambience: 0.5, ui: 0.6, music: 0.6 } };
 }
 
 function clamp01(value: unknown, fallback: number): number {
@@ -60,6 +62,7 @@ export function parseSettings(json: string | null): AudioSettings {
   try {
     const data = JSON.parse(json);
     settings.muted = data?.muted === true;
+    settings.volume = clamp01(data?.volume, settings.volume);
     for (const channel of CHANNELS) settings.volumes[channel] = clamp01(data?.volumes?.[channel], settings.volumes[channel]);
   } catch {
     // Keep the defaults
@@ -171,7 +174,8 @@ export class AudioEngine {
 
   play(id: string, options: PlayOptions = {}): void {
     const sound = this.sounds[id];
-    if (!sound || !this.context || this.settings.muted || this.settings.volumes[sound.channel] === 0) return;
+    if (!sound || !this.context || this.settings.muted || this.settings.volume === 0 ||
+        this.settings.volumes[sound.channel] === 0) return;
 
     const now = this.now();
     const last = this.lastStarted.get(id);
@@ -206,6 +210,11 @@ export class AudioEngine {
     this.changed();
   }
 
+  setMasterVolume(value: number): void {
+    this.settings.volume = clamp01(value, this.settings.volume);
+    this.changed();
+  }
+
   setMuted(muted: boolean): void {
     this.settings.muted = muted;
     this.changed();
@@ -236,7 +245,7 @@ export class AudioEngine {
   private applySettings(): void {
     if (!this.context || !this.master) return;
     const time = this.context.currentTime;
-    this.master.gain.setTargetAtTime(this.settings.muted ? 0 : 1, time, SETTINGS_SMOOTHING_SECONDS);
+    this.master.gain.setTargetAtTime(this.settings.muted ? 0 : this.settings.volume, time, SETTINGS_SMOOTHING_SECONDS);
     for (const [channel, gain] of this.channels) {
       gain.gain.setTargetAtTime(this.settings.volumes[channel], time, SETTINGS_SMOOTHING_SECONDS);
     }

@@ -91,8 +91,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - The 2D view `src/cityView2d.ts` (around the original `gameCanvas.js`, `tileSet.js`, `animationManager.js`) is only
     the fallback when 3D is missing or cannot start (a corner note says so), and `index.html?view=2d` for developers
     (not remembered). MonsterTV exists only in 2D. Do not offer a 2D/3D switch to players.
-  - The 3D view's optional `rotate(degrees)` and `resetView()` drive the ⟲ ⟳ ⌂ corner buttons and the Q and E keys
-    (`src/viewControls.ts`; until Codex adds them it uses the view's public `navigation` camera).
+  - The 3D view's optional `rotate(degrees)`, `resetView()` and `pan(dx, dy)` drive the ⟲ ⟳ ⌂ corner buttons, the
+    Q and E keys and a left-button drag with no tool in hand (`src/viewControls.ts`; until Codex adds them it uses the
+    view's public `navigation` camera). The view's own mouse: right drag turns, middle drag slides, the wheel zooms.
 - **Tools:**
   - `gameTools.js` defines each tool's cost and size.
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.
@@ -114,11 +115,20 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
       must stay visible in both languages (`test/i18n.ts` checks this).
     - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
 - **Game HUD (owner, 12 Oct 2026):** in a city the map fills the window and every panel is a frosted-glass card
-  ("Game HUD" at the end of `css/style.css`, whose `body #…` rules override the original layout). The header is a
-  few round buttons in the top-right corner: sound, language, turn left/right and back to the starting view (3D only)
-  and About; `index.html?city=<id>` opens a saved city straight away. The footer is hidden but stays in the page, because the start
-  screen copies its required credits from it; in a city the small `#mapAttribution` line keeps the OpenStreetMap
-  credit and "modified from micropolisJS" on screen, with a link to every credit. Never remove that line.
+  ("Game HUD" at the end of `css/style.css`, whose `body #…` rules override the original layout), standing against
+  its side of the screen, in small type (about 9 px) and nothing bold.
+  - The menu is a strip of icons down the left edge (`src/menuRail.ts`): pointing at one slides out its name, a click
+    opens its card (the city card, or the window the menu button always opened), resting on another icon puts it away.
+  - The top bar (`#header`): on the left the city's name, date and money (`src/cityStatus.ts`), ⌂ back to the
+    starting view (3D only), sound (a click slides out the master volume, a second click mutes) and the language flag
+    (`src/languageFlag.ts`); on the right the News button, whose list opens in the middle of the screen. News shows
+    at the top for a few seconds, then fades (`src/notification.js`).
+  - `index.html?city=<id>` opens a saved city straight away.
+  - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
+    city the small `#mapAttribution` line keeps the OpenStreetMap credit and "modified from micropolisJS" on screen
+    with a link to every credit: it shows when a city opens, then tucks behind the © button at the bottom left after
+    8 s or the first click on the map (`src/creditLine.ts`, as OpenStreetMap's attribution guidelines allow). Never
+    remove that line or the button.
 - **About page:** `about.html` with its own bundle `src/aboutPage.ts`: how to play and every credit, in both
   languages. Each credit group's full list is read at run time from the credits files (`src/creditsMarkdown.ts`),
   so new credits only go in those files. `test/i18n.ts` checks it keeps the required credits like `index.html`.
@@ -147,14 +157,18 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   `src/geo/nationalMap.ts`; there is no other start page): a story that plays by itself each time the game opens (skippable)
   (the Golden Peninsula in gold, then each region), then the player clicks a region, the camera flies in, and
   a province card (treasury, terrain, resources, city name, game difficulty) starts the city. The card's
-  numbers come from `src/geo/provinceProfile.ts` (less open land means more starting money). Small buttons
-  at the top continue the saved city or start a practice game on a random map; "Main menu" in the game
-  returns here. Credits stay small at the bottom, copied from the footer.
+  numbers come from `src/geo/provinceProfile.ts` (less open land means more starting money). A click on the map
+  goes into the game when it can: on the shown city's province in My cities, or on the province whose card is open.
+  Small buttons at the top continue the saved city or start a practice game on a random map ("hide menus", sound
+  and language sit on the left); "Main menu" in the game returns here. Credits stay small at the bottom, copied
+  from the footer.
 - **Start screen look:** styled like a game console home screen: a swaying bamboo grove behind the map
   (`src/startBackdrop.ts`, a temporary 2D canvas until Codex delivers the three.js grove of Prompt 19 with the
   same `StartBackdrop` interface), big text on the left, a row of tiles (mouse or arrow keys), "H" hides the menus.
-- **Panels and windows:** every game panel can slide away to its side (`src/panelCollapse.ts`), and clicking
-  outside a window or card closes it.
+- **Panels and windows:** the demand bars, the tools and the ruler's tasks can slide off their side of the screen,
+  leaving a small tab with their icon (`src/panelCollapse.ts`; the tasks card's own button does the same). Windows
+  are glass cards too and open beside the icon or card that opened them, or beside their home (`data-anchor` in
+  `index.html`), over a city that is not dimmed (`src/windowPlacement.ts`); clicking outside a window closes it.
 - **Province rules (กติกาภาคและจังหวัด):** `src/provinceRules.ts` reads `data/province-rules.json` (owner-edited; the
   server's database later): the game's defaults, then the region's, then the province's. They set zone demand
   (`valves.js`), tool prices and the price of clearing woods (`gameTools.js`, `baseTool.js`), factory smoke

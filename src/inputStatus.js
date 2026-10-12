@@ -319,10 +319,14 @@ var toolButtonHandler = function(e) {
 
 
 InputStatus.prototype.speedChangeHandler = function(e) {
-  // The button's i18n key, not its translated text, records whether it currently offers Pause or Resume
-  var requestedSpeed = $('#pauseRequest').attr('data-i18n') === 'menu.pause' ? 'Pause' : 'Play';
+  // The button's paused class, not its translated name, records whether it currently offers Pause or Resume;
+  // its name sits in the label that slides out of the icon (src/menuRail.ts)
+  var button = $('#pauseRequest');
+  var requestedSpeed = button.hasClass('paused') ? 'Play' : 'Pause';
   var newKey = requestedSpeed === 'Pause' ? 'menu.play' : 'menu.pause';
-  $('#pauseRequest').attr('data-i18n', newKey).text(t(newKey));
+  button.toggleClass('paused', requestedSpeed === 'Pause');
+  button.find('.railLabel > span').attr('data-i18n', newKey).text(t(newKey));
+  button.attr('aria-label', t(newKey));
   this._emitEvent(Messages.SPEED_CHANGE, requestedSpeed);
 };
 

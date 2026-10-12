@@ -9,6 +9,7 @@
 
 import { onLanguageChange, t } from "./i18n/index";
 import { DEFAULT_RULES, formatPrice, toolPrices } from "./provinceRules";
+import { turnView } from "./viewControls";
 
 // The prices on the tool buttons: the game's own until a city starts with its province's (src/provinceRules.ts)
 let prices: Record<string, number> = toolPrices(DEFAULT_RULES);
@@ -47,7 +48,7 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
 
 export const PAUSE_CODE = "KeyP";
 export const MAP_CODE = "KeyM";
-/** Q and E turn the 3D view (the ⟲ ⟳ corner buttons, src/viewControls.ts). */
+/** Q and E turn the 3D view (src/viewControls.ts). */
 export const TURN_LEFT_CODE = "KeyQ";
 export const TURN_RIGHT_CODE = "KeyE";
 export const UNDO_CODE = "KeyZ";
@@ -140,10 +141,7 @@ export function installToolShortcuts(doc: Document = document): void {
       button.replaceChildren(icon, nameSpan, priceSpan);
       button.title = toolTitle(tool, key);
     });
-    const pause = doc.getElementById("pauseRequest");
-    if (pause) pause.title = t("shortcut.pause");
-    const map = doc.getElementById("mapRequest");
-    if (map) map.title = t("shortcut.map");
+    // The menu's pause and map buttons show their keys in the names that slide out of them (src/menuRail.ts)
   };
   label();
   relabel = label;
@@ -154,8 +152,11 @@ export function installToolShortcuts(doc: Document = document): void {
     const shortcut = shortcutFor(event);
     // Only turning repeats while its key is held
     if (!shortcut || (event.repeat && !("turn" in shortcut))) return;
+    if ("turn" in shortcut) {
+      if (turnView(shortcut.turn)) event.preventDefault();
+      return;
+    }
     const button = "tool" in shortcut ? doc.querySelector<HTMLElement>(`.toolButton[data-tool="${shortcut.tool}"]`)
-      : "turn" in shortcut ? doc.getElementById(shortcut.turn < 0 ? "rotateLeft" : "rotateRight")
       : "undo" in shortcut ? doc.getElementById("undoButton")
       : doc.getElementById("map" in shortcut ? "mapRequest" : "pauseRequest");
     if (!button || button.hidden || (button as HTMLButtonElement).disabled) return;

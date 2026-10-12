@@ -17,3 +17,14 @@ export function showCornerNote(text: string, ms: number): void {
   window.clearTimeout(timer);
   timer = window.setTimeout(() => hide(note, true), ms);
 }
+
+/** Shows the note only the first time on this browser: a hint the player needs once (remembered under key). */
+export function showCornerNoteOnce(key: string, text: string, ms: number): void {
+  try {
+    if (window.localStorage.getItem(key) !== null) return;
+    window.localStorage.setItem(key, "1");
+  } catch {
+    return; // Nowhere to remember it, so it would come back with every city
+  }
+  showCornerNote(text, ms);
+}

@@ -1090,7 +1090,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   transition: right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s; }
 /* With the card open the zoom buttons step aside (the wheel still zooms) so they never cover the land */
 #provincePicker.ppCardOpen .ppZoom { opacity: 0; pointer-events: none; }
-#provincePicker .ppZoomButton { width: 40px; height: 40px; min-height: 0; padding: 0; font-size: 20px; line-height: 38px; text-align: center;
+#provincePicker .ppZoomButton { width: 40px; height: 40px; min-height: 0; padding: 0; font-size: 18px; line-height: 38px; text-align: center;
   background: rgba(12, 20, 17, 0.7); }
 #provincePicker.ppMenusHidden .ppZoom { opacity: 0; pointer-events: none; }
 
@@ -1098,19 +1098,26 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppTop { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
   gap: 12px; padding: 16px 28px; animation: motionFromAbove 0.6s 0.2s ease-out backwards; }
 #provincePicker .ppTopLeft, #provincePicker .ppTopRight { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-#provincePicker .ppBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 24px; letter-spacing: 0.04em; color: #f6d77a;
+#provincePicker .ppBrand { font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 22px; letter-spacing: 0.04em; color: #f6d77a;
   text-shadow: 0 0 18px rgba(246, 215, 122, 0.45); }
-#provincePicker .ppQuiet { font-size: 13px; }
+#provincePicker .ppQuiet { font-size: 11px; }
 #provincePicker .ppSound svg, #soundToggle svg { display: block; margin: 0 auto; }
 /* Before the first click the game is silent: the speaker says how to start the sound, and glows gently */
 #provincePicker .ppSound.soundWaiting { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px;
   border-color: rgba(246, 215, 122, 0.7); animation: soundWaitingGlow 2.4s ease-in-out infinite; }
 #provincePicker .ppSound.soundWaiting svg { margin: 0; }
-#provincePicker .ppSoundHint { font-size: 14px; white-space: nowrap; }
+#provincePicker .ppSoundHint { font-size: 12px; white-space: nowrap; }
 @keyframes soundWaitingGlow { 50% { box-shadow: 0 0 18px rgba(246, 215, 122, 0.45); } }
-#provincePicker .ppSkip { font-size: 15px; padding: 6px 20px; border-color: rgba(246, 215, 122, 0.7); color: #f6d77a; }
+#provincePicker .ppSkip { font-size: 13px; padding: 6px 20px; border-color: rgba(246, 215, 122, 0.7); color: #f6d77a; }
 #provincePicker .ppContinue { border-color: rgba(246, 215, 122, 0.6); color: #f6d77a; }
-#provincePicker .ppClock { font-size: 20px; font-weight: 300; letter-spacing: 0.04em; color: rgba(238, 243, 239, 0.85); margin-left: 6px; }
+/* Every button in the top bar the same height and type (owner, 12 Oct 2026); the speaker and the flag are round */
+#provincePicker .ppTop button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+  height: 30px; min-height: 30px; padding: 0 14px; font-size: 11px; line-height: 1; }
+#provincePicker .ppTop .ppSound, #provincePicker .ppTop .ppLang { width: 30px; padding: 0; }
+#provincePicker .ppTop .ppSound.soundWaiting { width: auto; padding: 0 12px; }
+#provincePicker .ppTop .ppSoundHint { font-size: 11px; }
+#provincePicker .ppLang .flag { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25); }
+#provincePicker .ppClock { font-size: 18px; font-weight: 300; letter-spacing: 0.04em; color: rgba(238, 243, 239, 0.85); margin-left: 6px; }
 
 /* The big text on the left: the story's captions, then whatever tile is in focus */
 #provincePicker .ppHero { position: absolute; left: 6vw; top: 70px; bottom: 230px; width: min(460px, 32vw); pointer-events: none; }
@@ -1125,22 +1132,22 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 @keyframes ppCaretBlink { 50% { opacity: 0; } }
 #provincePicker[data-mode="intro"] .ppZoom { opacity: 0; pointer-events: none; }
 #provincePicker .ppHeroInner.leaving { animation: ppHeroOut 0.35s ease-in forwards; pointer-events: none; }
-#provincePicker .ppHero h2 { margin: 0 0 8px; font-size: clamp(28px, 3vw, 48px); line-height: 1.15; font-weight: 700; }
-#provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 15px; color: #93a79f; }
-#provincePicker .ppHeroText { margin: 0 0 12px; font-size: clamp(16px, 1.35vw, 21px); color: #cdd8d2; }
-#provincePicker .ppHeroExtra { margin: 0 0 12px; font-size: 14px; color: #93a79f; }
-#provincePicker .ppHeroRank { margin: 0 0 6px; font-size: 18px; font-weight: 700; letter-spacing: 0.04em; color: #f6d77a; }
-#provincePicker .ppHeroHint { margin: 14px 0 0; font-size: 14px; color: #f6d77a; letter-spacing: 0.02em; }
+#provincePicker .ppHero h2 { margin: 0 0 8px; font-size: clamp(26px, 3vw, 46px); line-height: 1.15; font-weight: 700; }
+#provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 13px; color: #93a79f; }
+#provincePicker .ppHeroText { margin: 0 0 12px; font-size: clamp(14px, 1.35vw, 19px); color: #cdd8d2; }
+#provincePicker .ppHeroExtra { margin: 0 0 12px; font-size: 12px; color: #93a79f; }
+#provincePicker .ppHeroRank { margin: 0 0 6px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; color: #f6d77a; }
+#provincePicker .ppHeroHint { margin: 14px 0 0; font-size: 12px; color: #f6d77a; letter-spacing: 0.02em; }
 @keyframes ppHeroIn { from { opacity: 0; transform: translateY(calc(-50% + 30px)); filter: blur(6px); } }
 @keyframes ppHeroOut { to { opacity: 0; transform: translateY(calc(-50% - 20px)); filter: blur(4px); } }
 #provincePicker .ppFunds { display: flex; flex-direction: column; margin: 4px 0 8px; }
-#provincePicker .ppFunds span, #provincePicker .ppTerrain span { color: #93a79f; font-size: 13px; }
-#provincePicker .ppFunds strong { font-size: 40px; line-height: 1.1; color: #f6d77a; text-shadow: 0 0 22px rgba(246, 215, 122, 0.35); }
+#provincePicker .ppFunds span, #provincePicker .ppTerrain span { color: #93a79f; font-size: 11px; }
+#provincePicker .ppFunds strong { font-size: 38px; line-height: 1.1; color: #f6d77a; text-shadow: 0 0 22px rgba(246, 215, 122, 0.35); }
 #provincePicker .ppFunds small, #provincePicker .ppTerrain small { color: #93a79f; }
 #provincePicker .ppTerrain { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 #provincePicker .ppStars { color: #f6d77a; letter-spacing: 3px; }
 #provincePicker .ppChips, #provincePicker .ppNeighbors { display: flex; flex-wrap: wrap; gap: 6px; }
-#provincePicker .ppChip { border-radius: 999px; padding: 2px 10px; font-size: 13px; background: rgba(110, 200, 170, 0.14);
+#provincePicker .ppChip { border-radius: 999px; padding: 2px 10px; font-size: 11px; background: rgba(110, 200, 170, 0.14);
   border: 1px solid rgba(110, 200, 170, 0.3); color: #cfeee2; }
 
 /* Down to the land: the province's real starting map on the national map, and its resources */
@@ -1160,8 +1167,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   filter: drop-shadow(0 0 8px rgba(246, 215, 122, 0.6)); }
 #provincePicker .ppTerrainLabel { fill: #f6d77a; text-anchor: middle; font-family: Sarabun, sans-serif; font-weight: 700;
   paint-order: stroke; stroke: rgba(3, 6, 5, 0.85); stroke-linejoin: round; }
-#provincePicker .ppResources h4 { margin: 4px 0 10px; font-size: 13px; font-weight: 400; color: #93a79f; letter-spacing: 0.05em; }
-#provincePicker .ppResourceList { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; font-size: 18px; }
+#provincePicker .ppResources h4 { margin: 4px 0 10px; font-size: 11px; font-weight: 400; color: #93a79f; letter-spacing: 0.05em; }
+#provincePicker .ppResourceList { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; font-size: 16px; }
 #provincePicker .ppResourceList li { display: flex; align-items: center; gap: 12px;
   animation: motionFromLeft 0.5s ease-out backwards; }
 #provincePicker .ppResourceList li:nth-child(2) { animation-delay: 0.08s; }
@@ -1169,11 +1176,11 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppResourceList li:nth-child(4) { animation-delay: 0.24s; }
 #provincePicker .ppResourceList li:nth-child(n+5) { animation-delay: 0.32s; }
 #provincePicker .ppSwatch { flex: none; width: 16px; height: 16px; border-radius: 5px; box-shadow: 0 0 12px rgba(255, 255, 255, 0.15); }
-#provincePicker .ppNote { margin: 0 0 6px; font-size: 15px; color: #cdd8d2; animation: motionFromLeft 0.5s 0.35s ease-out backwards; }
+#provincePicker .ppNote { margin: 0 0 6px; font-size: 13px; color: #cdd8d2; animation: motionFromLeft 0.5s 0.35s ease-out backwards; }
 #provincePicker .ppNote::before { content: '•  '; color: #f6d77a; }
 /* The province's rules (src/provinceRules.ts): what helps in green, what is hard in red */
 #provincePicker .ppRules { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px; }
-#provincePicker .ppRules li { padding: 4px 10px; border-radius: 999px; font-size: 14px; animation: motionFromLeft 0.5s 0.4s ease-out backwards; }
+#provincePicker .ppRules li { padding: 4px 10px; border-radius: 999px; font-size: 12px; animation: motionFromLeft 0.5s 0.4s ease-out backwards; }
 #provincePicker .ppRules li.good { background: rgba(80, 200, 120, 0.16); color: #a9ecbf; border: 1px solid rgba(80, 200, 120, 0.35); }
 #provincePicker .ppRules li.bad { background: rgba(240, 90, 80, 0.14); color: #ffb3aa; border: 1px solid rgba(240, 90, 80, 0.35); }
 
@@ -1185,7 +1192,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 /* With the card open the tiles make room for it instead of sliding underneath */
 #provincePicker.ppCardOpen .ppRow { right: 440px; }
 @keyframes ppRowOut { to { opacity: 0; transform: translateY(30px); } }
-#provincePicker .ppRowTitle { margin: 0 0 4px; font-size: 15px; color: rgba(238, 243, 239, 0.8); letter-spacing: 0.03em;
+#provincePicker .ppRowTitle { margin: 0 0 4px; font-size: 13px; color: rgba(238, 243, 239, 0.8); letter-spacing: 0.03em;
   border: none; background: none; padding: 2px 0; min-height: 0; backdrop-filter: none; }
 #provincePicker .ppRowTitle:hover { background: none; box-shadow: none; color: #ffffff; }
 #provincePicker .ppRowTitle::after { content: "  ▾"; display: inline-block; transition: transform 0.3s; }
@@ -1204,7 +1211,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppRow.canLeft.canRight .ppTiles {
   mask-image: linear-gradient(90deg, transparent, #000 90px, #000 calc(100% - 90px), transparent); }
 #provincePicker .ppRowScroll { position: absolute; top: 50%; z-index: 2; width: 44px; height: 44px; min-height: 0; padding: 0;
-  transform: translateY(-50%); font-size: 26px; line-height: 40px; text-align: center; opacity: 0; pointer-events: none;
+  transform: translateY(-50%); font-size: 24px; line-height: 40px; text-align: center; opacity: 0; pointer-events: none;
   transition: opacity 0.3s; background: rgba(12, 20, 17, 0.75); }
 #provincePicker .ppRowPrev { left: -22px; }
 #provincePicker .ppRowNext { right: -22px; }
@@ -1220,8 +1227,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppTile:hover { background: linear-gradient(160deg, var(--tile-color) 0%, color-mix(in srgb, var(--tile-color) 35%, #050807) 100%); }
 #provincePicker .ppTile.focused { transform: scale(1.12); opacity: 1; border-color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12), 0 0 34px color-mix(in srgb, var(--tile-color) 70%, transparent), 0 16px 34px rgba(0, 0, 0, 0.5); }
-#provincePicker .ppTileName { font-size: 18px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
-#provincePicker .ppTileMeta { font-size: 12px; opacity: 0.9; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); min-height: 1.4em; }
+#provincePicker .ppTileName { font-size: 16px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
+#provincePicker .ppTileMeta { font-size: 10px; opacity: 0.9; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); min-height: 1.4em; }
 
 /* Hide menus (button or H): only the bamboo, the map and the required credits remain */
 #provincePicker .ppHero, #provincePicker .ppRow, #provincePicker .ppPanel, #provincePicker .ppTopRight > *, #provincePicker .ppTopLeft .ppBack,
@@ -1248,10 +1255,10 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppPanel.motionLeave { animation: ppPanelOut 0.2s ease-in forwards; }
 @keyframes ppPanelOut { to { opacity: 0; transform: translateX(40px); } }
 #provincePicker .ppCard > * { animation: motionFromBelow 0.45s ease-out backwards; }
-#provincePicker .ppCard h3 { margin: 0 0 10px; font-size: 30px; line-height: 1.2; }
-#provincePicker .ppCard h4 { margin: 16px 0 6px; font-size: 13px; font-weight: 400; color: #93a79f; letter-spacing: 0.05em; }
-#provincePicker .ppSmall { margin: 4px 0 0; font-size: 12px; color: #93a79f; }
-#provincePicker .ppChipButton { font-size: 13px; min-height: 26px; padding: 2px 10px; }
+#provincePicker .ppCard h3 { margin: 0 0 10px; font-size: 28px; line-height: 1.2; }
+#provincePicker .ppCard h4 { margin: 16px 0 6px; font-size: 11px; font-weight: 400; color: #93a79f; letter-spacing: 0.05em; }
+#provincePicker .ppSmall { margin: 4px 0 0; font-size: 10px; color: #93a79f; }
+#provincePicker .ppChipButton { font-size: 11px; min-height: 26px; padding: 2px 10px; }
 #provincePicker .ppPreview canvas { width: 100%; max-width: 220px; image-rendering: pixelated; border-radius: 10px; display: block; opacity: 0.92; }
 #provincePicker .ppLevels { display: flex; gap: 6px; }
 #provincePicker .ppLevel { flex: 1; }
@@ -1261,13 +1268,15 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppLevel input:checked + span { background: rgba(246, 215, 122, 0.18); border-color: #f6d77a; color: #f6d77a; }
 #provincePicker .ppLevel input:focus-visible + span { outline: 2px solid #f6d77a; }
 #provincePicker .ppField { display: block; margin-top: 14px; }
-#provincePicker .ppField span { display: block; font-size: 13px; color: #93a79f; margin-bottom: 4px; }
-#provincePicker .ppName { width: 100%; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 17px; color: #ffffff;
+#provincePicker .ppField span { display: block; font-size: 11px; color: #93a79f; margin-bottom: 4px; }
+#provincePicker .ppName { width: 100%; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 15px; color: #ffffff;
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; }
 #provincePicker .ppName:focus { outline: none; border-color: #f6d77a; }
-#provincePicker .ppStart { margin-top: 18px; width: 100%; padding: 12px; font-size: 18px; font-weight: 700; border: none;
+#provincePicker .ppStart { margin-top: 18px; width: 100%; padding: 12px; font-size: 16px; font-weight: 700; border: none;
   background: linear-gradient(135deg, #f6d77a, #d29a2c); color: #1c1405; box-shadow: 0 10px 30px rgba(210, 154, 44, 0.35); }
-#provincePicker .ppStart:hover { filter: brightness(1.08); box-shadow: 0 12px 36px rgba(246, 215, 122, 0.45); }
+#provincePicker .ppStart:hover, #provincePicker .ppStart:focus-visible {
+  background: linear-gradient(135deg, #fbe39a, #e0aa3a); color: #1c1405; filter: none;
+  box-shadow: 0 12px 36px rgba(246, 215, 122, 0.5); }
 
 /* My cities */
 #provincePicker .ppDanger { margin-top: 26px; }
@@ -1275,7 +1284,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppDeleteYes { border-color: rgba(230, 110, 90, 0.8); color: #ffb3a3; margin-right: 6px; }
 #provincePicker .ppExisting { margin: 6px 0 4px; padding: 10px 12px; border-radius: 12px; background: rgba(246, 215, 122, 0.1);
   border: 1px solid rgba(246, 215, 122, 0.35); }
-#provincePicker .ppExisting p { margin: 0 0 8px; font-size: 14px; }
+#provincePicker .ppExisting p { margin: 0 0 8px; font-size: 12px; }
 #provincePicker .ppContinueChip { border-color: #f6d77a; color: #f6d77a; }
 
 /* The required credits: tiny and quiet at the bottom */
@@ -1459,12 +1468,14 @@ body #wrapper { top: 0; }
 body main { bottom: 0; }
 body #footer { display: none; }
 
-/* The corner buttons: sound, language, 2D/3D, About */
+/* The top of the screen: the city's line, ⌂, sound and language on the left beside the menu icons; the news on the
+   right. The bar itself lets clicks through to the city */
 body #header {
-  position: fixed; top: var(--hud-gap); right: var(--hud-gap); left: auto; z-index: 15;
-  height: auto; margin: 0; padding: 0; background: none; border: none;
+  position: fixed; top: var(--hud-gap); left: 46px; right: var(--hud-gap); z-index: 15; display: flex;
+  justify-content: space-between; align-items: center; height: auto; margin: 0; padding: 0; background: none; border: none;
+  pointer-events: none;
 }
-body #header .hudButtons { display: flex; gap: 6px; }
+body #header .hudButtons { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 body .hudPill {
   display: inline-flex; align-items: center; justify-content: center; height: 28px; min-width: 28px; padding: 0 10px;
   border: 1px solid var(--hud-edge); border-radius: 999px; background: var(--hud-glass); color: var(--hud-text);
@@ -1472,25 +1483,37 @@ body .hudPill {
   font: 600 12px 'Sarabun Thai', 'Open Sans', sans-serif; text-decoration: none; cursor: pointer;
 }
 body .hudPill:hover { background: var(--hud-glass-strong); color: var(--hud-text); }
-body #soundToggle, body .hudRound { padding: 0; width: 28px; font-size: 15px; }
+body .hudRound { padding: 0; width: 28px; font-size: 15px; }
+body #soundControl { padding: 0; gap: 0; overflow: hidden; }
+body #soundControl input[type="range"] {
+  width: 0; margin: 0; padding: 0; opacity: 0; accent-color: #226b57; cursor: pointer;
+  transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.25s, opacity 0.2s;
+}
+body #soundControl.open input[type="range"] { width: 96px; margin: 0 2px 0 12px; opacity: 1; }
+body #soundToggle {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0;
+  border: none; border-radius: 50%; background: none; color: var(--hud-text); box-shadow: none; transform: none; filter: none;
+}
 body .hudPill[hidden] { display: none; }
 
 /* Every card: frosted glass */
 body #infobar, body #miscButtons, body #RCIContainer, body #controls, body #rulerGoals, body #monstertv, body #debug,
 body #newsLog {
   background: var(--hud-glass); color: var(--hud-text);
-  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3);
   border: 1px solid var(--hud-edge); border-radius: 14px; box-shadow: var(--hud-shadow);
 }
+body #infobar, body #miscButtons, body #RCIContainer { border-left: none; border-radius: 0 14px 14px 0; }
+body #controls, body #rulerGoals { border-right: none; border-radius: 14px 0 0 14px; }
 
-/* Left column: the city, the menu, what the city wants */
+/* Left column, against the left edge: the city, the menu, what the city wants */
 body #infobar {
-  top: var(--hud-gap); left: var(--hud-gap); width: var(--hud-left); height: auto; box-sizing: border-box;
+  top: var(--hud-gap); left: 0; width: var(--hud-left); height: auto; box-sizing: border-box;
   padding: 8px 12px; text-align: left; font-size: 11.5px; line-height: 1.4;
 }
 body #infobar #name { font-size: 14px; line-height: 1.3; }
 body #miscButtons {
-  top: 155px; left: var(--hud-gap); width: var(--hud-left); height: auto; box-sizing: border-box; padding: 6px;
+  top: 155px; left: 0; width: var(--hud-left); height: auto; box-sizing: border-box; padding: 6px;
 }
 body #miscButtons .miscButton {
   position: relative; width: 100%; height: 24px; margin: 1px 0; padding: 0 8px 0 24px; border: none; border-radius: 7px;
@@ -1512,11 +1535,11 @@ body #miscButtons .miscButton:disabled { opacity: 0.45; }
 #screenshotRequest { --accent: tomato; }
 #pauseRequest { --accent: #8a6d1d; }
 #mainMenuRequest { --accent: #226b57; }
-body #RCIContainer { top: auto; bottom: 34px; left: var(--hud-gap); width: var(--hud-left); height: 130px; box-sizing: border-box; padding: 6px; }
+body #RCIContainer { top: auto; bottom: 34px; left: 0; width: var(--hud-left); height: 130px; box-sizing: border-box; padding: 6px; }
 
-/* Right column: the tools, then the ruler's tasks */
+/* Right column, against the right edge: the tools, then the ruler's tasks */
 body #controls {
-  top: calc(var(--hud-gap) + 36px); right: var(--hud-gap); width: var(--hud-right); height: auto; box-sizing: border-box;
+  top: calc(var(--hud-gap) + 36px); right: 0; width: var(--hud-right); height: auto; box-sizing: border-box;
   padding: 6px 8px 8px;
 }
 body #toolInfo { display: flex; align-items: center; gap: 8px; min-height: 24px; margin: 0 0 4px; padding: 0 0 0 28px;
@@ -1545,21 +1568,29 @@ body #buttons .toolIcon {
 body #buttons .toolName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body #buttons .toolPrice { flex: none; color: var(--hud-dim); font-size: 10px; font-weight: 600; }
 body #buttons .toolButton[data-key]::after { content: none; }
-body #rulerGoals { top: 330px; right: var(--hud-gap); width: var(--hud-right); box-sizing: border-box; font-size: 11.5px;
+body #rulerGoals { top: 330px; right: 0; width: var(--hud-right); box-sizing: border-box; font-size: 11.5px;
   line-height: 1.4; padding: 8px 10px; }
 body #rulerGoals .goalsTitle { font-size: 12.5px; }
 body #rulerGoals #goalsHint { font-size: 11px; }
 body #monstertv { right: var(--hud-gap); }
 
-/* Panels slide away to their side, leaving their handle */
-body .collapsible.fromLeft.collapsed { transform: translateX(calc(-100% - var(--hud-gap) + 28px)); }
-body .collapsible.fromRight.collapsed { transform: translateX(calc(100% + var(--hud-gap) - 28px)); }
+/* Panels slide off their side of the screen, leaving a tab with their icon (src/panelCollapse.ts) */
+body .collapsible.fromLeft.collapsed { transform: translateX(-100%); }
+body .collapsible.fromRight.collapsed { transform: translateX(100%); }
+body .collapsible.collapsed { box-shadow: none; }
+body .collapsible.collapsed > .panelToggle {
+  top: 8px; display: flex; align-items: center; justify-content: center; width: 30px; height: 34px;
+  border: 1px solid var(--hud-edge); background: var(--hud-glass-strong); color: #226b57; box-shadow: var(--hud-shadow);
+}
+body .collapsible.fromLeft.collapsed > .panelToggle { left: 100%; right: auto; border-left: none; border-radius: 0 10px 10px 0; }
+body .collapsible.fromRight.collapsed > .panelToggle { right: 100%; left: auto; border-right: none; border-radius: 10px 0 0 10px; }
+body .collapsible.collapsed > .panelToggle:hover { background: #fff; transform: none; filter: none; }
 
 /* Bottom middle: the news bar and its button */
 body #notifications {
   top: auto; bottom: 30px; left: 50%; width: min(440px, calc(100vw - 2 * var(--hud-left) - 160px)); height: auto;
   min-height: 20px; padding: 5px 12px; box-sizing: border-box; border: 1px solid var(--hud-edge); border-radius: 999px;
-  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); box-shadow: var(--hud-shadow);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: var(--hud-shadow);
   font: 600 12px 'Sarabun Thai', 'Open Sans', sans-serif;
 }
 body #notifications.neutral { background: var(--hud-glass); color: var(--hud-text); }
@@ -1569,7 +1600,7 @@ body #newsLogButton {
   bottom: 30px; left: calc(50% + min(220px, (100vw - 2 * var(--hud-left) - 160px) / 2) + 8px);
   height: 29px; padding: 0 12px; border: 1px solid var(--hud-edge); border-radius: 999px; background: var(--hud-glass);
   font-size: 12px;
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--hud-shadow);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--hud-shadow);
 }
 body #newsLog { bottom: 80px; }
 body #cornerNote { right: var(--hud-gap); bottom: 30px; }
@@ -1597,6 +1628,258 @@ body #mapAttribution {
 }
 body #mapAttribution a { color: #fff; }
 body #mapAttribution.initialHidden { display: none; }
+
+/* With no tool in hand the city can be dragged along (src/viewControls.ts) */
+body #MicropolisCanvas.canPan { cursor: grab; }
+body #MicropolisCanvas.panning { cursor: grabbing; }
+
+/* Game windows: the cards' frosted glass and small words, opening beside the card that was clicked
+   (src/windowPlacement.ts) over a city that is no longer dimmed; a click outside still closes them */
+body #opaque { background: transparent; opacity: 1; -webkit-backdrop-filter: none; backdrop-filter: none; cursor: default; }
+body .modal {
+  width: 340px; max-width: calc(100vw - 24px); box-sizing: border-box; overflow: hidden auto;
+  background: var(--hud-glass-strong); color: var(--hud-text); border: 1px solid var(--hud-edge); border-radius: 14px;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); box-shadow: var(--hud-shadow);
+  font: 12px/1.45 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
+}
+body .modal.docked { transform: none; animation: windowIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+body .modal.docked.motionLeave { animation: windowOut 0.2s ease-in forwards; }
+body .modal.dockFromRight { --window-from: 14px; }
+@keyframes windowIn { from { opacity: 0; transform: translateX(var(--window-from, -14px)); } }
+@keyframes windowOut { to { opacity: 0; transform: translateX(var(--window-from, -14px)); } }
+
+/* The title: small and bold with its menu button's colour as a mark, instead of the striped bar */
+body #budgetHeader, body #evalHeader, body #graphHeader, body #mapHeader, body #disasterHeader, body #queryHeader,
+body #congratsHeader, body #nagHeader, body #saveHeader, body #mainMenuHeader, body #screenshotLinkHeader,
+body #screenshotHeader, body #settingsHeader, body #debugHeader, body #touchHeader {
+  position: relative; height: auto; padding: 10px 12px 2px 28px; background: none; color: var(--hud-text);
+  font: 700 13px/1.3 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
+}
+body .modal > header::before {
+  content: ""; position: absolute; left: 12px; top: 50%; width: 9px; height: 9px; margin-top: -1px; border-radius: 2px;
+  background: var(--accent, #5a6964);
+}
+body #budget { --accent: dodgerblue; }
+body #evalWindow, body #graphWindow { --accent: forestgreen; }
+body #mapWindow { --accent: #0f7c8c; }
+body #disasterWindow { --accent: #e53935; }
+body #queryWindow { --accent: #00a7b5; }
+body #saveWindow { --accent: cadetblue; }
+body #settingsWindow { --accent: #663399; }
+body #screenshotWindow, body #screenshotLinkWindow { --accent: tomato; }
+body #mainMenuWindow { --accent: #226b57; }
+body #congratsWindow { --accent: #d4a017; }
+
+body .modal .padding10 { padding: 6px 12px 10px; }
+body .modal .margin10 { margin: 8px 0 0; }
+body .modal h2 { margin: 6px 0 3px; font-size: 12px; font-weight: 700; text-align: left; }
+body .modal p { margin: 4px 0; }
+body .modal button, body .modal input[type="submit"] {
+  width: auto; min-width: 70px; height: 26px; margin: 2px 2px 0; padding: 0 14px; border: 1px solid rgba(29, 41, 37, 0.15);
+  border-radius: 999px; background: rgba(255, 255, 255, 0.8); color: var(--hud-text);
+  font: 600 12px 'Sarabun Thai', 'Open Sans', sans-serif;
+}
+body .modal .dialogOK { border-color: transparent; background: #2e7d4f; color: #fff; }
+body .modal .cancel { border-color: transparent; background: rgba(29, 41, 37, 0.8); color: #fff; }
+body .modal .loadSave { border-color: transparent; background: cadetblue; color: #fff; }
+body .modal form.alignCenter, body .modal .alignCenter:has(> .dialogOK) { text-align: right; }
+body .modal input[type="range"], body .modal input[type="radio"], body .modal input[type="checkbox"] { accent-color: #2e7d4f; }
+body .modal input[type="radio"], body .modal input[type="checkbox"] { margin: 0 3px 0 8px; vertical-align: -2px; }
+body .modal select { height: 26px; padding: 0 6px; border: 1px solid rgba(29, 41, 37, 0.2); border-radius: 8px; background: #fff;
+  font: 12px 'Sarabun Thai', 'Open Sans', sans-serif; }
+body .modal fieldset { margin: 0; padding: 4px 8px 6px; border: 1px solid rgba(29, 41, 37, 0.14); border-radius: 10px; min-width: 0; }
+body .modal legend { padding: 0 4px; font-weight: 700; }
+
+/* Budget: two columns of money and sliders */
+body #budget { width: 400px; }
+body #budgetForm { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+body #budgetForm > div, body #budgetForm > fieldset { display: block; width: auto; margin: 0; }
+body #budgetForm input[type="range"] { width: 100%; max-width: none; margin: 2px 0; padding: 0; }
+body #budgetButtons { grid-column: 1 / -1; text-align: right; }
+body #budgetReset { border-color: transparent; background: dodgerblue; color: #fff; }
+
+/* Evaluation, graphs and the inspect window: label on the left, number on the right */
+body #evalWindow { width: 320px; }
+body #evalContainer { font-size: 12px; }
+body .opinionList { margin: 0; text-align: left; }
+body .opinionList dt { margin-top: 3px; font-weight: 600; }
+body .opinionList dd { margin: 0; font-style: normal; }
+body #problemList { margin: 2px 0; padding-left: 20px; }
+body #problemList li:empty { display: none; }
+body #statisticsList, body .queryList > dl, body .queryDebug > dl {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: auto; margin: 0; padding: 0;
+}
+body #statisticsList dt, body #statisticsList dd, body .queryList dt, body .queryList dd {
+  display: block; width: auto; margin: 0; font-weight: 400;
+}
+body #statisticsList dd, body .queryList dd { font-weight: 700; text-align: right; }
+body .queryList { width: auto; margin: 0; padding: 0; }
+body #queryWindow { width: 250px; }
+body #graphWindow { width: 380px; }
+body #graphContainer { font-size: 12px; }
+body #graphContainer h3 { margin: 8px 0 3px; font-size: 12px; }
+body #graphContainer .graphKey { font-size: 11px; }
+
+/* The city map */
+body #mapWindow { width: 430px; }
+body #mapContainer { font-size: 12px; }
+body #mapContainer .mapLayers button { min-width: 0; height: 24px; margin: 0; padding: 0 9px; font-size: 11px; }
+body #mapContainer .mapCanvas { width: 100%; height: auto; max-height: calc(100vh - 250px); object-fit: contain; }
+body #mapContainer .mapLegend { font-size: 11px; }
+
+/* Settings, disasters and the small windows */
+body #settingsWindow { width: 360px; }
+body #settingsForm { margin: 0; text-align: right; }
+body #settingsFormContainer { text-align: left; }
+body #settingsFormContainer > div { padding: 3px 0; }
+body #settingsFormContainer > div > span:first-child { display: inline-block; min-width: 9.5em; font-weight: 600; }
+body #soundSettings { margin: 6px 0 8px; }
+body #soundSettings label { margin: 2px 0; }
+body #soundSettings .soundSlider { display: grid; grid-template-columns: 8.5em 1fr; align-items: center; }
+body .soundSlider span { min-width: 0; }
+body .soundSlider input { width: 100%; }
+body #disasterWindow { width: 290px; }
+body #disasterSelectContainer { text-align: left; }
+body #disasterLabel { margin-bottom: 4px; }
+body #disasterSelect { width: 100%; }
+body #saveWindow { width: 240px; }
+body #mainMenuWindow { width: 330px; }
+body #mainMenuForm { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+body #mainMenuForm .mainMenuButton { margin: 0; }
+body #screenshotWindow, body #screenshotLinkWindow { width: 300px; }
+body #screenshotContainerDiv { margin-bottom: 6px; text-align: left; }
+body #congratsWindow { width: 320px; }
+body #touchWarnWindow { width: 360px; }
+body #touchContainer .padding10 { padding: 2px 0; }
+
+/* The menu: icons down the left edge (src/menuRail.ts). Pointing at one slides out its name; the open one stays lit */
+body #miscButtons { top: var(--hud-gap); left: 0; z-index: 15; width: auto; height: auto; padding: 4px; }
+body #miscButtons .inner { display: flex; flex-direction: column; gap: 2px; }
+body #miscButtons .inner > div { display: contents; }
+body #miscButtons .miscButton {
+  display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin: 0; padding: 0;
+  border-radius: 9px; background: transparent; color: var(--accent, #5a6964);
+}
+body #miscButtons .miscButton::before { content: none; }
+body #miscButtons .miscButton:hover, body #miscButtons .miscButton.active {
+  background: rgba(255, 255, 255, 0.92); transform: none; box-shadow: none; filter: none;
+}
+body #miscButtons .miscButton.active { box-shadow: inset 0 0 0 1.5px var(--accent, #5a6964); }
+body #miscButtons .railIcon { display: flex; pointer-events: none; }
+body #miscButtons .railPlay, body #miscButtons .paused .railPause { display: none; }
+body #miscButtons .paused .railPlay { display: block; }
+body #miscButtons .railLabel {
+  position: absolute; left: calc(100% + 9px); top: 50%; z-index: 2; display: flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border: 1px solid var(--hud-edge); border-radius: 999px; background: var(--hud-glass-strong);
+  box-shadow: var(--hud-shadow); color: var(--hud-text); font: 400 9px/1.5 'Sarabun Thai', 'Open Sans', sans-serif;
+  white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-6px, -50%);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+body #miscButtons .miscButton:hover .railLabel, body #miscButtons .miscButton:focus-visible .railLabel {
+  opacity: 1; transform: translate(0, -50%);
+}
+body #miscButtons .railLabel kbd {
+  padding: 0 4px; border: 1px solid rgba(29, 41, 37, 0.22); border-radius: 4px; color: var(--hud-dim);
+  font: 400 8px/1.4 'Open Sans', sans-serif;
+}
+#cityRequest { --accent: #226b57; }
+
+/* The city card: opens beside its icon */
+body #infobar {
+  display: none; top: var(--hud-gap); left: 46px; z-index: 16; width: 150px; padding: 7px 10px;
+  border: 1px solid var(--hud-edge); border-radius: 12px; font: 400 9px/1.5 'Sarabun Thai', 'Open Sans', sans-serif;
+}
+body #infobar.motionLeave { animation: windowOut 0.2s ease-in forwards; }
+body #infobar #name, body #infobar .semibold { font-size: 10px; font-weight: 400; }
+
+/* The city's name, date and money, always in view, first in the top bar (src/cityStatus.ts) */
+body #cityStatus { gap: 7px; padding: 0 11px; cursor: default; white-space: nowrap; pointer-events: none; }
+body #cityStatus.initialHidden { display: none; }
+body #cityStatus span + span::before { content: "·"; margin-right: 7px; color: var(--hud-dim); }
+
+/* A slid-away panel shows its tab outside its own box, so nothing in it may clip */
+body .collapsible.collapsed { overflow: visible; }
+
+/* Small type everywhere in the game, nothing bold (owner, 12 Oct 2026: about 9 px) */
+body .hudPill { height: 24px; min-width: 24px; padding: 0 9px; font: 400 9px 'Sarabun Thai', 'Open Sans', sans-serif; }
+body .hudRound { width: 24px; font-size: 13px; }
+body #soundToggle { width: 24px; height: 24px; }
+body #soundToggle svg { width: 15px; height: 15px; }
+body #soundControl.open input[type="range"] { width: 84px; margin: 0 10px 0 2px; }
+body #languageToggle { width: 24px; height: 24px; padding: 0; }
+body .flag { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18); }
+body #controls { padding: 5px 6px 6px; }
+body #toolInfo { min-height: 20px; margin: 0 0 3px; padding-left: 26px; font: 400 9.5px 'Sarabun Thai', 'Open Sans', sans-serif; }
+body #undoButton { height: 18px; padding: 0 7px; font-size: 12px; }
+body #buttons { gap: 3px; }
+body #buttons .toolButton { height: 21px; gap: 4px; padding: 0 5px; font: 400 9px 'Sarabun Thai', 'Open Sans', sans-serif; }
+body #buttons .toolIcon { width: 13px; height: 13px; font-size: 8px; line-height: 13px; }
+body #buttons .toolPrice { font-size: 8.5px; font-weight: 400; }
+body #rulerGoals { font-size: 9px; line-height: 1.45; padding: 7px 8px; }
+body #rulerGoals .goalsTitle { font-size: 10px; font-weight: 400; }
+body #rulerGoals li.current { font-weight: 400; color: #000; }
+body #rulerGoals #goalsHint { font-size: 9px; }
+body #rulerGoals #goalsClose { height: 20px; padding: 0 9px; font-size: 9px; }
+body #cornerNote { font-size: 9px; }
+
+/* News at the top: a see-through pill for a few seconds, then it fades (src/notification.js); the News button sits
+   with the corner buttons and its list opens under them */
+body #notifications {
+  top: var(--hud-gap); bottom: auto; left: 50%; width: auto; max-width: min(440px, calc(100vw - 2 * var(--hud-right)));
+  min-height: 0; padding: 5px 14px; font: 400 9px/1.4 'Sarabun Thai', 'Open Sans', sans-serif;
+  animation: newsIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+body #notifications.motionLeave { animation: newsOut 0.2s ease-in forwards; }
+@keyframes newsIn { from { opacity: 0; transform: translate(-50%, -14px); } }
+@keyframes newsOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+body #notifications.neutral { background: var(--hud-glass); }
+body #notifications.good { background: rgba(46, 140, 80, 0.72); }
+body #notifications.bad { background: rgba(200, 40, 40, 0.72); }
+body #newsLogButton { position: static; height: 24px; padding: 0 10px; font-size: 9px; }
+body #newsLogButton.initialHidden { display: none; }
+body #newsLog { position: fixed; top: 50%; left: 50%; right: auto; bottom: auto; z-index: 17; transform: translate(-50%, -50%); }
+
+/* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */
+body #creditToggle {
+  position: absolute; left: 8px; bottom: 8px; width: 20px; height: 20px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%; background: rgba(20, 32, 28, 0.55); color: #fff; font: 400 11px/1 'Open Sans', sans-serif; cursor: pointer;
+}
+body #creditToggle.initialHidden { display: none; }
+body #mapAttribution {
+  left: 34px; bottom: 9px; transform: none; max-width: calc(100vw - 60px); font-size: 10px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+body #mapAttribution.tucked { opacity: 0; transform: translateX(-8px); pointer-events: none; }
+#hudTip { padding: 4px 8px; font-size: 9px; }
+
+/* Recent news: the same glass and type, a coloured mark for good and bad news instead of red rows */
+body #newsLog {
+  width: 360px; max-height: 260px; padding: 8px 10px; border-radius: 12px; background: var(--hud-glass-strong);
+  font: 400 9px/1.45 'Sarabun Thai', 'Open Sans', sans-serif;
+}
+body #newsLog h3 { margin: 0 0 4px; font-size: 10px; font-weight: 400; }
+body #newsLog li.news { grid-template-columns: 54px 1fr auto; gap: 6px; margin: 2px 0; padding: 3px 6px;
+  border-radius: 0 6px 6px 0; background: rgba(255, 255, 255, 0.55); color: var(--hud-text); }
+body #newsLog li.news.good, body #newsLog li.news.bad { background: rgba(255, 255, 255, 0.55); color: var(--hud-text); }
+body #newsLog .newsDate { color: var(--hud-dim); font-size: 8.5px; }
+body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
+
+/* Windows in the same small type */
+body .modal { width: 300px; font-size: 9px; }
+body #budgetHeader, body #evalHeader, body #graphHeader, body #mapHeader, body #disasterHeader, body #queryHeader,
+body #congratsHeader, body #nagHeader, body #saveHeader, body #mainMenuHeader, body #screenshotLinkHeader,
+body #screenshotHeader, body #settingsHeader, body #debugHeader, body #touchHeader { font-weight: 400; font-size: 10px; }
+body .modal h2, body .modal h3, body .modal legend, body .modal dt, body .modal dd, body .modal strong { font-weight: 400; }
+body .modal h2 { font-size: 9.5px; }
+body .modal button, body .modal input[type="submit"] { min-width: 58px; height: 22px; padding: 0 11px; font: 400 9px 'Sarabun Thai', 'Open Sans', sans-serif; }
+body .modal select { height: 22px; font-size: 9px; }
+body #evalContainer, body #graphContainer, body #mapContainer, body #graphContainer h3 { font-size: 9px; }
+body #graphContainer .graphKey, body #mapContainer .mapLegend, body #mapContainer .mapLayers button { font-size: 8.5px; }
+body #budget { width: 330px; }
+body #evalWindow { width: 270px; }
+body #settingsWindow { width: 300px; }
+body #mapWindow { width: 380px; }
+body #queryWindow { width: 210px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }

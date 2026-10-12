@@ -102,7 +102,7 @@ describe("city map", () => {
     for (const kind of CITY_KEYS) expect(hasKey(`map.key.${stringId(kind)}`)).toBe(true);
     expect(stringId("landValue")).toBe("land_value");
     for (const key of ["map.title", "map.hint", "map.close", "map.key.powered", "map.key.unpowered", "map.key.low",
-      "map.key.high", "map.power_count", "menu.map", "shortcut.map"]) expect(hasKey(key)).toBe(true);
+      "map.key.high", "map.power_count", "menu.map"]) expect(hasKey(key)).toBe(true);
     expect(isMapLayer("nope")).toBe(false);
   });
 });

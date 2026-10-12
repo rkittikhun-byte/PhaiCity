@@ -18,6 +18,7 @@ import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedPro
 import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
 import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
+import { renderLanguageButton } from "./languageFlag";
 import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
 import { checkRulesData, resolveRules, ruleEffects, type RulesData } from "./provinceRules";
@@ -253,15 +254,18 @@ function buildShell(): View {
   const skip = button("ppSkip", `${t("intro.skip")} ›`, () => showRegions(true));
   const replay = button("ppQuiet", t("splash.replay_intro"), () => playIntro());
   const sound = button("ppQuiet ppSound", "", () => pressSoundButton(sound));
-  const language = button("ppQuiet", t("lang.switch_to"), () => setLanguage(getLanguage() === "th" ? "en" : "th"));
+  // The flag of the language a click switches to (src/languageFlag.ts); the bar is rebuilt after a switch
+  const language = button("ppQuiet ppLang", "", () => setLanguage(getLanguage() === "th" ? "en" : "th"));
+  renderLanguageButton(language);
   const menus = button("ppQuiet ppMenus", t("ui.hide_menus"), () => setMenusHidden(!overlay.classList.contains("ppMenusHidden")));
   const clock = element("span", "ppClock");
   const left = element("div", "ppTopLeft");
-  left.append(element("span", "ppBrand", "PhaiCity"), back);
+  // Hide menus, the sound and the language sit on the left, by the name (owner, 12 Oct 2026)
+  left.append(element("span", "ppBrand", "PhaiCity"), menus, sound, language, back);
   const right = element("div", "ppTopRight");
   const cityCount = actions?.cities.length ?? 0;
   if (cityCount > 0) right.appendChild(button("ppQuiet ppContinue", t("cities.button", { count: cityCount }), () => showCities()));
-  right.append(button("ppQuiet", t("start.practice"), () => leaveTo(() => actions?.practice())), replay, sound, language, menus, skip, clock);
+  right.append(button("ppQuiet", t("start.practice"), () => leaveTo(() => actions?.practice())), replay, skip, clock);
   top.append(left, right);
 
   const hero = element("div", "ppHero");
@@ -761,11 +765,27 @@ function onMapHover(province: Province | null): void {
   for (const [id, label] of provinceLabels) label.classList.toggle("hover", province !== null && id === province.id);
 }
 
+// A click on the map goes into the game when it can (owner, 12 Oct 2026): in My cities, on the shown city's
+// province; in a region, on the province whose card is already open (the first click opens the card, where a new
+// city gets its name and difficulty).
 function onMapPick(province: Province): void {
   if (mode === "region") enterRegion(province.region);
   else if (mode === "province" && province.region === currentRegion) {
-    openCard(province.id);
+    if (selectedProvince === province.id && cardOpen()) playFromCard();
+    else openCard(province.id);
+  } else if (mode === "cities") {
+    const index = tiles.findIndex((tile) => actions?.cities.find((city) => city.id === tile.id)?.provinceId === province.id);
+    if (index < 0) return;
+    if (index === focusIndex) leaveTo(() => actions?.continueCity(tiles[index].id));
+    else selectTile(index);
   }
+}
+
+/** What the open card's main button does: carry on with the province's saved city, or start the new one. */
+function playFromCard(): void {
+  const button = view?.panel.querySelector<HTMLButtonElement>(".ppContinueChip") ??
+    view?.panel.querySelector<HTMLButtonElement>(".ppStart");
+  button?.click();
 }
 
 // --- Tiles ---

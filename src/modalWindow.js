@@ -16,8 +16,11 @@ import $ from "jquery";
 import { EventEmitter } from './eventEmitter.js';
 import { MiscUtils } from './miscUtils.js';
 import { hide, isShown, show } from './motion.ts';
+import { placeWindow, trackPresses } from './windowPlacement.ts';
 
-// Clicking the dimmed background closes the open window, as its Cancel button would (or OK, when it has none)
+trackPresses();
+
+// Clicking outside the open window closes it, as its Cancel button would (or OK, when it has none)
 $(document).on('click', '#opaque', function() {
   var open = $('.modal:visible').not('.motionLeave').last();
   if (open.length === 0)
@@ -61,6 +64,8 @@ var ModalWindow = function(constructorFunction, focusID) {
 
     show(opacityLayer[0], 'block');
     show(modalWindow[0], 'block');
+    // Beside the card that opened it (src/windowPlacement.ts)
+    placeWindow(modalWindow[0]);
 
     if (focusID !== null)
       $(focusID).focus();

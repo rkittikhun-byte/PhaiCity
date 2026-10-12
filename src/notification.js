@@ -15,9 +15,12 @@ import $ from "jquery";
 
 import { onLanguageChange } from './i18n/index.ts';
 import { MiscUtils } from './miscUtils.js';
+import { hide, show } from './motion.ts';
 import { Text } from './text.js';
 
-var TIMEOUT_SECS = 30;
+// PhaiCity: news shows at the top of the screen for a few seconds and fades (owner, 12 Oct 2026); every item stays
+// in the recent news (src/newsLog.ts)
+var TIMEOUT_SECS = 7;
 
 
 // log: optional recent-news log (src/newsLog.ts) that keeps every item shown here
@@ -54,7 +57,7 @@ var close = function(e) {
     e.preventDefault();
 
   if (this._element.is(':visible'))
-    this._element.toggle();
+    hide(this._element[0]);
 };
 
 
@@ -71,8 +74,7 @@ Notification.prototype._displayLink = function(text, x, y) {
 
   this._element.addClass('pointer');
 
-  if (!this._element.is(':visible'))
-    this._element.toggle();
+  show(this._element[0], 'block');
 
   this._timeout = window.setTimeout(function() {this._timeout = null; this.close();}.bind(this), TIMEOUT_SECS * 1000);
 };
@@ -89,8 +91,7 @@ Notification.prototype._displayText = function(text, x, y) {
   this._x = -1;
   this._y = -1;
 
-  if (!this._element.is(':visible'))
-    this._element.toggle();
+  show(this._element[0], 'block');
 
   this._timeout = window.setTimeout(function() {this._timeout = null; this.close();}.bind(this), TIMEOUT_SECS * 1000);
 };
