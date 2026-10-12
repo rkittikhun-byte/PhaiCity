@@ -104,6 +104,7 @@ export class TileSnapshot implements CityMapReader {
     } else if(v>=5&&v<=20) {kind='shore';id='terrain.shore';variant=this.mask(x,y,n=>!isWaterNeighbor(n));}
     else if(isWoods(v)) {variant=this.mask(x,y,isWoods);}
     else if(v===0||v>=44&&v<=51) variant=(hash>>>2)&3;
+    if(id==='svc.stadium')state=v>=795&&v<=810?'game':'empty';
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;

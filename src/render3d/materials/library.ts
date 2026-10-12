@@ -355,6 +355,43 @@ export function commercialLEDMaterial(): MeshStandardMaterial {
     material.customProgramCacheKey = () => 'phaicity-commercial-led-v1';
   });
 }
+/** Neutral scan grain keeps civic paving and seating concrete grey under their baked colors. */
+export function serviceConcreteMaterial(): MeshStandardMaterial {
+  return finishedMaterial('service-concrete', 'concrete_weathered', 0xffffff, material => {
+    material.vertexColors = true; material.userData.vertexFinish = true; material.userData.serviceConcrete = true;
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float civicGrain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.80 + 0.20 * civicGrain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-service-concrete';
+  });
+}
+
+/** Separate from canopy canvas so an instanced crowd remains one material batch. */
+export function stadiumCrowdMaterial(): MeshStandardMaterial {
+  return finishedMaterial('stadium-crowd', 'fabric_canvas', 0xffffff, material => {
+    material.vertexColors = true; material.userData.stadiumCrowd = true; material.roughness = 1;
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float crowdGrain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.90 + 0.10 * crowdGrain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-stadium-crowd';
+  });
+}
+
+/** Match floodlights stay emissive in daylight; the empty state uses unlit housings. */
+export function stadiumFloodlightMaterial(): MeshStandardMaterial {
+  return finishedMaterial('stadium-floodlight', 'emissive_window', 0xfff6db, material => {
+    material.userData.stadiumFloodlight = true; material.emissive.setHex(0xfff1c4); material.emissiveIntensity = 4;
+  });
+}
+
 export function updateCommercialDisplays(seconds: number): void {
   if (Number.isFinite(seconds)) commercialDisplayClock.value = seconds;
 }
@@ -495,6 +532,6 @@ export function setNightMode(night: boolean): void {
 }
 
 function applyNight(material: MeshStandardMaterial): void {
-  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
   if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
 }

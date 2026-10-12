@@ -111,6 +111,7 @@ function startGallery(): void {
   type GalleryTab = typeof tabs[number];
   let activeTab: GalleryTab = 'models';
   const requestedTab = new URLSearchParams(location.search).get('tab');
+  const requestedCategory = new URLSearchParams(location.search).get('category');
   const startTab = tabs.find(tab => tab === requestedTab) ?? 'models';
   let cityView: CityView3D | undefined;
   const cityMap = new TestCity(), citySprites = testCitySprites();
@@ -524,6 +525,7 @@ function startGallery(): void {
     localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'industrial' ? 'อุตสาหกรรม (industrial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
+  if (requestedCategory && Array.from(category.options).some(option => option.value === requestedCategory)) category.value = requestedCategory;
   category.addEventListener('change', buildLibrary);
   [seed, variant, state, landMask, waterMask, bankStyle].forEach(input => input.addEventListener('change', rebuildModels));
   regionPicker.addEventListener('change', () => activeTab === 'city' ? buildCity() : activeTab === 'regions' ? buildLibrary() : rebuildModels());

@@ -11,6 +11,7 @@ import type { GardenPlantBuilder } from './garden-plants.js';
 import type { CommunityHouseBuilder, ZoneStyle } from './residential-parts.js';
 import type { CommercialStyle } from './commercial-parts.js';
 import type { IndustrialKit } from './industrial-parts.js';
+import type { ServiceStyle } from './service-style.js';
 
 export const ROOF_FORMS = ['gable', 'layeredGable', 'hip', 'monoPitch', 'flatParapet'] as const;
 export type RoofForm = typeof ROOF_FORMS[number];
@@ -60,4 +61,5 @@ export interface RegionKit {
   bakeryDisplay: PartBuilder;
   curvedRoof: RoofBuilder;
   industrial: IndustrialKit;
+  services: ServiceStyle;
 }

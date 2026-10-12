@@ -111,7 +111,7 @@ export class CityChunks {
       const mesh=new InstancedMesh(part.geometry,cityLODMaterial(part.material),batch.placements.length);mesh.customDepthMaterial=cityLODDepthMaterial(mesh.material as typeof part.material);
       mesh.instanceColor=new InstancedBufferAttribute(new Float32Array(batch.placements.length*3).fill(1),3).setUsage(DynamicDrawUsage);
       for(let i=0;i<batch.placements.length;i++)mesh.instanceColor.setX(i,batch.fade);
-      mesh.castShadow=true;mesh.receiveShadow=true;
+      mesh.castShadow=part.castShadow??true;mesh.receiveShadow=part.receiveShadow??true;
       for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i];matrix.makeTranslation(p.x,0,p.z).multiply(rotation.makeRotationY(p.rotation)).scale(new Vector3(p.scale,p.scale,p.scale));mesh.setMatrixAt(i,matrix);}
       mesh.computeBoundingSphere();batch.group.add(mesh);
     }batch.calls=batch.group.children.length;

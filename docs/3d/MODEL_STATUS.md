@@ -3,6 +3,74 @@
 
 # สถานะโมเดล
 
+## อาคารบริการ — ตำรวจ ดับเพลิง และสนามกีฬา
+
+วันที่ 2026-10-12: เพิ่ม factories ใน `src/render3d/models/services/` และลง registry
+พร้อม tile footprints ของสถานีตำรวจ 770–778 (centre 774), ดับเพลิง 761–769 (centre 765)
+และสนามกีฬา 779–794 / 795–810 (centre 784 / 800); game tile 800 เลือก `state_game`
+โดย renderer อ่านค่าจากเมืองเท่านั้น
+
+จำนวนที่ seed 1; ช่วงครอบคลุมทั้ง 6 ภาค; draw calls นับผิวที่แสดง ไม่รวม shadow pass:
+
+| id / state | Tier | พื้นที่ | สามเหลี่ยมกลาง | ช่วง 6 ภาค | Draw calls |
+|---|---|---|---:|---:|---:|
+| svc.police | R2 | 3×3 | 3,556 | 3,112–3,844 | 8 |
+| svc.fire | R2 | 3×3 | 2,304 | 2,050–2,416 | 7–8 |
+| svc.stadium / empty | R3 | 4×4 | 3,288 | 3,288 | 6 |
+| svc.stadium / game | R3 | 4×4 | 12,144 | 12,144 | 8 |
+
+- ตำรวจ: อาคาร 3 ชั้น สีครีม/น้ำตาล ป้าย “สถานีตำรวจ” ธงชาติไทย 5 แถบ สองด้าน
+  ป้อมยาม รถสายตรวจขาวคาดแถบ 2 คัน และมอเตอร์ไซค์ 2 คัน ไม่มีตราหน่วยงานจริง
+- ดับเพลิง: โรงรถ 3 ช่อง ประตูม้วนแดง หอฝึก 5 ชั้น ป้าย “สถานีดับเพลิง”
+  รถดับเพลิงแดง 2 คันพร้อมบันได และลานฝึกพร้อมสายยาง
+- R2 ใช้ `kit.services` สำหรับ palette และหลังคา/หน้าจั่ว/เครื่องประดับทั้งหมด:
+  เหนือเป็นจั่วไม้กับกาแล อีสานจั่วสังกะสี กลาง/ตะวันออก/ตะวันตกจั่วซ้อน
+  และใต้ปั้นหยา; โครงอาคารหลักเหมือนกันทุกภาค
+- สนามมีสนามฟุตบอลย่อ ลู่วิ่งทรง oval อัฒจันทร์มีหลังคา 2 ฝั่ง เสาไฟ 4 ต้น
+  ที่หัวเสามี `anchor_light_0` ถึง `anchor_light_3`; ร้านอาหาร 2 ร้านและที่จอดรถด้านหน้า
+- `state_empty` ไม่มีผู้ชมหรือนักกีฬา และหน้าโคมไม่เรืองแสง; `state_game` มีผู้ชม
+  instanced สีหลายสี 336 จุด นักฟุตบอล 22 ตัว และหน้าโคม emissive ทั้งกลางวัน/กลางคืน
+- Worker ส่งตำแหน่ง/สีของ nested instances เป็น geometry ของ prototype เมือง
+  และสร้างวัสดุคอนกรีต ผู้ชม และโคมไฟกลับผ่าน library เดิม; มี regression ทดสอบจำนวน
+  triangles, bounds และสีหลังส่งข้อมูล รวมถึงการเปลี่ยน prototype เมื่อเริ่มแข่งขัน
+- Gallery เปิดหมวดบริการตรงได้ด้วย `model-gallery.html?category=services`;
+  มีโมเดลเดี่ยว/หมุนกล้อง/seed/state/region และปุ่มเทียบ 6 ภาคตามระบบเดิม
+
+### ข้อจำกัด
+
+สนามฟุตบอลมีขนาด 12.4×20.4 ม. เพื่อให้ทั้งสนาม ลู่วิ่ง และอัฒจันทร์อยู่ใน 39×39 ม.
+ตามสเกลเกม จึงไม่ใช่สนามขนาดแข่งขันจริง; รถและคนเป็นพร็อพแบบย่อ นักฟุตบอลยังไม่เคลื่อนไหว
+โคมไฟใช้ emissive และ anchors พร้อมให้ระบบ effects เพิ่มแสงส่องสนามภายหลัง
+ไม่เพิ่ม assets ภายนอกหรือ dependencies และไม่แก้ game/simulation หรือ shared config
+
+### ตรวจสอบ
+
+- เพิ่ม `test/render3d/services.test.ts`: contracts ทั้ง 6 ภาค, R2 massing, states,
+  แสงกลางวัน/กลางคืน, deterministic crowd และ worker round trip
+- รันชุดรวม 56 suites / 3,810 tests: 54 suites ผ่าน; `models.test.ts` ตรวจทุกโมเดลผ่าน
+  ในการรันนี้มี Bounds เดิม 2 ข้อ และ service shadow regression 1 ข้อจาก dependency
+  รุ่นก่อนหน้าที่ runner โหลดระหว่างแก้ไฟล์; ตรวจไฟล์ล่าสุดซ้ำแล้ว regression นี้ผ่าน
+- การรันสุดท้ายครอบคลุม service contracts, city, motion, materials และ registry service cases
+  ทั้ง 6 ภาค/5 seeds: 5 suites, 212 tests ผ่านทั้งหมด; นอกนั้นเป็น cases ของโมเดลอื่น
+  ที่ผ่านในการรันชุดรวมแล้ว และไม่ได้รันซ้ำ
+- `npm run build` ผ่าน (มีคำเตือนขนาด bundle ตามเดิม); `git diff --check` ผ่าน
+- เปิด `index.html` และเริ่มเมืองฝึกเล่นจริง: ภาพเมือง 3D แสดงและวันที่ simulation เดินต่อ
+  ไม่มี error ใน console; ไม่บันทึกเมืองทดสอบ
+- ตรวจ Gallery โมเดลเดี่ยวและการหมุน/ซูม, หลังคาทั้ง 6 ภาค, lineup ของตำรวจ/ดับเพลิง
+  และสนาม empty/game ทั้งกลางวัน/กลางคืน; ผู้ชมมี vertex color ขาวเพื่อให้สี instance
+  แสดงถูกต้อง และเก็บการตั้งเงาของแต่ละส่วนผ่าน worker
+
+ภาพตรวจสอบอยู่ใน `test/render3d/artifacts/`:
+[ภาพรวม](../../test/render3d/artifacts/services-gallery.jpg),
+[ตำรวจเหนือ](../../test/render3d/artifacts/services-police-north.jpg),
+[ตำรวจใต้](../../test/render3d/artifacts/services-police-south.jpg),
+[ตำรวจ 6 ภาค](../../test/render3d/artifacts/services-police-regions.jpg),
+[ดับเพลิงกลาง](../../test/render3d/artifacts/services-fire-central.jpg),
+[ดับเพลิง 6 ภาค](../../test/render3d/artifacts/services-fire-regions.jpg),
+[สนามว่าง](../../test/render3d/artifacts/services-stadium-empty.jpg),
+[แข่งขัน](../../test/render3d/artifacts/services-stadium-game.jpg),
+[แข่งขันกลางคืน](../../test/render3d/artifacts/services-stadium-night.jpg)
+
 ## Prompt 12 — โซนอุตสาหกรรม 3×3
 
 วันที่ 2026-10-12: เพิ่ม 9 factories ใน `src/render3d/models/industrial/` และลง registry
