@@ -118,11 +118,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   ("Game HUD" at the end of `css/style.css`, whose `body #…` rules override the original layout), standing against
   its side of the screen, in small type (about 9 px) and nothing bold.
   - The menu is a strip of icons down the left edge (`src/menuRail.ts`): pointing at one slides out its name, a click
-    opens its card (the city card, or the window the menu button always opened), resting on another icon puts it away.
+    opens its card (the city card, the language card with a flag per language, or the window the menu button always
+    opened), resting on another icon puts it away.
   - The top bar (`#header`): on the left the city's name, date and money (`src/cityStatus.ts`), ⌂ back to the
-    starting view (3D only), sound (a click slides out the master volume, a second click mutes) and the language flag
-    (`src/languageFlag.ts`); on the right the News button, whose list opens in the middle of the screen. News shows
-    at the top for a few seconds, then fades (`src/notification.js`).
+    starting view (3D only) and sound (a click slides out the master volume, a second click mutes,
+    `wireSoundControl` in `src/audio/index.ts`); on the right the News button, whose list slides down from the top.
+    News shows at the top for a few seconds, then fades (`src/notification.js`).
   - `index.html?city=<id>` opens a saved city straight away.
   - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
     city the small `#mapAttribution` line keeps the OpenStreetMap credit and "modified from micropolisJS" on screen
@@ -153,8 +154,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   congratulations window opens once per new rank (`game.processFrontEndMessage`).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
-  The game opens on a dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in
-  `src/geo/nationalMap.ts`; there is no other start page): a story that plays by itself each time the game opens (skippable)
+  The game opens on a title page (`src/titleGate.ts`: the name, a flag per language, "sound on" and "Enter the game";
+  that click is what lets the music start at once, as browsers need one; LINE and Google sign-in will join it), then a
+  dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in
+  `src/geo/nationalMap.ts`): a story that plays by itself each time the game opens (skippable)
   (the Golden Peninsula in gold, then each region), then the player clicks a region, the camera flies in, and
   a province card (treasury, terrain, resources, city name, game difficulty) starts the city. The card's
   numbers come from `src/geo/provinceProfile.ts` (less open land means more starting money). A click on the map

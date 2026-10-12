@@ -640,6 +640,8 @@
 | `picker.credits` | `src/provincePicker.ts` | `-` | `© OpenStreetMap contributors · Natural Earth` | `© OpenStreetMap contributors · Natural Earth` | เครดิตตามกฎหมาย ใช้ข้อความเดียวกันทั้งสองภาษา |
 | `lang.switch_to` | `index.html` | `-` | `ภาษาไทย` | `English` | ปุ่มสลับภาษา แสดงชื่อภาษาที่จะสลับไป |
 | `lang.switch_title` | `index.html` | `-` | `Switch language` | `เปลี่ยนภาษา` | tooltip ของปุ่มสลับภาษา |
+| `lang.th` | `index.html` | `-` | `ภาษาไทย` | `ภาษาไทย` | ชื่อภาษาเขียนด้วยภาษานั้นเอง ในการ์ดภาษาและหน้าแรก (Claude Code 12 ต.ค. 2026) |
+| `lang.en` | `index.html` | `-` | `English` | `English` | ชื่อภาษาเขียนด้วยภาษานั้นเอง |
 | `sound.title` | `index.html` | `-` | `Sound` | `เสียง` | หัวข้อในหน้าต่างตั้งค่า |
 | `sound.music` | `index.html` | `-` | `Music` | `เพลง` | แถบปรับเสียง |
 | `sound.effects` | `index.html` | `-` | `Effects` | `เสียงเอฟเฟกต์` | แถบปรับเสียง |
@@ -698,9 +700,8 @@
 | `region.east.short` | `src/provincePicker.ts` | `-` | `East` | `ตะวันออก` | ชื่อสั้นบนแผนที่ |
 | `region.west.short` | `src/provincePicker.ts` | `-` | `West` | `ตะวันตก` | ชื่อสั้นบนแผนที่ |
 | `region.south.short` | `src/provincePicker.ts` | `-` | `South` | `ใต้` | ชื่อสั้นบนแผนที่ |
-| `picker.zoom_in` | `src/provincePicker.ts` | `-` | `Zoom in` | `ซูมเข้า` | ปุ่มซูม |
-| `picker.zoom_out` | `src/provincePicker.ts` | `-` | `Zoom out` | `ซูมออก` | ปุ่มซูม |
-| `picker.zoom_reset` | `src/provincePicker.ts` | `-` | `Back to the view` | `กลับมุมเดิม` | ปุ่มซูม |
+| `picker.scroll_back` | `src/provincePicker.ts` | `-` | `Earlier tiles` | `เลื่อนไปทางซ้าย` | ลูกศรซ้ายของแถวปุ่มจังหวัด |
+| `picker.scroll_on` | `src/provincePicker.ts` | `-` | `More tiles` | `เลื่อนไปทางขวา` | ลูกศรขวาของแถวปุ่มจังหวัด |
 | `cities.button` | `src/provincePicker.ts` | `-` | `My cities ({count})` | `เมืองของฉัน ({count})` | ปุ่มบนแถบบน |
 | `cities.title` | `src/provincePicker.ts` | `-` | `My cities` | `เมืองของฉัน` | หัวแถวการ์ดเมือง |
 | `cities.practice` | `src/provincePicker.ts` | `-` | `Practice map` | `แผนที่ฝึก` | เมืองบนแผนที่สุ่ม |
@@ -773,6 +774,12 @@
 | `resource.note.island` | `src/provincePicker.ts` | `-` | `An island: building land is limited` | `เป็นเกาะ ที่ดินสร้างได้มีจำกัด` | ตอนซูมดูภูมิประเทศ |
 | `picker.terrain_title` | `src/provincePicker.ts` | `-` | `Your land` | `ผืนดินของคุณ` | ตอนซูมดูภูมิประเทศ |
 | `menu.main` | `index.html` | `-` | `Main menu` | `เมนูหลัก` | ปุ่มในเกม |
+| `menu.language` | `index.html` | `-` | `Language` | `ภาษา` | ไอคอนลูกโลกในแถบเมนูซ้าย เปิดการ์ดเลือกภาษา (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `gate.tagline` | `src/titleGate.ts` | `-` | `Build your city on the real land of Thailand's 77 provinces` | `สร้างเมืองของคุณบนผืนดินจริงของ 77 จังหวัด` | หน้าแรกก่อนเข้าเกม (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `gate.language` | `src/titleGate.ts` | `-` | `Language` | `ภาษา` | หน้าแรก |
+| `gate.sound` | `src/titleGate.ts` | `-` | `Sound on` | `เปิดเสียง` | ช่องติ๊กบนหน้าแรก |
+| `gate.enter` | `src/titleGate.ts` | `-` | `Enter the game` | `เข้าเกม` | ปุ่มใหญ่บนหน้าแรก คลิกนี้ทำให้เบราว์เซอร์ยอมให้เสียงดังทันที |
+| `gate.hint` | `src/titleGate.ts` | `-` | `or press Enter` | `หรือกด Enter` | ใต้ปุ่มเข้าเกม |
 | `menu.city` | `index.html` | `-` | `City` | `ข้อมูลเมือง` | ไอคอนบนสุดของแถบเมนูซ้าย เปิดการ์ดเมือง (src/menuRail.ts, Claude Code 12 ต.ค. 2026) |
 | `mainmenu.title` | `index.html` | `-` | `Back to the main menu` | `กลับเมนูหลัก` | หน้าต่าง |
 | `mainmenu.question` | `src/mainMenuWindow.js` | `-` | `Save {city} before you leave?` | `บันทึกเมือง {city} ก่อนออกไหม` |  |

@@ -41,7 +41,6 @@
           <button id="soundToggle" type="button" aria-pressed="false" aria-expanded="false"></button>
           <input id="soundVolume" type="range" min="0" max="100" step="5" data-i18n-aria-label="sound.volume" tabindex="-1">
         </div>
-        <button id="languageToggle" class="hudPill" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button>
       </nav>
       <nav class="hudButtons hudRight">
         <button id="newsLogButton" type="button" class="hudPill initialHidden">News</button>
@@ -108,9 +107,17 @@
               <button id="pauseRequest" data-i18n="menu.pause" class="miscButton">Pause</button>
             </div>
             <div>
+              <button id="languageRequest" type="button" data-i18n="menu.language" class="miscButton">Language</button>
+            </div>
+            <div>
               <button id="mainMenuRequest" data-i18n="menu.main" data-i18n-title="menu.tip.main" class="miscButton">Main menu</button>
             </div>
           </div>
+        </div>
+        <!-- The language card, opened from its icon in the menu (src/menuRail.ts, flags from src/languageFlag.ts) -->
+        <div id="languageCard" class="controlShadow" hidden>
+          <button type="button" class="languageChoice" data-lang="th"><span class="flagSlot"></span><span data-i18n="lang.th">ภาษาไทย</span></button>
+          <button type="button" class="languageChoice" data-lang="en"><span class="flagSlot"></span><span data-i18n="lang.en">English</span></button>
         </div>
         <div id="RCIContainer" class="controlShadow leftedge width140 padding10 mintcream z1 initialHidden"></div>
         <div id="controls" class="controlShadow mintcream z1 initialHidden rightedge open">

@@ -122,6 +122,9 @@ export function installViewControls(view: ViewLike, doc: Document = document): v
   const reset = resetOf(view);
   const button = doc.getElementById("viewReset");
   if (!button) return;
+  // A drawn house, so it sits in the middle of its circle whatever the font (owner, 12 Oct 2026)
+  button.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5L12 4.5l8 7"/><path d="M6.5 10v9.5h11V10"/></svg>';
   button.hidden = reset === null;
   if (reset) button.addEventListener("click", reset);
 

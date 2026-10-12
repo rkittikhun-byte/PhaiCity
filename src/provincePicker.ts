@@ -73,6 +73,8 @@ export interface StartOptions {
   intro?: boolean;
   /** Open straight on this province (index.html?province=TH-xx). */
   provinceId?: string | null;
+  /** The title page in front (src/titleGate.ts): the story waits until the player has entered. */
+  gate?: Promise<void> | null;
 }
 
 type ViewBox = [number, number, number, number];
@@ -300,8 +302,15 @@ function buildShell(): View {
   // More tiles than fit: the wheel scrolls sideways, arrow buttons appear at the ends, the edges fade
   const scrollPage = (direction: number): void =>
     tileList.scrollBy({ left: direction * tileList.clientWidth * 0.8, behavior: reducedMotion() ? "auto" : "smooth" });
-  const previous = button("ppRowScroll ppRowPrev", "‹", () => scrollPage(-1));
-  const next = button("ppRowScroll ppRowNext", "›", () => scrollPage(1));
+  // Drawn chevrons, so they sit in the middle of their circles whatever the font (owner, 12 Oct 2026)
+  const chevron = (path: string): string => '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" ' +
+    `stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+  const previous = button("ppRowScroll ppRowPrev", "", () => scrollPage(-1));
+  previous.innerHTML = chevron("M14.5 5.5L8 12l6.5 6.5");
+  previous.setAttribute("aria-label", t("picker.scroll_back"));
+  const next = button("ppRowScroll ppRowNext", "", () => scrollPage(1));
+  next.innerHTML = chevron("M9.5 5.5L16 12l-6.5 6.5");
+  next.setAttribute("aria-label", t("picker.scroll_on"));
   const updateEnds = (): void => {
     row.classList.toggle("canLeft", tileList.scrollLeft > 4);
     row.classList.toggle("canRight", tileList.scrollLeft + tileList.clientWidth < tileList.scrollWidth - 4);
@@ -316,20 +325,7 @@ function buildShell(): View {
   const track = element("div", "ppTrack");
   track.append(previous, tileList, next);
   row.append(rowTitle, track);
-  const zoom = element("div", "ppZoom");
-  const zoomButton = (text: string, key: string, onClick: () => void): HTMLButtonElement => {
-    const control = button("ppZoomButton", text, onClick);
-    control.title = t(key);
-    control.setAttribute("aria-label", control.title);
-    return control;
-  };
-  zoom.append(
-    zoomButton("+", "picker.zoom_in", () => zoomAt(0.6)),
-    zoomButton("−", "picker.zoom_out", () => zoomAt(1 / 0.6)),
-    zoomButton("⟲", "picker.zoom_reset", () => {
-      if (framedBox) flyTo(framedBox);
-    }),
-  );
+  // No zoom buttons (owner, 12 Oct 2026): the wheel zooms and a drag moves the map
   const dots = element("div", "ppDots");
   const panel = element("aside", "ppPanel");
   panel.hidden = true;
@@ -348,7 +344,7 @@ function buildShell(): View {
   const showCredits = tuckable(credits, creditButton,
     (event) => !(event.target as Element | null)?.closest?.(".ppCredits, .ppCreditToggle"));
 
-  overlay.append(backdropLayer, stage, vignette, top, hero, row, zoom, dots, panel, credits, creditButton);
+  overlay.append(backdropLayer, stage, vignette, top, hero, row, dots, panel, credits, creditButton);
   document.body.appendChild(overlay);
 
   // Clicking anywhere outside the card closes it (tiles and provinces open the next card themselves)
@@ -360,7 +356,7 @@ function buildShell(): View {
     }
     const target = event.target as Element;
     if (panel.hidden || panel.contains(target) ||
-        target.closest(".ppTile, .ppProvince, .ppTop, .ppZoom, .ppRow, .ppCredits, .ppCreditToggle")) return;
+        target.closest(".ppTile, .ppProvince, .ppTop, .ppRow, .ppCredits, .ppCreditToggle")) return;
     closeCard();
   }, true);
   installZoomAndPan(stage);
@@ -1465,7 +1461,7 @@ export function openStartScreen(startActions: StartActions, options: StartOption
   view ??= buildShell();
   show(view.overlay);
 
-  loadData().then((loaded) => {
+  Promise.all([loadData(), options.gate ?? Promise.resolve()]).then(([loaded]) => {
     data = loaded;
     if (!view) return;
     if (!view.svg) buildMap();

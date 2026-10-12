@@ -3,11 +3,13 @@
  */
 
 // The game's menu as a strip of icons against the left edge of the screen (owner, 12 Oct 2026). Pointing at an icon
-// slides out its name; a click opens its card: the city card, or the window the menu button always opened. Resting
+// slides out its name; a click opens its card: the city card, the language card, or the window the menu button
+// always opened. Resting
 // on another icon puts the open card away, as a click outside it would. The buttons keep their ids, so the game's
 // handlers (src/inputStatus.js) are unchanged.
 
-import { onLanguageChange, t } from "./i18n/index";
+import { getLanguage, type Language, onLanguageChange, setLanguage, t } from "./i18n/index";
+import { FLAGS } from "./languageFlag";
 import { hide, isShown, show } from "./motion";
 
 // Small line drawings in the button's colour (emoji are missing from some fonts)
@@ -26,6 +28,8 @@ export const RAIL_ICONS: Record<string, string> = {
   settingsRequest: svg('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'),
   screenshotRequest: svg('<path d="M4 8h3.5l2-3h5l2 3H20v11H4z"/><circle cx="12" cy="13.3" r="3.3"/>'),
   pauseRequest: svg('<path d="M9 6v12M15 6v12"/>', "railPause") + svg('<path d="M8 5.5l11 6.5-11 6.5z"/>', "railPlay"),
+  languageRequest: svg('<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.5 5.3 3.5 8.5s-1.1 6-3.5 8.5' +
+    'M12 3.5C9.6 6 8.5 8.8 8.5 12s1.1 6 3.5 8.5"/>'),
   mainMenuRequest: svg('<path d="M4 11l8-7 8 7"/><path d="M6.5 9.5V20h11V9.5"/><path d="M10 20v-5h4v5"/>'),
 };
 
@@ -41,6 +45,9 @@ export const RAIL_WINDOWS: Record<string, string[]> = {
   mainMenuRequest: ["mainMenuWindow"],
 };
 
+/** The cards that open beside their icon, rather than as a window: the city card and the language card. */
+export const RAIL_CARDS: Record<string, string> = { cityRequest: "infobar", languageRequest: "languageCard" };
+
 /** The keys that also press a menu button (src/toolShortcuts.ts), shown beside its name. */
 const SHORTCUT_KEYS: Record<string, string> = { mapRequest: "M", pauseRequest: "P" };
 
@@ -48,9 +55,9 @@ const SHORTCUT_KEYS: Record<string, string> = { mapRequest: "M", pauseRequest: "
  * open window does not close it. */
 export const SWITCH_DELAY_MS = 250;
 
-/** The open card (or window) that a rest on this icon should put away, if any. */
-export function cardToPutAway(icon: string, openWindows: readonly string[], cityCardOpen: boolean): "city" | string | null {
-  if (cityCardOpen && icon !== "cityRequest") return "city";
+/** The open card or window that a rest on this icon should put away, if any. openCard is the icon whose card is out. */
+export function cardToPutAway(icon: string, openWindows: readonly string[], openCard: string | null): "card" | string | null {
+  if (openCard !== null && icon !== openCard) return "card";
   const own = RAIL_WINDOWS[icon] ?? [];
   return openWindows.find((id) => !own.includes(id)) ?? null;
 }
@@ -61,9 +68,8 @@ function openWindows(doc: Document): string[] {
 
 export function installMenuRail(doc: Document = document): void {
   const rail = doc.getElementById("miscButtons");
-  const cityCard = doc.getElementById("infobar");
   const opaque = doc.getElementById("opaque");
-  if (!rail || !cityCard) return;
+  if (!rail) return;
   const buttons = [...rail.querySelectorAll<HTMLButtonElement>(".miscButton")];
 
   // Each button: its icon, and its name in a label that slides out when pointed at
@@ -97,33 +103,62 @@ export function installMenuRail(doc: Document = document): void {
   name();
   onLanguageChange(name);
 
-  // The city card opens beside its icon, and goes away with a click outside it or Esc
-  const cityButton = doc.getElementById("cityRequest");
-  const cityOpen = (): boolean => isShown(cityCard) && cityCard.classList.contains("railCard");
-  const setCity = (open: boolean): void => {
-    if (open === cityOpen()) return;
-    if (open && cityButton) {
-      cityCard.style.top = `${rail.offsetTop + cityButton.offsetTop}px`;
-      cityCard.classList.add("railCard");
-      show(cityCard, "block");
-    } else {
-      hide(cityCard);
+  // The cards open beside their icon, one at a time, and go away with a click outside them or Esc
+  const cards = Object.entries(RAIL_CARDS).flatMap(([icon, id]) => {
+    const button = doc.getElementById(icon);
+    const card = doc.getElementById(id);
+    return button && card ? [{ icon, button, card }] : [];
+  });
+  const isOut = (card: HTMLElement): boolean => isShown(card) && card.classList.contains("railCard");
+  const openCard = (): string | null => cards.find((entry) => isOut(entry.card))?.icon ?? null;
+  const setCard = (icon: string | null): void => {
+    for (const entry of cards) {
+      const open = entry.icon === icon;
+      if (open === isOut(entry.card)) continue;
+      if (open) {
+        entry.card.style.top = `${rail.offsetTop + entry.button.offsetTop}px`;
+        entry.card.classList.add("railCard");
+        show(entry.card, "block");
+      } else {
+        hide(entry.card);
+      }
     }
     refreshActive();
   };
-  cityButton?.addEventListener("click", () => setCity(!cityOpen()));
+  for (const { icon, button } of cards) button.addEventListener("click", () => setCard(openCard() === icon ? null : icon));
   doc.addEventListener("pointerdown", (event) => {
     const target = event.target as Node;
-    if (cityOpen() && !cityCard.contains(target) && !cityButton?.contains(target)) setCity(false);
+    const out = cards.find((entry) => entry.icon === openCard());
+    if (out && !out.card.contains(target) && !out.button.contains(target)) setCard(null);
   });
   doc.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setCity(false);
+    if (event.key === "Escape") setCard(null);
   });
+
+  // The language card: each language with its flag, the one in use marked; a click switches and puts it away
+  const choices = [...doc.querySelectorAll<HTMLButtonElement>("#languageCard .languageChoice")];
+  const markLanguage = (): void => {
+    for (const choice of choices) {
+      const language = choice.dataset.lang as Language;
+      const slot = choice.querySelector(".flagSlot");
+      if (slot && !slot.firstChild) slot.innerHTML = FLAGS[language] ?? "";
+      choice.classList.toggle("current", language === getLanguage());
+      choice.setAttribute("aria-pressed", String(language === getLanguage()));
+    }
+  };
+  for (const choice of choices) {
+    choice.addEventListener("click", () => {
+      setLanguage(choice.dataset.lang as Language);
+      setCard(null);
+    });
+  }
+  markLanguage();
+  onLanguageChange(markLanguage);
 
   // Puts away the open card or window another icon leaves behind: a window closes as a click outside it would
   const putAway = (icon: string): void => {
-    const away = cardToPutAway(icon, openWindows(doc), cityOpen());
-    if (away === "city") setCity(false);
+    const away = cardToPutAway(icon, openWindows(doc), openCard());
+    if (away === "card") setCard(null);
     else if (away !== null) opaque?.click();
   };
   let timer: number | undefined;
@@ -147,11 +182,12 @@ export function installMenuRail(doc: Document = document): void {
   const refreshActive = (): void => {
     const open = openWindows(doc);
     for (const button of buttons) {
-      const active = button.id === "cityRequest" ? cityOpen() : (RAIL_WINDOWS[button.id] ?? []).some((id) => open.includes(id));
+      const active = button.id in RAIL_CARDS ? openCard() === button.id
+        : (RAIL_WINDOWS[button.id] ?? []).some((id) => open.includes(id));
       button.classList.toggle("active", active);
     }
   };
   const watch = new MutationObserver(refreshActive);
   for (const modal of doc.querySelectorAll(".modal")) watch.observe(modal, { attributes: true, attributeFilter: ["style", "class"] });
-  watch.observe(cityCard, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
+  for (const { card } of cards) watch.observe(card, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
 }

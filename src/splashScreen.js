@@ -23,6 +23,7 @@ import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
+import { showTitleGate } from './titleGate.ts';
 import { checkRulesData, resolveRules } from './provinceRules.ts';
 import { requestedCity } from './viewControls.ts';
 import { Simulation } from './simulation.js';
@@ -105,8 +106,9 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
     practice: function() {
       launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'));
     }.bind(this)
-  // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026)
-  }, {intro: requested === null, provinceId: requested});
+  // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026), after the
+  // title page whose "Enter the game" click lets the music start at once (src/titleGate.ts, owner 12 Oct 2026)
+  }, {intro: requested === null, provinceId: requested, gate: requested === null ? showTitleGate() : null});
 }
 
 

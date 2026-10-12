@@ -15,13 +15,12 @@ import $ from "jquery";
 
 import { Config } from './config.js';
 import { installAudio } from './audio/index.ts';
-import { applyTranslations, getLanguage, onLanguageChange, setLanguage } from './i18n/index.ts';
+import { applyTranslations, onLanguageChange } from './i18n/index.ts';
 import { setLoadingProgress, trackImages } from './loadingProgress.ts';
 import { stagger } from './motion.ts';
 import { installPanelCollapse } from './panelCollapse.ts';
 import { installCityStatus } from './cityStatus.ts';
 import { installCreditLine } from './creditLine.ts';
-import { showLanguageFlag } from './languageFlag.ts';
 import { installMenuRail } from './menuRail.ts';
 import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
@@ -123,17 +122,11 @@ onLanguageChange(function() {
   // Let the game canvas pick up its new size
   window.dispatchEvent(new Event('resize'));
 });
-$('#languageToggle').click(function(e) {
-  e.preventDefault();
-  setLanguage(getLanguage() === 'th' ? 'en' : 'th');
-});
-
 // Sound starts after the player's first click or key press (browsers block it before then)
 installAudio();
 
-// The flag on the language button (src/languageFlag.ts)
-showLanguageFlag(document.getElementById('languageToggle'));
-// The menu as icons down the left edge, the city's name, date and money above them, and the panels that slide away
+// The menu as icons down the left edge (the language is chosen there in a city), the city's name, date and money
+// above them, and the panels that slide away
 installMenuRail();
 installCityStatus();
 installPanelCollapse();

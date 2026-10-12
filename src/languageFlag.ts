@@ -2,10 +2,10 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The language buttons show the flag of the language a click switches to (owner, 12 Oct 2026), drawn in SVG since
-// Windows has no flag emoji. The language's name stays as the button's tooltip and spoken label.
+// Flags for the languages (owner, 12 Oct 2026), drawn in SVG since Windows has no flag emoji: on the start screen's
+// language button (the flag of the language a click switches to), the title page and the game's language card.
 
-import { getLanguage, type Language, onLanguageChange, t } from "./i18n/index";
+import { getLanguage, type Language, t } from "./i18n/index";
 
 export const FLAGS: Record<Language, string> = {
   // Thailand: red, white, a double-width blue band, white, red
@@ -28,11 +28,4 @@ export function renderLanguageButton(button: HTMLElement): void {
   button.innerHTML = flagFor(getLanguage());
   button.title = t("lang.switch_to");
   button.setAttribute("aria-label", button.title);
-}
-
-/** Keeps a language button showing the right flag. */
-export function showLanguageFlag(button: HTMLElement | null): void {
-  if (!button) return;
-  renderLanguageButton(button);
-  onLanguageChange(() => renderLanguageButton(button));
 }

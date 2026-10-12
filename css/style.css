@@ -1086,13 +1086,6 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppProvinceLabel.tight:not(.hover):not(.selected) { opacity: 0; transition-delay: 0s; }
 #provincePicker .ppStage { cursor: grab; }
 #provincePicker .ppStage.dragging { cursor: grabbing; }
-#provincePicker .ppZoom { position: absolute; right: 24px; bottom: 236px; display: flex; flex-direction: column; gap: 8px;
-  transition: right 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s; }
-/* With the card open the zoom buttons step aside (the wheel still zooms) so they never cover the land */
-#provincePicker.ppCardOpen .ppZoom { opacity: 0; pointer-events: none; }
-#provincePicker .ppZoomButton { width: 40px; height: 40px; min-height: 0; padding: 0; font-size: 18px; line-height: 38px; text-align: center;
-  background: rgba(12, 20, 17, 0.7); }
-#provincePicker.ppMenusHidden .ppZoom { opacity: 0; pointer-events: none; }
 
 /* Top bar */
 #provincePicker .ppTop { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center;
@@ -1113,6 +1106,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 /* Every button in the top bar the same height and type (owner, 12 Oct 2026); the speaker and the flag are round */
 #provincePicker .ppTop button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
   height: 30px; min-height: 30px; padding: 0 14px; font-size: 11px; line-height: 1; }
+#provincePicker .ppTop button[hidden] { display: none; }
 #provincePicker .ppTop .ppSound, #provincePicker .ppTop .ppLang { width: 30px; padding: 0; }
 #provincePicker .ppTop .ppSound.soundWaiting { width: auto; padding: 0 12px; }
 #provincePicker .ppTop .ppSoundHint { font-size: 11px; }
@@ -1130,7 +1124,6 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppCaret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em;
   background: #f6d77a; box-shadow: 0 0 8px rgba(246, 215, 122, 0.8); animation: ppCaretBlink 0.9s steps(1) infinite; }
 @keyframes ppCaretBlink { 50% { opacity: 0; } }
-#provincePicker[data-mode="intro"] .ppZoom { opacity: 0; pointer-events: none; }
 #provincePicker .ppHeroInner.leaving { animation: ppHeroOut 0.35s ease-in forwards; pointer-events: none; }
 #provincePicker .ppHero h2 { margin: 0 0 8px; font-size: clamp(26px, 3vw, 46px); line-height: 1.15; font-weight: 700; }
 #provincePicker .ppHeroSub { margin: 0 0 12px; font-size: 13px; color: #93a79f; }
@@ -1211,8 +1204,8 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppRow.canLeft.canRight .ppTiles {
   mask-image: linear-gradient(90deg, transparent, #000 90px, #000 calc(100% - 90px), transparent); }
 #provincePicker .ppRowScroll { position: absolute; top: 50%; z-index: 2; width: 44px; height: 44px; min-height: 0; padding: 0;
-  transform: translateY(-50%); font-size: 24px; line-height: 40px; text-align: center; opacity: 0; pointer-events: none;
-  transition: opacity 0.3s; background: rgba(12, 20, 17, 0.75); }
+  transform: translateY(-50%); display: flex; align-items: center; justify-content: center; line-height: 1;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s; background: rgba(12, 20, 17, 0.75); }
 /* The arrows stand in the row's margins, beside the tiles rather than over them (owner, 12 Oct 2026) */
 #provincePicker .ppTrack { margin: 0 -58px; padding: 0 58px; }
 #provincePicker .ppRowPrev { left: 4px; }
@@ -1288,6 +1281,37 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   border: 1px solid rgba(246, 215, 122, 0.35); }
 #provincePicker .ppExisting p { margin: 0 0 8px; font-size: 12px; }
 #provincePicker .ppContinueChip { border-color: #f6d77a; color: #f6d77a; }
+
+/* The title page before the story (src/titleGate.ts): see-through dark over the bamboo, the name in gold, a flag
+   for each language, "sound on" and one big button; its click is what lets the music start */
+#titleGate {
+  position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(10, 18, 15, 0.55), rgba(5, 10, 8, 0.92));
+  font-family: 'Sarabun Thai', 'Open Sans', sans-serif; color: #eef3ef;
+  animation: motionFadeIn 0.4s ease-out backwards;
+}
+#titleGate.motionLeave { animation: motionFadeOut 0.3s ease-in forwards; }
+/* The loading line would show through the title page, across its buttons (owner, 12 Oct 2026) */
+body.gateOpen #loadingBanner { display: none; }
+#titleGate .gatePanel { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 48px; text-align: center;
+  animation: motionFromBelow 0.6s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#titleGate .gateBrand { margin: 0; font: 400 64px/1 'Chunk', 'Sarabun Thai', serif; letter-spacing: 0.04em; color: #f6d77a;
+  text-shadow: 0 0 28px rgba(246, 215, 122, 0.5); }
+#titleGate .gateTagline { margin: 0 0 10px; font-size: 15px; color: rgba(238, 243, 239, 0.82); }
+#titleGate .gateLanguages { display: flex; gap: 10px; }
+#titleGate .gateLanguage { display: inline-flex; align-items: center; gap: 8px; width: auto; height: 34px; padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: #eef3ef;
+  font: 400 13px 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer; }
+#titleGate .gateLanguage .flag { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25); }
+#titleGate .gateLanguage.current { border-color: #f6d77a; background: rgba(246, 215, 122, 0.16); color: #f6d77a; }
+#titleGate .gateSound { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+#titleGate .gateSound input { width: 16px; height: 16px; margin: 0; accent-color: #f6d77a; }
+#titleGate .gateEnter { width: auto; min-width: 240px; height: 50px; margin-top: 8px; padding: 0 40px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, #f6d77a, #d29a2c); color: #1c1405; font: 400 19px 'Sarabun Thai', 'Open Sans', sans-serif;
+  box-shadow: 0 10px 30px rgba(210, 154, 44, 0.35); cursor: pointer; }
+#titleGate .gateEnter:hover, #titleGate .gateEnter:focus-visible { background: linear-gradient(135deg, #fbe39a, #e0aa3a);
+  box-shadow: 0 12px 36px rgba(246, 215, 122, 0.5); outline: none; }
+#titleGate .gateHint { margin: 0; font-size: 11px; color: rgba(238, 243, 239, 0.5); }
 
 /* The required credits: tiny and quiet at the bottom */
 #provincePicker .ppCredits { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 10px; line-height: 1.5;
@@ -1809,6 +1833,25 @@ body #infobar {
 body #infobar.motionLeave { animation: windowOut 0.2s ease-in forwards; }
 body #infobar #name, body #infobar .semibold { font-size: 10px; font-weight: 400; }
 
+/* The language card: opens beside its globe icon, each language with its flag (src/menuRail.ts) */
+body #languageCard {
+  position: absolute; left: 46px; z-index: 16; display: none; padding: 5px; box-sizing: border-box;
+  border: 1px solid var(--hud-edge); border-radius: 12px; background: var(--hud-glass);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: var(--hud-shadow);
+  animation: motionFromLeft 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+body #languageCard.motionLeave { animation: windowOut 0.2s ease-in forwards; }
+body #languageCard .languageChoice {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 26px; margin: 1px 0; padding: 0 12px 0 8px;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--hud-text);
+  font: 400 9.5px 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left; white-space: nowrap;
+}
+body #languageCard .languageChoice:hover { background: rgba(255, 255, 255, 0.85); transform: none; box-shadow: none; filter: none; }
+body #languageCard .languageChoice.current { border-color: #226b57; background: rgba(255, 255, 255, 0.7); }
+body #languageCard .flagSlot { display: flex; }
+body #languageCard .flag { display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18); }
+#languageRequest { --accent: #2d6cb5; }
+
 /* The city's name, date and money, always in view, first in the top bar (src/cityStatus.ts) */
 body #cityStatus { gap: 7px; padding: 0 11px; cursor: default; white-space: nowrap; pointer-events: none; }
 body #cityStatus.initialHidden { display: none; }
@@ -1819,7 +1862,8 @@ body .collapsible.collapsed { overflow: visible; }
 
 /* Small type everywhere in the game, nothing bold (owner, 12 Oct 2026: about 9 px) */
 body .hudPill { height: 24px; min-width: 24px; padding: 0 9px; font: 400 9px 'Sarabun Thai', 'Open Sans', sans-serif; }
-body .hudRound { width: 24px; font-size: 13px; }
+body .hudRound { width: 24px; padding: 0; font-size: 13px; }
+body .hudPill svg { flex: none; }
 body #soundToggle { width: 24px; height: 24px; }
 body #soundToggle svg { width: 15px; height: 15px; }
 body #soundControl.open input[type="range"] { width: 84px; margin: 0 10px 0 2px; }
@@ -1854,7 +1898,17 @@ body #notifications.good { background: rgba(46, 140, 80, 0.72); }
 body #notifications.bad { background: rgba(200, 40, 40, 0.72); }
 body #newsLogButton { position: static; height: 24px; padding: 0 10px; font-size: 9px; }
 body #newsLogButton.initialHidden { display: none; }
-body #newsLog { position: fixed; top: 50%; left: 50%; right: auto; bottom: auto; z-index: 17; transform: translate(-50%, -50%); }
+/* The list slides down from the top, under the top bar, see-through like the news itself (owner, 12 Oct 2026) */
+body #newsLog {
+  position: fixed; top: 46px; left: 50%; right: auto; bottom: auto; z-index: 17; transform: translateX(-50%);
+  max-height: min(340px, calc(100vh - 120px)); background: var(--hud-glass);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);
+}
+body #newsLog:not([hidden]) { animation: newsListIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+body #newsLog.motionLeave { animation: newsListOut 0.2s ease-in forwards; }
+@keyframes newsListIn { from { opacity: 0; transform: translate(-50%, -24px); } }
+@keyframes newsListOut { to { opacity: 0; transform: translate(-50%, -16px); } }
+body #newsLog li.news, body #newsLog li.news.good, body #newsLog li.news.bad { background: rgba(255, 255, 255, 0.38); }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */
 body #creditToggle {
