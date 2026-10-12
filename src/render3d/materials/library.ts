@@ -52,6 +52,7 @@ const definitions = {
 } satisfies Record<string, MeshStandardMaterialParameters>;
 
 export type MaterialKey = keyof typeof definitions;
+export type VehicleMaterialKey = 'car_paint' | 'rubber_tire' | 'chrome' | 'plastic_trim_black' | 'lamp_lens' | 'tail_light_red' | 'glass_vehicle';
 export const MATERIAL_KEYS = Object.freeze(Object.keys(definitions) as MaterialKey[]);
 const cache = new Map<string, MeshStandardMaterial>();
 const owned = new WeakSet<Material>();
@@ -68,6 +69,44 @@ export function getPreviewGround(): MeshStandardMaterial {
     owned.add(previewGround);
   }
   return previewGround;
+}
+
+/** Clean automotive finishes are procedural: no building scans, UV textures, or import-time loads. */
+export function vehicleMaterial(key: VehicleMaterialKey, color?: ColorRepresentation): MeshStandardMaterial {
+  const colors = { car_paint: 0xf4f3ef, rubber_tire: 0x202527, chrome: 0xbfc8cc, plastic_trim_black: 0x242b2c,
+    lamp_lens: 0xfff3d8, tail_light_red: 0xde252b, glass_vehicle: 0x334f58 };
+  const resolved = new Color(color ?? colors[key]), token = `vehicle:${key}:${resolved.getHexString()}`;
+  const cached = cache.get(token); if (cached) return cached;
+  const material = ['car_paint', 'glass_vehicle', 'lamp_lens', 'tail_light_red'].includes(key)
+    ? new MeshPhysicalMaterial() : new MeshStandardMaterial();
+  material.name = token; material.color.copy(resolved);
+  material.userData = { materialKey: key, vehicleMaterial: key, procedural: true };
+  if (key === 'car_paint') {
+    const paint = material as MeshPhysicalMaterial;
+    paint.clearcoat = 1; paint.clearcoatRoughness = 0.1; paint.roughness = 0.35;
+    paint.metalness = resolved.r > 0.83 && resolved.g > 0.83 && resolved.b > 0.83 ? 0 : 0.4;
+    paint.envMapIntensity = 1.1;
+  } else if (key === 'rubber_tire') material.roughness = 0.88;
+  else if (key === 'chrome') { material.metalness = 1; material.roughness = 0.21; }
+  else if (key === 'plastic_trim_black') material.roughness = 0.72;
+  else if (key === 'glass_vehicle') {
+    const glass = material as MeshPhysicalMaterial;
+    glass.roughness = 0.13; glass.metalness = 0.12; glass.clearcoat = 0.6; glass.envMapIntensity = 1.3;
+    // Opaque tinted glass keeps small vehicle windows readable without sorting or refraction passes.
+  } else {
+    material.roughness = 0.18; material.emissive.copy(resolved);
+    (material as MeshPhysicalMaterial).clearcoat = 0.8;
+  }
+  owned.add(material); cache.set(token, material); applyNight(material); return material;
+}
+export const car_paint = (color: ColorRepresentation): MeshPhysicalMaterial => vehicleMaterial('car_paint', color) as MeshPhysicalMaterial;
+
+/** One automotive finish for distant display props, whose glass/tires/paint colors are baked per vertex. */
+export function vehicleDisplayMaterial(): MeshPhysicalMaterial {
+  const token = 'vehicle-display'; const cached = cache.get(token); if (cached) return cached as MeshPhysicalMaterial;
+  const material = car_paint(0xffffff).clone(); material.name = token; material.vertexColors = true;
+  material.userData = { ...material.userData, vehicleDisplay: true, vertexFinish: true };
+  material.roughness = 0.45; owned.add(material); cache.set(token, material); return material;
 }
 
 function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: TextureSet): void {
@@ -264,6 +303,7 @@ function configureCityWorldUV(material: MeshStandardMaterial): void {
   material.customProgramCacheKey = () => `phaicity-city-world:${program}`;
 }
 export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMaterial {
+  if (base.userData.vehicleMaterial) return base;
   const key = base.userData.materialKey as MaterialKey;
   if (!key || ['sign_thai', 'foliage_tropical'].includes(key) || base.userData.commercialLED || base.userData.pathCurb) return base;
   return finishedMaterial(`city-world-${base.name}`, key, base.color, material => {
@@ -313,7 +353,7 @@ export function cityLODMaterial(base: MeshStandardMaterial, coarse = false): Mes
   material.onBeforeCompile=world.onBeforeCompile;material.customProgramCacheKey=world.customProgramCacheKey;configureCityLOD(material,coarse);
   owned.add(material);cache.set(token,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
-  if(key)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
+  if(key&&!base.userData.vehicleMaterial)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
   return material;
 }
 const cityDepthMaterials=new WeakMap<Material,MeshDepthMaterial>();
@@ -323,7 +363,7 @@ export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMateri
   if(base.userData.transportMotion)configureTransportMotion(material,base.userData.transportMotion);
   configureCityLOD(material,false);owned.add(material);cityDepthMaterials.set(base,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
-  if(key)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
+  if(key&&!base.userData.vehicleMaterial)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
   return material;
 }
 export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
@@ -587,6 +627,7 @@ export function setNightMode(night: boolean): void {
 }
 
 function applyNight(material: MeshStandardMaterial): void {
+  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = nightMode ? 1.5 : 0.015;
   if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
   if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
 }

@@ -18,6 +18,7 @@ import { curvedRoofBuilder } from './curved-roofs.js';
 import { bigGardenTreeBuilder } from './big-garden-trees.js';
 import { makeIndustrialKit } from './industrial-parts.js';
 import { serviceStyle } from './service-style.js';
+import { vehicleStyle } from './vehicle-style.js';
 
 /** Eight coordinated choices per region; shade changes never change a building's shape. */
 export function regionalPalette(walls: readonly number[], trim: number, shutter: number, roof: number): readonly PaletteChoice[] {
@@ -40,6 +41,7 @@ export function makeKit(style: RegionStyle): RegionKit {
     roofs,
     industrial: makeIndustrialKit(style, roofs),
     services: serviceStyle(style, roofs),
+    vehicles: vehicleStyle(style.id),
     walls: Object.freeze(Object.fromEntries(WALL_FORMS.map(form => [form, wallBuilder(style, form)])) as Record<WallForm, PartBuilder>),
     ornaments: Object.freeze(Object.fromEntries([...new Set([...ornaments, 'fretwork', ...(style.id === 'east' ? ['pediment'] : [])])].map(kind => [kind, ornamentBuilder(style, kind)]))),
     props: Object.freeze(Object.fromEntries([...new Set([...props, 'dragon_jar', ...(style.id === 'west' ? ['sugar_stove'] : [])])].map(kind => [kind, propBuilder(style, kind)]))),

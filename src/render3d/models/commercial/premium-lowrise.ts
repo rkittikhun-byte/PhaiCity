@@ -6,9 +6,7 @@ import { getMaterial, tint, vertexFinish, commercialLEDMaterial } from '../../ma
 import { point } from '../../regional/geometry.js';
 import { displayPanel } from './geometry.js';
 import { CommercialBuilder } from './builder.js';
-import { Mesh, Material } from 'three';
-import { createSedan } from '../vehicles/road.js';
-import { disposeModel } from '../../util/geometry.js';
+import { sedanDisplayParts } from '../vehicles/road-cars.js';
 
 export function gardenCafe(b: CommercialBuilder): Record<string, unknown> {
   const colors = b.kit.palette.pick(b.options.seed), wood = vertexFinish(b.kit.zoneStyle.timber);
@@ -60,17 +58,9 @@ export function glassShoppingCenter(b: CommercialBuilder): Record<string, unknow
 }
 
 export function carShowroom(b: CommercialBuilder): Record<string, unknown> {
-  const colors = b.kit.neutralPalette(b.options.seed), clear = getMaterial('glass_clear'), body = vertexFinish('metal_painted');
+  const colors = b.kit.neutralPalette(b.options.seed), clear = getMaterial('glass_clear');
   const displayCar = (x: number, y: number, z: number, yaw: number, color: number): void => {
-    const car = createSedan({ seed: b.options.seed }); car.updateMatrixWorld(true);
-    const parts = car.children.filter((child): child is Mesh => child instanceof Mesh).map(mesh => {
-      const key = (mesh.material as Material).userData.materialKey;
-      const material = key === 'metal_painted' ? body : key === 'glass_tinted' ? b.glass : key === 'emissive_window' ? b.paint : b.metal;
-      const geometry = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
-      if (material.userData.vertexFinish) CommercialBuilder.color(geometry, key === 'metal_painted' ? color : 0xf2eee0);
-      return { geometry, material };
-    });
-    b.take(parts, x, y, z, yaw); disposeModel(car);
+    b.take(sedanDisplayParts(color), x, y, z, yaw);
   };
   b.site(b.stone); b.entrance();
   b.feature('two-storey-clear-glass-showroom', () => {

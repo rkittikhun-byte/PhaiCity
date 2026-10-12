@@ -3,6 +3,80 @@
 
 # สถานะโมเดล
 
+## Prompt 16B — วัสดุรถและกระบะ เก๋ง สองแถว
+
+วันที่ 2026-10-12: ยกระดับ `veh.pickup`, `veh.sedan` และ `veh.songthaew`
+จากตัวถังกล่องเป็น profile โค้งในระนาบ Z–Y extrude ตาม X พร้อม bevel 4.5 ซม.
+สองช่วงและ curveSegments 6; ใช้ `models/vehicles/kit.ts` ร่วมกันและคง id/category เดิม
+รถหันหน้า +Z ล้อสัมผัส y = 0 ไม่มีโลโก้หรือยี่ห้อจริง
+
+| id | Tier | สามเหลี่ยมก่อน → หลัง (seed 1, กลาง) | Draw calls ก่อน → หลัง |
+|---|---|---:|---:|
+| veh.pickup | R3 | 656 → 3,358 | 5 → 8 |
+| veh.sedan | R3 | 584 → 3,296 | 5 → 8 |
+| veh.songthaew | R2 | 860 → 3,640 | 6 → 8 |
+
+- สาเหตุภาพเดิม: รูปทรงกล่องซ้อน ไม่มี bevel; กระจกเป็นกล่องอยู่ภายในห้องโดยสาร
+  และสี `tint()` คูณกับ albedo ของเหล็กทาสีเก่า ทำให้รถมืดและมีลายวัสดุอาคาร
+- ชุดเครื่องมือใหม่ตัดซุ้มล้อจริง เผื่อช่องว่างอย่างน้อย 6 ซม.; ตัวถังแคบเข้าหลังคา
+  เหลือ 87.5% ของความกว้างช่วงเอว กระจกเป็นแผ่น inset 1.5 ซม. พร้อมกรอบและเสากลางสีดำ
+  ยาง Lathe 16 segments มีแก้มมน ขอบล้อ 5 ก้าน กระจกมองข้างบนก้าน มือจับประตู
+  กระจังซี่ กันชนพลาสติก ไฟหน้า/ไฟเลี้ยว/ไฟท้าย โดยเลนส์อยู่ด้านนอกผิวตัวถัง
+- วัสดุ procedural ใหม่ใน library: `car_paint`, `rubber_tire`, `chrome`,
+  `plastic_trim_black`, `lamp_lens`, `tail_light_red`, `glass_vehicle`
+  สีรถเป็น Physical clearcoat 1 / roughness 0.35 / clearcoatRoughness 0.1
+  สี metallic ใช้ metalness 0.4 สีขาว 0; ไม่มี scanned maps หรือ asset ภายนอกใหม่
+  ไฟ emissive เปลี่ยนตาม night mode และ worker/LOD รักษาคุณสมบัติวัสดุเหล่านี้
+- กระบะตัวถังประมาณ 5.3×1.85×1.8 ม. ไม่รวมกระจกมองข้าง; กระบะเปิดมีพื้นและผนังด้านใน
+  เลือก double/extended/single cab ตาม seed โดย double มากที่สุด
+  seed คู่มี canopy คี่มี roll bar; สีขาวมีน้ำหนักมากที่สุด ตามด้วยเงินและสีอื่น
+  กระบะทุกแบบรักษาขนาดภายนอกและความสูงเดียวกัน
+- สองแถวใช้ chassis กระบะเดิมพร้อมหลังคา เบาะยาวสองแถว ราวจับและบันไดท้าย
+  สีมาจาก `kit.vehicles`: เหนือแดง ส่วนภาคอื่นน้ำเงิน/เขียว/ขาวตาม seed
+- โชว์รูม `com.block_3_0` เคยนำ `createSedan()` ไปวาง 6 คันโดยตรง
+  เพิ่ม helper `sedanDisplayParts()` ใช้ silhouette/window เดียวกัน ลดรายละเอียดสำหรับ prop
+  และรวมสีผ่าน `vehicleDisplayMaterial()` หนึ่งวัสดุ เพื่อคงงบอาคาร 8,000 สามเหลี่ยม
+  prop คันละ 600 สามเหลี่ยม; โชว์รูม seed 1 กลางรวม 4,156 สามเหลี่ยม / 6 draw calls
+  ไม่เพิ่มงบ registry และไม่ใช้วัสดุอาคารกับตัวรถใหม่
+- ไม่แก้ยานพาหนะอื่นของ 16C/16D, game/simulation, shared config หรือ license headers เดิม
+
+### ตรวจสอบ
+
+- `vehicle-kit.test.ts` ตรวจผิวสีสะอาด ซุ้มล้อด้วย raycast ขนาดทั้ง 3 cab/2 accessories
+  งบ/ล้อ/กระจก 8 seeds ต่อรถ สีสองแถวทั้ง 6 ภาค ไฟกลางคืนและเลนส์ไม่ถูกตัวถังบัง
+  worker round trip/clearcoat/LOD และ prop โชว์รูมพร้อม vertex colors ผ่านทั้ง 35 ข้อ
+- ชุดรวม `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false --testTimeout=20000`
+  ครบ 59 suites / 3,929 tests ใน 913.5 วินาที: 58 suites / 3,927 tests ผ่าน
+  รวม registry และการตรวจ commercial ทุกภาค; ไม่ผ่านเฉพาะ Bounds เดิม 2 ข้อ
+  ตาม CLAUDE.md ไม่มีข้อผิดพลาดใหม่จากงานนี้
+- ตรวจภาพรถทั้งสามระยะใกล้และซูมออก หมุนดูด้านท้าย canopy เปลี่ยน seed/region/night
+  และเทียบสองแถว 6 ภาคใน gallery
+- `npm run build` ผ่าน มีคำเตือนขนาด bundle ตามเดิม; `git diff --check` ผ่าน
+- เปิด `index.html` เริ่มเมืองฝึกเล่น วางเขตบ้านได้ คลังเมืองลด 20,000 → 19,900 บาท
+  เวลาเกมเดินต่อ ตรวจ gallery/เกมไม่มี console error และไม่บันทึกเมืองทดสอบ
+
+### ข้อจำกัด
+
+สองแถว seed 1 ใช้ 3,640 สามเหลี่ยม สูงกว่าเป้าหมายประมาณ 3,500 เล็กน้อย
+แต่ยังอยู่ในงบ 4,000; กระจกเป็นแผ่นทึบสีเข้มสะท้อนแสง ไม่มีห้องโดยสารภายในหรือ refraction
+รถโชว์รูมใช้วัสดุสีรวมสำหรับระยะเมือง จึงไม่มีไฟกลางคืนแยกเป็นเลนส์แบบรถเต็มรายละเอียด
+`CitySprites` ยังใช้ placeholder เดิมสำหรับ traffic; รอบนี้ปรับ factories และ gallery
+การเชื่อมรถเหล่านี้กับ traffic renderer เป็นงานต่อไป
+
+ภาพตรวจสอบ:
+[กระบะก่อน](../../test/render3d/artifacts/vehicles-16b-pickup-before.jpg),
+[กระบะหลัง](../../test/render3d/artifacts/vehicles-16b-pickup-after.jpg),
+[เก๋งก่อน](../../test/render3d/artifacts/vehicles-16b-sedan-before.jpg),
+[เก๋งหลัง](../../test/render3d/artifacts/vehicles-16b-sedan-after.jpg),
+[สองแถว](../../test/render3d/artifacts/vehicles-16b-songthaew-after.jpg),
+[สองแถว 6 ภาค](../../test/render3d/artifacts/vehicles-16b-songthaew-regions.jpg),
+[กระบะระยะเมือง](../../test/render3d/artifacts/vehicles-16b-pickup-distance.jpg),
+[เก๋งระยะเมือง](../../test/render3d/artifacts/vehicles-16b-sedan-distance.jpg),
+[สองแถวระยะเมือง](../../test/render3d/artifacts/vehicles-16b-songthaew-distance.jpg),
+[ไฟท้ายกลางคืน](../../test/render3d/artifacts/vehicles-16b-sedan-night.jpg),
+[โชว์รูม](../../test/render3d/artifacts/vehicles-16b-showroom.jpg),
+[เกมฝึกเล่น](../../test/render3d/artifacts/vehicles-16b-game.jpg)
+
 ## Prompt 15 — ท่าเรือและสนามบิน
 
 วันที่ 2026-10-12: เพิ่ม `port.seaport` และ `port.airport` ใน
