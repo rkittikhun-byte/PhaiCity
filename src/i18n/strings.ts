@@ -607,6 +607,8 @@ export const STRINGS: Record<string, Translation> = {
   "status.commercial": { en: "Shops", th: "พาณิชย์" },
   "status.industrial": { en: "Factories", th: "อุตสาหกรรม" },
   "status.people": { en: "{count} people", th: "{count} คน" },
+  "levels.level": { en: "Level {n}", th: "ระดับ {n}" },
+  "levels.soon": { en: "Coming later", th: "เร็ว ๆ นี้" },
   "menu.language": { en: "Language", th: "ภาษา" },
   "gate.tagline": { en: "Build your city on the real land of Thailand's 77 provinces", th: "สร้างเมืองของคุณบนผืนดินจริงของ 77 จังหวัด" },
   "gate.language": { en: "Language", th: "ภาษา" },

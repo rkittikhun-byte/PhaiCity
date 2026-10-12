@@ -782,6 +782,8 @@
 | `status.commercial` | `index.html` | `-` | `Shops` | `พาณิชย์` | แถบสถานะ (แท่ง C เดิม) |
 | `status.industrial` | `index.html` | `-` | `Factories` | `อุตสาหกรรม` | แถบสถานะ (แท่ง I เดิม) |
 | `status.people` | `src/cityStatus.ts` | `-` | `{count} people` | `{count} คน` | คนที่อยู่ในบ้าน หรือทำงานในร้านและโรงงาน |
+| `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `levels.soon` | `src/toolLevels.ts` | `-` | `Coming later` | `เร็ว ๆ นี้` | ช่องระดับที่ยังไม่มี |
 | `menu.language` | `index.html` | `-` | `Language` | `ภาษา` | ไอคอนลูกโลกในแถบเมนูซ้าย เปิดการ์ดเลือกภาษา (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `gate.tagline` | `src/titleGate.ts` | `-` | `Build your city on the real land of Thailand's 77 provinces` | `สร้างเมืองของคุณบนผืนดินจริงของ 77 จังหวัด` | หน้าแรกก่อนเข้าเกม (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `gate.language` | `src/titleGate.ts` | `-` | `Language` | `ภาษา` | หน้าแรก |

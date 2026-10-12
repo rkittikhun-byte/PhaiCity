@@ -1992,8 +1992,58 @@ body #buttons .toolButton {
 body #buttons .toolIcon { width: 20px; height: 20px; border-radius: 5px; font-size: 10px; line-height: 20px; }
 body #buttons .toolName { display: none; }
 body #buttons .toolPrice { font-size: 8px; line-height: 1; }
+/* In one row the tools go zones first, then ways, then buildings */
+body #buttons [data-tool="residential"] { order: 1; }
+body #buttons [data-tool="commercial"] { order: 2; }
+body #buttons [data-tool="industrial"] { order: 3; }
+body #buttons [data-tool="road"] { order: 4; }
+body #buttons [data-tool="rail"] { order: 5; }
+body #buttons [data-tool="wire"] { order: 6; }
+body #buttons [data-tool="park"] { order: 7; }
+body #buttons [data-tool="bulldozer"] { order: 8; }
+body #buttons [data-tool="query"] { order: 9; }
+body #buttons [data-tool="police"] { order: 10; }
+body #buttons [data-tool="fire"] { order: 11; }
+body #buttons [data-tool="coal"] { order: 12; }
+body #buttons [data-tool="nuclear"] { order: 13; }
+body #buttons [data-tool="port"] { order: 14; }
+body #buttons [data-tool="stadium"] { order: 15; }
+body #buttons [data-tool="airport"] { order: 16; }
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }
+
+/* The tool in hand and the places for its levels, above the dock; it moves up out of the way when the dock rises
+   (src/toolLevels.ts, owner 12 Oct 2026) */
+body #toolLevels {
+  position: absolute; left: 50%; bottom: 34px; z-index: 14; display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  border: 1px solid var(--hud-edge); border-radius: 12px; background: var(--hud-glass); color: var(--hud-text);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: var(--hud-shadow);
+  font: 400 9px/1.3 'Sarabun Thai', 'Open Sans', sans-serif; transform: translateX(-50%);
+  transition: bottom 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s; animation: levelsIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+body #toolLevels[hidden] { display: none; }
+body #toolLevels.motionLeave { animation: levelsOut 0.2s ease-in forwards; }
+@keyframes levelsIn { from { opacity: 0; transform: translate(-50%, 12px); } }
+@keyframes levelsOut { to { opacity: 0; transform: translate(-50%, 12px); } }
+body #controls:hover ~ #toolLevels { bottom: 88px; transition-delay: 0s; }
+body #toolLevels .levelsTitle { padding-right: 2px; font-size: 10.5px; white-space: nowrap; }
+body #toolLevels .levelsSlots { display: flex; gap: 4px; }
+body #toolLevels .levelSlot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 52px; height: 46px;
+  box-sizing: border-box; border-radius: 8px;
+}
+body #toolLevels .levelSlot.current { background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 2px var(--tool, #226b57); }
+body #toolLevels .levelSlot.empty { border: 1px dashed rgba(29, 41, 37, 0.3); color: var(--hud-dim); }
+body #toolLevels .levelIcon { display: flex; align-items: center; height: 18px; }
+body #toolLevels .levelIcon .toolIcon {
+  width: 18px; height: 18px; border-radius: 5px; background: var(--tool, #888); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  color: #fff; font-size: 9px; line-height: 18px; text-align: center; text-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
+}
+body #toolLevels .levelSlot.empty .levelIcon::before {
+  content: ""; width: 14px; height: 14px; border: 1px dashed rgba(29, 41, 37, 0.35); border-radius: 4px;
+}
+body #toolLevels .levelName { font-size: 8.5px; }
+body #toolLevels .levelNote { font-size: 7.5px; color: var(--hud-dim); }
 body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */
