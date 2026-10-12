@@ -38,6 +38,8 @@
       .library-heading p { font-size: 13px; }
       .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
       .tabs { display: flex; gap: 10px; margin-bottom: 22px; }
+      .city-stage { height: min(70vh, 760px); min-height: 400px; position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+      .city-readout { font-variant-numeric: tabular-nums; margin: 12px 0; }
       .tabs [aria-selected="true"] { color: var(--card); background: var(--accent); border-color: var(--accent); }
       .material-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
       .material-card .preview { cursor: grab; }
@@ -74,6 +76,7 @@
         <button id="models-tab" type="button" role="tab" aria-controls="library" aria-selected="true" data-th="โมเดล" data-en="Models">โมเดล</button>
         <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1" data-th="วัสดุ" data-en="Materials">วัสดุ</button>
         <button id="regions-tab" type="button" role="tab" aria-controls="regions" aria-selected="false" tabindex="-1" data-th="ชุดภาค" data-en="Region kits">ชุดภาค</button>
+        <button id="city-tab" type="button" role="tab" aria-controls="city" aria-selected="false" tabindex="-1" data-th="เมือง" data-en="City">เมือง</button>
       </nav>
       <section class="toolbar" aria-label="ตัวเลือกแสดงโมเดล">
         <label class="field"><span data-th="หมวดหมู่" data-en="Category">หมวดหมู่</span><select id="category"><option value="all" data-th="ทั้งหมด" data-en="All">ทั้งหมด</option></select></label>
@@ -122,6 +125,15 @@
         <div id="region-houses" class="cards"></div>
         <h2 id="region-heading"></h2><div id="region-components" class="cards"></div>
         <p class="hint" data-th="ตัวอย่างเรือพายผูกท่าน้ำ · ใช้เฉพาะพื้นที่ติดน้ำ" data-en="Tied rowing boat sample · waterside sites only">ตัวอย่างเรือพายผูกท่าน้ำ · ใช้เฉพาะพื้นที่ติดน้ำ</p>
+      </section>
+      <section id="city" role="tabpanel" aria-labelledby="city-tab" hidden>
+        <div class="library-heading"><p data-th="เมืองทดสอบ 200×200 ช่อง · 2×2 กม. · อ่านข้อมูลโดยไม่แตะ simulation" data-en="200×200 test city · 2×2 km · read-only renderer">เมืองทดสอบ 200×200 ช่อง · 2×2 กม. · อ่านข้อมูลโดยไม่แตะ simulation</p></div>
+        <div class="tabs"><button id="city-default" type="button" data-th="มุมเริ่มต้น" data-en="Default view">มุมเริ่มต้น</button><button id="city-whole" type="button" data-th="ทั้งเมือง" data-en="Whole city">ทั้งเมือง</button><button id="city-towers" type="button" data-th="ย่านตึกสูง" data-en="Tower district">ย่านตึกสูง</button><button id="city-pause" type="button" data-th="หยุดภาพเคลื่อนไหว" data-en="Pause animations">หยุดภาพเคลื่อนไหว</button><button id="city-shot" type="button" data-th="ภาพทั้งแผนที่" data-en="Map screenshot">ภาพทั้งแผนที่</button></div>
+        <button id="city-benchmark" type="button" data-th="ทดสอบ 1920×1080" data-en="Benchmark 1920×1080">ทดสอบ 1920×1080</button>
+        <p id="city-metrics" class="city-readout" role="status"></p>
+        <div id="city-stage" class="city-stage" aria-label="เมือง 3D"></div>
+        <p class="hint" data-th="คลิกขวาลากเพื่อหมุน · ปุ่มกลางเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · คลิกซ้ายแสดงกรอบเครื่องมือทดสอบ" data-en="Right drag rotates · middle drag pans · wheel zooms · left click previews a tool footprint">คลิกขวาลากเพื่อหมุน · ปุ่มกลางเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · คลิกซ้ายแสดงกรอบเครื่องมือทดสอบ</p>
+        <img id="city-map-shot" alt="ภาพทั้งเมือง / Whole city screenshot" hidden style="max-width:100%">
       </section>
       <section id="detail" aria-label="ดูโมเดลเดี่ยว" hidden>
         <p style="margin-top: 20px"><button id="back" type="button">← โมเดลทั้งหมด</button></p>

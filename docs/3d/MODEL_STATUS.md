@@ -3,6 +3,95 @@
 
 # สถานะโมเดล
 
+## Renderer R1 — วิวเมือง 3D รุ่นแรก
+
+วันที่ 2026-10-12: เพิ่ม `createCityView3D(setup)` ใน `src/render3d/city/index.ts`
+implement CityView ครบ พร้อม `dispose()`; เกมโหลดผ่าน loader เดิมได้โดยไม่แก้ไฟล์เกม
+ใช้ canvas เดียวชื่อ `MicropolisCanvas` ขนาดตาม container และให้เกมเรียก `paint()` เอง
+
+### การทำงาน
+
+- ตาราง lookup ครบ 0–1023 จาก registry; ช่วงราง/สายไฟที่ใช้เลข tile ร่วมกันเป็น family
+  ที่เลือกโมเดลจาก mask เพื่อนบ้าน มี fallback debug สำหรับเลขที่ไม่มีโมเดล
+- วางโซนด้วย ZONEBIT และครอบ footprint ก่อนวาดช่องอื่น centre offset (1,1) ถูกต้อง
+  สำหรับ 3×3, 4×4, 6×6; บ้านหนึ่งช่องและสวนใช้ตำแหน่งกลาง tile
+  อาคารที่ยังไม่มีโมเดลเป็นบล็อกสีตามประเภทและสูงตาม density
+- ถนน traffic 80–206 เป็นถนนปกติ; ถนน/ราง/ไฟฟ้าใช้ masks N/E/S/W และ canonical rotation
+  สะพาน ทางข้ามราง/ไฟฟ้า และสะพานยกใช้โมเดลเฉพาะ
+  ค่า tile ของสะพานยกแสดง state open; กลับเป็นสะพานระดับถนนเมื่อ simulation เปลี่ยนค่า
+- shores/woods ใช้ masks จากเพื่อนบ้านจริง; ช่องนอกแผนที่ไม่เชื่อมต่อ
+  คลองแคบส่ง landMask เพื่อใช้กำแพงตั้งฉาก สะพานนับเป็นเพื่อนบ้านน้ำ
+  มีน้ำใต้สะพานยกและพื้นท้องน้ำ −3.015 ม.; ผิวน้ำ −0.6 ม.
+- seed มาจากพิกัดเท่านั้น ลดเหลือ 4 buckets เพื่อแชร์เรขาคณิต
+  UV ของผิว instanced คำนวณหลัง world transform; ป้ายและ leaf atlas คง UV ของตน
+  รางตรงส่ง phase ของ sleepers ตามตำแหน่งโลก
+- chunk 16×16; เปรียบเทียบ values และ flags ที่เปลี่ยนลุคทุก paint
+  การเปลี่ยนบริเวณขอบทำให้ chunk เพื่อนบ้าน/footprint เก่าสร้างใหม่ด้วย
+  scheduler ให้ช่วงทำงาน 3 มิลลิวินาที และเผื่อ 1 มิลลิวินาทีสำหรับเลือก batch/ส่ง buffer
+  เลือก chunk ที่เห็นก่อน แสดงพื้นเต็มเมืองก่อนรายละเอียด
+- factories หนักสร้างใน Web Worker ผ่าน registry ส่ง geometry/bounding volumes ด้วย transferable buffers
+  UI thread แชร์ geometry/material และทำ InstancedMesh ต่อ model/seed/region/state/material
+  จัดลำดับอาคารและเครือข่ายก่อนรายละเอียดพื้นดิน
+- มองไกลใช้ global instancing ของบล็อก LOD ลด draw calls
+  ใกล้กล้องจำกัดรายละเอียด 180 calls ก่อน shadow pass และลดลงเมื่อ frame ช้า
+  DPR เริ่มตามเครื่องไม่เกิน 2 และลดถึง 1 ก่อนลดรายละเอียด
+  กระจก city ยังเป็น physical material แต่ใช้ reflection/alpha แทน full-scene refraction
+- กล้อง north-up, FOV 38°, pitch 55° เริ่มประมาณ 30×20 ช่อง
+  ขวาลากหมุน กลางลากเลื่อน ล้อซูมไปหาตำแหน่งเมาส์; ซ้ายเป็นของเครื่องมือเกม
+  keyboard pan ใช้เวลาจริงและทิศหน้าจอ มี limit เมื่อค้างนาน
+  centreOn ใช้ 550 ms และกระโดดทันทีสำหรับ reduced motion; shake ไม่เกิน 550 ms
+- tileAt/visibleTiles ใช้ ray-ground intersection และ clipToMap
+  toolFootprint มี outline/fill เหนือถนนและถูก clip ที่ขอบแผนที่
+- sprites 1–7 เป็นกล่องต่างขนาด/สี ตำแหน่งจาก centre ของ sprite box หน่วย 16 ต่อ tile
+  รถไฟอยู่ระดับราง เรืออยู่ระดับน้ำ เครื่องบิน/เฮลิคอปเตอร์อยู่สูง
+  interpolation และ heading หยุดขณะ pause แต่กล้องยังขยับได้
+  unknown sprites ใช้ geometry จาก debug model; รถบนถนนเป็น placeholders จาก seeded RNG
+  อ่าน traffic overlay เท่านั้น จำกัดจำนวนรวม 128 ตัว
+- screenshotVisible เป็น PNG; screenshotMap สร้างภาพ orthographic north-up ทั้งแผนที่
+  ไม่เกิน 4096 px ด้านยาว และใช้ LOD ที่ครบทั้งเมือง แม้คิวรายละเอียดไม่เสร็จ
+- Gallery มีแท็บ City, region switch, pause, whole-map/default/tower views, PNG preview,
+  benchmark canvas 1920×1080 และค่าเฉลี่ย 120 frames ของ frame interval / CPU / draw calls / คิวโหลด
+  เปิดตรงได้ด้วย `model-gallery.html?tab=city` โดยไม่สร้าง thumbnails ทั้งคลังก่อน
+
+### ตรวจสอบ
+
+ผลวัดเมือง 200×200 หลังคิว chunk/model เป็นศูนย์ในเบราว์เซอร์ทดสอบของ Codex
+canvas 1920×1080, DPR 1, ค่าเฉลี่ย 120 frames; draw calls รวม shadow pass
+เป็นผลของเครื่อง/เบราว์เซอร์นี้ ไม่ใช่การรับรองผลบนโน้ตบุ๊กทุกเครื่อง
+
+| มุมมอง | Frame interval | CPU ต่อ paint | Draw calls | Triangles รวม passes | Rebuild |
+|---|---:|---:|---:|---:|---:|
+| เริ่มต้น ภาคกลาง | 11.1 ms | 4.4 ms | 364 | 427,294 | 0.4 ms |
+| ทั้งเมือง ภาคกลาง | 11.1 ms | 2.2 ms | 6 | 283,882 | 0.2 ms |
+| ย่านตึกสูง ภาคเหนือ (รอบก่อน) | 20.6 ms | 17.0 ms | 124 | 358,094 | 1.3 ms |
+
+ภาพแรก 401 ms ใน dev server; production รอบ cold start 1,444 ms
+มุมเริ่มต้น production วัด 11.9 ms / CPU 6.9 ms / 364 calls ก่อนการตัด props ระยะไกลขั้นสุดท้าย
+มุมหนักของภาคเหนือยังต่ำกว่าเป้าหมาย 60 fps ในรอบที่วัด จึงควรปรับ canopy/prop LOD ต่อ
+
+- ชุดเต็ม: 3,374 ผ่าน / 2 failures เดิมใน `test/bounds.ts:24,31`; 44 จาก 45 suites ผ่าน
+  หลังการปรับขั้นสุดท้าย ตรวจ renderer แยกอีก 39 tests ผ่าน
+  ครอบคลุม CityView functions, tile lookup/coverage, raycasting, seed determinism,
+  instancing/invalidation, world UV shader, camera movement, sprite pause/unknown และ lifecycle
+- build มี worker entry ใหม่ `city-model-worker` ใน `webpack.config.js` เพียงบรรทัดเดียว
+  เป็นการเพิ่มแบบ additive; ไม่แก้ config อื่น ไฟล์ simulation, CityView, CityView2D หรือ game UI
+- ไม่เพิ่ม assets/dependencies หรือแก้ license headers
+- `npx tsc --noEmit` และ production build ผ่าน; webpack มี performance warnings 2 รายการ
+  เกม `?view=3d` วางถนน 2 ช่อง/โซนพาณิชย์ได้ เงิน 20,000 → 19,880 บาท
+  pause/เดินเวลาต่อ, ซูมขณะ pause และ PNG ของ view ทำงาน; คลิกขวาไม่ใช้เครื่องมือ
+  `?view=2d` ยังเปิดและวางอาคารได้ ภาพเดิมยังเป็น tile set 2D
+  snapshotMap ตรวจ PNG 1600×1600 และ region switch ตรวจเหนือ/กลาง
+- ไม่พบ WebGL errors ใน production/game check; dev server มี WebSocket reconnect events ของ webpack
+  และ warning precision จาก shader ที่ three.js สร้าง ซึ่งไม่หยุดการวาดเมือง
+
+### ข้อจำกัดของรุ่นแรก
+
+sprites/traffic ยังเป็น placeholders; โมเดลที่ยังไม่สร้างและ LOD ระยะไกลยังเป็นบล็อก
+ป่าระยะไกลใช้มวลสีเขียวเรียบและควรเปลี่ยนเป็น canopy LOD ใน R2
+การหมุน/เปิดแบบต่อเนื่องของสะพานและแขนกั้นตามรถไฟ/เรือ รวมถึงโมเดลรถจริง เป็นงาน R3
+day/night, windows ตาม POWERBIT, rain, smoke/steam และ icon ไม่มีไฟ เป็นงาน effects/lighting ต่อไป
+วัสดุและ normal maps ใช้ assets เดิมแบบ lazy; renderer ไม่เขียนค่ากลับเข้าเมือง
+
 ## Prompt 11 — โซนพาณิชย์ 3×3 ระดับที่ดิน 2–3
 
 วันที่ 2026-10-12: เพิ่มครบ 10 factories (`com.block_2_0` ถึง `com.block_3_4`)

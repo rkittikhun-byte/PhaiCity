@@ -27,6 +27,9 @@ import { ELEVATED_PREVIEWS } from './elevated-preview.js';
 import { getRegionKit, REGIONS } from '../regional/index.js';
 import { regionalSamples, regionLineup } from './regional-preview.js';
 import { animateCommercialModels } from '../models/commercial/landmarks.js';
+import { CityView3D, createCityView3D } from '../city/index.js';
+import { TestCity, testCitySetup, testCitySprites, moveTestSprites } from '../city/test-city.js';
+import type { ToolHover } from '../../cityView.js';
 
 const modelNeighbors = (id: string, options: ModelOptions): Group => id.startsWith('road.')
   ? roadNeighbors(id, options) : id.startsWith('rail.') ? railNeighbors(id, options)
@@ -103,8 +106,17 @@ function startGallery(): void {
   let controls: OrbitControls | undefined;
   let frame = 0;
   let width = 0, height = 0;
-  let activeTab: 'models' | 'materials' | 'regions' = 'models';
+  let activeTab: 'models' | 'materials' | 'regions' | 'city' = 'models';
+  const startWithCity=new URLSearchParams(location.search).get('tab')==='city';
+  let cityView: CityView3D | undefined;
+  const cityMap = new TestCity(), citySprites = testCitySprites();
+  let cityHover: ToolHover | null = null, cityPaused = false, citySeconds = 0, cityLast = performance.now(), cityReadout = 0;
+  function buildCity(): void {
+    cityView?.dispose();cityView=createCityView3D(testCitySetup(element('city-stage'),regionPicker.value as RegionId,cityMap));
+    cityLast=performance.now();
+  }
   let environment: Texture | undefined;
+  let gallerySkyStarted = false;
   let environmentTarget: ReturnType<PMREMGenerator['fromEquirectangular']> | undefined;
   let disposed = false;
   let rebuildTimer: number | undefined;
@@ -296,6 +308,7 @@ function startGallery(): void {
     element('library').hidden = activeTab !== 'models';
     element('materials').hidden = activeTab !== 'materials';
     element('regions').hidden = activeTab !== 'regions';
+    element('city').hidden = activeTab !== 'city';
     if (refresh && activeTab !== 'materials') rebuildModels();
     updateStateChoices();
   }
@@ -335,6 +348,8 @@ function startGallery(): void {
     element('sign-cards').replaceChildren();
     element('region-houses').replaceChildren();
     element('region-components').replaceChildren();
+    cityView?.dispose();cityView=undefined;renderer.domElement.hidden=activeTab==='city';
+    if(activeTab==='city'){buildCity();return;}
     if (activeTab === 'materials') {
       buildMaterials();
       updateLighting();
@@ -476,19 +491,21 @@ function startGallery(): void {
     localText(element('back'), '← วัสดุทั้งหมด', '← All materials');
   }
 
-  function switchTab(tab: 'models' | 'materials' | 'regions'): void {
+  function switchTab(tab: 'models' | 'materials' | 'regions' | 'city'): void {
     activeTab = tab;
-    ['models', 'materials', 'regions'].forEach(name => {
+    ['models', 'materials', 'regions', 'city'].forEach(name => {
       const button = element(name + '-tab');
       button.setAttribute('aria-selected', String(tab === name)); button.tabIndex = tab === name ? 0 : -1;
     });
     [category, regionPicker, seed, variant, state, landMask, waterMask, bankStyle, neighborToggle, gridToggle, footprintToggle].forEach(input => {
-      const show = tab === 'models' || tab === 'regions' && [regionPicker, seed, gridToggle, footprintToggle].includes(input as typeof regionPicker);
+      const show = tab === 'models' || tab === 'city' && input === regionPicker || tab === 'regions' && [regionPicker, seed, gridToggle, footprintToggle].includes(input as typeof regionPicker);
       input.disabled = !show;
       (input.closest('label') as HTMLLabelElement).hidden = !show;
     });
+    for(const input of [sunAngle,night]) (input.closest('label') as HTMLLabelElement).hidden=tab==='city';
     localText(element('back'), tab === 'models' ? '← โมเดลทั้งหมด' : tab === 'materials' ? '← วัสดุทั้งหมด' : '← ชุดภาคทั้งหมด', tab === 'models' ? '← All models' : tab === 'materials' ? '← All materials' : '← All region kits');
     buildLibrary();
+    if(tab!=='city')loadGallerySky();
   }
 
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
@@ -499,7 +516,7 @@ function startGallery(): void {
   });
   category.addEventListener('change', buildLibrary);
   [seed, variant, state, landMask, waterMask, bankStyle].forEach(input => input.addEventListener('change', rebuildModels));
-  regionPicker.addEventListener('change', () => activeTab === 'regions' ? buildLibrary() : rebuildModels());
+  regionPicker.addEventListener('change', () => activeTab === 'city' ? buildCity() : activeTab === 'regions' ? buildLibrary() : rebuildModels());
   neighborToggle.addEventListener('change', rebuildModels);
   [seed, variant, state, landMask, waterMask].forEach(input => input.addEventListener('input', queueRebuild));
   languagePicker.addEventListener('change', () => {
@@ -512,6 +529,15 @@ function startGallery(): void {
   element('models-tab').addEventListener('click', () => switchTab('models'));
   element('materials-tab').addEventListener('click', () => switchTab('materials'));
   element('regions-tab').addEventListener('click', () => switchTab('regions'));
+  element('city-tab').addEventListener('click', () => switchTab('city'));
+  element('city-default').addEventListener('click',()=>cityView?.navigation.reset());
+  element('city-benchmark').addEventListener('click',()=>{const stage=element('city-stage');stage.style.boxSizing='content-box';stage.style.width='1920px';stage.style.height='1080px';stage.style.maxHeight='none';});
+  element('city-whole').addEventListener('click',()=>cityView?.navigation.wholeMap());
+  element('city-towers').addEventListener('click',()=>cityView?.centreOn(135,105));
+  element('city-pause').addEventListener('click',()=>{cityPaused=!cityPaused;localText(element('city-pause'),cityPaused?'เดินภาพเคลื่อนไหวต่อ':'หยุดภาพเคลื่อนไหว',cityPaused?'Resume animations':'Pause animations');});
+  element('city-shot').addEventListener('click',()=>{if(cityView){const image=element<HTMLImageElement>('city-map-shot');image.src=cityView.screenshotMap();image.hidden=false;}});
+  element('city-stage').addEventListener('pointermove',event=>{if(!cityView)return;const r=cityView.canvas.getBoundingClientRect(),tile=cityView.tileAt(event.clientX-r.left,event.clientY-r.top);cityHover=tile?{tile,size:3,colour:'lime'}:null;});
+  element('city-stage').addEventListener('pointerleave',()=>{cityHover=null;});
   element('six-regions').addEventListener('click', () => {
     if (selected && selected.kind === 'model') showModel({ id: `preview.six_regions.${selected.id}`, entry: regionLineup(selected.entry), kind: 'lineup' });
   });
@@ -520,25 +546,28 @@ function startGallery(): void {
   for (const style of ['hsr', 'metro']) element(`${style}-ramp-preview`).addEventListener('click', () => {
     const id = `preview.${style}_ramp`; showModel({ id, entry: ELEVATED_PREVIEWS[id], kind: 'assembly' });
   });
-  ['models', 'materials', 'regions'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
+  ['models', 'materials', 'regions', 'city'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      const tabs = ['models', 'materials', 'regions'] as const;
-      event.preventDefault(); switchTab(tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : 2)) % 3]); element(activeTab + '-tab').focus();
+      const tabs = ['models', 'materials', 'regions', 'city'] as const;
+      event.preventDefault(); switchTab(tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : 3)) % 4]); element(activeTab + '-tab').focus();
     }
   }));
-  buildLibrary();
+  if(startWithCity)switchTab('city');else buildLibrary();
   localText(element('back'), '← โมเดลทั้งหมด', '← All models');
   localText(element('sky-status'), 'กำลังโหลดแสงท้องฟ้า HDRI 1K', 'Loading 1K daytime HDRI');
   const ariaLabels: readonly [string, string, string][] = [
     ['nav', 'ประเภทตัวอย่าง', 'Sample type'], ['.toolbar', 'ตัวเลือกแสดงโมเดล', 'Model display options'],
     ['#detail', 'ดูโมเดลเดี่ยว', 'Model inspector'], ['#stage', 'โมเดล 3D หมุนและซูมได้', 'Orbitable 3D model'],
+    ['#city-stage', 'เมือง 3D', '3D city'],
     ['#sun-angle', 'มุมสูงดวงอาทิตย์', 'Sun elevation'],
   ];
   ariaLabels.forEach(([selector, th, en]) => { const node = document.querySelector<HTMLElement>(selector)!; node.dataset.thAria = th; node.dataset.enAria = en; });
   translatePage();
 
   // IBL is local and lazy; the gradient sky remains readable at both day and night.
-  new HDRLoader().load(DAY_SKY_URL, texture => {
+  function loadGallerySky():void {
+    if(gallerySkyStarted)return;gallerySkyStarted=true;
+    new HDRLoader().load(DAY_SKY_URL, texture => {
     if (disposed) { texture.dispose(); return; }
     const generator = new PMREMGenerator(renderer);
     environmentTarget = generator.fromEquirectangular(texture);
@@ -546,11 +575,21 @@ function startGallery(): void {
     texture.dispose(); generator.dispose();
     localText(element('sky-status'), 'แสงท้องฟ้า HDRI 1K · Poly Haven · CC0', '1K daytime HDRI · Poly Haven · CC0');
     updateLighting();
-  }, undefined, () => { localText(element('sky-status'), 'โหลด HDRI ไม่สำเร็จ · ใช้แสงท้องฟ้าสีพื้น', 'HDRI unavailable · gradient sky fallback'); });
+    }, undefined, () => { localText(element('sky-status'), 'โหลด HDRI ไม่สำเร็จ · ใช้แสงท้องฟ้าสีพื้น', 'HDRI unavailable · gradient sky fallback'); });
+  }
+  if(!startWithCity)loadGallerySky();
 
   // One WebGL context for the entire library; scissor each visible thumbnail or inspector.
   function render(): void {
     frame = requestAnimationFrame(render);
+    if(activeTab==='city'&&cityView){
+      const time=performance.now();if(!cityPaused)citySeconds+=Math.min(.1,(time-cityLast)/1000);cityLast=time;
+      moveTestSprites(citySprites,citySeconds);cityView.paint(cityHover,citySprites,cityPaused);
+      if(time-cityReadout>500){cityReadout=time;const m=cityView.metrics;
+        localText(element('city-metrics'),`Frame ${m.intervalMs.toFixed(1)} ms · CPU ${m.frameMs.toFixed(1)} ms · ${m.drawCalls} draw calls · ${Math.round(m.triangles).toLocaleString()} triangles · chunk ค้าง ${m.pendingChunks} · model ค้าง ${m.pendingModels} · unknown ${m.unknownTiles} · rebuild ${m.rebuildMs.toFixed(1)} ms · first frame ${m.firstFrameMs.toFixed(0)} ms · ${cityView.width}×${cityView.height} · DPR ${cityView.renderer.getPixelRatio()}`,
+          `Frame ${m.intervalMs.toFixed(1)} ms · CPU ${m.frameMs.toFixed(1)} ms · ${m.drawCalls} draw calls · ${Math.round(m.triangles).toLocaleString()} triangles · ${m.pendingChunks} pending chunks · ${m.pendingModels} pending models · ${m.unknownTiles} unknown · rebuild ${m.rebuildMs.toFixed(1)} ms · first frame ${m.firstFrameMs.toFixed(0)} ms · ${cityView.width}×${cityView.height} · DPR ${cityView.renderer.getPixelRatio()}`);
+      }return;
+    }
     if (width !== innerWidth || height !== innerHeight) {
       width = innerWidth; height = innerHeight;
       renderer.setSize(width, height);
@@ -580,6 +619,7 @@ function startGallery(): void {
   window.addEventListener('pagehide', event => {
     if (event.persisted) return;
     disposed = true;
+    cityView?.dispose();
     window.clearTimeout(rebuildTimer);
     cancelAnimationFrame(frame);
     controls?.dispose();

@@ -115,6 +115,7 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
     };
     material.customProgramCacheKey = () => 'phaicity-curb-bands';
   }
+  if (material.userData.cityWorldUV) configureCityWorldUV(material);
   material.needsUpdate = true;
 }
 
@@ -222,6 +223,59 @@ export function vertexFinish(key: MaterialKey): MeshStandardMaterial {
       };
       material.customProgramCacheKey = () => 'phaicity-vertex-painted-metal';
     }
+  });
+}
+
+/** Instanced tiling pieces project texture coordinates after their instance transform. */
+function configureCityWorldUV(material: MeshStandardMaterial): void {
+  if (material.onBeforeCompile === material.userData.cityUVWrapper) return;
+  const original = material.onBeforeCompile;
+  const program = material.customProgramCacheKey();
+  const wrapper: typeof material.onBeforeCompile = (shader, renderer) => {
+    original.call(material, shader, renderer);
+    shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+      #ifdef USE_INSTANCING
+        vec3 cityP = (instanceMatrix * vec4(position, 1.0)).xyz;
+        vec3 cityN = abs(mat3(instanceMatrix) * normal);
+        vec2 cityUV = cityN.y >= cityN.x && cityN.y >= cityN.z ? cityP.xz : (cityN.z >= cityN.x ? cityP.xy : cityP.zy);
+        #ifdef USE_MAP
+          vMapUv = (mapTransform * vec3(cityUV, 1.0)).xy;
+        #endif
+        #ifdef USE_NORMALMAP
+          vNormalMapUv = (normalMapTransform * vec3(cityUV, 1.0)).xy;
+        #endif
+        #ifdef USE_ROUGHNESSMAP
+          vRoughnessMapUv = (roughnessMapTransform * vec3(cityUV, 1.0)).xy;
+        #endif
+        #ifdef USE_METALNESSMAP
+          vMetalnessMapUv = (metalnessMapTransform * vec3(cityUV, 1.0)).xy;
+        #endif
+        #ifdef USE_AOMAP
+          vAoMapUv = (aoMapTransform * vec3(cityUV, 1.0)).xy;
+        #endif
+      #endif`);
+  };
+  material.userData.cityUVWrapper = wrapper; material.onBeforeCompile = wrapper;
+  material.customProgramCacheKey = () => `phaicity-city-world:${program}`;
+}
+export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMaterial {
+  const key = base.userData.materialKey as MaterialKey;
+  if (!key || ['sign_thai', 'foliage_tropical'].includes(key) || base.userData.commercialLED || base.userData.pathCurb) return base;
+  return finishedMaterial(`city-world-${base.name}`, key, base.color, material => {
+    material.copy(base); material.name = `city-world-${base.name}`;
+    material.userData = { ...base.userData, cityWorldUV: true };
+    // City glass keeps physical reflection and alpha, without an extra full-scene refraction pass.
+    if (material instanceof MeshPhysicalMaterial) { material.transmission = 0; material.forceSinglePass = true; }
+    material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey; configureCityWorldUV(material);
+  });
+}
+export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
+  return finishedMaterial(`city-tool-${fill}`, 'sign_thai', color, material => {
+    material.userData.keepColorMap = true; material.map = null;
+    material.transparent = fill; material.opacity = fill ? 0.10 : 0.95;
+    material.depthWrite = false; material.roughness = 1;
+    material.polygonOffset = true; material.polygonOffsetFactor = -2;
+    material.polygonOffsetUnits = -2;
   });
 }
 
