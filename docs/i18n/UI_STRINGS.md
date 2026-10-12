@@ -100,21 +100,21 @@
 | Key | File | Current English | New English | Thai | Notes |
 |---|---|---|---|---|---|
 | `tool.header` | `index.html` | `Tools` | `Tools` | `เครื่องมือ` | หัวแถบเครื่องมือ |
-| `tool.residential` | `index.html` | `Residential $100` | `Residential ฿100` | `ที่อยู่อาศัย ฿100` | โซน 3x3 |
-| `tool.commercial` | `index.html` | `Commercial $100` | `Commercial ฿100` | `พาณิชยกรรม ฿100` | โซน 3x3 |
-| `tool.industrial` | `index.html` | `Industrial $100` | `Industrial ฿100` | `อุตสาหกรรม ฿100` | โซน 3x3 |
-| `tool.coal` | `index.html` | `Coal $3000` | `Coal Plant ฿3000` | `โรงไฟฟ้าถ่านหิน ฿3K` | โรงไฟฟ้า 4x4 |
-| `tool.nuclear` | `index.html` | `Nuclear $5000` | `Nuclear Plant ฿5000` | `โรงไฟฟ้านิวเคลียร์ ฿5K` | โรงไฟฟ้า 4x4 |
-| `tool.police` | `index.html` | `Police $500` | `Police ฿500` | `สถานีตำรวจ ฿500` | อาคาร 3x3 |
-| `tool.fire` | `index.html` | `Fire $500` | `Fire Dept ฿500` | `สถานีดับเพลิง ฿500` | อาคาร 3x3 |
-| `tool.road` | `index.html` | `Road $10` | `Road ฿10` | `ถนน ฿10` | 1 ช่อง |
-| `tool.rail` | `index.html` | `Rail $20` | `Rail ฿20` | `ทางรถไฟ ฿20` | 1 ช่อง |
-| `tool.wire` | `index.html` | `Wire $5` | `Power Line ฿5` | `สายไฟฟ้า ฿5` | 1 ช่อง |
-| `tool.park` | `index.html` | `Park $10` | `Park ฿10` | `สวนสาธารณะ ฿10` | 1 ช่อง |
-| `tool.port` | `index.html` | `Port $3000` | `Seaport ฿3000` | `ท่าเรือ ฿3000` | อาคาร 4x4 |
-| `tool.stadium` | `index.html` | `Stadium $5000` | `Stadium ฿5000` | `สนามกีฬา ฿5000` | อาคาร 4x4 |
-| `tool.airport` | `index.html` | `Airport $10000` | `Airport ฿10000` | `สนามบิน ฿10,000` | อาคาร 6x6 |
-| `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze ฿1` | `รื้อถอน ฿1` | รถไถ 1 ช่อง |
+| `tool.residential` | `index.html` | `Residential $100` | `Residential {price}` | `ที่อยู่อาศัย {price}` | โซน 3x3 |
+| `tool.commercial` | `index.html` | `Commercial $100` | `Commercial {price}` | `พาณิชยกรรม {price}` | โซน 3x3 |
+| `tool.industrial` | `index.html` | `Industrial $100` | `Industrial {price}` | `อุตสาหกรรม {price}` | โซน 3x3 |
+| `tool.coal` | `index.html` | `Coal $3000` | `Coal Plant {price}` | `โรงไฟฟ้าถ่านหิน {price}` | โรงไฟฟ้า 4x4 |
+| `tool.nuclear` | `index.html` | `Nuclear $5000` | `Nuclear Plant {price}` | `โรงไฟฟ้านิวเคลียร์ {price}` | โรงไฟฟ้า 4x4 |
+| `tool.police` | `index.html` | `Police $500` | `Police {price}` | `สถานีตำรวจ {price}` | อาคาร 3x3 |
+| `tool.fire` | `index.html` | `Fire $500` | `Fire Dept {price}` | `สถานีดับเพลิง {price}` | อาคาร 3x3 |
+| `tool.road` | `index.html` | `Road $10` | `Road {price}` | `ถนน {price}` | 1 ช่อง |
+| `tool.rail` | `index.html` | `Rail $20` | `Rail {price}` | `ทางรถไฟ {price}` | 1 ช่อง |
+| `tool.wire` | `index.html` | `Wire $5` | `Power Line {price}` | `สายไฟฟ้า {price}` | 1 ช่อง |
+| `tool.park` | `index.html` | `Park $10` | `Park {price}` | `สวนสาธารณะ {price}` | 1 ช่อง |
+| `tool.port` | `index.html` | `Port $3000` | `Seaport {price}` | `ท่าเรือ {price}` | อาคาร 4x4 |
+| `tool.stadium` | `index.html` | `Stadium $5000` | `Stadium {price}` | `สนามกีฬา {price}` | อาคาร 4x4 |
+| `tool.airport` | `index.html` | `Airport $10000` | `Airport {price}` | `สนามบิน {price}` | อาคาร 6x6 |
+| `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |
 | `tool.msg.needs_doze` | `src/text.js` | `Area must be bulldozed first` | `Clear area with bulldoze first` | `ต้องรื้อถอนพื้นที่เดิมก่อนสร้าง` | แสดงที่ toolOutput |
@@ -713,6 +713,31 @@
 | `picker.difficulty.2` | `src/provincePicker.ts` | `-` | `Medium` | `ปานกลาง` |  |
 | `picker.difficulty.3` | `src/provincePicker.ts` | `-` | `Hard` | `ยาก` |  |
 | `picker.resources` | `src/provincePicker.ts` | `-` | `Resources` | `ทรัพยากร` |  |
+| `picker.rules` | `src/provincePicker.ts` | `-` | `How it plays` | `กติกาจังหวัด` | กติกาภาคและจังหวัด (`src/provinceRules.ts`, Claude Code 12 ต.ค. 2026) |
+| `rules.demand.residential` | `src/provinceRules.ts` | `-` | `Demand for homes {change}` | `คนอยากได้บ้าน {change}` | {change} เช่น +40% |
+| `rules.demand.commercial` | `src/provinceRules.ts` | `-` | `Demand for shops {change}` | `คนอยากได้ร้านค้า {change}` |  |
+| `rules.demand.industrial` | `src/provinceRules.ts` | `-` | `Demand for factories {change}` | `คนอยากได้โรงงาน {change}` |  |
+| `rules.cost.residential` | `src/provinceRules.ts` | `-` | `Residential zones cost {change}` | `ราคาเขตที่อยู่อาศัย {change}` |  |
+| `rules.cost.commercial` | `src/provinceRules.ts` | `-` | `Commercial zones cost {change}` | `ราคาเขตพาณิชย์ {change}` |  |
+| `rules.cost.industrial` | `src/provinceRules.ts` | `-` | `Industrial zones cost {change}` | `ราคาเขตอุตสาหกรรม {change}` |  |
+| `rules.cost.road` | `src/provinceRules.ts` | `-` | `Roads cost {change}` | `ราคาถนน {change}` |  |
+| `rules.cost.rail` | `src/provinceRules.ts` | `-` | `Rail costs {change}` | `ราคาทางรถไฟ {change}` |  |
+| `rules.cost.wire` | `src/provinceRules.ts` | `-` | `Power lines cost {change}` | `ราคาสายไฟฟ้า {change}` |  |
+| `rules.cost.park` | `src/provinceRules.ts` | `-` | `Parks cost {change}` | `ราคาสวนสาธารณะ {change}` |  |
+| `rules.cost.police` | `src/provinceRules.ts` | `-` | `Police stations cost {change}` | `ราคาสถานีตำรวจ {change}` |  |
+| `rules.cost.fire` | `src/provinceRules.ts` | `-` | `Fire stations cost {change}` | `ราคาสถานีดับเพลิง {change}` |  |
+| `rules.cost.coal` | `src/provinceRules.ts` | `-` | `Coal plants cost {change}` | `ราคาโรงไฟฟ้าถ่านหิน {change}` |  |
+| `rules.cost.nuclear` | `src/provinceRules.ts` | `-` | `Nuclear plants cost {change}` | `ราคาโรงไฟฟ้านิวเคลียร์ {change}` |  |
+| `rules.cost.stadium` | `src/provinceRules.ts` | `-` | `Stadiums cost {change}` | `ราคาสนามกีฬา {change}` |  |
+| `rules.cost.port` | `src/provinceRules.ts` | `-` | `Seaports cost {change}` | `ราคาท่าเรือ {change}` |  |
+| `rules.cost.airport` | `src/provinceRules.ts` | `-` | `Airports cost {change}` | `ราคาสนามบิน {change}` |  |
+| `rules.cost.bulldozer` | `src/provinceRules.ts` | `-` | `Bulldozing costs {change}` | `ค่ารื้อถอน {change}` |  |
+| `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
+| `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
+| `rules.power_output` | `src/provinceRules.ts` | `-` | `Power plants give {change}` | `โรงไฟฟ้าจ่ายไฟ {change}` |  |
+| `rules.season.fire` | `src/provinceRules.ts` | `-` | `Dry-season fires, {months} ({chance} a month)` | `ไฟป่าหน้าแล้ง {months} (เดือนละ {chance})` | เกิดเมื่อเปิดสุ่มภัยพิบัติในตั้งค่า |
+| `rules.season.flood` | `src/provinceRules.ts` | `-` | `Floods, {months} ({chance} a month)` | `น้ำท่วม {months} (เดือนละ {chance})` |  |
+| `rules.season.tornado` | `src/provinceRules.ts` | `-` | `Storms, {months} ({chance} a month)` | `พายุ {months} (เดือนละ {chance})` |  |
 | `resource.coast_gulf` | `src/provincePicker.ts` | `-` | `Gulf of Thailand coast` | `ชายฝั่งอ่าวไทย` | แท็กจังหวัด |
 | `resource.coast_andaman` | `src/provincePicker.ts` | `-` | `Andaman Sea coast` | `ชายฝั่งทะเลอันดามัน` | แท็กจังหวัด |
 | `resource.island` | `src/provincePicker.ts` | `-` | `Island` | `เกาะ` | แท็กจังหวัด |

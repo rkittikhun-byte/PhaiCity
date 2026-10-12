@@ -112,7 +112,8 @@ var neutraliseTrafficMap = function(blockMaps) {
 
 
 // Given a tileValue, score it on the pollution it generates, in the range 0-255
-var getPollutionValue = function(tileValue) {
+// industryPollution (PhaiCity, src/provinceRules.ts): how much more or less the factories smoke in this province
+var getPollutionValue = function(tileValue, industryPollution) {
   if (tileValue < TileValues.POWERBASE) {
     // Roads, fires and radiation lie below POWERBASE
 
@@ -146,7 +147,7 @@ var getPollutionValue = function(tileValue) {
 
   // Industrial zones, however...
   if (tileValue < TileValues.PORTBASE)
-    return 50;
+    return Math.round(50 * industryPollution);
 
   // Coal power plants are bad
   if (tileValue <= TileValues.LASTPOWERPLANT)
@@ -184,7 +185,10 @@ var getCityCentreDistance = function(map, x, y) {
 //   * Proximity to undeveloped terrain (who doesn't love a good view?)
 //
 // Pollution is completely determined by the tile types in the block
-var pollutionTerrainLandValueScan = function(map, census, blockMaps) {
+var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution) {
+  if (industryPollution === undefined)
+    industryPollution = 1;
+
   // We record raw pollution readings for each tile into tempMap1, and then use tempMap2 and tempMap1 to smooth
   // out the pollution in order to construct the new values for the populationDensityMap
   var tempMap1 = blockMaps.tempMap1;
@@ -230,7 +234,7 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps) {
             continue;
           }
 
-          pollutionLevel += getPollutionValue(tileValue);
+          pollutionLevel += getPollutionValue(tileValue, industryPollution);
           if (tileValue >= TileValues.ROADBASE)
             developed = true;
         }

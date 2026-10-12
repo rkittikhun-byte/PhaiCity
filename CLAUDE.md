@@ -149,6 +149,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   same `StartBackdrop` interface), big text on the left, a row of tiles (mouse or arrow keys), "H" hides the menus.
 - **Panels and windows:** every game panel can slide away to its side (`src/panelCollapse.ts`), and clicking
   outside a window or card closes it.
+- **Province rules (กติกาภาคและจังหวัด):** `src/provinceRules.ts` reads `data/province-rules.json` (owner-edited; the
+  server's database later): the game's defaults, then the region's, then the province's. They set zone demand
+  (`valves.js`), tool prices and the price of clearing woods (`gameTools.js`, `baseTool.js`), factory smoke
+  (`blockMapUtils.js`), power plant output (`powerManager.js`) and seasonal disasters (`disasterManager.js`, only while
+  random disasters are on). `splashScreen.js` resolves them when a city starts; the province card lists them and the
+  tool buttons show the province's prices (`src/toolShortcuts.ts`). Never hard-code a regional number in code.
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
   of the simulation's overlays (power, traffic, pollution, crime, land value, population, police and fire cover);
   menu button or key M. It only reads the map and the block maps; a click on it asks the game to `centreOn` there.

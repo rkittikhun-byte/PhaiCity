@@ -23,6 +23,7 @@ import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
+import { checkRulesData, resolveRules } from './provinceRules.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
 
@@ -153,6 +154,25 @@ var prepareView = function(provinceId) {
 };
 
 
+// The rules a province's city plays by (src/provinceRules.ts): its region's and its own, from
+// data/province-rules.json (the server's, once the game is online). A practice map, or rules that cannot be read,
+// play by the game's own.
+var loadRules = function(provinceId) {
+  if (!provinceId)
+    return Promise.resolve(null);
+
+  return Promise.all([fetchJson('data/province-rules.json'), regionOf(provinceId)]).then(function(results) {
+    var checked = checkRulesData(results[0]);
+    if (checked.problems.length > 0)
+      console.warn('Province rules: ' + checked.problems.join('; '));
+    return resolveRules(checked.data, results[1], provinceId);
+  }).catch(function(error) {
+    console.warn('Could not load the province rules: ' + error.message);
+    return null;
+  });
+};
+
+
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
   var self = this;
@@ -160,8 +180,9 @@ var launch = function(map, difficulty, name) {
   document.body.classList.remove('starting');
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
-  prepareView(map.provinceId || null).then(function(view3d) {
-    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, view3d);
+  var provinceId = map.provinceId || null;
+  Promise.all([prepareView(provinceId), loadRules(provinceId)]).then(function(results) {
+    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1]);
   });
 };
 

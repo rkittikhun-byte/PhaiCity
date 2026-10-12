@@ -17,13 +17,17 @@ import { EventEmitter } from './eventEmitter.js';
 import { QUERY_WINDOW_NEEDED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 import { ParkTool } from './parkTool.js';
+import { DEFAULT_RULES, TOOL_COSTS } from './provinceRules.ts';
 import { RailTool } from './railTool.js';
 import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
-function GameTools(map) {
+// rules (PhaiCity): the province's rules (src/provinceRules.ts), which set each tool's price and the price of clearing
+// woods; none means the game's own
+function GameTools(map, rules) {
+  rules = rules || DEFAULT_RULES;
   var tools = EventEmitter({
     airport: new BuildingTool(10000, TileValues.AIRPORT, map, 6, false),
     bulldozer: new BulldozerTool(map),
@@ -41,6 +45,11 @@ function GameTools(map) {
     query: new QueryTool(map),
     stadium: new BuildingTool(5000, TileValues.STADIUM, map, 4, false),
     wire: new WireTool(map),
+  });
+
+  TOOL_COSTS.forEach(function(name) {
+    tools[name].costFactor = rules.cost[name];
+    tools[name].clearWoodsCost = rules.clearWoodsCost;
   });
 
   tools.query.addEventListener(QUERY_WINDOW_NEEDED, MiscUtils.reflectEvent.bind(tools, QUERY_WINDOW_NEEDED));

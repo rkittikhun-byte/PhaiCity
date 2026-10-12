@@ -22,6 +22,8 @@ var Valves = EventEmitter(function () {
   this.resCap = false;
   this.comCap = false;
   this.indCap = false;
+  // PhaiCity: how much more or less each kind of zone is wanted in this province (src/provinceRules.ts)
+  this.demand = {residential: 1, commercial: 1, industrial: 1};
 });
 
 
@@ -115,6 +117,11 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
     indRatio = projectedIndPop / census.indPop;
   else
     indRatio = projectedIndPop;
+
+  // The province's own appetite for each kind of zone
+  resRatio *= this.demand.residential;
+  comRatio *= this.demand.commercial;
+  indRatio *= this.demand.industrial;
 
   resRatio = Math.min(resRatio, resRatioMax);
   comRatio = Math.min(comRatio, comRatioMax);

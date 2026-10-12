@@ -84,7 +84,7 @@ BuildingTool.prototype.prepareBuildingSite = function(leftX, topY) {
       }
 
       this._worldEffects.setTile(posX, posY, DIRT);
-      this.addCost(this.bulldozerCost);
+      this.addBulldozeCost(tileValue);
     }
   }
 

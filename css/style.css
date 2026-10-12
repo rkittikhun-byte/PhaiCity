@@ -1200,6 +1200,11 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppSwatch { flex: none; width: 16px; height: 16px; border-radius: 5px; box-shadow: 0 0 12px rgba(255, 255, 255, 0.15); }
 #provincePicker .ppNote { margin: 0 0 6px; font-size: 15px; color: #cdd8d2; animation: motionFromLeft 0.5s 0.35s ease-out backwards; }
 #provincePicker .ppNote::before { content: '•  '; color: #f6d77a; }
+/* The province's rules (src/provinceRules.ts): what helps in green, what is hard in red */
+#provincePicker .ppRules { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+#provincePicker .ppRules li { padding: 4px 10px; border-radius: 999px; font-size: 14px; animation: motionFromLeft 0.5s 0.4s ease-out backwards; }
+#provincePicker .ppRules li.good { background: rgba(80, 200, 120, 0.16); color: #a9ecbf; border: 1px solid rgba(80, 200, 120, 0.35); }
+#provincePicker .ppRules li.bad { background: rgba(240, 90, 80, 0.14); color: #ffb3aa; border: 1px solid rgba(240, 90, 80, 0.35); }
 
 /* The row of tiles */
 #provincePicker .ppRow { position: absolute; left: 0; right: 0; bottom: 52px; padding: 0 6vw;

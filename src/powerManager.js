@@ -28,6 +28,8 @@ var PowerManager = EventEmitter(function(map) {
   this._map = map;
   this._powerStack = [];
   this.powerGridMap = new BlockMap(this._map.width, this._map.height, 1);
+  // PhaiCity: how much more or less power each plant gives in this province (src/provinceRules.ts)
+  this.outputFactor = 1;
 });
 
 
@@ -73,8 +75,8 @@ PowerManager.prototype.doPowerScan = function(census) {
   this.powerGridMap.clear();
 
   // Power that the combined coal and nuclear power plants can deliver.
-  var maxPower = census.coalPowerPop * COAL_POWER_STRENGTH +
-                 census.nuclearPowerPop * NUCLEAR_POWER_STRENGTH;
+  var maxPower = (census.coalPowerPop * COAL_POWER_STRENGTH +
+                  census.nuclearPowerPop * NUCLEAR_POWER_STRENGTH) * this.outputFactor;
 
   var powerConsumption = 0; // Amount of power used.
 

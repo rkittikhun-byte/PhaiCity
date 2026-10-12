@@ -26,6 +26,7 @@ import * as Messages from './messages.ts';
 import { MiscTiles } from './miscTiles.js';
 import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
+import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -36,8 +37,10 @@ import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
 
-var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame) {
+// rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own
+var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, rules) {
   this._map = gameMap;
+  this.rules = rules || DEFAULT_RULES;
   this.setLevel(gameLevel);
   this.setSpeed(speed);
 
@@ -66,6 +69,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame) {
   this._repairManager = new RepairManager(this._map);
   this._traffic = new Traffic(this._map, this.spriteManager);
   this.disasterManager = new DisasterManager(this._map, this.spriteManager, this._gameLevel);
+  this._valves.demand = this.rules.demand;
+  this._powerManager.outputFactor = this.rules.powerPlantOutput;
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -296,7 +301,7 @@ Simulation.prototype.init = function() {
   var simData = this._constructSimData();
   this._mapScanner.mapScan(0, this._map.width, simData);
   this._powerManager.doPowerScan(this._census);
-  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps);
+  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
@@ -371,7 +376,7 @@ var simulate = function(simData) {
 
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
-        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps);
+        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
       break;
 
     case 13:
@@ -388,7 +393,7 @@ var simulate = function(simData) {
       if ((this._simCycle % speedFireAnalysis[speedIndex]) === 0)
         BlockMapUtils.fireAnalysis(this.blockMaps);
 
-      this.disasterManager.doDisasters(this._census);
+      this.disasterManager.doDisasters(this._census, seasonalRisks(this.rules, this.getDate().month));
       break;
   }
 

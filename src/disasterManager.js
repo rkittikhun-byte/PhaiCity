@@ -32,7 +32,9 @@ var DisasterManager = EventEmitter(function(map, spriteManager, gameLevel) {
 
 var DisChance = [479, 239, 59];
 
-DisasterManager.prototype.doDisasters = function(census) {
+// seasonalRisks (PhaiCity, src/provinceRules.ts): the disasters this month's season brings to the province, each with
+// its chance this cycle. Like every other random disaster, they only come while disasters are switched on.
+DisasterManager.prototype.doDisasters = function(census, seasonalRisks) {
   if (this._floodCount)
       this._floodCount--;
 
@@ -40,6 +42,19 @@ DisasterManager.prototype.doDisasters = function(census) {
 
   if (!this.disastersEnabled)
       return;
+
+  var risks = seasonalRisks || [];
+  for (var i = 0; i < risks.length; i++) {
+    if (Random.next() >= risks[i].chance)
+      continue;
+
+    if (risks[i].disaster === 'fire')
+      this.setFire(40, false); // a dry spell: the first thing that will burn catches, woods included
+    else if (risks[i].disaster === 'flood')
+      this.makeFlood();
+    else if (risks[i].disaster === 'tornado')
+      this._spriteManager.makeTornado();
+  }
 
   if (!Random.getRandom(DisChance[this._gameLevel])) {
     switch (Random.getRandom(8)) {

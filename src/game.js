@@ -35,6 +35,8 @@ import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
 import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
+import { toolPrices } from './provinceRules.ts';
+import { showToolPrices } from './toolShortcuts.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -66,7 +68,8 @@ MILESTONES[Messages.REACHED_MEGALOPOLIS] = {name: 'megalopolis', cityClass: 'MEG
 
 
 // view3d: null for the original 2D view, or {create, region} for the three.js view (src/splashScreen.js prepareView)
-function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view3d) {
+// rules: the province's rules (src/provinceRules.ts), or null for the game's own
+function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view3d, rules) {
   difficulty = difficulty || 0;
   var savedGame;
 
@@ -92,7 +95,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
   this.defaultSpeed = Simulation.SPEED_MED;
-  this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame);
+  this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame, rules || null);
 
   // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
   if (!savedGame && gameMap.startingFunds)
@@ -115,7 +118,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.cityView = view3d ? createView3D(this, view3d) : null;
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
-  this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth);
+  this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules);
+  // The tool buttons show this province's prices
+  showToolPrices(toolPrices(this.simulation.rules));
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
   var simulation = this.simulation;

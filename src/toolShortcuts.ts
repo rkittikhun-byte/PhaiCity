@@ -8,6 +8,23 @@
 // Arrows and WASD (panning) and Esc (close a window, drop the tool) stay with src/inputStatus.js and src/game.js.
 
 import { onLanguageChange, t } from "./i18n/index";
+import { DEFAULT_RULES, formatPrice, toolPrices } from "./provinceRules";
+
+// The prices on the tool buttons: the game's own until a city starts with its province's (src/provinceRules.ts)
+let prices: Record<string, number> = toolPrices(DEFAULT_RULES);
+let relabel: (() => void) | null = null;
+
+/** "ที่อยู่อาศัย ฿100": a tool's name with its price in this province. */
+export function toolName(tool: string): string {
+  const price = prices[tool];
+  return t(`tool.${tool}`, price === undefined ? undefined : { price: formatPrice(price) });
+}
+
+/** Shows a city's prices on the tool buttons. */
+export function showToolPrices(next: Record<string, number>): void {
+  prices = { ...next };
+  relabel?.();
+}
 
 /** The key's label on screen, and the tool it picks. */
 export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
@@ -47,7 +64,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
 export function toolTitle(tool: string, key: string | null): string {
-  const name = t(`tool.${tool}`);
+  const name = toolName(tool);
   const first = key ? t("shortcut.tool", { tool: name, key }) : name;
   const descriptionKey = TOOL_DESCRIPTIONS[tool];
   if (!descriptionKey) return first;
@@ -84,12 +101,13 @@ function keysBelongElsewhere(doc: Document, target: EventTarget | null): boolean
 }
 
 export function installToolShortcuts(doc: Document = document): void {
-  // Each tool button says what it does when pointed at, and shows its key if it has one
+  // Each tool button shows its name and price, says what it does when pointed at, and shows its key if it has one
   const label = (): void => {
     doc.querySelectorAll<HTMLElement>(".toolButton[data-tool]").forEach((button) => {
       const tool = button.dataset.tool as string;
       const key = TOOL_KEYS.find((k) => k.tool === tool)?.key ?? null;
       if (key) button.dataset.key = key;
+      button.textContent = toolName(tool);
       button.title = toolTitle(tool, key);
     });
     const pause = doc.getElementById("pauseRequest");
@@ -98,6 +116,7 @@ export function installToolShortcuts(doc: Document = document): void {
     if (map) map.title = t("shortcut.map");
   };
   label();
+  relabel = label;
   onLanguageChange(label);
 
   doc.addEventListener("keydown", (event) => {

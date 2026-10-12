@@ -72,7 +72,7 @@ BulldozerTool.prototype.layDoze = function(x, y) {
       break;
   }
 
-  this.addCost(1);
+  this.addBulldozeCost(tile, 1);
 
   return this.TOOLRESULT_OK;
 };

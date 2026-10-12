@@ -20,6 +20,7 @@ import { difficultyStars, fundsBonus, provinceResources, resourceNotes, starting
 import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
+import { checkRulesData, resolveRules, ruleEffects, type RulesData } from "./provinceRules";
 import { keepHigherRank, rankForPopulation } from "./rulerRank";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
 
@@ -42,6 +43,8 @@ interface PickerData {
   regions: Region[];
   provinces: Map<string, Province>;
   map: NationalMap;
+  /** How each region and province plays (src/provinceRules.ts); null when the file could not be read. */
+  rules: RulesData | null;
 }
 
 interface Scene {
@@ -205,10 +208,13 @@ function loadData(): Promise<PickerData> {
   dataPromise ??= Promise.all([
     track(fetchJson<{ regions: Region[]; provinces: Province[] }>("data/thailand-provinces.json"), 0.08),
     track(fetchJson<unknown>("data/geo/thailand-provinces.topo.json"), 0.25),
-  ]).then(([json, topology]) => ({
+    // The cards can do without the rules, so a missing file only leaves them out
+    fetchJson<unknown>("data/province-rules.json").then((raw) => checkRulesData(raw).data, () => null),
+  ]).then(([json, topology, rules]) => ({
     regions: json.regions,
     provinces: new Map(json.provinces.map((p) => [p.id, p])),
     map: projectNationalMap(topology),
+    rules,
   }));
   dataPromise.catch(() => {
     dataPromise = null; // Let the next open try again
@@ -1241,6 +1247,16 @@ function showTerrainHero(province: Province, map: PresetMap): void {
   }
   body.appendChild(list);
   for (const note of resourceNotes(province.tags ?? [], map.stats)) body.appendChild(element("p", "ppNote", t(note)));
+  // What its region's and its own rules change, in numbers (src/provinceRules.ts)
+  const effects = data?.rules
+    ? ruleEffects(resolveRules(data.rules, province.region, province.id), (month) => t(`month.${month}`))
+    : [];
+  if (effects.length > 0) {
+    body.appendChild(element("h4", undefined, t("picker.rules")));
+    const rules = element("ul", "ppRules");
+    for (const effect of effects) rules.appendChild(element("li", effect.good ? "good" : "bad", t(effect.key, effect.params)));
+    body.appendChild(rules);
+  }
   const summary = element("p", "ppHeroExtra",
     `${t("picker.funds")} ${money(startingFunds(map.stats))} · ${t("picker.difficulty")} ${stars(difficultyStars(map.stats))}`);
   body.appendChild(summary);

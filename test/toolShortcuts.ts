@@ -5,7 +5,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { hasKey, setLanguage, t } from "../src/i18n/index";
-import { shortcutFor, TOOL_DESCRIPTIONS, TOOL_KEYS, toolTitle } from "../src/toolShortcuts";
+import { DEFAULT_RULES, toolPrices } from "../src/provinceRules";
+import { shortcutFor, showToolPrices, TOOL_DESCRIPTIONS, TOOL_KEYS, toolName, toolTitle } from "../src/toolShortcuts";
 
 const key = (code: string, modifiers: Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) =>
   ({ code, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...modifiers });
@@ -39,7 +40,17 @@ describe("tool shortcuts", () => {
     expect(first).toBe("ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)");
     expect(second.startsWith("เขตที่อยู่อาศัย")).toBe(false); // the About page's "Name: " is left out
     expect(second.length).toBeGreaterThan(10);
-    expect(toolTitle("airport", null).split("\n")[0]).toBe(t("tool.airport"));
+    expect(toolTitle("airport", null).split("\n")[0]).toBe("สนามบิน ฿10K");
+  });
+
+  test("show a city's own prices on the buttons", () => {
+    setLanguage("th");
+    expect(toolName("residential")).toBe("ที่อยู่อาศัย ฿100");
+    showToolPrices({ ...toolPrices(DEFAULT_RULES), residential: 60, coal: 4500 });
+    expect(toolName("residential")).toBe("ที่อยู่อาศัย ฿60");
+    expect(toolName("coal")).toBe("โรงไฟฟ้าถ่านหิน ฿4.5K");
+    expect(toolName("query")).toBe(t("tool.query"));
+    showToolPrices(toolPrices(DEFAULT_RULES));
   });
 
   test("every shortcut's tool has a button and a name", () => {
