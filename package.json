@@ -25,6 +25,7 @@
     "geo:edges": "node scripts/geo/edges.mjs",
     "geo:neighbors": "node scripts/geo/neighbors.mjs",
     "geo:download": "node scripts/geo/provinceData.mjs",
+    "geo:extract": "node scripts/geo/osmExtract.mjs",
     "geo:maps": "node scripts/geo/maps.mjs",
     "geo:review": "webpack serve --mode development --open /geo-review.html",
     "test:geo": "node --test \"test/geo/*.test.mjs\"",

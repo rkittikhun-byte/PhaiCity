@@ -16,7 +16,10 @@ export const WOODS = 2;
 
 // Fine cells per tile edge for measuring how much of a tile is water or woods
 const FINE_FACTOR = 4;
-const ROAD_RANK = { motorway: 0, trunk: 1, primary: 2 };
+// Slip roads only join the main roads up when finding the way between towns, at their road's rank
+const ROAD_RANK = {
+  motorway: 0, trunk: 1, primary: 2, motorway_link: 0, trunk_link: 1, primary_link: 2,
+};
 // Rivers drawn as a line of water are the big ones: แม่น้ำ, ลำน้ำ, น้ำ… and ลำ… but not streams or ditches
 // (ห้วย, ลำห้วย, ลำราง, ลำธาร) or canals (คลอง), long enough on the map to matter
 const RIVER_NAME = /^(แม่น้ำ|ลำน้ำ|น้ำ|ลำ(?!ห้วย|ราง|ธาร|คลอง))/u;
@@ -27,13 +30,16 @@ const MIN_WATERWAY_TILES = 10;
 // How far beyond the province a road or railway is drawn before it is cut, in tiles: enough to show where it goes
 const OUTSIDE_TILES = 20;
 const OUTSIDE_CUT_TILES = 6;
+// Land in a neighbouring country's outline counts as abroad only this far from every Thai province's outline
+const ABROAD_CLEAR_M = 1500;
 
 /**
  * Builds the map. shape: the province's { rings, bbox }; shapes: every province's; grid: makeGrid(…);
- * layers: { roads, rail, coast, rivers, water, forest } slim Overpass elements around the map;
- * town and towns: { lat, lon } of this province's town and of every province's (by id).
+ * layers: { roads, links, rail, coast, rivers, water, forest } slim Overpass elements around the map;
+ * town and towns: { lat, lon } of this province's town and of every province's (by id); neighbors: the ids of the
+ * neighbouring provinces (data/thailand-provinces.json); foreign: the neighbouring countries' { rings, bbox }.
  */
-export function buildProvinceMap({ id, shape, shapes, grid, layers, town, towns }) {
+export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid, layers, town, towns, neighbors = [] }) {
   const { width, height, tileSizeM } = grid;
   const toTiles = (lon, lat) => {
     const { x, y } = grid.project(lat, lon);
@@ -46,15 +52,19 @@ export function buildProvinceMap({ id, shape, shapes, grid, layers, town, towns 
   const net = createNetwork(width, height, isWater);
   const problems = [];
 
-  // Railways first: roads must cross them on straight track
-  const railExits = layRails(net, layers.rail, toTiles, inside, problems, (x, y) => {
+  const provinceOfTile = (x, y) => {
     const { lat, lon } = grid.unproject((x + 0.5) * tileSizeM, (y + 0.5) * tileSizeM);
     return provinceAt(lon, lat, shapes);
-  });
+  };
+  const abroad = landAbroad(cells, width, height, abroadMask(grid, shapes, foreign));
+
+  // Railways first: roads must cross them on straight track
+  const railExits = layRails(net, layers.rail, toTiles, inside, problems, provinceOfTile, abroad);
 
   // The town's tile, and one road to each neighbour from it
   const townTile = town ? nearestInsideLand(cells, inside, width, height, ...toTiles(town.lon, town.lat)) : null;
-  const roadExits = townTile === null ? [] : layLinks({ id, shape, shapes, grid, layers, net, inside, town, towns, townTile, problems });
+  const roadExits = townTile === null ? []
+    : layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad });
 
   thinBlocks(net, 'rail');
   thinBlocks(net, 'road');
@@ -227,7 +237,7 @@ function replaceSmallRegions(cells, width, height, include, replacement) {
  * Every main line that runs through the province (not sidings, yards or spurs), cut OUTSIDE_CUT_TILES beyond the
  * province where it would run on outside it for more than OUTSIDE_TILES. Returns where they leave the province.
  */
-function layRails(net, rail, toTiles, inside, problems, provinceOfTile) {
+function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad) {
   const { width, height } = net;
   const ways = rail
     .filter((element) => element.type === 'way' && !element.tags.service && element.points.length >= 4)
@@ -243,7 +253,9 @@ function layRails(net, rail, toTiles, inside, problems, provinceOfTile) {
   for (const chain of buildChains(ways)) {
     const points = chain.points.map(([lon, lat]) => toTiles(lon, lat));
     for (const part of clipLine(points, width, height)) {
-      const kept = nearProvince(part.points, isInside);
+      const near = nearProvince(part.points, isInside);
+      if (!near) continue;
+      const kept = abroad.cut(near, isInside);
       if (!kept) continue;
       const anchorOf = (point, key) => {
         const cacheKey = key ?? `${Math.floor(point[0])},${Math.floor(point[1])}`;
@@ -302,18 +314,103 @@ function nearProvince(points, isInside) {
 }
 
 /**
- * A line that starts inside the province, cut OUTSIDE_CUT_TILES after it first leaves when it would run on outside
- * for more than OUTSIDE_TILES.
+ * A road (points in tiles) cut OUTSIDE_CUT_TILES past its point exitIndex, the first outside the province after
+ * it leaves for the last time, when it would run on outside for more than OUTSIDE_TILES.
  */
-function cutAfterLeaving(points, isInside) {
+function cutAfterExit(points, exitIndex) {
   const along = [0];
   for (let i = 1; i < points.length; i++) {
     along.push(along[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
   }
   const total = along[along.length - 1];
-  const leaves = points.findIndex((point, i) => i > 0 && isInside(points[i - 1]) && !isInside(point));
-  if (leaves < 0 || total - along[leaves] <= OUTSIDE_TILES) return { points };
-  return { points: sliceAlong(points, along, 0, along[leaves] + OUTSIDE_CUT_TILES) };
+  if (total - along[exitIndex] <= OUTSIDE_TILES) return points;
+  return sliceAlong(points, along, 0, along[exitIndex] + OUTSIDE_CUT_TILES);
+}
+
+/**
+ * Tiles of land abroad: in a neighbouring country's outline and at least ABROAD_CLEAR_M from every Thai province's.
+ * Both outlines are generalised and overlap along the border by up to a kilometre or so, and a road on the Thai bank
+ * of the Mekong must not count as abroad.
+ */
+function abroadMask(grid, shapes, foreign) {
+  const { width, height, tileSizeM } = grid;
+  const fill = (outlines) => {
+    const mask = createMask(width, height);
+    const [west, south, east, north] = grid.bbox();
+    for (const { rings, bbox } of outlines) {
+      if (bbox[2] < west || bbox[0] > east || bbox[3] < south || bbox[1] > north) continue;
+      const segments = [];
+      for (const ring of rings) {
+        for (let i = 1; i < ring.length; i++) {
+          const a = grid.project(ring[i - 1][1], ring[i - 1][0]);
+          const b = grid.project(ring[i][1], ring[i][0]);
+          segments.push([a.x, a.y, b.x, b.y]);
+        }
+      }
+      fillPolygon(mask, tileSizeM, segments);
+    }
+    return mask.data;
+  };
+  const thai = fill(shapes.values());
+  const country = fill(foreign.values());
+  // Distance in tiles from Thai land, out to the clearance needed
+  const clear = Math.max(2, Math.ceil(ABROAD_CLEAR_M / tileSizeM));
+  const distance = new Uint8Array(width * height).fill(255);
+  let front = [];
+  for (let i = 0; i < thai.length; i++) if (thai[i]) { distance[i] = 0; front.push(i); }
+  for (let d = 1; d <= clear && front.length; d++) {
+    const next = [];
+    for (const i of front) {
+      const x = i % width;
+      for (const j of [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width]) {
+        if (j >= 0 && j < distance.length && distance[j] > d) { distance[j] = d; next.push(j); }
+      }
+    }
+    front = next;
+  }
+  return (i) => country[i] === 1 && distance[i] >= clear;
+}
+
+/**
+ * Lines (points in tiles) cut back to the last dry ground on the Thai side before they reach land abroad, so a
+ * railway over a border river stops at the Thai bank, while a bridge to another Thai province is kept.
+ */
+function landAbroad(cells, width, height, isAbroad) {
+  const classify = ([x, y]) => {
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    if (tx < 0 || ty < 0 || tx >= width || ty >= height) return 'water';
+    const i = ty * width + tx;
+    return cells[i] === WATER ? 'water' : isAbroad(i) ? 'abroad' : 'thai';
+  };
+  /** The line up to the last dry Thai point before land abroad that comes after index from. */
+  const cutTail = (points, from = 0) => {
+    let lastThai = -1;
+    for (let i = 0; i < points.length; i++) {
+      const kind = classify(points[i]);
+      if (kind === 'thai') lastThai = i;
+      else if (kind === 'abroad' && i >= from) return lastThai >= 1 ? points.slice(0, lastThai + 1) : points.slice(0, 1);
+    }
+    return points;
+  };
+  return {
+    cutTail,
+    /** Whether a point (in tiles) is on land abroad. */
+    isAbroad: (point) => classify(point) === 'abroad',
+    /** Both ends of a stretch from nearProvince cut back from land abroad; null when nothing inside is left. */
+    cut(stretch, isInside) {
+      const firstInside = stretch.points.findIndex(isInside);
+      if (firstInside < 0) return null;
+      const tail = cutTail(stretch.points, firstInside);
+      const reversed = [...tail].reverse();
+      const head = cutTail(reversed, reversed.length - 1 - firstInside).reverse();
+      return {
+        points: head,
+        startCut: stretch.startCut || head.length < tail.length,
+        endCut: stretch.endCut || tail.length < stretch.points.length,
+      };
+    },
+  };
 }
 
 /** The part of a line between two distances along it. */
@@ -336,7 +433,10 @@ const tileOf = ([x, y], width, height) => [
   Math.min(height - 1, Math.max(0, Math.floor(y))),
 ];
 
-/** Where a path of tiles crosses the province's edge: the inside tile, and the outside tile next to it. */
+/**
+ * Where a path of tiles crosses the province's edge: the inside tile, the outside tile next to it, and whether the
+ * path is leaving (going from inside to outside) there.
+ */
 function boundaryExits(path, inside, width) {
   const exits = [];
   for (let k = 1; k < path.length; k++) {
@@ -344,25 +444,30 @@ function boundaryExits(path, inside, width) {
     const b = path[k];
     if (inside[a] === inside[b]) continue;
     const [inner, outer] = inside[a] ? [a, b] : [b, a];
-    exits.push({ x: inner % width, y: Math.floor(inner / width), outsideX: outer % width, outsideY: Math.floor(outer / width) });
+    exits.push({
+      x: inner % width, y: Math.floor(inner / width), outsideX: outer % width, outsideY: Math.floor(outer / width),
+      leaving: inside[a] === 1,
+    });
   }
   return exits;
 }
 
 // ── Roads to the neighbours ────────────────────────────────────────────────────────────────────────────────────
 
-function layLinks({ id, shape, shapes, grid, layers, net, inside, town, towns, townTile, problems }) {
+function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad }) {
   const { width, height, tileSizeM, widthM, heightM } = grid;
-  const ways = layers.roads
+  const ways = [...layers.roads, ...(layers.links ?? [])]
     .filter((element) => element.type === 'way' && ROAD_RANK[element.tags.highway] !== undefined)
     .map((element) => ({ points: element.points, rank: ROAD_RANK[element.tags.highway], ref: element.tags.ref ?? '' }));
   const nodes = roadGraph(ways, (lat, lon) => grid.project(lat, lon));
 
-  const rings = shape.rings.map((ring) => ring.map(([lon, lat]) => {
+  const indexOf = (rings) => polygonIndex(rings.map((ring) => ring.map(([lon, lat]) => {
     const { x, y } = grid.project(lat, lon);
     return [x, y];
-  }));
-  const index = polygonIndex(rings, 2000);
+  })), 2000);
+  const index = indexOf(shape.rings);
+  const neighborIndexes = neighbors.filter((neighbor) => shapes.has(neighbor))
+    .map((neighbor) => [neighbor, indexOf(shapes.get(neighbor).rings)]);
   const insideOf = (node) => {
     if (node.inside === undefined) node.inside = index.contains(node.x, node.y);
     return node.inside;
@@ -371,10 +476,15 @@ function layLinks({ id, shape, shapes, grid, layers, net, inside, town, towns, t
   const { links, townRoadM } = provinceLinks({
     nodes,
     inside: insideOf,
-    neighborOf: (node) => {
-      const neighbor = provinceAt(node.lon, node.lat, shapes);
-      return neighbor === id ? null : neighbor;
+    provinceOf: (node) => {
+      if (node.province === undefined) {
+        // A neighbour, or 'abroad' (never on a road between two provinces), or null for the sea and gaps
+        node.province = neighborIndexes.find(([, neighborIndex]) => neighborIndex.contains(node.x, node.y))?.[0] ??
+          (abroad.isAbroad([node.x / grid.tileSizeM, node.y / grid.tileSizeM]) ? 'abroad' : null);
+      }
+      return node.province;
     },
+    neighbors: neighborIndexes.map(([neighbor]) => neighbor),
     town: project(town),
     townOf: (neighbor) => (towns.get(neighbor) ? project(towns.get(neighbor)) : null),
     onMap: (node) => node.x >= 0 && node.y >= 0 && node.x <= widthM && node.y <= heightM,
@@ -382,19 +492,16 @@ function layLinks({ id, shape, shapes, grid, layers, net, inside, town, towns, t
   if (townRoadM) problems.push(`the nearest main road is ${(townRoadM / 1000).toFixed(1)} km from the town`);
 
   const exits = [];
-  const isInside = ([x, y]) => {
-    const tx = Math.floor(x);
-    const ty = Math.floor(y);
-    return tx >= 0 && ty >= 0 && tx < width && ty < height && inside[ty * width + tx] === 1;
-  };
   // The most important roads are laid first, so the others join them
   links.sort((a, b) => a.rank - b.rank);
   for (const link of links) {
-    const points = link.points.map(([x, y]) => [x / tileSizeM, y / tileSizeM]);
+    // The road leaves from the town and runs as far as the map's edge, or is cut a little beyond where it leaves
+    // the province for the last time
+    const points = abroad.cutTail(cutAfterExit(link.points.map(([x, y]) => [x / tileSizeM, y / tileSizeM]),
+      link.exitIndex), link.exitIndex);
     const parts = clipLine(points, width, height);
     if (!parts.length) continue;
-    // The road leaves from the town and runs as far as the map's edge, or is cut a little beyond the province
-    const line = cutAfterLeaving(parts[0].points, isInside);
+    const line = parts[0];
     const goalPoint = line.points[line.points.length - 1];
     const goal = anchorTile(net, 'road', ...tileOf(goalPoint, width, height));
     const path = route(net, 'road', [[(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5], ...line.points], townTile, goal);
@@ -403,7 +510,7 @@ function layLinks({ id, shape, shapes, grid, layers, net, inside, town, towns, t
       continue;
     }
     layPath(net, 'road', path);
-    const crossing = boundaryExits(path, inside, width)[0];
+    const crossing = boundaryExits(path, inside, width).filter((exit) => exit.leaving).at(-1);
     if (crossing) exits.push({ neighbor: link.neighbor, kind: 'road', ref: link.ref, x: crossing.x, y: crossing.y });
     else problems.push(`road to ${link.neighbor} never leaves the province on the map`);
   }

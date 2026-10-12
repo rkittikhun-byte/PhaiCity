@@ -176,7 +176,8 @@ describe('roads to the neighbours', () => {
     const { links } = provinceLinks({
       nodes,
       inside: (node) => insideIndex.contains(node.x, node.y),
-      neighborOf: (node) => (node.x > 100 ? 'east' : node.y < 0 ? 'north' : null),
+      provinceOf: (node) => (node.x > 100 ? 'east' : node.y < 0 ? 'north' : null),
+      neighbors: ['east', 'north'],
       town: { x: 50, y: 50 },
       townOf: (id) => towns[id] ?? null,
       onMap: (node) => node.x >= -20 && node.x <= 140 && node.y >= -20 && node.y <= 120,

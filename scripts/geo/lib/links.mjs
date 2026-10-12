@@ -13,6 +13,19 @@ import { MinHeap } from './routing.mjs';
 const CLASS_WEIGHT = [1, 1, 1.25]; // motorway, trunk, primary
 /** How near the town a road must pass to start from it; further away, the nearest road point is used anyway. */
 const TOWN_REACH_M = 5000;
+/**
+ * Roads outside the province cost this many times their length on the way to a border crossing: the way keeps
+ * inside when it can, but may step out where a road runs along the border, in and out of it.
+ */
+const OUTSIDE_WEIGHT = 4;
+/**
+ * Main roads often meet through a smaller road the graph does not have: a main road that ends within this distance
+ * of another one is joined to it, at GAP_WEIGHT times the straight distance.
+ */
+const GAP_M = 500;
+const GAP_WEIGHT = 1.5;
+/** Getting from the town's middle to a main road near it costs this many times the straight distance. */
+const TOWN_WEIGHT = 1.5;
 
 /** Even-odd test of a point against rings, with the rings' edges sorted into horizontal bands for speed. */
 export function polygonIndex(rings, bandSize) {
@@ -90,23 +103,60 @@ export function roadGraph(ways, project) {
       previous = node;
     }
   }
+  joinGaps(nodes);
   return nodes;
 }
 
-/** Shortest weighted distances from a node, over nodes allowed by keep(node); with the edge each was reached by. */
-function shortestFrom(start, keep = () => true) {
-  const distance = new Map([[start, 0]]);
+/** Joins every dead end of a main road to the nearest point of another road within GAP_M (see GAP_M). */
+function joinGaps(nodes) {
+  const cells = new Map();
+  const cellOf = (x, y) => `${Math.floor(x / GAP_M)},${Math.floor(y / GAP_M)}`;
+  for (const node of nodes.values()) {
+    const key = cellOf(node.x, node.y);
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(node);
+  }
+  for (const node of nodes.values()) {
+    if (node.edges.length !== 1) continue;
+    const ownWay = node.edges[0].way;
+    const cx = Math.floor(node.x / GAP_M);
+    const cy = Math.floor(node.y / GAP_M);
+    let nearest = null;
+    let nearestDistance = GAP_M;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        for (const other of cells.get(`${cx + dx},${cy + dy}`) ?? []) {
+          if (other === node || other.edges.some((edge) => edge.way === ownWay)) continue;
+          const distance = Math.hypot(other.x - node.x, other.y - node.y);
+          if (distance < nearestDistance) { nearest = other; nearestDistance = distance; }
+        }
+      }
+    }
+    if (!nearest) continue;
+    const weight = nearestDistance * GAP_WEIGHT;
+    node.edges.push({ to: nearest, weight, way: ownWay });
+    nearest.edges.push({ to: node, weight, way: ownWay });
+  }
+}
+
+/**
+ * Shortest weighted distances from a node, each edge costing costOf(edge, from) (Infinity to leave it out), with the
+ * edge each node was reached by; nodes further than maxCost are not looked at. start may also be a Map of several
+ * nodes to what reaching each already cost.
+ */
+function shortestFrom(start, costOf = (edge) => edge.weight, maxCost = Infinity) {
+  const distance = start instanceof Map ? new Map(start) : new Map([[start, 0]]);
   const via = new Map();
   const queue = new MinHeap();
-  queue.push(start, 0);
+  for (const [node, cost] of distance) queue.push(node, cost);
   const done = new Set();
   while (queue.size > 0) {
     const [node, cost] = queue.pop();
     if (done.has(node)) continue;
     done.add(node);
     for (const edge of node.edges) {
-      if (!keep(edge.to)) continue;
-      const next = cost + edge.weight;
+      const next = cost + costOf(edge, node);
+      if (next > maxCost) continue;
       if (next < (distance.get(edge.to) ?? Infinity)) {
         distance.set(edge.to, next);
         via.set(edge.to, { from: node, edge });
@@ -128,54 +178,76 @@ function pathTo(via, node) {
  * through the border crossing and on to where the road leaves the map (or ends).
  * - nodes: roadGraph of the main roads around the map
  * - inside(node): whether a node is in the province
- * - neighborOf(node): the province an outside node is in, or null
+ * - provinceOf(node): which neighbouring province a node outside is in, or null (the sea, another country, a gap)
+ * - neighbors: the neighbouring provinces' ids
  * - town: { x, y } in metres; townOf(id): another province's town in metres, or null
  * - onMap(node): whether a node is on the map
+ * For each neighbour the search keeps to the province, that neighbour and land in neither (a bridge, a strait), so
+ * the road found leads straight from one to the other; its last crossing of the border is where it leaves.
  */
-export function provinceLinks({ nodes, inside, neighborOf, town, townOf, onMap }) {
-  // Start from the main road nearest the town
-  let start = null;
+export function provinceLinks({ nodes, inside, provinceOf, neighbors, town, townOf, onMap }) {
+  // Start from every main road near the town, as the town's own streets lead to all of them; with none near it,
+  // from the nearest
+  let nearest = null;
   let startDistance = Infinity;
+  const starts = new Map();
   for (const node of nodes.values()) {
     if (!inside(node)) continue;
     const distance = Math.hypot(node.x - town.x, node.y - town.y);
-    if (distance < startDistance) { start = node; startDistance = distance; }
+    if (distance < startDistance) { nearest = node; startDistance = distance; }
+    if (distance <= TOWN_REACH_M) starts.set(node, distance * TOWN_WEIGHT);
   }
-  if (!start) return { links: [], townRoadM: null };
-
-  // The best crossing into each neighbour: the shortest way from the town to it, plus the straight distance from
-  // it to the neighbour's town
-  const { distance, via } = shortestFrom(start, inside);
-  const best = new Map();
-  for (const [node, cost] of distance) {
-    for (const edge of node.edges) {
-      if (inside(edge.to)) continue;
-      const neighbor = neighborOf(edge.to);
-      if (!neighbor) continue;
-      const theirTown = townOf(neighbor);
-      const onward = theirTown ? Math.hypot(edge.to.x - theirTown.x, edge.to.y - theirTown.y) : 0;
-      const score = cost + edge.weight + onward;
-      if (score < (best.get(neighbor)?.score ?? Infinity)) best.set(neighbor, { score, from: node, edge });
-    }
-  }
+  if (!nearest) return { links: [], townRoadM: null };
+  if (!starts.size) starts.set(nearest, 0);
 
   const links = [];
-  for (const [neighbor, { from, edge }] of best) {
-    const inward = pathTo(via, from);
-    // On from the crossing, outside the province, to where the road leaves the map, or as far as it goes
-    const outside = shortestFrom(edge.to, (node) => !inside(node));
-    let end = null;
-    let endCost = Infinity;
-    for (const [node, cost] of outside.distance) {
-      if (!onMap(node) && cost < endCost) { end = node; endCost = cost; }
+  for (const neighbor of neighbors) {
+    // Roads outside the province cost more, and those in a third province cannot be used
+    const allowed = (node) => inside(node) || provinceOf(node) === neighbor || provinceOf(node) === null;
+    const cost = (edge, from) => {
+      if (!allowed(edge.to)) return Infinity;
+      // A stretch across the border counts as half outside
+      const outside = (inside(from) ? 0 : 0.5) + (inside(edge.to) ? 0 : 0.5);
+      return edge.weight * (1 + (OUTSIDE_WEIGHT - 1) * outside);
+    };
+    const { distance, via } = shortestFrom(starts, cost);
+
+    // The point in the neighbour that is cheapest to reach and then nearest its town
+    const theirTown = townOf(neighbor);
+    let target = null;
+    let bestScore = Infinity;
+    for (const [node, reached] of distance) {
+      if (provinceOf(node) !== neighbor) continue;
+      const score = reached + (theirTown ? Math.hypot(node.x - theirTown.x, node.y - theirTown.y) : 0);
+      if (score < bestScore) { target = node; bestScore = score; }
     }
-    if (!end) {
-      endCost = -Infinity;
-      for (const [node, cost] of outside.distance) if (cost > endCost) { end = node; endCost = cost; }
+    if (!target) continue;
+    const path = pathTo(via, target);
+
+    // On from there into the neighbour, to where the road leaves the map or as far as it goes there. A road along the
+    // border may run back into the province on the way; it never goes into a third province.
+    const onward = shortestFrom(target, cost);
+    let last = null;
+    let lastCost = Infinity;
+    for (const [node, reached] of onward.distance) {
+      if (!onMap(node) && provinceOf(node) === neighbor && reached < lastCost) { last = node; lastCost = reached; }
     }
-    const outward = pathTo(outside.via, end);
-    const points = [...inward, ...outward].map((node) => [node.x, node.y]);
-    links.push({ neighbor, ref: edge.way.ref ?? '', rank: edge.way.rank, points });
+    if (!last) {
+      lastCost = -Infinity;
+      for (const [node, reached] of onward.distance) {
+        if (provinceOf(node) === neighbor && reached > lastCost) { last = node; lastCost = reached; }
+      }
+    }
+    const nodesOnWay = [...path, ...pathTo(onward.via, last).slice(1)];
+
+    // Where it leaves the province for the last time, and the road's number there
+    let exit = -1;
+    for (let k = 1; k < nodesOnWay.length; k++) if (inside(nodesOnWay[k - 1]) && !inside(nodesOnWay[k])) exit = k;
+    if (exit < 0) continue;
+    const crossing = nodesOnWay[exit - 1].edges.find((edge) => edge.to === nodesOnWay[exit]);
+
+    const points = nodesOnWay.map((node) => [node.x, node.y]);
+    links.push({ neighbor, ref: crossing.way.ref ?? '', rank: crossing.way.rank, points, exitIndex: exit });
   }
   links.sort((a, b) => a.neighbor.localeCompare(b.neighbor));
   return { links, townRoadM: startDistance > TOWN_REACH_M ? startDistance : 0 };

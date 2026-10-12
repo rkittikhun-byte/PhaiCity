@@ -52,6 +52,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:national` | Thai province shapes from Natural Earth → `data/geo/thailand-provinces.topo.json` |
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
 | `npm run geo:download` | OpenStreetMap main roads, railways, coast, rivers, lakes and forest for all of Thailand, in 1° squares → `data/geo/cache/overpass/national/` (gitignored; about 300 MB; cached, so a rerun downloads nothing) |
+| `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
 | `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |

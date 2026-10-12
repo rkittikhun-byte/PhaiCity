@@ -42,7 +42,7 @@ describe("difficulty", () => {
   test("follows the share of open land", () => {
     expect(difficultyStars({ land: 0.95, water: 0.05, woods: 0 })).toBe(1);
     expect(difficultyStars({ land: 0.8, water: 0.1, woods: 0.1 })).toBe(2);
-    expect(difficultyStars({ land: 0.6, water: 0.4, woods: 0 })).toBe(3);
+    expect(difficultyStars({ land: 0.5, water: 0.2, woods: 0.3 })).toBe(3);
   });
 
   test("most provinces are easy and a few are hard", () => {
@@ -103,17 +103,17 @@ describe("region text and zoom", () => {
     expect(groupViewBox([])).toEqual([0, 0, 0, 0]);
   });
 
-  test("each starting map lies inside its own province on the national map", () => {
+  test("each province's map covers the whole province on the national map", () => {
     const byId = new Map(map.provinces.map((p) => [p.id, p]));
     for (const preset of presets) {
       const [x, y, w, h] = projectBox(preset.bbox);
       const bounds = byId.get(preset.provinceId)!.bounds;
-      expect(w).toBeGreaterThan(1.5);
-      expect(w).toBeLessThan(2.2);
-      expect(x + w / 2).toBeGreaterThanOrEqual(bounds[0]);
-      expect(x + w / 2).toBeLessThanOrEqual(bounds[2]);
-      expect(y + h / 2).toBeGreaterThanOrEqual(bounds[1]);
-      expect(y + h / 2).toBeLessThanOrEqual(bounds[3]);
+      // The national outlines are simplified a little, so allow a sliver
+      const slack = Math.max(w, h) * 0.01;
+      expect(x).toBeLessThanOrEqual(bounds[0] + slack);
+      expect(y).toBeLessThanOrEqual(bounds[1] + slack);
+      expect(x + w).toBeGreaterThanOrEqual(bounds[2] - slack);
+      expect(y + h).toBeGreaterThanOrEqual(bounds[3] - slack);
     }
   });
 });

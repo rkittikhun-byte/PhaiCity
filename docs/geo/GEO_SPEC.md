@@ -49,7 +49,7 @@ Only sources on this list may be used. Record every source used in `data/CREDITS
 | Data | Source | License | Obligations |
 |---|---|---|---|
 | Province boundaries | Natural Earth 1:10m Admin-1 states/provinces | Public domain | None (credit is courteous) |
-| Water, coast, forest, main roads, railways, airports, city centers | OpenStreetMap via the Overpass API | ODbL 1.0 | Visible in-game credit "© OpenStreetMap contributors"; files derived from OSM (`data/maps/`, `data/geo/province-centers.json`) are published under ODbL (`data/maps/LICENSE.md`) |
+| Water, coast, forest, main roads, railways, airports, city centers | OpenStreetMap, via the Overpass API or the Geofabrik extract of Thailand (`download.geofabrik.de/asia/thailand-*.osm.pbf`) | ODbL 1.0 | Visible in-game credit "© OpenStreetMap contributors"; files derived from OSM (`data/maps/`, `data/geo/province-centers.json`) are published under ODbL (`data/maps/LICENSE.md`) |
 | Elevation (later) | Copernicus DEM GLO-30, or AWS Terrain Tiles | Check at download time | Record the required attribution in `data/CREDITS.md` |
 
 **Forbidden:**
@@ -71,7 +71,9 @@ If unsure, stop and ask the project owner.
 | `data/maps/TH-xx.json` | Province map (format in section 5) | yes |
 | `data/maps/LICENSE.md` | States that `data/maps/` is licensed under ODbL 1.0, with OSM attribution | yes |
 | `data/geo/cache/` | Raw downloads (Natural Earth, Overpass) and preview pictures | **no** (gitignored) |
-| `data/geo/cache/overpass/national/<layer>/<lat>_<lon>.json` | One Overpass layer for one 1° square, trimmed to what the maps use | no |
+| `data/geo/cache/overpass/national/<layer>/<lat>_<lon>.json` | One layer for one 1° square, trimmed to what the maps use: from Overpass (`geo:download`) or the extract (`geo:extract`), the same form | no |
+| `data/geo/cache/pbf/thailand-*.osm.pbf` | The Geofabrik extract of Thailand, read by `scripts/geo/lib/pbf.mjs` (no dependency) | no |
+| `data/geo/cache/neighbor-countries.geojson` | Myanmar, Laos, Cambodia and Malaysia from Natural Earth (`geo:national`), only to stop roads at the border; never drawn | no |
 | `data/geo/cache/preview/TH-xx.png` | `geo:maps -- --preview` pictures, for checking maps by eye | no |
 
 ## 5. Province map format
@@ -162,15 +164,22 @@ Both are drawn so the game can build them as they are (`scripts/geo/lib/routing.
 province. Where a line would run on outside the province for more than 20 tiles, it stops 6 tiles past the border.
 
 **Roads to the neighbours (ถนนลูกรัง, owner 12 Oct 2026):** one per neighbouring province, and no other road.
-1. The main roads (`highway=motorway|trunk|primary`, no `_link`s) form a graph; primary roads weigh 1.25 times
-   their length, so routes keep to the bigger roads.
-2. From the main-road point nearest the provincial town, the shortest way to every border crossing is found,
-   without leaving the province.
-3. For each neighbour, the crossing with the smallest *way from the town + straight distance on to the neighbour's
-   town* carries the road. That is the real road between the two towns, as far as the province goes.
-4. The road is drawn from the town's tile through that crossing and on to the map's edge, or 6 tiles past the
-   border when the map's edge is more than 20 tiles further.
+1. The main roads (`highway=motorway|trunk|primary`) and their slip roads (`_link`, only to join them up) form a
+   graph; primary roads weigh 1.25 times their length, so routes keep to the bigger roads. A main road that ends
+   within 500 m of another is joined to it (they often meet through a smaller road).
+2. For each neighbour, the cheapest way is found from every main road within 5 km of the town to the neighbour,
+   through the province, that neighbour and land in neither (a strait, a river); never through a third province
+   or abroad. Road outside the province costs 4 times its length, so the way keeps inside where it can.
+3. The point in the neighbour reached with the smallest *cost + straight distance to the neighbour's town* ends
+   the way: the real road between the two towns, as far as the map goes. The road then runs on into the
+   neighbour, to the map's edge or as far as it goes there.
+4. Where the road leaves the province for the last time is its exit. It is drawn from the town's tile through the
+   exit to the map's edge, or 6 tiles past the exit when the map's edge is more than 20 tiles further.
 5. A neighbour with no main road across the border gets no road (`neighbor_unlinked`).
+
+**Not abroad:** roads and railways stop at the last dry Thai ground before land abroad, so the railway over the
+Friendship Bridge ends at the Nong Khai bank. Land abroad is inside a neighbouring country's outline and at least
+1.5 km from every Thai province's: both outlines are generalised and overlap along the border.
 
 Roads are laid after the railways, the most important first, so later roads join the earlier ones.
 
@@ -250,8 +259,8 @@ Every flag must appear on the review page and in the final report.
    - send a descriptive User-Agent
    - retry with backoff on 429/504
    - declare modest limits (`[timeout]`, `[maxsize]`); busy servers turn away greedy requests
-3. npm scripts exist for each step: `geo:national`, `geo:centers`, `geo:download`, `geo:maps`, `geo:review`
-   (`geo:edges` for the old maps).
+3. npm scripts exist for each step: `geo:national`, `geo:centers`, `geo:download` or `geo:extract`, `geo:maps`,
+   `geo:review` (`geo:edges` for the old maps).
 4. Unit tests cover RLE encode/decode, the projection, rasterizing a synthetic polygon and line, and routing.
 5. `npm test` and `npm run build` pass, and the game plays as before.
 6. No changes to existing license headers. New files get the PhaiCity header (see `docs/3d/MODEL_SPEC.md` section 8).

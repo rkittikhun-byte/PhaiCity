@@ -13,11 +13,12 @@ import { CityCommands, Command } from "../src/cityCommands";
 import { listCities, loadCity, saveCity } from "../src/cityStorage";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
-import { decodePresetCells } from "../src/geo/presetMap";
+import { decodePresetCells, decodePresetLayer } from "../src/geo/presetMap";
 import { MapGenerator } from "../src/mapGenerator.js";
 import * as Messages from "../src/messages";
 import { Random } from "../src/random";
 import { Simulation } from "../src/simulation.js";
+import { DIRT } from "../src/tileValues";
 
 const STEPS_PER_YEAR = 48 * 16; // 48 time units a year, 16 phases each
 
@@ -37,30 +38,45 @@ interface Sim {
   _constructSimData(): unknown;
 }
 
-type Map = { width: number; height: number; getTileValue(x: number, y: number): number };
+type Map = {
+  width: number;
+  height: number;
+  getTileValue(x: number, y: number): number;
+  town?: { x: number; y: number } | null;
+  insideProvince?: Uint8Array | null;
+};
 
 const SimulationClass = Simulation as unknown as new (map: unknown, level: number, speed: number, saved: unknown) => Sim;
 const constants = Simulation as unknown as { LEVEL_EASY: number; SPEED_FAST: number };
 
+/** A province's whole map as a new city gets it (src/splashScreen.js): roads, railways, its own tiles and town. */
 function provinceMap(id: string): Map {
   const preset = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data", "maps", `${id}.json`), "utf8"));
-  return (MapGenerator as unknown as { fromPresetCells(w: number, h: number, cells: Uint8Array): Map })
-    .fromPresetCells(preset.width, preset.height, decodePresetCells(preset));
+  const layer = (encoded?: string) => (encoded ? decodePresetLayer(encoded, preset.width, preset.height) : undefined);
+  const transport = layer(preset.transport);
+  const map = (MapGenerator as unknown as {
+    fromPresetCells(w: number, h: number, cells: Uint8Array, transport?: Uint8Array): Map & Record<string, unknown>;
+  }).fromPresetCells(preset.width, preset.height, decodePresetCells(preset), transport);
+  map.insideProvince = layer(preset.inside) ?? null;
+  map.nationalTransport = transport ?? null;
+  map.town = preset.town ?? null;
+  return map;
 }
 
-/** The top-left of a w × h area with no water (tile values 2–20) nearest the map's middle. */
+/** The top-left of a w × h area of bare land in the province (no water, woods, roads or rails) nearest its town. */
 function dryArea(map: Map, w: number, h: number): { x: number; y: number } {
   const dry = (x0: number, y0: number) => {
     for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
-      const tile = map.getTileValue(x, y);
-      if (tile >= 2 && tile <= 20) return false;
+      if (map.getTileValue(x, y) !== DIRT) return false;
+      if (map.insideProvince && !map.insideProvince[x + y * map.width]) return false;
     }
     return true;
   };
+  const centre = map.town ?? { x: map.width / 2, y: map.height / 2 };
   let best: { x: number; y: number } | null = null;
   let bestDistance = Infinity;
   for (let y = 2; y + h < map.height - 2; y += 3) for (let x = 2; x + w < map.width - 2; x += 3) {
-    const distance = Math.abs(x + w / 2 - map.width / 2) + Math.abs(y + h / 2 - map.height / 2);
+    const distance = Math.abs(x + w / 2 - centre.x) + Math.abs(y + h / 2 - centre.y);
     if (distance < bestDistance && dry(x, y)) {
       best = { x, y };
       bestDistance = distance;
@@ -136,7 +152,7 @@ describe("a long game on a real province map", () => {
   jest.setTimeout(240000);
 
   test("a town built by commands grows for ten years, saves, loads and plays on", () => {
-    const map = provinceMap("TH-50");
+    const map = provinceMap("TH-40"); // Khon Kaen: a wide plain round the town (Chiang Mai is mostly woods and hills)
     const { sim, commands, messages } = newGame(map);
     sim.budget.setFunds(60000);
     const area = dryArea(map, 32, 12);
@@ -156,10 +172,10 @@ describe("a long game on a real province map", () => {
 
     // Save as the game does (src/game.js save), into the many-cities storage, and load it back
     const store = new MemoryStore();
-    const saveData: Record<string, unknown> = { name: "เชียงใหม่", everClicked: true, provinceId: "TH-50", worldId: null, rulerRank: "muen" };
+    const saveData: Record<string, unknown> = { name: "ขอนแก่น", everClicked: true, provinceId: "TH-40", worldId: null, rulerRank: "muen" };
     (BaseTool as any).save(saveData);
     sim.save(saveData);
-    const id = saveCity(saveData, { name: "เชียงใหม่", provinceId: "TH-50", worldId: null, population: sim.evaluation.cityPop,
+    const id = saveCity(saveData, { name: "ขอนแก่น", provinceId: "TH-40", worldId: null, population: sim.evaluation.cityPop,
       funds: sim.budget.totalFunds, year: sim.getDate().year, month: sim.getDate().month, rank: "muen" }, null, store as any);
     expect(listCities(store as any).map((c) => c.id)).toEqual([id]);
 

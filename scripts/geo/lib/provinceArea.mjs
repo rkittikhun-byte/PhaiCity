@@ -5,7 +5,8 @@
 // A whole province as the play area (owner, 12 Oct 2026; GEO_SPEC section 2): its shape from the Natural Earth
 // file the national map is made from, its bounding box, and the scale that fits it into a game map.
 
-import { NATIONAL_FULL_GEOJSON, readJson } from './common.mjs';
+import fs from 'node:fs';
+import { FOREIGN_GEOJSON, NATIONAL_FULL_GEOJSON, readJson } from './common.mjs';
 import { METERS_PER_DEGREE_LAT, METERS_PER_DEGREE_LON_AT_EQUATOR } from './projection.mjs';
 
 /** About how many map tiles fall inside each province, whatever its size (a 200 × 200 map has 40,000 in all). */
@@ -77,6 +78,17 @@ export function provinceScale(bbox, areaM2) {
 }
 
 const roundUpSide = (tiles) => Math.ceil(tiles / SIDE_STEP_TILES) * SIDE_STEP_TILES;
+
+/** The neighbouring countries' land (npm run geo:national puts it in the cache): code → { rings, bbox }. */
+export function loadForeignShapes() {
+  if (!fs.existsSync(FOREIGN_GEOJSON)) throw new Error('Run npm run geo:national first: the neighbouring countries are missing');
+  const shapes = new Map();
+  for (const feature of readJson(FOREIGN_GEOJSON).features) {
+    const rings = ringsOf(feature.geometry);
+    shapes.set(feature.properties.iso_a2, { rings, bbox: ringsBbox(rings) });
+  }
+  return shapes;
+}
 
 /** Each province's shape from the national file: id → { rings, bbox, areaM2 }. */
 export function loadProvinceShapes() {

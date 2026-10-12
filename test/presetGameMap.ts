@@ -4,9 +4,11 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { decodePresetCells } from "../src/geo/presetMap";
+import { decodePresetCells, decodePresetLayer } from "../src/geo/presetMap";
 import { MapGenerator } from "../src/mapGenerator.js";
-import { DIRT, REDGE, RIVER, WATER_HIGH, WATER_LOW, WOODS_HIGH, WOODS_LOW } from "../src/tileValues";
+import {
+    DIRT, LASTRAIL, LASTROAD, RAILBASE, REDGE, RIVER, ROADBASE, WATER_HIGH, WATER_LOW, WOODS_HIGH, WOODS_LOW,
+} from "../src/tileValues";
 
 const L = 0;
 const W = 1;
@@ -66,10 +68,11 @@ describe("MapGenerator.fromPresetCells", () => {
         expect(() => MapGenerator.fromPresetCells(3, 3, [L, L])).toThrow();
     });
 
-    test("builds the real Chiang Mai preset at its full size, moat included", () => {
+    test("builds the real Chiang Mai map at its full size, with its rivers, roads and railway", () => {
         const file = path.join(__dirname, "..", "data", "maps", "TH-50.json");
         const preset = JSON.parse(fs.readFileSync(file, "utf8"));
-        const map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset));
+        const transport = decodePresetLayer(preset.transport, preset.width, preset.height);
+        const map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset), transport);
 
         let water = 0;
         for (let y = 0; y < map.height; y++) {
@@ -77,7 +80,18 @@ describe("MapGenerator.fromPresetCells", () => {
                 if (isWaterTile(map.getTileValue(x, y))) water++;
             }
         }
-        expect([map.width, map.height]).toEqual([200, 200]);
+        let roads = 0;
+        let rails = 0;
+        for (let y = 0; y < map.height; y++) {
+            for (let x = 0; x < map.width; x++) {
+                const value = map.getTileValue(x, y);
+                if (value >= ROADBASE && value <= LASTROAD) roads++;
+                if (value >= RAILBASE && value <= LASTRAIL) rails++;
+            }
+        }
+        expect([map.width, map.height]).toEqual([preset.width, preset.height]);
         expect(water).toBeGreaterThan(0);
+        expect(roads).toBeGreaterThan(0);
+        expect(rails).toBeGreaterThan(0);
     });
 });

@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR, MAPS_DIR, loadProvinces, resolveCenters, toRepoPath, writeJson } from './lib/common.mjs';
 import { encodePng } from './lib/png.mjs';
-import { loadProvinceShapes } from './lib/provinceArea.mjs';
+import { loadForeignShapes, loadProvinceShapes } from './lib/provinceArea.mjs';
 import { buildProvinceMap, WATER, WOODS } from './lib/provinceMap.mjs';
 import { encodeRle } from './lib/rle.mjs';
 import { CROSSING, RAIL, ROAD } from './lib/routing.mjs';
@@ -51,6 +51,7 @@ function flagsFor(province, result, neighborsByLand) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const shapes = loadProvinceShapes();
+  const foreign = loadForeignShapes();
   const centers = resolveCenters();
   const towns = new Map(Object.entries(centers).filter(([, center]) => center));
   const provinces = loadProvinces().filter((p) => !options.only || options.only.has(p.id));
@@ -65,7 +66,8 @@ async function main() {
     for (const layer of LAYER_NAMES) layers[layer] = loadLayer(layer, fetchBox, { partial: options.partial });
 
     const result = buildProvinceMap({
-      id: province.id, shape, shapes, grid, layers, town: centers[province.id], towns,
+      id: province.id, shape, shapes, foreign, grid, layers, town: centers[province.id], towns,
+      neighbors: province.neighbors,
     });
     const { flags, unlinked } = flagsFor(province, result, province.neighbors);
     const round = (v) => Math.round(v * 1e6) / 1e6;

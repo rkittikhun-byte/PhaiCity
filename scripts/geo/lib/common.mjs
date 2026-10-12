@@ -18,6 +18,8 @@ export const OVERRIDES_FILE = path.join(GEO_DIR, 'center-overrides.json');
 export const EDGES_FILE = path.join(GEO_DIR, 'neighbor-edges.json');
 export const NATIONAL_TOPO_FILE = path.join(GEO_DIR, 'thailand-provinces.topo.json');
 export const NATIONAL_FULL_GEOJSON = path.join(CACHE_DIR, 'thailand-provinces.full.geojson');
+// Myanmar, Laos, Cambodia and Malaysia, so province maps can stop roads at the border; never drawn (GEO_SPEC 11)
+export const FOREIGN_GEOJSON = path.join(CACHE_DIR, 'neighbor-countries.geojson');
 
 export const USER_AGENT = 'PhaiCity-geo/0.1 (+https://github.com/rkittikhun-byte/PhaiCity)';
 
@@ -27,7 +29,20 @@ export function readJson(file) {
 
 export function writeJson(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+  writeFileRetrying(file, JSON.stringify(data, null, 2) + '\n');
+}
+
+// On Windows a file watcher (the dev server copying data/) can hold a file for a moment; try again a few times
+export function writeFileRetrying(file, text, attempts = 6) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      fs.writeFileSync(file, text);
+      return;
+    } catch (error) {
+      if (attempt >= attempts || !['UNKNOWN', 'EBUSY', 'EPERM'].includes(error.code)) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250 * attempt);
+    }
+  }
 }
 
 export function loadProvinces() {

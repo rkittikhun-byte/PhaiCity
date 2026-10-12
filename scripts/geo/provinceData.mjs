@@ -17,7 +17,7 @@ import { loadProvinceShapes, provinceScale } from './lib/provinceArea.mjs';
 import { makeGrid, METERS_PER_DEGREE_LAT, METERS_PER_DEGREE_LON_AT_EQUATOR } from './lib/projection.mjs';
 
 /** Areas whose outline is shorter than this are too small to cover a tile of any province map. */
-const MIN_AREA_OUTLINE_M = 1000;
+export const MIN_AREA_OUTLINE_M = 1000;
 const big = `(if: length() > ${MIN_AREA_OUTLINE_M})`;
 
 // In the order they are downloaded: what the maps need most comes first
@@ -32,11 +32,13 @@ export const LAYERS = {
   forest: (bb) => `way["landuse"="forest"]${bb}${big}; relation["landuse"="forest"]${bb}${big};
     way["natural"="wood"]${bb}${big}; relation["natural"="wood"]${bb}${big};
     way["wetland"="mangrove"]${bb}${big}; relation["wetland"="mangrove"]${bb}${big};`,
+  // The slip roads that join the main roads at interchanges: only used to find the way between towns
+  links: (bb) => `way["highway"~"^(motorway|trunk|primary)_link$"]${bb};`,
   // Not downloaded unless asked for: the next class of road down, should the main ones leave a neighbour unlinked
   secondary: (bb) => `way["highway"="secondary"]${bb};`,
 };
 /** The layers the province maps are built from (geo:maps), downloaded in this order. */
-export const LAYER_NAMES = ['roads', 'rail', 'coast', 'rivers', 'water', 'forest'];
+export const LAYER_NAMES = ['roads', 'links', 'rail', 'coast', 'rivers', 'water', 'forest'];
 
 // What each request declares it may use. A busy server turns away requests that declare much more than they need
 // ("the server is probably too busy"), so the limits stay modest, and only the area layers get the larger ones.
@@ -49,7 +51,7 @@ export function layerQuery(layer, [west, south, east, north]) {
 }
 
 /** The tags the maps read; everything else is dropped before caching. */
-const KEPT_TAGS = new Set([
+export const KEPT_TAGS = new Set([
   'highway', 'railway', 'service', 'usage', 'ref', 'name', 'name:en', 'bridge', 'tunnel', 'layer',
   'waterway', 'natural', 'water', 'landuse', 'wetland', 'width', 'intermittent', 'seasonal',
 ]);
@@ -140,7 +142,7 @@ export async function loadAirports() {
 }
 
 const cacheName = (layer, key) => `national/${layer}/${key}`;
-const cacheFile = (layer, key) => path.join(CACHE_DIR, 'overpass', `${cacheName(layer, key)}.json`);
+export const cacheFile = (layer, key) => path.join(CACHE_DIR, 'overpass', `${cacheName(layer, key)}.json`);
 
 /**
  * One layer's elements around a box, from the squares already downloaded; an element in two squares comes once.
