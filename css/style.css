@@ -574,11 +574,6 @@ nav li {
   z-index: 200;
 }
 
-#tw {
-  position: absolute;
-  top: 300px;
-}
-
 #tvContainer {
   width: 177px;
   height: 128px;
@@ -749,10 +744,6 @@ nav li {
   #RCIContainer {
     top: 442px;
   }
-
-  #tw {
-    top: 280px;
-  }
 }
 
 @media (max-height: 672px) {
@@ -782,10 +773,6 @@ nav li {
 
   #RCIContainer {
     top: 412px;
-  }
-
-  #tw {
-    top: 260px;
   }
 }
 
@@ -824,10 +811,6 @@ nav li {
   #RCIContainer {
     top: 392px;
   }
-
-  #tw {
-    top: 240px;
-  }
 }
 
 @media (max-height: 612px) {
@@ -857,10 +840,6 @@ nav li {
 
   #RCIContainer {
     top: 362px;
-  }
-
-  #tw {
-    display: none;
   }
 }
 
