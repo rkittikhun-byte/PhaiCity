@@ -1873,7 +1873,7 @@ body #cityStatus.initialHidden { display: none; }
 body #cityStatus span + span::before { content: "·"; margin-right: 7px; color: var(--hud-dim); }
 
 /* A slid-away panel shows its tab outside its own box, so nothing in it may clip */
-body .collapsible.collapsed { overflow: visible; }
+body .collapsible.collapsed, body #rulerGoals.collapsed, body #controls.collapsed, body #RCIContainer.collapsed { overflow: visible; }
 
 /* Small type everywhere in the game, nothing bold (owner, 12 Oct 2026: about 9 px) */
 body .hudPill { height: 24px; min-width: 24px; padding: 0 9px; font: 400 9px 'Sarabun Thai', 'Open Sans', sans-serif; }
