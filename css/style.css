@@ -1286,11 +1286,20 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
    for each language, "sound on" and one big button; its click is what lets the music start */
 #titleGate {
   position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(10, 18, 15, 0.55), rgba(5, 10, 8, 0.92));
+  background: radial-gradient(ellipse at center, rgba(8, 14, 12, 0.88), rgba(3, 6, 5, 0.98));
   font-family: 'Sarabun Thai', 'Open Sans', sans-serif; color: #eef3ef;
   animation: motionFadeIn 0.4s ease-out backwards;
 }
-#titleGate.motionLeave { animation: motionFadeOut 0.3s ease-in forwards; }
+/* Entering: the words and buttons sink and fade one after another, then the dark clears (src/titleGate.ts) */
+#titleGate.leaving { pointer-events: none; animation: gateClear 0.5s 0.4s ease-in forwards; }
+#titleGate.leaving .gatePanel > * { animation: gateSink 0.45s calc(var(--i, 0) * 50ms) cubic-bezier(0.5, 0, 0.8, 0.4) forwards; }
+#titleGate .gatePanel > :nth-child(2) { --i: 1; }
+#titleGate .gatePanel > :nth-child(3) { --i: 2; }
+#titleGate .gatePanel > :nth-child(4) { --i: 3; }
+#titleGate .gatePanel > :nth-child(5) { --i: 4; }
+#titleGate .gatePanel > :nth-child(6) { --i: 5; }
+@keyframes gateSink { to { opacity: 0; transform: translateY(60px); } }
+@keyframes gateClear { to { opacity: 0; } }
 /* The loading line would show through the title page, across its buttons (owner, 12 Oct 2026) */
 body.gateOpen #loadingBanner, body.gateOpen #provincePicker .ppStage > .loadingBar { display: none; }
 #titleGate .gatePanel { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 48px; text-align: center;

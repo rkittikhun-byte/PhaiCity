@@ -11,9 +11,11 @@
 import { audio } from "./audio/index";
 import { getLanguage, type Language, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { FLAGS } from "./languageFlag";
-import { hide, show } from "./motion";
+import { show } from "./motion";
 
 const LANGUAGES: Language[] = ["th", "en"];
+/** How long the title page takes to go (css/style.css, "#titleGate.leaving"). */
+const LEAVE_MS = 900;
 
 /** Shows the title page and resolves when the player enters the game. */
 export function showTitleGate(doc: Document = document): Promise<void> {
@@ -89,8 +91,10 @@ export function showTitleGate(doc: Document = document): Promise<void> {
       doc.removeEventListener("keydown", onKey, true);
       stopLanguage();
       doc.body.classList.remove("gateOpen");
-      hide(gate);
-      window.setTimeout(() => gate.remove(), 400);
+      // Its words and buttons sink and fade, then the dark behind them clears (owner, 12 Oct 2026); the story starts
+      // underneath meanwhile
+      gate.classList.add("leaving");
+      window.setTimeout(() => gate.remove(), LEAVE_MS);
       resolve();
     };
     const onKey = (event: KeyboardEvent): void => {
