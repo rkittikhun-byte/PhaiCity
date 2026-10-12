@@ -36,6 +36,40 @@ export function soundIcon(muted: boolean): string {
 // A sound from each channel, so moving its slider lets the player hear the new level
 const CHANNEL_PREVIEW: Partial<Record<Channel, string>> = { effects: "tool.zone", ui: "ui.click" };
 
+// What the player first clicked or pressed a key on, the gesture that let the sound start
+let unlockTarget: EventTarget | null = null;
+
+/** True until the player's first click or key press: the game is silent then, though not muted. */
+export function soundWaiting(): boolean {
+  return !audio.unlocked;
+}
+
+/** How a sound button looks: a crossed speaker while muted or still waiting for the first click. */
+export function renderSoundButton(button: HTMLElement): void {
+  const silent = audio.settings.muted || soundWaiting();
+  button.innerHTML = soundIcon(silent);
+  button.title = t(soundWaiting() ? "sound.waiting" : audio.settings.muted ? "sound.toggle_on" : "sound.toggle_off");
+  button.setAttribute("aria-label", button.title);
+  button.setAttribute("aria-pressed", String(silent));
+  button.classList.toggle("soundWaiting", soundWaiting());
+}
+
+/**
+ * What pressing a sound button does: mute or unmute. But the press that first lets the sound start only turns it on,
+ * since until then the game was silent anyway; muting it there would leave the player thinking sound is broken.
+ */
+export function pressSoundButton(button: Element): void {
+  const firstPress = soundWaiting() || (unlockTarget instanceof Node && button.contains(unlockTarget));
+  unlockTarget = null;
+  audio.unlock();
+  if (firstPress) {
+    if (audio.settings.muted) audio.setMuted(false);
+  } else {
+    audio.setMuted(!audio.settings.muted);
+  }
+  if (!audio.settings.muted) audio.play("ui.click");
+}
+
 function bindSoundControls(doc: Document): void {
   const toggle = doc.getElementById("soundToggle");
   const muted = doc.getElementById("soundMuted") as HTMLInputElement | null;
@@ -43,12 +77,7 @@ function bindSoundControls(doc: Document): void {
 
   const render = (): void => {
     const { settings } = audio;
-    if (toggle) {
-      toggle.innerHTML = soundIcon(settings.muted);
-      toggle.title = t(settings.muted ? "sound.toggle_on" : "sound.toggle_off");
-      toggle.setAttribute("aria-label", toggle.title);
-      toggle.setAttribute("aria-pressed", String(settings.muted));
-    }
+    if (toggle) renderSoundButton(toggle);
     if (muted) muted.checked = settings.muted;
     for (const slider of sliders) {
       slider.value = String(Math.round(settings.volumes[slider.dataset.soundChannel as Channel] * 100));
@@ -57,9 +86,7 @@ function bindSoundControls(doc: Document): void {
 
   toggle?.addEventListener("click", (event) => {
     event.preventDefault();
-    audio.unlock();
-    audio.setMuted(!audio.settings.muted);
-    if (!audio.settings.muted) audio.play("ui.click");
+    pressSoundButton(toggle);
   });
   muted?.addEventListener("change", () => audio.setMuted(muted.checked));
   for (const slider of sliders) {
@@ -72,12 +99,16 @@ function bindSoundControls(doc: Document): void {
   }
 
   audio.onChange(render);
+  audio.onUnlock(render);
   onLanguageChange(render);
   render();
 }
 
 export function installAudio(doc: Document = document): void {
-  const unlock = (): void => audio.unlock();
+  const unlock = (event: Event): void => {
+    if (soundWaiting()) unlockTarget = event.target;
+    audio.unlock();
+  };
   doc.addEventListener("pointerdown", unlock, true);
   doc.addEventListener("keydown", unlock, true);
   doc.addEventListener("visibilitychange", () => {

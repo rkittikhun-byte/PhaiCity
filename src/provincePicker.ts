@@ -11,7 +11,7 @@
 //      game difficulty and a start button.
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
-import { audio, music, soundIcon } from "./audio/index";
+import { audio, music, pressSoundButton, renderSoundButton, soundWaiting } from "./audio/index";
 import { THEME } from "./audio/music";
 import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
@@ -252,10 +252,7 @@ function buildShell(): View {
   const back = button("ppBack", t("picker.back_regions"), () => showRegions(false));
   const skip = button("ppSkip", `${t("intro.skip")} ›`, () => showRegions(true));
   const replay = button("ppQuiet", t("splash.replay_intro"), () => playIntro());
-  const sound = button("ppQuiet ppSound", "", () => {
-    audio.unlock();
-    audio.setMuted(!audio.settings.muted);
-  });
+  const sound = button("ppQuiet ppSound", "", () => pressSoundButton(sound));
   const language = button("ppQuiet", t("lang.switch_to"), () => setLanguage(getLanguage() === "th" ? "en" : "th"));
   const menus = button("ppQuiet ppMenus", t("ui.hide_menus"), () => setMenusHidden(!overlay.classList.contains("ppMenusHidden")));
   const clock = element("span", "ppClock");
@@ -367,8 +364,9 @@ function destroyShell(): void {
 
 function renderSound(target: View | null = view): void {
   if (!target) return;
-  target.sound.innerHTML = soundIcon(audio.settings.muted);
-  target.sound.title = t(audio.settings.muted ? "sound.toggle_on" : "sound.toggle_off");
+  renderSoundButton(target.sound);
+  // Until the first click the sound waits, so the button says how to start it
+  if (soundWaiting()) target.sound.append(element("span", "ppSoundHint", t("sound.waiting_short")));
 }
 
 function setChrome(options: { back?: boolean; skip?: boolean; dots?: boolean; row?: boolean }): void {
@@ -1414,6 +1412,7 @@ onLanguageChange(() => {
 });
 
 audio.onChange(() => renderSound());
+audio.onUnlock(() => renderSound());
 
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;
