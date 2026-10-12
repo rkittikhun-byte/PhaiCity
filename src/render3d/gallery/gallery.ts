@@ -511,7 +511,7 @@ function startGallery(): void {
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
     const option = document.createElement('option');
     option.value = name;
-    localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
+    localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'industrial' ? 'อุตสาหกรรม (industrial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
   category.addEventListener('change', buildLibrary);
