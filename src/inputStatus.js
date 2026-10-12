@@ -45,6 +45,10 @@ var InputStatus = EventEmitter(function(map, tileWidth, rules) {
   this._dragging = false;
   this._lastdragX = -1;
   this._lastdragY = -1;
+  // PhaiCity: the press of the mouse now going on (each press is one undo step), and the area being dragged
+  // by a zone tool ({from, to} in canvas pixels) or null
+  this.stroke = 0;
+  this.areaDrag = null;
 
   // Tool buttons
   this.toolName = null;
@@ -164,8 +168,18 @@ var mouseEnterHandler = function(e) {
 };
 
 
+// PhaiCity: zones are laid by dragging a rectangle; the game fills it with zones when the mouse is released
+var AREA_TOOLS = ['residential', 'commercial', 'industrial'];
+
+
+InputStatus.prototype.isAreaTool = function() {
+  return this.currentTool !== null && AREA_TOOLS.indexOf(this.toolName) !== -1;
+};
+
+
 var mouseDownHandler = function(e) {
-  if (this.currentTool === null || !this.currentTool.isDraggable ||
+  var area = this.isAreaTool();
+  if (this.currentTool === null || !(this.currentTool.isDraggable || area) ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
     return;
 
@@ -173,8 +187,13 @@ var mouseDownHandler = function(e) {
   this.mouseX = coords.x;
   this.mouseY = coords.y;
 
+  // Every press of the mouse is one stroke: what it builds is undone together (src/undoHistory.ts)
+  this.stroke += 1;
   this._dragging = true;
-  this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY});
+  if (area)
+    this.areaDrag = {from: {x: coords.x, y: coords.y}, to: {x: coords.x, y: coords.y}};
+  else
+    this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
 
   this._lastDragX = Math.floor(this.mouseX / this._tileWidth);
   this._lastDragY = Math.floor(this.mouseY / this._tileWidth);
@@ -189,6 +208,13 @@ var mouseUpHandler = function(e) {
   this._lastDragX = -1;
   this._lastDragY = -1;
   $(this.canvasID).off('mouseup');
+
+  // Releasing the mouse lays the dragged area of zones
+  if (this.areaDrag !== null) {
+    var area = this.areaDrag;
+    this.areaDrag = null;
+    this._emitEvent(Messages.TOOL_AREA, {from: area.from, to: area.to, stroke: this.stroke});
+  }
   e.preventDefault();
 };
 
@@ -198,12 +224,13 @@ var mouseLeaveHandler = function(e) {
   $(this.canvasID).off('mousemove');
   $(this.canvasID).off('mouseup');
 
-  // Watch out: we might have been mid-drag
+  // Watch out: we might have been mid-drag. An area not yet released is dropped.
   if (this._dragging) {
     this._dragging = false;
     this._lastDragX = -1;
     this._lastDragY = -1;
   }
+  this.areaDrag = null;
 
   $(this.canvasID).off('click');
 
@@ -217,6 +244,11 @@ var mouseMoveHandler = function(e) {
   this.mouseX = coords.x;
   this.mouseY = coords.y;
 
+  if (this.areaDrag !== null) {
+    this.areaDrag.to = {x: coords.x, y: coords.y};
+    return;
+  }
+
   if (this._dragging) {
     // XXX Work up how to patch up the path for fast mouse moves. My first attempt was too slow, and ended up missing
     // mouseUp events
@@ -226,7 +258,7 @@ var mouseMoveHandler = function(e) {
     var lastX = this._lastDragX;
     var lastY = this._lastDragY;
     if (x !== lastX || y !== lastY) {
-      this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY});
+      this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
       this._lastDragX = x;
       this._lastDragY = y;
     }
@@ -235,12 +267,13 @@ var mouseMoveHandler = function(e) {
 
 
 var canvasClickHandler = function(e) {
-  if (this.currentTool === null || this.currentTool.isDraggable ||
+  if (this.currentTool === null || this.currentTool.isDraggable || this.isAreaTool() ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
       this.mouseY === -1 || this._dragging)
     return;
 
-  this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY});
+  this.stroke += 1;
+  this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
   e.preventDefault();
 };
 
@@ -302,6 +335,7 @@ InputStatus.prototype.clearTool = function() {
 
   // Forget the name too, or a click after Escape would still use the old tool
   this.toolName = null;
+  this.areaDrag = null;
   this.currentTool = null;
   this.toolWidth = 0;
   this.toolColour = '';

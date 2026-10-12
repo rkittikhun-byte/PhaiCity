@@ -50,6 +50,7 @@ export const MAP_CODE = "KeyM";
 /** Q and E turn the 3D view (the ⟲ ⟳ corner buttons, src/viewSwitch.ts). */
 export const TURN_LEFT_CODE = "KeyQ";
 export const TURN_RIGHT_CODE = "KeyE";
+export const UNDO_CODE = "KeyZ";
 
 /** What each tool does, for its tooltip: the About page's description (after its "Name: "), or a hint of its own. */
 export const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -92,7 +93,11 @@ interface KeyLike {
 
 /** What a key press asks for, or null. Digits on the main row and on the number pad both count. */
 export function shortcutFor(event: KeyLike):
-    { tool: string } | { pause: true } | { map: true } | { turn: -1 | 1 } | null {
+    { tool: string } | { pause: true } | { map: true } | { turn: -1 | 1 } | { undo: true } | null {
+  // Ctrl+Z (Cmd+Z on a Mac) undoes the last building
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.code === UNDO_CODE) {
+    return { undo: true };
+  }
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return null;
   if (event.code === PAUSE_CODE) return { pause: true };
   if (event.code === MAP_CODE) return { map: true };
@@ -151,6 +156,7 @@ export function installToolShortcuts(doc: Document = document): void {
     if (!shortcut || (event.repeat && !("turn" in shortcut))) return;
     const button = "tool" in shortcut ? doc.querySelector<HTMLElement>(`.toolButton[data-tool="${shortcut.tool}"]`)
       : "turn" in shortcut ? doc.getElementById(shortcut.turn < 0 ? "rotateLeft" : "rotateRight")
+      : "undo" in shortcut ? doc.getElementById("undoButton")
       : doc.getElementById("map" in shortcut ? "mapRequest" : "pauseRequest");
     if (!button || button.hidden || (button as HTMLButtonElement).disabled) return;
     event.preventDefault();

@@ -89,6 +89,7 @@ export const SPEED_CHANGE = "Speed change";
 export const SPRITE_DYING = "Sprite dying";
 export const SPRITE_MOVED = "Sprite move";
 export const TAX_TOO_HIGH = "Tax too high";
+export const TOOL_AREA = "Tool area dragged";
 export const TOOL_CLICKED = "Tool clicked";
 export const TORNADO_SIGHTED = "Tornado sighted";
 export const TOUCH_WINDOW_CLOSED = "Touch Window closed";

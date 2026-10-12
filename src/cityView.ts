@@ -26,6 +26,8 @@ export interface ToolHover {
   tile: TilePoint;
   size: number;
   colour: string;
+  /** While a zone tool drags an area: every tile the zones will cover. toolFootprint returns it. */
+  area?: TileRect;
 }
 
 export interface CityView {
@@ -78,10 +80,39 @@ export function missingViewFunctions(view: object): string[] {
  * their top-left corner (zones and buildings are placed by that tile, src/buildingTool.js).
  */
 export function toolFootprint(hover: ToolHover): TileRect {
+  if (hover.area) return { ...hover.area };
   const offset = hover.size > 2 ? 1 : 0;
   const x0 = hover.tile.x - offset;
   const y0 = hover.tile.y - offset;
   return { x0, y0, x1: x0 + hover.size - 1, y1: y0 + hover.size - 1 };
+}
+
+/** The most zones one dragged area lays. */
+export const MAX_AREA_ZONES = 400;
+
+/**
+ * The centres of the zones a dragged area lays: a zone on the tile where the drag began, then one every `size`
+ * tiles towards where it ends, side by side, as long as the zones stay within the drag (at least one zone).
+ */
+export function areaCentres(start: TilePoint, end: TilePoint, size: number): TilePoint[] {
+  const along = (from: number, to: number): number[] => {
+    const count = Math.floor(Math.abs(to - from) / size) + 1;
+    const step = to >= from ? size : -size;
+    return Array.from({ length: count }, (_, i) => from + i * step);
+  };
+  const xs = along(start.x, end.x);
+  const ys = along(start.y, end.y).slice(0, Math.max(1, Math.floor(MAX_AREA_ZONES / xs.length)));
+  return ys.flatMap((y) => xs.map((x) => ({ x, y }))).slice(0, MAX_AREA_ZONES);
+}
+
+/** Every tile the zones at these centres cover. */
+export function areaFootprint(centres: readonly TilePoint[], size: number): TileRect {
+  const offset = size > 2 ? 1 : 0;
+  const xs = centres.map((c) => c.x);
+  const ys = centres.map((c) => c.y);
+  const x0 = Math.min(...xs) - offset;
+  const y0 = Math.min(...ys) - offset;
+  return { x0, y0, x1: Math.max(...xs) - offset + size - 1, y1: Math.max(...ys) - offset + size - 1 };
 }
 
 /** A rectangle cut down to the map, or null when it lies wholly outside. */

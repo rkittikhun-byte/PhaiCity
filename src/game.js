@@ -19,7 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands } from './cityCommands.ts';
-import { SPRITE_UNITS_PER_TILE } from './cityView.ts';
+import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote } from './cornerNote.ts';
 import { Config } from './config.js';
@@ -29,7 +29,7 @@ import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
 import { GameMap } from './gameMap.js';
 import { GraphWindow } from './graphWindow.js';
-import { onLanguageChange, t } from './i18n/index.ts';
+import { formatMoney, onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
@@ -134,7 +134,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     disasters: simulation.disasterManager,
     sprites: simulation.spriteManager,
     setSpeed: simulation.setSpeed.bind(simulation),
-    setAutoBulldoze: BaseTool.setAutoBulldoze
+    setAutoBulldoze: BaseTool.setAutoBulldoze,
+    // For undo: the map to put back, and the time, as only recent building can be undone
+    map: this.gameMap,
+    cityTime: function() { return simulation._cityTime; }
   });
 
   // Sound only listens to the game; it never changes the city
@@ -296,6 +299,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   // Listen for tool clicks
   this.inputStatus.addEventListener(Messages.TOOL_CLICKED, this.handleTool.bind(this));
+  this.inputStatus.addEventListener(Messages.TOOL_AREA, this.handleToolArea.bind(this));
+  // Undo: the ↶ button in the tool panel, and Ctrl+Z (src/toolShortcuts.ts presses the button)
+  $('#undoButton').on('click', this.handleUndo.bind(this));
+  this.refreshUndo();
 
   // And pauses
   this.inputStatus.addEventListener(Messages.SPEED_CHANGE, this.handlePause.bind(this));
@@ -435,6 +442,9 @@ var genericDialogClosure = function() {
 
 
 Game.prototype.onDateChange = function(date) {
+  // Building older than two months can no longer be undone
+  this.refreshUndo();
+
   // Snow tiles exist only in the 2D view
   if (this.cityView.kind !== '2d')
     return;
@@ -652,23 +662,13 @@ Game.prototype.handleTool = function(data) {
     tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
     result = tool.result;
   } else {
-    result = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y}).toolResult;
+    result = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
+                                stroke: data.stroke}).toolResult;
   }
 
-  switch (result) {
-    case tool.TOOLRESULT_NEEDS_BULLDOZE:
-      $('#toolOutput').text(Text.toolMessages.needsDoze);
-      break;
-
-    case tool.TOOLRESULT_NO_MONEY:
-      $('#toolOutput').text(Text.toolMessages.noMoney);
-      break;
-
-    default:
-      $('#toolOutput').text(t('tool.header'));
-  }
-
+  this.showToolResult(tool, result);
   this.gameAudio.toolUsed(toolName, result, x);
+  this.refreshUndo();
 };
 
 
@@ -794,7 +794,83 @@ Game.prototype.calculateMouseForPaint = function() {
     return null;
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
-  return {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+  var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+
+  // While a zone tool drags an area, show every zone it will lay
+  var drag = this.inputStatus.areaDrag;
+  var centres = drag ? this.areaCentresFor(drag, hover.size) : null;
+  if (centres !== null)
+    hover.area = areaFootprint(centres, hover.size);
+  return hover;
+};
+
+
+// The zone centres a dragged area lays ({from, to} in canvas pixels), or null when it does not start on the map
+Game.prototype.areaCentresFor = function(drag, size) {
+  var from = this.cityView.tileAt(drag.from.x, drag.from.y);
+  if (from === null)
+    return null;
+  var to = this.cityView.tileAt(drag.to.x, drag.to.y) || from;
+  return areaCentres(from, to, size);
+};
+
+
+// A zone tool's dragged area, released: a zone at each centre, all one stroke so they undo together
+Game.prototype.handleToolArea = function(data) {
+  var toolName = this.inputStatus.toolName;
+  var tool = this.inputStatus.currentTool;
+  if (tool === null)
+    return;
+
+  var centres = this.areaCentresFor(data, this.inputStatus.toolWidth - 0);
+  if (centres === null)
+    return;
+
+  // Zones that do not fit (water, buildings in the way) are skipped; one sound for the whole area
+  var best = null;
+  centres.forEach(function(centre) {
+    if (centre.x < 0 || centre.y < 0 || centre.x >= this.gameMap.width || centre.y >= this.gameMap.height)
+      return;
+    var result = this.applyCommand({type: 'tool', tool: toolName, x: centre.x, y: centre.y,
+                                    stroke: data.stroke}).toolResult;
+    if (best === null || result === tool.TOOLRESULT_OK)
+      best = result;
+  }, this);
+
+  if (best !== null)
+    this.showToolResult(tool, best);
+  this.gameAudio.toolUsed(toolName, best, data.to.x);
+  this.refreshUndo();
+};
+
+
+// What the tool panel's title says after a tool was used
+Game.prototype.showToolResult = function(tool, result) {
+  if (result === tool.TOOLRESULT_NEEDS_BULLDOZE)
+    $('#toolOutput').text(Text.toolMessages.needsDoze);
+  else if (result === tool.TOOLRESULT_NO_MONEY)
+    $('#toolOutput').text(Text.toolMessages.noMoney);
+  else
+    $('#toolOutput').text(t(this.inputStatus.currentTool !== null ? 'tool.put_down' : 'tool.header'));
+};
+
+
+// Undo (Ctrl+Z or the ↶ button): takes the last stroke of building back, tiles and money (src/undoHistory.ts)
+Game.prototype.handleUndo = function() {
+  var funds = this.simulation.budget.totalFunds;
+  var outcome = this.applyCommand({type: 'undo'});
+  if (outcome.undone)
+    showCornerNote(t('undo.done', {refund: formatMoney(this.simulation.budget.totalFunds - funds)}), 3000);
+  else
+    showCornerNote(t('undo.nothing'), 3000);
+  this.refreshUndo();
+};
+
+
+Game.prototype.refreshUndo = function() {
+  var button = document.getElementById('undoButton');
+  if (button)
+    button.disabled = !this.commands.canUndo();
 };
 
 

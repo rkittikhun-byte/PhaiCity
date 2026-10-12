@@ -60,6 +60,12 @@ var addBulldozeCost = function(tileValue, cost) {
 };
 
 
+// The tiles the tool is about to change, for undo
+var pendingTiles = function() {
+  return this._worldEffects.positions();
+};
+
+
 // What applying the tool costs in all
 var totalCost = function() {
   return Math.round(this._applicationCost * this.costFactor) + this._clearingCost;
@@ -118,6 +124,7 @@ var BaseToolConstructor = {
   doAutoBulldoze: doAutoBulldoze,
   init: init,
   modifyIfEnoughFunding: modifyIfEnoughFunding,
+  pendingTiles: pendingTiles,
   totalCost: totalCost,
   TOOLRESULT_OK: TOOLRESULT_OK,
   TOOLRESULT_FAILED: TOOLRESULT_FAILED,

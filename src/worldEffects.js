@@ -66,6 +66,12 @@ WorldEffects.prototype.setTile = function(x, y, value, flags) {
 };
 
 
+// PhaiCity: the tiles about to change, so undo can note what they were (src/cityCommands.ts)
+WorldEffects.prototype.positions = function() {
+  return Object.keys(this._data).map(fromKey).map(function(p) { return {x: p.x, y: p.y}; });
+};
+
+
 WorldEffects.prototype.apply = function() {
   var keys = Object.keys(this._data);
   for (var i = 0, l = keys.length; i < l; i++) {

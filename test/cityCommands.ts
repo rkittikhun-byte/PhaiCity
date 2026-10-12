@@ -25,7 +25,7 @@ function recordingCity() {
     budget: {
       roadPercent: 1, firePercent: 1, policePercent: 1,
       setTax: record("setTax"), doBudgetWindow: record("doBudgetWindow"), updateFundEffects: record("updateFundEffects"),
-      setAutoBudget: record("setAutoBudget"), spend: record("spend"),
+      setAutoBudget: record("setAutoBudget"), spend: record("spend"), totalFunds: 20000,
     },
     disasters: {
       disastersEnabled: true,
@@ -148,5 +148,63 @@ describe("commands on a real map", () => {
     expect(commands.apply({ type: "tool", tool: "residential", x: 5, y: 5 }).toolResult).toBe(2); // TOOLRESULT_NO_MONEY
     expect(map.getTileValue(5, 5)).toBe(DIRT);
     expect(budget.totalFunds).toBe(0);
+  });
+});
+
+describe("undo", () => {
+  function undoCity(funds: number) {
+    const map = new GameMap(30, 30);
+    const budget = new Budget();
+    budget.setFunds(funds);
+    let time = 100;
+    const noop = () => undefined;
+    const commands = new CityCommands({
+      width: map.width,
+      height: map.height,
+      tools: new (GameTools as unknown as new (map: unknown) => CommandTarget["tools"])(map),
+      blockMaps: {},
+      budget,
+      disasters: { disastersEnabled: true, makeFire: noop, makeFlood: noop, makeCrash: noop, makeMeltdown: noop },
+      sprites: { makeMonster: noop, makeTornado: noop },
+      setSpeed: noop,
+      setAutoBulldoze: noop,
+      map,
+      cityTime: () => time,
+    });
+    return { map, budget, commands, later: (units: number) => { time += units; } };
+  }
+
+  test("takes back the last stroke, tiles and money, then the one before", () => {
+    const { map, budget, commands } = undoCity(1000);
+    expect(commands.canUndo()).toBe(false);
+    commands.apply({ type: "tool", tool: "residential", x: 5, y: 5, stroke: 1 });
+    for (let x = 10; x <= 14; x++) commands.apply({ type: "tool", tool: "road", x, y: 10, stroke: 2 });
+    expect(budget.totalFunds).toBeLessThan(900);
+    expect(commands.apply({ type: "undo" })).toEqual({ accepted: true, undone: true });
+    for (let x = 10; x <= 14; x++) expect(map.getTileValue(x, 10)).toBe(DIRT); // the whole drag of road
+    expect(budget.totalFunds).toBe(900);
+    expect(map.getTileValue(5, 5)).not.toBe(DIRT);
+    expect(commands.apply({ type: "undo" }).undone).toBe(true);
+    for (let y = 4; y <= 6; y++) for (let x = 4; x <= 6; x++) expect(map.getTileValue(x, y)).toBe(DIRT);
+    expect(budget.totalFunds).toBe(1000);
+    expect(commands.apply({ type: "undo" }).undone).toBe(false);
+  });
+
+  test("only recent building: after two game months there is nothing to undo", () => {
+    const { commands, later } = undoCity(1000);
+    commands.apply({ type: "tool", tool: "road", x: 3, y: 3 });
+    later(8);
+    expect(commands.canUndo()).toBe(true);
+    later(1);
+    expect(commands.canUndo()).toBe(false);
+    expect(commands.apply({ type: "undo" }).undone).toBe(false);
+  });
+
+  test("a tool without the money leaves nothing to undo, and a bad stroke is refused", () => {
+    const { commands } = undoCity(0);
+    commands.apply({ type: "tool", tool: "residential", x: 5, y: 5, stroke: 3 });
+    expect(commands.canUndo()).toBe(false);
+    expect(commandProblem({ type: "tool", tool: "road", x: 1, y: 1, stroke: -1 }, 30, 30)).toBe("bad stroke");
+    expect(commandProblem({ type: "undo" }, 30, 30)).toBeNull();
   });
 });

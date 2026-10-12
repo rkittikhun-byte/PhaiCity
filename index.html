@@ -103,7 +103,10 @@
         </div>
         <div id="RCIContainer" class="controlShadow leftedge width140 padding10 mintcream z1 initialHidden"></div>
         <div id="controls" class="controlShadow mintcream z1 initialHidden rightedge open">
-          <div id="toolInfo" class="alignCenter"><span id="toolOutput" data-i18n="tool.header">Tools</span></div>
+          <div id="toolInfo" class="alignCenter"><span id="toolOutput" data-i18n="tool.header">Tools</span>
+            <!-- Undo the last building (Ctrl+Z), src/undoHistory.ts -->
+            <button id="undoButton" type="button" data-i18n-title="undo.button" data-i18n-aria-label="undo.button" disabled>↶</button>
+          </div>
           <!-- The buttons' words and prices are written by src/toolShortcuts.ts, in the province's prices -->
           <div id="buttons">
             <button id="residentialButton" data-size="3" data-tool="residential" data-colour="lime" class="toolButton unselected">Residential $100</button>

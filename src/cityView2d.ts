@@ -52,13 +52,21 @@ export class CityView2D implements CityView {
   paint(hover: ToolHover | null, sprites: unknown[] | null, isPaused: boolean): void {
     // gameCanvas.js takes the mouse tile as an offset from the view's top-left tile, and works out the footprint
     const origin = this.canvas.getTileOrigin();
-    const mouse = hover && {
+    // A dragged area of zones is drawn as one box; gameCanvas.js moves boxes over 2 tiles back by one, so add it
+    const area = hover?.area;
+    const mouse = hover && (area ? {
+      x: area.x0 - origin.x + (area.x1 - area.x0 + 1 > 2 ? 1 : 0),
+      y: area.y0 - origin.y + (area.y1 - area.y0 + 1 > 2 ? 1 : 0),
+      width: area.x1 - area.x0 + 1,
+      height: area.y1 - area.y0 + 1,
+      colour: hover.colour,
+    } : {
       x: hover.tile.x - origin.x,
       y: hover.tile.y - origin.y,
       width: hover.size,
       height: hover.size,
       colour: hover.colour,
-    };
+    });
     this.canvas.paint(mouse, sprites, isPaused);
   }
 

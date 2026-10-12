@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { clipToMap, missingViewFunctions, toolFootprint } from "../src/cityView";
+import { areaCentres, areaFootprint, clipToMap, MAX_AREA_ZONES, missingViewFunctions, toolFootprint } from "../src/cityView";
 import { CityView2D, TileCanvas } from "../src/cityView2d";
 
 describe("toolFootprint", () => {
@@ -81,5 +81,23 @@ describe("CityView2D", () => {
     view.shake();
     expect(calls).toEqual(["north", "east", "south", "west", "centre 50,60", "shake"]);
     expect([view.screenshotMap(), view.screenshotVisible()]).toEqual(["data:map", "data:visible"]);
+  });
+});
+
+describe("dragged areas of zones", () => {
+  test("lay zones side by side from where the drag began, as far as it went", () => {
+    expect(areaCentres({ x: 10, y: 10 }, { x: 10, y: 10 }, 3)).toEqual([{ x: 10, y: 10 }]);
+    expect(areaCentres({ x: 10, y: 10 }, { x: 12, y: 10 }, 3)).toEqual([{ x: 10, y: 10 }]);
+    expect(areaCentres({ x: 10, y: 10 }, { x: 16, y: 13 }, 3)).toEqual([
+      { x: 10, y: 10 }, { x: 13, y: 10 }, { x: 16, y: 10 }, { x: 10, y: 13 }, { x: 13, y: 13 }, { x: 16, y: 13 },
+    ]);
+    expect(areaCentres({ x: 10, y: 10 }, { x: 4, y: 10 }, 3)).toEqual([{ x: 10, y: 10 }, { x: 7, y: 10 }, { x: 4, y: 10 }]);
+    expect(areaCentres({ x: 0, y: 0 }, { x: 199, y: 199 }, 3).length).toBeLessThanOrEqual(MAX_AREA_ZONES);
+  });
+
+  test("show every tile the zones will cover", () => {
+    const area = areaFootprint(areaCentres({ x: 10, y: 10 }, { x: 16, y: 13 }, 3), 3);
+    expect(area).toEqual({ x0: 9, y0: 9, x1: 17, y1: 14 });
+    expect(toolFootprint({ tile: { x: 10, y: 10 }, size: 3, colour: "lime", area })).toEqual(area);
   });
 });
