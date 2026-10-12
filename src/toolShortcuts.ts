@@ -74,9 +74,30 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
-/** Where a tool's icon is (assets/icons/tools/<tool>.svg, copied into the build as it is). */
+// Which file each tool's icon uses (assets/icons/tools/manifest.json, Codex Prompt UI2): pictures rendered from the
+// 3D models where there are some, the drawn SVGs of Prompt UI1 otherwise, and until the manifest has loaded
+let iconFiles: Record<string, unknown> = {};
+const ICON_FILE = /^[\w-]+\.(png|svg|webp)$/;
+
+/** Where a tool's icon is (assets/icons/tools/, copied into the build as it is). */
 export function toolIconUrl(tool: string): string {
-  return `assets/icons/tools/${tool}.svg`;
+  const file = iconFiles[tool];
+  return `assets/icons/tools/${typeof file === "string" && ICON_FILE.test(file) ? file : `${tool}.svg`}`;
+}
+
+/** Reads the icon manifest, if there is one yet, and shows the icons it names. */
+function loadIconManifest(doc: Document): void {
+  fetch("assets/icons/tools/manifest.json")
+    .then((response) => (response.ok ? response.json() : null))
+    .then((manifest: unknown) => {
+      if (!manifest || typeof manifest !== "object") return;
+      iconFiles = manifest as Record<string, unknown>;
+      doc.querySelectorAll<HTMLImageElement>(".toolButton[data-tool] .toolIcon img").forEach((img) => {
+        const tool = img.closest<HTMLElement>(".toolButton")?.dataset.tool;
+        if (tool) img.src = toolIconUrl(tool);
+      });
+    })
+    .catch(() => undefined);
 }
 
 export function toolTitle(tool: string, key: string | null): string {
@@ -124,6 +145,7 @@ function keysBelongElsewhere(doc: Document, target: EventTarget | null): boolean
 }
 
 export function installToolShortcuts(doc: Document = document): void {
+  loadIconManifest(doc);
   // Each tool button shows its name and price, says what it does when pointed at, and shows its key if it has one
   const label = (): void => {
     doc.querySelectorAll<HTMLElement>(".toolButton[data-tool]").forEach((button) => {

@@ -1402,6 +1402,38 @@ Do not edit index.html, css/ or src/toolShortcuts.ts: Claude Code wires the icon
 with a screenshot of the Icons view.
 ```
 
+## Prompt UI2 — ไอคอนเครื่องมือจากโมเดล 3D จริง
+
+เจ้าของโปรเจคขอ (12 ต.ค. 2026): ไอคอนเครื่องมือให้ดูจริงจังขึ้น ใช้ภาพจากโมเดล 3D ที่สร้างในเกมเลย
+ฝั่งเกม Claude Code ทำไว้แล้ว: ปุ่มอ่าน `assets/icons/tools/manifest.json` ถ้ามีรูปของเครื่องมือไหนก็ใช้รูปนั้น ไม่มีก็ใช้ SVG เดิม
+ส่งได้หลัง Prompt ที่กำลังทำอยู่ และส่งซ้ำได้ทุกครั้งที่มีโมเดลใหม่ (13–16) เพื่อถ่ายรูปที่ยังขาด
+
+```text
+Read AGENTS.md and docs/3d/MODEL_SPEC.md in full before starting and follow their rules (your paths only).
+
+Task: toolbar icons rendered from the game's real 3D models, so each tool button shows what it builds.
+
+1. A renderer for icons in the model gallery (an "Icon renders" panel, or a script that runs the gallery page in a
+   browser): each icon a 128 × 128 PNG with a transparent background, the model seen from the same three-quarter
+   view for all of them (the city view's opening heading and pitch), soft key light, a gentle contact shadow under it,
+   the model filling about 80% of the frame, the central region's look. Under 25 KB each.
+2. Subjects from the registry: residential a 1-tile house or a low-density residential zone, commercial a shophouse
+   zone, industrial a factory zone, road a short straight road piece, rail a straight track piece, wire a pole with
+   lines, park a tree group or small park, coal and nuclear their plants. Police, fire, stadium, port and airport
+   once their models exist (Prompts 13–15); bulldozer from the vehicles of Prompt 16 if there is one. Leave out any
+   tool whose model does not exist yet: its SVG from Prompt UI1 stays.
+3. Files: assets/icons/tools/<tool>.png next to the SVGs (keep the SVGs), and assets/icons/tools/manifest.json
+   listing the file each tool should use, for example { "residential": "residential.png", "query": "query.svg" },
+   with every one of the 16 tools in it.
+4. The gallery's Icons view shows the renders next to the SVGs at 24, 40 and 64 px on light and dark glass.
+5. test/render3d/icons.test.ts: the manifest names all 16 tools, every file it names exists, PNGs are 128 × 128 with
+   an alpha channel and under 25 KB.
+
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Do not edit index.html, css/ or
+src/toolShortcuts.ts: the game already reads the manifest. Report in Thai with a screenshot of the Icons view, and
+list which tools still use their SVG.
+```
+
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)
 
 แก้ข้อความในวงเล็บ `< >` เป็นสิ่งที่ต้องการ จะเขียนเป็นภาษาไทยหรืออังกฤษก็ได้
