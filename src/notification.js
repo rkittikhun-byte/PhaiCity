@@ -19,10 +19,12 @@ import { Text } from './text.js';
 var TIMEOUT_SECS = 30;
 
 
-function Notification(element, map, initialText) {
+// log: optional recent-news log (src/newsLog.ts) that keeps every item shown here
+function Notification(element, map, initialText, log) {
   element = MiscUtils.normaliseDOMid(element);
 
   this._map = map;
+  this._log = log || null;
   this._element = $(element);
   this._timeout = null;
 
@@ -96,9 +98,14 @@ var handleClick = function(e) {
 };
 
 
-Notification.prototype.createMessage = function(message) {
+Notification.prototype.createMessage = function(message, kind) {
+  var hasPlace = message.hasOwnProperty('data') && message.data !== undefined && message.data.hasOwnProperty('x') &&
+                 message.data.hasOwnProperty('y');
 
-  if (message.hasOwnProperty('data') && message.data !== undefined && message.data.hasOwnProperty('x') && message.data.hasOwnProperty('y')) {
+  if (this._log !== null)
+    this._log.add(kind || 'neutral', message.subject, hasPlace ? message.data.x : undefined, hasPlace ? message.data.y : undefined);
+
+  if (hasPlace) {
     this._displayLink(Text.messageText[message.subject], message.data.x, message.data.y);
     return;
   }
@@ -111,7 +118,7 @@ Notification.prototype.badNews = function(message) {
   this._element.removeClass('neutral');
   this._element.removeClass('good');
   this._element.addClass('bad');
-  this.createMessage(message);
+  this.createMessage(message, 'bad');
 };
 
 
@@ -119,7 +126,7 @@ Notification.prototype.goodNews = function(message) {
   this._element.removeClass('neutral');
   this._element.removeClass('bad');
   this._element.addClass('good');
-  this.createMessage(message);
+  this.createMessage(message, 'good');
 };
 
 
@@ -127,7 +134,7 @@ Notification.prototype.news = function(message) {
   this._element.removeClass('good');
   this._element.removeClass('bad');
   this._element.addClass('neutral');
-  this.createMessage(message);
+  this.createMessage(message, 'neutral');
 };
 
 

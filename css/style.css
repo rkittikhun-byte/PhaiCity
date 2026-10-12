@@ -434,6 +434,43 @@ nav li {
   height: 150px;
 }
 
+/* Recent city news (src/newsLog.ts): a button just right of the news bar, the list above the bar */
+#newsLogButton {
+  position: absolute;
+  bottom: 65px;
+  left: calc(50% + 216px);
+  width: auto;
+  height: 39px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #f4f7f5;
+  box-shadow: 0 8px 24px rgba(10, 20, 18, 0.25);
+  font-size: 13px;
+}
+#newsLog {
+  position: absolute;
+  bottom: 112px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 460px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fbfdfc;
+  font-size: 13px;
+}
+#newsLog[hidden] { display: none; }
+#newsLog:not([hidden]) { animation: motionFadeIn 0.25s ease-out backwards; }
+#newsLog h3 { margin: 0 0 6px; font-size: 14px; }
+#newsLog ol { list-style: none; margin: 0; padding: 0; }
+#newsLog li.news { display: grid; grid-template-columns: 72px 1fr auto; gap: 8px; align-items: center; padding: 5px 6px; border-left: 3px solid #9aa8a3; margin: 3px 0; }
+#newsLog li.news.good { border-left-color: #2e9e44; }
+#newsLog li.news.bad { border-left-color: #d03b3b; }
+#newsLog .newsDate { color: #6b7873; font-size: 12px; }
+#newsLog .newsGo { width: auto; height: auto; padding: 1px 10px; font-size: 12px; }
+#newsLog .newsEmpty { color: #6b7873; padding: 6px; }
+
 /* A quiet note in the bottom-right corner of the map (src/cornerNote.ts), e.g. "Autosaved 10:42" */
 #cornerNote {
   position: absolute;

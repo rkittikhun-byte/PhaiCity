@@ -36,6 +36,7 @@ import { MainMenuWindow } from './mainMenuWindow.js';
 import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
+import { installNewsLog } from './newsLog.ts';
 import { NagWindow } from './nagWindow.js';
 import { Notification } from './notification.js';
 import { QueryWindow } from './queryWindow.js';
@@ -296,7 +297,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.showRulerRank();
   onLanguageChange(this.showRulerRank.bind(this));
 
-  this._notificationBar = new Notification('#notifications', this.cityView, Text.messageText[Messages.WELCOME]);
+  // Recent news, behind the "News" button by the news bar (src/newsLog.ts)
+  this.newsLog = installNewsLog({
+    date: function() { return simulation.getDate(); },
+    text: function(subject) { return Text.messageText[subject]; },
+    monthName: function(month) { return Text.months[month]; },
+    centreOn: function(x, y) { self.cityView.centreOn(x, y); }
+  });
+  this._notificationBar = new Notification('#notifications', this.cityView, Text.messageText[Messages.WELCOME],
+                                           this.newsLog);
 
   this.congratsWindow = new CongratsWindow(opacityLayerID, 'congratsWindow');
   this.congratsWindow.addEventListener(Messages.CONGRATS_WINDOW_CLOSED, this.genericDialogClosure);

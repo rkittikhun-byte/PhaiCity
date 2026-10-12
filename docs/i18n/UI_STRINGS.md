@@ -512,6 +512,11 @@
 | `mainmenu.never_saved` | `src/mainMenuWindow.js` | — | `This city has never been saved. Leaving without saving loses it.` | `เมืองนี้ยังไม่เคยบันทึก ถ้าออกโดยไม่บันทึก เมืองจะหายไป` | |
 | `shortcut.pause` | `src/toolShortcuts.ts` | — | `Pause or resume time (shortcut P)` | `หยุดหรือเดินเวลา (ปุ่มลัด P)` | tooltip ปุ่มหยุดเวลา |
 | `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, the arrows or W A S D move the map, and Esc closes a window or puts the tool down.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา ลูกศรหรือ W A S D เลื่อนแผนที่ และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
+| `news.button` | `src/newsLog.ts` | — | `News` | `ข่าว` | ปุ่มข้างแถบข่าว (Claude Code 12 ต.ค. 2026) |
+| `news.button_unread` | `src/newsLog.ts` | — | `News ({count})` | `ข่าว ({count})` | จำนวนข่าวที่ยังไม่ได้เปิดดู |
+| `news.title` | `index.html` | — | `Recent city news` | `ข่าวเมืองล่าสุด` | |
+| `news.empty` | `src/newsLog.ts` | — | `No news yet.` | `ยังไม่มีข่าว` | |
+| `news.goto` | `src/newsLog.ts` | — | `Go there` | `ไปดู` | พากล้องไปที่เกิดเหตุ |
 | `view.3d_missing` | `src/splashScreen.js` | — | `The 3D city isn't ready yet, so the 2D view is used for now.` | `เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน` | `index.html?view=3d` ก่อน Codex ทำ R1 เสร็จ (Claude Code 12 ต.ค. 2026) |
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |

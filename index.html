@@ -138,6 +138,12 @@
           </div>
         </div>
         <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
+        <!-- Recent city news (src/newsLog.ts): the button sits by the news bar, the list opens above it -->
+        <button id="newsLogButton" type="button" class="z1 initialHidden">News</button>
+        <div id="newsLog" class="z1 controlShadow" hidden>
+          <h3 data-i18n="news.title">Recent city news</h3>
+          <ol id="newsLogList"></ol>
+        </div>
         <!-- A note that fades after a moment, e.g. "Autosaved 10:42" (src/cornerNote.ts) -->
         <div id="cornerNote" class="z1" role="status" aria-live="polite" hidden></div>
         <!-- First tasks for a new ruler (src/rulerGoals.ts); shown by the game, never before -->
