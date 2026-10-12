@@ -79,8 +79,7 @@ main {
   overflow: hidden;
 }
 
-nav a, nav a:link, nav a:visited, nav a:hover, footer a, footer a:link, footer a:visited, footer a:hover,
-#licenseHeader a, #licenseHeader a:link, #licenseHeader a:visited, #licenseHeader a:hover {
+nav a, nav a:link, nav a:visited, nav a:hover, footer a, footer a:link, footer a:visited, footer a:hover {
   text-decoration: none;
   color: white;
 }
@@ -982,45 +981,11 @@ nav li {
   }
 }
 
-/* Name-licence and nag page styles (the About page has its own section at the end) */
+/* Nag window links (the name licence page now shares the About page's look, at the end) */
 
-#licenseMain {
-  position: relative;
-  top: 50px;
-  margin-bottom: 100px;
-}
-
-#licenseContainer {
-  position: relative;
-  left: 50%;
-  border: 1px solid black;
-  width: 75%;
-  line-height: 1.7em;
-  text-align: justify;
-  transform: translate(-50%);
-}
-
-#licenseContainer p, #licenseContainer li, #licenseContainer h3 {
-  margin: 10px;
-}
-
-#licenseContainer h3 {
-  margin-top: 20px;
-}
-
-#licenseFooter {
-  position: relative;
-}
-
-#licenseMain a, #licenseMain a:link, #licenseMain a:visited, #licenseMain a:hover,
 #nagContainer a, #nagContainer a:link, #nagContainer a:visited, #nagContainer a:hover {
   text-decoration: none;
   color: dodgerblue;
-}
-
-#licenseContainer ol {
-  margin-left: 3em;
-  margin-right: 3em;
 }
 
 /* Pre refactoring below */
@@ -1436,6 +1401,11 @@ body.aboutPage .aboutCredit { padding: 16px 18px; border-radius: 12px; backgroun
 body.aboutPage .aboutCreditWide { grid-column: 1 / -1; }
 body.aboutPage .aboutCredit h3 { margin-top: 0; color: var(--about-gold); }
 body.aboutPage .aboutTrademark { font-size: 13px; color: var(--about-dim); }
+/* The Micropolis Public Name License (name_license.html), word for word in one card */
+body.aboutPage .aboutLicense { line-height: 1.7; }
+body.aboutPage .aboutLicense ol { margin: 8px 0 14px; padding-left: 1.6em; }
+body.aboutPage .aboutLicense li { margin: 12px 0; }
+body.aboutPage .aboutLicense li::marker { color: var(--about-gold); font-weight: 700; }
 body.aboutPage details { margin-top: 8px; font-size: 14px; }
 body.aboutPage summary { cursor: pointer; color: var(--about-dim); }
 body.aboutPage summary:hover { color: var(--about-gold); }

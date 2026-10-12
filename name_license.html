@@ -14,28 +14,32 @@
  *
  * -->
 
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Play micropolisJS and build a virtual city in your browser! micropolisJS a hand-written HTML5/Javascript port of the game Micropolis, the open-source release of the 1989 version of SimCity.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="The Micropolis Public Name License, under which PhaiCity credits the Micropolis trademark.">
     <link rel="stylesheet" media="screen" type="text/css" href="css/style.css">
-    <title>Micropolis Public Name License | micropolisJS</title>
+    <title>Micropolis Public Name License · PhaiCity</title>
   </head>
-  <body>
-    <header id="licenseHeader" class="chunk border-bottom padding10">
-      <div class="left inlineblock">
-        <h1 id="title" class="white fontlarge"><a href="index.html">micropolisJS</a></h1>
-      </div>
-      <nav class="white right padding10 inlineblock">
-        <ul>
-          <li class="padding10"><a href="about.html">About</a></li>
-          <li class="padding10"><a href="https://github.com/graememcc/micropolisJS">GitHub</a></li>
-        </ul>
+  <!-- Styled like the About page (css/style.css). The licence stays in English, word for word as published. -->
+  <body class="aboutPage">
+    <header class="aboutTop">
+      <a class="aboutBrand" href="index.html">PhaiCity</a>
+      <nav class="aboutNav">
+        <a class="aboutPill" href="about.html">เกี่ยวกับเกม · About</a>
+        <a class="aboutPill aboutPlay" href="index.html">เล่นเกม · Play</a>
       </nav>
     </header>
-    <main id="licenseMain">
-      <div id="licenseContainer" class="mintcream open padding10">
-        <h3 class="alignCenter chunk">Micropolis Public Name License</h3>
+
+    <main class="aboutBody">
+      <section class="aboutHero" style="--i: 0">
+        <h1>Micropolis Public Name License</h1>
+        <p class="aboutLead" lang="th">PhaiCity ดัดแปลงมาจาก micropolisJS ซึ่งมาจากเกม Micropolis อีกทอดหนึ่ง ชื่อ “Micropolis” เป็นเครื่องหมายการค้า เราจึงให้เครดิตตามสัญญานี้ และไม่ใช้ชื่อนี้เป็นชื่อเกมของเรา ตัวสัญญาด้านล่างคงเป็นภาษาอังกฤษตามต้นฉบับ</p>
+        <p class="aboutLead">PhaiCity is modified from micropolisJS, itself adapted from Micropolis. “Micropolis” is a trademark, so we credit it as this license asks and never use it as our game’s name. The license follows in its original English.</p>
+      </section>
+
+      <section class="aboutCard aboutLicense" style="--i: 1">
           <p>
           Version 1, October 1st, 2024. Copyright (C) 2024 Micropolis GmbH.
           </p>
@@ -148,17 +152,16 @@
           <p>
           Amsterdam on October 1st, 2024.
           </p>
-      </div>
+      </section>
     </main>
-    <footer id="licenseFooter" class="alignCenter chunk white padding10">
-      Enjoyed micropolisJS? <a href="https://www.refuweegee.co.uk/your-donations">Click here to donate to a charity whose work I love!</a>
-        <div id="author" class="open">Brought to you by <a rel="author" href="http://www.graememcc.co.uk" target="_blank">Graeme McCutcheon</a><i><a rel="author" href="https://twitter.com/graememcc" target="_blank">(@graememcc)</a></i> and <a rel="author" href="https://github.com/graememcc/micropolisJS/graphs/contributors" target="_blank">contributors</a>
-          <div id="build">Build: <%= htmlWebpackPlugin.options.gitHash %></div>
-        </div>
-        <div class="nameLicense">
-          Micropolis is a registered trademark of <a href="https://www.micropolis.com">Micropolis Corporation (Micropolis GmbH)</a> and is licensed here as a courtesy of the owner under the <a href="name_license.html">Micropolis Public Name License</a>.
-        </div>
-      </footer>
+
+    <footer class="aboutFooter">
+      <div>Modified from micropolisJS by <a rel="author noopener" href="http://www.graememcc.co.uk" target="_blank">Graeme McCutcheon</a> and <a rel="author noopener" href="https://github.com/graememcc/micropolisJS/graphs/contributors" target="_blank">contributors</a>, adapted from Micropolis. See LICENSE and COPYING.
+        Build: <%= htmlWebpackPlugin.options.gitHash %>
+      </div>
+      <div class="nameLicense">
+        Micropolis is a registered trademark of <a href="https://www.micropolis.com">Micropolis Corporation (Micropolis GmbH)</a> and is licensed here as a courtesy of the owner under the <a href="name_license.html">Micropolis Public Name License</a>.
+      </div>
+    </footer>
   </body>
 </html>
-
