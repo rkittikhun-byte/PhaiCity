@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR, MAPS_DIR, loadProvinces, resolveCenters, toRepoPath, writeJson } from './lib/common.mjs';
+import { packHeights, tileHeights } from './lib/elevation.mjs';
 import { encodePng } from './lib/png.mjs';
 import { loadForeignShapes, loadProvinceShapes } from './lib/provinceArea.mjs';
 import { buildProvinceMap, WATER, WOODS } from './lib/provinceMap.mjs';
@@ -70,6 +71,14 @@ async function main() {
       neighbors: province.neighbors,
     });
     const { flags, unlinked } = flagsFor(province, result, province.neighbors);
+    const heights = tileHeights(grid);
+    let heightMin = Infinity;
+    let heightMax = -Infinity;
+    for (let i = 0; i < heights.length; i++) {
+      if (!result.inside[i]) continue;
+      heightMin = Math.min(heightMin, heights[i]);
+      heightMax = Math.max(heightMax, heights[i]);
+    }
     const round = (v) => Math.round(v * 1e6) / 1e6;
 
     writeJson(path.join(options.partial ? PREVIEW_DIR : MAPS_DIR, `${province.id}.json`), {
@@ -89,13 +98,17 @@ async function main() {
       airports: airports
         .filter((airport) => provinceAt(airport.lon, airport.lat, shapes) === province.id)
         .map((airport) => ({ th: airport.name, en: airport.nameEn, iata: airport.iata })),
-      stats: result.stats,
+      // Ground height of each tile (Copernicus DEM GLO-90); the lowest and highest in the province, in metres
+      heights: packHeights(heights),
+      stats: { ...result.stats, heightMin: Math.round(heightMin), heightMax: Math.round(heightMax) },
       flags,
       unlinked,
-      sources: ['OpenStreetMap contributors (ODbL 1.0)', 'Natural Earth (public domain)'],
+      sources: ['OpenStreetMap contributors (ODbL 1.0)', 'Natural Earth (public domain)',
+        'produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 ' +
+        'provided under COPERNICUS by the European Union and ESA; all rights reserved'],
       generatedAt: new Date().toISOString(),
     });
-    if (options.preview) writePreview(province.id, grid, result);
+    if (options.preview) writePreview(province.id, grid, result, heights);
     report.push({ province, flags, unlinked, problems: result.problems, stats: result.stats, exits: result.exits });
     console.log(`${province.id} ${province.nameTh.padEnd(14)} ${grid.width}×${grid.height}  ` +
       `roads ${result.stats.roadTiles} rail ${result.stats.railTiles}  ` +
@@ -120,7 +133,7 @@ const COLORS = {
 };
 const PIXELS_PER_TILE = 3;
 
-function writePreview(id, grid, result) {
+function writePreview(id, grid, result, heights) {
   const { width, height } = grid;
   const scale = PIXELS_PER_TILE;
   const rgb = new Uint8Array(width * scale * height * scale * 3);
@@ -144,6 +157,8 @@ function writePreview(id, grid, result) {
       else if (transport === RAIL) color = COLORS.rail;
       else if (transport === CROSSING) color = COLORS.crossing;
       // Outside the province: dimmed
+      // Hills lit from the north-west, so the mountains show
+      color = color.map((c) => Math.min(255, Math.round(c * hillshade(heights, x, y, width, height, grid.tileSizeM))));
       if (!result.inside[i]) color = color.map((c) => Math.round(c * 0.45));
       paint(x, y, color);
     }
@@ -152,6 +167,16 @@ function writePreview(id, grid, result) {
   if (result.town) paint(result.town.x, result.town.y, COLORS.town);
   fs.mkdirSync(PREVIEW_DIR, { recursive: true });
   fs.writeFileSync(path.join(PREVIEW_DIR, `${id}.png`), encodePng(width * scale, height * scale, rgb));
+}
+
+/** How much light a tile catches from the north-west, about 0.6 (facing away) to 1.3 (facing the light). */
+function hillshade(heights, x, y, width, height, tileSizeM) {
+  const at = (cx, cy) => heights[Math.min(height - 1, Math.max(0, cy)) * width + Math.min(width - 1, Math.max(0, cx))];
+  const slopeX = (at(x + 1, y) - at(x - 1, y)) / (2 * tileSizeM);
+  const slopeY = (at(x, y + 1) - at(x, y - 1)) / (2 * tileSizeM);
+  // Exaggerated four times so gentle hills show at a kilometre a tile
+  const shade = 1 + 4 * (slopeX + slopeY) * 0.7;
+  return Math.max(0.6, Math.min(1.3, shade));
 }
 
 function printReport(report) {

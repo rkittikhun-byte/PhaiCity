@@ -18,7 +18,8 @@ AI agents (Codex / Claude Code) must read it in full before working on anything 
 3. **Transport facts (การคมนาคม):** each province lists what links it to the rest of the country: its roads and
    railways to neighbouring provinces, its waterways (big rivers; the sea for coastal provinces) and, later, its
    passenger airports. The province card shows them.
-4. **Elevation (later):** visual only, for 3D hills. The simulation stays flat.
+4. **Elevation:** each province map carries its tiles' heights (section 5), for 3D hills and later for floods that
+   follow the land. The simulation stays flat until the owner decides otherwise.
 
 Province ids, names, regions and neighbors come from `data/thailand-provinces.json` (ids = ISO 3166-2:TH, e.g. `TH-50`).
 
@@ -50,7 +51,7 @@ Only sources on this list may be used. Record every source used in `data/CREDITS
 |---|---|---|---|
 | Province boundaries | Natural Earth 1:10m Admin-1 states/provinces | Public domain | None (credit is courteous) |
 | Water, coast, forest, main roads, railways, airports, city centers | OpenStreetMap, via the Overpass API or the Geofabrik extract of Thailand (`download.geofabrik.de/asia/thailand-*.osm.pbf`) | ODbL 1.0 | Visible in-game credit "© OpenStreetMap contributors"; files derived from OSM (`data/maps/`, `data/geo/province-centers.json`) are published under ODbL (`data/maps/LICENSE.md`) |
-| Elevation (later) | Copernicus DEM GLO-30, or AWS Terrain Tiles | Check at download time | Record the required attribution in `data/CREDITS.md` |
+| Elevation | Copernicus DEM GLO-90 (90 m), from its open-data copy on AWS (`npm run geo:dem`) | Copernicus DEM licence: free for any use, commercial included | The notice "produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved" with anything made from it (`data/CREDITS.md`, shown on the About page) |
 
 **Forbidden:**
 - GADM (non-commercial only)
@@ -72,6 +73,7 @@ If unsure, stop and ask the project owner.
 | `data/maps/LICENSE.md` | States that `data/maps/` is licensed under ODbL 1.0, with OSM attribution | yes |
 | `data/geo/cache/` | Raw downloads (Natural Earth, Overpass) and preview pictures | **no** (gitignored) |
 | `data/geo/cache/overpass/national/<layer>/<lat>_<lon>.json` | One layer for one 1° square, trimmed to what the maps use: from Overpass (`geo:download`) or the extract (`geo:extract`), the same form | no |
+| `data/geo/cache/dem/Copernicus_DSM_COG_30_*_DEM.tif` | Copernicus DEM GLO-90, one 1° square each (84 squares, 360 MB; open sea has none), read by `scripts/geo/lib/geotiff.mjs` | no |
 | `data/geo/cache/pbf/thailand-*.osm.pbf` | The Geofabrik extract of Thailand, read by `scripts/geo/lib/pbf.mjs` (no dependency) | no |
 | `data/geo/cache/neighbor-countries.geojson` | Myanmar, Laos, Cambodia and Malaysia from Natural Earth (`geo:national`), only to stop roads at the border; never drawn | no |
 | `data/geo/cache/preview/TH-xx.png` | `geo:maps -- --preview` pictures, for checking maps by eye | no |
@@ -97,7 +99,9 @@ If unsure, stop and ask the project owner.
   ],
   "waterways": [{ "th": "แม่น้ำชี", "en": "Chi River" }],
   "airports": [{ "th": "ท่าอากาศยานขอนแก่น", "en": "Khon Kaen Airport", "iata": "KKC" }],
-  "stats": { "insideTiles": 29681, "land": 0.86, "water": 0.04, "woods": 0.1, "roadTiles": 263, "railTiles": 201 },
+  "heights": { "min": 120, "step": 2, "data": "eNrtwTEBAAAAwqD1T20ND6AAAAA..." },
+  "stats": { "insideTiles": 29681, "land": 0.86, "water": 0.04, "woods": 0.1, "roadTiles": 263, "railTiles": 201,
+             "heightMin": 140, "heightMax": 610 },
   "flags": [],
   "unlinked": [],
   "sources": ["OpenStreetMap contributors (ODbL 1.0)", "Natural Earth (public domain)"],
@@ -115,7 +119,11 @@ If unsure, stop and ask the project owner.
   (`ref`) or the railway's name. Only neighbouring Thai provinces; a line leading abroad has no exit.
 - `waterways`: the big rivers that run through the province, longest first.
 - `airports`: the province's passenger airports (OSM `aeroway=aerodrome` with an `iata` code inside its shape).
-- `stats`: shares of land, water and woods **inside the province**, and its road and railway tiles.
+- `heights`: each tile's mean ground height in metres, row by row, as bytes: `min + level × step`, the bytes deflated
+  (zlib) and in base64. Open sea is 0. It is a surface model (the tops of trees and towns), which a few hundred metres
+  a tile smooths out. The simulation stays flat; the 3D view and the province card use it.
+- `stats`: shares of land, water and woods **inside the province**, its road and railway tiles, and its lowest and
+  highest tile in metres.
 - `unlinked`: neighbouring provinces with no road link (see the `neighbor_unlinked` flag).
 - The example values are placeholders, not real data.
 
