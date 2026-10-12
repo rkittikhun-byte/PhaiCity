@@ -12,7 +12,7 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **R1** → **6A** → 7 → 8 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -24,7 +24,7 @@
 
 | ใคร | ทำงานที่ | Prompt (ทำตามลำดับ) |
 |---|---|---|
-| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **19** → **16B** → **16C** → **16D** → 5B → 6 → **R1** → 6A → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → **R2** → 17 → **R3** → **R4** → 18 |
+| **Codex** | โฟลเดอร์หลัก, branch `main` | 0 → 1 → 1C → 2 → 3 → 4 → 4B → 5 → **19** → **16B** → **16C** → **16D** → 5B → 6 → 6A → 7 → 8 → 9 → 10 → 11 → **R1** → 12 → 13 → 14 → 15 → **R2** → 17 → **R3** → **R4** → 18 |
 | ~~Antigravity~~ | ~~worktree `.claude/worktrees/ag-graphics`, branch `ag/graphics`~~ | ทำ **16** ยานพาหนะ (ในโฟลเดอร์หลัก) แล้วเลิกใช้ |
 
 - **11 ต.ค. 2026:** เจ้าของโปรเจคเลิกใช้ Antigravity กับงานกราฟิก เพราะรถจาก Prompt 16 เป็นกล่องและสีเพี้ยน
@@ -1232,8 +1232,8 @@ Prompt 0–19 สร้างโมเดลอย่างเดียว ช�
 
 | Prompt | งาน | ทำหลัง |
 |---|---|---|
-| R1 | โครงตัววาด: พื้น น้ำ ป่า ถนน สะพาน ราง สายไฟ, กล้อง, คลิกเลือกช่อง, กรอบเครื่องมือ, เมืองทดสอบในแกลเลอรี | Prompt 6 |
-| R2 | โซนและอาคารทั้งหมด บ้าน 1 ช่อง อาคารพิเศษ ไฟในหน้าต่าง | Prompt 15 |
+| R1 | โครงตัววาด: พื้น น้ำ ป่า ถนน สะพาน ราง สายไฟ, กล้อง, คลิกเลือกช่อง, กรอบเครื่องมือ, อาคารที่มีโมเดลแล้ว (ที่เหลือเป็นกล่อง), เมืองทดสอบในแกลเลอรี | Prompt 6 (ส่งได้ทุกเมื่อหลังจากนั้น; 12 ต.ค. Codex อยู่ที่ Prompt 11 จึงแนะนำส่งต่อจาก 11) |
+| R2 | โซนและอาคารครบทุกแบบ บ้าน 1 ช่อง อาคารพิเศษ ไฟในหน้าต่าง ภาคต่าง ๆ และ LOD | Prompt 15 |
 | R3 | ของที่เคลื่อนไหว: รถไฟ เรือ เครื่องบิน พญานาค พายุ ไฟไหม้ น้ำท่วม รถบนถนน | Prompt 17 |
 | R4 | เก็บงาน: ความเร็ว LOD เงา กลางวัน/กลางคืน ฤดูฝน ภาพถ่ายทั้งเมือง | R3 |
 
@@ -1252,8 +1252,9 @@ Task: the first working 3D city view, in src/render3d/city/.
 2. Tiles to models (section 6) for everything that already has a model: dirt, water and shores, woods, rubble,
    roads (all masks, bridges, the drawbridge, crossings with rail and power), rail (all masks), power lines if
    Prompt 6 is done. Traffic road values 80–206 draw as plain roads.
-   Zones and buildings have no models yet: draw each footprint as a plain block whose height follows the zone's
-   density, coloured by zone type, so the city reads. Everything else gets the debug model.
+   Zones and buildings: place the models that already exist in the registry by their centre tile
+   (RENDERER_SPEC section 6); draw every zone or building without a model yet as a plain block whose height
+   follows its density, coloured by zone type, so the city reads. Everything else gets the debug model.
 3. Chunks of 16 × 16 tiles with instancing, and change detection with time-sliced rebuilds (section 8).
 4. The tool outline from toolFootprint(), tileAt() and visibleTiles() by raycasting, smooth centreOn(), shake(),
    screenshotVisible() and screenshotMap() (section 4).
