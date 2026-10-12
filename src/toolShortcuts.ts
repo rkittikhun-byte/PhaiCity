@@ -20,6 +20,12 @@ export function toolName(tool: string): string {
   return t(`tool.${tool}`, price === undefined ? undefined : { price: formatPrice(price) });
 }
 
+/** The name and the price apart, for the button: the price sits at its right edge. */
+export function toolLabel(tool: string): { name: string; price: string } {
+  const price = prices[tool];
+  return { name: t(`tool.${tool}`, { price: "" }).trim(), price: price === undefined ? "" : formatPrice(price) };
+}
+
 /** Shows a city's prices on the tool buttons. */
 export function showToolPrices(next: Record<string, number>): void {
   prices = { ...next };
@@ -107,7 +113,20 @@ export function installToolShortcuts(doc: Document = document): void {
       const tool = button.dataset.tool as string;
       const key = TOOL_KEYS.find((k) => k.tool === tool)?.key ?? null;
       if (key) button.dataset.key = key;
-      button.textContent = toolName(tool);
+      // A square in the tool's colour (its shortcut key inside) until the tool icons come, then the name and price
+      button.style.setProperty("--tool", button.dataset.colour ?? "#888");
+      const { name, price } = toolLabel(tool);
+      const icon = doc.createElement("span");
+      icon.className = "toolIcon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = key ?? "";
+      const nameSpan = doc.createElement("span");
+      nameSpan.className = "toolName";
+      nameSpan.textContent = name;
+      const priceSpan = doc.createElement("span");
+      priceSpan.className = "toolPrice";
+      priceSpan.textContent = price;
+      button.replaceChildren(icon, nameSpan, priceSpan);
       button.title = toolTitle(tool, key);
     });
     const pause = doc.getElementById("pauseRequest");

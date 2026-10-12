@@ -111,8 +111,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     - The Micropolis trademark line stays in English. The micropolisJS credit and the OpenStreetMap credit
       must stay visible in both languages (`test/i18n.ts` checks this).
     - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
-- **Footer:** it holds the required credits, so the game area (`main`) ends where the footer starts:
-  `src/micropolis.js` sets `--footer-height` on load, resize and language change. Never let the map cover it.
+- **Game HUD (owner, 12 Oct 2026):** in a city the map fills the window and every panel is a frosted-glass card
+  ("Game HUD" at the end of `css/style.css`, whose `body #…` rules override the original layout). The header is a
+  few round buttons in the top-right corner: sound, language, 2D/3D (`src/viewSwitch.ts` saves the city and opens it
+  again with `index.html?view=3d&city=<id>`) and About. The footer is hidden but stays in the page, because the start
+  screen copies its required credits from it; in a city the small `#mapAttribution` line keeps the OpenStreetMap
+  credit and "modified from micropolisJS" on screen, with a link to every credit. Never remove that line.
 - **About page:** `about.html` with its own bundle `src/aboutPage.ts`: how to play and every credit, in both
   languages. Each credit group's full list is read at run time from the credits files (`src/creditsMarkdown.ts`),
   so new credits only go in those files. `test/i18n.ts` checks it keeps the required credits like `index.html`.

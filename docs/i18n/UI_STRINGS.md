@@ -563,6 +563,12 @@
 | `news.goto` | `src/newsLog.ts` | — | `Go there` | `ไปดู` | พากล้องไปที่เกิดเหตุ |
 | `view.3d_missing` | `src/splashScreen.js` | — | `The 3D city isn't ready yet, so the 2D view is used for now.` | `เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน` | `index.html?view=3d` ก่อน Codex ทำ R1 เสร็จ (Claude Code 12 ต.ค. 2026) |
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
+| `view.to_3d` | `src/viewSwitch.ts` | — | `3D view` | `มุมมอง 3D` | ปุ่มมุมขวาบนในเมือง (Claude Code 12 ต.ค. 2026) |
+| `view.to_2d` | `src/viewSwitch.ts` | — | `2D view` | `มุมมอง 2D` |  |
+| `view.switch_title` | `src/viewSwitch.ts` | — | `Saves the city and opens it again in the other view` | `บันทึกเมือง แล้วเปิดเมืองนี้ใหม่ในอีกมุมมอง` | tooltip |
+| `view.switch_failed` | `src/viewSwitch.ts` | — | `The city could not be saved, so the view stays as it is.` | `บันทึกเมืองไม่ได้ จึงยังสลับมุมมองไม่ได้` | พื้นที่เก็บข้อมูลของเบราว์เซอร์เต็ม |
+| `hud.attribution` | `index.html` | — | `Map © {osm} · modified from micropolisJS · {credits}` | `แผนที่ © {osm} · ดัดแปลงจาก micropolisJS · {credits}` | บรรทัดเครดิตเล็กบนแผนที่ในเมือง แทนแถบล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) {osm} คงข้อความ "OpenStreetMap contributors" |
+| `hud.credits` | `index.html` | — | `All credits` | `เครดิตทั้งหมด` | ลิงก์ไปหน้าเกี่ยวกับเกม |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |
 | `about.toc.label` | `about.html` | — | `On this page` | `ในหน้านี้` | aria-label ของสารบัญ |
 | `about.toc.start` | `about.html` | — | `Start` | `เริ่มเกม` | สารบัญ |
@@ -633,6 +639,8 @@
 | `sound.mute_all` | `index.html` | `-` | `Mute all` | `ปิดเสียงทั้งหมด` | ช่องติ๊ก |
 | `sound.toggle_off` | `src/audio/index.ts` | `-` | `Turn sound off` | `ปิดเสียง` | tooltip ปุ่มลำโพงตอนเสียงเปิดอยู่ |
 | `sound.toggle_on` | `src/audio/index.ts` | `-` | `Turn sound on` | `เปิดเสียง` | tooltip ปุ่มลำโพงตอนปิดเสียงอยู่ |
+| `sound.waiting` | `src/audio/index.ts` | `-` | `Click anywhere, or here, to start the sound (browsers keep games silent until then)` | `คลิกที่ไหนก็ได้หรือที่ปุ่มนี้เพื่อเริ่มเสียง (เบราว์เซอร์ไม่ให้เกมมีเสียงจนกว่าจะคลิก)` | tooltip ก่อนคลิกครั้งแรก (Claude Code 12 ต.ค. 2026) |
+| `sound.waiting_short` | `src/provincePicker.ts` | `-` | `Sound on` | `เปิดเสียง` | ข้อความข้างลำโพงบนหน้าเริ่มเกม ก่อนคลิกครั้งแรก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
 ## 15B. เรื่องเล่าเปิดเกม เลือกภาค เลือกจังหวัด และเมนูหลัก (Claude Code, 11 ต.ค. 2026)

@@ -37,6 +37,7 @@ import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { showToolPrices } from './toolShortcuts.ts';
+import { installViewSwitch } from './viewSwitch.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -348,6 +349,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     save: this.save.bind(this),
     shouldAutosave: function() { return self.provinceId !== null || self.cityId !== null; }
   }, {onSaved: showSavedNote, onFull: showFullNote});
+
+  // The 2D/3D button (src/viewSwitch.ts) saves the city and opens it again in the other view
+  installViewSwitch(this);
 
   // Run the sim
   this.tick = tick.bind(this);

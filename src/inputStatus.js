@@ -252,14 +252,15 @@ var toolButtonHandler = function(e) {
     $(this).addClass('unselected');
   });
 
-  // Add highlight
-  $(e.target).removeClass('unselected');
-  $(e.target).addClass('selected');
+  // Add highlight (the button itself: a click may land on its icon or its name inside)
+  var button = $(e.currentTarget);
+  button.removeClass('unselected');
+  button.addClass('selected');
 
-  this.toolName = $(e.target).attr('data-tool');
-  this.toolWidth = $(e.target).attr('data-size');
+  this.toolName = button.attr('data-tool');
+  this.toolWidth = button.attr('data-size');
   this.currentTool = this.gameTools[this.toolName];
-  this.toolColour = $(e.target).attr('data-colour');
+  this.toolColour = button.attr('data-colour');
   $(toolOutputID).text(t('tool.header'));
 
   if (this.toolName !== 'query') {

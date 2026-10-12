@@ -27,17 +27,14 @@
     <img id="tiles" class="imageData" src="images/tiles.png" alt="These are the game's principal tiles">
     <img id="snowtiles" class="imageData" src="images/tilessnow.png" alt="These are the game's alternate tiles">
     <img id="sprites" class="imageData" src="images/sprites.png" alt="These are the game's sprites">
-    <header id="header" class="chunk border-bottom padding10">
-      <div class="left inlineblock">
-        <h1 id="title" class="white fontlarge" data-i18n="app.title">PhaiCity</h1>
-      </div>
-      <nav class="white right padding10 inlineblock">
-        <ul>
-          <li class="padding10"><button id="soundToggle" type="button" aria-pressed="false"></button></li>
-          <li class="padding10"><button id="languageToggle" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button></li>
-          <li class="padding10"><a href="about.html" target="_blank" data-i18n="nav.about">About</a></li>
-          <li class="padding10"><a href="https://github.com/graememcc/micropolisJS" target="_blank">GitHub</a></li>
-        </ul>
+    <!-- In a city: a few small buttons float in the top-right corner over the map (css/style.css "Game HUD") -->
+    <header id="header">
+      <nav class="hudButtons">
+        <button id="soundToggle" class="hudPill" type="button" aria-pressed="false"></button>
+        <button id="languageToggle" class="hudPill" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button>
+        <!-- 2D or 3D (src/viewSwitch.ts): saves the city and opens it again in the other view -->
+        <button id="viewToggle" class="hudPill" type="button">3D</button>
+        <a class="hudPill" href="about.html" target="_blank" data-i18n="nav.about">About</a>
       </nav>
     </header>
     <div id="wrapper">
@@ -148,6 +145,9 @@
           <h3 data-i18n="news.title">Recent city news</h3>
           <ol id="newsLogList"></ol>
         </div>
+        <!-- In a city the footer gives way to the map: the full credits stay on the start screen and the About page,
+             and this one small line keeps the map's own credit on screen (CLAUDE.md, licence rule 7) -->
+        <div id="mapAttribution" class="z1 initialHidden" data-i18n-template="hud.attribution">Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" data-i18n-slot="osm">OpenStreetMap contributors</a> · modified from micropolisJS · <a href="about.html#aboutCredits" target="_blank" data-i18n-slot="credits" data-i18n="hud.credits">All credits</a></div>
         <!-- A note that fades after a moment, e.g. "Autosaved 10:42" (src/cornerNote.ts) -->
         <div id="cornerNote" class="z1" role="status" aria-live="polite" hidden></div>
         <!-- The ruler's tasks (src/rulerGoals.ts), one chapter at a time; shown by the game, never before.

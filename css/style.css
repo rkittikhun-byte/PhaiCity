@@ -1102,6 +1102,12 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   text-shadow: 0 0 18px rgba(246, 215, 122, 0.45); }
 #provincePicker .ppQuiet { font-size: 13px; }
 #provincePicker .ppSound svg, #soundToggle svg { display: block; margin: 0 auto; }
+/* Before the first click the game is silent: the speaker says how to start the sound, and glows gently */
+#provincePicker .ppSound.soundWaiting { display: inline-flex; align-items: center; gap: 8px; padding: 0 14px;
+  border-color: rgba(246, 215, 122, 0.7); animation: soundWaitingGlow 2.4s ease-in-out infinite; }
+#provincePicker .ppSound.soundWaiting svg { margin: 0; }
+#provincePicker .ppSoundHint { font-size: 14px; white-space: nowrap; }
+@keyframes soundWaitingGlow { 50% { box-shadow: 0 0 18px rgba(246, 215, 122, 0.45); } }
 #provincePicker .ppSkip { font-size: 15px; padding: 6px 20px; border-color: rgba(246, 215, 122, 0.7); color: #f6d77a; }
 #provincePicker .ppContinue { border-color: rgba(246, 215, 122, 0.6); color: #f6d77a; }
 #provincePicker .ppClock { font-size: 20px; font-weight: 300; letter-spacing: 0.04em; color: rgba(238, 243, 239, 0.85); margin-left: 6px; }
@@ -1430,6 +1436,150 @@ body.aboutPage .aboutFooter a { color: var(--about-dim); margin-left: 0; }
   body.aboutPage .aboutCard, body.aboutPage .aboutCredits { padding: 16px; }
   body.aboutPage .aboutBrand { font-size: 22px; }
 }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Game HUD (owner, 12 Oct 2026): the city fills the whole window and every panel is a frosted-glass card floating over
+   it. No header bar and no footer: a few round buttons sit in the top-right corner, and one small credit line stays
+   at the bottom (#mapAttribution; the full credits are on the start screen and the About page). The "body" prefix
+   lets these rules win over the original layout's rules above, its screen-size variants included.
+   --------------------------------------------------------------------------------------------------------------------- */
+:root {
+  --hud-gap: 12px;
+  --hud-glass: rgba(246, 250, 247, 0.72);
+  --hud-glass-strong: rgba(252, 253, 252, 0.92);
+  --hud-edge: rgba(255, 255, 255, 0.7);
+  --hud-text: #1d2925;
+  --hud-dim: #5a6964;
+  --hud-shadow: 0 10px 28px rgba(12, 24, 20, 0.26);
+  --hud-left: 172px;
+  --hud-right: 300px;
+}
+
+body #wrapper { top: 0; }
+body main { bottom: 0; }
+body #footer { display: none; }
+
+/* The corner buttons: sound, language, 2D/3D, About */
+body #header {
+  position: fixed; top: var(--hud-gap); right: var(--hud-gap); left: auto; z-index: 15;
+  height: auto; margin: 0; padding: 0; background: none; border: none;
+}
+body #header .hudButtons { display: flex; gap: 6px; }
+body .hudPill {
+  display: inline-flex; align-items: center; justify-content: center; height: 32px; min-width: 32px; padding: 0 12px;
+  border: 1px solid var(--hud-edge); border-radius: 999px; background: var(--hud-glass); color: var(--hud-text);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); box-shadow: var(--hud-shadow);
+  font: 600 13px 'Sarabun Thai', 'Open Sans', sans-serif; text-decoration: none; cursor: pointer;
+}
+body .hudPill:hover { background: var(--hud-glass-strong); color: var(--hud-text); }
+body #soundToggle { padding: 0; width: 32px; }
+body #viewToggle { background: linear-gradient(135deg, #f6d77a, #d29a2c); border-color: rgba(255, 255, 255, 0.5); color: #1c1405; }
+
+/* Every card: frosted glass */
+body #infobar, body #miscButtons, body #RCIContainer, body #controls, body #rulerGoals, body #monstertv, body #debug,
+body #newsLog {
+  background: var(--hud-glass); color: var(--hud-text);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  border: 1px solid var(--hud-edge); border-radius: 14px; box-shadow: var(--hud-shadow);
+}
+
+/* Left column: the city, the menu, what the city wants */
+body #infobar {
+  top: var(--hud-gap); left: var(--hud-gap); width: var(--hud-left); height: auto; box-sizing: border-box;
+  padding: 10px 14px; text-align: left; font-size: 13px; line-height: 1.45;
+}
+body #infobar #name { font-size: 18px; line-height: 1.3; }
+body #miscButtons {
+  top: 182px; left: var(--hud-gap); width: var(--hud-left); height: auto; box-sizing: border-box; padding: 8px;
+}
+body #miscButtons .miscButton {
+  position: relative; width: 100%; height: 28px; margin: 1px 0; padding: 0 8px 0 28px; border: none; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5); color: var(--hud-text); text-align: left;
+  font: 600 13px 'Sarabun Thai', 'Open Sans', sans-serif;
+}
+body #miscButtons .miscButton::before {
+  content: ""; position: absolute; left: 10px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 3px;
+  background: var(--accent, #5a6964);
+}
+body #miscButtons .miscButton:hover { background: rgba(255, 255, 255, 0.92); }
+body #miscButtons .miscButton:disabled { opacity: 0.45; }
+#budgetRequest { --accent: dodgerblue; }
+#evalRequest { --accent: forestgreen; }
+#mapRequest { --accent: #0f7c8c; }
+#disasterRequest { --accent: #e53935; }
+#saveRequest { --accent: cadetblue; }
+#settingsRequest { --accent: #663399; }
+#screenshotRequest { --accent: tomato; }
+#pauseRequest { --accent: #8a6d1d; }
+#mainMenuRequest { --accent: #226b57; }
+body #RCIContainer { top: auto; bottom: 34px; left: var(--hud-gap); width: var(--hud-left); height: 150px; box-sizing: border-box; padding: 6px; }
+
+/* Right column: the tools, then the ruler's tasks */
+body #controls {
+  top: calc(var(--hud-gap) + 42px); right: var(--hud-gap); width: var(--hud-right); height: auto; box-sizing: border-box;
+  padding: 8px 10px 10px;
+}
+body #toolInfo { margin: 0 0 6px; padding: 0 0 0 30px; text-align: left; font-weight: 700; font-size: 14px; }
+body #buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+body #buttons .toolButton {
+  position: relative; display: flex; align-items: center; gap: 6px; width: auto; height: 30px; margin: 0; padding: 0 7px;
+  border: 1px solid transparent; border-radius: 8px; background: rgba(255, 255, 255, 0.5); color: var(--hud-text);
+  font: 600 12px 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
+}
+body #buttons .toolButton:hover { background: rgba(255, 255, 255, 0.92); }
+body #buttons .toolButton.selected { background: #fff; border-color: var(--tool, #1d2925); box-shadow: 0 0 0 2px var(--tool, #1d2925); }
+body #buttons .toolButton > * { pointer-events: none; }
+/* Until the tool icons come (assets/icons/tools/, Codex), a square in the tool's colour holding its shortcut key */
+body #buttons .toolIcon {
+  flex: none; width: 18px; height: 18px; border-radius: 5px; background: var(--tool, #888);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); color: #fff; font-size: 11px; line-height: 18px; text-align: center;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+body #buttons .toolName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body #buttons .toolPrice { flex: none; color: var(--hud-dim); font-size: 11px; font-weight: 600; }
+body #buttons .toolButton[data-key]::after { content: none; }
+body #rulerGoals { top: 378px; right: var(--hud-gap); width: var(--hud-right); box-sizing: border-box; }
+body #monstertv { right: var(--hud-gap); }
+
+/* Panels slide away to their side, leaving their handle */
+body .collapsible.fromLeft.collapsed { transform: translateX(calc(-100% - var(--hud-gap) + 28px)); }
+body .collapsible.fromRight.collapsed { transform: translateX(calc(100% + var(--hud-gap) - 28px)); }
+
+/* Bottom middle: the news bar and its button */
+body #notifications {
+  top: auto; bottom: 30px; left: 50%; width: min(440px, calc(100vw - 2 * var(--hud-left) - 160px)); height: auto;
+  min-height: 20px; padding: 8px 14px; box-sizing: border-box; border: 1px solid var(--hud-edge); border-radius: 999px;
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); box-shadow: var(--hud-shadow);
+  font: 600 13px 'Sarabun Thai', 'Open Sans', sans-serif;
+}
+body #notifications.neutral { background: var(--hud-glass); color: var(--hud-text); }
+body #notifications.good { background: rgba(46, 140, 80, 0.88); color: #fff; }
+body #notifications.bad { background: rgba(200, 40, 40, 0.88); color: #fff; }
+body #newsLogButton {
+  bottom: 30px; left: calc(50% + min(220px, (100vw - 2 * var(--hud-left) - 160px) / 2) + 8px);
+  height: 37px; padding: 0 14px; border: 1px solid var(--hud-edge); border-radius: 999px; background: var(--hud-glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: var(--hud-shadow);
+}
+body #newsLog { bottom: 80px; }
+body #cornerNote { right: var(--hud-gap); bottom: 30px; }
+
+/* Shorter windows: a tighter left column so the menu and the demand bars still fit */
+@media (max-height: 700px) {
+  body #infobar { line-height: 1.3; padding: 8px 12px; }
+  body #miscButtons { top: 164px; }
+  body #miscButtons .miscButton { height: 24px; }
+  body #RCIContainer { height: 120px; }
+}
+
+/* The one credit line left on the map, under the news bar */
+body #mapAttribution {
+  position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+  max-width: calc(100vw - 2 * var(--hud-left) - 4 * var(--hud-gap)); padding: 1px 10px;
+  border-radius: 999px; background: rgba(20, 32, 28, 0.55); color: rgba(255, 255, 255, 0.88);
+  font: 11px/1.5 'Sarabun Thai', 'Open Sans', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body #mapAttribution a { color: #fff; }
+body #mapAttribution.initialHidden { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }

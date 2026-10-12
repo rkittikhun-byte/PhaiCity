@@ -24,6 +24,7 @@ import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
 import { checkRulesData, resolveRules } from './provinceRules.ts';
+import { requestedCity } from './viewSwitch.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
 
@@ -80,6 +81,15 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   this.spriteSheet = spriteSheet;
 
   $('#saveRequest').prop('disabled', !Storage.canStore);
+
+  // index.html?city=<id> opens a saved city straight away (the 2D/3D button, src/viewSwitch.ts)
+  var cityId = requestedCity(window.location.search);
+  var cityToOpen = cityId !== null ? loadCity(cityId) : null;
+  if (cityToOpen !== null) {
+    launch.call(this, cityToOpen, Simulation.LEVEL_EASY, null);
+    return;
+  }
+
   var requested = getRequestedProvince();
 
   openStartScreen({
