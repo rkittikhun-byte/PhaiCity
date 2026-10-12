@@ -32,6 +32,9 @@
       <nav class="hudButtons">
         <button id="soundToggle" class="hudPill" type="button" aria-pressed="false"></button>
         <button id="languageToggle" class="hudPill" type="button" data-i18n="lang.switch_to" data-i18n-title="lang.switch_title">English</button>
+        <!-- Turn the 3D view (keys Q and E); shown only when the view can turn (src/viewSwitch.ts) -->
+        <button id="rotateLeft" class="hudPill hudRound" type="button" hidden>⟲</button>
+        <button id="rotateRight" class="hudPill hudRound" type="button" hidden>⟳</button>
         <!-- 2D or 3D (src/viewSwitch.ts): saves the city and opens it again in the other view -->
         <button id="viewToggle" class="hudPill" type="button">3D</button>
         <a class="hudPill" href="about.html" target="_blank" data-i18n="nav.about">About</a>

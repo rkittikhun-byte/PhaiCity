@@ -100,6 +100,7 @@
 | Key | File | Current English | New English | Thai | Notes |
 |---|---|---|---|---|---|
 | `tool.header` | `index.html` | `Tools` | `Tools` | `เครื่องมือ` | หัวแถบเครื่องมือ |
+| `tool.put_down` | `src/inputStatus.js` | — | `Press the tool again or Esc to put it down` | `กดปุ่มเดิมอีกครั้งหรือ Esc เพื่อเลิกใช้` | หัวแถบเครื่องมือตอนถือเครื่องมืออยู่ (Claude Code 12 ต.ค. 2026) |
 | `tool.residential` | `index.html` | `Residential $100` | `Residential {price}` | `ที่อยู่อาศัย {price}` | โซน 3x3 |
 | `tool.commercial` | `index.html` | `Commercial $100` | `Commercial {price}` | `พาณิชยกรรม {price}` | โซน 3x3 |
 | `tool.industrial` | `index.html` | `Industrial $100` | `Industrial {price}` | `อุตสาหกรรม {price}` | โซน 3x3 |
@@ -565,6 +566,8 @@
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
 | `view.to_3d` | `src/viewSwitch.ts` | — | `3D view` | `มุมมอง 3D` | ปุ่มมุมขวาบนในเมือง (Claude Code 12 ต.ค. 2026) |
 | `view.to_2d` | `src/viewSwitch.ts` | — | `2D view` | `มุมมอง 2D` |  |
+| `view.rotate_left` | `src/viewSwitch.ts` | — | `Turn left (Q)` | `หมุนซ้าย (Q)` | ปุ่ม ⟲ มุมขวาบน เฉพาะ 3D (Claude Code 12 ต.ค. 2026) |
+| `view.rotate_right` | `src/viewSwitch.ts` | — | `Turn right (E)` | `หมุนขวา (E)` | ปุ่ม ⟳ |
 | `view.switch_title` | `src/viewSwitch.ts` | — | `Saves the city and opens it again in the other view` | `บันทึกเมือง แล้วเปิดเมืองนี้ใหม่ในอีกมุมมอง` | tooltip |
 | `view.switch_failed` | `src/viewSwitch.ts` | — | `The city could not be saved, so the view stays as it is.` | `บันทึกเมืองไม่ได้ จึงยังสลับมุมมองไม่ได้` | พื้นที่เก็บข้อมูลของเบราว์เซอร์เต็ม |
 | `hud.attribution` | `index.html` | — | `Map © {osm} · modified from micropolisJS · {credits}` | `แผนที่ © {osm} · ดัดแปลงจาก micropolisJS · {credits}` | บรรทัดเครดิตเล็กบนแผนที่ในเมือง แทนแถบล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) {osm} คงข้อความ "OpenStreetMap contributors" |

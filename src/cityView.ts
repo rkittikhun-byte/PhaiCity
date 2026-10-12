@@ -54,6 +54,11 @@ export interface CityView {
   screenshotVisible(): string;
   /** A short shake (earthquakes). */
   shake(): void;
+  /**
+   * 3D only, optional: turns the camera around the point it looks at, by degrees (positive turns clockwise as seen
+   * from above). The corner buttons and the Q and E keys use it when the view has it (src/viewSwitch.ts).
+   */
+  rotate?(degrees: number): void;
 }
 
 /** The functions every view has; tests of each view check them (test/cityView.ts, and the 3D view's own test). */

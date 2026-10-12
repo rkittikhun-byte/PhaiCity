@@ -96,6 +96,7 @@ Read `src/cityView.ts` for the exact signatures. In 3D they mean:
 | `screenshotVisible()` | PNG data URL of the current view. |
 | `screenshotMap()` | Top-down orthographic PNG of the whole map, at most 4096 px on the longest side. |
 | `shake()` | A camera shake of at most 0.6 s (earthquakes). |
+| `rotate(degrees)` | **Added 12 Oct 2026 (owner's request).** Optional in the interface, wanted in 3D: turn the heading around the point the camera looks at by `degrees` (positive = clockwise seen from above), smoothly in about 0.25 s (at once with `prefers-reduced-motion`); calls that arrive mid-turn add up. The game calls it from the ⟲ ⟳ corner buttons and the Q and E keys (15° a press, repeating while held). Right-button drag keeps working as now. |
 
 **The tool outline.** `hover` is the tool under the mouse; draw `toolFootprint(hover)` (from `src/cityView.ts`) as a
 thin outline plus a faint fill on the ground, in `hover.colour` (a CSS colour name such as `lime` or `yellow`),

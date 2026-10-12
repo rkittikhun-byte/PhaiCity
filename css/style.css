@@ -1472,7 +1472,8 @@ body .hudPill {
   font: 600 13px 'Sarabun Thai', 'Open Sans', sans-serif; text-decoration: none; cursor: pointer;
 }
 body .hudPill:hover { background: var(--hud-glass-strong); color: var(--hud-text); }
-body #soundToggle { padding: 0; width: 32px; }
+body #soundToggle, body .hudRound { padding: 0; width: 32px; font-size: 17px; }
+body .hudPill[hidden] { display: none; }
 body #viewToggle { background: linear-gradient(135deg, #f6d77a, #d29a2c); border-color: rgba(255, 255, 255, 0.5); color: #1c1405; }
 
 /* Every card: frosted glass */

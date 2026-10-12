@@ -47,6 +47,9 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
 
 export const PAUSE_CODE = "KeyP";
 export const MAP_CODE = "KeyM";
+/** Q and E turn the 3D view (the ⟲ ⟳ corner buttons, src/viewSwitch.ts). */
+export const TURN_LEFT_CODE = "KeyQ";
+export const TURN_RIGHT_CODE = "KeyE";
 
 /** What each tool does, for its tooltip: the About page's description (after its "Name: "), or a hint of its own. */
 export const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -88,10 +91,13 @@ interface KeyLike {
 }
 
 /** What a key press asks for, or null. Digits on the main row and on the number pad both count. */
-export function shortcutFor(event: KeyLike): { tool: string } | { pause: true } | { map: true } | null {
+export function shortcutFor(event: KeyLike):
+    { tool: string } | { pause: true } | { map: true } | { turn: -1 | 1 } | null {
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return null;
   if (event.code === PAUSE_CODE) return { pause: true };
   if (event.code === MAP_CODE) return { map: true };
+  if (event.code === TURN_LEFT_CODE) return { turn: -1 };
+  if (event.code === TURN_RIGHT_CODE) return { turn: 1 };
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code)?.[1];
   const entry = TOOL_KEYS.find((k) => k.key === digit);
   return entry ? { tool: entry.tool } : null;
@@ -139,13 +145,14 @@ export function installToolShortcuts(doc: Document = document): void {
   onLanguageChange(label);
 
   doc.addEventListener("keydown", (event) => {
-    if (event.repeat || keysBelongElsewhere(doc, event.target)) return;
+    if (keysBelongElsewhere(doc, event.target)) return;
     const shortcut = shortcutFor(event);
-    if (!shortcut) return;
-    const button = "tool" in shortcut
-      ? doc.querySelector<HTMLElement>(`.toolButton[data-tool="${shortcut.tool}"]`)
+    // Only turning repeats while its key is held
+    if (!shortcut || (event.repeat && !("turn" in shortcut))) return;
+    const button = "tool" in shortcut ? doc.querySelector<HTMLElement>(`.toolButton[data-tool="${shortcut.tool}"]`)
+      : "turn" in shortcut ? doc.getElementById(shortcut.turn < 0 ? "rotateLeft" : "rotateRight")
       : doc.getElementById("map" in shortcut ? "mapRequest" : "pauseRequest");
-    if (!button || (button as HTMLButtonElement).disabled) return;
+    if (!button || button.hidden || (button as HTMLButtonElement).disabled) return;
     event.preventDefault();
     button.click();
   });
