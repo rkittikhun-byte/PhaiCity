@@ -422,6 +422,23 @@ nav li {
   height: 150px;
 }
 
+/* "Autosaved 10:42" (src/autosave.ts): a quiet note in the bottom-right corner of the map */
+#autosaveNote {
+  position: absolute;
+  right: 50px;
+  bottom: 16px;
+  max-width: 320px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(20, 32, 28, 0.82);
+  color: #f3efe2;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+#autosaveNote[hidden] { display: none; }
+#autosaveNote:not([hidden]) { animation: motionFadeIn 0.3s ease-out backwards; }
+
 /* First tasks for a new ruler (src/rulerGoals.ts), on the right under the tools */
 #rulerGoals {
   position: absolute;

@@ -14,6 +14,7 @@
 import $ from "jquery";
 
 import { attachGameAudio } from './audio/gameAudio.ts';
+import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
@@ -295,6 +296,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
     goalsSave = {done: [], dismissed: true};
   this.rulerGoals = installRulerGoals(this.simulation, goalsSave);
 
+  // Autosave (src/autosave.ts): a province city from the start, a practice city once it has been saved by hand
+  this.autosave = installAutosave({
+    save: this.save.bind(this),
+    shouldAutosave: function() { return self.provinceId !== null || self.cityId !== null; }
+  }, {onSaved: showSavedNote, onFull: showFullNote});
+
   // Run the sim
   this.tick = tick.bind(this);
   this.tick();
@@ -527,6 +534,8 @@ Game.prototype.handleMainMenuClosure = function(choice) {
     this.handleSave();
     return;
   }
+  // Leaving without saving must not be undone by the autosave when the page closes
+  this.autosave.stop();
   window.location.assign(window.location.pathname);
 };
 

@@ -123,6 +123,8 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - Nothing plays before the player's first click or key press (browser rule).
 - **Saves:** many cities (`src/cityStorage.ts`): an index in `phaicity.cities` and one save per city in
   `phaicity.city.<id>`, with the map run-length encoded (a 200×200 city is about 20 KB instead of 560 KB).
+  Autosave (`src/autosave.ts`) saves a province city every 3 minutes and when the page is hidden or closed, and a
+  practice city only after the player has saved it once; "leave without saving" stops it first.
   The save format and its migrations are still `src/storage.js` (version 4); the old single save
   `micropolisJSGame` is copied in once and left untouched. "My cities" on the start screen carries on or deletes them.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.

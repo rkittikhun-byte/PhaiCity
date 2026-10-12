@@ -486,6 +486,9 @@
 | `about.settings.speed` | `about.html` | `Speed: Time flies when you max out the game speed` | `Speed: Adjust simulation pace between slow, medium, and fast.` | `ความเร็วเวลา: เลือกระดับความเร็วในการจำลองเมือง ทั้งระดับช้า ปานกลาง หรือเร็ว` | คำอธิบายตัวเลือก |
 | `about.settings.sound` | `about.html` | — | `Sound and music: the speaker button at the top turns all sound on or off, and Settings has separate sliders for music, effects, ambience and buttons. The music follows your city's region.` | `เสียงและเพลง: ปุ่มลำโพงด้านบนเปิดหรือปิดเสียงทั้งหมด ในหน้าตั้งค่าปรับเพลง เสียงเอฟเฟกต์ เสียงบรรยากาศ และเสียงปุ่มแยกกันได้ เพลงจะเปลี่ยนตามภาคของเมือง` | Claude Code, 11 ต.ค. 2026 |
 | `about.settings.language` | `about.html` | — | `Language: the button at the top switches between Thai and English.` | `ภาษา: ปุ่มด้านบนสลับระหว่างภาษาไทยและภาษาอังกฤษ` | |
+| `about.settings.autosave` | `about.html` | — | `Autosave: a province city saves itself every few minutes and when you close the page; a practice city does too once you have saved it yourself.` | `บันทึกอัตโนมัติ: เมืองของจังหวัดบันทึกเองทุกไม่กี่นาทีและเมื่อปิดหน้าเว็บ ส่วนเมืองฝึกหัดจะเริ่มบันทึกเองหลังจากคุณบันทึกครั้งแรก` | `src/autosave.ts` |
+| `autosave.saved` | `src/autosave.ts` | — | `Autosaved {time}` | `บันทึกอัตโนมัติแล้ว {time}` | ขึ้นมุมขวาล่างครู่เดียว (Claude Code 12 ต.ค. 2026) |
+| `autosave.full` | `src/autosave.ts` | — | `Autosave failed: storage is full. Delete an old city in “My cities” and try again.` | `บันทึกอัตโนมัติไม่สำเร็จ: พื้นที่บันทึกเต็ม ลบเมืองเก่าในหน้า “เมืองของฉัน” แล้วลองใหม่` | ชื่อหน้าตรงกับ `cities.title` |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |
 | `about.toc.label` | `about.html` | — | `On this page` | `ในหน้านี้` | aria-label ของสารบัญ |
 | `about.toc.start` | `about.html` | — | `Start` | `เริ่มเกม` | สารบัญ |
