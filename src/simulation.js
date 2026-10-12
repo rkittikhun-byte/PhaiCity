@@ -26,6 +26,7 @@ import * as Messages from './messages.ts';
 import { MiscTiles } from './miscTiles.js';
 import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
+import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
 import { Road } from './road.js';
@@ -159,6 +160,8 @@ Simulation.prototype.save = function(saveData) {
   this._valves.save(saveData);
   this.budget.save(saveData);
   this._census.save(saveData);
+  // The random generator carries on where it was, so a loaded city goes on as the saved one would have
+  saveData.randomState = Random.getState();
 };
 
 
@@ -171,6 +174,7 @@ Simulation.prototype.load = function(saveData) {
   this._valves.load(saveData);
   this.budget.load(saveData);
   this._census.load(saveData);
+  Random.setState(saveData.randomState);
 };
 
 

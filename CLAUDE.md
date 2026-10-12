@@ -197,7 +197,10 @@ Even before any server exists, all new code must keep this future possible:
 2. **Renderers only read city state.** They never write it back.
 3. **The simulation stays free of DOM, jQuery and `window`**, so it can run in Node on a server.
 4. **Saves support multiple cities** and carry optional `worldId` / `provinceId` fields.
-5. **Do not add new `Math.random` calls to the simulation.** A seedable RNG will replace it later.
+5. **Do not add new `Math.random` calls to the simulation.** Use `Random` (`src/random.ts`): one seedable generator
+   (`seed`, `getState`/`setState`) whose state is saved with the city as `randomState`. The same seed and the same
+   commands make the same city (`test/playthrough.ts`). Sprites still draw from it once per animation frame, so
+   tick-for-tick replays wait until they move inside the simulation's tick.
 
 ## Real geography
 

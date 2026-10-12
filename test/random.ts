@@ -152,3 +152,47 @@ describe("the getChance function", () => {
         expect(Random.getChance(chanceValue, rng)).toBe(true);
     });
 });
+
+describe("the seeded generator", () => {
+    const draw = (n: number) => Array.from({ length: n }, () => Random.getRandom(1000));
+
+    it("gives the same numbers from the same seed", () => {
+        Random.seed(2026);
+        const first = draw(20);
+        Random.seed(2026);
+        expect(draw(20)).toEqual(first);
+        Random.seed(2027);
+        expect(draw(20)).not.toEqual(first);
+    });
+
+    it("carries on from a saved state", () => {
+        Random.seed(7);
+        draw(5);
+        const saved = Random.getState();
+        const after = draw(10);
+        Random.seed(99);
+        expect(Random.setState(saved)).toBe(true);
+        expect(draw(10)).toEqual(after);
+    });
+
+    it("ignores a saved state that is not a 32-bit whole number", () => {
+        Random.seed(5);
+        const state = Random.getState();
+        for (const bad of [undefined, null, "12", -1, 1.5, 2 ** 32, NaN]) expect(Random.setState(bad)).toBe(false);
+        expect(Random.getState()).toBe(state);
+    });
+
+    it("spreads its numbers evenly over [0, 1)", () => {
+        Random.seed(1);
+        let sum = 0;
+        let low = 0;
+        for (let i = 0; i < 20000; i++) {
+            const value = Random.next();
+            expect(value >= 0 && value < 1).toBe(true);
+            sum += value;
+            if (value < 0.1) low++;
+        }
+        expect(sum / 20000).toBeCloseTo(0.5, 1);
+        expect(low / 20000).toBeCloseTo(0.1, 1);
+    });
+});

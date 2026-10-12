@@ -16,6 +16,7 @@ import { GameTools } from "../src/gameTools.js";
 import { decodePresetCells } from "../src/geo/presetMap";
 import { MapGenerator } from "../src/mapGenerator.js";
 import * as Messages from "../src/messages";
+import { Random } from "../src/random";
 import { Simulation } from "../src/simulation.js";
 
 const STEPS_PER_YEAR = 48 * 16; // 48 time units a year, 16 phases each
@@ -188,6 +189,26 @@ describe("a long game on a real province map", () => {
       for (let step = 0; step < 16 * 3; step++) sim._simulate(sim._constructSimData());
       expect(messages).not.toContain(Messages.BLACKOUTS_REPORTED);
     }
+  });
+
+  test("the same seed and the same commands make the same city", () => {
+    const run = () => {
+      Random.seed(2026);
+      const map = provinceMap("TH-90");
+      const { sim, commands } = newGame(map);
+      sim.budget.setFunds(60000);
+      const area = dryArea(map, 32, 12);
+      buildTown(commands, area.x, area.y);
+      play(sim, 2);
+      const tiles: number[] = [];
+      for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) tiles.push(map.getTileValue(x, y));
+      return { tiles: tiles.join(","), funds: sim.budget.totalFunds, population: sim.evaluation.cityPop };
+    };
+    const first = run();
+    const second = run();
+    expect(second.funds).toBe(first.funds);
+    expect(second.population).toBe(first.population);
+    expect(second.tiles === first.tiles).toBe(true);
   });
 
   test("disasters strike a living city without breaking the game", () => {
