@@ -120,10 +120,13 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - The menu is a strip of icons down the left edge (`src/menuRail.ts`): pointing at one slides out its name, a click
     opens its card (the city card, the language card with a flag per language, or the window the menu button always
     opened), resting on another icon puts it away.
-  - The top bar (`#header`): on the left the city's name, date and money (`src/cityStatus.ts`), ⌂ back to the
-    starting view (3D only) and sound (a click slides out the master volume, a second click mutes,
-    `wireSoundControl` in `src/audio/index.ts`); on the right the News button, whose list slides down from the top.
-    News shows at the top for a few seconds, then fades (`src/notification.js`).
+  - The top bar (`#header`): on the left the city's status, each figure under its topic, with homes, shops and
+    factories as demand and people (`src/cityStatus.ts`; it replaced the demand bars' card); on the right the News
+    button (its list slides down under the bar), ⌂ back to the starting view (3D only, a smooth flight) and sound
+    (a click slides out the master volume, a second click mutes, `wireSoundControl` in `src/audio/index.ts`). News
+    shows under the bar for a few seconds, then fades (`src/notification.js`).
+  - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
+    with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
   - `index.html?city=<id>` opens a saved city straight away.
   - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
     city the small `#mapAttribution` line keeps the OpenStreetMap credit and "modified from micropolisJS" on screen

@@ -27,9 +27,8 @@
     <img id="tiles" class="imageData" src="images/tiles.png" alt="These are the game's principal tiles">
     <img id="snowtiles" class="imageData" src="images/tilessnow.png" alt="These are the game's alternate tiles">
     <img id="sprites" class="imageData" src="images/sprites.png" alt="These are the game's sprites">
-    <!-- In a city: a few small buttons float in the top-right corner over the map (css/style.css "Game HUD") -->
-    <!-- The top of the screen in a city (owner, 12 Oct 2026): on the left, beside the menu icons, the city's name, date
-         and money, then ⌂, the sound and the language; on the right, the news -->
+    <!-- The top of the screen in a city (css/style.css "Game HUD", owner 12 Oct 2026): on the left the city's status,
+         on the right the news, ⌂ and the sound -->
     <header id="header">
       <nav class="hudButtons hudLeft">
         <!-- The city's status, each block a topic above its number (src/cityStatus.ts): the name, date, money and
@@ -43,16 +42,16 @@
           <div class="stat statZone" data-zone="commercial"><span class="statTopic"><span data-i18n="status.commercial">Shops</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="industrial"><span class="statTopic"><span data-i18n="status.industrial">Factories</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
         </div>
-        <!-- Bring the 3D view back to where it started; shown only in 3D (src/viewControls.ts) -->
-        <button id="viewReset" class="hudPill hudRound" type="button" hidden>⌂</button>
-        <!-- The speaker: a click slides out the volume, a second click mutes (src/audio/index.ts) -->
-        <div id="soundControl" class="hudPill">
-          <button id="soundToggle" type="button" aria-pressed="false" aria-expanded="false"></button>
-          <input id="soundVolume" type="range" min="0" max="100" step="5" data-i18n-aria-label="sound.volume" tabindex="-1">
-        </div>
       </nav>
       <nav class="hudButtons hudRight">
         <button id="newsLogButton" type="button" class="hudPill initialHidden">News</button>
+        <!-- Bring the 3D view back to where it started; shown only in 3D (src/viewControls.ts) -->
+        <button id="viewReset" class="hudPill hudRound" type="button" hidden>⌂</button>
+        <!-- The speaker: a click slides out the volume to its left, a second click mutes (src/audio/index.ts) -->
+        <div id="soundControl" class="hudPill">
+          <input id="soundVolume" type="range" min="0" max="100" step="5" data-i18n-aria-label="sound.volume" tabindex="-1">
+          <button id="soundToggle" type="button" aria-pressed="false" aria-expanded="false"></button>
+        </div>
       </nav>
     </header>
     <div id="wrapper">
