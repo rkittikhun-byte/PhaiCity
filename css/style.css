@@ -1527,7 +1527,7 @@ body #footer { display: none; }
 /* The top of the screen: the city's line, ⌂, sound and language on the left beside the menu icons; the news on the
    right. The bar itself lets clicks through to the city */
 body #header {
-  position: fixed; top: var(--hud-gap); left: 46px; right: var(--hud-gap); z-index: 15; display: flex;
+  position: fixed; top: var(--hud-gap); left: var(--hud-gap); right: var(--hud-gap); z-index: 15; display: flex;
   justify-content: space-between; align-items: center; height: auto; margin: 0; padding: 0; background: none; border: none;
   pointer-events: none;
 }
@@ -1809,7 +1809,8 @@ body #touchWarnWindow { width: 360px; }
 body #touchContainer .padding10 { padding: 2px 0; }
 
 /* The menu: icons down the left edge (src/menuRail.ts). Pointing at one slides out its name; the open one stays lit */
-body #miscButtons { top: var(--hud-gap); left: 0; z-index: 15; width: auto; height: auto; padding: 4px; }
+/* Below the status, which runs along the top from the left edge (owner, 12 Oct 2026) */
+body #miscButtons { top: 64px; left: 0; z-index: 15; width: auto; height: auto; padding: 4px; }
 body #miscButtons .inner { display: flex; flex-direction: column; gap: 2px; }
 body #miscButtons .inner > div { display: contents; }
 body #miscButtons .miscButton {
@@ -1868,9 +1869,32 @@ body #languageCard .flag { display: block; border-radius: 2px; box-shadow: 0 0 0
 #languageRequest { --accent: #2d6cb5; }
 
 /* The city's name, date and money, always in view, first in the top bar (src/cityStatus.ts) */
-body #cityStatus { gap: 7px; padding: 0 11px; cursor: default; white-space: nowrap; pointer-events: none; }
+/* Each block: its topic small above, its number below; the demand in green when wanted, red when not
+   (owner, 12 Oct 2026: two lines, and the demand bars' card moved in here) */
+body #cityStatus {
+  display: flex; align-items: stretch; height: auto; padding: 5px 4px; box-sizing: border-box;
+  border: 1px solid var(--hud-edge); border-radius: 12px; background: var(--hud-glass);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: var(--hud-shadow);
+  color: var(--hud-text); font-family: 'Sarabun Thai', 'Open Sans', sans-serif; white-space: nowrap; pointer-events: none;
+}
 body #cityStatus.initialHidden { display: none; }
-body #cityStatus span + span::before { content: "·"; margin-right: 7px; color: var(--hud-dim); }
+body #cityStatus .stat { display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 9px; }
+body #cityStatus .stat + .stat { border-left: 1px solid rgba(29, 41, 37, 0.12); }
+body #cityStatus .statTopic { font-size: 8.5px; line-height: 1.3; color: var(--hud-dim); }
+body #cityStatus .statValue { font-size: 10.5px; line-height: 1.3; color: var(--hud-text); }
+body #cityStatus .statPercent { font-size: 8.5px; }
+body #cityStatus .statPercent.up { color: #2e7d4f; }
+body #cityStatus .statPercent.down { color: #c0392b; }
+body #cityStatus .statZone[data-zone="residential"] .statTopic::before,
+body #cityStatus .statZone[data-zone="commercial"] .statTopic::before,
+body #cityStatus .statZone[data-zone="industrial"] .statTopic::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 1.5px; vertical-align: 0;
+}
+body #cityStatus .statZone[data-zone="residential"] .statTopic::before { background: #2fbf4a; }
+body #cityStatus .statZone[data-zone="commercial"] .statTopic::before { background: #2453c9; }
+body #cityStatus .statZone[data-zone="industrial"] .statTopic::before { background: #e3c11b; }
+/* The demand bars' own card gives way to the status */
+body #RCIContainer { display: none; }
 
 /* A slid-away panel shows its tab outside its own box, so nothing in it may clip */
 body .collapsible.collapsed, body #rulerGoals.collapsed, body #controls.collapsed, body #RCIContainer.collapsed { overflow: visible; }

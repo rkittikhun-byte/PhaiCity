@@ -19,6 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands } from './cityCommands.ts';
+import { showDemandAndPeople } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -113,6 +114,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
                                   rankForCityClass(this.simulation.evaluation.cityClass));
 
   this.rci = new RCI('RCIContainer', this.simulation);
+  // The same demand, as percentages with the people in homes, shops and factories, in the status (src/cityStatus.ts)
+  showDemandAndPeople(this.simulation);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas

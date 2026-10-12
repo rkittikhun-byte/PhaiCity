@@ -32,8 +32,17 @@
          and money, then ⌂, the sound and the language; on the right, the news -->
     <header id="header">
       <nav class="hudButtons hudLeft">
-        <!-- The city's name, date and money, always in view (src/cityStatus.ts copies them from the city card) -->
-        <div id="cityStatus" class="hudPill initialHidden" aria-hidden="true"><span id="statusName"></span><span id="statusDate"></span><span id="statusFunds"></span></div>
+        <!-- The city's status, each block a topic above its number (src/cityStatus.ts): the name, date, money and
+             population copied from the city card, then what homes, shops and factories want and who lives or works there -->
+        <div id="cityStatus" class="initialHidden">
+          <div class="stat"><span class="statTopic" data-i18n="status.city">City</span><span class="statValue" id="statusName"></span></div>
+          <div class="stat"><span class="statTopic" data-i18n="status.date">Date</span><span class="statValue" id="statusDate"></span></div>
+          <div class="stat"><span class="statTopic" data-i18n="status.funds">Treasury</span><span class="statValue" id="statusFunds"></span></div>
+          <div class="stat"><span class="statTopic" data-i18n="status.population">Population</span><span class="statValue" id="statusPopulation"></span></div>
+          <div class="stat statZone" data-zone="residential"><span class="statTopic"><span data-i18n="status.residential">Homes</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
+          <div class="stat statZone" data-zone="commercial"><span class="statTopic"><span data-i18n="status.commercial">Shops</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
+          <div class="stat statZone" data-zone="industrial"><span class="statTopic"><span data-i18n="status.industrial">Factories</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
+        </div>
         <!-- Bring the 3D view back to where it started; shown only in 3D (src/viewControls.ts) -->
         <button id="viewReset" class="hudPill hudRound" type="button" hidden>⌂</button>
         <!-- The speaker: a click slides out the volume, a second click mutes (src/audio/index.ts) -->

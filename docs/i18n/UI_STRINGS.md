@@ -774,6 +774,14 @@
 | `resource.note.island` | `src/provincePicker.ts` | `-` | `An island: building land is limited` | `เป็นเกาะ ที่ดินสร้างได้มีจำกัด` | ตอนซูมดูภูมิประเทศ |
 | `picker.terrain_title` | `src/provincePicker.ts` | `-` | `Your land` | `ผืนดินของคุณ` | ตอนซูมดูภูมิประเทศ |
 | `menu.main` | `index.html` | `-` | `Main menu` | `เมนูหลัก` | ปุ่มในเกม |
+| `status.city` | `index.html` | `-` | `City` | `เมือง` | หัวข้อในแถบสถานะซ้ายบน ช่องละ 2 บรรทัด หัวข้อบน ตัวเลขล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `status.date` | `index.html` | `-` | `Date` | `วันที่` | แถบสถานะ |
+| `status.funds` | `index.html` | `-` | `Treasury` | `คลังเมือง` | แถบสถานะ |
+| `status.population` | `index.html` | `-` | `Population` | `ประชากร` | แถบสถานะ |
+| `status.residential` | `index.html` | `-` | `Homes` | `ที่อยู่อาศัย` | แถบสถานะ ตามด้วยความต้องการเป็น % (แท่ง R เดิม) |
+| `status.commercial` | `index.html` | `-` | `Shops` | `พาณิชย์` | แถบสถานะ (แท่ง C เดิม) |
+| `status.industrial` | `index.html` | `-` | `Factories` | `อุตสาหกรรม` | แถบสถานะ (แท่ง I เดิม) |
+| `status.people` | `src/cityStatus.ts` | `-` | `{count} people` | `{count} คน` | คนที่อยู่ในบ้าน หรือทำงานในร้านและโรงงาน |
 | `menu.language` | `index.html` | `-` | `Language` | `ภาษา` | ไอคอนลูกโลกในแถบเมนูซ้าย เปิดการ์ดเลือกภาษา (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `gate.tagline` | `src/titleGate.ts` | `-` | `Build your city on the real land of Thailand's 77 provinces` | `สร้างเมืองของคุณบนผืนดินจริงของ 77 จังหวัด` | หน้าแรกก่อนเข้าเกม (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `gate.language` | `src/titleGate.ts` | `-` | `Language` | `ภาษา` | หน้าแรก |
@@ -796,7 +804,6 @@
 | `ui.show_menus` | `src/provincePicker.ts` | `-` | `Show menus` | `แสดงเมนู` | ปุ่มเดียวกันตอนซ่อนอยู่ |
 | `ui.hide_panel` | `src/panelCollapse.ts` | `-` | `Slide the {name} away` | `เก็บ{name}` | tooltip ลูกศรมุมการ์ด {name} คือชื่อการ์ดด้านล่าง (Claude Code 12 ต.ค. 2026) |
 | `ui.show_panel` | `src/panelCollapse.ts` | `-` | `Show the {name}` | `แสดง{name}` | tooltip แถบไอคอนที่ยื่นจากขอบจอตอนการ์ดถูกเก็บ |
-| `panel.demand` | `src/panelCollapse.ts` | `-` | `demand bars` | `ความต้องการของเมือง` | การ์ดแท่ง R C I |
 | `panel.tools` | `src/panelCollapse.ts` | `-` | `tools` | `เครื่องมือ` | การ์ดเครื่องมือด้านขวา |
 | `panel.goals` | `src/panelCollapse.ts` | `-` | `ruler's tasks` | `ภารกิจเจ้าเมือง` | การ์ดภารกิจ |
 | `goals.title` | `index.html` | — | `Your first tasks` | `ภารกิจแรกของเจ้าเมือง` | การ์ดภารกิจ (`src/rulerGoals.ts`, Claude Code 12 ต.ค. 2026) |
