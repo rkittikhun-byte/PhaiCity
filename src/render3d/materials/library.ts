@@ -4,7 +4,7 @@
 
 import {
   Color, ColorRepresentation, DoubleSide, Material, MeshPhysicalMaterial,
-  MeshStandardMaterial, MeshStandardMaterialParameters,
+  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBADepthPacking,
 } from 'three';
 import { getWaterNormal, loadMaterialTextures, TextureSet } from './textures.js';
 export { SHOPHOUSE_PASTELS, shophousePastel } from './palette.js';
@@ -116,6 +116,11 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
     material.customProgramCacheKey = () => 'phaicity-curb-bands';
   }
   if (material.userData.cityWorldUV) configureCityWorldUV(material);
+  if (material.userData.cityLOD && material.onBeforeCompile !== material.userData.cityLODWrapper) {
+    // Painted scans can replace their surface hook when textures arrive; restore both city layers once.
+    if (material.userData.cityLODWorldUV) configureCityWorldUV(material);
+    configureCityLOD(material, material.userData.cityLODCoarse);
+  }
   material.needsUpdate = true;
 }
 
@@ -268,6 +273,55 @@ export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMater
     if (material instanceof MeshPhysicalMaterial) { material.transmission = 0; material.forceSinglePass = true; }
     material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey; configureCityWorldUV(material);
   });
+}
+/** Complementary screen-door coverage keeps depth writes and avoids alpha-sorting LOD flashes. */
+function configureCityLOD(material: Material, coarse: boolean): void {
+  if (material.onBeforeCompile === material.userData.cityLODWrapper) return;
+  const original = material.onBeforeCompile, program = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    original.call(material, shader, renderer);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}varying float cityDetail;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'};`);
+    // Detailed instances carry fade in instanceColor.r, preserving their baked geometry colours.
+    // This keeps prototype geometry shared instead of copying every vertex buffer for a fade attribute.
+    if(!coarse)shader.vertexShader=shader.vertexShader.replace('#include <color_vertex>',`
+      vColor = vec4(1.0);
+      #undef USE_INSTANCING_COLOR
+      #include <color_vertex>
+      #define USE_INSTANCING_COLOR`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail;')
+      .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+        {
+        // A fixed 4x4 Bayer pattern: coarse and detail cover opposite samples, including shadows.
+        vec2 cell = mod(floor(gl_FragCoord.xy), 4.0);
+        vec2 low = mod(cell, 2.0), high = floor(cell / 2.0);
+        float threshold = (4.0 * (2.0 * low.x + 3.0 * low.y - 4.0 * low.x * low.y)
+          + 2.0 * high.x + 3.0 * high.y - 4.0 * high.x * high.y + 0.5) / 16.0;
+        if (${coarse ? 'threshold < cityDetail' : 'threshold >= cityDetail'}) discard;
+        }`);
+  };
+  material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${program}`;
+  material.userData.cityLODWrapper=material.onBeforeCompile;material.userData.cityLODCoarse=coarse;
+}
+export function cityLODMaterial(base: MeshStandardMaterial, coarse = false): MeshStandardMaterial {
+  const token=`city-lod-${coarse}-${base.name}:${base.color.getHexString()}`,cached=cache.get(token);if(cached)return cached;
+  const world=cityWorldMaterial(base),material=world.clone();material.name=token;
+  // The inherited hook already projects world UVs. Texture readiness must not wrap it a second time.
+  material.userData={...world.userData,cityLODWorldUV:!!world.userData.cityWorldUV,cityWorldUV:false,cityLOD:true};
+  material.onBeforeCompile=world.onBeforeCompile;material.customProgramCacheKey=world.customProgramCacheKey;configureCityLOD(material,coarse);
+  owned.add(material);cache.set(token,material);
+  const key=base.userData.materialKey as MaterialKey|undefined;
+  if(key)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
+  return material;
+}
+const cityDepthMaterials=new WeakMap<Material,MeshDepthMaterial>();
+export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMaterial {
+  const cached=cityDepthMaterials.get(base);if(cached)return cached;
+  const material=new MeshDepthMaterial({depthPacking:RGBADepthPacking,side:base.side,map:base.map,alphaMap:base.alphaMap,alphaTest:base.alphaTest});
+  configureCityLOD(material,false);owned.add(material);cityDepthMaterials.set(base,material);
+  const key=base.userData.materialKey as MaterialKey|undefined;
+  if(key)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
+  return material;
 }
 export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
   return finishedMaterial(`city-tool-${fill}`, 'sign_thai', color, material => {

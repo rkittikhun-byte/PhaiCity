@@ -7,7 +7,7 @@ import { resolve } from 'node:path';
 import { CanvasTexture, NoColorSpace, Texture, TextureLoader } from 'three';
 import sharp from 'sharp';
 import { DAY_SKY_URL, TEXTURE_CATALOG, TextureDefinition } from '../../src/render3d/materials/catalog.js';
-import { getMaterial, isLibraryMaterial, MATERIAL_KEYS, materialTextureStatus, setNightMode, shophousePastel, SHOPHOUSE_PASTELS, tint, whenMaterialReady } from '../../src/render3d/materials/library.js';
+import { cityLODMaterial, getMaterial, isLibraryMaterial, MATERIAL_KEYS, materialTextureStatus, setNightMode, shophousePastel, SHOPHOUSE_PASTELS, tint, whenMaterialReady } from '../../src/render3d/materials/library.js';
 import { FICTIONAL_THAI_SIGNS, thaiSign } from '../../src/render3d/materials/signs.js';
 import { loadTexture } from '../../src/render3d/materials/textures.js';
 
@@ -73,6 +73,7 @@ describe('headless fallback and lazy loading', () => {
     });
     const base = getMaterial('plaster_white');
     const clone = tint('plaster_white', '#ddbbaa');
+    const cityDetail = cityLODMaterial(clone);
     expect(base.map).toBeNull(); expect(clone.map).toBeNull();
     callbacks.forEach(callback => callback());
     expect(await whenMaterialReady('plaster_white')).toBe(true);
@@ -81,6 +82,12 @@ describe('headless fallback and lazy loading', () => {
     expect(base.roughnessMap?.colorSpace).toBe(NoColorSpace);
     expect(loader).toHaveBeenCalledTimes(3); // Albedo, normal and one shared ORM.
     expect(clone.color.getHex()).toBe(0xddbbaa);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const shader = {uniforms:{},vertexShader:'#include <common>\n#include <uv_vertex>\n#include <begin_vertex>',fragmentShader:'#include <common>\n#include <map_fragment>\n#include <clipping_planes_fragment>'};
+    cityDetail.onBeforeCompile(shader as never, {} as never);
+    expect(shader.fragmentShader).toContain('float grain');
+    expect(shader.fragmentShader).toContain('threshold >= cityDetail');
+    expect((shader.vertexShader.match(/vec3 cityP =/g) ?? [])).toHaveLength(1);
     const late = tint('plaster_white', '#abcdef');
     expect(late.map).toBe(base.map);
     const requests = loader.mock.calls.length;

@@ -7,12 +7,12 @@ import { MaterialKey, getMaterial, tint, vertexFinish, roadConcrete, paintedStee
 import { hospitalAtlas, thaiSign, thaiSignAtlas } from '../materials/signs.js';
 import type { ModelOptions } from '../models/registry.js';
 export interface MaterialDescription { key:MaterialKey; name:string; color:number; data:Record<string,any> }
-export interface SerializedPart { attributes:Record<string,{array:Float32Array;size:number}>;index:Uint32Array|null;material:MaterialDescription;
+export interface SerializedPart { attributes:Record<string,{array:Float32Array;size:number}>;index:Uint32Array|null;material:MaterialDescription;ground?:boolean;
   bounds?:{min:[number,number,number];max:[number,number,number];center:[number,number,number];radius:number} }
 export interface SerializedPrototype { key:string; parts:SerializedPart[]; height:number; error?:string }
 export interface PrototypeRequest {key:string;id:string;options:ModelOptions}
 export interface PrototypeProvider { request(request:PrototypeRequest):void; take():SerializedPrototype[]; dispose():void }
-export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial}[];height:number }
+export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial;ground?:boolean}[];height:number }
 function material(d:MaterialDescription):MeshStandardMaterial {
   const u=d.data;
   if(u.hospitalAtlas)return hospitalAtlas();
@@ -33,6 +33,6 @@ export function decodePrototype(value:SerializedPrototype):Prototype {
     if(p.index)geometry.setIndex(new BufferAttribute(p.index,1));
     if(p.bounds){geometry.boundingBox=new Box3(new Vector3(...p.bounds.min),new Vector3(...p.bounds.max));geometry.boundingSphere=new Sphere(new Vector3(...p.bounds.center),p.bounds.radius);}
     else {geometry.computeBoundingBox();geometry.computeBoundingSphere();}
-    return{geometry,material:material(p.material)};
+    return{geometry,material:material(p.material),ground:p.ground};
   })};
 }

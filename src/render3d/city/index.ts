@@ -18,7 +18,7 @@ import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
-export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number }
+export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number;detailSwaps:number;dirtSwaps:number;pixelRatioChanges:number }
 export interface CityViewDependencies {
   canvas?:HTMLCanvasElement; rendererFactory?:(canvas:HTMLCanvasElement)=>WebGLRenderer;
   provider?:PrototypeProvider;now?:()=>number;headless?:boolean;
@@ -26,17 +26,19 @@ export interface CityViewDependencies {
 /** No animation loop or game state mutations: the game owns paint(), including while paused. */
 export class CityView3D implements CityView {
   readonly kind='3d' as const;readonly scene=new Scene();readonly navigation:CityCamera;readonly chunks:CityChunks;
-  readonly metrics:CityMetrics={frameMs:0,intervalMs:0,drawCalls:0,triangles:0,pendingChunks:0,pendingModels:0,unknownTiles:0,rebuildMs:0,firstFrameMs:0};
+  readonly metrics:CityMetrics={frameMs:0,intervalMs:0,drawCalls:0,triangles:0,pendingChunks:0,pendingModels:0,unknownTiles:0,rebuildMs:0,firstFrameMs:0,detailSwaps:0,dirtSwaps:0,pixelRatioChanges:0};
   readonly canvas:HTMLCanvasElement;readonly renderer:WebGLRenderer;
   private snapshot:TileSnapshot;private sprites=new CitySprites();private outline:ToolOutline;
   private sun=new DirectionalLight(0xffe4bc,3.3);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
-  private qualityFrames=0;
+  private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
+  private cameraPose:number[]=[];
   private bed:Mesh;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
+    this.lastQualityChange=this.created;this.lastMotion=this.created;
     if(!Number.isInteger(setup.map.width)||!Number.isInteger(setup.map.height)||setup.map.width<=0||setup.map.height<=0)throw new RangeError('A city map must have positive integer dimensions');
     this.canvas=dependencies.canvas??document.createElement('canvas');this.canvas.id='MicropolisCanvas';
     this.canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;';
@@ -45,6 +47,7 @@ export class CityView3D implements CityView {
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.sync(setup.map);this.snapshot.coverZones();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now);this.outline=new ToolOutline(setup.map.width,setup.map.height);
     const bedGeometry=new PlaneGeometry(setup.map.width*10,setup.map.height*10).rotateX(-Math.PI/2).translate(setup.map.width*5,-3.015,setup.map.height*5);
@@ -86,6 +89,9 @@ export class CityView3D implements CityView {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     this.resize();this.chunks.dirty(this.snapshot.sync(this.setup.map));
     this.navigation.update(start,this.chunks.tallestNear(this.navigation.target));
+    const pose=this.navigation.camera.matrixWorld.elements;
+    if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
+    this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
     this.chunks.update(this.visibleTiles(),this.navigation.target,this.navigation.distance);
     this.outline.update(hover);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds);
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);
@@ -96,12 +102,21 @@ export class CityView3D implements CityView {
     this.metrics.drawCalls=this.renderer.info.render.calls;this.metrics.triangles=this.renderer.info.render.triangles;
     this.metrics.pendingChunks=this.chunks.pendingChunks;this.metrics.unknownTiles=this.chunks.unknownTiles;this.metrics.rebuildMs=this.chunks.rebuildMs;
     this.metrics.pendingModels=this.chunks.pendingModels;
-    // Protect frame time before increasing detail: CSS coordinates and picking never depend on render resolution.
-    if(!this.headless&&++this.qualityFrames%30===0&&this.frameTimes.length===120&&!this.metrics.pendingChunks&&!this.metrics.pendingModels){
+    this.metrics.detailSwaps=this.chunks.detailSwaps;this.metrics.dirtSwaps=this.chunks.dirtSwaps;
+    if(this.metrics.frameMs<9){if(this.fastSince===null)this.fastSince=start;}else this.fastSince=null;
+    // Adapt only after navigation settles, using fresh samples at each quality level.
+    if(!this.headless&&++this.qualityFrames%30===0&&this.frameTimes.length===120&&!this.metrics.pendingChunks&&!this.metrics.pendingModels
+      &&start-this.lastMotion>=1000&&start-this.lastQualityChange>=3000){
       const ratio=this.renderer.getPixelRatio(),limit=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,2);
-      if(this.metrics.frameMs>19){if(ratio>1)this.renderer.setPixelRatio(Math.max(1,ratio-.25));else this.chunks.drawBudget=Math.max(60,this.chunks.drawBudget-12);}
-      else if(this.metrics.frameMs<12&&this.chunks.drawBudget<180)this.chunks.drawBudget=Math.min(180,this.chunks.drawBudget+6);
-      else if(this.metrics.frameMs<9&&ratio<limit)this.renderer.setPixelRatio(Math.min(limit,ratio+.25));
+      let nextRatio=ratio,nextBudget=this.chunks.drawBudget;
+      if(this.metrics.frameMs>22){if(ratio>1)nextRatio=Math.max(1,ratio-.25);else nextBudget=Math.max(60,nextBudget-12);}
+      else if(this.fastSince!==null&&start-this.fastSince>=10000&&start-this.lastQualityChange>=10000){
+        if(nextBudget<180)nextBudget=Math.min(180,nextBudget+6);else if(ratio<limit)nextRatio=Math.min(limit,ratio+.25);
+      }
+      if(nextRatio!==ratio||nextBudget!==this.chunks.drawBudget){
+        this.chunks.drawBudget=nextBudget;this.lastQualityChange=start;this.fastSince=null;this.frameTimes=[];this.intervals=[];this.qualityFrames=0;
+        if(nextRatio!==ratio){this.renderer.setPixelRatio(nextRatio);this.metrics.pixelRatioChanges++;this.render();}
+      }
     }
   }
   private render():void {
@@ -113,6 +128,8 @@ export class CityView3D implements CityView {
   tileAt(x:number,y:number):TilePoint|null{return pickTile(this.navigation.camera,x,y,this.width,this.height,this.setup.map.width,this.setup.map.height);}
   visibleTiles():TileRect|null{return visibleTileRect(this.navigation.camera,this.width,this.height,this.setup.map.width,this.setup.map.height,this.navigation.camera.far);}
   moveNorth():void{this.navigation.move('north');}moveEast():void{this.navigation.move('east');}moveSouth():void{this.navigation.move('south');}moveWest():void{this.navigation.move('west');}
+  /** Public pixel-delta adapter for the game's no-tool left drag. */
+  pan(dx:number,dy:number):void {this.navigation.pan(dx,dy,this.height);}
   centreOn(x:number,y:number):void{this.navigation.centreOn(x,y);}shake():void{this.navigation.shake();}
   screenshotVisible():string{if(this.disposed)return '';this.render();return this.canvas.toDataURL('image/png');}
   screenshotMap():string {

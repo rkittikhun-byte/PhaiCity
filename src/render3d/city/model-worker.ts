@@ -15,7 +15,7 @@ worker.onmessage=({data})=>{
     root.traverse(node=>{
       if(!(node instanceof Mesh))return;let ancestor=node.parent;while(ancestor){if(!ancestor.visible)return;ancestor=ancestor.parent;}if(!node.visible)return;
       const g=node.geometry.clone().applyMatrix4(node.matrixWorld),m=node.material as MeshStandardMaterial;
-      const p:SerializedPart={attributes:{},index:null,material:{key:m.userData.materialKey,name:m.name,color:m.color.getHex(),data:m.userData}};
+      const p:SerializedPart={attributes:{},index:null,ground:node.name.endsWith('/ground'),material:{key:m.userData.materialKey,name:m.name,color:m.color.getHex(),data:m.userData}};
       g.computeBoundingBox();g.computeBoundingSphere();p.bounds={min:g.boundingBox!.min.toArray(),max:g.boundingBox!.max.toArray(),center:g.boundingSphere!.center.toArray(),radius:g.boundingSphere!.radius};
       for(const[name,attribute]of Object.entries(g.attributes)) {const a=attribute as BufferAttribute,array=new Float32Array(a.array);p.attributes[name]={array,size:a.itemSize};transfer.push(array.buffer);}
       if(g.index){p.index=new Uint32Array(g.index.array);transfer.push(p.index.buffer);}result.parts.push(p);g.dispose();

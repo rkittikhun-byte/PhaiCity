@@ -111,7 +111,9 @@ function startGallery(): void {
   let cityView: CityView3D | undefined;
   const cityMap = new TestCity(), citySprites = testCitySprites();
   let cityHover: ToolHover | null = null, cityPaused = false, citySeconds = 0, cityLast = performance.now(), cityReadout = 0;
+  let cityMotion: {start:number;last:number;started:boolean;swaps:number;dirt:number;ratios:number;cpu:number[];intervals:number[]} | undefined;
   function buildCity(): void {
+    cityMotion=undefined;element<HTMLButtonElement>('city-motion').disabled=false;element('city-motion-metrics').textContent='';
     cityView?.dispose();cityView=createCityView3D(testCitySetup(element('city-stage'),regionPicker.value as RegionId,cityMap));
     cityLast=performance.now();
   }
@@ -531,6 +533,12 @@ function startGallery(): void {
   element('regions-tab').addEventListener('click', () => switchTab('regions'));
   element('city-tab').addEventListener('click', () => switchTab('city'));
   element('city-default').addEventListener('click',()=>cityView?.navigation.reset());
+  element('city-motion').addEventListener('click',()=>{
+    if(!cityView)return;cityView.navigation.reset();const time=performance.now(),m=cityView.metrics;
+    cityMotion={start:time+500,last:time+500,started:false,swaps:m.detailSwaps,dirt:m.dirtSwaps,ratios:m.pixelRatioChanges,cpu:[],intervals:[]};
+    localText(element('city-motion-metrics'),'กำลังเตรียมมุมเริ่มต้น…','Preparing the starting view…');
+    element<HTMLButtonElement>('city-motion').disabled=true;
+  });
   element('city-benchmark').addEventListener('click',()=>{const stage=element('city-stage');stage.style.boxSizing='content-box';stage.style.width='1920px';stage.style.height='1080px';stage.style.maxHeight='none';});
   element('city-whole').addEventListener('click',()=>cityView?.navigation.wholeMap());
   element('city-towers').addEventListener('click',()=>cityView?.centreOn(135,105));
@@ -583,8 +591,24 @@ function startGallery(): void {
   function render(): void {
     frame = requestAnimationFrame(render);
     if(activeTab==='city'&&cityView){
-      const time=performance.now();if(!cityPaused)citySeconds+=Math.min(.1,(time-cityLast)/1000);cityLast=time;
+      const time=performance.now(),frameInterval=time-cityLast;if(!cityPaused)citySeconds+=Math.min(.1,frameInterval/1000);cityLast=time;
+      if(cityMotion&&!cityMotion.started&&time>=cityMotion.start&&!cityView.metrics.pendingChunks&&!cityView.metrics.pendingModels){
+        const run=cityMotion,m=cityView.metrics;run.started=true;run.start=time;run.last=time;run.swaps=m.detailSwaps;run.dirt=m.dirtSwaps;run.ratios=m.pixelRatioChanges;
+      }
+      if(cityMotion?.started){
+        const n=cityView.navigation,dt=Math.max(0,(Math.min(time,cityMotion.start+10000)-cityMotion.last)/1000);
+        const scale=n.distance*2*Math.tan(19*Math.PI/180)/Math.max(1,cityView.height);
+        n.pan(-40*dt*Math.cos(n.heading)/scale,-40*dt*Math.sin(n.heading)/scale,cityView.height);n.rotate(-20*dt,0);cityMotion.last=time;
+      }
       moveTestSprites(citySprites,citySeconds);cityView.paint(cityHover,citySprites,cityPaused);
+      if(cityMotion?.started){
+        const run=cityMotion,m=cityView.metrics;run.cpu.push(performance.now()-time);run.intervals.push(frameInterval);
+        const mean=(values:number[])=>values.reduce((a,b)=>a+b,0)/values.length;
+        const elapsed=Math.min(10,(time-run.start)/1000),swaps=m.detailSwaps-run.swaps,dirt=m.dirtSwaps-run.dirt,ratios=m.pixelRatioChanges-run.ratios;
+        localText(element('city-motion-metrics'),`กล้อง ${elapsed.toFixed(1)}/10 s · CPU เฉลี่ย ${mean(run.cpu).toFixed(1)} ms · Frame เฉลี่ย ${mean(run.intervals).toFixed(1)} ms · สลับรายละเอียด ${swaps} (ดิน ${dirt}) · เปลี่ยน DPR ${ratios}`,
+          `Camera ${elapsed.toFixed(1)}/10 s · Mean CPU ${mean(run.cpu).toFixed(1)} ms · Mean frame ${mean(run.intervals).toFixed(1)} ms · Detail swaps ${swaps} (dirt ${dirt}) · DPR changes ${ratios}`);
+        if(elapsed===10){cityMotion=undefined;element<HTMLButtonElement>('city-motion').disabled=false;}
+      }
       if(time-cityReadout>500){cityReadout=time;const m=cityView.metrics;
         localText(element('city-metrics'),`Frame ${m.intervalMs.toFixed(1)} ms · CPU ${m.frameMs.toFixed(1)} ms · ${m.drawCalls} draw calls · ${Math.round(m.triangles).toLocaleString()} triangles · chunk ค้าง ${m.pendingChunks} · model ค้าง ${m.pendingModels} · unknown ${m.unknownTiles} · rebuild ${m.rebuildMs.toFixed(1)} ms · first frame ${m.firstFrameMs.toFixed(0)} ms · ${cityView.width}×${cityView.height} · DPR ${cityView.renderer.getPixelRatio()}`,
           `Frame ${m.intervalMs.toFixed(1)} ms · CPU ${m.frameMs.toFixed(1)} ms · ${m.drawCalls} draw calls · ${Math.round(m.triangles).toLocaleString()} triangles · ${m.pendingChunks} pending chunks · ${m.pendingModels} pending models · ${m.unknownTiles} unknown · rebuild ${m.rebuildMs.toFixed(1)} ms · first frame ${m.firstFrameMs.toFixed(0)} ms · ${cityView.width}×${cityView.height} · DPR ${cityView.renderer.getPixelRatio()}`);
