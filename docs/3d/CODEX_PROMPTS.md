@@ -12,7 +12,7 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → **UI1** → 13 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1321,6 +1321,38 @@ Task: make the 3D city ready to become the default view.
 3. screenshotMap() as a clean top-down image of the whole map (at most 4096 px).
 4. prefers-reduced-motion: no camera shake or flights, slower water.
 5. A short list in Thai of anything that still looks worse than the 2D view, with suggestions.
+```
+
+## Prompt UI1 — ไอคอนเครื่องมือ
+
+เจ้าของโปรเจคขอ (12 ต.ค. 2026): ปุ่มเครื่องมือในเกมควรเป็นภาพ ไม่ใช่ตัวหนังสือ ตอนนี้ Claude Code จัดแถบเครื่องมือให้รอรับไอคอนแล้ว
+(ช่องสีพร้อมเลขปุ่มลัด ชื่อ และราคา) prompt นี้เล็ก ใช้โควตาน้อย ตั้ง Codex เป็น Medium ได้ ส่งได้ทุกเมื่อ
+พอเสร็จ Claude Code จะเปลี่ยนช่องสีเป็นไอคอนเอง
+
+```text
+Read AGENTS.md in full before starting and follow its rules (your paths only; licence headers; no brands).
+
+Task: 16 toolbar icons for the game's tool buttons, drawn as hand-written SVG.
+
+1. Files: assets/icons/tools/<tool>.svg for residential, commercial, industrial, road, rail, wire, park, police,
+   fire, coal, nuclear, stadium, port, airport, bulldozer, query (the data-tool names in index.html).
+2. Each: viewBox="0 0 48 48", no width/height attributes, transparent background, no <text>, no external
+   references or fonts, under 3 KB, the PhaiCity licence header as an XML comment. Clear at 18 px: bold simple
+   shapes, 2–3 flat tones, a dark outline (#1d2925) so it reads on light and dark glass.
+3. One family look. Use the tool's own colour (data-colour in index.html, e.g. residential lime, commercial blue,
+   industrial yellow) as the main fill so the icon matches the square it replaces.
+4. Subjects with a Thai feel: residential a Thai house with a steep gable (no temple roof ornaments: no ช่อฟ้า,
+   ใบระกา or หางหงส์), commercial a two-storey shophouse with an awning, industrial a factory with a saw-tooth roof,
+   road a road with a centre line, rail a track, wire a power pole with lines, park a tree, police a plain shield
+   (no real Thai police badge, Garuda or royal symbol), fire a flame (no Red Cross or medical cross), coal a plant
+   with a chimney and smoke, nuclear a cooling tower, stadium an oval stadium, port an anchor or a cargo ship,
+   airport a plane, bulldozer a bulldozer, query a magnifying glass.
+5. An "Icons" view in the model gallery showing all 16 at 18, 32 and 48 px on a light and a dark background.
+6. test/render3d/icons.test.ts: every tool above has its file; each parses, has viewBox 0 0 48 48, has no <text>,
+   no href/url( to anything outside the file, and is under 3 KB.
+
+Do not edit index.html, css/ or src/toolShortcuts.ts: Claude Code wires the icons into the buttons. Report in Thai,
+with a screenshot of the Icons view.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)
