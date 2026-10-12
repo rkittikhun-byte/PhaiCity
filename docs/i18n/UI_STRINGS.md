@@ -489,6 +489,9 @@
 | `about.settings.autosave` | `about.html` | — | `Autosave: a province city saves itself every few minutes and when you close the page; a practice city does too once you have saved it yourself.` | `บันทึกอัตโนมัติ: เมืองของจังหวัดบันทึกเองทุกไม่กี่นาทีและเมื่อปิดหน้าเว็บ ส่วนเมืองฝึกหัดจะเริ่มบันทึกเองหลังจากคุณบันทึกครั้งแรก` | `src/autosave.ts` |
 | `autosave.saved` | `src/autosave.ts` | — | `Autosaved {time}` | `บันทึกอัตโนมัติแล้ว {time}` | ขึ้นมุมขวาล่างครู่เดียว (Claude Code 12 ต.ค. 2026) |
 | `autosave.full` | `src/autosave.ts` | — | `Autosave failed: storage is full. Delete an old city in “My cities” and try again.` | `บันทึกอัตโนมัติไม่สำเร็จ: พื้นที่บันทึกเต็ม ลบเมืองเก่าในหน้า “เมืองของฉัน” แล้วลองใหม่` | ชื่อหน้าตรงกับ `cities.title` |
+| `shortcut.tool` | `src/toolShortcuts.ts` | — | `{tool} (shortcut {key})` | `{tool} (ปุ่มลัด {key})` | tooltip ปุ่มเครื่องมือ (Claude Code 12 ต.ค. 2026) |
+| `shortcut.pause` | `src/toolShortcuts.ts` | — | `Pause or resume time (shortcut P)` | `หยุดหรือเดินเวลา (ปุ่มลัด P)` | tooltip ปุ่มหยุดเวลา |
+| `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, the arrows or W A S D move the map, and Esc closes a window or puts the tool down.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา ลูกศรหรือ W A S D เลื่อนแผนที่ และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
 | `view.3d_missing` | `src/splashScreen.js` | — | `The 3D city isn't ready yet, so the 2D view is used for now.` | `เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน` | `index.html?view=3d` ก่อน Codex ทำ R1 เสร็จ (Claude Code 12 ต.ค. 2026) |
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |

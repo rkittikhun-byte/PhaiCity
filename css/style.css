@@ -335,6 +335,18 @@ nav li {
   display: inline-block;
 }
 
+/* The tool's keyboard shortcut (src/toolShortcuts.ts) in the button's corner */
+.toolButton[data-key] { position: relative; }
+.toolButton[data-key]::after {
+  content: attr(data-key);
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.45);
+}
+
 .unselected {
   font-weight: normal;
 }

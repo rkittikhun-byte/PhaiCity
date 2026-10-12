@@ -23,6 +23,7 @@ import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
 import { TileSetSnowURI } from './tileSetSnowURI.ts';
+import { installToolShortcuts } from './toolShortcuts.ts';
 
 /*
  *
@@ -127,6 +128,8 @@ installAudio();
 
 // Every game panel can slide away to its side of the screen
 installPanelCollapse();
+// 1–9 pick tools and P pauses (src/toolShortcuts.ts)
+installToolShortcuts();
 
 
 // Check for debug parameter in URL
