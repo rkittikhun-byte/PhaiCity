@@ -1989,7 +1989,15 @@ body #buttons { display: flex; flex-wrap: nowrap; gap: 3px; }
 body #buttons .toolButton {
   flex-direction: column; justify-content: center; gap: 2px; width: 40px; height: 40px; padding: 2px; text-align: center;
 }
-body #buttons .toolIcon { width: 20px; height: 20px; border-radius: 5px; font-size: 10px; line-height: 20px; }
+/* Each tool's own icon (Codex, Prompt UI1) with its shortcut key in the corner */
+body #buttons .toolIcon {
+  position: relative; width: 24px; height: 24px; border-radius: 0; background: none; box-shadow: none; text-shadow: none;
+}
+body #buttons .toolIcon img, body #toolLevels .levelIcon .toolIcon img { display: block; width: 100%; height: 100%; }
+body #buttons .toolKey {
+  position: absolute; right: -6px; top: -4px; min-width: 9px; padding: 0 2px; border-radius: 4px; box-sizing: border-box;
+  background: rgba(29, 41, 37, 0.78); color: #fff; font: 400 7px/10px 'Open Sans', sans-serif; text-align: center;
+}
 body #buttons .toolName { display: none; }
 body #buttons .toolPrice { font-size: 8px; line-height: 1; }
 /* In one row the tools go zones first, then ways, then buildings */
@@ -2035,10 +2043,8 @@ body #toolLevels .levelSlot {
 body #toolLevels .levelSlot.current { background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 2px var(--tool, #226b57); }
 body #toolLevels .levelSlot.empty { border: 1px dashed rgba(29, 41, 37, 0.3); color: var(--hud-dim); }
 body #toolLevels .levelIcon { display: flex; align-items: center; height: 18px; }
-body #toolLevels .levelIcon .toolIcon {
-  width: 18px; height: 18px; border-radius: 5px; background: var(--tool, #888); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
-  color: #fff; font-size: 9px; line-height: 18px; text-align: center; text-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
-}
+body #toolLevels .levelIcon .toolIcon { position: relative; width: 20px; height: 20px; }
+body #toolLevels .levelIcon .toolKey { display: none; }
 body #toolLevels .levelSlot.empty .levelIcon::before {
   content: ""; width: 14px; height: 14px; border: 1px dashed rgba(29, 41, 37, 0.35); border-radius: 4px;
 }

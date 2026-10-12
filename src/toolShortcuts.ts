@@ -74,6 +74,11 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
+/** Where a tool's icon is (assets/icons/tools/<tool>.svg, copied into the build as it is). */
+export function toolIconUrl(tool: string): string {
+  return `assets/icons/tools/${tool}.svg`;
+}
+
 export function toolTitle(tool: string, key: string | null): string {
   const name = toolName(tool);
   const first = key ? t("shortcut.tool", { tool: name, key }) : name;
@@ -128,10 +133,21 @@ export function installToolShortcuts(doc: Document = document): void {
       // A square in the tool's colour (its shortcut key inside) until the tool icons come, then the name and price
       button.style.setProperty("--tool", button.dataset.colour ?? "#888");
       const { name, price } = toolLabel(tool);
+      // The tool's own picture (assets/icons/tools/, Codex Prompt UI1), its shortcut key in the corner
       const icon = doc.createElement("span");
       icon.className = "toolIcon";
       icon.setAttribute("aria-hidden", "true");
-      icon.textContent = key ?? "";
+      const picture = doc.createElement("img");
+      picture.src = toolIconUrl(tool);
+      picture.alt = "";
+      picture.draggable = false;
+      icon.appendChild(picture);
+      if (key) {
+        const badge = doc.createElement("span");
+        badge.className = "toolKey";
+        badge.textContent = key;
+        icon.appendChild(badge);
+      }
       const nameSpan = doc.createElement("span");
       nameSpan.className = "toolName";
       nameSpan.textContent = name;

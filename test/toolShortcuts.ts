@@ -6,10 +6,23 @@ import * as fs from "fs";
 import * as path from "path";
 import { hasKey, setLanguage, t } from "../src/i18n/index";
 import { DEFAULT_RULES, toolPrices } from "../src/provinceRules";
-import { shortcutFor, showToolPrices, TOOL_DESCRIPTIONS, TOOL_KEYS, toolName, toolTitle } from "../src/toolShortcuts";
+import {
+  shortcutFor, showToolPrices, TOOL_DESCRIPTIONS, TOOL_KEYS, toolIconUrl, toolName, toolTitle,
+} from "../src/toolShortcuts";
 
 const key = (code: string, modifiers: Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) =>
   ({ code, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...modifiers });
+
+describe("tool icons", () => {
+  test("every tool button has its icon file", () => {
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const tools = [...html.matchAll(/data-tool="(\w+)"/g)].map((m) => m[1]);
+    expect(tools.length).toBe(16);
+    for (const tool of tools) {
+      expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
+    }
+  });
+});
 
 describe("tool shortcuts", () => {
   test("digits on the main row and the number pad pick tools; P pauses; M opens the city map", () => {
