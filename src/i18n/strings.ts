@@ -629,7 +629,6 @@ export const STRINGS: Record<string, Translation> = {
   "ui.show_menus": { en: "Show menus", th: "แสดงเมนู" },
   "ui.hide_panel": { en: "Slide the {name} away", th: "เก็บ{name}" },
   "ui.show_panel": { en: "Show the {name}", th: "แสดง{name}" },
-  "panel.tools": { en: "tools", th: "เครื่องมือ" },
   "panel.goals": { en: "ruler's tasks", th: "ภารกิจเจ้าเมือง" },
   "goals.title": { en: "Your first tasks", th: "ภารกิจแรกของเจ้าเมือง" },
   "goals.progress": { en: "{done}/{total}", th: "{done}/{total}" },

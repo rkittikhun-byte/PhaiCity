@@ -1969,6 +1969,31 @@ body #controls::-webkit-scrollbar-button { display: none; }
 @supports not selector(::-webkit-scrollbar) {
   body #newsLog, body .modal, body #rulerGoals, body #controls { scrollbar-width: thin; scrollbar-color: rgba(29, 41, 37, 0.3) transparent; }
 }
+
+/* The tools dock (owner, 12 Oct 2026): one row of tools at the bottom middle, tucked below the screen's edge with only
+   its title strip showing; the mouse coming to it raises it, and it sinks again a moment after the mouse leaves.
+   Each tool is its icon and price; pointing at one shows its name and what it does (src/hudTooltip.ts) */
+body #controls {
+  top: auto; right: auto; bottom: 0; left: 50%; width: auto; max-width: calc(100vw - 120px); padding: 3px 8px 8px;
+  border: 1px solid var(--hud-edge); border-bottom: none; border-radius: 14px 14px 0 0;
+  transform: translate(-50%, calc(100% - 24px)); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s;
+  animation: dockIn 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+body #controls:hover, body #controls:has(:focus-visible) { transform: translate(-50%, 0); transition-delay: 0s; }
+@keyframes dockIn { from { transform: translate(-50%, 100%); } }
+/* While a task points at a tool, the tucked dock glows a little so the player looks there */
+body #controls:has(.goalHint) { box-shadow: 0 0 0 2px rgba(210, 154, 44, 0.75), var(--hud-shadow); }
+body #toolInfo { justify-content: center; min-height: 20px; margin: 0 0 4px; padding: 0; text-align: center; }
+body #toolOutput { flex: 0 1 auto; }
+body #buttons { display: flex; flex-wrap: nowrap; gap: 3px; }
+body #buttons .toolButton {
+  flex-direction: column; justify-content: center; gap: 2px; width: 40px; height: 40px; padding: 2px; text-align: center;
+}
+body #buttons .toolIcon { width: 20px; height: 20px; border-radius: 5px; font-size: 10px; line-height: 20px; }
+body #buttons .toolName { display: none; }
+body #buttons .toolPrice { font-size: 8px; line-height: 1; }
+/* The ruler's tasks take the tools' old place on the right */
+body #rulerGoals { top: 48px; }
 body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */

@@ -16,11 +16,11 @@ const CARDS = "#infobar, #miscButtons, #RCIContainer, #controls, #rulerGoals, #n
 
 export interface Box { left: number; top: number; width: number; height: number }
 export interface Size { width: number; height: number }
-export interface Place { left: number; top: number; from: "left" | "right" }
+export interface Place { left: number; top: number; from: "left" | "right" | "below" }
 
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(value, high));
 
-function onScreen(left: number, top: number, size: Size, view: Size, from: "left" | "right"): Place {
+function onScreen(left: number, top: number, size: Size, view: Size, from: Place["from"]): Place {
   return {
     left: Math.round(clamp(left, MARGIN_PX, view.width - MARGIN_PX - size.width)),
     top: Math.round(clamp(top, MARGIN_PX, view.height - MARGIN_PX - size.height)),
@@ -34,13 +34,22 @@ function onScreen(left: number, top: number, size: Size, view: Size, from: "left
  * window slides in from.
  */
 export function besidePosition(card: Box, size: Size, view: Size): Place {
-  const onLeft = card.left + card.width / 2 < view.width / 2;
+  // A card in the bottom middle (the tools dock) gets its window above it
+  const middle = card.left + card.width / 2;
+  if (Math.abs(middle - view.width / 2) < view.width * 0.15 && card.top > view.height / 2) {
+    return onScreen(middle - size.width / 2, card.top - GAP_PX - size.height, size, view, "below");
+  }
+  const onLeft = middle < view.width / 2;
   const left = onLeft ? card.left + card.width + GAP_PX : card.left - GAP_PX - size.width;
   return onScreen(left, card.top, size, view, onLeft ? "left" : "right");
 }
 
 /** Where a window goes that replaces another one: the same top and the same outer edge. */
-export function replacingPosition(other: Box, from: "left" | "right", size: Size, view: Size): Place {
+export function replacingPosition(other: Box, from: Place["from"], size: Size, view: Size): Place {
+  if (from === "below") {
+    // Over the same place: centred, with the same bottom
+    return onScreen(other.left + other.width / 2 - size.width / 2, other.top + other.height - size.height, size, view, from);
+  }
   const left = from === "left" ? other.left : other.left + other.width - size.width;
   return onScreen(left, other.top, size, view, from);
 }
@@ -94,7 +103,7 @@ function keepFitted(win: HTMLElement): void {
 
 /** Moves a window that has just been shown beside the card that opened it, or leaves it in the middle. */
 export function placeWindow(win: HTMLElement): void {
-  win.classList.remove("docked", "dockFromLeft", "dockFromRight");
+  win.classList.remove("docked", "dockFromLeft", "dockFromRight", "dockFromBelow");
   win.style.left = "";
   win.style.top = "";
   win.style.maxHeight = "";
@@ -116,11 +125,12 @@ export function placeWindow(win: HTMLElement): void {
       height: replacing.offsetHeight }
     : anchorBox(card!);
   const place = replacing
-    ? replacingPosition(beside, replacing.classList.contains("dockFromRight") ? "right" : "left", size, view)
+    ? replacingPosition(beside, replacing.classList.contains("dockFromRight") ? "right"
+      : replacing.classList.contains("dockFromBelow") ? "below" : "left", size, view)
     : besidePosition(beside, size, view);
   win.style.left = `${place.left}px`;
   win.style.top = `${place.top}px`;
   win.dataset.wantedTop = String(Math.round(beside.top));
-  win.classList.add(place.from === "left" ? "dockFromLeft" : "dockFromRight");
+  win.classList.add(place.from === "left" ? "dockFromLeft" : place.from === "right" ? "dockFromRight" : "dockFromBelow");
   keepFitted(win);
 }

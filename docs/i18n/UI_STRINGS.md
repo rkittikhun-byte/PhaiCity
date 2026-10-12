@@ -804,7 +804,6 @@
 | `ui.show_menus` | `src/provincePicker.ts` | `-` | `Show menus` | `แสดงเมนู` | ปุ่มเดียวกันตอนซ่อนอยู่ |
 | `ui.hide_panel` | `src/panelCollapse.ts` | `-` | `Slide the {name} away` | `เก็บ{name}` | tooltip ลูกศรมุมการ์ด {name} คือชื่อการ์ดด้านล่าง (Claude Code 12 ต.ค. 2026) |
 | `ui.show_panel` | `src/panelCollapse.ts` | `-` | `Show the {name}` | `แสดง{name}` | tooltip แถบไอคอนที่ยื่นจากขอบจอตอนการ์ดถูกเก็บ |
-| `panel.tools` | `src/panelCollapse.ts` | `-` | `tools` | `เครื่องมือ` | การ์ดเครื่องมือด้านขวา |
 | `panel.goals` | `src/panelCollapse.ts` | `-` | `ruler's tasks` | `ภารกิจเจ้าเมือง` | การ์ดภารกิจ |
 | `goals.title` | `index.html` | — | `Your first tasks` | `ภารกิจแรกของเจ้าเมือง` | การ์ดภารกิจ (`src/rulerGoals.ts`, Claude Code 12 ต.ค. 2026) |
 | `goals.progress` | `src/rulerGoals.ts` | — | `{done}/{total}` | `{done}/{total}` | |

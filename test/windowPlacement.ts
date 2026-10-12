@@ -17,6 +17,11 @@ describe("windows beside their card", () => {
     expect(besidePosition(tools, { width: 250, height: 200 }, view)).toEqual({ left: 752, top: 48, from: "right" });
   });
 
+  test("a card in the bottom middle, the tools dock, gets its window above it", () => {
+    const dock = { left: 285, top: 698, width: 710, height: 70 };
+    expect(besidePosition(dock, { width: 210, height: 230 }, view)).toEqual({ left: 535, top: 458, from: "below" });
+  });
+
   test("a tall window moves up to stay on screen, but never past the top", () => {
     expect(besidePosition(menu, { width: 340, height: 600 }, view).top).toBe(720 - 12 - 600);
     expect(besidePosition(menu, { width: 340, height: 900 }, view).top).toBe(12);

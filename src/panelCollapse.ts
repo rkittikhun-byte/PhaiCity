@@ -2,8 +2,8 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The tools and the ruler's tasks sit against their side of the screen and can slide away, so the
-// player can see more of the city. A slid-away panel leaves a small tab with its icon sticking out of the screen
+// The ruler's tasks sit against the right side of the screen and can slide away, so the player can see more of the
+// city (the tools are a dock that hides by itself: "The tools dock" in css/style.css). A slid-away panel leaves a small tab with its icon sticking out of the screen
 // edge, and a click on the tab brings it back (owner, 12 Oct 2026). The choice is remembered between visits.
 
 import { onLanguageChange, t } from "./i18n/index";
@@ -16,19 +16,15 @@ const svg = (body: string): string =>
   `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 
 export const PANEL_ICONS = {
-  tools: svg('<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/>' +
-    '<rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>'),
   goals: svg('<path d="M4 7l2 2 3-3.5M4 15l2 2 3-3.5M12 8h8M12 16h8"/>'),
 };
 
-// The city card and the menu are not here: they became the icon strip on the left (src/menuRail.ts)
 // The open panel's arrow, drawn so it sits in the middle of its circle whatever the font (owner, 12 Oct 2026)
 const chevron = (path: string): string => '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" ' +
   `stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
 const CHEVRONS: Record<string, string> = { "‹": chevron("M14.5 5.5L8 12l6.5 6.5"), "›": chevron("M9.5 5.5L16 12l-6.5 6.5") };
 
 const PANELS: Array<{ id: string; side: "left" | "right"; icon: keyof typeof PANEL_ICONS }> = [
-  { id: "controls", side: "right", icon: "tools" },
   { id: "rulerGoals", side: "right", icon: "goals" },
 ];
 
