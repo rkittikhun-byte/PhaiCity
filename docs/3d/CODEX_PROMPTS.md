@@ -12,7 +12,7 @@
    ```
    แล้วเปิด http://localhost:8080/model-gallery.html ดูโมเดล
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
-4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → **UI1** → 13 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
+4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → **R1B** → **UI1** → 13 → … → 15 → **R2** → 17 → **R3** → **R4** → 18
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1234,6 +1234,7 @@ Prompt 0–19 สร้างโมเดลอย่างเดียว ช�
 | Prompt | งาน | ทำหลัง |
 |---|---|---|
 | R1 | โครงตัววาด: พื้น น้ำ ป่า ถนน สะพาน ราง สายไฟ, กล้อง, คลิกเลือกช่อง, กรอบเครื่องมือ, อาคารที่มีโมเดลแล้ว (ที่เหลือเป็นกล่อง), เมืองทดสอบในแกลเลอรี | Prompt 6 (ส่งได้ทุกเมื่อหลังจากนั้น; 12 ต.ค. Codex อยู่ที่ Prompt 11 จึงแนะนำส่งต่อจาก 11) |
+| R1B | แก้ภาพกระพริบตอนขยับกล้อง (รายละเอียดสลับไปมา และการปรับความคมชัดที่ล้างจอ) | R1 (ส่งเป็นอันถัดไป ก่อน UI1) |
 | R2 | โซนและอาคารครบทุกแบบ บ้าน 1 ช่อง อาคารพิเศษ ไฟในหน้าต่าง ภาคต่าง ๆ และ LOD | Prompt 15 |
 | R3 | ของที่เคลื่อนไหว: รถไฟ เรือ เครื่องบิน พญานาค พายุ ไฟไหม้ น้ำท่วม รถบนถนน | Prompt 17 |
 | R4 | เก็บงาน: ความเร็ว LOD เงา กลางวัน/กลางคืน ฤดูฝน ภาพถ่ายทั้งเมือง | R3 |
@@ -1268,6 +1269,49 @@ Do not edit src/game.js, src/cityView.ts, src/cityView2d.ts or anything outside 
 exactly as before. Report in Thai with measured frame times and draw calls for the 200 × 200 test city, and tell
 the owner to try it in the game at index.html?view=3d (the game already loads src/render3d/city/index.ts by itself;
 index.html?view=2d goes back).
+```
+
+### Prompt R1B — แก้ภาพกระพริบตอนขยับกล้อง (ส่งก่อน prompt อื่น)
+
+เจ้าของโปรเจคเล่นแล้วเจอ (12 ต.ค. 2026): "เวลาขยับ ๆ แล้วเหมือนมันวาด 3D ใหม่ เหมือนมันกระพริบ"
+Claude Code อ่านโค้ดแล้วเจอสาเหตุที่น่าจะเป็น 2 จุด prompt นี้ให้ Codex ยืนยันด้วยตัวเลขก่อน แล้วค่อยแก้
+
+```text
+Read AGENTS.md and docs/3d/RENDERER_SPEC.md in full before starting, and follow every rule in them.
+
+Bug from the owner (12 Oct 2026, playing the game in 3D on a laptop): "when I move around it looks like the 3D is
+redrawn, it flickers". It happens while panning, turning and zooming. Two likely causes, found by reading
+src/render3d/city/ (confirm them with numbers before fixing):
+
+1. Detail follows the camera every frame. chunks.update() picks the detailed batches from the camera target on
+   every frame (the radius, drawBudget, and terrain.dirt detail within 35 m), so while the camera moves, batches
+   at the edge of the radius or of the budget flip between detailed and coarse from one frame to the next, and the
+   patch of detailed dirt slides along under the target.
+2. The automatic quality step at the end of CityView3D.paint() changes the pixel ratio (and drawBudget) every 30
+   frames, after rendering. setPixelRatio() resizes the canvas, which clears it, so the next frame shown can be
+   blank: a flash. With thresholds of 9 ms and 19 ms it can also go up and down again and again.
+
+Task: a steady picture while the camera moves, keeping the frame-rate protection.
+1. Hysteresis for detail: a batch becomes detailed inside the radius and only goes back to coarse outside the
+   radius plus a margin (for example 25 m). Share the draw budget in an order that does not reshuffle when
+   distances change a little (keep last frame's choice unless another batch is clearly closer). A detailed and a
+   coarse version must look alike from afar, or the swap must fade, so a swap never reads as a flash. The same for
+   terrain.dirt.
+2. Quality changes: never while the camera moves or within 1 s after it stops, at most one change every 3 s, and
+   clear the frame-time history after a change so the next decision uses fresh numbers. Render again right after
+   setPixelRatio() in the same paint() so a cleared canvas is never shown. Keep the "lower" and "raise" thresholds
+   far enough apart that it cannot swing back and forth (for example lower above 22 ms; raise below 9 ms, and only
+   after 10 s at the lower level).
+3. Keep navigation.pan(dx, dy, height) public, or add pan(dx, dy) to the view (RENDERER_SPEC section 4): the game
+   now slides the city with a left-button drag when no tool is in hand.
+4. Tests in test/render3d/: moving the camera target in small steps (2 m a frame for 200 frames) flips each batch
+   at most once; the pixel ratio never changes while the camera moves; after a pixel ratio change the view renders
+   before paint() returns.
+5. Gallery "City" view: a "move the camera" button that pans and turns for 10 s, with counters of detail swaps and
+   pixel ratio changes, so the owner can see the picture stays steady.
+
+Do not edit src/game.js or any file outside your paths. Report in Thai: what caused the flicker, what changed, and
+the frame times and swap counts before and after.
 ```
 
 ### Prompt R2 — โซนและอาคาร

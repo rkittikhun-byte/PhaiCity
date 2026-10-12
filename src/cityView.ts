@@ -63,6 +63,11 @@ export interface CityView {
   rotate?(degrees: number): void;
   /** 3D only, optional: brings the camera back to the view a city opens with (the ⌂ corner button). */
   resetView?(): void;
+  /**
+   * 3D only, optional: slides the city along with a mouse drag of dx, dy CSS pixels, so the ground under the mouse
+   * stays under it. A left-button drag with no tool in hand uses it (src/viewControls.ts).
+   */
+  pan?(dx: number, dy: number): void;
 }
 
 /** The functions every view has; tests of each view check them (test/cityView.ts, and the 3D view's own test). */
