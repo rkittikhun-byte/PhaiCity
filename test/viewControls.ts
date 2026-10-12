@@ -3,7 +3,7 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { dragMode, dragTurnOf, installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
+import { blendPose, dragMode, dragTurnOf, easeInOut, installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
 
 describe("3D view controls", () => {
   test("turn and reset with the view's own functions when it has them", () => {
@@ -41,6 +41,23 @@ describe("3D view controls", () => {
     expect(turnView(-1)).toBe(true);
     expect(turnView(1)).toBe(true);
     expect(turns).toEqual([-ROTATE_STEP, ROTATE_STEP]);
+  });
+
+  test("the flight home blends the camera's pose, turning the short way round", () => {
+    const from = { heading: 3.5, pitch: 1.2, distance: 960, x: 100, z: 1800 };
+    const to = { heading: 0, pitch: 0.96, distance: 240, x: 1000, z: 1000 };
+    expect(blendPose(from, to, 0)).toEqual(from);
+    const end = blendPose(from, to, 1);
+    expect(Math.cos(end.heading)).toBeCloseTo(1, 9);
+    expect(end.pitch).toBeCloseTo(0.96, 9);
+    expect(end.distance).toBeCloseTo(240, 9);
+    expect([end.x, end.z]).toEqual([1000, 1000]);
+    // From 3.5 radians home to 0, the short way goes up towards two pi rather than back down through 1.75
+    expect(blendPose(from, to, 0.5).heading).toBeGreaterThan(3.5);
+    expect(blendPose(from, to, 0.5).distance).toBeCloseTo(480, 9);
+    expect(easeInOut(0)).toBe(0);
+    expect(easeInOut(1)).toBe(1);
+    expect(easeInOut(0.5)).toBeCloseTo(0.5, 9);
   });
 
   test("a drag across or up and down turns the city, a slanting one slides it, and Shift always slides", () => {

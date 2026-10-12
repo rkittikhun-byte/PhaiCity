@@ -20,13 +20,95 @@ export function requestedCity(search: string): string | null {
   return id !== null && CITY_ID.test(id) ? id : null;
 }
 
+/** Where a 3D camera looks from: the heading and pitch in radians, its distance, and the ground point it looks at. */
+export interface Pose { heading: number; pitch: number; distance: number; x: number; z: number }
+
+interface CameraLike {
+  rotate?(dx: number, dy: number): unknown;
+  reset?(): unknown;
+  pan?(dx: number, dy: number, height: number): unknown;
+  update?(time: number): unknown;
+  heading?: number;
+  pitch?: number;
+  distance?: number;
+  target?: { x: number; z: number };
+}
+
 interface ViewLike {
   rotate?(degrees: number): void;
   resetView?(): void;
   pan?(dx: number, dy: number): void;
   height?: number;
   /** The 3D view's own camera (src/render3d/city/camera.ts), until it has rotate and resetView itself. */
-  navigation?: { rotate?(dx: number, dy: number): unknown; reset?(): unknown; pan?(dx: number, dy: number, height: number): unknown };
+  navigation?: CameraLike;
+}
+
+/** How long the camera takes to fly home when ⌂ is pressed. */
+export const HOME_FLIGHT_MS = 1100;
+
+/** Part of the way from one pose to another (t from 0 to 1), turning the short way round. */
+export function blendPose(from: Pose, to: Pose, t: number): Pose {
+  const turn = ((to.heading - from.heading) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+  const mix = (a: number, b: number): number => a + (b - a) * t;
+  return {
+    heading: from.heading + turn * t,
+    pitch: mix(from.pitch, to.pitch),
+    distance: from.distance * Math.pow(to.distance / from.distance, t),
+    x: mix(from.x, to.x),
+    z: mix(from.z, to.z),
+  };
+}
+
+/** Slow to start, slow to stop. */
+export function easeInOut(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function poseOf(camera: CameraLike): Pose | null {
+  const { heading, pitch, distance, target } = camera;
+  if (typeof heading !== "number" || typeof pitch !== "number" || typeof distance !== "number" || !target) return null;
+  return { heading, pitch, distance, x: target.x, z: target.z };
+}
+
+function setPose(camera: CameraLike, pose: Pose): void {
+  camera.heading = pose.heading;
+  camera.pitch = pose.pitch;
+  camera.distance = pose.distance;
+  if (camera.target) {
+    camera.target.x = pose.x;
+    camera.target.z = pose.z;
+  }
+  camera.update?.(performance.now());
+}
+
+// The flight home in progress; any drag, key turn or zoom by the player stops it where it is
+let homeFlight = 0;
+
+/** Stops a flight home in progress. */
+export function stopHomeFlight(): void {
+  if (homeFlight) cancelAnimationFrame(homeFlight);
+  homeFlight = 0;
+}
+
+/**
+ * Flies the camera home: it slides, turns, tilts and zooms together back to the view a city opens with (owner,
+ * 12 Oct 2026). The opening view is read from the camera's own reset(), so it is never written down twice.
+ */
+function flyHome(camera: CameraLike & { reset(): unknown }): void {
+  stopHomeFlight();
+  const from = poseOf(camera);
+  camera.reset();
+  const to = poseOf(camera);
+  if (!from || !to) return;
+  if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  setPose(camera, from);
+  const start = performance.now();
+  const step = (): void => {
+    const t = Math.min(1, (performance.now() - start) / HOME_FLIGHT_MS);
+    setPose(camera, blendPose(from, to, easeInOut(t)));
+    homeFlight = t < 1 ? requestAnimationFrame(step) : 0;
+  };
+  homeFlight = requestAnimationFrame(step);
 }
 
 // Until Codex's 3D view has rotate(degrees) and resetView() (RENDERER_SPEC section 4, Prompt R2), its camera's own
@@ -48,7 +130,10 @@ export function turnOf(view: ViewLike): ((degrees: number) => void) | null {
 export function resetOf(view: ViewLike): (() => void) | null {
   if (typeof view.resetView === "function") return () => view.resetView?.();
   const navigation = view.navigation;
-  if (navigation && typeof navigation.reset === "function") return () => navigation.reset?.();
+  if (navigation && typeof navigation.reset === "function") {
+    const camera = navigation as CameraLike & { reset(): unknown };
+    return () => flyHome(camera);
+  }
   return null;
 }
 
@@ -99,7 +184,10 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   if (!pan || !canvas) return;
   let drag: { id: number; x: number; y: number; moved: boolean; shift: boolean; turning: boolean } | null = null;
 
+  // The player taking the camera stops a flight home
+  canvas.addEventListener("wheel", stopHomeFlight, { passive: true });
   canvas.addEventListener("pointerdown", (event) => {
+    stopHomeFlight();
     if (event.button !== 0 || holdingTool()) return;
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey, turning: false };
     try {
@@ -138,6 +226,7 @@ let turnCurrent: ((degrees: number) => void) | null = null;
 /** Turns the city's view one step left (-1) or right (1). False when it cannot turn (no city, or the 2D view). */
 export function turnView(direction: number): boolean {
   if (!turnCurrent) return false;
+  if (homeFlight) stopHomeFlight();
   turnCurrent(Math.sign(direction) * ROTATE_STEP);
   return true;
 }
