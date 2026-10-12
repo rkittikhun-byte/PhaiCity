@@ -1461,11 +1461,16 @@ export function openStartScreen(startActions: StartActions, options: StartOption
   view ??= buildShell();
   show(view.overlay);
 
-  Promise.all([loadData(), options.gate ?? Promise.resolve()]).then(([loaded]) => {
+  // The map is drawn as soon as the data is in, behind the title page (its loading line goes with it); the story
+  // waits until the player has entered
+  const loading = loadData().then((loaded) => {
     data = loaded;
-    if (!view) return;
-    if (!view.svg) buildMap();
+    if (view && !view.svg) buildMap();
     setLoadingProgress(1);
+  });
+  Promise.all([loading, options.gate ?? Promise.resolve()]).then(() => {
+    if (!view || !data) return;
+    if (!view.svg) buildMap();
     const requested = options.provinceId ? data.provinces.get(options.provinceId) : undefined;
     if (requested) enterRegion(requested.region, requested.id);
     else if (options.intro) playIntro();

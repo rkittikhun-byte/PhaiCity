@@ -1292,7 +1292,7 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 }
 #titleGate.motionLeave { animation: motionFadeOut 0.3s ease-in forwards; }
 /* The loading line would show through the title page, across its buttons (owner, 12 Oct 2026) */
-body.gateOpen #loadingBanner { display: none; }
+body.gateOpen #loadingBanner, body.gateOpen #provincePicker .ppStage > .loadingBar { display: none; }
 #titleGate .gatePanel { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 48px; text-align: center;
   animation: motionFromBelow 0.6s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 #titleGate .gateBrand { margin: 0; font: 400 64px/1 'Chunk', 'Sarabun Thai', serif; letter-spacing: 0.04em; color: #f6d77a;
