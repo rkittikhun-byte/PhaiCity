@@ -4,7 +4,7 @@
 import { Box3, BufferAttribute, BufferGeometry, MeshStandardMaterial, Sphere, Vector3 } from 'three';
 import { MaterialKey, getMaterial, tint, vertexFinish, roadConcrete, paintedSteel, polishedStone,
   roadCurbMaterial, railwaySignalMaterial, bambooCulmMaterial, contaminationGlow, commercialLEDMaterial, observationDeckMaterial,
-  serviceConcreteMaterial, stadiumCrowdMaterial, stadiumFloodlightMaterial } from '../materials/library.js';
+  serviceConcreteMaterial, stadiumCrowdMaterial, stadiumFloodlightMaterial, powerDomeGlowMaterial } from '../materials/library.js';
 import { hospitalAtlas, thaiSign, thaiSignAtlas } from '../materials/signs.js';
 import type { ModelOptions } from '../models/registry.js';
 export interface MaterialDescription { key:MaterialKey; name:string; color:number; data:Record<string,any> }
@@ -22,6 +22,7 @@ function material(d:MaterialDescription):MeshStandardMaterial {
   if(u.sign)return thaiSign(u.sign.text,d.color,0x173f35,u.sign.size,{layout:u.sign.layout,lit:u.sign.lit});
   if(u.stadiumCrowd)return stadiumCrowdMaterial();if(u.stadiumFloodlight)return stadiumFloodlightMaterial();
   if(u.serviceConcrete)return serviceConcreteMaterial();
+  if(u.powerDomeGlow)return powerDomeGlowMaterial();
   if(u.vertexFinish)return vertexFinish(d.key);
   if(u.pathCurb)return roadCurbMaterial();if(u.railwaySignal)return railwaySignalMaterial();
   if(u.polishedStone)return polishedStone(d.color);if(u.commercialLED)return commercialLEDMaterial();if(u.observationDeck)return observationDeckMaterial();

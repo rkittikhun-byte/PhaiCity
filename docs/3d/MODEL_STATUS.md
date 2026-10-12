@@ -3,6 +3,61 @@
 
 # สถานะโมเดล
 
+## โรงไฟฟ้าถ่านหินและนิวเคลียร์ 4×4
+
+วันที่ 2026-10-12: เพิ่ม `power.coal` และ `power.nuclear` ใน
+`src/render3d/models/services/`; ลง registry หมวด services ระดับ R3
+ใช้พื้นที่ 39×39 ม. ทั้ง 6 ภาค โครงสร้างและ anchors เหมือนกันทุกภาค
+สีผนังมาจาก `kit.neutralPalette(seed)` และรวม geometry ต่อวัสดุ
+
+| id | Tiles / centre | สามเหลี่ยม (seed 1) | Draw calls | ความสูง |
+|---|---|---:|---:|---:|
+| power.coal | 745–760 / 750 | 6,604 | 6 | อาคารหม้อไอน้ำ 35 ม.; ปล่อง 44 ม. |
+| power.nuclear | 811–826 / 816 | 6,380 | 7 | หอหล่อเย็น 55 ม.; โดม 25.2 ม. |
+
+- ถ่านหิน: ปล่องเปิด 4 ปล่องมี `anchor_smoke_0` ถึง `anchor_smoke_3`
+  ที่ `(5,44,-15)`, `(15,44,-15)`, `(5,44,-5)`, `(15,44,-5)`
+  ตรงศูนย์ช่อง animation ทาง +X/−Z; สายพานลำเลียง กองถ่านหินดำ
+  switchyard แรงสูง และเสาส่งไฟ 2 ต้นด้าน −X; ป้าย “โรงไฟฟ้าถ่านหิน”
+- นิวเคลียร์เป็นโรงสมมติ: อาคาร containment ทรงกระบอกกับโดมด้าน +X/−Z
+  หอหล่อเย็น hyperbolic ปากเปิดสูง 55 ม. มี `anchor_steam_0` ที่ `(-9,55,-9)`
+  และ `anchor_light_0` ที่ยอดโดม `(9,25.2,-9)` พร้อม beacon emissive สีอุ่นอ่อน
+  โรงกังหัน รั้วรักษาความปลอดภัย 2 ชั้น ป้อมยามและไม้กั้น; ป้ายภาษาไทย ไม่มีตราองค์กร
+- Renderer อ่าน centre tile แล้ววางโรงหนึ่งแห่งต่อ 16 ช่องตามระบบเดิม;
+  coarse height ของโรงถ่านหิน/นิวเคลียร์เป็น 44/55 ม. เพื่อรักษาความสูงขณะเปลี่ยน detail
+  และ worker สร้างวัสดุ beacon กลับผ่าน library ด้วยความสว่างเดิม
+
+### ตรวจสอบ
+
+- `power-plants.test.ts` ผ่าน 15 ข้อ: ขอบเขตและงบทั้ง 6 ภาค, R3 geometry คงเดิม,
+  deterministic seed, วัสดุ library และหนึ่ง mesh ต่อวัสดุ, พิกัด anchor,
+  rim ปล่องเปิด, ความสูงหม้อไอน้ำ, หอหล่อเย็นคอด/ปากเปิด, แสงกลางวัน/กลางคืน
+  และ worker round trip รวมถึง tile coverage/ตำแหน่งอาคาร/coarse height
+- Generic registry cases ของโรงไฟฟ้าทั้งสองผ่าน (5 seeds พร้อม determinism);
+  `npm run build` ผ่าน มีเฉพาะคำเตือนขนาด bundle ตามเดิม
+- รัน `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false`
+  ครบ 57 suites / 3,839 tests: 55 suites / 3,836 tests ผ่าน รวม `models.test.ts`
+  ที่ตรวจทุกโมเดล; ไม่ผ่าน Bounds เดิม 2 ข้อ และตรวจ maps ของวัสดุ 1 ข้อเกินเวลา
+  5 วินาที ตรวจ `materials.test.ts` ซ้ำแยกชุดด้วย `--testTimeout=20000`
+  แล้วผ่านทั้ง 7 ข้อ; ไม่มีข้อผิดพลาดจากโมเดลโรงไฟฟ้าใหม่
+- ตรวจ Gallery โมเดลเดี่ยว หมุน/ซูม เปลี่ยน region/seed และกลางคืน ไม่มี console error
+- เปิด `index.html` เริ่มเมืองฝึกเล่นใหม่ วางโรงไฟฟ้าทั้งสองจริงและซูมดูได้;
+  คลังเมืองหักตามราคา เวลา simulation เดินต่อ ไม่มี console error และไม่บันทึกเมืองทดสอบ
+- ไม่เพิ่ม external assets/dependencies หรือแก้ shared config, game/simulation
+
+### ข้อจำกัด
+
+ส่วนประกอบโรงไฟฟ้าถูกจัดให้กระชับตามพื้นที่ 39×39 ม. ของเกม จึงเป็นโรงสมมติย่อส่วน
+ควันและไอน้ำส่งตำแหน่งผ่าน anchors ให้ระบบ effects ในอนาคต ยังไม่มี particles;
+beacon ใช้ emissive พร้อม anchor ไม่มี dynamic light เพิ่มต่ออาคาร
+
+ภาพตรวจสอบ:
+[ถ่านหิน](../../test/render3d/artifacts/power-coal.jpg),
+[นิวเคลียร์](../../test/render3d/artifacts/power-nuclear.jpg),
+[กลางคืน](../../test/render3d/artifacts/power-nuclear-night.jpg),
+[แกลเลอรี](../../test/render3d/artifacts/power-plants-gallery.jpg),
+[โรงไฟฟ้าทั้งคู่ในเกม](../../test/render3d/artifacts/power-plants-game.jpg)
+
 ## อาคารบริการ — ตำรวจ ดับเพลิง และสนามกีฬา
 
 วันที่ 2026-10-12: เพิ่ม factories ใน `src/render3d/models/services/` และลง registry

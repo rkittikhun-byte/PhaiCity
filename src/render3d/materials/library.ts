@@ -392,6 +392,13 @@ export function stadiumFloodlightMaterial(): MeshStandardMaterial {
   });
 }
 
+/** Small warm safety beacon; fixed low emission in both gallery day and night. */
+export function powerDomeGlowMaterial(): MeshStandardMaterial {
+  return finishedMaterial('power-dome-glow', 'emissive_window', 0xffe6b0, material => {
+    material.userData.powerDomeGlow = true; material.emissive.setHex(0xffdfa0); material.emissiveIntensity = 0.65;
+  });
+}
+
 export function updateCommercialDisplays(seconds: number): void {
   if (Number.isFinite(seconds)) commercialDisplayClock.value = seconds;
 }
@@ -532,6 +539,6 @@ export function setNightMode(night: boolean): void {
 }
 
 function applyNight(material: MeshStandardMaterial): void {
-  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
   if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
 }

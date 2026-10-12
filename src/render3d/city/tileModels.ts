@@ -108,7 +108,7 @@ export class TileSnapshot implements CityMapReader {
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;
-    const height=kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
+    const height=id==='power.coal'?44:id==='power.nuclear'?55:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;
