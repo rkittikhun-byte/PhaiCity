@@ -37,7 +37,20 @@
       .library-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 24px 0 14px; }
       .library-heading p { font-size: 13px; }
       .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-      .tabs { display: flex; gap: 10px; margin-bottom: 22px; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+      .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 20px; }
+      .icon-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+      .icon-card h2 { margin: 0; font-size: 16px; }
+      .icon-card > a { font: 11px ui-monospace, monospace; }
+      .icon-sizes, .icon-samples { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+      .icon-sizes { color: var(--muted); font-size: 11px; margin: 8px 0 4px; }
+      .icon-samples { border-radius: 4px; padding: 4px; margin-top: 4px; }
+      .icon-samples > span { display: flex; justify-content: center; align-items: center; height: 48px; }
+      .icon-samples img { display: block; }
+      .icon-light { background: #f2f4ed; }
+      .icon-dark { background: #263d35; }
+      .icon-backgrounds { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; }
+      .icon-backgrounds i { display: inline-block; width: 18px; height: 18px; border: 1px solid var(--line); border-radius: 4px; }
       .city-stage { height: min(70vh, 760px); min-height: 400px; position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
       .city-readout { font-variant-numeric: tabular-nums; margin: 12px 0; }
       .tabs [aria-selected="true"] { color: var(--card); background: var(--accent); border-color: var(--accent); }
@@ -77,6 +90,7 @@
         <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1" data-th="วัสดุ" data-en="Materials">วัสดุ</button>
         <button id="regions-tab" type="button" role="tab" aria-controls="regions" aria-selected="false" tabindex="-1" data-th="ชุดภาค" data-en="Region kits">ชุดภาค</button>
         <button id="city-tab" type="button" role="tab" aria-controls="city" aria-selected="false" tabindex="-1" data-th="เมือง" data-en="City">เมือง</button>
+        <button id="icons-tab" type="button" role="tab" aria-controls="icons" aria-selected="false" tabindex="-1" data-th="ไอคอน" data-en="Icons">ไอคอน</button>
       </nav>
       <section class="toolbar" aria-label="ตัวเลือกแสดงโมเดล">
         <label class="field"><span data-th="หมวดหมู่" data-en="Category">หมวดหมู่</span><select id="category"><option value="all" data-th="ทั้งหมด" data-en="All">ทั้งหมด</option></select></label>
@@ -136,6 +150,11 @@
         <div id="city-stage" class="city-stage" aria-label="เมือง 3D"></div>
         <p class="hint" data-th="คลิกขวาลากเพื่อหมุน · ปุ่มกลางเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · คลิกซ้ายแสดงกรอบเครื่องมือทดสอบ" data-en="Right drag rotates · middle drag pans · wheel zooms · left click previews a tool footprint">คลิกขวาลากเพื่อหมุน · ปุ่มกลางเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · คลิกซ้ายแสดงกรอบเครื่องมือทดสอบ</p>
         <img id="city-map-shot" alt="ภาพทั้งเมือง / Whole city screenshot" hidden style="max-width:100%">
+      </section>
+      <section id="icons" role="tabpanel" aria-labelledby="icons-tab" hidden>
+        <p data-th="ไอคอนเครื่องมือ 16 แบบ · SVG วาดด้วยมือ · ดูขนาดจริง 18, 32 และ 48 พิกเซล" data-en="16 hand-drawn SVG tool icons · actual sizes of 18, 32 and 48 pixels">ไอคอนเครื่องมือ 16 แบบ · SVG วาดด้วยมือ · ดูขนาดจริง 18, 32 และ 48 พิกเซล</p>
+        <div class="icon-backgrounds"><i class="icon-light" aria-hidden="true"></i><span data-th="พื้นสว่าง" data-en="Light background">พื้นสว่าง</span><i class="icon-dark" aria-hidden="true"></i><span data-th="พื้นมืด" data-en="Dark background">พื้นมืด</span></div>
+        <div id="icon-cards" class="icon-grid"></div>
       </section>
       <section id="detail" aria-label="ดูโมเดลเดี่ยว" hidden>
         <p style="margin-top: 20px"><button id="back" type="button">← โมเดลทั้งหมด</button></p>

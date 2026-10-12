@@ -26,6 +26,7 @@ import { CABLE_PREVIEW, CABLE_PREVIEW_ID, disposeCableBridgePreview } from './ca
 import { ELEVATED_PREVIEWS } from './elevated-preview.js';
 import { getRegionKit, REGIONS } from '../regional/index.js';
 import { regionalSamples, regionLineup } from './regional-preview.js';
+import { buildIconGallery } from './icons.js';
 import { animateCommercialModels } from '../models/commercial/landmarks.js';
 import { CityView3D, createCityView3D } from '../city/index.js';
 import { TestCity, testCitySetup, testCitySprites, moveTestSprites } from '../city/test-city.js';
@@ -106,8 +107,11 @@ function startGallery(): void {
   let controls: OrbitControls | undefined;
   let frame = 0;
   let width = 0, height = 0;
-  let activeTab: 'models' | 'materials' | 'regions' | 'city' = 'models';
-  const startWithCity=new URLSearchParams(location.search).get('tab')==='city';
+  const tabs = ['models', 'materials', 'regions', 'city', 'icons'] as const;
+  type GalleryTab = typeof tabs[number];
+  let activeTab: GalleryTab = 'models';
+  const requestedTab = new URLSearchParams(location.search).get('tab');
+  const startTab = tabs.find(tab => tab === requestedTab) ?? 'models';
   let cityView: CityView3D | undefined;
   const cityMap = new TestCity(), citySprites = testCitySprites();
   let cityHover: ToolHover | null = null, cityPaused = false, citySeconds = 0, cityLast = performance.now(), cityReadout = 0;
@@ -311,6 +315,7 @@ function startGallery(): void {
     element('materials').hidden = activeTab !== 'materials';
     element('regions').hidden = activeTab !== 'regions';
     element('city').hidden = activeTab !== 'city';
+    element('icons').hidden = activeTab !== 'icons';
     if (refresh && activeTab !== 'materials') rebuildModels();
     updateStateChoices();
   }
@@ -350,7 +355,8 @@ function startGallery(): void {
     element('sign-cards').replaceChildren();
     element('region-houses').replaceChildren();
     element('region-components').replaceChildren();
-    cityView?.dispose();cityView=undefined;renderer.domElement.hidden=activeTab==='city';
+    cityView?.dispose();cityView=undefined;renderer.domElement.hidden=activeTab==='city'||activeTab==='icons';
+    if(activeTab==='icons'){buildIconGallery(element('icon-cards'),localText);return;}
     if(activeTab==='city'){buildCity();return;}
     if (activeTab === 'materials') {
       buildMaterials();
@@ -493,9 +499,9 @@ function startGallery(): void {
     localText(element('back'), '← วัสดุทั้งหมด', '← All materials');
   }
 
-  function switchTab(tab: 'models' | 'materials' | 'regions' | 'city'): void {
+  function switchTab(tab: GalleryTab): void {
     activeTab = tab;
-    ['models', 'materials', 'regions', 'city'].forEach(name => {
+    tabs.forEach(name => {
       const button = element(name + '-tab');
       button.setAttribute('aria-selected', String(tab === name)); button.tabIndex = tab === name ? 0 : -1;
     });
@@ -504,10 +510,12 @@ function startGallery(): void {
       input.disabled = !show;
       (input.closest('label') as HTMLLabelElement).hidden = !show;
     });
-    for(const input of [sunAngle,night]) (input.closest('label') as HTMLLabelElement).hidden=tab==='city';
+    for(const input of [sunAngle,night]) (input.closest('label') as HTMLLabelElement).hidden=tab==='city'||tab==='icons';
+    document.querySelector<HTMLElement>('.toolbar')!.hidden=tab==='icons';
     localText(element('back'), tab === 'models' ? '← โมเดลทั้งหมด' : tab === 'materials' ? '← วัสดุทั้งหมด' : '← ชุดภาคทั้งหมด', tab === 'models' ? '← All models' : tab === 'materials' ? '← All materials' : '← All region kits');
     buildLibrary();
-    if(tab!=='city')loadGallerySky();
+    translatePage();
+    if(tab!=='city'&&tab!=='icons')loadGallerySky();
   }
 
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
@@ -532,6 +540,7 @@ function startGallery(): void {
   element('materials-tab').addEventListener('click', () => switchTab('materials'));
   element('regions-tab').addEventListener('click', () => switchTab('regions'));
   element('city-tab').addEventListener('click', () => switchTab('city'));
+  element('icons-tab').addEventListener('click', () => switchTab('icons'));
   element('city-default').addEventListener('click',()=>cityView?.navigation.reset());
   element('city-motion').addEventListener('click',()=>{
     if(!cityView)return;cityView.navigation.reset();const time=performance.now(),m=cityView.metrics;
@@ -554,13 +563,12 @@ function startGallery(): void {
   for (const style of ['hsr', 'metro']) element(`${style}-ramp-preview`).addEventListener('click', () => {
     const id = `preview.${style}_ramp`; showModel({ id, entry: ELEVATED_PREVIEWS[id], kind: 'assembly' });
   });
-  ['models', 'materials', 'regions', 'city'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
+  tabs.forEach(name => element(name + '-tab').addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      const tabs = ['models', 'materials', 'regions', 'city'] as const;
-      event.preventDefault(); switchTab(tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : 3)) % 4]); element(activeTab + '-tab').focus();
+      event.preventDefault(); switchTab(tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]); element(activeTab + '-tab').focus();
     }
   }));
-  if(startWithCity)switchTab('city');else buildLibrary();
+  switchTab(startTab);
   localText(element('back'), '← โมเดลทั้งหมด', '← All models');
   localText(element('sky-status'), 'กำลังโหลดแสงท้องฟ้า HDRI 1K', 'Loading 1K daytime HDRI');
   const ariaLabels: readonly [string, string, string][] = [
@@ -585,11 +593,12 @@ function startGallery(): void {
     updateLighting();
     }, undefined, () => { localText(element('sky-status'), 'โหลด HDRI ไม่สำเร็จ · ใช้แสงท้องฟ้าสีพื้น', 'HDRI unavailable · gradient sky fallback'); });
   }
-  if(!startWithCity)loadGallerySky();
+  if(startTab!=='city'&&startTab!=='icons')loadGallerySky();
 
   // One WebGL context for the entire library; scissor each visible thumbnail or inspector.
   function render(): void {
     frame = requestAnimationFrame(render);
+    if(activeTab==='icons')return;
     if(activeTab==='city'&&cityView){
       const time=performance.now(),frameInterval=time-cityLast;if(!cityPaused)citySeconds+=Math.min(.1,frameInterval/1000);cityLast=time;
       if(cityMotion&&!cityMotion.started&&time>=cityMotion.start&&!cityView.metrics.pendingChunks&&!cityView.metrics.pendingModels){
