@@ -98,6 +98,12 @@ describe('Prompt 11 premium commercial zones', () => {
     try {
       const deck = root.getObjectByName('anim_deck') as Group; expect(deck).toBeInstanceOf(Group);
       expect(deck.position.toArray()).toEqual([0, 127.5, -2]);
+      for (const mesh of visibleMeshes(deck)) {
+        const positions = mesh.geometry.getAttribute('position');
+        for (let i = 0; i < positions.count; i++) {
+          expect(Math.hypot(positions.getX(i), positions.getZ(i))).toBeGreaterThan(Math.sqrt(2) * 6.4);
+        }
+      }
       const body = root.children.find(child => child.name.includes('glass_tinted'))!, matrix = body.matrix.clone();
       animateCommercialModels([root], 22.5); expect(deck.rotation.y).toBeCloseTo(Math.PI / 2, 8);
       expect(body.matrix).toEqual(matrix); expect(deck.position.toArray()).toEqual([0, 127.5, -2]);
