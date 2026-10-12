@@ -47,7 +47,7 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
 
 export const PAUSE_CODE = "KeyP";
 export const MAP_CODE = "KeyM";
-/** Q and E turn the 3D view (the ⟲ ⟳ corner buttons, src/viewSwitch.ts). */
+/** Q and E turn the 3D view (the ⟲ ⟳ corner buttons, src/viewControls.ts). */
 export const TURN_LEFT_CODE = "KeyQ";
 export const TURN_RIGHT_CODE = "KeyE";
 export const UNDO_CODE = "KeyZ";

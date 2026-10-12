@@ -567,12 +567,9 @@
 | `news.goto` | `src/newsLog.ts` | — | `Go there` | `ไปดู` | พากล้องไปที่เกิดเหตุ |
 | `view.3d_missing` | `src/splashScreen.js` | — | `The 3D city isn't ready yet, so the 2D view is used for now.` | `เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน` | `index.html?view=3d` ก่อน Codex ทำ R1 เสร็จ (Claude Code 12 ต.ค. 2026) |
 | `view.3d_failed` | `src/game.js` | — | `The 3D city couldn't start on this computer, so the 2D view is used.` | `เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน` | เช่น เครื่องไม่รองรับ WebGL |
-| `view.to_3d` | `src/viewSwitch.ts` | — | `3D view` | `มุมมอง 3D` | ปุ่มมุมขวาบนในเมือง (Claude Code 12 ต.ค. 2026) |
-| `view.to_2d` | `src/viewSwitch.ts` | — | `2D view` | `มุมมอง 2D` |  |
-| `view.rotate_left` | `src/viewSwitch.ts` | — | `Turn left (Q)` | `หมุนซ้าย (Q)` | ปุ่ม ⟲ มุมขวาบน เฉพาะ 3D (Claude Code 12 ต.ค. 2026) |
-| `view.rotate_right` | `src/viewSwitch.ts` | — | `Turn right (E)` | `หมุนขวา (E)` | ปุ่ม ⟳ |
-| `view.switch_title` | `src/viewSwitch.ts` | — | `Saves the city and opens it again in the other view` | `บันทึกเมือง แล้วเปิดเมืองนี้ใหม่ในอีกมุมมอง` | tooltip |
-| `view.switch_failed` | `src/viewSwitch.ts` | — | `The city could not be saved, so the view stays as it is.` | `บันทึกเมืองไม่ได้ จึงยังสลับมุมมองไม่ได้` | พื้นที่เก็บข้อมูลของเบราว์เซอร์เต็ม |
+| `view.rotate_left` | `src/viewControls.ts` | — | `Turn left (Q)` | `หมุนซ้าย (Q)` | ปุ่ม ⟲ มุมขวาบน เฉพาะ 3D (Claude Code 12 ต.ค. 2026) |
+| `view.rotate_right` | `src/viewControls.ts` | — | `Turn right (E)` | `หมุนขวา (E)` | ปุ่ม ⟳ |
+| `view.reset` | `src/viewControls.ts` | — | `Back to the starting view` | `กลับมุมตั้งต้น` | ปุ่ม ⌂ เฉพาะ 3D (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `hud.attribution` | `index.html` | — | `Map © {osm} · modified from micropolisJS · {credits}` | `แผนที่ © {osm} · ดัดแปลงจาก micropolisJS · {credits}` | บรรทัดเครดิตเล็กบนแผนที่ในเมือง แทนแถบล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) {osm} คงข้อความ "OpenStreetMap contributors" |
 | `hud.credits` | `index.html` | — | `All credits` | `เครดิตทั้งหมด` | ลิงก์ไปหน้าเกี่ยวกับเกม |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |

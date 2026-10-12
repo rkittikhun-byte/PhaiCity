@@ -1285,8 +1285,9 @@ Task: replace the placeholder zone blocks of prompt R1 with the real models from
 4. Seeds from (x, y) only, so a building keeps its look when its density changes; seed buckets for instancing.
 5. LOD for buildings far from the camera (section 8) so the 200 × 200 test city keeps the frame-rate targets.
 6. Tests: every zone value and density maps to the right model id and footprint, in all 6 regions.
-7. rotate(degrees) on the 3D view (RENDERER_SPEC section 4, added 12 Oct 2026): the game's ⟲ ⟳ buttons and the
-   Q and E keys already call it when it exists; test that it turns the heading and adds up mid-turn.
+7. rotate(degrees) and resetView() on the 3D view (RENDERER_SPEC section 4, added 12 Oct 2026): the game's ⟲ ⟳ ⌂
+   buttons and the Q and E keys already call them when they exist (until then they reach into navigation); smooth
+   turns that add up mid-turn, and a smooth flight home. 3D is now the game's only view, so this matters.
 
 Report in Thai with frame times and draw calls before and after, per region.
 ```

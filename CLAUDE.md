@@ -85,12 +85,14 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - The game talks to whatever draws the city only through the `CityView` interface (`src/cityView.ts`),
     in map tiles, never pixels: `paint(hover, sprites, isPaused)`, `tileAt`, `visibleTiles`, `width/height`,
     `moveNorth/East/South/West`, `centreOn`, `screenshotMap`, `screenshotVisible`, `shake`.
-  - Today that is the 2D view `src/cityView2d.ts`, around the original `gameCanvas.js` (with `tileSet.js`,
-    `animationManager.js`; `monsterTV.js` keeps its own small 2D canvas).
-  - The 3D view (Codex, `src/render3d/city/`) implements the same interface: spec `docs/3d/RENDERER_SPEC.md`,
-    prompts R1–R4 in `docs/3d/CODEX_PROMPTS.md`. `index.html?view=3d` uses it (remembered; `?view=2d` goes back):
-    `src/cityView3dLoader.ts` finds `src/render3d/city/index.ts` at build time without naming it in an import, and the
-    game falls back to 2D with a corner note when it is missing or cannot start. MonsterTV exists only in 2D.
+  - **3D is the game's only view (owner, 12 Oct 2026):** the 3D view (Codex, `src/render3d/city/`) implements the
+    interface: spec `docs/3d/RENDERER_SPEC.md`, prompts R1–R4 in `docs/3d/CODEX_PROMPTS.md`. `src/cityView3dLoader.ts`
+    finds `src/render3d/city/index.ts` at build time without naming it in an import.
+  - The 2D view `src/cityView2d.ts` (around the original `gameCanvas.js`, `tileSet.js`, `animationManager.js`) is only
+    the fallback when 3D is missing or cannot start (a corner note says so), and `index.html?view=2d` for developers
+    (not remembered). MonsterTV exists only in 2D. Do not offer a 2D/3D switch to players.
+  - The 3D view's optional `rotate(degrees)` and `resetView()` drive the ⟲ ⟳ ⌂ corner buttons and the Q and E keys
+    (`src/viewControls.ts`; until Codex adds them it uses the view's public `navigation` camera).
 - **Tools:**
   - `gameTools.js` defines each tool's cost and size.
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.
@@ -113,8 +115,8 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     - In-world 3D signage stays in Thai in both languages, because these are signs in a Thai city.
 - **Game HUD (owner, 12 Oct 2026):** in a city the map fills the window and every panel is a frosted-glass card
   ("Game HUD" at the end of `css/style.css`, whose `body #…` rules override the original layout). The header is a
-  few round buttons in the top-right corner: sound, language, 2D/3D (`src/viewSwitch.ts` saves the city and opens it
-  again with `index.html?view=3d&city=<id>`) and About. The footer is hidden but stays in the page, because the start
+  few round buttons in the top-right corner: sound, language, turn left/right and back to the starting view (3D only)
+  and About; `index.html?city=<id>` opens a saved city straight away. The footer is hidden but stays in the page, because the start
   screen copies its required credits from it; in a city the small `#mapAttribution` line keeps the OpenStreetMap
   credit and "modified from micropolisJS" on screen, with a link to every credit. Never remove that line.
 - **About page:** `about.html` with its own bundle `src/aboutPage.ts`: how to play and every credit, in both

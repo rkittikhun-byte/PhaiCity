@@ -24,7 +24,7 @@ import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
 import { checkRulesData, resolveRules } from './provinceRules.ts';
-import { requestedCity } from './viewSwitch.ts';
+import { requestedCity } from './viewControls.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
 
@@ -82,7 +82,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 
   $('#saveRequest').prop('disabled', !Storage.canStore);
 
-  // index.html?city=<id> opens a saved city straight away (the 2D/3D button, src/viewSwitch.ts)
+  // index.html?city=<id> opens a saved city straight away (src/viewControls.ts)
   var cityId = requestedCity(window.location.search);
   var cityToOpen = cityId !== null ? loadCity(cityId) : null;
   if (cityToOpen !== null) {
@@ -142,16 +142,10 @@ var regionOf = function(provinceId) {
 };
 
 
-// null for the 2D view; for 3D (index.html?view=3d, src/cityViewChoice.ts) the 3D view's factory and the region.
-// Until Codex's 3D view exists (prompt R1), choosing 3D says so and keeps 2D.
+// The 3D view's factory and the region (src/cityViewChoice.ts: 3D is the game's view), or null for the 2D view:
+// with index.html?view=2d, or when the 3D view is missing from the build (a corner note says so)
 var prepareView = function(provinceId) {
-  var store = null;
-  try {
-    store = window.localStorage;
-  } catch (e) {
-    // Private windows may refuse storage
-  }
-  if (chooseViewKind(window.location.search, store) !== '3d')
+  if (chooseViewKind(window.location.search) !== '3d')
     return Promise.resolve(null);
 
   return Promise.all([loadCityView3D(), regionOf(provinceId)]).then(function(results) {
