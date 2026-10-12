@@ -14,8 +14,9 @@ import { FLAGS } from "./languageFlag";
 import { show } from "./motion";
 
 const LANGUAGES: Language[] = ["th", "en"];
-/** How long the title page takes to go (css/style.css, "#titleGate.leaving"). */
+/** How long the title page takes to go (css/style.css, "#titleGate.leaving"), and its words to sink away. */
 const LEAVE_MS = 900;
+const SINK_MS = 550;
 
 /** Shows the title page and resolves when the player enters the game. */
 export function showTitleGate(doc: Document = document): Promise<void> {
@@ -95,7 +96,8 @@ export function showTitleGate(doc: Document = document): Promise<void> {
       // underneath meanwhile
       gate.classList.add("leaving");
       window.setTimeout(() => gate.remove(), LEAVE_MS);
-      resolve();
+      // The start screen comes out once the words have sunk away
+      window.setTimeout(resolve, SINK_MS);
     };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Enter" || event.target === soundBox) return;

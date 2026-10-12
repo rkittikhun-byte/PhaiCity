@@ -1299,6 +1299,10 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #titleGate .gatePanel > :nth-child(5) { --i: 4; }
 #titleGate .gatePanel > :nth-child(6) { --i: 5; }
 @keyframes gateSink { to { opacity: 0; transform: translateY(60px); } }
+/* Behind the title page the start screen waits unseen, then comes out from inside (src/provincePicker.ts) */
+#provincePicker.awaitGate { opacity: 0; animation: none; }
+#provincePicker.emerging { animation: ppEmerge 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+@keyframes ppEmerge { from { opacity: 0; transform: scale(0.86); filter: blur(8px); } }
 @keyframes gateClear { to { opacity: 0; } }
 /* The loading line would show through the title page, across its buttons (owner, 12 Oct 2026) */
 body.gateOpen #loadingBanner, body.gateOpen #provincePicker .ppStage > .loadingBar { display: none; }

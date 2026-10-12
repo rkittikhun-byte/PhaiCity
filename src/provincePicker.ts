@@ -1445,6 +1445,7 @@ onLanguageChange(() => {
   destroyShell();
   if (!wasOpen || !data) return;
   view = buildShell();
+  view.overlay.classList.toggle("awaitGate", awaitingGate);
   buildMap();
   if (mode === "intro") playIntro(sceneIndex);
   else if (mode === "province" && currentRegion) enterRegion(currentRegion, cardOpen ? selectedProvince : null);
@@ -1453,22 +1454,38 @@ onLanguageChange(() => {
 });
 
 
+// While the title page is up the start screen waits unseen behind it; when the player enters it comes out from
+// inside, and only then does the story start (owner, 12 Oct 2026)
+let awaitingGate = false;
+const EMERGE_MS = 900;
+
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;
   music.play(THEME); // starts with the first click or key, as browsers require
   document.removeEventListener("keydown", onKeyDown);
   document.addEventListener("keydown", onKeyDown);
   view ??= buildShell();
+  if (options.gate) {
+    awaitingGate = true;
+    view.overlay.classList.add("awaitGate");
+  }
   show(view.overlay);
 
   // The map is drawn as soon as the data is in, behind the title page (its loading line goes with it); the story
-  // waits until the player has entered
+  // waits until the player has entered and the screen has come out
   const loading = loadData().then((loaded) => {
     data = loaded;
     if (view && !view.svg) buildMap();
     setLoadingProgress(1);
   });
-  Promise.all([loading, options.gate ?? Promise.resolve()]).then(() => {
+  const entered = (options.gate ?? Promise.resolve()).then(() => {
+    if (!awaitingGate) return undefined;
+    awaitingGate = false;
+    view?.overlay.classList.remove("awaitGate");
+    view?.overlay.classList.add("emerging");
+    return new Promise<void>((resolve) => window.setTimeout(resolve, EMERGE_MS));
+  });
+  Promise.all([loading, entered]).then(() => {
     if (!view || !data) return;
     if (!view.svg) buildMap();
     const requested = options.provinceId ? data.provinces.get(options.provinceId) : undefined;
