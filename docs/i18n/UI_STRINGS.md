@@ -160,6 +160,22 @@
 | `eval.stats.score` | `index.html` | `Score:` | `Overall Score:` | `คะแนนเมือง:` | 0-1000 |
 | `eval.stats.change` | `index.html` | `Annual change:` | `Annual Change:` | `คะแนนเปลี่ยนแปลงรายปี:` | ผลต่างคะแนน |
 | `eval.btn.ok` | `index.html` | `OK` | `OK` | `ตกลง` | ปิดหน้าต่าง |
+| `eval.btn.graphs` | `index.html` | — | `City graphs` | `ดูกราฟเมือง` | เปิดหน้าต่างกราฟ (Claude Code 12 ต.ค. 2026) |
+| `graphs.title` | `index.html` | — | `City graphs` | `กราฟเมือง` | `src/graphWindow.js` |
+| `graphs.range10` | `index.html` | — | `10 years` | `10 ปี` | |
+| `graphs.range100` | `index.html` | — | `100 years` | `100 ปี` | ประวัติช่วงยาวเก็บทุก 10 เดือน 120 ครั้ง = 100 ปี |
+| `graphs.people` | `index.html` | — | `People and work` | `ประชากรและการงาน` | |
+| `graphs.living` | `index.html` | — | `Life and money` | `ความเป็นอยู่และการเงิน` | |
+| `graphs.res` | `src/graphWindow.js` | — | `Residential` | `ที่อยู่อาศัย` | |
+| `graphs.com` | `src/graphWindow.js` | — | `Commercial` | `พาณิชย์` | |
+| `graphs.ind` | `src/graphWindow.js` | — | `Industrial` | `อุตสาหกรรม` | |
+| `graphs.crime` | `src/graphWindow.js` | — | `Crime` | `อาชญากรรม` | |
+| `graphs.pollution` | `src/graphWindow.js` | — | `Pollution` | `มลพิษ` | |
+| `graphs.money` | `src/graphWindow.js` | — | `Cash flow` | `กระแสเงินสด` | |
+| `graphs.now` | `index.html` | — | `Now` | `ตอนนี้` | ปลายขวาของแกนเวลา |
+| `graphs.ago` | `src/graphWindow.js` | — | `{years} years ago` | `{years} ปีก่อน` | ปลายซ้ายของแกนเวลา |
+| `graphs.money_note` | `index.html` | — | `Cash flow: above the dashed line the city earns more than it spends.` | `กระแสเงินสด: เหนือเส้นประคือรายรับมากกว่ารายจ่าย` | |
+| `graphs.close` | `index.html` | — | `Close` | `ปิด` | |
 
 ### ปัญหาเมืองในผลสำรวจ (Problems)
 | Key | File | Current English | New English | Thai | Notes |

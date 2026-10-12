@@ -14,11 +14,17 @@
 import $ from "jquery";
 
 import { ModalWindow } from './modalWindow.js';
-import { EVAL_WINDOW_CLOSED } from './messages.ts';
+import { EVAL_WINDOW_CLOSED, GRAPHS_REQUESTED } from './messages.ts';
 import { Text } from './text.js';
 
 var EvaluationWindow = ModalWindow(function() {
   $(evaluationFormID).on('submit', submit.bind(this));
+  // The city graphs open in place of this window
+  $('#evalGraphs').on('click', function(e) {
+    e.preventDefault();
+    this.close();
+    this._emitEvent(GRAPHS_REQUESTED);
+  }.bind(this));
 });
 
 

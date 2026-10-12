@@ -245,7 +245,32 @@
 	    </dl>
 	  </section>
           <form id="evalButtons" class="alignCenter margin10">
+            <button type="button" id="evalGraphs" data-i18n="eval.btn.graphs" class="width140">City graphs</button>
             <input type="submit" id="evalOK" data-i18n-value="eval.btn.ok" class="width140 dialogOK" value="OK">
+          </form>
+        </div>
+      </div>
+      <!-- City graphs (src/graphWindow.js, src/cityGraphs.ts), opened from the Evaluation window -->
+      <div class="hidden modal shadow" id="graphWindow">
+        <header id="graphHeader" data-i18n="graphs.title" class="evalHeader padding10 chunk alignCenter">
+           City graphs
+        </header>
+        <div id="graphContainer" class="padding10 open">
+          <div class="graphRange alignCenter" role="group">
+            <button type="button" data-range="10" data-i18n="graphs.range10">10 years</button>
+            <button type="button" data-range="120" data-i18n="graphs.range100">100 years</button>
+          </div>
+          <h3 data-i18n="graphs.people">People and work</h3>
+          <svg id="graphPeople" class="graphChart" role="img" aria-hidden="true"></svg>
+          <div class="graphAxis"><span class="graphFrom"></span><span data-i18n="graphs.now">Now</span></div>
+          <div class="graphLegend" id="graphPeopleLegend"></div>
+          <h3 data-i18n="graphs.living">Life and money</h3>
+          <svg id="graphLiving" class="graphChart" role="img" aria-hidden="true"></svg>
+          <div class="graphAxis"><span class="graphFrom"></span><span data-i18n="graphs.now">Now</span></div>
+          <div class="graphLegend" id="graphLivingLegend"></div>
+          <p class="graphNote" data-i18n="graphs.money_note">The dashed line is where income equals spending.</p>
+          <form id="graphForm" class="alignCenter margin10">
+            <input type="submit" id="graphOK" data-i18n-value="graphs.close" class="width140 dialogOK" value="Close">
           </form>
         </div>
       </div>

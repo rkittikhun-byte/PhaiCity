@@ -28,6 +28,7 @@ import { DebugWindow } from './debugWindow.js';
 import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
 import { GameMap } from './gameMap.js';
+import { GraphWindow } from './graphWindow.js';
 import { onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
@@ -176,6 +177,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.evalWindow = new EvaluationWindow(opacityLayerID, 'evalWindow');
   this.evalWindow.addEventListener(Messages.EVAL_WINDOW_CLOSED, this.genericDialogClosure);
   this.inputStatus.addEventListener(Messages.EVAL_REQUESTED, this.handleEvalRequest.bind(this));
+
+  // The city graphs (src/graphWindow.js), opened from the Evaluation window; they read the census's history
+  this.handleGraphsRequest = makeWindowOpenHandler('graph', function() {
+    return [this.simulation._census];
+  }.bind(this));
+
+  this.graphWindow = new GraphWindow(opacityLayerID, 'graphWindow');
+  this.graphWindow.addEventListener(Messages.GRAPH_WINDOW_CLOSED, this.genericDialogClosure);
+  this.evalWindow.addEventListener(Messages.GRAPHS_REQUESTED, this.handleGraphsRequest.bind(this));
 
   // ... and similarly for the budget window
   this.handleBudgetRequest = makeWindowOpenHandler('budget', function() {
