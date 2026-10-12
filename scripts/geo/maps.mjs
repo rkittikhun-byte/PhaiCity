@@ -17,7 +17,8 @@ import { loadProvinceShapes } from './lib/provinceArea.mjs';
 import { buildProvinceMap, WATER, WOODS } from './lib/provinceMap.mjs';
 import { encodeRle } from './lib/rle.mjs';
 import { CROSSING, RAIL, ROAD } from './lib/routing.mjs';
-import { LAYER_NAMES, loadLayer, provinceGrid } from './provinceData.mjs';
+import { provinceAt } from './lib/links.mjs';
+import { LAYER_NAMES, loadAirports, loadLayer, provinceGrid } from './provinceData.mjs';
 
 const MIN_LAND_FRACTION = 0.4;
 const PREVIEW_DIR = path.join(CACHE_DIR, 'preview');
@@ -53,6 +54,7 @@ async function main() {
   const centers = resolveCenters();
   const towns = new Map(Object.entries(centers).filter(([, center]) => center));
   const provinces = loadProvinces().filter((p) => !options.only || options.only.has(p.id));
+  const airports = await loadAirports();
   const report = [];
 
   for (const province of provinces) {
@@ -82,6 +84,9 @@ async function main() {
       town: result.town,
       exits: result.exits,
       waterways: result.waterways,
+      airports: airports
+        .filter((airport) => provinceAt(airport.lon, airport.lat, shapes) === province.id)
+        .map((airport) => ({ th: airport.name, en: airport.nameEn, iata: airport.iata })),
       stats: result.stats,
       flags,
       unlinked,

@@ -66,6 +66,9 @@ Census.prototype.clearCensus = function() {
   this.firePop = 0;
   this.roadTotal = 0;
   this.railTotal = 0;
+  // PhaiCity: the state's roads and railways among them, which the city does not pay for (src/road.js)
+  this.nationalRoadTotal = 0;
+  this.nationalRailTotal = 0;
   this.resPop = 0;
   this.comPop = 0;
   this.indPop = 0;

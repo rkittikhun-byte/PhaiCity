@@ -1367,7 +1367,8 @@ function showTerrainHero(province: Province, map: PresetMap): void {
 }
 
 // What links the province to the rest of the country (src/geo/provinceTransport.ts): its laterite roads and railways
-// to the neighbours, its waterways and the sea; null for a map that does not know (format 1)
+// to the neighbours, its waterways, the sea and its airports; null for a map that does not know (format 1)
+const AIRPORT_COLOUR = "#9ecbff";
 function transportList(province: Province, map: PresetMap): HTMLElement | null {
   const transport = provinceTransport(map, province.tags ?? []);
   if (!hasTransport(transport)) return null;
@@ -1393,6 +1394,10 @@ function transportList(province: Province, map: PresetMap): HTMLElement | null {
     add(PRESET_COLORS[1], t("transport.waterways", { rivers: rivers.join(", ") }));
   }
   for (const sea of transport.seas) add(PRESET_COLORS[1], t(`transport.sea_${sea}`));
+  if (transport.airports.length) {
+    const airports = transport.airports.map((airport) => `${waterwayName(airport, getLanguage())} (${airport.iata})`);
+    add(AIRPORT_COLOUR, t("transport.airports", { airports: airports.join(", ") }));
+  }
   return list;
 }
 

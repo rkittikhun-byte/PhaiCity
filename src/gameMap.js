@@ -89,6 +89,15 @@ GameMap.prototype.load = function(saveData) {
 };
 
 
+// PhaiCity: the roads and railways a whole-province map starts with are the state's (docs/geo/GEO_SPEC.md
+// section 10, owner 12 Oct 2026): the city does not pay for them and they never wear out. nationalTransport holds
+// the map's own transport codes, one per tile (0 none), or is null on other maps.
+GameMap.prototype.isNationalTransport = function(x, y) {
+  var national = this.nationalTransport;
+  return !!national && national[x + y * this.width] !== 0;
+};
+
+
 GameMap.prototype._calculateIndex = function(x, y) {
   return x + y * this.width;
 };

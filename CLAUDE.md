@@ -163,7 +163,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   (`docs/geo/GEO_SPEC.md`). The map brings the real railways and one laterite road (ถนนลูกรัง) to each neighbouring
   province, from the border to the town; every other road is the player's. Tiles outside the province
   (`gameMap.insideProvince` 0) show the land around it but every tool is refused there (`CityCommands`,
-  `canBuildAt`; the tool outline turns red), and the mask is saved with the city as `inside`. The camera opens on
+  `canBuildAt`; the tool outline turns red), and the mask is saved with the city as `inside`. The starting roads and
+  railways are the state's (`gameMap.nationalTransport`, saved as `national`): no upkeep and no wear (a small,
+  owner-approved change in `road.js`, `transport.js`, `census.js`, `budget.js`), but the player may build over them. The camera opens on
   the town (`gameMap.town`, saved as `town`) and ⌂ returns to it. The province card lists its transport
   (การคมนาคม: roads, railways, waterways, sea; `src/geo/provinceTransport.ts`). Old 2 × 2 km maps (format 1) still load.
   The game opens on a title page (`src/titleGate.ts`: the name, a flag per language, "sound on" and "Enter the game";

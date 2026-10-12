@@ -4,7 +4,7 @@
 
 // npm run geo:download [-- --layers roads,rail] [-- --cells 16_102,18_98] [-- --plan]
 // Downloads what the whole-province maps are drawn from (GEO_SPEC sections 3 and 6): main roads, railways, coast,
-// rivers, lakes and forest. Thailand is fetched once, in squares of one degree, rather than province by province,
+// rivers, lakes and forest, and the airports. Thailand is fetched once, in squares of one degree, rather than province by province,
 // because the boxes round neighbouring provinces overlap. Each square of each layer is one Overpass request, trimmed
 // to what the maps use and cached in data/geo/cache/overpass/national/ so a second run downloads nothing.
 // --plan only prints each province map's scale and size.
@@ -112,6 +112,33 @@ export function cellsTouching([west, south, east, north]) {
   return keys;
 }
 
+// Airports with an IATA code: the country's passenger airports, for each province's transport (GEO_SPEC section 1).
+// One small request for all of Thailand, cached on its own.
+const AIRPORTS_QUERY = '[out:json][timeout:60];\n(\nnwr["aeroway"="aerodrome"]["iata"](5.5,97.3,20.6,105.7);\n);\nout center tags;';
+const AIRPORTS_CACHE = 'national/airports';
+
+/** The answer to AIRPORTS_QUERY cut down to [{ name, nameEn, iata, lat, lon }]. */
+export function slimAirports(json) {
+  const airports = [];
+  for (const element of json.elements ?? []) {
+    const point = element.type === 'node' ? element : element.center;
+    if (!point || !element.tags?.iata) continue;
+    airports.push({
+      name: element.tags.name ?? '',
+      nameEn: element.tags['name:en'] ?? '',
+      iata: element.tags.iata,
+      lat: Math.round(point.lat * 1e5) / 1e5,
+      lon: Math.round(point.lon * 1e5) / 1e5,
+    });
+  }
+  return { airports };
+}
+
+/** Every airport in and around Thailand, downloading them first if they are not cached yet. */
+export async function loadAirports() {
+  return (await overpass(AIRPORTS_QUERY, AIRPORTS_CACHE, { slim: slimAirports })).airports;
+}
+
 const cacheName = (layer, key) => `national/${layer}/${key}`;
 const cacheFile = (layer, key) => path.join(CACHE_DIR, 'overpass', `${cacheName(layer, key)}.json`);
 
@@ -190,9 +217,11 @@ async function main() {
       const size = fs.statSync(cacheFile(layer, key)).size;
       bytes += size;
       console.log(`${layer} ${key} ${(size / 1048576).toFixed(2)} MB` +
-        `${cached ? ' (cached)' : ` in ${((Date.now() - started) / 1000).toFixed(0)} s`}  kept ${(bytes / 1048576).toFixed(1)} MB of ${(fetched / 1048576).toFixed(1)} MB fetched`);
+        `${cached ? ' (cached)' : ` in ${((Date.now() - started) / 1000).toFixed(0)} s`}  ` +
+        `kept ${(bytes / 1048576).toFixed(1)} MB of ${(fetched / 1048576).toFixed(1)} MB fetched`);
     }
   }
+  console.log(`airports: ${(await loadAirports()).length}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

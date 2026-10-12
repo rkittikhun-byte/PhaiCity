@@ -10,7 +10,9 @@
 // Building can be undone (src/undoHistory.ts): tool commands of one stroke form one step, and "undo" takes the last
 // step back, tiles and money.
 // On a province map only the province's own tiles can be built on (docs/geo/GEO_SPEC.md section 10): a tool whose
-// footprint touches a tile outside it is refused, the bulldozer included.
+// footprint touches a tile outside it is refused, the bulldozer included. The roads and railways the map starts
+// with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
+// player may build over them and widen them like any road.
 
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -107,6 +109,13 @@ export interface CommandTarget {
   canBuildAt?(x: number, y: number): boolean;
 }
 
+/** Why a tool may not be used at (x, y): outside the province, or null when it may. */
+export function placeProblem(city: Pick<CommandTarget, "canBuildAt">, x: number, y: number,
+                             size: number): string | null {
+  const canBuildAt = city.canBuildAt;
+  return canBuildAt && footprint(x, y, size).some((t) => !canBuildAt(t.x, t.y)) ? OUTSIDE_PROVINCE : null;
+}
+
 /** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
 export function footprint(x: number, y: number, size: number): Array<{ x: number; y: number }> {
   const offset = size > 2 ? 1 : 0;
@@ -174,10 +183,8 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
-        const canBuildAt = city.canBuildAt;
-        if (canBuildAt && footprint(command.x, command.y, tool.size ?? 1).some((t) => !canBuildAt(t.x, t.y))) {
-          return { accepted: false, reason: OUTSIDE_PROVINCE, toolResult: null };
-        }
+        const refused = placeProblem(city, command.x, command.y, tool.size ?? 1);
+        if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
         tool.doTool(command.x, command.y, city.blockMaps);

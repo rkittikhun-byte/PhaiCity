@@ -122,8 +122,10 @@ var startProvince = function(provinceId, cityName, difficulty) {
     var layer = function(encoded) {
       return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
     };
-    var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset),
-                                           layer(preset.transport));
+    var transport = layer(preset.transport);
+    var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset), transport);
+    // The roads and railways it starts with are the state's: the city pays nothing for them and they never wear out
+    map.nationalTransport = transport;
     map.insideProvince = layer(preset.inside);
     map.town = preset.town || null;
     map.provinceId = provinceId;

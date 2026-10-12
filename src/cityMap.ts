@@ -99,7 +99,12 @@ export interface CityMapSource {
   readonly height: number;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
+  /** On a whole-province map, 1 for the province's own tiles; the land around it is drawn darker (GEO_SPEC 10) */
+  readonly insideProvince?: Uint8Array | null;
 }
+
+/** How bright the land outside the province is drawn, as in the province picker (src/geo/presetMap.ts) */
+export const OUTSIDE_SHADE = 0.45;
 
 export type Overlays = Record<"trafficDensityMap" | "pollutionDensityMap" | "crimeRateMap" | "landValueMap" |
   "populationDensityMap" | "policeStationEffectMap" | "fireStationEffectMap", BlockMapLike>;
@@ -164,13 +169,15 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
 /** The whole map as RGBA pixels, one per tile, row by row (ready for an ImageData). */
 export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overlays): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(map.width * map.height * 4);
+  const inside = map.insideProvince ?? null;
   let i = 0;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y);
-      pixels[i++] = r;
-      pixels[i++] = g;
-      pixels[i++] = b;
+      const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : 1;
+      pixels[i++] = r * shade;
+      pixels[i++] = g * shade;
+      pixels[i++] = b * shade;
       pixels[i++] = 255;
     }
   }

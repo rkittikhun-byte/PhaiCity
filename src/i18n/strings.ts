@@ -568,6 +568,7 @@ export const STRINGS: Record<string, Translation> = {
   "transport.waterways": { en: "Waterways: {rivers}", th: "ทางน้ำ: {rivers}" },
   "transport.sea_gulf": { en: "By sea: the Gulf of Thailand", th: "ทางทะเล: อ่าวไทย" },
   "transport.sea_andaman": { en: "By sea: the Andaman Sea", th: "ทางทะเล: ทะเลอันดามัน" },
+  "transport.airports": { en: "Airports: {airports}", th: "สนามบิน: {airports}" },
   "rules.demand.residential": { en: "Demand for homes {change}", th: "คนอยากได้บ้าน {change}" },
   "rules.demand.commercial": { en: "Demand for shops {change}", th: "คนอยากได้ร้านค้า {change}" },
   "rules.demand.industrial": { en: "Demand for factories {change}", th: "คนอยากได้โรงงาน {change}" },

@@ -4,9 +4,9 @@
 
 // What links a province to the rest of the country (การคมนาคม; owner, 12 Oct 2026; docs/geo/GEO_SPEC.md section 1):
 // its laterite roads and its railways to neighbouring provinces, read from where they leave its map, its big rivers,
-// and the sea for a coastal province. Pure functions, no DOM; the province picker words and shows them.
+// the sea for a coastal province, and its airports. Pure functions, no DOM; the province picker words and shows them.
 
-import type { PresetMap, PresetWaterway } from "./presetMap";
+import type { PresetAirport, PresetMap, PresetWaterway } from "./presetMap";
 
 export interface ProvinceTransport {
   /** One laterite road to each of these neighbours, with the real road's number when it has one */
@@ -16,11 +16,13 @@ export interface ProvinceTransport {
   /** Big rivers boats could use */
   waterways: PresetWaterway[];
   seas: Array<"gulf" | "andaman">;
+  /** Its passenger airports */
+  airports: PresetAirport[];
   /** Neighbours no main road crosses to */
   unlinked: string[];
 }
 
-export function provinceTransport(map: Pick<PresetMap, "exits" | "waterways" | "unlinked">,
+export function provinceTransport(map: Pick<PresetMap, "exits" | "waterways" | "airports" | "unlinked">,
                                   tags: readonly string[]): ProvinceTransport {
   const roads = new Map<string, string>();
   const rails = new Set<string>();
@@ -36,16 +38,18 @@ export function provinceTransport(map: Pick<PresetMap, "exits" | "waterways" | "
     rails: [...rails],
     waterways: map.waterways ?? [],
     seas,
+    airports: map.airports ?? [],
     unlinked: map.unlinked ?? [],
   };
 }
 
 /** Whether there is anything to say: an old 2 × 2 km map knows none of it. */
 export function hasTransport(transport: ProvinceTransport): boolean {
-  return transport.roads.length + transport.rails.length + transport.waterways.length + transport.seas.length > 0;
+  return transport.roads.length + transport.rails.length + transport.waterways.length + transport.seas.length +
+    transport.airports.length > 0;
 }
 
-/** A river's name in the player's language: the English one may be missing. */
+/** A river's or an airport's name in the player's language: the English one may be missing. */
 export function waterwayName(waterway: PresetWaterway, language: string): string {
   return language === "en" && waterway.en ? waterway.en : waterway.th;
 }

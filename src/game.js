@@ -18,7 +18,7 @@ import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
-import { CityCommands, footprint, OUTSIDE_PROVINCE } from './cityCommands.ts';
+import { CityCommands, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { showDemandAndPeople } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -104,6 +104,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.insideProvince = savedGame.inside ?
       decodePresetLayer(savedGame.inside, this.gameMap.width, this.gameMap.height) : null;
     this.gameMap.town = savedGame.town || null;
+    // The roads and railways the map started with, which are the state's (src/gameMap.js isNationalTransport)
+    this.gameMap.nationalTransport = savedGame.national ?
+      decodePresetLayer(savedGame.national, this.gameMap.width, this.gameMap.height) : null;
   }
 
   this.tileSet = tileSet;
@@ -411,7 +414,8 @@ Game.prototype.save = function() {
                   goals: this.rulerGoals.state(), news: this.newsLog.items(),
                   // A whole-province map's own tiles and town (run-length encoded like the map)
                   inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
-                  town: this.gameMap.town || undefined};
+                  town: this.gameMap.town || undefined,
+                  national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -544,6 +548,7 @@ var canBuildIn = function(gameMap) {
     return !inside || inside[x + y * gameMap.width] === 1;
   };
 };
+
 
 
 Game.prototype.handleSettingsWindowClosure = function(actions) {
@@ -840,8 +845,7 @@ Game.prototype.calculateMouseForPaint = function() {
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
   // Red where the tool would reach outside the province, which cannot be built on
-  var canBuildAt = canBuildIn(this.gameMap);
-  if (footprint(tile.x, tile.y, hover.size).some(function(spot) { return !canBuildAt(spot.x, spot.y); }))
+  if (placeProblem({canBuildAt: canBuildIn(this.gameMap)}, tile.x, tile.y, hover.size) !== null)
     hover.colour = OUTSIDE_COLOUR;
 
   // While a zone tool drags an area, show every zone it will lay

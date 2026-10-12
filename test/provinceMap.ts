@@ -7,11 +7,16 @@
 
 import { Budget } from "../src/budget.js";
 import { CityCommands, CommandTarget, footprint, OUTSIDE_PROVINCE } from "../src/cityCommands";
+import { CityMapSource, layerPixels, OUTSIDE_SHADE, Overlays } from "../src/cityMap";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { decodePresetLayer, encodePresetLayer } from "../src/geo/presetMap";
 import { hasTransport, provinceTransport, waterwayName } from "../src/geo/provinceTransport";
 import { MapGenerator } from "../src/mapGenerator.js";
+import { Road } from "../src/road.js";
+import { BULLBIT, BURNBIT } from "../src/tileFlags";
+import { TileUtils } from "../src/tileUtils.js";
+import { Transport } from "../src/transport.js";
 import {
   DIRT, HBRIDGE, HRAIL, HRAILROAD, LHRAIL, LVRAIL, ROADS, ROADS2, VBRIDGE, VRAILROAD,
 } from "../src/tileValues";
@@ -148,6 +153,14 @@ describe("building only inside the province", () => {
     expect(commands.apply({ type: "tool", tool: "road", x: 9, y: 5 }).accepted).toBe(true);
   });
 
+  test("the city map draws the land outside the province darker", () => {
+    const map = new GameMap(4, 1) as unknown as CityMapSource & { insideProvince: Uint8Array };
+    map.insideProvince = new Uint8Array([1, 1, 0, 0]);
+    const pixels = layerPixels("city", map, {} as Overlays);
+    expect(pixels[8]).toBe(Math.round(pixels[0] * OUTSIDE_SHADE));
+    expect(pixels[4]).toBe(pixels[0]);
+  });
+
   test("footprints match the tool outline", () => {
     expect(footprint(5, 5, 1)).toEqual([{ x: 5, y: 5 }]);
     expect(footprint(5, 5, 3)[0]).toEqual({ x: 4, y: 4 });
@@ -184,5 +197,102 @@ describe("transport of a province", () => {
     expect(waterwayName(map.waterways[0], "en")).toBe("Chi River");
     expect(waterwayName(map.waterways[1], "en")).toBe("ลำน้ำพอง");
     expect(waterwayName(map.waterways[0], "th")).toBe("แม่น้ำชี");
+  });
+});
+
+describe("the state's roads and railways", () => {
+  test("the city does not pay for them", () => {
+    const budget = new Budget();
+    budget.collectTax(0, {
+      policeStationPop: 0, fireStationPop: 0, totalPop: 0, landValueAverage: 0,
+      roadTotal: 30, nationalRoadTotal: 20, railTotal: 10, nationalRailTotal: 10,
+    });
+    expect(budget.roadMaintenanceBudget).toBe(Math.floor(10 * 0.7)); // ten city roads at the easy level
+  });
+
+  type Found = (map: unknown, x: number, y: number, simData: unknown) => void;
+  const handler = (system: { registerHandlers(scanner: unknown, repair: unknown): void }): Found => {
+    const found: Found[] = [];
+    system.registerHandlers({ addAction: (_: unknown, action: Found) => found.push(action) }, { addAction: () => undefined });
+    return found[0];
+  };
+  // Underfunded roads wear out: every time a road is looked at it may turn to rubble
+  const simData = () => ({
+    census: { roadTotal: 0, nationalRoadTotal: 0, railTotal: 0, nationalRailTotal: 0 },
+    budget: { shouldDegradeRoad: () => true, roadEffect: 0 },
+    blockMaps: { trafficDensityMap: { worldGet: () => 0 } },
+    spriteManager: { generateTrain: () => undefined },
+  });
+
+  test("a state road never wears out, and is counted apart", () => {
+    const roadFound = handler(Road as never);
+    const map = new GameMap(2, 1) as GameMap & { nationalTransport: Uint8Array };
+    map.setTile(0, 0, ROADS, BULLBIT | BURNBIT);
+    map.setTile(1, 0, ROADS, BULLBIT | BURNBIT);
+    map.nationalTransport = new Uint8Array([ROAD, 0]);
+    const data = simData();
+    for (let i = 0; i < 20000 && TileUtils.isRoad(map.getTileValue(1, 0)); i++) {
+      roadFound(map, 0, 0, data);
+      roadFound(map, 1, 0, data);
+    }
+    expect(TileUtils.isRoad(map.getTileValue(1, 0))).toBe(false); // the city's own road wore out
+    expect(map.getTileValue(0, 0)).toBe(ROADS);
+    expect(data.census.nationalRoadTotal).toBeGreaterThan(0);
+    expect(data.census.roadTotal - data.census.nationalRoadTotal).toBeGreaterThan(0);
+  });
+
+  test("a state railway never wears out, and is counted apart", () => {
+    const railFound = handler(Transport as never);
+    const map = new GameMap(2, 1) as GameMap & { nationalTransport: Uint8Array };
+    map.setTile(0, 0, LHRAIL, BULLBIT | BURNBIT);
+    map.setTile(1, 0, LHRAIL, BULLBIT | BURNBIT);
+    map.nationalTransport = new Uint8Array([RAIL, 0]);
+    const data = simData();
+    for (let i = 0; i < 20000 && TileUtils.isRail(map.getTileValue(1, 0)); i++) {
+      railFound(map, 0, 0, data);
+      railFound(map, 1, 0, data);
+    }
+    expect(TileUtils.isRail(map.getTileValue(1, 0))).toBe(false);
+    expect(map.getTileValue(0, 0)).toBe(LHRAIL);
+    expect(data.census.nationalRailTotal).toBe(data.census.railTotal / 2);
+  });
+
+  function cityWithStateRoad() {
+    const map = new GameMap(20, 20) as GameMap & { nationalTransport: Uint8Array };
+    map.nationalTransport = new Uint8Array(400);
+    for (let x = 0; x < 20; x++) {
+      map.setTile(x, 10, ROADS, BULLBIT | BURNBIT);
+      map.nationalTransport[10 * 20 + x] = ROAD;
+    }
+    const budget = new Budget();
+    budget.setFunds(100000);
+    const noop = () => undefined;
+    const commands = new CityCommands({
+      width: 20,
+      height: 20,
+      tools: new (GameTools as unknown as new (map: unknown) => CommandTarget["tools"])(map),
+      blockMaps: {},
+      budget,
+      disasters: { disastersEnabled: true, makeFire: noop, makeFlood: noop, makeCrash: noop, makeMeltdown: noop },
+      sprites: { makeMonster: noop, makeTornado: noop },
+      setSpeed: noop,
+      setAutoBulldoze: noop,
+    });
+    return { map, commands };
+  }
+
+  test("the player may clear a state road and build over it (owner, 12 Oct 2026)", () => {
+    const { map, commands } = cityWithStateRoad();
+    expect(commands.apply({ type: "tool", tool: "bulldozer", x: 5, y: 10 }).accepted).toBe(true);
+    expect(map.getTileValue(5, 10)).toBe(DIRT);
+    expect(commands.apply({ type: "tool", tool: "residential", x: 5, y: 11 }).accepted).toBe(true);
+  });
+
+  test("roads, railways and power lines may widen, join or cross it", () => {
+    const { map, commands } = cityWithStateRoad();
+    expect(commands.apply({ type: "tool", tool: "road", x: 5, y: 9 }).accepted).toBe(true);
+    expect(commands.apply({ type: "tool", tool: "rail", x: 8, y: 10 }).accepted).toBe(true);
+    expect(map.getTileValue(8, 10)).toBe(VRAILROAD);
+    expect(commands.apply({ type: "tool", tool: "wire", x: 12, y: 10 }).accepted).toBe(true);
   });
 });

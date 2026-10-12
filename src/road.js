@@ -112,13 +112,24 @@ var doBridge = function(map, x, y, currentTile, simData) {
 
 var densityTable = [TileValues.ROADBASE, TileValues.LTRFBASE, TileValues.HTRFBASE];
 
+// PhaiCity: a state road (GameMap.isNationalTransport) is counted as a road like any other, and once more apart,
+// so the budget can leave it out of the city's upkeep; it never wears out
 var roadFound = function(map, x, y, simData) {
+  var national = map.isNationalTransport(x, y);
+  var before = simData.census.roadTotal;
+  roadTile(map, x, y, simData, national);
+  if (national)
+    simData.census.nationalRoadTotal += simData.census.roadTotal - before;
+};
+
+
+var roadTile = function(map, x, y, simData, national) {
   simData.census.roadTotal += 1;
 
   var currentTile = map.getTile(x, y);
   var tileValue = currentTile.getValue();
 
-  if (simData.budget.shouldDegradeRoad()) {
+  if (!national && simData.budget.shouldDegradeRoad()) {
     if (Random.getChance(511)) {
       currentTile = map.getTile(x, y);
 

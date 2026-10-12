@@ -743,6 +743,7 @@
 | `transport.waterways` | `src/provincePicker.ts` | `-` | `Waterways: {rivers}` | `ทางน้ำ: {rivers}` | แม่น้ำสายใหญ่ที่ไหลผ่าน ใช้เดินเรือได้ (เจ้าของ 12 ต.ค. 2026) |
 | `transport.sea_gulf` | `src/provincePicker.ts` | `-` | `By sea: the Gulf of Thailand` | `ทางทะเล: อ่าวไทย` |  |
 | `transport.sea_andaman` | `src/provincePicker.ts` | `-` | `By sea: the Andaman Sea` | `ทางทะเล: ทะเลอันดามัน` |  |
+| `transport.airports` | `src/provincePicker.ts` | `-` | `Airports: {airports}` | `สนามบิน: {airports}` | สนามบินจริงที่มีรหัส IATA เช่น ท่าอากาศยานขอนแก่น (KKC) |
 | `rules.demand.residential` | `src/provinceRules.ts` | `-` | `Demand for homes {change}` | `คนอยากได้บ้าน {change}` | {change} เช่น +40% |
 | `rules.demand.commercial` | `src/provinceRules.ts` | `-` | `Demand for shops {change}` | `คนอยากได้ร้านค้า {change}` |  |
 | `rules.demand.industrial` | `src/provinceRules.ts` | `-` | `Demand for factories {change}` | `คนอยากได้โรงงาน {change}` |  |

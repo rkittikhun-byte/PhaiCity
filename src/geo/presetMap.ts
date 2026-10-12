@@ -36,6 +36,11 @@ export interface PresetWaterway {
   en: string;
 }
 
+/** A passenger airport in the province, with its IATA code. */
+export interface PresetAirport extends PresetWaterway {
+  iata: string;
+}
+
 export interface PresetMap {
   format: number;
   provinceId: string;
@@ -53,6 +58,7 @@ export interface PresetMap {
   town?: { x: number; y: number } | null;
   exits?: PresetExit[];
   waterways?: PresetWaterway[];
+  airports?: PresetAirport[];
   /** Neighbouring provinces with no road link */
   unlinked?: string[];
   stats: { land: number; water: number; woods: number; insideTiles?: number; roadTiles?: number; railTiles?: number };

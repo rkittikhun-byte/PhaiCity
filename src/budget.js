@@ -236,8 +236,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.policeMaintenanceBudget = census.policeStationPop * policeMaintenanceCost;
   this.fireMaintenanceBudget = census.fireStationPop * fireMaintenanceCost;
 
-  var roadCost = census.roadTotal * roadMaintenanceCost;
-  var railCost = census.railTotal * railMaintenanceCost;
+  // PhaiCity: the state pays for its own roads and railways (src/road.js, src/transport.js)
+  var roadCost = (census.roadTotal - (census.nationalRoadTotal || 0)) * roadMaintenanceCost;
+  var railCost = (census.railTotal - (census.nationalRailTotal || 0)) * railMaintenanceCost;
   this.roadMaintenanceBudget = Math.floor((roadCost + railCost) * RLevels[gameLevel]);
 
   this.taxFund = Math.floor(Math.floor(census.totalPop * census.landValueAverage / 120) * this.cityTax * FLevels[gameLevel]);

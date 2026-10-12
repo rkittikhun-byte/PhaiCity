@@ -17,7 +17,7 @@ AI agents (Codex / Claude Code) must read it in full before working on anything 
    - Every world's copy of a province starts from the same map, so rankings for one province are fair across worlds.
 3. **Transport facts (การคมนาคม):** each province lists what links it to the rest of the country: its roads and
    railways to neighbouring provinces, its waterways (big rivers; the sea for coastal provinces) and, later, its
-   airports. The province card shows them.
+   passenger airports. The province card shows them.
 4. **Elevation (later):** visual only, for 3D hills. The simulation stays flat.
 
 Province ids, names, regions and neighbors come from `data/thailand-provinces.json` (ids = ISO 3166-2:TH, e.g. `TH-50`).
@@ -49,7 +49,7 @@ Only sources on this list may be used. Record every source used in `data/CREDITS
 | Data | Source | License | Obligations |
 |---|---|---|---|
 | Province boundaries | Natural Earth 1:10m Admin-1 states/provinces | Public domain | None (credit is courteous) |
-| Water, coast, forest, main roads, railways, city centers | OpenStreetMap via the Overpass API | ODbL 1.0 | Visible in-game credit "© OpenStreetMap contributors"; files derived from OSM (`data/maps/`, `data/geo/province-centers.json`) are published under ODbL (`data/maps/LICENSE.md`) |
+| Water, coast, forest, main roads, railways, airports, city centers | OpenStreetMap via the Overpass API | ODbL 1.0 | Visible in-game credit "© OpenStreetMap contributors"; files derived from OSM (`data/maps/`, `data/geo/province-centers.json`) are published under ODbL (`data/maps/LICENSE.md`) |
 | Elevation (later) | Copernicus DEM GLO-30, or AWS Terrain Tiles | Check at download time | Record the required attribution in `data/CREDITS.md` |
 
 **Forbidden:**
@@ -94,6 +94,7 @@ If unsure, stop and ask the project owner.
     { "neighbor": "TH-41", "kind": "rail", "name": "สายตะวันออกเฉียงเหนือ", "x": 204, "y": 40 }
   ],
   "waterways": [{ "th": "แม่น้ำชี", "en": "Chi River" }],
+  "airports": [{ "th": "ท่าอากาศยานขอนแก่น", "en": "Khon Kaen Airport", "iata": "KKC" }],
   "stats": { "insideTiles": 29681, "land": 0.86, "water": 0.04, "woods": 0.1, "roadTiles": 263, "railTiles": 201 },
   "flags": [],
   "unlinked": [],
@@ -111,6 +112,7 @@ If unsure, stop and ask the project owner.
 - `exits`: where each road or railway leaves the province, with the neighbour it leads to, the road's number
   (`ref`) or the railway's name. Only neighbouring Thai provinces; a line leading abroad has no exit.
 - `waterways`: the big rivers that run through the province, longest first.
+- `airports`: the province's passenger airports (OSM `aeroway=aerodrome` with an `iata` code inside its shape).
 - `stats`: shares of land, water and woods **inside the province**, and its road and railway tiles.
 - `unlinked`: neighbouring provinces with no road link (see the `neighbor_unlinked` flag).
 - The example values are placeholders, not real data.
@@ -220,7 +222,12 @@ Every flag must appear on the review page and in the final report.
 - Transport → tiles, after the smoothing: roads, railways, bridges on water and level crossings, each joined to its
   neighbours the way the game's own tools join them.
 - Outside the province (`inside` 0): the tiles are kept as they are and **every tool is refused there**
-  (`CityCommands`), the bulldozer included. The mask is saved with the city. The simulation is not changed.
+  (`CityCommands`), the bulldozer included. The mask is saved with the city.
+- **The roads and railways a map starts with are the state's** (owner, 12 Oct 2026): the city pays no upkeep for
+  them and they never wear out, but the player may build over them and widen them like any road. The map keeps the
+  starting transport layer (`GameMap.nationalTransport`, saved as `national`); `src/road.js` and `src/transport.js`
+  count those tiles apart (`census.nationalRoadTotal`, `nationalRailTotal`) and skip their wear, and
+  `src/budget.js` leaves them out of the upkeep. This is the only change to the simulation.
 - The camera starts on the town, and ⌂ returns to it.
 - The 3D view shows outside tiles dimmed, and the laterite look of level-1 roads (Codex request,
   `docs/3d/CODEX_PROMPTS.md`).
