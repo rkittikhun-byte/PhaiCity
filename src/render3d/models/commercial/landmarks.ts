@@ -106,14 +106,15 @@ export function finishLandmark(root: Group): void {
   const id = root.name;
   if (root.userData.variant === 1) {
     const deck = new KitBuilder(), material = observationDeckMaterial();
-    const floor = new RingGeometry(5.4, 7.72, 48).rotateX(-Math.PI / 2); deck.add(applyWorldUV(floor, 1), material); floor.dispose();
+    // Clear all four tower corners so the entire ring can rotate without clipping the facade.
+    const floor = new RingGeometry(9.15, 10.45, 48).rotateX(-Math.PI / 2); deck.add(applyWorldUV(floor, 1), material); floor.dispose();
     for (const y of [0.2, 1.85]) {
-      const rim = new TorusGeometry(7.64, 0.16, 5, 48).rotateX(Math.PI / 2).translate(0, y, 0);
+      const rim = new TorusGeometry(10.37, 0.16, 5, 48).rotateX(Math.PI / 2).translate(0, y, 0);
       deck.add(applyWorldUV(rim, 1), material); rim.dispose();
     }
     for (let i = 0; i < 24; i++) {
       const a = i * Math.PI / 12;
-      deck.box(0.07, 1.6, 0.09, Math.cos(a) * 7.63, 1.03, Math.sin(a) * 7.63, material);
+      deck.box(0.07, 1.6, 0.09, Math.cos(a) * 10.36, 1.03, Math.sin(a) * 10.36, material);
     }
     const pivot = mergeByMaterial(`${id}/deck`, deck.parts); deck.parts.forEach(p => p.geometry.dispose());
     pivot.name = 'anim_deck'; pivot.position.set(0, 127.5, -2); root.add(pivot);
