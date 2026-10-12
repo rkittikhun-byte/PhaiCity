@@ -23,6 +23,7 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
 ];
 
 export const PAUSE_CODE = "KeyP";
+export const MAP_CODE = "KeyM";
 
 /** What each tool does, for its tooltip: the About page's description (after its "Name: "), or a hint of its own. */
 export const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -64,9 +65,10 @@ interface KeyLike {
 }
 
 /** What a key press asks for, or null. Digits on the main row and on the number pad both count. */
-export function shortcutFor(event: KeyLike): { tool: string } | { pause: true } | null {
+export function shortcutFor(event: KeyLike): { tool: string } | { pause: true } | { map: true } | null {
   if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return null;
   if (event.code === PAUSE_CODE) return { pause: true };
+  if (event.code === MAP_CODE) return { map: true };
   const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code)?.[1];
   const entry = TOOL_KEYS.find((k) => k.key === digit);
   return entry ? { tool: entry.tool } : null;
@@ -92,6 +94,8 @@ export function installToolShortcuts(doc: Document = document): void {
     });
     const pause = doc.getElementById("pauseRequest");
     if (pause) pause.title = t("shortcut.pause");
+    const map = doc.getElementById("mapRequest");
+    if (map) map.title = t("shortcut.map");
   };
   label();
   onLanguageChange(label);
@@ -102,7 +106,7 @@ export function installToolShortcuts(doc: Document = document): void {
     if (!shortcut) return;
     const button = "tool" in shortcut
       ? doc.querySelector<HTMLElement>(`.toolButton[data-tool="${shortcut.tool}"]`)
-      : doc.getElementById("pauseRequest");
+      : doc.getElementById("map" in shortcut ? "mapRequest" : "pauseRequest");
     if (!button || (button as HTMLButtonElement).disabled) return;
     event.preventDefault();
     button.click();

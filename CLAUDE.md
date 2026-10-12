@@ -149,6 +149,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   same `StartBackdrop` interface), big text on the left, a row of tiles (mouse or arrow keys), "H" hides the menus.
 - **Panels and windows:** every game panel can slide away to its side (`src/panelCollapse.ts`), and clicking
   outside a window or card closes it.
+- **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
+  of the simulation's overlays (power, traffic, pollution, crime, land value, population, police and fire cover);
+  menu button or key M. It only reads the map and the block maps; a click on it asks the game to `centreOn` there.
 - **First tasks (ภารกิจแรกของเจ้าเมือง):** `src/rulerGoals.ts` shows a checklist card on the right in new cities
   (homes, power, wires, roads, jobs, town) that ticks itself off from the census, points at the next tool, and is
   saved with the city as `goals`. It only reads the city.

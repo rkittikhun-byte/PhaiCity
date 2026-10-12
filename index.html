@@ -79,6 +79,9 @@
               <button id="evalRequest" data-i18n="menu.evaluation" class="miscButton">Evaluation</button>
             </div>
             <div>
+              <button id="mapRequest" data-i18n="menu.map" class="miscButton">City map</button>
+            </div>
+            <div>
               <button id="disasterRequest" data-i18n="menu.disasters" class="miscButton">Disasters</button>
             </div>
             <div>
@@ -277,6 +280,22 @@
           <p class="graphNote" data-i18n="graphs.money_note">The dashed line is where income equals spending.</p>
           <form id="graphForm" class="alignCenter margin10">
             <input type="submit" id="graphOK" data-i18n-value="graphs.close" class="width140 dialogOK" value="Close">
+          </form>
+        </div>
+      </div>
+      <!-- City map (src/mapWindow.js, src/cityMap.ts): the whole city, or one of its overlays -->
+      <div class="hidden modal shadow" id="mapWindow">
+        <header id="mapHeader" data-i18n="map.title" class="padding10 chunk alignCenter">
+           City map
+        </header>
+        <div id="mapContainer" class="padding10 open">
+          <div id="mapLayers" class="mapLayers" role="group"></div>
+          <canvas id="mapCanvas" class="mapCanvas"></canvas>
+          <p id="mapAbout" class="mapAbout"></p>
+          <div id="mapLegend" class="mapLegend"></div>
+          <p class="mapHint" data-i18n="map.hint">Click the map to go there. The white frame is what is on screen now.</p>
+          <form id="mapForm" class="alignCenter margin10">
+            <input type="submit" id="mapOK" data-i18n-value="map.close" class="width140 dialogOK" value="Close">
           </form>
         </div>
       </div>

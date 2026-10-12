@@ -34,6 +34,7 @@ import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
 import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
+import { MapWindow } from './mapWindow.js';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -190,6 +191,19 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.graphWindow = new GraphWindow(opacityLayerID, 'graphWindow');
   this.graphWindow.addEventListener(Messages.GRAPH_WINDOW_CLOSED, this.genericDialogClosure);
   this.evalWindow.addEventListener(Messages.GRAPHS_REQUESTED, this.handleGraphsRequest.bind(this));
+
+  // The city map (src/mapWindow.js) reads the map, the overlays and the part on screen; a click on it moves the view
+  this.handleMapRequest = makeWindowOpenHandler('map', function() {
+    return [this.gameMap, this.simulation.blockMaps, this.cityView.visibleTiles()];
+  }.bind(this));
+
+  this.mapWindow = new MapWindow(opacityLayerID, 'mapWindow');
+  this.mapWindow.addEventListener(Messages.MAP_WINDOW_CLOSED, function(target) {
+    this.genericDialogClosure();
+    if (target !== null)
+      this.cityView.centreOn(target.x, target.y);
+  }.bind(this));
+  this.inputStatus.addEventListener(Messages.MAP_REQUESTED, this.handleMapRequest.bind(this));
 
   // ... and similarly for the budget window
   this.handleBudgetRequest = makeWindowOpenHandler('budget', function() {

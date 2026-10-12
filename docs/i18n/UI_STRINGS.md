@@ -176,6 +176,46 @@
 | `graphs.ago` | `src/graphWindow.js` | — | `{years} years ago` | `{years} ปีก่อน` | ปลายซ้ายของแกนเวลา |
 | `graphs.money_note` | `index.html` | — | `Cash flow: above the dashed line the city earns more than it spends.` | `กระแสเงินสด: เหนือเส้นประคือรายรับมากกว่ารายจ่าย` | |
 | `graphs.close` | `index.html` | — | `Close` | `ปิด` | |
+| `menu.map` | `index.html` | — | `City map` | `แผนที่เมือง` | ปุ่มเมนู กว้าง 140px เปิด `src/mapWindow.js` (Claude Code 12 ต.ค. 2026) |
+| `shortcut.map` | `src/toolShortcuts.ts` | — | `The whole city, its power, traffic, pollution and more (shortcut M)` | `ดูทั้งเมือง ไฟฟ้า การจราจร มลพิษ และอื่น ๆ (ปุ่มลัด M)` | tooltip ปุ่มแผนที่เมือง |
+| `map.title` | `index.html` | — | `City map` | `แผนที่เมือง` | หัวหน้าต่าง |
+| `map.layer.city` | `src/mapWindow.js` | — | `Whole city` | `ทั้งเมือง` | ปุ่มชั้นข้อมูล |
+| `map.layer.power` | `src/mapWindow.js` | — | `Power` | `ไฟฟ้า` | |
+| `map.layer.traffic` | `src/mapWindow.js` | — | `Traffic` | `การจราจร` | |
+| `map.layer.pollution` | `src/mapWindow.js` | — | `Pollution` | `มลพิษ` | |
+| `map.layer.crime` | `src/mapWindow.js` | — | `Crime` | `อาชญากรรม` | |
+| `map.layer.land_value` | `src/mapWindow.js` | — | `Land value` | `ราคาที่ดิน` | |
+| `map.layer.population` | `src/mapWindow.js` | — | `Population` | `ประชากร` | |
+| `map.layer.police` | `src/mapWindow.js` | — | `Police cover` | `เขตตำรวจ` | |
+| `map.layer.fire` | `src/mapWindow.js` | — | `Fire cover` | `เขตดับเพลิง` | |
+| `map.about.city` | `src/mapWindow.js` | — | `What stands on every piece of land.` | `สิ่งที่อยู่บนที่ดินทุกผืนในเมือง` | คำอธิบายใต้แผนที่ |
+| `map.about.power` | `src/mapWindow.js` | — | `Yellow has power, red has none: link red zones to a power plant with power lines or other zones.` | `สีเหลืองมีไฟฟ้า สีแดงไม่มี ต่อโซนสีแดงเข้ากับโรงไฟฟ้าด้วยสายไฟหรือผ่านโซนอื่น` | |
+| `map.about.traffic` | `src/mapWindow.js` | — | `Where the roads are busiest. Heavy traffic holds the city back and adds pollution.` | `ถนนที่รถหนาแน่น รถติดมากทำให้เมืองโตช้าและเพิ่มมลพิษ` | |
+| `map.about.pollution` | `src/mapWindow.js` | — | `Smoke from factories, power plants, ports, airports and traffic. People do not want to live in it.` | `ควันจากโรงงาน โรงไฟฟ้า ท่าเรือ สนามบิน และรถติด คนไม่อยากอยู่ใกล้` | |
+| `map.about.crime` | `src/mapWindow.js` | — | `Where crime is high. Police stations bring it down.` | `ย่านที่อาชญากรรมสูง สถานีตำรวจช่วยลดได้` | |
+| `map.about.land_value` | `src/mapWindow.js` | — | `Land is worth more near water, woods, parks and the city centre, and less near pollution and crime.` | `ที่ดินราคาดีใกล้น้ำ ป่า สวน และใจกลางเมือง และราคาตกใกล้มลพิษและอาชญากรรม` | |
+| `map.about.population` | `src/mapWindow.js` | — | `Where most people live.` | `ย่านที่คนอยู่หนาแน่น` | |
+| `map.about.police` | `src/mapWindow.js` | — | `How far each police station's protection reaches.` | `ขอบเขตที่สถานีตำรวจแต่ละแห่งดูแลถึง` | |
+| `map.about.fire` | `src/mapWindow.js` | — | `How far each fire station's protection reaches.` | `ขอบเขตที่สถานีดับเพลิงแต่ละแห่งดูแลถึง` | |
+| `map.key.residential` | `src/mapWindow.js` | — | `Homes` | `ที่อยู่อาศัย` | คำอธิบายสีของ "ทั้งเมือง" |
+| `map.key.commercial` | `src/mapWindow.js` | — | `Commercial` | `พาณิชย์` | |
+| `map.key.industrial` | `src/mapWindow.js` | — | `Industry` | `อุตสาหกรรม` | |
+| `map.key.service` | `src/mapWindow.js` | — | `Public buildings` | `อาคารสาธารณะ` | ตำรวจ ดับเพลิง สนามกีฬา ท่าเรือ สนามบิน |
+| `map.key.power_plant` | `src/mapWindow.js` | — | `Power plants` | `โรงไฟฟ้า` | |
+| `map.key.road` | `src/mapWindow.js` | — | `Roads` | `ถนน` | |
+| `map.key.rail` | `src/mapWindow.js` | — | `Rail` | `ทางรถไฟ` | |
+| `map.key.power_line` | `src/mapWindow.js` | — | `Power lines` | `สายไฟฟ้า` | |
+| `map.key.water` | `src/mapWindow.js` | — | `Water` | `แหล่งน้ำ` | |
+| `map.key.woods` | `src/mapWindow.js` | — | `Woods` | `ป่า` | |
+| `map.key.park` | `src/mapWindow.js` | — | `Parks` | `สวนสาธารณะ` | |
+| `map.key.fire` | `src/mapWindow.js` | — | `Fire` | `ไฟไหม้` | |
+| `map.key.powered` | `src/mapWindow.js` | — | `Has power` | `มีไฟฟ้า` | |
+| `map.key.unpowered` | `src/mapWindow.js` | — | `No power` | `ไม่มีไฟฟ้า` | |
+| `map.key.low` | `src/mapWindow.js` | — | `Low` | `น้อย` | ปลายแถบสี |
+| `map.key.high` | `src/mapWindow.js` | — | `High` | `มาก` | |
+| `map.power_count` | `src/mapWindow.js` | — | `{powered} with power, {unpowered} without` | `มีไฟ {powered} แห่ง ไม่มีไฟ {unpowered} แห่ง` | นับโซนและอาคาร ไม่นับโรงไฟฟ้า |
+| `map.hint` | `index.html` | — | `Click the map to go there. The white frame is what is on screen now.` | `คลิกบนแผนที่เพื่อไปที่นั่น กรอบสีขาวคือส่วนที่เห็นบนจออยู่ตอนนี้` | |
+| `map.close` | `index.html` | — | `Close` | `ปิด` | |
 
 ### ปัญหาเมืองในผลสำรวจ (Problems)
 | Key | File | Current English | New English | Thai | Notes |
@@ -511,7 +551,7 @@
 | `mainmenu.last_saved` | `src/mainMenuWindow.js` | — | `Last saved {when}. Leaving without saving loses anything since then.` | `บันทึกล่าสุดเมื่อ {when} ถ้าออกโดยไม่บันทึก สิ่งที่ทำหลังจากนั้นจะหายไป` | รวมบันทึกอัตโนมัติ (Claude Code 12 ต.ค. 2026) |
 | `mainmenu.never_saved` | `src/mainMenuWindow.js` | — | `This city has never been saved. Leaving without saving loses it.` | `เมืองนี้ยังไม่เคยบันทึก ถ้าออกโดยไม่บันทึก เมืองจะหายไป` | |
 | `shortcut.pause` | `src/toolShortcuts.ts` | — | `Pause or resume time (shortcut P)` | `หยุดหรือเดินเวลา (ปุ่มลัด P)` | tooltip ปุ่มหยุดเวลา |
-| `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, the arrows or W A S D move the map, and Esc closes a window or puts the tool down.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา ลูกศรหรือ W A S D เลื่อนแผนที่ และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
+| `about.keys` | `about.html` | — | `Keys in the game: 1–9 pick a tool (the number is in the button's corner), P pauses or resumes time, M opens the city map, the arrows or W A S D move the map, and Esc closes a window or puts the tool down.` | `ปุ่มลัดในเกม: เลข 1–9 เลือกเครื่องมือ (ดูเลขที่มุมปุ่ม) P หยุดหรือเดินเวลา M เปิดแผนที่เมือง ลูกศรหรือ W A S D เลื่อนแผนที่ และ Esc ปิดหน้าต่างหรือวางเครื่องมือลง` | ใช้ได้กับแป้นพิมพ์ภาษาไทยด้วย |
 | `news.button` | `src/newsLog.ts` | — | `News` | `ข่าว` | ปุ่มข้างแถบข่าว (Claude Code 12 ต.ค. 2026) |
 | `news.button_unread` | `src/newsLog.ts` | — | `News ({count})` | `ข่าว ({count})` | จำนวนข่าวที่ยังไม่ได้เปิดดู |
 | `news.title` | `index.html` | — | `Recent city news` | `ข่าวเมืองล่าสุด` | |

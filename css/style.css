@@ -672,6 +672,25 @@ nav li {
 #graphContainer .graphKey[aria-pressed="false"] { opacity: 0.45; text-decoration: line-through; }
 #graphContainer .graphNote { margin: 4px 0 0; font-size: 11px; color: #6b7873; }
 
+/* City map (src/mapWindow.js) */
+#mapHeader, #mapRequest {
+  background-color: #0f7c8c;
+  color: white;
+}
+
+#mapWindow { width: min(660px, 96vw); }
+#mapContainer { font-size: 13px; }
+#mapContainer .mapLayers { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-bottom: 8px; }
+#mapContainer .mapLayers button { width: auto; height: auto; padding: 3px 8px; border: 1px solid #b9c4bf; border-radius: 999px; background: #f4f7f5; font-size: 12px; }
+#mapContainer .mapLayers button[aria-pressed="true"] { background: #0f7c8c; border-color: #0f7c8c; color: white; }
+#mapContainer .mapCanvas { display: block; margin: 0 auto; max-width: 100%; max-height: calc(100vh - 300px); border-radius: 6px; image-rendering: pixelated; cursor: crosshair; }
+#mapContainer .mapAbout { margin: 6px 0 4px; text-align: center; }
+#mapContainer .mapLegend { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; font-size: 12px; }
+#mapContainer .mapKey::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; background: var(--key); vertical-align: -1px; }
+#mapContainer .mapCount { color: #6b7873; }
+#mapContainer .mapRamp { display: inline-block; width: 140px; height: 10px; border-radius: 2px; background: linear-gradient(to right, var(--from), var(--to)); }
+#mapContainer .mapHint { margin: 6px 0 0; font-size: 11px; color: #6b7873; text-align: center; }
+
 .screenshotHeader, #screenshotRequest {
   background-color: tomato;
   color: white;

@@ -11,11 +11,13 @@ const key = (code: string, modifiers: Partial<{ ctrlKey: boolean; altKey: boolea
   ({ code, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, ...modifiers });
 
 describe("tool shortcuts", () => {
-  test("digits on the main row and the number pad pick tools; P pauses", () => {
+  test("digits on the main row and the number pad pick tools; P pauses; M opens the city map", () => {
     expect(shortcutFor(key("Digit1"))).toEqual({ tool: "residential" });
     expect(shortcutFor(key("Numpad4"))).toEqual({ tool: "road" });
     expect(shortcutFor(key("Digit9"))).toEqual({ tool: "query" });
     expect(shortcutFor(key("KeyP"))).toEqual({ pause: true });
+    expect(shortcutFor(key("KeyM"))).toEqual({ map: true });
+    expect(shortcutFor(key("KeyM", { ctrlKey: true }))).toBeNull();
   });
 
   test("leave everything else alone: 0, letters the game already uses, and keys with modifiers", () => {
