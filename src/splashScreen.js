@@ -14,6 +14,9 @@
 import $ from "jquery";
 
 import { deleteCity, listCities, loadCity } from './cityStorage.ts';
+import { chooseViewKind } from './cityViewChoice.ts';
+import { loadCityView3D } from './cityView3dLoader.ts';
+import { showCornerNote } from './cornerNote.ts';
 import { Game } from './game.js';
 import { decodePresetCells } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
@@ -114,13 +117,52 @@ var startProvince = function(provinceId, cityName, difficulty) {
 };
 
 
+// The region a city's buildings are styled after; practice maps use the central style (MODEL_SPEC 6A)
+var regionOf = function(provinceId) {
+  if (!provinceId)
+    return Promise.resolve('central');
+
+  return fetchJson('data/thailand-provinces.json').then(function(data) {
+    var province = data.provinces.find(function(p) { return p.id === provinceId; });
+    return province ? province.region : 'central';
+  }).catch(function() {
+    return 'central';
+  });
+};
+
+
+// null for the 2D view; for 3D (index.html?view=3d, src/cityViewChoice.ts) the 3D view's factory and the region.
+// Until Codex's 3D view exists (prompt R1), choosing 3D says so and keeps 2D.
+var prepareView = function(provinceId) {
+  var store = null;
+  try {
+    store = window.localStorage;
+  } catch (e) {
+    // Private windows may refuse storage
+  }
+  if (chooseViewKind(window.location.search, store) !== '3d')
+    return Promise.resolve(null);
+
+  return Promise.all([loadCityView3D(), regionOf(provinceId)]).then(function(results) {
+    if (results[0] === null) {
+      showCornerNote(t('view.3d_missing'), 6000);
+      return null;
+    }
+    return {create: results[0], region: results[1]};
+  });
+};
+
+
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
+  var self = this;
   // Leave the dark start: the game's own header, footer and background come back
   document.body.classList.remove('starting');
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
-  var g = new Game(map, this.tileSet, this.snowTileSet, this.spriteSheet, difficulty, name);
+  prepareView(map.provinceId || null).then(function(view3d) {
+    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, view3d);
+  });
 };
 
 

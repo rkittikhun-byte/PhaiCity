@@ -20,8 +20,11 @@ The prompts that build it are R1–R4 in `CODEX_PROMPTS.md`.
 
 - The game already talks to its view only through `CityView`, in **map tiles, never pixels**.
   The 3D view implements the same interface, so nothing else in the game changes.
-- Until the 3D view is complete, the 2D view stays the default. Claude Code adds `index.html?view=3d`
-  as soon as R1 is delivered, so the owner can try the 3D city early.
+- Until the 3D view is complete, the 2D view stays the default. The switch is already in the game:
+  `index.html?view=3d` loads `src/render3d/city/index.ts` through `src/cityView3dLoader.ts` (webpack finds the file at
+  build time, so nothing in the game needs editing when it appears), and `?view=2d` goes back. The choice is
+  remembered. If the file is missing, has no `createCityView3D`, or `createCityView3D` throws (e.g. no WebGL), the game
+  says so in a corner note and uses 2D.
 - Codex never edits `src/cityView.ts`, `src/cityView2d.ts`, `src/game.js` or anything else outside its paths.
   If the interface needs something new, report it to the owner as a written request for Claude Code.
 
@@ -177,8 +180,8 @@ changes. To share geometry, reduce it to a small number of seed buckets per mode
 
 ## 9. What stays 2D for now
 
-- **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game hides it and calls
-  `centreOn` instead (Claude Code's side).
+- **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game does not create it; the
+  news bar's link calls `centreOn` to take the camera to a disaster (Claude Code's side).
 - The snow tile set has no 3D version (Thailand). Day and night, rain in the wet season (May–October, months 4–9
   in `date()`) and haze are for prompt R4.
 - Real terrain height (prompt G5) comes later; until then the ground is flat at y = 0, water at −0.6.

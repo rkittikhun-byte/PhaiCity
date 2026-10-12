@@ -1228,7 +1228,8 @@ Follow the Definition of Done in MODEL_SPEC section 9 where it applies (this is 
 
 Prompt 0–19 สร้างโมเดลอย่างเดียว ชุด R นี้คือตัววาดเมืองที่เอาโมเดลมาวางตามแผนที่จริงในเกม แทน `src/gameCanvas.js`
 สเปกอยู่ใน `docs/3d/RENDERER_SPEC.md` เกมฝั่ง Claude Code คุยกับตัววาดผ่าน `CityView` (`src/cityView.ts`) อยู่แล้ว
-ระหว่างทำ เกม 2D เดิมยังเป็นค่าเริ่มต้น พอ R1 เสร็จ Claude Code จะเพิ่ม `index.html?view=3d` ให้ลองเมือง 3D ได้
+ระหว่างทำ เกม 2D เดิมยังเป็นค่าเริ่มต้น สวิตช์มีอยู่ในเกมแล้ว: พอ R1 เสร็จ เปิด `index.html?view=3d` ได้ทันที
+(เกมหาไฟล์ของ Codex เองตอน build) และ `?view=2d` กลับไปแบบเดิม เกมจำตัวเลือกไว้
 
 | Prompt | งาน | ทำหลัง |
 |---|---|---|
@@ -1265,7 +1266,8 @@ Task: the first working 3D city view, in src/render3d/city/.
 
 Do not edit src/game.js, src/cityView.ts, src/cityView2d.ts or anything outside your paths. The 2D game must play
 exactly as before. Report in Thai with measured frame times and draw calls for the 200 × 200 test city, and tell
-the owner that Claude Code can now add index.html?view=3d in src/game.js.
+the owner to try it in the game at index.html?view=3d (the game already loads src/render3d/city/index.ts by itself;
+index.html?view=2d goes back).
 ```
 
 ### Prompt R2 — โซนและอาคาร

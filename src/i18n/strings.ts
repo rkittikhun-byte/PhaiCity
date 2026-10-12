@@ -328,6 +328,8 @@ export const STRINGS: Record<string, Translation> = {
   "about.settings.autosave": { en: "Autosave: a province city saves itself every few minutes and when you close the page; a practice city does too once you have saved it yourself.", th: "บันทึกอัตโนมัติ: เมืองของจังหวัดบันทึกเองทุกไม่กี่นาทีและเมื่อปิดหน้าเว็บ ส่วนเมืองฝึกหัดจะเริ่มบันทึกเองหลังจากคุณบันทึกครั้งแรก" },
   "autosave.saved": { en: "Autosaved {time}", th: "บันทึกอัตโนมัติแล้ว {time}" },
   "autosave.full": { en: "Autosave failed: storage is full. Delete an old city in “My cities” and try again.", th: "บันทึกอัตโนมัติไม่สำเร็จ: พื้นที่บันทึกเต็ม ลบเมืองเก่าในหน้า “เมืองของฉัน” แล้วลองใหม่" },
+  "view.3d_missing": { en: "The 3D city isn't ready yet, so the 2D view is used for now.", th: "เมือง 3D ยังไม่พร้อม ใช้ภาพแบบ 2D ไปก่อน" },
+  "view.3d_failed": { en: "The 3D city couldn't start on this computer, so the 2D view is used.", th: "เปิดเมือง 3D บนเครื่องนี้ไม่ได้ จึงใช้ภาพแบบ 2D แทน" },
   "about.nav.play": { en: "Play", th: "เล่นเกม" },
   "about.toc.label": { en: "On this page", th: "ในหน้านี้" },
   "about.toc.start": { en: "Start", th: "เริ่มเกม" },

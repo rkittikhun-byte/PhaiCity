@@ -86,7 +86,9 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   - Today that is the 2D view `src/cityView2d.ts`, around the original `gameCanvas.js` (with `tileSet.js`,
     `animationManager.js`; `monsterTV.js` keeps its own small 2D canvas).
   - The 3D view (Codex, `src/render3d/city/`) implements the same interface: spec `docs/3d/RENDERER_SPEC.md`,
-    prompts R1–R4 in `docs/3d/CODEX_PROMPTS.md`. Claude Code wires it in as `index.html?view=3d` after R1.
+    prompts R1–R4 in `docs/3d/CODEX_PROMPTS.md`. `index.html?view=3d` uses it (remembered; `?view=2d` goes back):
+    `src/cityView3dLoader.ts` finds `src/render3d/city/index.ts` at build time without naming it in an import, and the
+    game falls back to 2D with a corner note when it is missing or cannot start. MonsterTV exists only in 2D.
 - **Tools:**
   - `gameTools.js` defines each tool's cost and size.
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.

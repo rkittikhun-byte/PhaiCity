@@ -21,6 +21,7 @@ import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands } from './cityCommands.ts';
 import { SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
+import { showCornerNote } from './cornerNote.ts';
 import { Config } from './config.js';
 import { CongratsWindow } from './congratsWindow.js';
 import { DebugWindow } from './debugWindow.js';
@@ -61,7 +62,8 @@ MILESTONES[Messages.REACHED_METROPOLIS] = {name: 'metropolis', cityClass: 'METRO
 MILESTONES[Messages.REACHED_MEGALOPOLIS] = {name: 'megalopolis', cityClass: 'MEGALOPOLIS'};
 
 
-function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
+// view3d: null for the original 2D view, or {create, region} for the three.js view (src/splashScreen.js prepareView)
+function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view3d) {
   difficulty = difficulty || 0;
   var savedGame;
 
@@ -104,7 +106,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
-  this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
+  this.cityView = view3d ? createView3D(this, view3d) : null;
+  if (this.cityView === null)
+    this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth);
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
@@ -156,8 +160,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   }
 
   // Initialise monsterTV
-  // (a small 2D view that follows disasters; it shares the 2D view's tile animations)
-  this.monsterTV = new MonsterTV(this.gameMap, tileSet, spriteSheet, this.cityView.canvas.animationManager);
+  // (a small 2D view that follows disasters; it shares the 2D view's tile animations, so it exists only in 2D)
+  this.monsterTV = this.cityView.kind === '2d' ?
+    new MonsterTV(this.gameMap, tileSet, spriteSheet, this.cityView.canvas.animationManager) : null;
 
   var opacityLayerID = 'opaque';
 
@@ -383,6 +388,9 @@ var genericDialogClosure = function() {
 
 Game.prototype.onDateChange = function(date) {
   // Snow tiles exist only in the 2D view
+  if (this.cityView.kind !== '2d')
+    return;
+
   if (date.month === 10 && Random.getChance(10))
     this.cityView.canvas.changeTileSet(this.snowTileSet);
   else if (date.month === 1)
@@ -405,6 +413,31 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
   disasters[DisasterWindow.DISASTER_TORNADO] = 'tornado';
 
   this.applyCommand({type: 'disaster', disaster: disasters[request]});
+};
+
+
+// The three.js view (docs/3d/RENDERER_SPEC.md section 3) on the live city, which it only reads.
+// null when it fails to start (e.g. no WebGL): the game then uses the 2D view and says why.
+var createView3D = function(game, view3d) {
+  var simulation = game.simulation;
+  var maps = simulation.blockMaps;
+  try {
+    return view3d.create({
+      container: document.getElementById('canvasContainer'),
+      map: game.gameMap,
+      region: view3d.region,
+      overlays: {
+        trafficDensityMap: maps.trafficDensityMap,
+        pollutionDensityMap: maps.pollutionDensityMap,
+        landValueMap: maps.landValueMap
+      },
+      date: function() { return simulation.getDate(); }
+    });
+  } catch (e) {
+    console.warn('The 3D city view could not start:', e);
+    showCornerNote(t('view.3d_failed'), 8000);
+    return null;
+  }
 };
 
 
@@ -676,8 +709,8 @@ Game.prototype.processFrontEndMessage = function(message) {
     return;
   }
 
-  // Show disaster if applicable
-  if (message.data) {
+  // Show disaster if applicable (2D only; in 3D the news item's link takes the camera there)
+  if (message.data && this.monsterTV !== null) {
     if (message.data.showable)
     this.monsterTV.show(message.data.x, message.data.y);
     else if (message.data.trackable)
@@ -760,10 +793,12 @@ var commonAnimate = function() {
 
   this.cityView.paint(this.mouse, this.spritesIn(this.cityView.visibleTiles()), this.isPaused);
 
-  var tv = this.monsterTV.canvas;
-  var tvOrigin = tv.getTileOrigin();
-  var tvLast = tv.getMaxTile();
-  this.monsterTV.paint(this.spritesIn({x0: tvOrigin.x, y0: tvOrigin.y, x1: tvLast.x, y1: tvLast.y}), this.isPaused);
+  if (this.monsterTV !== null) {
+    var tv = this.monsterTV.canvas;
+    var tvOrigin = tv.getTileOrigin();
+    var tvLast = tv.getMaxTile();
+    this.monsterTV.paint(this.spritesIn({x0: tvOrigin.x, y0: tvOrigin.y, x1: tvLast.x, y1: tvLast.y}), this.isPaused);
+  }
 
   nextFrame(this.animate);
 };

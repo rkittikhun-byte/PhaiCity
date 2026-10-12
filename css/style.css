@@ -422,8 +422,8 @@ nav li {
   height: 150px;
 }
 
-/* "Autosaved 10:42" (src/autosave.ts): a quiet note in the bottom-right corner of the map */
-#autosaveNote {
+/* A quiet note in the bottom-right corner of the map (src/cornerNote.ts), e.g. "Autosaved 10:42" */
+#cornerNote {
   position: absolute;
   right: 50px;
   bottom: 16px;
@@ -436,8 +436,8 @@ nav li {
   line-height: 1.4;
   pointer-events: none;
 }
-#autosaveNote[hidden] { display: none; }
-#autosaveNote:not([hidden]) { animation: motionFadeIn 0.3s ease-out backwards; }
+#cornerNote[hidden] { display: none; }
+#cornerNote:not([hidden]) { animation: motionFadeIn 0.3s ease-out backwards; }
 
 /* First tasks for a new ruler (src/rulerGoals.ts), on the right under the tools */
 #rulerGoals {

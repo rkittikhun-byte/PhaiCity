@@ -6,8 +6,8 @@
 // every few minutes of play, and again whenever the page is hidden or closed, so closing the tab never loses it.
 // Saving goes through the game's own save (src/cityStorage.ts); this only decides when.
 
+import { showCornerNote } from "./cornerNote";
 import { getLanguage, t } from "./i18n/index";
-import { hide, show } from "./motion";
 
 export const AUTOSAVE_INTERVAL_MS = 3 * 60 * 1000;
 const NOTE_MS = 2500;
@@ -86,24 +86,13 @@ export function installAutosave(target: AutosaveTarget, hooks: AutosaveHooks = {
   };
 }
 
-let noteTimer: number | undefined;
-
-function showNote(text: string, ms: number): void {
-  const note = document.getElementById("autosaveNote");
-  if (!note) return;
-  note.textContent = text;
-  show(note);
-  window.clearTimeout(noteTimer);
-  noteTimer = window.setTimeout(() => hide(note, true), ms);
-}
-
-/** "บันทึกอัตโนมัติแล้ว 10:42" for a moment in the corner of the map (#autosaveNote in index.html). */
+/** "บันทึกอัตโนมัติแล้ว 10:42" for a moment in the corner of the map. */
 export function showSavedNote(date: Date = new Date()): void {
   const time = date.toLocaleTimeString(getLanguage() === "en" ? "en-GB" : "th-TH", { hour: "2-digit", minute: "2-digit" });
-  showNote(t("autosave.saved", { time }), NOTE_MS);
+  showCornerNote(t("autosave.saved", { time }), NOTE_MS);
 }
 
 /** The storage is full: says so for longer, and how to make room. */
 export function showFullNote(): void {
-  showNote(t("autosave.full"), FULL_NOTE_MS);
+  showCornerNote(t("autosave.full"), FULL_NOTE_MS);
 }
