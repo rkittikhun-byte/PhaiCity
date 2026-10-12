@@ -278,6 +278,10 @@
 |---|---|---|---|---|---|
 | `query.title` | `index.html` | `Query` | `Land Inspection` | `ข้อมูลพื้นที่` | หัวหน้าต่าง |
 | `query.label.zone` | `index.html` | `Zone` | `Zone Type` | `ประเภทโซน/พื้นที่` | ป่า, น้ำ, บ้าน ฯลฯ |
+| `query.label.power` | `index.html` | — | `Power` | `ไฟฟ้า` | (Claude Code 12 ต.ค. 2026) |
+| `query.power.on` | `src/queryTool.js` | — | `Has power` | `มีไฟฟ้า` | |
+| `query.power.off` | `src/queryTool.js` | — | `No power` | `ไม่มีไฟฟ้า` | แสดงเป็นสีแดง |
+| `query.power.none` | `src/queryTool.js` | — | `Not needed` | `ไม่ต้องใช้ไฟ` | ดิน น้ำ ป่า ถนน |
 | `query.label.density` | `index.html` | `Density` | `Population Density` | `ความหนาแน่นประชากร` | ต่ำ..สูงมาก |
 | `query.label.value` | `index.html` | `Value` | `Land Value` | `ราคาประเมินที่ดิน` | สลัม..ชั้นสูง |
 | `query.label.crime` | `index.html` | `Crime` | `Crime Level` | `ระดับอาชญากรรม` | ปลอดภัย..อันตราย |

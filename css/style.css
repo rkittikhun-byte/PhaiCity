@@ -287,6 +287,11 @@ nav li {
   font-weight: 600;
 }
 
+.queryList .queryNoPower {
+  color: #c62828;
+  font-weight: 600;
+}
+
 .right {
   float: right;
 }

@@ -16,6 +16,7 @@ import $ from "jquery";
 import { BaseTool } from './baseTool.js';
 import { Config } from './config.js';
 import { EventEmitter } from './eventEmitter.js';
+import { t } from './i18n/index.ts';
 import { QUERY_WINDOW_NEEDED } from './messages.ts';
 import { Text } from './text.js';
 import * as TileValues from "./tileValues.ts";
@@ -121,6 +122,15 @@ QueryTool.prototype.classifyZone = function(x, y) {
 };
 
 
+// Whether the land carries power: zones, buildings and power lines do; dirt, water and roads have no need of it
+QueryTool.prototype.classifyPower = function(x, y) {
+  var tile = this._map.getTile(x, y);
+  var unpowered = tile.isConductive() && !tile.isPowered();
+  var key = !tile.isConductive() ? 'query.power.none' : unpowered ? 'query.power.off' : 'query.power.on';
+  $('#queryPower').text(t(key)).toggleClass('queryNoPower', unpowered);
+};
+
+
 QueryTool.prototype.doTool = function(x, y, blockMaps) {
   var text = 'Position (' + x + ', ' + y + ')';
   text += ' TileValue: ' + this._map.getTileValue(x, y);
@@ -138,6 +148,7 @@ QueryTool.prototype.doTool = function(x, y, blockMaps) {
   }
 
   this.classifyZone(x, y);
+  this.classifyPower(x, y);
   this.classifyPopulationDensity(x, y, blockMaps);
   this.classifyLandValue(x, y, blockMaps);
   this.classifyCrime(x, y, blockMaps);
