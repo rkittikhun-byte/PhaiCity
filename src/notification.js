@@ -106,13 +106,14 @@ var handleClick = function(e) {
 };
 
 
-Notification.prototype.createMessage = function(message, kind) {
+// unlogged: true for a message that does not belong in the recent news, such as the greeting
+Notification.prototype.createMessage = function(message, kind, unlogged) {
   var hasPlace = message.hasOwnProperty('data') && message.data !== undefined && message.data.hasOwnProperty('x') &&
                  message.data.hasOwnProperty('y');
 
   this._subject = message.subject;
 
-  if (this._log !== null)
+  if (this._log !== null && !unlogged)
     this._log.add(kind || 'neutral', message.subject, hasPlace ? message.data.x : undefined, hasPlace ? message.data.y : undefined);
 
   if (hasPlace) {
@@ -140,11 +141,11 @@ Notification.prototype.goodNews = function(message) {
 };
 
 
-Notification.prototype.news = function(message) {
+Notification.prototype.news = function(message, unlogged) {
   this._element.removeClass('good');
   this._element.removeClass('bad');
   this._element.addClass('neutral');
-  this.createMessage(message, 'neutral');
+  this.createMessage(message, 'neutral', unlogged);
 };
 
 

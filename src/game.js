@@ -311,12 +311,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.showRulerRank();
   onLanguageChange(this.showRulerRank.bind(this));
 
-  // Recent news, behind the "News" button by the news bar (src/newsLog.ts)
+  // Recent news, behind the "News" button by the news bar (src/newsLog.ts), saved with the city
   this.newsLog = installNewsLog({
     date: function() { return simulation.getDate(); },
     text: function(subject) { return Text.messageText[subject]; },
     monthName: function(month) { return Text.months[month]; },
-    centreOn: function(x, y) { self.cityView.centreOn(x, y); }
+    centreOn: function(x, y) { self.cityView.centreOn(x, y); },
+    saved: savedGame ? savedGame.news : null
   });
   this._notificationBar = new Notification('#notifications', this.cityView, Text.messageText[Messages.WELCOME],
                                            this.newsLog);
@@ -366,7 +367,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
                   provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank,
-                  goals: this.rulerGoals.state()};
+                  goals: this.rulerGoals.state(), news: this.newsLog.items()};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -412,7 +413,8 @@ Game.prototype.revealControls = function() {
    $(this).removeClass('initialHidden');
  });
 
- this._notificationBar.news({subject: Messages.WELCOME});
+ // A greeting each time the city opens, so not kept in the city's news
+ this._notificationBar.news({subject: Messages.WELCOME}, true);
  this.rci.update({residential: 750, commercial: 750, industrial: 750});
 };
 

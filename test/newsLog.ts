@@ -3,7 +3,7 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { addNews, NEWS_LIMIT, NewsItem } from "../src/newsLog";
+import { addNews, NEWS_LIMIT, NewsItem, parseNews } from "../src/newsLog";
 
 const item = (subject: string, month = 3, year = 1902): NewsItem => ({ kind: "bad", subject, month, year, x: null, y: null });
 
@@ -20,6 +20,20 @@ describe("news log", () => {
     expect(addNews(once, item("Fire!"))).toBe(once); // unchanged, the same list
     expect(addNews(once, item("Fire!", 4))).toHaveLength(2);
     expect(addNews(once, item("Flooding reported"))).toHaveLength(2);
+  });
+
+  test("comes back from a save, dropping anything malformed or no longer known", () => {
+    const known = (subject: string) => subject !== "Gone";
+    const good = { kind: "good", subject: "Town", month: 0, year: 1910, x: null, y: null };
+    const placed = { kind: "bad", subject: "Fire!", month: 11, year: 1911, x: 40, y: 7, extra: "dropped" };
+    const saved = [
+      good, placed,
+      { ...good, kind: "awful" }, { ...good, subject: 3 }, { ...good, subject: "Gone" }, { ...good, month: 12 },
+      { ...good, year: "1910" }, { ...good, x: 5 }, { ...good, x: -1, y: 2 }, null, "news",
+    ];
+    expect(parseNews(saved, known)).toEqual([good, { kind: "bad", subject: "Fire!", month: 11, year: 1911, x: 40, y: 7 }]);
+    expect(parseNews(Array.from({ length: 30 }, () => good), known)).toHaveLength(NEWS_LIMIT);
+    for (const nothing of [undefined, null, {}, "x", 4]) expect(parseNews(nothing, known)).toEqual([]);
   });
 
   test("has its words in both languages", () => {
