@@ -3,6 +3,79 @@
 
 # สถานะโมเดล
 
+## Prompt 15 — ท่าเรือและสนามบิน
+
+วันที่ 2026-10-12: เพิ่ม `port.seaport` และ `port.airport` ใน
+`src/render3d/models/transport/` พร้อม registry, geometry animation และ worker material decoding
+ทั้งสองใช้วัสดุจาก library เดิม ไม่มี asset ภายนอกหรือ dependency ใหม่
+
+| id | Tier | Tiles / centre | พื้นที่ใช้งาน | สามเหลี่ยม seed 1 | Draw calls |
+|---|---|---|---|---:|---:|
+| port.seaport | R3 | 693–708 / 698 | 39×39 ม. | 10,232 | 7 |
+| port.airport | R2 | 709–744 / 716 | 59×59 ม. | 4,750 (กลาง); 4,496–4,862 ทั้ง 6 ภาค | 8 |
+
+- ท่าเรือมี concrete quay ด้าน +Z, เครน gantry 2 ตัว, ตู้สินค้า 6 กองซ้อน 2–4 ชั้น
+  หลายสีตาม seed ไม่มีชื่อสายเรือจริง; คลังสินค้า รถลาก terminal tractors 2 คัน
+  ประตูทางเข้าและป้อมยาม พร้อมป้าย “ท่าเรือสินค้า” และ “คลังสินค้า”
+- `anim_crane_0` และ `anim_crane_1` เป็น pivots สำหรับเลื่อนตาม X ±2 ม.
+  เครนสองตัวใช้ geometry เดียวใน `InstancedMesh` เพื่อคงหนึ่ง mesh ต่อวัสดุ
+  Gallery อัปเดต matrices ทั้งตัวตาม pivots; เมืองใช้ shader สำหรับ prototype ที่ worker bake
+  โดยมี time uniform ร่วมและ shader ของ shadow pass เดินตาม
+- สนามบินมีรันเวย์ตาม X ยาวตลอดพื้นที่ใช้งาน 59 ม. กว้าง 12 ม. ที่ Z = 22
+  มีเส้นขอบ เส้นกลาง threshold และ touchdown markings; terminal ผนังกระจก
+  หอควบคุม ที่จอดรถ 4 คัน และถนนเข้าออกด้าน −Z
+- จอด `veh.airplane` ขนาดเดิม 2 ลำที่ X = −14/+14, Z = 0 หันหน้าเข้าหา terminal;
+  geometry และสีจากเครื่องบินเดิมถูกรวมกับ batches ของสนามบิน โดยไม่ทับรันเวย์
+- `anim_radar` หมุนรอบแกน Y ที่ X = −5, Z = −25, Y = 6.4 ม.
+  Gallery ใช้ Group pivot จริง; เมืองหมุน geometry ที่ bake และ normals ผ่าน shader
+- Terminal ใช้ `kit.services` สำหรับหลังคา/เครื่องประดับและ `palette('airport', seed)`:
+  เหนือจั่วไม้พร้อมกาแล, อีสานจั่วสังกะสี, กลาง/ตะวันออก/ตะวันตกจั่วซ้อน, ใต้ปั้นหยา
+  ส่วนอื่นของสนามบินคงรูปทรงแบบชาติเดียวกันทั้ง 6 ภาค
+- Renderer หันท่าเรือให้ด้าน +Z เข้าหาด้านที่มีน้ำมากที่สุดรอบ footprint;
+  กรณีไม่มีน้ำหรือเสมอกันเลือกมุมเดิมอย่าง deterministic และไม่เขียน simulation
+- Worker เก็บ bounds ครอบคลุมการเลื่อนเครนและวงหมุนเรดาร์; pause ของเมืองหยุด clock
+  ใส่ตัวอย่างท่าเรือริมแม่น้ำและสนามบินใกล้มุมเปิดของ City gallery ให้ตรวจได้ทันที
+
+จำนวนสามเหลี่ยมสนามบิน seed 1:
+เหนือ 4,738; อีสาน 4,546; กลาง 4,750; ตะวันออก 4,750; ตะวันตก 4,862; ใต้ 4,496
+ท่าเรือเปลี่ยนจำนวนตู้ตาม seed จึงเปลี่ยนจำนวนสามเหลี่ยม แต่ความสูงเครนและพื้นที่คงเดิม
+
+### ตรวจสอบ
+
+- เพิ่ม `transport-hubs.test.ts` ผ่าน 16 ข้อ: footprint/budget/หนึ่ง mesh ต่อวัสดุทั้ง 6 ภาค,
+  kit ของ terminal, เครื่องบินไม่ทับรันเวย์, 2–4 ชั้นของตู้, real pivot/instance matrices,
+  ขอบเขตทุกมุม animation, worker round trip, uniforms/shadow shaders, tiles/coverage และหันหาน้ำครบ 4 ด้าน
+- รอบตรวจที่เกี่ยวข้อง: 4 suites / 81 tests ผ่าน รวม generic registry ของโมเดลใหม่ทั้ง 5 seeds,
+  determinism และ airport ทั้ง 6 ภาค พร้อม city/motion/LOD cases
+- รันชุดรวมด้วย `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false --testTimeout=20000`
+  ครบ 58 suites / 3,894 tests: 57 suites / 3,892 tests ผ่าน รวมการตรวจทุกโมเดลใน registry;
+  ไม่ผ่านเฉพาะ Bounds เดิม 2 ข้อที่คู่มือระบุไว้ ไม่มีข้อผิดพลาดใหม่จากงานนี้
+- `npm run build` ผ่าน มีคำเตือนขนาด bundle ตามเดิม; `git diff --check` ผ่าน
+- Gallery แสดงโมเดลเดี่ยว หมุน/ซูมได้ เปลี่ยน region/seed และเทียบสนามบิน 6 ภาคได้
+  ตรวจ shader ใน City renderer ไม่มี console error
+- City gallery ขยับกล้อง 10 วินาที: frame เฉลี่ย 17.7 ms, CPU เฉลี่ย 15.0 ms,
+  เปลี่ยน DPR 0 ครั้ง; canvas 1199×502, DPR 1.75 บนเครื่องนี้ขณะรันชุดทดสอบ
+  เป็นค่ารวมของเมือง 200×200 ไม่ใช่ benchmark ของโมเดลเดี่ยว
+- เปิด `index.html` เริ่มเมืองฝึกเล่นและวางทั้งสอง hub จริง ภาพแสดงครบ เวลาเกมเดินต่อ
+  คลังเมืองหักราคากับค่ารื้อพื้นที่ตามปกติ ไม่มี console error และไม่บันทึกเมืองทดสอบ
+- ไม่แก้ shared config หรือ game/simulation และไม่เปลี่ยน license headers เดิม
+
+### ข้อจำกัด
+
+สนามบินและท่าเรือถูกจัดผังย่อให้พอดีพื้นที่เกม รันเวย์จึงยาว 59 ม. ไม่ใช่ระยะบินขึ้นจริง
+เครื่องบินจอดเป็น static props; animation ของเครน/เรดาร์เป็นภาพตกแต่งตามเวลา
+ยังไม่มีการยกตู้ขึ้นเรือหรือการเรียกเครื่องบินจาก simulation
+
+ภาพตรวจสอบ:
+[ท่าเรือ](../../test/render3d/artifacts/transport-seaport.jpg),
+[สนามบินกลาง](../../test/render3d/artifacts/transport-airport-central.jpg),
+[สนามบินเหนือ](../../test/render3d/artifacts/transport-airport-north.jpg),
+[สนามบินใต้](../../test/render3d/artifacts/transport-airport-south.jpg),
+[สนามบิน 6 ภาค](../../test/render3d/artifacts/transport-airport-regions.jpg),
+[แกลเลอรี](../../test/render3d/artifacts/transport-gallery.jpg),
+[City motion](../../test/render3d/artifacts/transport-city-motion.jpg),
+[hub ทั้งคู่ในเกม](../../test/render3d/artifacts/transport-game.jpg)
+
 ## โรงไฟฟ้าถ่านหินและนิวเคลียร์ 4×4
 
 วันที่ 2026-10-12: เพิ่ม `power.coal` และ `power.nuclear` ใน

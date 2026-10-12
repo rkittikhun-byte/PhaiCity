@@ -271,7 +271,9 @@ export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMater
     material.userData = { ...base.userData, cityWorldUV: true };
     // City glass keeps physical reflection and alpha, without an extra full-scene refraction pass.
     if (material instanceof MeshPhysicalMaterial) { material.transmission = 0; material.forceSinglePass = true; }
-    material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey; configureCityWorldUV(material);
+    material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey;
+    if (base.userData.transportMotion) configureTransportMotion(material, base.userData.transportMotion);
+    configureCityWorldUV(material);
   });
 }
 /** Complementary screen-door coverage keeps depth writes and avoids alpha-sorting LOD flashes. */
@@ -318,6 +320,7 @@ const cityDepthMaterials=new WeakMap<Material,MeshDepthMaterial>();
 export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMaterial {
   const cached=cityDepthMaterials.get(base);if(cached)return cached;
   const material=new MeshDepthMaterial({depthPacking:RGBADepthPacking,side:base.side,map:base.map,alphaMap:base.alphaMap,alphaTest:base.alphaTest});
+  if(base.userData.transportMotion)configureTransportMotion(material,base.userData.transportMotion);
   configureCityLOD(material,false);owned.add(material);cityDepthMaterials.set(base,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
   if(key)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
@@ -397,6 +400,51 @@ export function powerDomeGlowMaterial(): MeshStandardMaterial {
   return finishedMaterial('power-dome-glow', 'emissive_window', 0xffe6b0, material => {
     material.userData.powerDomeGlow = true; material.emissive.setHex(0xffdfa0); material.emissiveIntensity = 0.65;
   });
+}
+
+const transportClock = { value: 0 };
+/** Moving parts have dedicated batches; the city animates baked prototypes on the GPU. */
+export function transportCraneMaterial(): MeshStandardMaterial {
+  return finishedMaterial('transport-crane', 'metal_painted', 0xffffff, material => {
+    material.copy(vertexFinish('metal_painted')); material.name = 'transport-crane';
+    material.userData = { ...material.userData, transportMotion: 'cranes' };
+    material.onBeforeCompile = vertexFinish('metal_painted').onBeforeCompile;
+    material.customProgramCacheKey = vertexFinish('metal_painted').customProgramCacheKey;
+  });
+}
+export function transportRadarMaterial(): MeshStandardMaterial {
+  return finishedMaterial('transport-radar', 'metal_painted', 0xffffff, material => {
+    material.copy(vertexFinish('metal_painted')); material.name = 'transport-radar';
+    material.userData = { ...material.userData, transportMotion: 'radar' };
+    material.onBeforeCompile = vertexFinish('metal_painted').onBeforeCompile;
+    material.customProgramCacheKey = vertexFinish('metal_painted').customProgramCacheKey;
+  });
+}
+export function updateTransportClock(seconds: number): void {
+  if (Number.isFinite(seconds)) transportClock.value = seconds;
+}
+
+function configureTransportMotion(material: Material, kind: 'cranes' | 'radar'): void {
+  const original = material.onBeforeCompile, program = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    original.call(material, shader, renderer); shader.uniforms.transportTime = transportClock;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float transportTime;');
+    const rotation = 'mat2(cos(transportTime * 0.65), -sin(transportTime * 0.65), sin(transportTime * 0.65), cos(transportTime * 0.65))';
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n${kind === 'cranes'
+      ? 'transformed.x += sin(transportTime * 0.25) * 2.0 * (position.x < 0.0 ? 1.0 : -1.0);'
+      : `transformed.xz = ${rotation} * (transformed.xz - vec2(-5.0, -25.0)) + vec2(-5.0, -25.0);`}`);
+    if (kind === 'radar') shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>',
+      `#include <beginnormal_vertex>\nobjectNormal.xz = ${rotation} * objectNormal.xz;`);
+  };
+  material.customProgramCacheKey = () => `phaicity-transport-${kind}:${program}`;
+}
+
+const transportDepthMaterials = new WeakMap<Material, MeshDepthMaterial>();
+/** Gallery transforms already move the geometry; its shadows follow the real instances/pivot. */
+export function transportMotionDepthMaterial(base: Material): MeshDepthMaterial {
+  const cached = transportDepthMaterials.get(base); if (cached) return cached;
+  const material = new MeshDepthMaterial({ depthPacking: RGBADepthPacking });
+  owned.add(material); transportDepthMaterials.set(base, material); return material;
 }
 
 export function updateCommercialDisplays(seconds: number): void {

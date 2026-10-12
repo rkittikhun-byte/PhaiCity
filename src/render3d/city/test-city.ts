@@ -25,7 +25,8 @@ export class TestCity implements CityMapReader {
     n=0;for(let land=0;land<4;land++)for(let density=0;density<5;density++){const x=108+(n%9)*6,y=100+Math.floor(n/9)*7;this.zone(x,y,436+(land*5+density)*9,3);n++;}
     n=0;for(let type=0;type<2;type++)for(let density=0;density<4;density++){this.zone(40+(n%4)*10,140+Math.floor(n/4)*8,625+(type*4+density)*9,3);n++;}
     for(const [x,y,value,size]of[[52,53,244,3],[58,53,427,3],[64,53,616,3],[70,53,409,3],[76,53,765,3],
-      [82,53,774,3],[108,52,698,4],[117,52,716,6],[129,52,750,4],[139,52,784,4],[149,52,816,4],[154,59,800,4]])this.zone(x,y,value,size);
+      [82,53,774,3],[108,52,698,4],[117,52,716,6],[129,52,750,4],[139,52,784,4],[149,52,816,4],[154,59,800,4],
+      [101,88,698,4],[114,88,716,6]])this.zone(x,y,value,size);
     for(let i=0;i<12;i++)this.values[121*200+40+i*3]=249+i;
     for(let i=0;i<4;i++){this.values[122*200+108+i*3]=40+i;this.values[122*200+130+i]=44+i;this.values[122*200+140+i]=48+i;}
     this.values[122*200+126]=840;this.values[95*200+95]=828;

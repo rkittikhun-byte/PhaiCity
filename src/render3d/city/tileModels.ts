@@ -80,6 +80,16 @@ export class TileSnapshot implements CityMapReader {
     let mask=0; for(const[dx,dy,bit]of SIDES) if(x+dx>=0&&y+dy>=0&&x+dx<this.width&&y+dy<this.height&&predicate(this.getTileValue(x+dx,y+dy))) mask|=bit;
     return mask;
   }
+  private portRotation(x:number,y:number,size:number):number {
+    const left=x-1,top=y-1,scores=[0,0,0,0];
+    for(let n=0;n<size;n++) {
+      const points=[[left+n,top-1],[left+size,top+n],[left+n,top+size],[left-1,top+n]];
+      points.forEach(([px,py],side)=>{if(px>=0&&py>=0&&px<this.width&&py<this.height&&isWaterNeighbor(this.getTileValue(px,py)))scores[side]++;});
+    }
+    // The +Z quay defaults south; equal water coverage keeps that deterministic orientation.
+    let side=2;for(const candidate of [0,1,3])if(scores[candidate]>scores[side])side=candidate;
+    return [Math.PI,Math.PI/2,0,-Math.PI/2][side];
+  }
   placement(i:number,region:RegionId):Placement|null {
     if(this.coverage[i]!==-1&&this.coverage[i]!==i) return null;
     const x=i%this.width,y=Math.floor(i/this.width),v=this.values[i],entry=TILE_TABLE[v]??debug(), hash=tileSeed(x,y);
@@ -105,10 +115,11 @@ export class TileSnapshot implements CityMapReader {
     else if(isWoods(v)) {variant=this.mask(x,y,isWoods);}
     else if(v===0||v>=44&&v<=51) variant=(hash>>>2)&3;
     if(id==='svc.stadium')state=v>=795&&v<=810?'game':'empty';
+    if(id==='port.seaport'&&zone)rotation=this.portRotation(x,y,w);
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;
-    const height=id==='power.coal'?44:id==='power.nuclear'?55:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
+    const height=id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;

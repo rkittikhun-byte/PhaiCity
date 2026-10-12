@@ -28,6 +28,7 @@ import { getRegionKit, REGIONS } from '../regional/index.js';
 import { regionalSamples, regionLineup } from './regional-preview.js';
 import { buildIconGallery } from './icons.js';
 import { animateCommercialModels } from '../models/commercial/landmarks.js';
+import { animateTransportModels } from '../models/transport/animation.js';
 import { CityView3D, createCityView3D } from '../city/index.js';
 import { TestCity, testCitySetup, testCitySprites, moveTestSprites } from '../city/test-city.js';
 import type { ToolHover } from '../../cityView.js';
@@ -522,7 +523,7 @@ function startGallery(): void {
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
     const option = document.createElement('option');
     option.value = name;
-    localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'industrial' ? 'อุตสาหกรรม (industrial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
+    localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'industrial' ? 'อุตสาหกรรม (industrial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'transport' ? 'ท่าเรือและสนามบิน (transport)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
   if (requestedCategory && Array.from(category.options).some(option => option.value === requestedCategory)) category.value = requestedCategory;
@@ -634,6 +635,7 @@ function startGallery(): void {
     scrollWaterNormals(activeViews.flatMap(view => [view.root, view.neighbors]), seconds);
     updateRoadSignals(seconds); updateCommercialDisplays(seconds);
     animateCommercialModels(activeViews.map(view => view.root), seconds);
+    animateTransportModels(activeViews.map(view => view.root), seconds);
     renderer.setScissorTest(false);
     renderer.setClearColor(0x000000, 0);
     renderer.clear();

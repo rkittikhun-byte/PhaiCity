@@ -12,7 +12,7 @@ export interface ServiceStyle {
   roofForm: RoofForm;
   ornament: string;
   roof: RoofBuilder;
-  palette(kind: 'police' | 'fire', seed?: number): PaletteChoice;
+  palette(kind: 'police' | 'fire' | 'airport', seed?: number): PaletteChoice;
 }
 
 /** Applied Thai civic crowns retain the kit's ordinary bargeboards or kalae, never temple ornaments. */
@@ -38,7 +38,7 @@ export function serviceStyle(style: RegionStyle, roofs: Readonly<Record<RoofForm
       }
       return [...parts, ...b.parts];
     },
-    palette: (kind: 'police' | 'fire', seed = 1) => {
+    palette: (kind: 'police' | 'fire' | 'airport', seed = 1) => {
       const index = Math.floor(seededRng(seed)() * style.palette.length), color = style.palette[index];
       return { ...color,
         wall: new Color(style.plasterColors?.[index] ?? color.wall).lerp(new Color(0xf0e4cf), 0.88).getHex(),

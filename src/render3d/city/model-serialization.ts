@@ -38,6 +38,14 @@ export function serializeModel(key: string, root: Group): { value: SerializedPro
       castShadow: node.castShadow, receiveShadow: node.receiveShadow,
       material: { key: material.userData.materialKey, name: material.name, color: material.color.getHex(), data: material.userData } };
     geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+    if (material.userData.transportMotion === 'cranes') {
+      geometry.boundingBox!.min.x -= 2; geometry.boundingBox!.max.x += 2; geometry.boundingSphere!.radius += 2;
+    } else if (material.userData.transportMotion === 'radar') {
+      // Rotation changes the dish outline, not its mast pivot; retain the full sweep in city culling bounds.
+      geometry.boundingBox!.min.x = -7.4; geometry.boundingBox!.max.x = -2.6;
+      geometry.boundingBox!.min.z = -27.4; geometry.boundingBox!.max.z = -22.6;
+      geometry.boundingSphere!.radius += 2.4;
+    }
     part.bounds = { min: geometry.boundingBox!.min.toArray(), max: geometry.boundingBox!.max.toArray(),
       center: geometry.boundingSphere!.center.toArray(), radius: geometry.boundingSphere!.radius };
     for (const [name, attribute] of Object.entries(geometry.attributes)) {

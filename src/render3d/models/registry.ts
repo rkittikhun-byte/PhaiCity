@@ -14,6 +14,8 @@ import { createFire } from './services/fire.js';
 import { createStadium, STADIUM_TILES } from './services/stadium.js';
 import { createCoal } from './services/coal.js';
 import { createNuclear } from './services/nuclear.js';
+import { createSeaport } from './transport/seaport.js';
+import { createAirport } from './transport/airport.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
 import type { RegionId, RegionTier } from '../regional/types.js';
@@ -95,6 +97,10 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     tiles: Array.from({ length: 16 }, (_, i) => 745 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
   'power.nuclear': { factory: createNuclear, category: 'services', footprint: [4, 4],
     tiles: Array.from({ length: 16 }, (_, i) => 811 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'port.seaport': { factory: createSeaport, category: 'transport', footprint: [4, 4],
+    tiles: Array.from({ length: 16 }, (_, i) => 693 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'port.airport': { factory: createAirport, category: 'transport', footprint: [6, 6],
+    tiles: Array.from({ length: 36 }, (_, i) => 709 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R2' },
   'res.zone_empty': { factory: createEmptyResidentialZone, category: 'residential', footprint: [3, 3],
     tiles: Array.from({ length: 9 }, (_, i) => 240 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
   ...Object.fromEntries(RES_ZONE_SPECS.map(spec => [spec.id, {
