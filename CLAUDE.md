@@ -52,6 +52,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:national` | Thai province shapes from Natural Earth → `data/geo/thailand-provinces.topo.json` |
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
+| `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 | `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |

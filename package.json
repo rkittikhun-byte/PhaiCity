@@ -23,6 +23,7 @@
     "geo:national": "node scripts/geo/national.mjs",
     "geo:centers": "node scripts/geo/centers.mjs",
     "geo:edges": "node scripts/geo/edges.mjs",
+    "geo:neighbors": "node scripts/geo/neighbors.mjs",
     "geo:maps": "node scripts/geo/maps.mjs",
     "geo:review": "webpack serve --mode development --open /geo-review.html",
     "test:geo": "node --test \"test/geo/*.test.mjs\"",

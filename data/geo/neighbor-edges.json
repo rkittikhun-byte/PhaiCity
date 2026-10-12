@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Map edge facing each neighboring province. Positions run west→east on N/S edges and north→south on E/W edges (GEO_SPEC section 8).",
     "license": "Derived from OpenStreetMap data, © OpenStreetMap contributors, ODbL 1.0",
-    "generatedAt": "2026-10-11T05:24:18.406Z"
+    "generatedAt": "2026-10-12T01:41:11.613Z"
   },
   "edges": {
     "TH-50": [
@@ -552,16 +552,9 @@
         "bearing": 131.6
       },
       {
-        "neighbor": "TH-41",
-        "edge": "S",
-        "from": 0,
-        "to": 0.5,
-        "bearing": 220.8
-      },
-      {
         "neighbor": "TH-47",
         "edge": "S",
-        "from": 0.5,
+        "from": 0,
         "to": 1,
         "bearing": 158.4
       },
@@ -666,15 +659,8 @@
         "neighbor": "TH-43",
         "edge": "N",
         "from": 0,
-        "to": 0.5,
-        "bearing": 355.6
-      },
-      {
-        "neighbor": "TH-38",
-        "edge": "N",
-        "from": 0.5,
         "to": 1,
-        "bearing": 40.5
+        "bearing": 355.6
       },
       {
         "neighbor": "TH-47",
@@ -761,8 +747,15 @@
         "neighbor": "TH-38",
         "edge": "E",
         "from": 0,
-        "to": 1,
+        "to": 0.5,
         "bearing": 60.4
+      },
+      {
+        "neighbor": "TH-47",
+        "edge": "E",
+        "from": 0.5,
+        "to": 1,
+        "bearing": 118
       },
       {
         "neighbor": "TH-41",
@@ -934,9 +927,16 @@
         "bearing": 138.3
       },
       {
-        "neighbor": "TH-41",
+        "neighbor": "TH-43",
         "edge": "W",
         "from": 0,
+        "to": 0.5,
+        "bearing": 298.4
+      },
+      {
+        "neighbor": "TH-41",
+        "edge": "W",
+        "from": 0.5,
         "to": 1,
         "bearing": 280.8
       }
