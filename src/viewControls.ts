@@ -74,13 +74,13 @@ export function dragTurnOf(view: ViewLike): ((dx: number, dy: number) => void) |
 export const DRAG_START_PX = 4;
 
 /**
- * With no tool in hand, dragging the city with the left button slides it, as on a web map (owner, 12 Oct 2026: "can
- * the 3D be moved with the mouse"). The view's own controls stay as they are: dragging with the right button turns
- * it, with the middle button slides it, and the wheel zooms.
+ * With no tool in hand, dragging the city with the left button turns it: to the right turns it right, up and down
+ * tilt the camera (owner, 12 Oct 2026, playing on a touchpad). With Shift held the same drag slides the city instead.
+ * The view's own controls stay as they are: dragging with the right button turns it, with the middle button slides
+ * it, and the wheel zooms. A view that cannot turn (the 2D fallback) slides with a plain drag.
  */
 export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document): void {
   const pan = panOf(view);
-  // With Shift held the same drag turns the city, for a touchpad where a right-button drag is awkward
   const turn = dragTurnOf(view);
   const canvas = doc.getElementById("MicropolisCanvas");
   if (!pan || !canvas) return;
@@ -88,7 +88,7 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
 
   canvas.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || holdingTool()) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, turning: event.shiftKey && turn !== null };
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, turning: !event.shiftKey && turn !== null };
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
