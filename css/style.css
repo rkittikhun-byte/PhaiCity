@@ -1931,6 +1931,20 @@ body #newsLog li.news, body #newsLog li.news.good, body #newsLog li.news.bad {
   background: rgba(255, 255, 255, 0.22); color: var(--hud-text);
 }
 body #newsLog .newsDate { color: #34403c; font-size: 8.5px; }
+
+/* Thin, quiet scroll bars in the news, the windows and the cards (owner, 12 Oct 2026). Chrome and Edge draw these
+   ::-webkit-scrollbar ones; Firefox, which has none, gets its own thin bar */
+body #newsLog::-webkit-scrollbar, body .modal::-webkit-scrollbar, body #rulerGoals::-webkit-scrollbar,
+body #controls::-webkit-scrollbar { width: 4px; height: 4px; }
+body #newsLog::-webkit-scrollbar-track, body .modal::-webkit-scrollbar-track, body #rulerGoals::-webkit-scrollbar-track,
+body #controls::-webkit-scrollbar-track { background: transparent; }
+body #newsLog::-webkit-scrollbar-thumb, body .modal::-webkit-scrollbar-thumb, body #rulerGoals::-webkit-scrollbar-thumb,
+body #controls::-webkit-scrollbar-thumb { border-radius: 2px; background: rgba(29, 41, 37, 0.3); }
+body #newsLog::-webkit-scrollbar-button, body .modal::-webkit-scrollbar-button, body #rulerGoals::-webkit-scrollbar-button,
+body #controls::-webkit-scrollbar-button { display: none; }
+@supports not selector(::-webkit-scrollbar) {
+  body #newsLog, body .modal, body #rulerGoals, body #controls { scrollbar-width: thin; scrollbar-color: rgba(29, 41, 37, 0.3) transparent; }
+}
 body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */
