@@ -463,7 +463,12 @@ function typeOut(inner: HTMLElement, lines: HTMLElement[], hint: HTMLElement | n
   window.setTimeout(step, TYPE_START_MS);
 }
 
+// Set once the player has picked a city: a double click on a start button must not start two games
+let leaving = false;
+
 function leaveTo(next: () => void): void {
+  if (leaving) return;
+  leaving = true;
   window.clearTimeout(sceneTimer);
   if (view) {
     hide(view.overlay, true);
