@@ -1239,7 +1239,7 @@ Prompt 0–19 สร้างโมเดลอย่างเดียว ช�
 | R2 | โซนและอาคารครบทุกแบบ บ้าน 1 ช่อง อาคารพิเศษ ไฟในหน้าต่าง ภาคต่าง ๆ และ LOD | Prompt 15 |
 | R3 | ของที่เคลื่อนไหว: รถไฟ เรือ เครื่องบิน พญานาค พายุ ไฟไหม้ น้ำท่วม รถบนถนน | Prompt 17 |
 | R4 | เก็บงาน: ความเร็ว LOD เงา กลางวัน/กลางคืน ฤดูฝน ภาพถ่ายทั้งเมือง | R3 |
-| R5 | แผนที่ทั้งจังหวัด: พื้นที่นอกจังหวัดมืดลง เส้นขอบจังหวัด ถนนลูกรัง กล้องกลับมาที่ตัวเมือง แผนที่ 300 × 300 ช่องลื่น | ส่งต่อจาก prompt ที่ Codex ทำอยู่ (หลังเกมได้แผนที่ทั้งจังหวัด) |
+| R5 | แผนที่ทั้งจังหวัด: พื้นที่นอกจังหวัดมืดลง เส้นขอบจังหวัด ถนนลูกรัง ภูเขาจากความสูงจริง กล้องกลับมาที่ตัวเมือง แผนที่ 300 × 300 ช่องลื่น | ส่งต่อจาก prompt ที่ Codex ทำอยู่ (หลังเกมได้แผนที่ทั้งจังหวัด) |
 
 ### Prompt R1 — โครงตัววาดเมือง 3D
 
@@ -1436,11 +1436,12 @@ src/toolShortcuts.ts: the game already reads the manifest. Report in Thai with a
 list which tools still use their SVG.
 ```
 
-## Prompt R5 — แผนที่ทั้งจังหวัด: ขอบจังหวัดและถนนลูกรัง
+## Prompt R5 — แผนที่ทั้งจังหวัด: ขอบจังหวัด ถนนลูกรัง และภูเขา
 
 เจ้าของโปรเจคขอ (12 ต.ค. 2026): เล่นบนแผนที่จริงของทั้งจังหวัดแบบย่อส่วน พื้นที่นอกจังหวัดเห็นได้แต่สร้างไม่ได้
 เริ่มต้นมีทางรถไฟจริง และถนนลูกรังสายหลักสายเดียวไปแต่ละจังหวัดข้างเคียง ถนนอื่นผู้เล่นสร้างเอง
-ฝั่งเกม Claude Code ทำไว้แล้ว: ข้อมูลแผนที่ การห้ามสร้างนอกเขต (กรอบเครื่องมือเป็นสีแดง) และกล้องเปิดที่ตัวเมือง
+ฝั่งเกม Claude Code ทำไว้แล้ว: ข้อมูลแผนที่ การห้ามสร้างนอกเขต (กรอบเครื่องมือเป็นสีแดง) กล้องเปิดที่ตัวเมือง
+และความสูงจริงของพื้นดินทุกช่อง (Copernicus DEM) ให้ Codex ทำเป็นภูเขาในภาพ 3D ส่วนระบบจำลองเมืองยังแบนเหมือนเดิม
 ส่งได้ทันทีที่ prompt ที่ Codex ทำอยู่เสร็จ
 
 ```text
@@ -1451,8 +1452,9 @@ Context: a province city is now played on the whole province, scaled down. Maps 
 (about 38,000-81,000 tiles, 58,000 on average). Tiles outside the province show the real land around it and can
 never be built on: the game refuses every tool there and turns the tool outline red. A map starts with the real
 railways and one laterite road (ถนนลูกรัง) to each neighbouring province; every other road is the player's.
-The game sets two read-only fields on the map (RENDERER_SPEC 6B): gameMap.insideProvince (Uint8Array, 1 inside,
-0 outside, null on practice maps) and gameMap.town ({ x, y } or null). Never write them.
+The game sets read-only fields on the map (RENDERER_SPEC 6B): gameMap.insideProvince (Uint8Array, 1 inside,
+0 outside, null on practice maps), gameMap.town ({ x, y } or null), gameMap.heights (Float32Array of each tile's
+ground height in metres, or null) and gameMap.tileSizeM (metres per tile on the real map). Never write them.
 
 Task:
 1. Outside the province: draw outside tiles dimmed and less saturated (about 45% brightness, like the province
@@ -1465,19 +1467,26 @@ Task:
    view draws this set. Keep the current asphalt road set in the registry for later levels and make the level
    selectable (for example roadLevel: 1 | 2 | 3) so the game can choose per road later.
 3. Home: reset() and resetView() look at gameMap.town when the map has one, else the middle of the map as today.
+3b. Hills from gameMap.heights, exactly as RENDERER_SPEC 6B says: the exaggerated world height, smooth ground at
+   tile corners, level water (rivers and lakes at their lowest, the sea at 0), footprints of zones and buildings
+   flattened, roads and railways on the ground, bridges level, picking and the camera target on the raised ground.
+   HILL_EXAGGERATION is one constant; tune it so Chiang Mai's mountains read as mountains from the opening view
+   and Bangkok stays flat. null heights must look exactly as today.
 4. Speed: keep 60 fps at the opening zoom on a 300 x 300 map on a mid-range laptop (RENDERER_SPEC 8): chunked
    ground, water and trees with frustum culling, instancing or merging for far tiles, lower detail outside the
    province. Building a big map must not freeze the page.
 5. Gallery: a "Province edge" test city of 300 x 300 with a made-up irregular province mask, a town, a laterite
-   road crossing the edge, a railway with a level crossing and a bridge; and the laterite road set beside the
-   asphalt set. Show the frame time on screen.
+   road crossing the edge, a railway with a level crossing and a bridge, a made-up heightmap with a ridge, a
+   valley river and a lake; and the laterite road set beside the asphalt set. Show the frame time on screen.
+   Also open the real data/maps/TH-50.json (Chiang Mai) in the gallery the way the game builds it, if you can
+   do so without game code (decode heights with src/geo/presetMap.ts decodePresetHeights, read-only use).
 6. Tests in test/render3d/: outside tiles get the dimmed look, the edge is drawn only between inside and outside
-   tiles, a null mask draws everything as inside, reset looks at the town, and every road mask resolves in the
-   laterite set.
+   tiles, a null mask draws everything as inside, reset looks at the town, every road mask resolves in the
+   laterite set, building footprints are level, water tiles are level, and null heights give a flat ground.
 
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of
-the test city (inside, outside, the edge, a laterite road, a crossing) and the frame times at 300 x 300.
+the test city (inside, outside, the edge, a laterite road, a crossing, the hills) and the frame times at 300 x 300.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)

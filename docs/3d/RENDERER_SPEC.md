@@ -162,12 +162,24 @@ which the renderer only reads:
 |---|---|
 | `gameMap.insideProvince` | `Uint8Array`, one byte per tile (`x + y * width`): 1 in the province, 0 outside it. `null` on practice maps: every tile is inside. |
 | `gameMap.town` | `{ x, y }`, the provincial town's tile, or `null`. The game calls `centreOn(town)` once when a city opens. |
+| `gameMap.heights` | `Float32Array`, each tile's mean ground height in metres (`x + y * width`; open sea 0), or `null` (practice maps, old saves): then the ground is flat as before. Ready before the view is created. |
+| `gameMap.tileSizeM` | How many metres one tile stands for on the real map (110–1030), or `null`. In the 3D world a tile is still 10 m. |
 
 - **Outside tiles** show the real land around the province but can never be built on (the game refuses every tool
   there and turns the tool outline red). Draw them dimmed and less saturated, about 45% brightness, and the
   province's edge as a thin line between inside and outside tiles, visible from any zoom.
 - **Level-1 roads are laterite (ถนนลูกรัง).** The map starts with one laterite road to each neighbouring province; the
   player's roads are level 1 too until road levels exist (asphalt, concrete: `docs/POLISH_BACKLOG.md`).
+- **Hills** from `gameMap.heights`. The simulation stays flat; only the picture rises.
+  - World height of a tile: `(max(h, 0) − lowest) × 10 / tileSizeM × HILL_EXAGGERATION`, where `lowest` is the map's
+    lowest dry tile and `HILL_EXAGGERATION` a constant to tune by eye (start at 4): true scale makes Chiang Mai's
+    2.3 km of relief only 23 m across a 3 km world.
+  - Ground vertices at tile corners take the mean of the tiles around them, so slopes are smooth.
+  - Water stays level: a river or lake tile sits at the lowest of itself and its water neighbours, the sea at 0;
+    shores slope down to it.
+  - A zone or building's footprint is flattened to its mean height, so buildings stand level; roads and
+    railways follow the ground, and bridges stay level between their banks.
+  - `tileAt` picks against the raised ground, and the camera's target follows it.
 - `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
   `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.
 

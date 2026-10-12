@@ -61,7 +61,13 @@ export interface PresetMap {
   airports?: PresetAirport[];
   /** Neighbouring provinces with no road link */
   unlinked?: string[];
-  stats: { land: number; water: number; woods: number; insideTiles?: number; roadTiles?: number; railTiles?: number };
+  /** Each tile's ground height: min + level × step metres, the levels deflated and in base64 (decodePresetHeights) */
+  heights?: { min: number; step: number; data: string };
+  stats: {
+    land: number; water: number; woods: number; insideTiles?: number; roadTiles?: number; railTiles?: number;
+    /** The lowest and highest tile in the province, in metres */
+    heightMin?: number; heightMax?: number;
+  };
   flags: PresetFlag[];
   sources: string[];
   generatedAt: string;
@@ -140,6 +146,25 @@ export function decodePresetLayer(encoded: string, width: number, height: number
     throw new Error(`Preset map decoded to ${offset} cells, expected ${expected}`);
   }
   return codes;
+}
+
+/**
+ * The ground height of each tile in metres, row by row (docs/geo/GEO_SPEC.md section 5), or null for a map without
+ * heights. The levels are deflated, so this waits on the browser's own decompression.
+ */
+export async function decodePresetHeights(map: Pick<PresetMap, "heights" | "width" | "height">):
+    Promise<Float32Array | null> {
+  if (!map.heights) return null;
+  const { min, step, data } = map.heights;
+  const packed = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("deflate"));
+  const levels = new Uint8Array(await new Response(stream).arrayBuffer());
+  if (levels.length !== map.width * map.height) {
+    throw new Error(`Preset heights decoded to ${levels.length} tiles, expected ${map.width * map.height}`);
+  }
+  const heights = new Float32Array(levels.length);
+  for (let i = 0; i < levels.length; i++) heights[i] = min + levels[i] * step;
+  return heights;
 }
 
 /** "count:code,…" for a layer of codes, the inverse of decodePresetLayer (saves keep the province mask this way). */

@@ -107,6 +107,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // The roads and railways the map started with, which are the state's (src/gameMap.js isNationalTransport)
     this.gameMap.nationalTransport = savedGame.national ?
       decodePresetLayer(savedGame.national, this.gameMap.width, this.gameMap.height) : null;
+    // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
+    this.gameMap.heights = savedGame.heights || null;
+    this.gameMap.tileSizeM = savedGame.tileSizeM || null;
   }
 
   this.tileSet = tileSet;

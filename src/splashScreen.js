@@ -18,7 +18,7 @@ import { chooseViewKind } from './cityViewChoice.ts';
 import { loadCityView3D } from './cityView3dLoader.ts';
 import { showCornerNote } from './cornerNote.ts';
 import { Game } from './game.js';
-import { decodePresetCells, decodePresetLayer } from './geo/presetMap.ts';
+import { decodePresetCells, decodePresetHeights, decodePresetLayer } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
@@ -129,9 +129,13 @@ var startProvince = function(provinceId, cityName, difficulty) {
     map.insideProvince = layer(preset.inside);
     map.town = preset.town || null;
     map.provinceId = provinceId;
+    map.tileSizeM = preset.tileSizeM || null;
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);
-    launch.call(self, map, difficulty, cityName);
+    return decodePresetHeights(preset).then(function(heights) {
+      map.heights = heights;
+      launch.call(self, map, difficulty, cityName);
+    });
   }).catch(function(error) {
     // Without its map the province can't be played; a random practice map is better than nothing
     console.warn('Could not load province ' + provinceId + ': ' + error.message);
@@ -189,6 +193,23 @@ var loadRules = function(provinceId) {
 };
 
 
+// A saved city of a province takes its ground's heights from the province's map, as saves do not keep them; for the
+// 3D view's hills (docs/3d/RENDERER_SPEC.md section 6B). Nothing comes back for a practice map, a new city (whose
+// map already has them) or a map that cannot be read.
+var savedCityHeights = function(map) {
+  if (!map.isSavedGame || !map.provinceId)
+    return Promise.resolve();
+  return fetchJson('data/maps/' + map.provinceId + '.json').then(function(preset) {
+    if (preset.width !== map.width || preset.height !== map.height)
+      return;
+    map.tileSizeM = preset.tileSizeM || null;
+    return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
+  }).catch(function(error) {
+    console.warn('No heights for ' + map.provinceId + ': ' + error.message);
+  });
+};
+
+
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
   var self = this;
@@ -197,7 +218,7 @@ var launch = function(map, difficulty, name) {
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
   var provinceId = map.provinceId || null;
-  Promise.all([prepareView(provinceId), loadRules(provinceId)]).then(function(results) {
+  Promise.all([prepareView(provinceId), loadRules(provinceId), savedCityHeights(map)]).then(function(results) {
     var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1]);
   });
 };

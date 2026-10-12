@@ -10,7 +10,10 @@ import { CityCommands, CommandTarget, footprint, OUTSIDE_PROVINCE } from "../src
 import { CityMapSource, layerPixels, OUTSIDE_SHADE, Overlays } from "../src/cityMap";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
-import { decodePresetLayer, encodePresetLayer } from "../src/geo/presetMap";
+import * as fs from "fs";
+import * as path from "path";
+import * as zlib from "zlib";
+import { decodePresetHeights, decodePresetLayer, encodePresetLayer } from "../src/geo/presetMap";
 import { hasTransport, provinceTransport, waterwayName } from "../src/geo/provinceTransport";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Road } from "../src/road.js";
@@ -26,6 +29,30 @@ const W = 1;
 const ROAD = 1;
 const RAIL = 2;
 const CROSS = 3;
+
+describe("preset heights", () => {
+  test("decode back to metres, min + level × step", async () => {
+    const levels = Uint8Array.from([0, 1, 2, 255]);
+    const heights = await decodePresetHeights({
+      width: 2, height: 2, heights: { min: 100, step: 2, data: zlib.deflateSync(levels).toString("base64") },
+    });
+    expect([...heights!]).toEqual([100, 102, 104, 610]);
+  });
+
+  test("a map without heights has none, and a wrong size is an error", async () => {
+    expect(await decodePresetHeights({ width: 2, height: 2 })).toBeNull();
+    const data = zlib.deflateSync(Uint8Array.from([1, 2, 3])).toString("base64");
+    await expect(decodePresetHeights({ width: 2, height: 2, heights: { min: 0, step: 1, data } })).rejects.toThrow();
+  });
+
+  test("Chiang Mai's map rises to its mountains", async () => {
+    const preset = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data", "maps", "TH-50.json"), "utf8"));
+    const heights = (await decodePresetHeights(preset))!;
+    expect(heights).toHaveLength(preset.width * preset.height);
+    expect(Math.max(...heights)).toBeGreaterThan(2000);
+    expect(preset.stats.heightMax).toBeGreaterThan(2000);
+  });
+});
 
 describe("preset layers", () => {
   test("encode and decode round-trip", () => {
