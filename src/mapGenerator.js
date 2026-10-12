@@ -11,12 +11,14 @@
  *
  */
 
+import { Connector } from './connector.js';
 import { forEachCardinalDirection, getRandomCardinalDirection, getRandomDirection } from './direction.ts';
 import { GameMap } from './gameMap.js';
 import { Position } from './position.ts';
 import { Random } from './random.ts';
-import { BLBNBIT, BULLBIT } from "./tileFlags.ts";
-import { CHANNEL, DIRT, REDGE, RIVER, WATER_LOW, WATER_HIGH, WOODS, WOODS_LOW, WOODS_HIGH } from "./tileValues.ts";
+import { BLBNBIT, BULLBIT, BURNBIT } from "./tileFlags.ts";
+import { CHANNEL, DIRT, HBRIDGE, HRAIL, HRAILROAD, LHRAIL, REDGE, RIVER, ROADS, VBRIDGE, VRAIL, VRAILROAD, WATER_LOW,
+         WATER_HIGH, WOODS, WOODS_LOW, WOODS_HIGH } from "./tileValues.ts";
 
 var TERRAIN_CREATE_ISLAND;
 var TERRAIN_TREE_LEVEL = -1;
@@ -515,7 +517,9 @@ var smoothWater = function(map) {
 var PRESET_WATER = 1;
 var PRESET_WOODS = 2;
 
-var fromPresetCells = function(width, height, cells) {
+// transport (optional, format 2): one code per tile, row-major: 0 none, 1 road, 2 railway, 3 a road crossing a
+// railway (GEO_SPEC sections 6B and 10). Roads and railways are laid after the smoothing.
+var fromPresetCells = function(width, height, cells, transport) {
   if (cells.length !== width * height)
     throw new Error('Preset has ' + cells.length + ' cells, expected ' + (width * height));
 
@@ -539,7 +543,61 @@ var fromPresetCells = function(width, height, cells) {
   smoothRiver(map);
   smoothTrees(map);
   smoothTrees(map);
+
+  if (transport)
+    layPresetTransport(map, cells, transport);
   return map;
+};
+
+
+var PRESET_ROAD = 1;
+var PRESET_RAIL = 2;
+var PRESET_CROSSING = 3;
+
+// Something that joins road and rail pieces to their neighbours the way the road and rail tools do (src/connector.js)
+var PresetJoiner = Connector(function(map) {
+  this._map = map;
+  this._worldEffects = map;
+});
+
+// Lays a preset's roads and railways as the tools would: bridges where they cross water (the preset keeps them
+// straight there), a level crossing where a road meets a railway, and each piece joined to its neighbours
+var layPresetTransport = function(map, cells, transport) {
+  if (transport.length !== map.width * map.height)
+    throw new Error('Preset has ' + transport.length + ' transport tiles, expected ' + (map.width * map.height));
+
+  var has = function(x, y, bit) {
+    return x >= 0 && y >= 0 && x < map.width && y < map.height && (transport[x + y * map.width] & bit) !== 0;
+  };
+  var across = function(x, y, bit) {
+    return has(x - 1, y, bit) || has(x + 1, y, bit);
+  };
+
+  var x, y, code, wet;
+  for (y = 0; y < map.height; y++) {
+    for (x = 0; x < map.width; x++) {
+      code = transport[x + y * map.width];
+      wet = cells[x + y * map.width] === PRESET_WATER;
+      if (code === PRESET_CROSSING)
+        map.setTile(x, y, across(x, y, PRESET_RAIL) ? HRAILROAD : VRAILROAD, BURNBIT | BULLBIT);
+      else if (code === PRESET_ROAD && wet)
+        map.setTile(x, y, across(x, y, PRESET_ROAD) ? HBRIDGE : VBRIDGE, BULLBIT);
+      else if (code === PRESET_ROAD)
+        map.setTile(x, y, ROADS, BULLBIT | BURNBIT);
+      else if (code === PRESET_RAIL && wet)
+        map.setTile(x, y, across(x, y, PRESET_RAIL) ? HRAIL : VRAIL, BULLBIT);
+      else if (code === PRESET_RAIL)
+        map.setTile(x, y, LHRAIL, BULLBIT | BURNBIT);
+    }
+  }
+
+  var joiner = new PresetJoiner(map);
+  for (y = 0; y < map.height; y++) {
+    for (x = 0; x < map.width; x++) {
+      if (transport[x + y * map.width] !== 0)
+        joiner.fixSingle(x, y);
+    }
+  }
 };
 
 MapGenerator.fromPresetCells = fromPresetCells;

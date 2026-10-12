@@ -16,8 +16,9 @@ import { tuckable } from "./creditLine";
 import { THEME } from "./audio/music";
 import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
-import { drawPresetMap, PRESET_COLORS, PresetMap } from "./geo/presetMap";
+import { drawPresetMap, PRESET_COLORS, PresetMap, TRANSPORT_COLORS } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
+import { hasTransport, provinceTransport, waterwayName } from "./geo/provinceTransport";
 import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { renderLanguageButton } from "./languageFlag";
 import { setLoadingProgress } from "./loadingProgress";
@@ -1180,7 +1181,7 @@ function closeCard(): void {
   }
 }
 
-// --- Down to the land: the province, then its real 2 x 2 km starting map, laid exactly where it is ---
+// --- Down to the land: the province, then its real map (a lens beside it for the old 2 x 2 km maps) ---
 
 function provinceBox(provinceId: string): ViewBox {
   const shape = data?.map.provinces.find((p) => p.id === provinceId);
@@ -1201,6 +1202,10 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
   if (!svg || !shape) return;
   leaveTerrain();
   const token = terrainToken;
+  if (map.format >= 2) {
+    layTerrainInPlace(province, map, shape, svg, token);
+    return;
+  }
 
   // The whole province stays in view. At this scale the 2 x 2 km starting land is a speck, so a glowing
   // marker shows where it is, and a lens beside the province shows the land itself, enlarged.
@@ -1276,6 +1281,49 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
   }, FLY_MS * 0.6);
 }
 
+// A whole-province map (format 2) is laid exactly over its province, cut to the province's outline: the province
+// turns into the land it will be played on, roads, railways and rivers in place, with its town marked
+function layTerrainInPlace(province: Province, map: PresetMap, shape: ProjectedProvince, svg: SVGSVGElement,
+                           token: number): void {
+  const [x, y, width, height] = projectBox(map.bbox);
+  const [px0, py0, px1, py1] = shape.bounds;
+  const unit = Math.max(px1 - px0, py1 - py0) / 100; // strokes and text follow the province's size
+  const canvas = element("canvas");
+  drawPresetMap(canvas, map, TERRAIN_PIXELS_PER_TILE);
+
+  const layer = svgElement("g", { class: "ppTerrainLayer" });
+  const clipId = `ppTerrainClip-${province.id}`;
+  const clip = svgElement("clipPath", { id: clipId });
+  clip.appendChild(svgElement("path", { d: shape.path }));
+  const image = svgElement("image", {
+    href: canvas.toDataURL("image/png"),
+    x: x.toFixed(3), y: y.toFixed(3), width: width.toFixed(3), height: height.toFixed(3),
+    preserveAspectRatio: "none", "clip-path": `url(#${clipId})`,
+  });
+  layer.append(clip, image);
+  if (map.town) {
+    const tx = (x + ((map.town.x + 0.5) / map.width) * width).toFixed(3);
+    const ty = (y + ((map.town.y + 0.5) / map.height) * height).toFixed(3);
+    const ring = { cx: tx, cy: ty, r: (unit * 2).toFixed(3), "stroke-width": (unit * 0.6).toFixed(3) };
+    layer.append(svgElement("circle", { class: "ppLandPulse", ...ring }), svgElement("circle", { class: "ppLandMarker", ...ring }));
+  }
+  // The map's data comes from OpenStreetMap, credited where it is shown
+  const credit = svgElement("text", {
+    class: "ppTerrainCredit",
+    x: ((px0 + px1) / 2).toFixed(3), y: (py1 + unit * 5).toFixed(3),
+    "font-size": (unit * 3).toFixed(3),
+  });
+  credit.textContent = t("picker.preview_credit");
+  layer.appendChild(credit);
+  svg.querySelector(".ppProvinceLabels")?.before(layer);
+
+  applyMapState({ focus: province.region, selected: province.id });
+  flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [px0, py0, px1, py1 + unit * 7] }], 0.08));
+  window.setTimeout(() => {
+    if (token === terrainToken && cardOpen()) layer.classList.add("shown");
+  }, FLY_MS * 0.6);
+}
+
 // The text on the left while looking at the land: what the province has to build with
 function showTerrainHero(province: Province, map: PresetMap): void {
   const region = data?.regions.find((r) => r.id === province.region);
@@ -1296,6 +1344,8 @@ function showTerrainHero(province: Province, map: PresetMap): void {
   }
   body.appendChild(list);
   for (const note of resourceNotes(province.tags ?? [], map.stats)) body.appendChild(element("p", "ppNote", t(note)));
+  const transport = transportList(province, map);
+  if (transport) body.append(element("h4", undefined, t("picker.transport")), transport);
   // What its region's and its own rules change, in numbers (src/provinceRules.ts)
   const effects = data?.rules
     ? ruleEffects(resolveRules(data.rules, province.region, province.id), (month) => t(`month.${month}`))
@@ -1314,6 +1364,36 @@ function showTerrainHero(province: Province, map: PresetMap): void {
     sub: `${t("picker.terrain_title")} · ${region ? localName(region) : ""}`,
     body,
   });
+}
+
+// What links the province to the rest of the country (src/geo/provinceTransport.ts): its laterite roads and railways
+// to the neighbours, its waterways and the sea; null for a map that does not know (format 1)
+function transportList(province: Province, map: PresetMap): HTMLElement | null {
+  const transport = provinceTransport(map, province.tags ?? []);
+  if (!hasTransport(transport)) return null;
+  const nameOf = (id: string): string => {
+    const neighbor = data?.provinces.get(id);
+    return neighbor ? localName(neighbor) : id;
+  };
+  const list = element("ul", "ppResourceList ppTransport");
+  const add = (colour: string, text: string): void => {
+    const item = element("li");
+    const dot = element("span", "ppSwatch");
+    dot.style.background = colour;
+    item.append(dot, element("span", undefined, text));
+    list.appendChild(item);
+  };
+  const places = transport.roads.map((road) => (road.ref
+    ? t("transport.road_ref", { province: nameOf(road.neighbor), ref: road.ref })
+    : nameOf(road.neighbor)));
+  add(TRANSPORT_COLORS[1], places.length ? t("transport.roads", { places: places.join(", ") }) : t("transport.no_roads"));
+  if (transport.rails.length) add(TRANSPORT_COLORS[2], t("transport.rails", { places: transport.rails.map(nameOf).join(", ") }));
+  if (transport.waterways.length) {
+    const rivers = transport.waterways.map((waterway) => waterwayName(waterway, getLanguage()));
+    add(PRESET_COLORS[1], t("transport.waterways", { rivers: rivers.join(", ") }));
+  }
+  for (const sea of transport.seas) add(PRESET_COLORS[1], t(`transport.sea_${sea}`));
+  return list;
 }
 
 // Hides every menu, card and text so only the bamboo and the map remain; the toggle itself stays.

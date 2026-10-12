@@ -80,15 +80,20 @@ const OVERPASS_URLS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 const OVERPASS_MIN_INTERVAL_MS = 2000;
-const OVERPASS_MAX_ATTEMPTS = 12;
+const OVERPASS_MAX_ATTEMPTS = 20;
+// Waits between tries grow from 3 s and stop growing at two minutes: a busy server can take a while to have room
+const OVERPASS_MAX_WAIT_MS = 120000;
+const backoff = (attempt) => Math.min(OVERPASS_MAX_WAIT_MS, 3000 * 2 ** Math.floor(attempt / OVERPASS_URLS.length));
 const OVERPASS_BUSY_STATUSES = new Set([429, 502, 503, 504]);
 let lastOverpassRequest = 0;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const retrying = (cacheName, problem) => console.warn(`  ${cacheName}: ${problem}, trying again`);
 
 // Cached, rate-limited Overpass request. Retries with backoff and rotates instances when
-// a server is busy (GEO_SPEC section 12).
-export async function overpass(query, cacheName) {
+// a server is busy (GEO_SPEC section 12). Big downloads pass slim, which trims the answer before
+// it is cached on one line instead of indented.
+export async function overpass(query, cacheName, { slim = null } = {}) {
   const cacheFile = path.join(CACHE_DIR, 'overpass', `${cacheName}.json`);
   if (fs.existsSync(cacheFile)) {
     return readJson(cacheFile);
@@ -103,33 +108,48 @@ export async function overpass(query, cacheName) {
     lastOverpassRequest = Date.now();
     const url = OVERPASS_URLS[attempt % OVERPASS_URLS.length];
 
+    // A server that takes the request but never answers is given up on a minute after the query's own time limit
+    const queryLimitS = Number(/\[timeout:(\d+)\]/.exec(query)?.[1] ?? 180);
     let response;
+    let json;
     try {
       response = await fetch(url, {
         method: 'POST',
-        headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'User-Agent': USER_AGENT, 'Content-Type': 'application/x-www-form-urlencoded', 'Accept-Encoding': 'gzip',
+        },
         body: new URLSearchParams({ data: query }),
+        signal: AbortSignal.timeout((queryLimitS + 60) * 1000),
       });
+      if (response.ok) json = await response.json();
     } catch (error) {
       lastProblem = `${url}: ${error.message}`;
-      await sleep(3000 * 2 ** Math.floor(attempt / OVERPASS_URLS.length));
+      retrying(cacheName, lastProblem);
+      await sleep(backoff(attempt));
       continue;
     }
 
     if (OVERPASS_BUSY_STATUSES.has(response.status)) {
       lastProblem = `${url}: HTTP ${response.status}`;
-      await sleep(3000 * 2 ** Math.floor(attempt / OVERPASS_URLS.length));
+      retrying(cacheName, lastProblem);
+      await sleep(backoff(attempt));
       continue;
     }
     if (!response.ok) {
       throw new Error(`Overpass request "${cacheName}" failed with ${response.status} at ${url}`);
     }
 
-    const json = await response.json();
     if (json.remark && /runtime error|timed out/i.test(json.remark)) {
       // Overpass reports query timeouts inside a 200 response; never cache a partial result.
       lastProblem = `${url}: ${json.remark}`;
+      retrying(cacheName, lastProblem);
       continue;
+    }
+    if (slim) {
+      const trimmed = slim(json);
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify(trimmed));
+      return trimmed;
     }
     writeJson(cacheFile, json);
     return json;

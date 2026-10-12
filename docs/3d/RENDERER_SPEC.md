@@ -152,6 +152,25 @@ changes. To share geometry, reduce it to a small number of seed buckets per mode
 
 **Regions.** Every R1 and R2 model is built for `setup.region`. Vegetation and palettes follow the region too.
 
+## 6B. Province maps (added 12 Oct 2026)
+
+A province city is played on the **whole province, scaled down** (owner, 12 Oct 2026; `docs/geo/GEO_SPEC.md`):
+maps of up to 304 × 304 tiles (about 38,000–81,000 tiles, 58,000 on average). The game sets two fields on the map,
+which the renderer only reads:
+
+| Field | Meaning |
+|---|---|
+| `gameMap.insideProvince` | `Uint8Array`, one byte per tile (`x + y * width`): 1 in the province, 0 outside it. `null` on practice maps: every tile is inside. |
+| `gameMap.town` | `{ x, y }`, the provincial town's tile, or `null`. The game calls `centreOn(town)` once when a city opens. |
+
+- **Outside tiles** show the real land around the province but can never be built on (the game refuses every tool
+  there and turns the tool outline red). Draw them dimmed and less saturated, about 45% brightness, and the
+  province's edge as a thin line between inside and outside tiles, visible from any zoom.
+- **Level-1 roads are laterite (ถนนลูกรัง).** The map starts with one laterite road to each neighbouring province; the
+  player's roads are level 1 too until road levels exist (asphalt, concrete: `docs/POLISH_BACKLOG.md`).
+- `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
+  `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`
@@ -175,7 +194,8 @@ changes. To share geometry, reduce it to a small number of seed buckets per mode
   compare and mark changed chunks dirty: 40,000 comparisons per frame is cheap. Rebuild dirty chunks in a time
   slice of at most 4 ms per frame, visible chunks first. Building a whole province must not freeze the page: show
   the ground first, then fill in.
-- Targets for a full 200 × 200 city on a mid-range laptop at 1920 × 1080, devicePixelRatio capped at 2:
+- Targets for a full 304 × 304 city (the largest province map, section 6B) on a mid-range laptop at 1920 × 1080,
+  devicePixelRatio capped at 2:
   **60 fps** at the default zoom, at least 40 fps zoomed out over the whole map, at most 400 draw calls,
   first frame within 2 s of `createCityView3D`.
 - Far away: hide props and anchors, then use simplified zone boxes (LOD), before dropping frame rate.

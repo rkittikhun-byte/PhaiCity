@@ -122,6 +122,7 @@
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |
 | `tool.msg.needs_doze` | `src/text.js` | `Area must be bulldozed first` | `Clear area with bulldoze first` | `ต้องรื้อถอนพื้นที่เดิมก่อนสร้าง` | แสดงที่ toolOutput |
+| `tool.outside_province` | `src/game.js` | — | `Only your own province can be built on` | `สร้างนอกเขตจังหวัดไม่ได้` | คลิกเครื่องมือนอกเขตจังหวัดบนแผนที่ทั้งจังหวัด (Claude Code 12 ต.ค. 2026) |
 
 ---
 
@@ -734,6 +735,14 @@
 | `picker.difficulty.3` | `src/provincePicker.ts` | `-` | `Hard` | `ยาก` |  |
 | `picker.resources` | `src/provincePicker.ts` | `-` | `Resources` | `ทรัพยากร` |  |
 | `picker.rules` | `src/provincePicker.ts` | `-` | `How it plays` | `กติกาจังหวัด` | กติกาภาคและจังหวัด (`src/provinceRules.ts`, Claude Code 12 ต.ค. 2026) |
+| `picker.transport` | `src/provincePicker.ts` | `-` | `Transport` | `การคมนาคม` | ถนน ราง ทางน้ำ ทางทะเล ของจังหวัด (`src/geo/provinceTransport.ts`, Claude Code 12 ต.ค. 2026) |
+| `transport.roads` | `src/provincePicker.ts` | `-` | `Laterite roads to {places}` | `ถนนลูกรังไป {places}` | ถนนหลักสายเดียวไปแต่ละจังหวัดข้างเคียง (เจ้าของ 12 ต.ค. 2026) |
+| `transport.road_ref` | `src/provincePicker.ts` | `-` | `{province} (Route {ref})` | `{province} (ทางหลวง {ref})` | {ref} คือหมายเลขทางหลวง |
+| `transport.no_roads` | `src/provincePicker.ts` | `-` | `No main road to a neighbouring province yet` | `ยังไม่มีถนนหลักไปจังหวัดข้างเคียง` |  |
+| `transport.rails` | `src/provincePicker.ts` | `-` | `Railway to {places}` | `ทางรถไฟไป {places}` |  |
+| `transport.waterways` | `src/provincePicker.ts` | `-` | `Waterways: {rivers}` | `ทางน้ำ: {rivers}` | แม่น้ำสายใหญ่ที่ไหลผ่าน ใช้เดินเรือได้ (เจ้าของ 12 ต.ค. 2026) |
+| `transport.sea_gulf` | `src/provincePicker.ts` | `-` | `By sea: the Gulf of Thailand` | `ทางทะเล: อ่าวไทย` |  |
+| `transport.sea_andaman` | `src/provincePicker.ts` | `-` | `By sea: the Andaman Sea` | `ทางทะเล: ทะเลอันดามัน` |  |
 | `rules.demand.residential` | `src/provinceRules.ts` | `-` | `Demand for homes {change}` | `คนอยากได้บ้าน {change}` | {change} เช่น +40% |
 | `rules.demand.commercial` | `src/provinceRules.ts` | `-` | `Demand for shops {change}` | `คนอยากได้ร้านค้า {change}` |  |
 | `rules.demand.industrial` | `src/provinceRules.ts` | `-` | `Demand for factories {change}` | `คนอยากได้โรงงาน {change}` |  |

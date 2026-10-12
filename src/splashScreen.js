@@ -18,7 +18,7 @@ import { chooseViewKind } from './cityViewChoice.ts';
 import { loadCityView3D } from './cityView3dLoader.ts';
 import { showCornerNote } from './cornerNote.ts';
 import { Game } from './game.js';
-import { decodePresetCells } from './geo/presetMap.ts';
+import { decodePresetCells, decodePresetLayer } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
@@ -113,11 +113,19 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 
 
 // Builds the province's real-geography map and starts the city on it. We won't return from here.
+// A whole-province map (format 2) also brings its railways and roads to the neighbours, which tiles are in the
+// province (only those can be built on) and the town the camera starts at (docs/geo/GEO_SPEC.md section 10).
 var startProvince = function(provinceId, cityName, difficulty) {
   var self = this;
 
   fetchJson('data/maps/' + provinceId + '.json').then(function(preset) {
-    var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset));
+    var layer = function(encoded) {
+      return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
+    };
+    var map = MapGenerator.fromPresetCells(preset.width, preset.height, decodePresetCells(preset),
+                                           layer(preset.transport));
+    map.insideProvince = layer(preset.inside);
+    map.town = preset.town || null;
     map.provinceId = provinceId;
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);

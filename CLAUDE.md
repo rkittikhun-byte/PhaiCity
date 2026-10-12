@@ -51,6 +51,8 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run lint` | **Broken**: tslint is not installed |
 | `npm run geo:national` | Thai province shapes from Natural Earth → `data/geo/thailand-provinces.topo.json` |
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
+| `npm run geo:download` | OpenStreetMap main roads, railways, coast, rivers, lakes and forest for all of Thailand, in 1° squares → `data/geo/cache/overpass/national/` (gitignored; about 300 MB; cached, so a rerun downloads nothing) |
+| `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
 | `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
@@ -157,6 +159,13 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   congratulations window opens once per new rank (`game.processFrontEndMessage`).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
+  **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side
+  (`docs/geo/GEO_SPEC.md`). The map brings the real railways and one laterite road (ถนนลูกรัง) to each neighbouring
+  province, from the border to the town; every other road is the player's. Tiles outside the province
+  (`gameMap.insideProvince` 0) show the land around it but every tool is refused there (`CityCommands`,
+  `canBuildAt`; the tool outline turns red), and the mask is saved with the city as `inside`. The camera opens on
+  the town (`gameMap.town`, saved as `town`) and ⌂ returns to it. The province card lists its transport
+  (การคมนาคม: roads, railways, waterways, sea; `src/geo/provinceTransport.ts`). Old 2 × 2 km maps (format 1) still load.
   The game opens on a title page (`src/titleGate.ts`: the name, a flag per language, "sound on" and "Enter the game";
   that click is what lets the music start at once, as browsers need one; LINE and Google sign-in will join it), then a
   dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in
@@ -236,8 +245,9 @@ Even before any server exists, all new code must keep this future possible:
 
 ## Real geography
 
-- The national province picker uses real province shapes. Each province starts from the real natural
-  geography (water, coast, woods) of a 2 × 2 km area (200×200 tiles) around its city center. No real roads or buildings.
+- The national province picker uses real province shapes. Each province is played on the whole province, scaled
+  down: its real shape, water, coast and woods, its real railways and one laterite road to each neighbour
+  (owner, 12 Oct 2026). No other real roads, and no buildings.
 - Read `docs/geo/GEO_SPEC.md` before touching `scripts/geo/`, `data/geo/` or `data/maps/`.
   The prompts are in `docs/geo/CODEX_PROMPTS.md`.
 - Only the data sources listed in GEO_SPEC section 3 are allowed:

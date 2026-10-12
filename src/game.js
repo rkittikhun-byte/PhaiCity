@@ -18,7 +18,7 @@ import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
-import { CityCommands } from './cityCommands.ts';
+import { CityCommands, footprint, OUTSIDE_PROVINCE } from './cityCommands.ts';
 import { showDemandAndPeople } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -29,6 +29,7 @@ import { DebugWindow } from './debugWindow.js';
 import { DisasterWindow } from './disasterWindow.js';
 import { EvaluationWindow } from './evaluationWindow.js';
 import { GameMap } from './gameMap.js';
+import { decodePresetLayer, encodePresetLayer } from './geo/presetMap.ts';
 import { GraphWindow } from './graphWindow.js';
 import { formatMoney, onLanguageChange, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
@@ -38,7 +39,7 @@ import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { installMousePan, installViewControls, panOf } from './viewControls.ts';
+import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -59,6 +60,10 @@ import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
 
 var disasterTimeout = 20 * 1000;
+
+// A tool outside the province: its outline turns this colour, and a click says why nothing happens
+var OUTSIDE_COLOUR = '#e0453a';
+var OUTSIDE_NOTE_MS = 2500;
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
 var MILESTONES = {};
@@ -93,6 +98,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   var savedMeta = this.cityId ? listCities().find(function(city) { return city.id === this.cityId; }, this) : null;
   this.lastSavedAt = savedMeta ? savedMeta.savedAt : null;
   this.worldId = source.worldId || null;
+  // A whole-province map: which tiles are the province's, the only ones that can be built on, and its town, where
+  // the camera starts (docs/geo/GEO_SPEC.md section 10). A new city brings them on its map, a saved one in its save.
+  if (savedGame) {
+    this.gameMap.insideProvince = savedGame.inside ?
+      decodePresetLayer(savedGame.inside, this.gameMap.width, this.gameMap.height) : null;
+    this.gameMap.town = savedGame.town || null;
+  }
 
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
@@ -140,7 +152,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     setAutoBulldoze: BaseTool.setAutoBulldoze,
     // For undo: the map to put back, and the time, as only recent building can be undone
     map: this.gameMap,
-    cityTime: function() { return simulation._cityTime; }
+    cityTime: function() { return simulation._cityTime; },
+    canBuildAt: canBuildIn(this.gameMap)
   });
 
   // Sound only listens to the game; it never changes the city
@@ -363,6 +376,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The 3D view's turn and reset buttons, and sliding the city with the mouse when no tool is in hand
   // (src/viewControls.ts), with a note on the mouse the first time
   installViewControls(this.cityView);
+  // A whole-province city opens on its town, and ⌂ brings the camera back there
+  var town = this.gameMap.town || null;
+  setViewHome(town);
+  if (town !== null)
+    this.cityView.centreOn(town.x, town.y);
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; });
   if (panOf(this.cityView) !== null)
     showCornerNoteOnce('phaicity.mouseHint', t('view.mouse_hint'), 10000);
@@ -390,7 +408,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
                   provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank,
-                  goals: this.rulerGoals.state(), news: this.newsLog.items()};
+                  goals: this.rulerGoals.state(), news: this.newsLog.items(),
+                  // A whole-province map's own tiles and town (run-length encoded like the map)
+                  inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
+                  town: this.gameMap.town || undefined};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -509,9 +530,19 @@ var createView3D = function(game, view3d) {
 // The one way the player changes the city (src/cityCommands.ts)
 Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
-  if (!outcome.accepted)
+  // Building outside the province is refused all the time, and says so where the player looks (handleTool)
+  if (!outcome.accepted && outcome.reason !== OUTSIDE_PROVINCE)
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
+};
+
+
+// Whether a tile may be built on: on a whole-province map only the province's own tiles may (src/cityCommands.ts)
+var canBuildIn = function(gameMap) {
+  return function(x, y) {
+    var inside = gameMap.insideProvince;
+    return !inside || inside[x + y * gameMap.width] === 1;
+  };
 };
 
 
@@ -669,8 +700,14 @@ Game.prototype.handleTool = function(data) {
     tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
     result = tool.result;
   } else {
-    result = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
-                                stroke: data.stroke}).toolResult;
+    var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
+                                     stroke: data.stroke});
+    result = outcome.toolResult;
+    if (outcome.reason === OUTSIDE_PROVINCE) {
+      showCornerNote(t('tool.outside_province'), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
   }
 
   this.showToolResult(tool, result);
@@ -802,6 +839,10 @@ Game.prototype.calculateMouseForPaint = function() {
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+  // Red where the tool would reach outside the province, which cannot be built on
+  var canBuildAt = canBuildIn(this.gameMap);
+  if (footprint(tile.x, tile.y, hover.size).some(function(spot) { return !canBuildAt(spot.x, spot.y); }))
+    hover.colour = OUTSIDE_COLOUR;
 
   // While a zone tool drags an area, show every zone it will lay
   var drag = this.inputStatus.areaDrag;

@@ -84,6 +84,16 @@ function setPose(camera: CameraLike, pose: Pose): void {
 // The flight home in progress; any drag, key turn or zoom by the player stops it where it is
 let homeFlight = 0;
 
+/** Metres per map tile in the 3D world (docs/3d/MODEL_SPEC.md: TILE_M). */
+const TILE_M = 10;
+// The tile ⌂ comes back to: a whole-province city's town, or null for the middle of the map
+let homeTile: { x: number; y: number } | null = null;
+
+/** Sets where ⌂ brings the camera back to: a whole-province city's town (src/game.js), or null for the map's middle. */
+export function setViewHome(tile: { x: number; y: number } | null): void {
+  homeTile = tile;
+}
+
 /** Stops a flight home in progress. */
 export function stopHomeFlight(): void {
   if (homeFlight) cancelAnimationFrame(homeFlight);
@@ -92,12 +102,17 @@ export function stopHomeFlight(): void {
 
 /**
  * Flies the camera home: it slides, turns, tilts and zooms together back to the view a city opens with (owner,
- * 12 Oct 2026). The opening view is read from the camera's own reset(), so it is never written down twice.
+ * 12 Oct 2026). The opening view is read from the camera's own reset(), so it is never written down twice; on a
+ * whole-province map it looks at the town instead of the map's middle.
  */
 function flyHome(camera: CameraLike & { reset(): unknown }): void {
   stopHomeFlight();
   const from = poseOf(camera);
   camera.reset();
+  if (homeTile && camera.target) {
+    camera.target.x = (homeTile.x + 0.5) * TILE_M;
+    camera.target.z = (homeTile.y + 0.5) * TILE_M;
+  }
   const to = poseOf(camera);
   if (!from || !to) return;
   if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
