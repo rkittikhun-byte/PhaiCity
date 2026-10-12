@@ -5,6 +5,7 @@
 import { Group } from 'three';
 import type { ModelOptions } from '../models/registry.js';
 import { createRail } from '../models/rail/rail.js';
+import { createElevatedRail, ElevatedStyle, rampVariant } from '../models/rail/elevated.js';
 import { CURVE_RADIUS, RAIL_MASKS, TrackKind } from '../models/rail/track.js';
 import { createTerrain } from '../models/terrain/terrain.js';
 
@@ -12,7 +13,8 @@ import { createTerrain } from '../models/terrain/terrain.js';
 export function railNeighbors(id: string, options: ModelOptions): Group {
   const root = new Group(); root.name = 'gallery/rail-neighbors';
   if (!id.startsWith('rail.')) return root;
-  const kind = id.slice(5), mask = RAIL_MASKS[kind as TrackKind] ?? 5, bridge = kind === 'bridge';
+  const elevated = /^rail\.(hsr|metro)_(.+)$/.exec(id);
+  const kind = elevated?.[2] ?? id.slice(5), mask = RAIL_MASKS[kind as TrackKind] ?? 5, bridge = kind === 'bridge';
   for (let z = -1; z <= 1; z++) for (let x = -1; x <= 1; x++) {
     if (!x && !z) continue;
     const direction = z < 0 ? 1 : x > 0 ? 2 : z > 0 ? 4 : 8;
@@ -25,7 +27,10 @@ export function railNeighbors(id: string, options: ModelOptions): Group {
       const length = x && ['corner', 't'].includes(kind) ? CURVE_RADIUS * Math.PI / 2 : 10;
       opts.sleeperOffset = x ? (x > 0 ? -(start + length + 10) : -start) : start + z * 10;
     }
-    const tile = connected ? createRail(bridge ? 'bridge' : 'straight', opts)
+    const ramp = rampVariant(options.variant) + z;
+    const tile = connected && elevated && !(kind === 'ramp' && ramp < 0)
+      ? createElevatedRail(elevated[1] as ElevatedStyle, kind === 'ramp' && ramp < 3 ? 'ramp' : 'straight', { ...opts, variant: ramp })
+      : connected && !elevated ? createRail(bridge ? 'bridge' : 'straight', opts)
       : createTerrain(bridge ? 'water' : 'dirt', { ...opts, landMask: 0 });
     if (connected && x) tile.rotation.y = -Math.PI / 2;
     tile.position.set(x * 10, 0, z * 10); root.add(tile);

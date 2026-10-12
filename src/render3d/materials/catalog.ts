@@ -17,11 +17,29 @@ export interface TextureDefinition {
   pattern?: 'cement' | 'curb' | 'water';
 }
 
+/** Shared CC0 source sets also supply regional finishes without duplicate files. */
+function regionalScan(source: string, meters: readonly [number, number], label: string): TextureDefinition {
+  const asset = (map: string, identity: string): TextureAsset => ({
+    file: `assets/textures/sources/${source}/${map}.jpg`, identity: `${source}:${identity}`, meters,
+  });
+  const orm = asset('orm', 'ORM');
+  return { label, sources: [`https://polyhaven.com/a/${source}`], maps: {
+    color: asset('color', 'Diffuse'), normal: asset('normal', 'nor_gl'), roughness: orm, ao: orm, metalness: orm,
+  } };
+}
+
 /** Source dimensions preserve world-scale repeats. Scalar maps alias one source ORM
  * image: AO reads R, roughness reads G, metalness reads B, all in NoColorSpace.
  * Cement roofing retains its independent AO and roughness source scales.
  */
 export const TEXTURE_CATALOG = {
+  roof_glazed_tile: regionalScan('clay_roof_tiles', [4, 4], 'กระเบื้องเคลือบสี'),
+  roof_wood_shingle: regionalScan('teak_veneer', [1, 1], 'แป้นเกล็ดไม้สัก · ผิวไม้ทดแทน'),
+  thatch_grass: regionalScan('reed_roof_03', [2.5, 2.5], 'หลังคามุงหญ้า · ผิวกกทดแทน'),
+  thatch_nipa: regionalScan('reed_roof_03', [2.5, 2.5], 'หลังคาจาก · ผิวกกทดแทน'),
+  bamboo_split: regionalScan('bamboo_veneer', [1, 1], 'ฟากไม้ไผ่ · ผิวไม้ไผ่ทดแทน'),
+  bamboo_woven: regionalScan('bamboo_wall_02', [1.7, 1.7], 'ไม้ไผ่สานขัดแตะ'),
+  stucco_ornament: regionalScan('white_plaster_rough_01', [1, 1], 'ปูนปั้นประดับ'),
   "plaster_white": {
     "label": "ปูนขาวเก่าคราบฝน",
     "sources": [

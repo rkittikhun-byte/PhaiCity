@@ -21,6 +21,13 @@ const definitions = {
   roof_metal_corrugated: { color: 0xaeb9bb, roughness: 0.6, metalness: 0.65 },
   roof_metal_rusty: { color: 0x94583b, roughness: 0.95, metalness: 0.25 },
   roof_metal_sheet: { color: 0x566c73, roughness: 0.4, metalness: 0.75 },
+  roof_glazed_tile: { color: 0x537c76, roughness: 0.24 },
+  roof_wood_shingle: { color: 0x715337, roughness: 0.95 },
+  thatch_grass: { color: 0xbc9b62, roughness: 1 },
+  thatch_nipa: { color: 0x92734f, roughness: 1 },
+  bamboo_split: { color: 0xb99a61, roughness: 0.92 },
+  bamboo_woven: { color: 0xb39960, roughness: 0.95 },
+  stucco_ornament: { color: 0xf1e6d4, roughness: 0.85 },
   wood_teak: { color: 0x865b32, roughness: 0.85 },
   wood_painted: { color: 0xb2c3b4, roughness: 0.85 },
   metal_steel: { color: 0x6d797c, roughness: 0.45, metalness: 0.85 },
@@ -53,7 +60,7 @@ const statuses = new Map<MaterialKey, 'loading' | 'ready' | 'fallback'>();
 let nightMode = false;
 let previewGround: MeshStandardMaterial | undefined;
 
-/** Neutral diagnostic backdrop, kept outside the 32 model-facing material keys. */
+/** Neutral diagnostic backdrop, kept outside the model-facing material keys. */
 export function getPreviewGround(): MeshStandardMaterial {
   if (!previewGround) {
     previewGround = new MeshStandardMaterial({ color: 0xd9ddd1, roughness: 1 });
@@ -75,7 +82,7 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
   material.metalnessMap = maps.metalness ?? null;
   material.alphaMap = maps.alpha ?? null;
   if (material.map && !material.userData.tinted && !material.userData.keepColorMap &&
-    !['plaster_white', 'plaster_cream', 'plaster_tint', 'roof_cement_tile', 'wood_painted'].includes(key)) material.color.setHex(0xffffff);
+    !['plaster_white', 'plaster_cream', 'plaster_tint', 'roof_cement_tile', 'roof_glazed_tile', 'stucco_ornament', 'wood_painted'].includes(key)) material.color.setHex(0xffffff);
   material.normalScale.setScalar(key.startsWith('glass_') ? 0.025 : key === 'fabric_canvas' ? 0.35 : 0.65);
   if (key.startsWith('water_')) {
     material.normalMap = getWaterNormal();
@@ -85,7 +92,7 @@ function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: T
   if (key === 'roof_cement_tile') material.metalness = 0;
   if (material.userData.polishedStone) { material.roughness = 0.22; material.normalScale.setScalar(0.1); }
   if (maps.alpha) material.alphaTest = 0.45;
-  if (key.startsWith('plaster_') || key === 'roof_cement_tile') {
+  if (key.startsWith('plaster_') || ['roof_cement_tile', 'roof_glazed_tile', 'stucco_ornament'].includes(key)) {
     // A neutral painted coat retains scan grain while keeping seeded pastels legible.
     material.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
@@ -188,8 +195,8 @@ export function paintedSteel(color: ColorRepresentation): MeshStandardMaterial {
 }
 
 /** Neutral concrete keeps scan wear without importing the scan's warm stone color. */
-export function roadConcrete(): MeshStandardMaterial {
-  return finishedMaterial('road-concrete', 'concrete_raw', 0xa6aba6, material => {
+export function roadConcrete(color: ColorRepresentation = 0xa6aba6): MeshStandardMaterial {
+  return finishedMaterial('road-concrete', 'concrete_raw', color, material => {
     material.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         #ifdef USE_MAP
@@ -198,6 +205,56 @@ export function roadConcrete(): MeshStandardMaterial {
         #endif`);
     };
     material.customProgramCacheKey = () => 'phaicity-road-concrete';
+  });
+}
+
+/** Baked vertex colors preserve many pastel / canvas finishes in a single batch. */
+export function vertexFinish(key: MaterialKey): MeshStandardMaterial {
+  return finishedMaterial(`vertex-finish-${key}`, key, 0xffffff, material => {
+    material.vertexColors = true; material.userData.vertexFinish = true;
+    if (key === 'metal_painted') {
+      material.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          #ifdef USE_MAP
+            float paintGrain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+            diffuseColor.rgb = diffuse * (0.82 + 0.18 * paintGrain);
+          #endif`);
+      };
+      material.customProgramCacheKey = () => 'phaicity-vertex-painted-metal';
+    }
+  });
+}
+
+const commercialDisplayClock = { value: 0 };
+/** Fictional moving color bands and visible LED pixels; no external image or brand. */
+export function commercialLEDMaterial(): MeshStandardMaterial {
+  return finishedMaterial('commercial-led', 'emissive_window', 0xffffff, material => {
+    material.userData.commercialLED = true; material.userData.keepColorMap = true;
+    material.map = null; material.emissive.setHex(0xffffff); material.roughness = 0.55;
+    material.onBeforeCompile = shader => {
+      shader.uniforms.commercialTime = commercialDisplayClock;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 displayUV;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ndisplayUV = uv;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float commercialTime;\nvarying vec2 displayUV;')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          vec2 cell = fract(displayUV * vec2(64.0, 36.0));
+          float dots = 1.0 - smoothstep(0.34, 0.47, length(cell - 0.5));
+          float sweep = 0.5 + 0.5 * sin(displayUV.x * 9.0 + displayUV.y * 5.0 - commercialTime * 0.65);
+          vec3 pixels = mix(vec3(0.10, 0.37, 0.43), vec3(0.77, 0.55, 0.27), sweep);
+          diffuseColor.rgb *= pixels * (0.25 + dots * 0.75);
+          totalEmissiveRadiance *= pixels * dots;`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-commercial-led-v1';
+  });
+}
+export function updateCommercialDisplays(seconds: number): void {
+  if (Number.isFinite(seconds)) commercialDisplayClock.value = seconds;
+}
+
+/** A dedicated batch for the moving observation ring, separate from static tower steel. */
+export function observationDeckMaterial(): MeshStandardMaterial {
+  return finishedMaterial('observation-deck', 'metal_steel', 0x9faeb2, material => {
+    material.roughness = 0.34; material.userData.observationDeck = true;
   });
 }
 

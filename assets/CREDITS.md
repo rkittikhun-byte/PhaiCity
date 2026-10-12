@@ -83,6 +83,22 @@ All textures and the sky are **CC0 1.0**: [Poly Haven license](https://polyhaven
 
 ## Adaptations
 
+### Regional finishes (Prompt 6A, 2026-10-11)
+
+All seven finishes below use **CC0 1.0** Poly Haven scans, at 1024 × 1024. Each source is stored once; ORM uses R=AO, G=roughness, B=metalness. New albedos are JPEG quality 82, normals quality 86 (4:2:0), ORM quality 80 (4:4:4). Fifteen existing Poly Haven normals were also encoded from original 1K PNGs with this quality-86 profile to keep the whole texture payload below 15 MB; their source and measured scale remain unchanged. Conversion is reproducible with `node src/render3d/dev/convert-regional-textures.ts --input RAW --output NEW` (Node 22.18+). Each downloaded original was verified against the provider's MD5. No original PNGs are shipped.
+
+| Material key | CC0 source | Shared directory / adaptation |
+|---|---|---|
+| `roof_glazed_tile` | [clay_roof_tiles](https://polyhaven.com/a/clay_roof_tiles) | `textures/sources/clay_roof_tiles/`: color.jpg, normal.jpg, orm.jpg; neutral grain and lower roughness approximate a tinted ceramic glaze |
+| `roof_wood_shingle` | [teak_veneer](https://polyhaven.com/a/teak_veneer) | `textures/sources/teak_veneer/`: color.jpg, normal.jpg, orm.jpg; closest teak grain, with lapped shingles built in geometry; not a shingle scan |
+| `thatch_grass` | [reed_roof_03](https://polyhaven.com/a/reed_roof_03) | `textures/sources/reed_roof_03/`: color.jpg, normal.jpg, orm.jpg; reed thatch is the closest scan to local grass bundles |
+| `thatch_nipa` | [reed_roof_03](https://polyhaven.com/a/reed_roof_03) | Same shared files; brown tint and broad layered geometry approximate nipa; not a nipa scan |
+| `bamboo_split` | [bamboo_veneer](https://polyhaven.com/a/bamboo_veneer) | `textures/sources/bamboo_veneer/`: color.jpg, normal.jpg, orm.jpg; laminated bamboo grain is the closest scan; split strips built in geometry |
+| `bamboo_woven` | [bamboo_wall_02](https://polyhaven.com/a/bamboo_wall_02) | `textures/sources/bamboo_wall_02/`: color.jpg, normal.jpg, orm.jpg; woven bamboo, 1.7 m repeat |
+| `stucco_ornament` | [white_plaster_rough_01](https://polyhaven.com/a/white_plaster_rough_01) | Existing shared plaster maps; tinted neutral coat on modeled mouldings, arches and pediments |
+
+The authoritative source pages linked above retain the creators' attribution records. Approximate architectural finishes are explicitly distinguished from exact local scans.
+
 - `roof_cement_tile`: concrete colour and roughness from Concrete Wall 006, corrugation normal/AO from Corrugated Iron; metalness is zero. This is a composite approximating grey Thai fibre-cement roofing, not a scan of Thai double-wave tiles. A later roof model should build its corrugated silhouette in geometry.
 - Plaster and cement coats neutralise the scan colour and retain its grain in the shader, so white plaster and seeded shophouse pastels read as paint rather than brown raw scan colour. The re-encoded scan retains its grain and original dimensions.
 - Road paint uses only plaster micro-normal/roughness/AO; the colour stays white or yellow. Curb red/white bands are generated in code over that surface.

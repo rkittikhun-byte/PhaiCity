@@ -8,9 +8,9 @@ import { registry } from '../../src/render3d/models/registry.js';
 import { VEHICLE_IDS } from '../../src/render3d/models/vehicles/index.js';
 import { countDrawCalls, countTriangles, disposeModel, visibleMeshes } from '../../src/render3d/util/geometry.js';
 
-describe('Prompt 16: Vehicles (category veh)', () => {
-  it('registers all 15 vehicle models in registry', () => {
-    expect(VEHICLE_IDS).toHaveLength(15);
+describe('Vehicles (Prompts 16 and 5B, category veh)', () => {
+  it('registers all 17 vehicle models in registry', () => {
+    expect(VEHICLE_IDS).toHaveLength(17);
     for (const id of VEHICLE_IDS) {
       const entry = registry[id];
       expect(entry).toBeDefined();

@@ -11,20 +11,26 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { TILE_M, WATER_Y } from '../constants.js';
-import { getMaterial, getPreviewGround, MATERIAL_KEYS, MaterialKey, materialTextureStatus, setNightMode, SHOPHOUSE_PASTELS, updateRoadSignals, whenMaterialReady } from '../materials/library.js';
+import { getMaterial, getPreviewGround, MATERIAL_KEYS, MaterialKey, materialTextureStatus, setNightMode, SHOPHOUSE_PASTELS, updateRoadSignals, updateCommercialDisplays, whenMaterialReady } from '../materials/library.js';
 import { DAY_SKY_URL, TEXTURE_CATALOG } from '../materials/catalog.js';
 import { FICTIONAL_THAI_SIGNS, thaiSign } from '../materials/signs.js';
-import { ModelOptions, ModelRegistration, registry } from '../models/registry.js';
+import { ModelFactory, ModelOptions, ModelRegistration, registry } from '../models/registry.js';
 import type { RegionId } from '../regional/types.js';
 import { applyWorldUV, countDrawCalls, countTriangles, disposeModel, visibleBounds } from '../util/geometry.js';
 import { scrollWaterNormals } from '../util/water-animation.js';
 import { terrainNeighbors } from './terrain-neighbors.js';
 import { roadNeighbors } from './road-neighbors.js';
 import { railNeighbors } from './rail-neighbors.js';
+import { powerNeighbors } from './power-neighbors.js';
 import { CABLE_PREVIEW, CABLE_PREVIEW_ID, disposeCableBridgePreview } from './cable-bridge-preview.js';
+import { ELEVATED_PREVIEWS } from './elevated-preview.js';
+import { getRegionKit, REGIONS } from '../regional/index.js';
+import { regionalSamples, regionLineup } from './regional-preview.js';
+import { animateCommercialModels } from '../models/commercial/landmarks.js';
 
 const modelNeighbors = (id: string, options: ModelOptions): Group => id.startsWith('road.')
-  ? roadNeighbors(id, options) : id.startsWith('rail.') ? railNeighbors(id, options) : terrainNeighbors(id, options);
+  ? roadNeighbors(id, options) : id.startsWith('rail.') ? railNeighbors(id, options)
+    : id.startsWith('power.') ? powerNeighbors(id, options) : terrainNeighbors(id, options);
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -47,7 +53,7 @@ function translatePage(): void {
 
 interface View {
   id: string;
-  kind: 'model' | 'assembly' | 'material' | 'sign';
+  kind: 'model' | 'assembly' | 'material' | 'sign' | 'kit' | 'lineup';
   entry: ModelRegistration;
   scene: Scene;
   camera: PerspectiveCamera;
@@ -61,8 +67,8 @@ interface View {
   metrics?: HTMLElement;
 }
 
-const isModelView = (view: Pick<View, 'kind'>): boolean => view.kind === 'model' || view.kind === 'assembly';
-const freeRoot = (view: View): void => view.kind === 'assembly' ? disposeCableBridgePreview(view.root) : disposeModel(view.root);
+const isModelView = (view: Pick<View, 'kind'>): boolean => ['model', 'assembly', 'kit', 'lineup'].includes(view.kind);
+const freeRoot = (view: View): void => view.id === CABLE_PREVIEW_ID ? disposeCableBridgePreview(view.root) : disposeModel(view.root);
 
 function startGallery(): void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -97,7 +103,7 @@ function startGallery(): void {
   let controls: OrbitControls | undefined;
   let frame = 0;
   let width = 0, height = 0;
-  let activeTab: 'models' | 'materials' = 'models';
+  let activeTab: 'models' | 'materials' | 'regions' = 'models';
   let environment: Texture | undefined;
   let environmentTarget: ReturnType<PMREMGenerator['fromEquirectangular']> | undefined;
   let disposed = false;
@@ -158,9 +164,10 @@ function startGallery(): void {
     const halfFov = Math.min(halfVerticalFov, Math.atan(Math.tan(halfVerticalFov) * aspect));
     let distance = Math.max(size.length() / 2, isModelView(view) ? TILE_M / 2 : 1) / Math.sin(halfFov) * 1.12;
     const direction = new Vector3(0.65, 0.85, 0.85).normalize();
-    if (view.kind === 'assembly') {
+    if (view.kind === 'assembly' || view.kind === 'lineup' || ['veh.train_hsr', 'veh.metro'].includes(view.id)) {
       // Fit the long span in screen space, with a broadside view of both cable fans.
       direction.set(1, 0.7, 0.25).normalize();
+      if (view.kind === 'lineup') direction.set(0.08, 0.85, 1).normalize();
       const right = new Vector3().crossVectors(new Vector3(0, 1, 0), direction).normalize();
       const up = new Vector3().crossVectors(direction, right);
       distance = 0;
@@ -183,16 +190,24 @@ function startGallery(): void {
   }
 
   function updateMetrics(view: View): void {
-    const triangles = countTriangles(view.root), calls = countDrawCalls(view.root) + (view.kind === 'assembly' ? 1 : 0);
+    const triangles = countTriangles(view.root), calls = countDrawCalls(view.root) + (view.id === CABLE_PREVIEW_ID ? 1 : 0);
     if (view.metrics) localText(view.metrics, `${view.entry.category} · ${triangles.toLocaleString()} สามเหลี่ยม · ${calls} draw calls`, `${view.entry.category} · ${triangles.toLocaleString()} triangles · ${calls} draw calls`);
     if (selected === view) {
       element('detail-id').textContent = view.id;
-      element('detail-category').textContent = view.kind === 'assembly' ? words('สะพานขึง · 21 ช่อง · สายขึง 40 เส้น', 'Cable bridge · 21 tiles · 40 stays') : view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
+      element('detail-category').textContent = view.kind === 'assembly' ? view.id === CABLE_PREVIEW_ID
+        ? words('สะพานขึง · 21 ช่อง · สายขึง 40 เส้น', 'Cable bridge · 21 tiles · 40 stays')
+        : words('ทางลาด 3 ช่อง + รางยกระดับ 1 ช่อง', '3 ramp tiles + 1 level viaduct tile')
+        : view.kind === 'lineup' ? words('เหนือ · อีสาน · กลาง · ตะวันออก · ตะวันตก · ใต้', 'North · Northeast · Central · East · West · South')
+          : view.kind === 'kit' ? words('ชิ้นส่วนชุดภาค', 'Regional kit component')
+            : view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
       element('detail-triangles').textContent = triangles.toLocaleString();
+      if (view.kind === 'model' && view.root.userData.variantLabel) element('detail-category').textContent +=
+        ` · ${words(view.root.userData.variantLabel, view.root.userData.variantLabelEn)} · ${view.root.userData.floors} ${words('ชั้น', 'floors')}`;
       element('detail-calls').textContent = String(calls);
       element('detail-footprint').textContent = isModelView(view) ? `${view.entry.footprint.join(' × ')} ${words('ช่อง', 'tiles')}` : words('ตัวอย่างผิว', 'Surface sample');
       element('detail-budget').textContent = view.kind === 'model' ? view.entry.budget.toLocaleString() : '—';
-      element('assembly-note').hidden = view.kind !== 'assembly';
+      element('assembly-note').hidden = view.id !== CABLE_PREVIEW_ID;
+      element('six-regions').hidden = view.kind !== 'model' || view.entry.regionTier === 'R3';
     }
   }
 
@@ -280,14 +295,17 @@ function startGallery(): void {
     element('detail').hidden = true;
     element('library').hidden = activeTab !== 'models';
     element('materials').hidden = activeTab !== 'materials';
-    if (refresh && activeTab === 'models') rebuildModels();
+    element('regions').hidden = activeTab !== 'regions';
+    if (refresh && activeTab !== 'materials') rebuildModels();
     updateStateChoices();
   }
 
   function showModel(view: Pick<View, 'id' | 'entry' | 'kind'>): void {
+    if (selected) { controls?.dispose(); freeView(selected); views.splice(views.indexOf(selected), 1); selected = undefined; }
     if (view.entry.states?.length && !view.entry.states.includes(state.value)) state.value = view.entry.states[0];
     element('library').hidden = true;
     element('materials').hidden = true;
+    element('regions').hidden = true;
     element('detail').hidden = false;
     selected = createView(view.id, view.entry, stage, undefined, view.kind);
     controls = new OrbitControls(selected.camera, stage);
@@ -315,11 +333,14 @@ function startGallery(): void {
     cards.replaceChildren();
     element('material-cards').replaceChildren();
     element('sign-cards').replaceChildren();
+    element('region-houses').replaceChildren();
+    element('region-components').replaceChildren();
     if (activeTab === 'materials') {
       buildMaterials();
       updateLighting();
       return;
     }
+    if (activeTab === 'regions') { buildRegions(); updateLighting(); return; }
     Object.entries(registry).filter(([, entry]) => category.value === 'all' || category.value === entry.category).forEach(([id, entry]) => {
       const card = document.createElement('button');
       card.className = 'model-card';
@@ -366,7 +387,7 @@ function startGallery(): void {
     rebuildTimer = window.setTimeout(rebuildModels, 80);
   }
 
-  function sampleRegistration(factory: () => Group): ModelRegistration {
+  function sampleRegistration(factory: ModelFactory): ModelRegistration {
     return { factory, category: 'ui', footprint: [1, 1], tiles: [], budget: 3000, regionTier: 'R3' };
   }
 
@@ -392,7 +413,7 @@ function startGallery(): void {
     return group;
   }
 
-  function sampleCard(id: string, title: string, factory: () => Group, parent: HTMLElement, kind: View['kind'], englishTitle = englishName(id)): HTMLElement {
+  function sampleCard(id: string, title: string, factory: ModelFactory, parent: HTMLElement, kind: View['kind'], englishTitle = englishName(id)): HTMLElement {
     const card = document.createElement('article'); card.className = 'material-card';
     const preview = document.createElement('div'); preview.className = 'preview';
     preview.tabIndex = 0; preview.setAttribute('role', 'button'); preview.dataset.thAria = `ดู ${id}`; preview.dataset.enAria = `View ${id}`;
@@ -402,11 +423,23 @@ function startGallery(): void {
     const name = document.createElement('small'); name.textContent = id;
     const status = document.createElement('small'); localText(status, 'กำลังโหลด', 'Loading');
     caption.append(label, name, status); card.append(preview, caption); parent.append(card);
-    const view = createView(id, sampleRegistration(factory), preview, undefined, kind);
+    const view = createView(id, sampleRegistration(factory), preview, kind === 'kit' ? status : undefined, kind);
     const open = () => showModel(view);
     preview.addEventListener('click', open);
     preview.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
     return status;
+  }
+
+  function buildRegions(): void {
+    REGIONS.forEach(region => {
+      const kit = getRegionKit(region);
+      sampleCard(`debug.region_house.${region}`, kit.label, opts => registry['debug.region_house'].factory({ ...opts, region }),
+        element('region-houses'), 'kit', kit.labelEn);
+    });
+    const kit = getRegionKit(options().region);
+    localText(element('region-heading'), `${kit.label} · หลังคา / ผนัง / เครื่องประดับ / ของใช้`, `${kit.labelEn} · roofs / walls / ornaments / props`);
+    regionalSamples(options()).forEach(sample => sampleCard(sample.id, sample.th, sample.factory, element('region-components'), 'kit', sample.en));
+    localText(element('back'), '← ชุดภาคทั้งหมด', '← All region kits');
   }
 
   function buildMaterials(): void {
@@ -443,28 +476,30 @@ function startGallery(): void {
     localText(element('back'), '← วัสดุทั้งหมด', '← All materials');
   }
 
-  function switchTab(tab: 'models' | 'materials'): void {
+  function switchTab(tab: 'models' | 'materials' | 'regions'): void {
     activeTab = tab;
-    ['models', 'materials'].forEach(name => {
+    ['models', 'materials', 'regions'].forEach(name => {
       const button = element(name + '-tab');
       button.setAttribute('aria-selected', String(tab === name)); button.tabIndex = tab === name ? 0 : -1;
     });
     [category, regionPicker, seed, variant, state, landMask, waterMask, bankStyle, neighborToggle, gridToggle, footprintToggle].forEach(input => {
-      input.disabled = tab !== 'models';
-      (input.closest('label') as HTMLLabelElement).hidden = tab !== 'models';
+      const show = tab === 'models' || tab === 'regions' && [regionPicker, seed, gridToggle, footprintToggle].includes(input as typeof regionPicker);
+      input.disabled = !show;
+      (input.closest('label') as HTMLLabelElement).hidden = !show;
     });
-    localText(element('back'), tab === 'models' ? '← โมเดลทั้งหมด' : '← วัสดุทั้งหมด', tab === 'models' ? '← All models' : '← All materials');
+    localText(element('back'), tab === 'models' ? '← โมเดลทั้งหมด' : tab === 'materials' ? '← วัสดุทั้งหมด' : '← ชุดภาคทั้งหมด', tab === 'models' ? '← All models' : tab === 'materials' ? '← All materials' : '← All region kits');
     buildLibrary();
   }
 
   Array.from(new Set(Object.values(registry).map(entry => entry.category))).sort().forEach(name => {
     const option = document.createElement('option');
     option.value = name;
-    localText(option, name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
+    localText(option, name === 'commercial' ? 'พาณิชย์ (commercial)' : name === 'services' ? 'โรงพยาบาลและบริการ (services)' : name === 'residential' ? 'บ้าน (residential)' : name === 'veg' ? 'ต้นไม้ (veg)' : name === 'park' ? 'สวน (park)' : name === 'terrain' ? 'ภูมิประเทศ (terrain)' : name === 'road' ? 'ถนนและสะพาน (road)' : name === 'rail' ? 'ทางรถไฟ (rail)' : name === 'power' ? 'เสาไฟและสายไฟ (power)' : name === 'veh' ? 'ยานพาหนะ (veh)' : name === 'debug' ? 'ตัวอย่าง (debug)' : englishName(name), englishName(name));
     category.append(option);
   });
   category.addEventListener('change', buildLibrary);
-  [seed, variant, state, regionPicker, landMask, waterMask, bankStyle].forEach(input => input.addEventListener('change', rebuildModels));
+  [seed, variant, state, landMask, waterMask, bankStyle].forEach(input => input.addEventListener('change', rebuildModels));
+  regionPicker.addEventListener('change', () => activeTab === 'regions' ? buildLibrary() : rebuildModels());
   neighborToggle.addEventListener('change', rebuildModels);
   [seed, variant, state, landMask, waterMask].forEach(input => input.addEventListener('input', queueRebuild));
   languagePicker.addEventListener('change', () => {
@@ -476,10 +511,19 @@ function startGallery(): void {
   element('reset-camera').addEventListener('click', () => { if (selected) frameModel(selected); });
   element('models-tab').addEventListener('click', () => switchTab('models'));
   element('materials-tab').addEventListener('click', () => switchTab('materials'));
+  element('regions-tab').addEventListener('click', () => switchTab('regions'));
+  element('six-regions').addEventListener('click', () => {
+    if (selected && selected.kind === 'model') showModel({ id: `preview.six_regions.${selected.id}`, entry: regionLineup(selected.entry), kind: 'lineup' });
+  });
+  element('region-lineup').addEventListener('click', () => showModel({ id: 'preview.six_regions.debug.region_house', entry: regionLineup(registry['debug.region_house']), kind: 'lineup' }));
   element('cable-bridge-preview').addEventListener('click', () => showModel({ id: CABLE_PREVIEW_ID, entry: CABLE_PREVIEW, kind: 'assembly' }));
-  ['models', 'materials'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
+  for (const style of ['hsr', 'metro']) element(`${style}-ramp-preview`).addEventListener('click', () => {
+    const id = `preview.${style}_ramp`; showModel({ id, entry: ELEVATED_PREVIEWS[id], kind: 'assembly' });
+  });
+  ['models', 'materials', 'regions'].forEach(name => element(name + '-tab').addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      event.preventDefault(); switchTab(activeTab === 'models' ? 'materials' : 'models'); element(activeTab + '-tab').focus();
+      const tabs = ['models', 'materials', 'regions'] as const;
+      event.preventDefault(); switchTab(tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : 2)) % 3]); element(activeTab + '-tab').focus();
     }
   }));
   buildLibrary();
@@ -512,8 +556,10 @@ function startGallery(): void {
       renderer.setSize(width, height);
     }
     controls?.update();
-    scrollWaterNormals((selected ? [selected] : views).flatMap(view => [view.root, view.neighbors]), performance.now() / 1000);
-    updateRoadSignals(performance.now() / 1000);
+    const seconds = performance.now() / 1000, activeViews = selected ? [selected] : views;
+    scrollWaterNormals(activeViews.flatMap(view => [view.root, view.neighbors]), seconds);
+    updateRoadSignals(seconds); updateCommercialDisplays(seconds);
+    animateCommercialModels(activeViews.map(view => view.root), seconds);
     renderer.setScissorTest(false);
     renderer.setClearColor(0x000000, 0);
     renderer.clear();
