@@ -23,6 +23,7 @@ import { SplashScreen } from './splashScreen.js';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
 import { TileSetSnowURI } from './tileSetSnowURI.ts';
+import { installHudTooltips } from './hudTooltip.ts';
 import { installToolShortcuts } from './toolShortcuts.ts';
 
 /*
@@ -130,6 +131,8 @@ installAudio();
 installPanelCollapse();
 // 1–9 pick tools and P pauses (src/toolShortcuts.ts)
 installToolShortcuts();
+// Quick small tooltips on everything in the game that has a title (src/hudTooltip.ts)
+installHudTooltips();
 
 
 // Check for debug parameter in URL

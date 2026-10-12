@@ -180,6 +180,13 @@
 | `graphs.ago` | `src/graphWindow.js` | — | `{years} years ago` | `{years} ปีก่อน` | ปลายซ้ายของแกนเวลา |
 | `graphs.money_note` | `index.html` | — | `Cash flow: above the dashed line the city earns more than it spends.` | `กระแสเงินสด: เหนือเส้นประคือรายรับมากกว่ารายจ่าย` | |
 | `graphs.close` | `index.html` | — | `Close` | `ปิด` | |
+| `menu.tip.budget` | `index.html` | — | `Taxes, and the money for roads, police and fire` | `ภาษี และงบถนน ตำรวจ ดับเพลิง` | tooltip ปุ่มเมนู (เจ้าของโปรเจค 12 ต.ค. 2026: ตัวหนังสือเล็ก ชี้แล้วมีคำอธิบาย) |
+| `menu.tip.evaluation` | `index.html` | — | `What the people think, the city's problems, and its graphs` | `ความเห็นราษฎร ปัญหาของเมือง และกราฟ` |  |
+| `menu.tip.disasters` | `index.html` | — | `Try a disaster on purpose` | `ทดลองเกิดภัยพิบัติ` |  |
+| `menu.tip.save` | `index.html` | — | `Save the city in this browser` | `บันทึกเมืองไว้ในเครื่องนี้` |  |
+| `menu.tip.settings` | `index.html` | — | `Game speed, random disasters, sound` | `ความเร็วเกม ภัยพิบัติ และเสียง` |  |
+| `menu.tip.screenshot` | `index.html` | — | `Take a picture of the city` | `ถ่ายภาพเมือง` |  |
+| `menu.tip.main` | `index.html` | — | `Back to the map of Thailand (asks about saving first)` | `กลับไปหน้าแผนที่ประเทศไทย (ถามเรื่องบันทึกก่อน)` |  |
 | `menu.map` | `index.html` | — | `City map` | `แผนที่เมือง` | ปุ่มเมนู กว้าง 140px เปิด `src/mapWindow.js` (Claude Code 12 ต.ค. 2026) |
 | `shortcut.map` | `src/toolShortcuts.ts` | — | `The whole city, its power, traffic, pollution and more (shortcut M)` | `ดูทั้งเมือง ไฟฟ้า การจราจร มลพิษ และอื่น ๆ (ปุ่มลัด M)` | tooltip ปุ่มแผนที่เมือง |
 | `map.title` | `index.html` | — | `City map` | `แผนที่เมือง` | หัวหน้าต่าง |
