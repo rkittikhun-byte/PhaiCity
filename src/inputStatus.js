@@ -246,14 +246,23 @@ var canvasClickHandler = function(e) {
 
 
 var toolButtonHandler = function(e) {
+  // The button itself: a click may land on its icon or its name inside
+  var button = $(e.currentTarget);
+
+  // Pressing the tool in hand again (or its number key) puts it down, as Esc does
+  if (this.currentTool !== null && button.attr('data-tool') === this.toolName) {
+    this.clearTool();
+    e.preventDefault();
+    return;
+  }
+
   // Remove highlight from last tool button
   $('.selected').each(function() {
     $(this).removeClass('selected');
     $(this).addClass('unselected');
   });
 
-  // Add highlight (the button itself: a click may land on its icon or its name inside)
-  var button = $(e.currentTarget);
+  // Add highlight
   button.removeClass('unselected');
   button.addClass('selected');
 
@@ -261,7 +270,8 @@ var toolButtonHandler = function(e) {
   this.toolWidth = button.attr('data-size');
   this.currentTool = this.gameTools[this.toolName];
   this.toolColour = button.attr('data-colour');
-  $(toolOutputID).text(t('tool.header'));
+  // While a tool is in hand, the panel's title says how to put it down
+  $(toolOutputID).text(t('tool.put_down'));
 
   if (this.toolName !== 'query') {
     $(this.canvasID).removeClass('helpPointer');
@@ -295,7 +305,8 @@ InputStatus.prototype.clearTool = function() {
   this.currentTool = null;
   this.toolWidth = 0;
   this.toolColour = '';
-  $('.selected').removeClass('selected');
+  $('.selected').removeClass('selected').addClass('unselected');
+  $(toolOutputID).text(t('tool.header'));
 };
 
 
