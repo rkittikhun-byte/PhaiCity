@@ -70,25 +70,38 @@ export function dragTurnOf(view: ViewLike): ((dx: number, dy: number) => void) |
   return null;
 }
 
-/** Pixels the mouse must move with the button down before a press becomes a drag. */
-export const DRAG_START_PX = 4;
+/** Pixels the mouse must move with the button down before a press becomes a drag, and its direction is read. */
+export const DRAG_START_PX = 8;
+
+/** A drag that starts closer than this to straight across or straight up and down turns; one in between slides. */
+export const DIAGONAL_FROM_DEGREES = 25;
+
+/**
+ * What a left-button drag does, from the way its first few pixels go: across or up and down turns the city, a slant
+ * slides it, and with Shift held (or a view that cannot turn) it always slides.
+ */
+export function dragMode(dx: number, dy: number, shift: boolean, canTurn: boolean): "turn" | "pan" {
+  if (shift || !canTurn) return "pan";
+  const degrees = Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI;
+  return degrees < DIAGONAL_FROM_DEGREES || degrees > 90 - DIAGONAL_FROM_DEGREES ? "turn" : "pan";
+}
 
 /**
  * With no tool in hand, dragging the city with the left button turns it: to the right turns it right, up and down
- * tilt the camera (owner, 12 Oct 2026, playing on a touchpad). With Shift held the same drag slides the city instead.
- * The view's own controls stay as they are: dragging with the right button turns it, with the middle button slides
- * it, and the wheel zooms. A view that cannot turn (the 2D fallback) slides with a plain drag.
+ * tilt the camera; a slanting drag slides it instead (owner, 12 Oct 2026, playing on a touchpad), and so does any
+ * drag with Shift held. The view's own controls stay as they are: dragging with the right button turns it, with the
+ * middle button slides it, and the wheel zooms toward the mouse.
  */
 export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document): void {
   const pan = panOf(view);
   const turn = dragTurnOf(view);
   const canvas = doc.getElementById("MicropolisCanvas");
   if (!pan || !canvas) return;
-  let drag: { id: number; x: number; y: number; moved: boolean; turning: boolean } | null = null;
+  let drag: { id: number; x: number; y: number; moved: boolean; shift: boolean; turning: boolean } | null = null;
 
   canvas.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || holdingTool()) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, turning: !event.shiftKey && turn !== null };
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey, turning: false };
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
@@ -101,6 +114,8 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_START_PX) return;
+    // The first few pixels decide what this whole drag does
+    if (!drag.moved) drag.turning = dragMode(dx, dy, drag.shift, turn !== null) === "turn";
     drag.moved = true;
     canvas.classList.add("panning");
     if (drag.turning) turn?.(dx, dy);

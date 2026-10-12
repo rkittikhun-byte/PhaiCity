@@ -3,7 +3,7 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { dragTurnOf, installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
+import { dragMode, dragTurnOf, installViewControls, panOf, requestedCity, resetOf, ROTATE_STEP, turnOf, turnView } from "../src/viewControls";
 
 describe("3D view controls", () => {
   test("turn and reset with the view's own functions when it has them", () => {
@@ -43,7 +43,17 @@ describe("3D view controls", () => {
     expect(turns).toEqual([-ROTATE_STEP, ROTATE_STEP]);
   });
 
-  test("a Shift drag turns the view as a right-button drag does", () => {
+  test("a drag across or up and down turns the city, a slanting one slides it, and Shift always slides", () => {
+    expect(dragMode(10, 1, false, true)).toBe("turn");
+    expect(dragMode(-10, 0, false, true)).toBe("turn");
+    expect(dragMode(1, -10, false, true)).toBe("turn");
+    expect(dragMode(8, 8, false, true)).toBe("pan");
+    expect(dragMode(-6, 9, false, true)).toBe("pan");
+    expect(dragMode(10, 0, true, true)).toBe("pan");
+    expect(dragMode(10, 0, false, false)).toBe("pan");
+  });
+
+  test("a drag turns the view as a right-button drag does", () => {
     const calls: number[][] = [];
     dragTurnOf({ navigation: { rotate: (dx: number, dy: number) => calls.push([dx, dy]) } })!(10, -4);
     expect(calls).toEqual([[10, -4]]);
