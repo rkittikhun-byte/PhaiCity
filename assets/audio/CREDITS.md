@@ -46,3 +46,8 @@ Music has its own list, with each track's license: [music/CREDITS.md](music/CRED
 | `seagull.ogg` | "seagull.wav" by speakingmusic (Freesound 586831) | [link](https://freesound.org/people/speakingmusic/sounds/586831/) | CC0 |
 | `rooster.ogg` | "Rooster Crow 1" by BenjaminNelan (Freesound 435508) | [link](https://freesound.org/people/BenjaminNelan/sounds/435508/) | CC0 |
 | `airplane.ogg` | "Low Airplane Fly By" by Snipperbes (Freesound 145365) | [link](https://freesound.org/people/Snipperbes/sounds/145365/) | CC0 |
+| `amb-city.ogg` | "Street Ambience, Bangkok, Thailand (Feb 22, 2019)" by marc.om (Freesound 804846) | [link](https://freesound.org/people/marc.om/sounds/804846/) | CC0 |
+| `amb-market.ogg` | "Thailand market ext covered busy.flac" by kyles (Freesound 177695) | [link](https://freesound.org/people/kyles/sounds/177695/) | CC0 |
+| `amb-rain.ogg` | "forest heavy rain loop.wav" by Victormaa (Freesound 671409) | [link](https://freesound.org/people/Victormaa/sounds/671409/) | CC0 |
+| `amb-waves.ogg` | "Ocean gentle waves on beach fizzing bubbles.wav" by jackmichaelking (Freesound 517945) | [link](https://freesound.org/people/jackmichaelking/sounds/517945/) | CC0 |
+| `ship-horn.ogg` | "Long Distant Foghorn.aiff" by Danjocross (Freesound 507471) | [link](https://freesound.org/people/Danjocross/sounds/507471/) | CC0 |

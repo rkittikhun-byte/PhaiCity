@@ -59,10 +59,15 @@ export const SOUNDS: Record<string, SoundDef> = {
   "event.bankrupt": { file: "bankrupt.ogg", channel: "effects", volume: 0.5, minGap: 10000 },
   "event.helicopter": { file: "helicopter.ogg", channel: "effects", volume: 0.45, maxDuration: 5, minGap: 20000 },
   "event.crowd": { file: "crowd.ogg", channel: "effects", volume: 0.4, maxDuration: 6, minGap: 20000 },
+  "event.ship_horn": { file: "ship-horn.ogg", channel: "effects", volume: 0.45, minGap: 30000 },
 
   // Ambience: looping beds and occasional one-shots
   "amb.nature": { file: "amb-nature.ogg", channel: "ambience", volume: 0.5, loop: true },
   "amb.industrial": { file: "amb-industrial.ogg", channel: "ambience", volume: 0.25, loop: true },
+  "amb.city": { file: "amb-city.ogg", channel: "ambience", volume: 0.35, loop: true },
+  "amb.market": { file: "amb-market.ogg", channel: "ambience", volume: 0.3, loop: true },
+  "amb.waves": { file: "amb-waves.ogg", channel: "ambience", volume: 0.4, loop: true },
+  "amb.rain": { file: "amb-rain.ogg", channel: "ambience", volume: 0.45, loop: true },
   "amb.seagull": { file: "seagull.ogg", channel: "ambience", volume: 0.4, maxDuration: 6, minGap: 30000 },
   "amb.rooster": { file: "rooster.ogg", channel: "ambience", volume: 0.35, minGap: 60000 },
   "amb.thunder": { file: "thunder.ogg", channel: "ambience", volume: 0.5, maxDuration: 8, minGap: 45000 },

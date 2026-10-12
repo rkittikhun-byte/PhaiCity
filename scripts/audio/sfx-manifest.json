@@ -40,6 +40,11 @@
     { "file": "amb-industrial.ogg", "kenney": "sci-fi-sounds/Audio/spaceEngineLow_001.ogg" },
     { "file": "seagull.ogg", "freesound": 586831 },
     { "file": "rooster.ogg", "freesound": 435508 },
-    { "file": "airplane.ogg", "freesound": 145365 }
+    { "file": "airplane.ogg", "freesound": 145365 },
+    { "file": "amb-city.ogg", "freesound": 804846 },
+    { "file": "amb-market.ogg", "freesound": 177695 },
+    { "file": "amb-rain.ogg", "freesound": 671409 },
+    { "file": "amb-waves.ogg", "freesound": 517945 },
+    { "file": "ship-horn.ogg", "freesound": 507471 }
   ]
 }

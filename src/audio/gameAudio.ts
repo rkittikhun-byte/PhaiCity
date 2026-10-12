@@ -45,11 +45,12 @@ const GROUP_SOUNDS: Record<Exclude<MessageGroup, null>, string> = {
   neutral: "ui.notify_neutral",
 };
 
-// Sound signals that sprites emit (forwarded by the sprite manager); there is no ship horn yet.
+// Sound signals that sprites emit (forwarded by the sprite manager)
 export const SPRITE_SOUNDS: Record<string, string> = {
   [Messages.SOUND_EXPLOSIONHIGH]: "event.explosion_small",
   [Messages.SOUND_MONSTER]: "event.rumble",
   [Messages.SOUND_HEAVY_TRAFFIC]: "event.helicopter",
+  [Messages.SOUND_HONKHONK]: "event.ship_horn",
 };
 
 // The bulldozer signals the size of what it knocked down
@@ -102,9 +103,13 @@ export interface ViewStats {
   industrial: number;
   airport: number;
   stadiumGame: number;
+  /** Also counted within developed: road tiles, those with traffic, and commercial zones. */
+  roads: number;
+  traffic: number;
+  commercial: number;
 }
 
-type TileKind = Exclude<keyof ViewStats, "total">;
+type TileKind = Exclude<keyof ViewStats, "total" | "roads" | "traffic" | "commercial">;
 
 // Tile value ranges from src/tileValues.ts
 export function classifyTile(tile: number): TileKind | null {
@@ -128,7 +133,8 @@ export type { TileRect };
 
 /** Counts tile kinds in the rectangle (inclusive), sampling a grid when the view is large. */
 export function sampleView(map: TileSource, rect: TileRect, maxSamples = 2500): ViewStats {
-  const stats: ViewStats = { total: 0, water: 0, woods: 0, developed: 0, industrial: 0, airport: 0, stadiumGame: 0 };
+  const stats: ViewStats = { total: 0, water: 0, woods: 0, developed: 0, industrial: 0, airport: 0, stadiumGame: 0,
+    roads: 0, traffic: 0, commercial: 0 };
   const x0 = Math.max(0, rect.x0);
   const y0 = Math.max(0, rect.y0);
   const x1 = Math.min(map.width - 1, rect.x1);
@@ -138,23 +144,38 @@ export function sampleView(map: TileSource, rect: TileRect, maxSamples = 2500): 
   for (let y = y0; y <= y1; y += step) {
     for (let x = x0; x <= x1; x += step) {
       stats.total++;
-      const kind = classifyTile(map.getTileValue(x, y));
+      const tile = map.getTileValue(x, y);
+      const kind = classifyTile(tile);
       if (kind) stats[kind]++;
+      // Roads 64–206, with traffic from 80 (src/tileValues.ts LTRFBASE); commercial zones 423–609
+      if (tile >= 64 && tile <= 206) stats.roads++;
+      if (tile >= 80 && tile <= 206) stats.traffic++;
+      if (tile >= 423 && tile <= 609) stats.commercial++;
     }
   }
   return stats;
 }
 
-export const AMBIENCE_BEDS = ["amb.nature", "amb.industrial"];
+export const AMBIENCE_BEDS = ["amb.nature", "amb.industrial", "amb.city", "amb.market", "amb.waves", "amb.rain"];
 
-/** How loud each looping bed should be for this view, 0-1. */
-export function ambienceLevels(stats: ViewStats): Record<string, number> {
-  if (stats.total === 0) return { "amb.nature": 0, "amb.industrial": 0 };
+/** How loud each looping bed should be for this view (and weather), 0-1. */
+export function ambienceLevels(stats: ViewStats, raining = false): Record<string, number> {
+  const rain = raining ? 0.8 : 0;
+  if (stats.total === 0) {
+    return { "amb.nature": 0, "amb.industrial": 0, "amb.city": 0, "amb.market": 0, "amb.waves": 0, "amb.rain": rain };
+  }
   const share = (n: number): number => n / stats.total;
   const nature = (share(stats.woods) * 2 + share(stats.water) * 0.5) * (1 - Math.min(0.7, share(stats.developed)));
   return {
     "amb.nature": Math.min(1, nature),
     "amb.industrial": Math.min(1, share(stats.industrial) * 5),
+    // Streets: roads in view, louder where they are busy
+    "amb.city": Math.min(1, share(stats.roads) * 2.5 + share(stats.traffic) * 4),
+    // A market where shops fill the view
+    "amb.market": Math.min(1, Math.max(0, share(stats.commercial) - 0.05) * 3),
+    // Waves where water fills a good part of the view (a coast, a wide river)
+    "amb.waves": Math.min(1, Math.max(0, share(stats.water) - 0.15) * 2.5),
+    "amb.rain": rain,
   };
 }
 
@@ -163,14 +184,36 @@ export function isRainySeason(month: number): boolean {
   return month >= 4 && month <= 9;
 }
 
-/** Occasionally picks a short ambience sound that fits the view and the season, or null. */
-export function pickAmbientOneShot(stats: ViewStats, month: number, random: () => number): string | null {
+export interface Weather {
+  raining: boolean;
+  /** When the current rain stops (ms). */
+  until: number;
+}
+
+const RAIN_START_CHANCE = 0.08;
+const RAIN_SHORTEST_MS = 30000;
+const RAIN_LONGEST_MS = 90000;
+
+/**
+ * Rain comes in spells of 30–90 seconds during the rainy season, checked at each ambience update.
+ * Only for sound: the city itself never sees the weather.
+ */
+export function nextWeather(weather: Weather, month: number, now: number, random: () => number): Weather {
+  if (weather.raining) return now < weather.until ? weather : { raining: false, until: now };
+  if (isRainySeason(month) && random() < RAIN_START_CHANCE) {
+    return { raining: true, until: now + RAIN_SHORTEST_MS + random() * (RAIN_LONGEST_MS - RAIN_SHORTEST_MS) };
+  }
+  return weather;
+}
+
+/** Occasionally picks a short ambience sound that fits the view and the weather, or null. */
+export function pickAmbientOneShot(stats: ViewStats, raining: boolean, random: () => number): string | null {
   if (stats.total === 0) return null;
   const share = (n: number): number => n / stats.total;
   const candidates: Array<[boolean, number, string]> = [
     [stats.stadiumGame > 0, 0.08, "amb.crowd"],
     [stats.airport > 0, 0.05, "amb.airplane"],
-    [isRainySeason(month), 0.04, "amb.thunder"],
+    [raining, 0.15, "amb.thunder"],
     [share(stats.water) > 0.2, 0.05, "amb.seagull"],
     [share(stats.woods) > 0.1, 0.03, "amb.rooster"],
   ];
@@ -236,6 +279,7 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
   }
   game.inputStatus.addEventListener(Messages.SAVE_REQUESTED, () => player.play("ui.save"));
 
+  let weather: Weather = { raining: false, until: 0 };
   const updateAmbience = (): void => {
     let rect: TileRect | null;
     try {
@@ -244,10 +288,11 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
       return; // The view is not ready yet
     }
     if (!rect) return;
+    weather = nextWeather(weather, game.simulation.getDate().month, Date.now(), Math.random);
     const stats = sampleView(game.gameMap, rect);
-    const levels = ambienceLevels(stats);
+    const levels = ambienceLevels(stats, weather.raining);
     for (const id of AMBIENCE_BEDS) player.setLoop(id, levels[id] ?? 0);
-    const oneShot = pickAmbientOneShot(stats, game.simulation.getDate().month, Math.random);
+    const oneShot = pickAmbientOneShot(stats, weather.raining, Math.random);
     if (oneShot) player.play(oneShot);
   };
   const timer = window.setInterval(updateAmbience, AMBIENCE_INTERVAL_MS);

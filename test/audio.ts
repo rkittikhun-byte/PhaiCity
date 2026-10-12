@@ -7,7 +7,7 @@ import * as path from "path";
 import { SOUNDS } from "../src/audio/catalog";
 import { AudioEngine, defaultSettings, parseSettings } from "../src/audio/engine";
 import {
-  ambienceLevels, AMBIENCE_BEDS, BULLDOZER_SOUNDS, classifyTile, isRainySeason, pickAmbientOneShot, sampleView,
+  ambienceLevels, AMBIENCE_BEDS, BULLDOZER_SOUNDS, classifyTile, isRainySeason, nextWeather, pickAmbientOneShot, sampleView,
   soundForTool, soundsForMessage, SPRITE_SOUNDS, TOOL_RESULT, ViewStats,
 } from "../src/audio/gameAudio";
 import { uiSoundForControl } from "../src/audio/uiSounds";
@@ -89,8 +89,11 @@ describe("sound files", () => {
   });
 
   test("the sounds stay small enough for the web", () => {
-    const bytes = files.reduce((sum, f) => sum + fs.statSync(path.join(sfxDir, f)).size, 0);
-    expect(bytes).toBeLessThan(8 * 1024 * 1024);
+    const size = (f: string) => fs.statSync(path.join(sfxDir, f)).size;
+    // Short sounds load when the game starts (src/audio/engine.ts unlock); loops and long recordings only when needed
+    const preloaded = new Set(Object.values(SOUNDS).filter((s) => !s.loop && s.maxDuration === undefined).map((s) => s.file));
+    expect([...preloaded].reduce((sum, f) => sum + size(f), 0)).toBeLessThan(1.5 * 1024 * 1024);
+    expect(files.reduce((sum, f) => sum + size(f), 0)).toBeLessThan(12 * 1024 * 1024);
   });
 });
 
@@ -207,7 +210,8 @@ describe("game sounds", () => {
 });
 
 describe("ambience", () => {
-  const empty: ViewStats = { total: 0, water: 0, woods: 0, developed: 0, industrial: 0, airport: 0, stadiumGame: 0 };
+  const empty: ViewStats = { total: 0, water: 0, woods: 0, developed: 0, industrial: 0, airport: 0, stadiumGame: 0,
+    roads: 0, traffic: 0, commercial: 0 };
 
   test("classifies tiles", () => {
     expect(classifyTile(0)).toBeNull();
@@ -241,15 +245,44 @@ describe("ambience", () => {
     for (const bed of AMBIENCE_BEDS) expect(SOUNDS[bed].loop).toBe(true);
   });
 
-  test("one-shots fit the view and the season", () => {
-    const always = () => 0;
-    const never = () => 0.99;
+  test("streets, markets and water have their own sounds", () => {
+    const sampled = sampleView({ width: 3, height: 1, getTileValue: (x: number) => [66, 150, 500][x] }, { x0: 0, y0: 0, x1: 2, y1: 0 });
+    expect([sampled.roads, sampled.traffic, sampled.commercial, sampled.developed]).toEqual([2, 1, 1, 3]);
+    const quietStreets = ambienceLevels({ ...empty, total: 100, roads: 10 });
+    const busyStreets = ambienceLevels({ ...empty, total: 100, roads: 10, traffic: 10 });
+    expect(busyStreets["amb.city"]).toBeGreaterThan(quietStreets["amb.city"]);
+    expect(ambienceLevels({ ...empty, total: 100, commercial: 3 })["amb.market"]).toBe(0); // a shop or two: no market
+    expect(ambienceLevels({ ...empty, total: 100, commercial: 40 })["amb.market"]).toBe(1);
+    expect(ambienceLevels({ ...empty, total: 100, water: 10 })["amb.waves"]).toBe(0); // a thin river
+    expect(ambienceLevels({ ...empty, total: 100, water: 60 })["amb.waves"]).toBe(1); // the sea
+    expect(ambienceLevels({ ...empty, total: 100 }, true)["amb.rain"]).toBeGreaterThan(0);
+    expect(ambienceLevels({ ...empty, total: 100 })["amb.rain"]).toBe(0);
+  });
+
+  test("rain comes in spells, in the rainy season only", () => {
+    const dry = { raining: false, until: 0 };
     expect(isRainySeason(4)).toBe(true);
     expect(isRainySeason(11)).toBe(false);
-    expect(pickAmbientOneShot({ ...empty, total: 100, stadiumGame: 4 }, 0, always)).toBe("amb.crowd");
-    expect(pickAmbientOneShot({ ...empty, total: 100 }, 6, always)).toBe("amb.thunder");
-    expect(pickAmbientOneShot({ ...empty, total: 100 }, 0, always)).toBeNull();
-    expect(pickAmbientOneShot({ ...empty, total: 100, water: 50 }, 0, never)).toBeNull();
+    expect(nextWeather(dry, 0, 1000, () => 0)).toEqual(dry); // January: never
+    const wet = nextWeather(dry, 6, 1000, () => 0);
+    expect(wet.raining).toBe(true);
+    expect(wet.until).toBe(1000 + 30000);
+    expect(nextWeather(wet, 6, 20000, () => 0.99)).toBe(wet); // keeps raining until it ends
+    expect(nextWeather(wet, 6, 31000, () => 0.99)).toEqual({ raining: false, until: 31000 });
+    expect(nextWeather(dry, 6, 1000, () => 0.99)).toEqual(dry); // not every check starts rain
+  });
+
+  test("one-shots fit the view and the weather", () => {
+    const always = () => 0;
+    const never = () => 0.99;
+    expect(pickAmbientOneShot({ ...empty, total: 100, stadiumGame: 4 }, false, always)).toBe("amb.crowd");
+    expect(pickAmbientOneShot({ ...empty, total: 100 }, true, always)).toBe("amb.thunder"); // thunder only in the rain
+    expect(pickAmbientOneShot({ ...empty, total: 100 }, false, always)).toBeNull();
+    expect(pickAmbientOneShot({ ...empty, total: 100, water: 50 }, false, never)).toBeNull();
+  });
+
+  test("ships sound their horn", () => {
+    expect(SOUNDS[SPRITE_SOUNDS["HonkHonk sound"]].file).toBe("ship-horn.ogg");
   });
 });
 
