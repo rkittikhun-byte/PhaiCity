@@ -1,0 +1,21 @@
+{
+  "name": "phaicity-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The PhaiCity online API (docs/server/SERVER_SPEC.md)",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "migrate": "node scripts/migrate.ts",
+    "seed": "node scripts/seed.ts",
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "pg": "8.13.1"
+  }
+}

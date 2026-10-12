@@ -53,6 +53,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
+| `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 | `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |
@@ -178,6 +179,10 @@ PhaiCity will become an asynchronous online game:
 - One world is one Thailand: 6 regions and 77 provinces (`data/thailand-provinces.json`).
 - Each province has at most one ruler per world. When provinces run out, more worlds open.
 - The full plan is in `docs/ONLINE_PLAN.md` (written in Thai).
+- The server (phase 2) is ours: `server/` (Node 22.18+ running TypeScript directly, PostgreSQL, LINE and Google
+  login) on the owner's VPS in Thailand, behind nginx at phaicity.com/api. Spec: `docs/server/SERVER_SPEC.md`.
+  Every route goes through the `Store` interface (`server/src/types.ts`); `test/memoryStore.ts` must keep the same
+  rules as the SQL in `server/migrations/`. Secrets live only in `/etc/phaicity/server.env` on the VPS.
 
 Even before any server exists, all new code must keep this future possible:
 
