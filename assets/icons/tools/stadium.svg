@@ -1,0 +1,10 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <g stroke="#1d2925" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="indigo" d="M4 21v10a20 11 0 0 0 40 0V21z"/>
+    <ellipse cx="24" cy="21" rx="20" ry="11" fill="#fff4d6"/>
+    <ellipse cx="24" cy="21" rx="12" ry="5" fill="indigo"/>
+    <path fill="none" d="M11 31v5m13-4v9m13-10v5"/>
+  </g>
+</svg>
