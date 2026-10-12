@@ -5,17 +5,24 @@
 import type { Group } from 'three';
 import { TRIANGLE_BUDGETS } from '../constants.js';
 import { createDebugBox } from './debug/box.js';
+import { createRegionHouse } from './debug/region-house.js';
+import { createHouse, HOUSE_IDS, HOUSE_TIERS } from './residential/houses.js';
+import { createResidentialBlock, createEmptyResidentialZone, RES_ZONE_SPECS } from './residential/zones.js';
+import { createHospital } from './services/hospital.js';
+import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import type { RegionId, RegionTier } from '../regional/types.js';
 import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
 import { createTerrain, TERRAIN_KINDS, TERRAIN_TILES } from './terrain/terrain.js';
 import { createRoad, ROAD_KINDS, ROAD_TILES } from './road/road.js';
 import { createRail, RAIL_KINDS, RAIL_TILES } from './rail/rail.js';
+import { createPower, POWER_KINDS, POWER_TILES } from './power/power.js';
+import { createElevatedRail, ELEVATED_KINDS, ELEVATED_STYLES } from './rail/elevated.js';
 import {
   createTrainLoco, createTrainCar, createHelicopter, createAirplane,
   createShip, createLongtailBoat, createKorlaeBoat, createSedan,
   createPickup, createTuktuk, createMotorbike, createSongthaew,
-  createBus, createTruck, createEtan,
+  createBus, createTruck, createEtan, createTrainHsr, createMetro,
 } from './vehicles/index.js';
 
 export interface ModelOptions {
@@ -57,6 +64,41 @@ export interface ModelRegistration {
 }
 
 export const registry: Readonly<Record<string, ModelRegistration>> = Object.freeze({
+  'com.zone_empty': { factory: createEmptyCommercialZone, category: 'commercial', footprint: [3, 3],
+    tiles: Array.from({ length: 9 }, (_, i) => 423 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
+  ...Object.fromEntries(COM_ZONE_SPECS.map(spec => [spec.id, {
+    factory: (options?: ModelOptions) => createCommercialBlock(spec.landValue, spec.density, options),
+    category: 'commercial', footprint: [3, 3], tiles: spec.tiles, budget: spec.budget, regionTier: spec.regionTier,
+    ...(spec.landValue === 3 && spec.density === 4 ? { variants: [0, 1, 2] } : {}),
+  } as ModelRegistration])),
+  'svc.hospital': { factory: createHospital, category: 'services', footprint: [3, 3],
+    tiles: Array.from({ length: 9 }, (_, i) => 405 + i), budget: TRIANGLE_BUDGETS.highRise, regionTier: 'R2' },
+  'res.zone_empty': { factory: createEmptyResidentialZone, category: 'residential', footprint: [3, 3],
+    tiles: Array.from({ length: 9 }, (_, i) => 240 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
+  ...Object.fromEntries(RES_ZONE_SPECS.map(spec => [spec.id, {
+    factory: (options?: ModelOptions) => createResidentialBlock(spec.landValue, spec.density, options),
+    category: 'residential', footprint: [3, 3], tiles: spec.tiles, budget: spec.budget, regionTier: spec.regionTier,
+  } as ModelRegistration])),
+  ...Object.fromEntries(HOUSE_IDS.map((id, i) => [id, {
+    factory: (options?: ModelOptions) => createHouse(i, options), category: 'residential', footprint: [1, 1],
+    tiles: [249 + i], budget: TRIANGLE_BUDGETS.prop, regionTier: HOUSE_TIERS[i],
+  } as ModelRegistration])),
+  'debug.region_house': { factory: createRegionHouse, category: 'debug', footprint: [1, 1], tiles: [],
+    budget: TRIANGLE_BUDGETS.prop, regionTier: 'R1' },
+  ...Object.fromEntries(POWER_KINDS.map(kind => [`power.${kind}`, {
+    factory: (options?: ModelOptions) => createPower(kind, options), category: 'power', footprint: [1, 1],
+    tiles: POWER_TILES[kind], budget: TRIANGLE_BUDGETS.tile, regionTier: 'R3', tiling: true,
+    ...(kind === 'water' ? { ground: 'water' } : {}),
+  } as ModelRegistration])),
+  ...Object.fromEntries(ELEVATED_STYLES.flatMap(style => ELEVATED_KINDS.map(kind => [`rail.${style}_${kind}`, {
+    factory: (options?: ModelOptions) => createElevatedRail(style, kind, options),
+    category: 'rail', footprint: [1, 1], tiles: [], budget: TRIANGLE_BUDGETS.tile,
+    regionTier: 'R3', tiling: true, ...(kind === 'ramp' ? { variants: [0, 1, 2] } : {}),
+  } as ModelRegistration]))),
+  'veh.train_hsr': { factory: createTrainHsr, category: 'veh', footprint: [1, 8], tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle, regionTier: 'R3' },
+  'veh.metro': { factory: createMetro, category: 'veh', footprint: [1, 6], tiles: [],
+    budget: TRIANGLE_BUDGETS.largeVehicle, regionTier: 'R3' },
   ...Object.fromEntries(RAIL_KINDS.map(kind => [`rail.${kind}`, {
     factory: (options?: ModelOptions) => createRail(kind, options), category: 'rail', footprint: [1, 1],
     tiles: RAIL_TILES[kind], budget: TRIANGLE_BUDGETS.tile, regionTier: 'R3', tiling: true,
@@ -88,7 +130,7 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   ...Object.fromEntries(PARK_IDS.map((id, index) => [id, {
     factory: (options?: ModelOptions) => createPark(index, options),
     category: 'park', footprint: [1, 1], tiles: PARK_TILES[index], budget: TRIANGLE_BUDGETS.prop,
-    regionTier: 'R3', seededVegetation: index !== 4,
+    regionTier: index === 2 ? 'R1' : 'R3', seededVegetation: index !== 4,
     ...(index === 4 ? { states: ['on', 'off'] } : {}),
   } as ModelRegistration])),
   'debug.box_3x3': {

@@ -100,6 +100,17 @@ export function mergeGeometry(geometries: readonly BufferGeometry[]): BufferGeom
     }
     result.setAttribute(name, new Float32BufferAttribute(values, size));
   }
+  // Optional baked colors let many painted shop fronts share one library material.
+  if (parts.some(part => part.hasAttribute('color'))) {
+    const values = new Float32Array(count * 3); let offset = 0;
+    parts.forEach(part => {
+      const colors = part.getAttribute('color');
+      for (let i = 0; i < part.getAttribute('position').count; i++) for (let axis = 0; axis < 3; axis++) {
+        values[offset++] = colors ? colors.getComponent(i, axis) : 1;
+      }
+    });
+    result.setAttribute('color', new Float32BufferAttribute(values, 3));
+  }
   parts.forEach(part => part.dispose());
   if (count > 0) {
     result.computeBoundingBox();

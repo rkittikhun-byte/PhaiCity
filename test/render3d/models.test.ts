@@ -163,6 +163,7 @@ describe('MODEL_SPEC 9.3: every registered model', () => {
 describe('3D foundation regressions', () => {
   it('defines every specification material, caches tint and uses physical glass', () => {
     const expected = `plaster_white plaster_cream plaster_tint concrete_raw concrete_weathered brick_red roof_clay_tile roof_cement_tile roof_metal_corrugated roof_metal_rusty roof_metal_sheet wood_teak wood_painted metal_steel metal_painted roller_shutter glass_clear glass_tinted asphalt road_marking_white road_marking_yellow sidewalk_tile curb_red_white grass dirt_laterite gravel_ballast water_river water_flood foliage_tropical fabric_canvas sign_thai emissive_window`.split(' ');
+    expected.push('roof_glazed_tile', 'roof_wood_shingle', 'thatch_grass', 'thatch_nipa', 'bamboo_split', 'bamboo_woven', 'stucco_ornament');
     expect([...MATERIAL_KEYS].sort()).toEqual(expected.sort());
     MATERIAL_KEYS.forEach(key => { expect(getMaterial(key)).toBeInstanceOf(MeshStandardMaterial); expect(isLibraryMaterial(getMaterial(key))).toBe(true); });
     expect(getMaterial('glass_clear')).toBeInstanceOf(MeshPhysicalMaterial);

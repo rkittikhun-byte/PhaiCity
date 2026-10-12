@@ -8,6 +8,7 @@ import { applyWorldUV, beveledBox, countTriangles, mergeByMaterial } from '../..
 import type { ModelOptions } from '../registry.js';
 import { PlantBuilder, point } from './builder.js';
 import { TreeKind, treeParts } from './trees.js';
+import { getRegionKit } from '../../regional/index.js';
 
 export const PARK_IDS = ['park.garden_0', 'park.garden_1', 'park.garden_2', 'park.garden_3', 'park.fountain'] as const;
 export const PARK_TILES = [[40], [41], [42], [43], [840, 841, 842, 843]] as const;
@@ -58,8 +59,8 @@ function garden1(b: PlantBuilder, options: ModelOptions): Vector3[] {
 }
 
 function garden2(b: PlantBuilder, options: ModelOptions): void {
-  ground(b); const wood = tint('wood_teak', 0x68513c), roof = getMaterial('roof_clay_tile');
-  const roofWood = tint('wood_teak', 0x755942);
+  ground(b); const kit = getRegionKit(options.region), colors = kit.palette.pick(options.seed);
+  const wood = tint('wood_teak', colors.wall);
   box(b, point(4.3, 0.22, 4.1), point(0, 0.5, -0.4), wood, true);
   for (const x of [-1.8, 1.8]) for (const z of [-2.05, 1.25]) b.pole(point(x, 0.12, z), point(x, 3.95, z), 0.105, wood, 8);
   for (const z of [-2.05, 1.25]) box(b, point(3.6, 0.2, 0.18), point(0, 3.85, z), wood);
@@ -71,16 +72,8 @@ function garden2(b: PlantBuilder, options: ModelOptions): void {
   for (const x of [-1.25, 1.25]) box(b, point(0.45, 0.16, 2.5), point(x, 0.83, -0.5), wood);
   box(b, point(2, 0.18, 0.7), point(0, 0.21, 1.9), wood);
   box(b, point(2, 0.18, 0.65), point(0, 0.39, 1.65), wood);
-  for (const side of [-1, 1]) {
-    const slab = beveledBox(3.45, 0.18, 4.75, 0.035);
-    slab.rotateZ(side * -0.72).translate(side * 1.3, 4.42, -0.4); b.add(slab, roof);
-  }
-  // Plain gable frames and king posts, kept with the replaceable roof.
-  for (const z of [-2.68, 1.88]) {
-    for (const side of [-1, 1]) b.pole(point(side * 2.57, 3.25, z), point(0, 5.51, z), 0.065, roofWood);
-    b.pole(point(-1.8, 3.89, z), point(1.8, 3.89, z), 0.065, roofWood);
-    b.pole(point(0, 3.89, z), point(0, 5.51, z), 0.065, roofWood);
-  }
+  const roofParts = kit.roofs[kit.defaults.roofForm]([4.3, 4.1], { baseY: 3.95, seed: options.seed });
+  roofParts.forEach(part => part.geometry.translate(0, 0, -0.4)); b.parts.push(...roofParts);
   tree(b, 'bougainvillea', options, 0, point(0, 0.12, 2.9), 0.62, 0.45);
 }
 
@@ -154,12 +147,13 @@ export function createPark(index: number, options: ModelOptions = {}): Group {
   const roofPart = new Group(); roofPart.name = `${id}/roof`; roofPart.userData.role = 'replaceable-regional-roof';
   [...root.children].forEach(child => {
     if (child instanceof Mesh && !Array.isArray(child.material) && child.material.userData.materialKey === 'grass') child.name = `${id}/ground`;
-    if (index === 2 && child instanceof Mesh && (child.material === getMaterial('roof_clay_tile') || child.material === tint('wood_teak', 0x755942))) {
-      child.name = `${id}/${child.material === getMaterial('roof_clay_tile') ? 'roof_tiles' : 'roof_frame'}`;
+    const kit = getRegionKit(options.region), colors = kit.palette.pick(options.seed);
+    if (index === 2 && child instanceof Mesh && (child.material === tint(kit.defaults.roofMaterial, colors.roof) || child.material === tint('wood_painted', colors.trim))) {
+      child.name = `${id}/${child.material === tint(kit.defaults.roofMaterial, colors.roof) ? 'roof_tiles' : 'roof_frame'}`;
       roofPart.add(child);
     }
   });
-  if (index === 2) root.add(roofPart);
+  if (index === 2) { root.add(roofPart); root.userData.regionTier = 'R1'; root.userData.kit = options.region ?? 'central'; }
   lights.forEach((position, i) => { const anchor = new Object3D(); anchor.name = `anchor_light_${i}`; anchor.position.copy(position); root.add(anchor); });
   if (waterJet) {
     for (const state of ['on', 'off']) {

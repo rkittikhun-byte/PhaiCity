@@ -73,6 +73,7 @@
       <nav class="tabs" role="tablist" aria-label="ประเภทตัวอย่าง">
         <button id="models-tab" type="button" role="tab" aria-controls="library" aria-selected="true" data-th="โมเดล" data-en="Models">โมเดล</button>
         <button id="materials-tab" type="button" role="tab" aria-controls="materials" aria-selected="false" tabindex="-1" data-th="วัสดุ" data-en="Materials">วัสดุ</button>
+        <button id="regions-tab" type="button" role="tab" aria-controls="regions" aria-selected="false" tabindex="-1" data-th="ชุดภาค" data-en="Region kits">ชุดภาค</button>
       </nav>
       <section class="toolbar" aria-label="ตัวเลือกแสดงโมเดล">
         <label class="field"><span data-th="หมวดหมู่" data-en="Category">หมวดหมู่</span><select id="category"><option value="all" data-th="ทั้งหมด" data-en="All">ทั้งหมด</option></select></label>
@@ -104,16 +105,23 @@
       <p id="error" class="error" role="alert" hidden></p>
       <section id="library" role="tabpanel" aria-labelledby="models-tab">
         <div class="library-heading"><p id="model-count"></p><button id="cable-bridge-preview" type="button" data-th="ตัวอย่างสะพานขึง" data-en="Cable bridge preview">ตัวอย่างสะพานขึง</button><p data-th="คลิกโมเดลเพื่อหมุนดู" data-en="Click a model to orbit">คลิกโมเดลเพื่อหมุนดู</p></div>
+        <div class="tabs"><button id="hsr-ramp-preview" type="button" data-th="ทางลาด HSR ต่อเนื่อง" data-en="HSR ramp sequence">ทางลาด HSR ต่อเนื่อง</button><button id="metro-ramp-preview" type="button" data-th="ทางลาด metro ต่อเนื่อง" data-en="Metro ramp sequence">ทางลาด metro ต่อเนื่อง</button></div>
         <div id="cards" class="cards"></div>
         <p id="empty" hidden data-th="ไม่มีโมเดลในหมวดหมู่นี้" data-en="No models in this category">ไม่มีโมเดลในหมวดหมู่นี้</p>
       </section>
       <section id="materials" role="tabpanel" aria-labelledby="materials-tab" hidden>
-        <div class="library-heading"><p data-th="32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม." data-en="32 materials · sphere and 2 × 2 m tile">32 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม.</p><p data-th="คลิกตัวอย่างเพื่อหมุนดู" data-en="Click a sample to orbit">คลิกตัวอย่างเพื่อหมุนดู</p></div>
+        <div class="library-heading"><p data-th="39 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม." data-en="39 materials · sphere and 2 × 2 m tile">39 วัสดุ · ทรงกลมและแผ่นผิวขนาด 2 × 2 ม.</p><p data-th="คลิกตัวอย่างเพื่อหมุนดู" data-en="Click a sample to orbit">คลิกตัวอย่างเพื่อหมุนดู</p></div>
         <p id="sky-status" class="hint" aria-live="polite">กำลังโหลดแสงท้องฟ้า HDRI 1K</p>
         <div id="material-cards" class="cards"></div>
         <h2 data-th="สีพาสเทลตึกแถว" data-en="Shophouse pastels">สีพาสเทลตึกแถว</h2><p data-th="12 สี · เลือกซ้ำได้ด้วย seed เดิม" data-en="12 colors · reproducible by seed">12 สี · เลือกซ้ำได้ด้วย seed เดิม</p><div id="pastels" class="swatches"></div>
         <h2 class="signs-heading" data-th="ป้ายภาษาไทย" data-en="Thai signs">ป้ายภาษาไทย</h2><p data-th="แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ" data-en="Horizontal · vertical · lit — Sarabun font and fictional text">แนวนอน · แนวตั้ง · แบบมีแสง — ใช้ฟอนต์ Sarabun และข้อความสมมติ</p>
         <div id="sign-cards" class="cards"></div>
+      </section>
+      <section id="regions" role="tabpanel" aria-labelledby="regions-tab" hidden>
+        <div class="library-heading"><p data-th="บ้านตัวอย่างแบบเดียวกันใน 6 ภาค · เปลี่ยนภูมิภาคเพื่อดูชิ้นส่วนของชุดนั้น" data-en="One sample house in six regions · choose a region to inspect its kit components">บ้านตัวอย่างแบบเดียวกันใน 6 ภาค · เปลี่ยนภูมิภาคเพื่อดูชิ้นส่วนของชุดนั้น</p><button id="region-lineup" type="button" data-th="เทียบ 6 ภาคในฉากเดียว" data-en="6 regions lineup">เทียบ 6 ภาคในฉากเดียว</button></div>
+        <div id="region-houses" class="cards"></div>
+        <h2 id="region-heading"></h2><div id="region-components" class="cards"></div>
+        <p class="hint" data-th="ตัวอย่างเรือพายผูกท่าน้ำ · ใช้เฉพาะพื้นที่ติดน้ำ" data-en="Tied rowing boat sample · waterside sites only">ตัวอย่างเรือพายผูกท่าน้ำ · ใช้เฉพาะพื้นที่ติดน้ำ</p>
       </section>
       <section id="detail" aria-label="ดูโมเดลเดี่ยว" hidden>
         <p style="margin-top: 20px"><button id="back" type="button">← โมเดลทั้งหมด</button></p>
@@ -124,6 +132,7 @@
             <p class="hint" data-th="Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู" data-en="Draw calls count visible model surfaces; shadows and guides are excluded.">Draw calls นับเฉพาะผิวโมเดลที่แสดง ไม่รวมเงาและเส้นช่วยดู</p>
             <p id="assembly-note" class="hint" hidden data-th="เสาหลัก 1 ช่อง + deck ฝั่งละ 10 ช่อง สายขึงเชื่อม anchors และนับเพิ่ม 1 draw call เปิดกลางคืนเพื่อดูไฟขอบสะพานและยอดเสา" data-en="One pylon + ten deck tiles each way. Stays join anchors and add one draw call. Switch to night to inspect edge and crown lighting.">เสาหลัก 1 ช่อง + deck ฝั่งละ 10 ช่อง สายขึงเชื่อม anchors และนับเพิ่ม 1 draw call เปิดกลางคืนเพื่อดูไฟขอบสะพานและยอดเสา</p>
             <button id="reset-camera" type="button" data-th="รีเซ็ตมุมกล้อง" data-en="Reset camera">รีเซ็ตมุมกล้อง</button>
+            <button id="six-regions" type="button" hidden data-th="เทียบ 6 ภาค" data-en="6 regions lineup">เทียบ 6 ภาค</button>
           </aside>
         </div>
       </section>

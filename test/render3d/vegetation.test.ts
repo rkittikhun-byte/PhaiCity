@@ -81,7 +81,7 @@ describe('vegetation and parks', () => {
     } finally { disposeModel(root); }
   });
 
-  it.each(plants)('%s preserves its footprint, geometry, anchors and states in all six regions', (id, entry) => {
+  it.each(plants)('%s preserves its footprint, tier, anchors and states; R3 also preserves geometry', (id, entry) => {
     const central = entry.factory({ seed: 42, region: 'central' });
     const anchors = (root: typeof central) => {
       const found: unknown[] = []; root.traverse(node => { if (node.name.startsWith('anchor_')) found.push([node.name, node.position.toArray()]); }); return found;
@@ -98,9 +98,12 @@ describe('vegetation and parks', () => {
       for (const region of REGIONS) {
         const root = entry.factory({ seed: 42, region });
         try {
-          expect(root.userData).toMatchObject({ id, region, regionTier: 'R3', footprint: central.userData.footprint, tiles: central.userData.tiles });
-          expect(new Box3().setFromObject(root)).toEqual(new Box3().setFromObject(central));
-          expect(geometry(root)).toEqual(geometry(central)); expect(anchors(root)).toEqual(anchors(central));
+          expect(root.userData).toMatchObject({ id, region, regionTier: entry.regionTier, footprint: central.userData.footprint, tiles: central.userData.tiles });
+          if (entry.regionTier === 'R3') {
+            expect(new Box3().setFromObject(root)).toEqual(new Box3().setFromObject(central));
+            expect(geometry(root)).toEqual(geometry(central));
+          }
+          expect(anchors(root)).toEqual(anchors(central));
           expect(root.children.filter(node => node.name.startsWith('state_')).map(node => [node.name, node.visible]))
             .toEqual(central.children.filter(node => node.name.startsWith('state_')).map(node => [node.name, node.visible]));
         } finally { disposeModel(root); }

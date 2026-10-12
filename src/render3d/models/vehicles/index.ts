@@ -3,6 +3,7 @@
  */
 
 export { createTrainLoco, createTrainCar } from './train.js';
+export { createTrainHsr, createMetro } from './electric-train.js';
 export { createHelicopter, createAirplane } from './aircraft.js';
 export { createShip, createLongtailBoat, createKorlaeBoat } from './watercraft.js';
 export {
@@ -13,6 +14,8 @@ export {
 export const VEHICLE_IDS = [
   'veh.train_loco',
   'veh.train_car',
+  'veh.train_hsr',
+  'veh.metro',
   'veh.helicopter',
   'veh.airplane',
   'veh.ship',
