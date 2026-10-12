@@ -1916,14 +1916,22 @@ body #newsLogButton.initialHidden { display: none; }
 /* The list slides down from the top, under the top bar, see-through like the news itself (owner, 12 Oct 2026) */
 body #newsLog {
   position: fixed; top: 46px; left: 50%; right: auto; bottom: auto; z-index: 17; transform: translateX(-50%);
-  max-height: min(340px, calc(100vh - 120px)); background: var(--hud-glass);
-  -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);
+  width: 360px; max-height: min(340px, calc(100vh - 120px)); padding: 8px 10px; border-radius: 12px;
+  background: rgba(246, 250, 247, 0.38); -webkit-backdrop-filter: blur(6px) saturate(1.3); backdrop-filter: blur(6px) saturate(1.3);
+  font: 400 9px/1.45 'Sarabun Thai', 'Open Sans', sans-serif;
 }
 body #newsLog:not([hidden]) { animation: newsListIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 body #newsLog.motionLeave { animation: newsListOut 0.2s ease-in forwards; }
 @keyframes newsListIn { from { opacity: 0; transform: translate(-50%, -24px); } }
 @keyframes newsListOut { to { opacity: 0; transform: translate(-50%, -16px); } }
-body #newsLog li.news, body #newsLog li.news.good, body #newsLog li.news.bad { background: rgba(255, 255, 255, 0.38); }
+/* Each item a faint strip with a coloured mark for good and bad news, instead of red rows */
+body #newsLog h3 { margin: 0 0 4px; font-size: 10px; font-weight: 400; }
+body #newsLog li.news, body #newsLog li.news.good, body #newsLog li.news.bad {
+  grid-template-columns: 54px 1fr auto; gap: 6px; margin: 2px 0; padding: 3px 6px; border-radius: 0 6px 6px 0;
+  background: rgba(255, 255, 255, 0.22); color: var(--hud-text);
+}
+body #newsLog .newsDate { color: #34403c; font-size: 8.5px; }
+body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */
 body #creditToggle {
@@ -1938,17 +1946,6 @@ body #mapAttribution {
 body #mapAttribution.tucked { opacity: 0; transform: translateX(-8px); pointer-events: none; }
 #hudTip { padding: 4px 8px; font-size: 9px; }
 
-/* Recent news: the same glass and type, a coloured mark for good and bad news instead of red rows */
-body #newsLog {
-  width: 360px; max-height: 260px; padding: 8px 10px; border-radius: 12px; background: var(--hud-glass-strong);
-  font: 400 9px/1.45 'Sarabun Thai', 'Open Sans', sans-serif;
-}
-body #newsLog h3 { margin: 0 0 4px; font-size: 10px; font-weight: 400; }
-body #newsLog li.news { grid-template-columns: 54px 1fr auto; gap: 6px; margin: 2px 0; padding: 3px 6px;
-  border-radius: 0 6px 6px 0; background: rgba(255, 255, 255, 0.55); color: var(--hud-text); }
-body #newsLog li.news.good, body #newsLog li.news.bad { background: rgba(255, 255, 255, 0.55); color: var(--hud-text); }
-body #newsLog .newsDate { color: var(--hud-dim); font-size: 8.5px; }
-body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* Windows in the same small type */
 body .modal { width: 300px; font-size: 9px; }
