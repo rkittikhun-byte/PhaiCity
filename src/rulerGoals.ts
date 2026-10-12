@@ -3,9 +3,11 @@
  */
 
 // "ภารกิจแรกของเจ้าเมือง": a short checklist that teaches a new ruler the basics (homes, power, roads, jobs) and
-// ticks itself off as the city grows. It only reads the city, every couple of seconds; a ticked task stays ticked.
-// The card can be collapsed like the other panels or closed, and its progress is saved with the city.
+// ticks itself off as the city grows, followed by a chapter of tasks for each new rank up to พระ. It only reads the
+// city, every couple of seconds; a ticked task stays ticked. The card can be collapsed like the other panels or
+// closed for good, and its progress is saved with the city.
 
+import { type CityMapSource, powerCounts } from "./cityMap";
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, show } from "./motion";
 
@@ -18,6 +20,16 @@ export interface CityStats {
   poweredZones: number;
   roads: number;
   population: number;
+  rails: number;
+  policeStations: number;
+  fireStations: number;
+  stadiums: number;
+  airports: number;
+  /** Zones and buildings with and without power, read from the map's tiles rather than the census. */
+  litZones: number;
+  darkZones: number;
+  pollution: number;
+  crime: number;
 }
 
 export interface Goal {
@@ -27,16 +39,58 @@ export interface Goal {
   done(stats: CityStats): boolean;
 }
 
-export const GOALS: Goal[] = [
-  { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
-  { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },
-  // Power plants are zones with power themselves, so at least one other zone must have it
-  { id: "wires", tool: "wire", done: (s) => s.poweredZones - s.powerPlants >= 1 },
-  { id: "roads", tool: "road", done: (s) => s.roads >= 10 },
-  { id: "jobs", tool: "commercial", done: (s) => s.comZones >= 1 && s.indZones >= 1 },
-  // A town (over 2,000 people) earns the rank ขุน (src/rulerRank.ts)
-  { id: "town", tool: null, done: (s) => s.population > 2000 },
+export interface Chapter {
+  id: string;
+  /** The card's title while this chapter is on. */
+  title: string;
+  goals: Goal[];
+}
+
+// Each chapter ends where the next rank begins (src/rulerRank.ts)
+export const CHAPTERS: Chapter[] = [
+  {
+    id: "first",
+    title: "goals.title",
+    goals: [
+      { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
+      { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },
+      // Power plants are zones with power themselves, so at least one other zone must have it
+      { id: "wires", tool: "wire", done: (s) => s.poweredZones - s.powerPlants >= 1 },
+      { id: "roads", tool: "road", done: (s) => s.roads >= 10 },
+      { id: "jobs", tool: "commercial", done: (s) => s.comZones >= 1 && s.indZones >= 1 },
+      // A town (over 2,000 people) earns the rank ขุน
+      { id: "town", tool: null, done: (s) => s.population > 2000 },
+    ],
+  },
+  {
+    id: "khun",
+    title: "goals.title.khun",
+    goals: [
+      { id: "police", tool: "police", done: (s) => s.policeStations >= 1 },
+      { id: "fire", tool: "fire", done: (s) => s.fireStations >= 1 },
+      // Only counts once the city has enough zones for keeping them all lit to take some care
+      { id: "lit", tool: "wire", done: (s) => s.litZones >= 20 && s.darkZones === 0 },
+      { id: "rail", tool: "rail", done: (s) => s.rails >= 20 },
+      { id: "stadium", tool: "stadium", done: (s) => s.stadiums >= 1 },
+      // A city (over 10,000 people) earns the rank หลวง
+      { id: "city", tool: null, done: (s) => s.population > 10000 },
+    ],
+  },
+  {
+    id: "luang",
+    title: "goals.title.luang",
+    goals: [
+      { id: "airport", tool: "airport", done: (s) => s.airports >= 1 },
+      // The game warns of pollution above 60 and crime above 100 (src/simulation.js); these ask for better
+      { id: "clean", tool: null, done: (s) => s.population > 10000 && s.pollution < 50 },
+      { id: "safe", tool: "police", done: (s) => s.population > 10000 && s.crime < 50 },
+      // A capital (over 50,000 people) earns the rank พระ
+      { id: "capital", tool: null, done: (s) => s.population > 50000 },
+    ],
+  },
 ];
+
+export const GOALS: Goal[] = CHAPTERS.flatMap((chapter) => chapter.goals);
 
 export interface GoalsState {
   done: string[];
@@ -55,6 +109,11 @@ export function currentGoal(done: ReadonlySet<string>): Goal | null {
   return GOALS.find((goal) => !done.has(goal.id)) ?? null;
 }
 
+/** The first chapter with a task not yet done, or null when all are. */
+export function currentChapter(done: ReadonlySet<string>): Chapter | null {
+  return CHAPTERS.find((chapter) => chapter.goals.some((goal) => !done.has(goal.id))) ?? null;
+}
+
 interface SimulationLike {
   _census: {
     resZonePop: number;
@@ -64,12 +123,23 @@ interface SimulationLike {
     nuclearPowerPop: number;
     poweredZoneCount: number;
     roadTotal: number;
+    railTotal: number;
+    policeStationPop: number;
+    fireStationPop: number;
+    stadiumPop: number;
+    airportPop: number;
+    pollutionAverage: number;
+    crimeAverage: number;
   };
   evaluation: { cityPop: number };
+  _map?: CityMapSource;
 }
 
 export function readStats(simulation: SimulationLike): CityStats {
   const census = simulation._census;
+  // The census is rebuilt during every scan of the map, so zones without power counted halfway through could miss
+  // some; the tiles' own power flags are always whole
+  const power = simulation._map ? powerCounts(simulation._map) : { powered: 0, unpowered: 0 };
   return {
     resZones: census.resZonePop,
     comZones: census.comZonePop,
@@ -78,6 +148,15 @@ export function readStats(simulation: SimulationLike): CityStats {
     poweredZones: census.poweredZoneCount,
     roads: census.roadTotal,
     population: simulation.evaluation.cityPop,
+    rails: census.railTotal,
+    policeStations: census.policeStationPop,
+    fireStations: census.fireStationPop,
+    stadiums: census.stadiumPop,
+    airports: census.airportPop,
+    litZones: power.powered,
+    darkZones: power.unpowered,
+    pollution: census.pollutionAverage,
+    crime: census.crimeAverage,
   };
 }
 
@@ -91,7 +170,7 @@ function parseState(saved: unknown): GoalsState | null {
 }
 
 const CHECK_INTERVAL_MS = 2000;
-const HIDE_AFTER_DONE_MS = 8000;
+const NEXT_CHAPTER_AFTER_MS = 8000;
 
 export interface RulerGoals {
   /** For the save. */
@@ -100,7 +179,8 @@ export interface RulerGoals {
 
 /**
  * Shows the task card (#rulerGoals in index.html) for this city. saved is the city's saved progress, if any.
- * A city that already has every task done, or whose ruler closed the card, never shows it.
+ * A city that already has every task done, or whose ruler closed the card, never shows it. When a chapter is done
+ * the card says so for a few seconds, then moves on to the next chapter, or goes away after the last.
  */
 export function installRulerGoals(simulation: SimulationLike, saved: unknown, doc: Document = document): RulerGoals {
   const restored = parseState(saved);
@@ -109,18 +189,23 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
   const result: RulerGoals = { state: () => ({ done: [...done], dismissed }) };
 
   const card = doc.getElementById("rulerGoals");
+  const title = doc.getElementById("goalsTitle");
   const list = doc.getElementById("goalsList");
   const hint = doc.getElementById("goalsHint");
   const progress = doc.getElementById("goalsProgress");
   const close = doc.getElementById("goalsClose");
-  if (!card || !list || !hint || !progress || !close) return result;
-  if (dismissed || currentGoal(done) === null) {
+  if (!card || !title || !list || !hint || !progress || !close) return result;
+  let chapter = currentChapter(done);
+  if (dismissed || chapter === null) {
     dismissed = true;
     return result;
   }
+  // The chapter on the card; when it is done it stays up for a moment before the next one comes
+  let shown: Chapter = chapter;
 
   let timer: number | undefined;
   let pointedTool: Element | null = null;
+  let turning = false;
 
   const pointAt = (tool: string | null): void => {
     pointedTool?.classList.remove("goalHint");
@@ -129,16 +214,19 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
   };
 
   const render = (): void => {
-    const current = currentGoal(done);
-    list.replaceChildren(...GOALS.map((goal) => {
+    const current = shown.goals.find((goal) => !done.has(goal.id)) ?? null;
+    title.textContent = t(shown.title);
+    list.replaceChildren(...shown.goals.map((goal) => {
       const item = doc.createElement("li");
       item.textContent = t(`goals.${goal.id}`);
       item.classList.toggle("done", done.has(goal.id));
       item.classList.toggle("current", goal === current);
       return item;
     }));
-    progress.textContent = t("goals.progress", { done: done.size, total: GOALS.length });
-    hint.textContent = current ? t(`goals.${current.id}.hint`) : t("goals.done_all");
+    const ticked = shown.goals.filter((goal) => done.has(goal.id)).length;
+    progress.textContent = t("goals.progress", { done: ticked, total: shown.goals.length });
+    const finale = currentChapter(done) === null ? "goals.done_all" : "goals.done_chapter";
+    hint.textContent = current ? t(`goals.${current.id}.hint`) : t(finale);
     pointAt(current?.tool ?? null);
   };
 
@@ -156,10 +244,20 @@ export function installRulerGoals(simulation: SimulationLike, saved: unknown, do
     if (next.size === done.size) return;
     done = next;
     render();
-    if (currentGoal(done) === null) {
-      window.clearInterval(timer);
-      window.setTimeout(finish, HIDE_AFTER_DONE_MS);
-    }
+    if (turning || shown.goals.some((goal) => !done.has(goal.id))) return;
+    // This chapter is done: celebrate for a moment, then the next one, or put the card away after the last
+    turning = true;
+    window.setTimeout(() => {
+      turning = false;
+      if (dismissed) return;
+      chapter = currentChapter(done);
+      if (chapter === null) {
+        finish();
+        return;
+      }
+      shown = chapter;
+      render();
+    }, NEXT_CHAPTER_AFTER_MS);
   }, CHECK_INTERVAL_MS);
 
   render();

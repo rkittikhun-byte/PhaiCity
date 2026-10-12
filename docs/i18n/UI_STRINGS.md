@@ -570,7 +570,7 @@
 | `about.start.story` | `about.html` | — | `Each time the game opens, a short story about the Golden Peninsula and its six regions plays. Press “Skip the story” to go straight on.` | `ทุกครั้งที่เปิดเกม จะมีเรื่องเล่าสั้น ๆ เกี่ยวกับแหลมทองและหกภาค กด “ข้ามเรื่องเล่า” เพื่อไปต่อได้ทันที` | ชื่อปุ่มตรงกับ `intro.skip` |
 | `about.start.choose` | `about.html` | — | `Click a region, then a province. Its card shows the starting treasury, the difficulty, the land and its resources. Name your city and press “Become its ruler”.` | `คลิกเลือกภาค แล้วเลือกจังหวัด การ์ดจังหวัดจะบอกเงินตั้งต้น ความยาก ภูมิประเทศ และทรัพยากร ตั้งชื่อเมืองแล้วกด “เริ่มเป็นเจ้าเมือง”` | ชื่อปุ่มตรงกับ `picker.start` |
 | `about.start.land` | `about.html` | — | `Your city starts on a real 2 × 2 km piece of land around the province's town, with its real rivers, coast and forest, but no roads or buildings yet.` | `เมืองของคุณเริ่มบนผืนดินจริงขนาด 2 × 2 กม. รอบตัวเมืองของจังหวัดนั้น มีแม่น้ำ ชายฝั่ง และป่าตามจริง แต่ยังไม่มีถนนหรืออาคาร` | |
-| `about.start.goals` | `about.html` | — | `In a new city, the “Your first tasks” card on the right walks you through the basics one step at a time. Close it whenever you like.` | `ในเมืองใหม่ การ์ด “ภารกิจแรกของเจ้าเมือง” ทางขวาจะพาทำเรื่องพื้นฐานทีละขั้น ปิดได้ทุกเมื่อ` | ชื่อการ์ดตรงกับ `goals.title` |
+| `about.start.goals` | `about.html` | — | `In a new city, the “Your first tasks” card on the right walks you through the basics one step at a time, and a new set of tasks follows with each new rank up to Phra. Close it whenever you like.` | `ในเมืองใหม่ การ์ด “ภารกิจแรกของเจ้าเมือง” ทางขวาจะพาทำเรื่องพื้นฐานทีละขั้น และมีภารกิจชุดใหม่ทุกครั้งที่เลื่อนยศ จนถึงยศพระ ปิดได้ทุกเมื่อ` | ชื่อการ์ดตรงกับ `goals.title` |
 | `about.start.cities` | `about.html` | — | `“My cities” keeps every city you have saved, and “Practise on a random map” opens a practice game. In a city, “Main menu” brings you back to the start screen.` | `“เมืองของฉัน” เก็บทุกเมืองที่บันทึกไว้ ส่วน “ฝึกเล่นบนแผนที่สุ่ม” เปิดเกมฝึกหัด เมื่ออยู่ในเมือง กดปุ่ม “เมนูหลัก” เพื่อกลับมาหน้าเริ่มเกม` | ชื่อปุ่มตรงกับ `cities.title`, `start.practice`, `menu.main` |
 | `about.start.keys` | `about.html` | — | `Keys on the start screen: arrows to choose, Enter to confirm, Esc to go back, H to hide the menus.` | `ปุ่มลัดในหน้าเริ่มเกม: ลูกศรเพื่อเลือก Enter เพื่อยืนยัน Esc เพื่อย้อนกลับ และ H เพื่อซ่อนเมนู` | |
 | `about.credits.title` | `about.html` | — | `Credits` | `เครดิต` | |
@@ -743,7 +743,7 @@
 | `goals.title` | `index.html` | — | `Your first tasks` | `ภารกิจแรกของเจ้าเมือง` | การ์ดภารกิจ (`src/rulerGoals.ts`, Claude Code 12 ต.ค. 2026) |
 | `goals.progress` | `src/rulerGoals.ts` | — | `{done}/{total}` | `{done}/{total}` | |
 | `goals.close` | `index.html` | — | `Close` | `ปิดภารกิจ` | |
-| `goals.done_all` | `src/rulerGoals.ts` | — | `Well done! Your first tasks are complete. The city is yours to grow.` | `ยอดเยี่ยม! ทำภารกิจแรกครบแล้ว ต่อจากนี้เมืองเป็นของคุณ` | |
+| `goals.done_all` | `src/rulerGoals.ts` | — | `Well done! Every task is complete. The city is yours to grow.` | `ยอดเยี่ยม! ทำภารกิจครบทุกชุดแล้ว ต่อจากนี้เมืองเป็นของคุณ` | หลังชุดสุดท้าย |
 | `goals.homes` | `src/rulerGoals.ts` | — | `Zone some homes` | `วางเขตที่อยู่อาศัย` | ชื่อเครื่องมือในคำแนะนำต้องตรงกับ `tool.*` |
 | `goals.homes.hint` | `src/rulerGoals.ts` | — | `Pick Residential and click on open land. People move in once there is power and a road.` | `เลือก “ที่อยู่อาศัย” แล้วคลิกบนพื้นที่ว่าง ผู้คนจะย้ายเข้ามาเมื่อมีไฟฟ้าและถนน` | |
 | `goals.power` | `src/rulerGoals.ts` | — | `Build a power plant` | `สร้างโรงไฟฟ้า` | |
@@ -756,6 +756,29 @@
 | `goals.jobs.hint` | `src/rulerGoals.ts` | — | `Shops and factories give people work. The bars on the left show what the city wants next.` | `ร้านค้าและโรงงานให้งานกับราษฎร แถบความต้องการทางซ้ายบอกว่าเมืองอยากได้อะไรเพิ่ม` | |
 | `goals.town` | `src/rulerGoals.ts` | — | `Grow into a town and become Khun` | `ขยายเมืองเป็นตำบล และเลื่อนยศเป็นขุน` | |
 | `goals.town.hint` | `src/rulerGoals.ts` | — | `Past 2,000 people the city becomes a town. Keep homes, jobs and power in balance.` | `ประชากรเกิน 2,000 คน เมืองจะเป็นตำบล รักษาสมดุลระหว่างบ้าน งาน และไฟฟ้า` | |
+| `goals.done_chapter` | `src/rulerGoals.ts` | — | `Well done! These tasks are complete. Your next ones are on their way.` | `ยอดเยี่ยม! ทำภารกิจชุดนี้ครบแล้ว ภารกิจชุดต่อไปกำลังมา` | ภารกิจเป็นชุดตามยศ (Claude Code 12 ต.ค. 2026) |
+| `goals.title.khun` | `src/rulerGoals.ts` | — | `Khun's tasks: care for the people` | `ภารกิจขุน: ดูแลราษฎร` | ชุดที่ 2 จบที่อำเภอ ยศหลวง |
+| `goals.police` | `src/rulerGoals.ts` | — | `Build a police station` | `สร้างสถานีตำรวจ` | |
+| `goals.police.hint` | `src/rulerGoals.ts` | — | `Crime grows with the city. A police station keeps the streets around it safe; the City map shows how far it reaches.` | `อาชญากรรมโตตามเมือง สถานีตำรวจดูแลย่านรอบ ๆ ให้ปลอดภัย ดูขอบเขตได้ในแผนที่เมือง ชั้น “เขตตำรวจ”` | |
+| `goals.fire` | `src/rulerGoals.ts` | — | `Build a fire station` | `สร้างสถานีดับเพลิง` | |
+| `goals.fire.hint` | `src/rulerGoals.ts` | — | `Fire spreads fast between buildings. A fire station puts it out nearby; the City map shows how far it reaches.` | `ไฟลามเร็วระหว่างอาคาร สถานีดับเพลิงช่วยดับไฟในย่านใกล้เคียง ดูขอบเขตได้ในแผนที่เมือง ชั้น “เขตดับเพลิง”` | |
+| `goals.lit` | `src/rulerGoals.ts` | — | `Power to every zone` | `ทุกโซนมีไฟฟ้า` | |
+| `goals.lit.hint` | `src/rulerGoals.ts` | — | `Open the City map (M), choose Power, and link every red zone to the grid. Counts once the city has 20 zones.` | `เปิดแผนที่เมือง (M) เลือกชั้น “ไฟฟ้า” แล้วต่อโซนสีแดงทุกโซนเข้ากับระบบไฟ นับเมื่อเมืองมีอย่างน้อย 20 โซน` | ชื่อชั้นตรงกับ `map.layer.power` |
+| `goals.rail` | `src/rulerGoals.ts` | — | `Lay a railway` | `วางทางรถไฟ` | |
+| `goals.rail.hint` | `src/rulerGoals.ts` | — | `Trains carry people without filling the roads. Lay at least 20 tiles of rail between busy areas.` | `รถไฟพาคนเดินทางโดยไม่ทำให้ถนนติด วางรางอย่างน้อย 20 ช่องเชื่อมย่านที่คึกคัก` | |
+| `goals.stadium` | `src/rulerGoals.ts` | — | `Build a stadium` | `สร้างสนามกีฬา` | |
+| `goals.stadium.hint` | `src/rulerGoals.ts` | — | `A growing city wants somewhere to cheer. Without a stadium, homes stop growing.` | `เมืองที่โตขึ้นอยากมีที่เชียร์กีฬา ถ้าไม่มีสนามกีฬา บ้านจะหยุดโต` | เกมเดิมจำกัดการโตของที่อยู่อาศัยเมื่อไม่มีสนามกีฬา |
+| `goals.city` | `src/rulerGoals.ts` | — | `Grow into a city and become Luang` | `ขยายเป็นอำเภอ และเลื่อนยศเป็นหลวง` | |
+| `goals.city.hint` | `src/rulerGoals.ts` | — | `Past 10,000 people the town becomes a city. Evaluation lists what the people complain about most.` | `ประชากรเกิน 10,000 คน ตำบลจะเป็นอำเภอ ดูเรื่องที่ราษฎรบ่นมากที่สุดได้ในหน้า “ประเมินผล”` | ชื่อปุ่มตรงกับ `menu.evaluation` |
+| `goals.title.luang` | `src/rulerGoals.ts` | — | `Luang's tasks: a great city` | `ภารกิจหลวง: หัวเมืองใหญ่` | ชุดที่ 3 จบที่จังหวัด ยศพระ |
+| `goals.airport` | `src/rulerGoals.ts` | — | `Build an airport` | `สร้างสนามบิน` | |
+| `goals.airport.hint` | `src/rulerGoals.ts` | — | `Big shopping districts need an airport to keep growing. It is costly and noisy, so give it open land away from homes.` | `ย่านการค้าใหญ่ต้องมีสนามบินจึงจะโตต่อได้ ราคาแพงและเสียงดัง วางบนที่โล่งให้ห่างบ้าน` | |
+| `goals.clean` | `src/rulerGoals.ts` | — | `Clean air` | `อากาศสะอาด` | |
+| `goals.clean.hint` | `src/rulerGoals.ts` | — | `Bring the city's average pollution down, with over 10,000 people: parks, rail instead of roads, factories away from homes, a nuclear plant instead of coal. The City map shows the smoke.` | `ลดมลพิษเฉลี่ยของเมืองให้ต่ำ ขณะมีคนเกิน 10,000: ปลูกสวน ใช้รถไฟแทนถนน ตั้งโรงงานห่างบ้าน หรือใช้โรงไฟฟ้านิวเคลียร์แทนถ่านหิน ดูควันได้ในแผนที่เมือง` | มลพิษเฉลี่ยต่ำกว่า 50 |
+| `goals.safe` | `src/rulerGoals.ts` | — | `Safe streets` | `ถนนปลอดภัย` | |
+| `goals.safe.hint` | `src/rulerGoals.ts` | — | `Bring the city's average crime down, with over 10,000 people: police stations all over, and their budget paid in full.` | `ลดอาชญากรรมเฉลี่ยของเมืองให้ต่ำ ขณะมีคนเกิน 10,000: วางสถานีตำรวจให้ทั่ว และจ่ายงบตำรวจให้เต็ม` | อาชญากรรมเฉลี่ยต่ำกว่า 50 |
+| `goals.capital` | `src/rulerGoals.ts` | — | `Grow into a province centre and become Phra` | `ขยายเป็นจังหวัด และเลื่อนยศเป็นพระ` | ชื่อตรงกับ `city.capital` |
+| `goals.capital.hint` | `src/rulerGoals.ts` | — | `Past 50,000 people the city becomes a province centre.` | `ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด` | |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

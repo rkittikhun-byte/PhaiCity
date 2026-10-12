@@ -149,10 +149,11 @@
         </div>
         <!-- A note that fades after a moment, e.g. "Autosaved 10:42" (src/cornerNote.ts) -->
         <div id="cornerNote" class="z1" role="status" aria-live="polite" hidden></div>
-        <!-- First tasks for a new ruler (src/rulerGoals.ts); shown by the game, never before -->
+        <!-- The ruler's tasks (src/rulerGoals.ts), one chapter at a time; shown by the game, never before.
+             The game writes the title, which changes with the chapter. -->
         <div id="rulerGoals" class="controlShadow mintcream z1 rightedge padding10" hidden>
           <div class="inner">
-            <h3 class="goalsTitle"><span data-i18n="goals.title">Your first tasks</span> <span id="goalsProgress"></span></h3>
+            <h3 class="goalsTitle"><span id="goalsTitle">Your first tasks</span> <span id="goalsProgress"></span></h3>
             <ol id="goalsList"></ol>
             <p id="goalsHint"></p>
             <button type="button" id="goalsClose" data-i18n="goals.close">Close</button>
