@@ -39,11 +39,11 @@ describe('3D tile model resolution and coverage',()=>{
     const m=map(8,7);m.values[0]=716;m.flags[0]=ZONEBIT;const s=new TileSnapshot(8,7);s.sync(m);
     expect([...s.coverage].filter(i=>i===0)).toHaveLength(25);m.flags[0]=0;m.values[0]=0;s.sync(m);expect([...s.coverage].every(i=>i===-1)).toBe(true);
   });
-  it('places every registered centre once and falls back to density-scaled industry blocks',()=>{
+  it('places registered commercial and industrial centres once',()=>{
     const m=map();m.values[5*20+5]=607;m.flags[5*20+5]=ZONEBIT|POWERBIT;
     m.values[10*20+10]=652;m.flags[10*20+10]=ZONEBIT;
     const s=new TileSnapshot(20,20);s.sync(m);expect(s.placement(105,'south')?.id).toBe('com.block_3_4');
-    expect(s.placement(210,'south')).toMatchObject({id:null,kind:'industrial',height:17,footprint:[3,3]});
+    expect(s.placement(210,'south')).toMatchObject({id:'ind.block_0_3',kind:'industrial',height:17,footprint:[3,3]});
   });
   it.each(Array.from({length:16},(_,i)=>i))('selects road topology for mask %i without reading beyond the map',mask=>{
     const m=map(3,3);m.values[4]=66;[[1,1],[5,2],[7,4],[3,8]].forEach(([i,bit])=>{m.values[i]=mask&bit?66:0;});

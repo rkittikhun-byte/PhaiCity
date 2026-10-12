@@ -16,6 +16,7 @@ import { communityHouseParts, CommunityHouseOptions, zoneStyle } from './residen
 import { commercialStyle, marketStallParts, marketGoodsParts, bakeryDisplayParts } from './commercial-parts.js';
 import { curvedRoofBuilder } from './curved-roofs.js';
 import { bigGardenTreeBuilder } from './big-garden-trees.js';
+import { makeIndustrialKit } from './industrial-parts.js';
 
 /** Eight coordinated choices per region; shade changes never change a building's shape. */
 export function regionalPalette(walls: readonly number[], trim: number, shutter: number, roof: number): readonly PaletteChoice[] {
@@ -30,11 +31,13 @@ export function makeKit(style: RegionStyle): RegionKit {
     (finish === 'plaster' ? plaster : style.palette)[Math.floor(seededRng(seed)() * style.palette.length)];
   const { palette: choices, plasterColors: _plasterColors, props, ornaments, label, labelEn, ...defaults } = style;
   const houses = houseStyles(style);
+  const roofs = Object.freeze(Object.fromEntries(ROOF_FORMS.map(form => [form, makeRoof(style, form,
+    ornamentBuilder(style, style.ridgeOrnament))])) as Record<RoofForm, RoofBuilder>);
   return Object.freeze({ id: style.id, label, labelEn, defaults: Object.freeze(defaults),
     palette: Object.freeze({ wall: choices.map(c => c.wall), trim: choices.map(c => c.trim),
       shutter: choices.map(c => c.shutter), roof: choices.map(c => c.roof), plaster: plaster.map(c => c.wall), pick }),
-    roofs: Object.freeze(Object.fromEntries(ROOF_FORMS.map(form => [form, makeRoof(style, form,
-      ornamentBuilder(style, style.ridgeOrnament))])) as Record<RoofForm, RoofBuilder>),
+    roofs,
+    industrial: makeIndustrialKit(style, roofs),
     walls: Object.freeze(Object.fromEntries(WALL_FORMS.map(form => [form, wallBuilder(style, form)])) as Record<WallForm, PartBuilder>),
     ornaments: Object.freeze(Object.fromEntries([...new Set([...ornaments, 'fretwork', ...(style.id === 'east' ? ['pediment'] : [])])].map(kind => [kind, ornamentBuilder(style, kind)]))),
     props: Object.freeze(Object.fromEntries([...new Set([...props, 'dragon_jar', ...(style.id === 'west' ? ['sugar_stove'] : [])])].map(kind => [kind, propBuilder(style, kind)]))),

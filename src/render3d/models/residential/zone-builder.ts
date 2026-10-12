@@ -161,7 +161,7 @@ export class ZoneBuilder extends KitBuilder {
     }
   }
 
-  finishZone(id: string, category: 'residential' | 'services' | 'commercial', center: number, tier: RegionTier, metadata: Record<string, unknown> = {}) {
+  finishZone(id: string, category: 'residential' | 'services' | 'commercial' | 'industrial', center: number, tier: RegionTier, metadata: Record<string, unknown> = {}) {
     const root = this.finish(id, category, [3, 3], Array.from({ length: 9 }, (_, i) => center - 4 + i), this.options);
     Object.assign(root.userData, { ...metadata, regionTier: tier, kit: this.kit.id, centerTile: center, components: this.components,
       structuralBodies: this.structuralBodies, entranceFacing: '+Z' });

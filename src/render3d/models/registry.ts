@@ -10,6 +10,7 @@ import { createHouse, HOUSE_IDS, HOUSE_TIERS } from './residential/houses.js';
 import { createResidentialBlock, createEmptyResidentialZone, RES_ZONE_SPECS } from './residential/zones.js';
 import { createHospital } from './services/hospital.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
+import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
 import type { RegionId, RegionTier } from '../regional/types.js';
 import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
@@ -64,6 +65,12 @@ export interface ModelRegistration {
 }
 
 export const registry: Readonly<Record<string, ModelRegistration>> = Object.freeze({
+  'ind.zone_empty': { factory: createEmptyIndustrialZone, category: 'industrial', footprint: [3, 3],
+    tiles: Array.from({ length: 9 }, (_, i) => 612 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
+  ...Object.fromEntries(IND_ZONE_SPECS.map(spec => [spec.id, {
+    factory: (options?: ModelOptions) => createIndustrialBlock(spec.type, spec.size, options),
+    category: 'industrial', footprint: [3, 3], tiles: spec.tiles, budget: spec.budget, regionTier: spec.regionTier,
+  } as ModelRegistration])),
   'com.zone_empty': { factory: createEmptyCommercialZone, category: 'commercial', footprint: [3, 3],
     tiles: Array.from({ length: 9 }, (_, i) => 423 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
   ...Object.fromEntries(COM_ZONE_SPECS.map(spec => [spec.id, {
