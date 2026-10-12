@@ -3,6 +3,276 @@
 
 # สถานะโมเดล
 
+## Prompt 16B — วัสดุรถและกระบะ เก๋ง สองแถว
+
+วันที่ 2026-10-12: ยกระดับ `veh.pickup`, `veh.sedan` และ `veh.songthaew`
+จากตัวถังกล่องเป็น profile โค้งในระนาบ Z–Y extrude ตาม X พร้อม bevel 4.5 ซม.
+สองช่วงและ curveSegments 6; ใช้ `models/vehicles/kit.ts` ร่วมกันและคง id/category เดิม
+รถหันหน้า +Z ล้อสัมผัส y = 0 ไม่มีโลโก้หรือยี่ห้อจริง
+
+| id | Tier | สามเหลี่ยมก่อน → หลัง (seed 1, กลาง) | Draw calls ก่อน → หลัง |
+|---|---|---:|---:|
+| veh.pickup | R3 | 656 → 3,358 | 5 → 8 |
+| veh.sedan | R3 | 584 → 3,296 | 5 → 8 |
+| veh.songthaew | R2 | 860 → 3,640 | 6 → 8 |
+
+- สาเหตุภาพเดิม: รูปทรงกล่องซ้อน ไม่มี bevel; กระจกเป็นกล่องอยู่ภายในห้องโดยสาร
+  และสี `tint()` คูณกับ albedo ของเหล็กทาสีเก่า ทำให้รถมืดและมีลายวัสดุอาคาร
+- ชุดเครื่องมือใหม่ตัดซุ้มล้อจริง เผื่อช่องว่างอย่างน้อย 6 ซม.; ตัวถังแคบเข้าหลังคา
+  เหลือ 87.5% ของความกว้างช่วงเอว กระจกเป็นแผ่น inset 1.5 ซม. พร้อมกรอบและเสากลางสีดำ
+  ยาง Lathe 16 segments มีแก้มมน ขอบล้อ 5 ก้าน กระจกมองข้างบนก้าน มือจับประตู
+  กระจังซี่ กันชนพลาสติก ไฟหน้า/ไฟเลี้ยว/ไฟท้าย โดยเลนส์อยู่ด้านนอกผิวตัวถัง
+- วัสดุ procedural ใหม่ใน library: `car_paint`, `rubber_tire`, `chrome`,
+  `plastic_trim_black`, `lamp_lens`, `tail_light_red`, `glass_vehicle`
+  สีรถเป็น Physical clearcoat 1 / roughness 0.35 / clearcoatRoughness 0.1
+  สี metallic ใช้ metalness 0.4 สีขาว 0; ไม่มี scanned maps หรือ asset ภายนอกใหม่
+  ไฟ emissive เปลี่ยนตาม night mode และ worker/LOD รักษาคุณสมบัติวัสดุเหล่านี้
+- กระบะตัวถังประมาณ 5.3×1.85×1.8 ม. ไม่รวมกระจกมองข้าง; กระบะเปิดมีพื้นและผนังด้านใน
+  เลือก double/extended/single cab ตาม seed โดย double มากที่สุด
+  seed คู่มี canopy คี่มี roll bar; สีขาวมีน้ำหนักมากที่สุด ตามด้วยเงินและสีอื่น
+  กระบะทุกแบบรักษาขนาดภายนอกและความสูงเดียวกัน
+- สองแถวใช้ chassis กระบะเดิมพร้อมหลังคา เบาะยาวสองแถว ราวจับและบันไดท้าย
+  สีมาจาก `kit.vehicles`: เหนือแดง ส่วนภาคอื่นน้ำเงิน/เขียว/ขาวตาม seed
+- โชว์รูม `com.block_3_0` เคยนำ `createSedan()` ไปวาง 6 คันโดยตรง
+  เพิ่ม helper `sedanDisplayParts()` ใช้ silhouette/window เดียวกัน ลดรายละเอียดสำหรับ prop
+  และรวมสีผ่าน `vehicleDisplayMaterial()` หนึ่งวัสดุ เพื่อคงงบอาคาร 8,000 สามเหลี่ยม
+  prop คันละ 600 สามเหลี่ยม; โชว์รูม seed 1 กลางรวม 4,156 สามเหลี่ยม / 6 draw calls
+  ไม่เพิ่มงบ registry และไม่ใช้วัสดุอาคารกับตัวรถใหม่
+- ไม่แก้ยานพาหนะอื่นของ 16C/16D, game/simulation, shared config หรือ license headers เดิม
+
+### ตรวจสอบ
+
+- `vehicle-kit.test.ts` ตรวจผิวสีสะอาด ซุ้มล้อด้วย raycast ขนาดทั้ง 3 cab/2 accessories
+  งบ/ล้อ/กระจก 8 seeds ต่อรถ สีสองแถวทั้ง 6 ภาค ไฟกลางคืนและเลนส์ไม่ถูกตัวถังบัง
+  worker round trip/clearcoat/LOD และ prop โชว์รูมพร้อม vertex colors ผ่านทั้ง 35 ข้อ
+- ชุดรวม `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false --testTimeout=20000`
+  ครบ 59 suites / 3,929 tests ใน 913.5 วินาที: 58 suites / 3,927 tests ผ่าน
+  รวม registry และการตรวจ commercial ทุกภาค; ไม่ผ่านเฉพาะ Bounds เดิม 2 ข้อ
+  ตาม CLAUDE.md ไม่มีข้อผิดพลาดใหม่จากงานนี้
+- ตรวจภาพรถทั้งสามระยะใกล้และซูมออก หมุนดูด้านท้าย canopy เปลี่ยน seed/region/night
+  และเทียบสองแถว 6 ภาคใน gallery
+- `npm run build` ผ่าน มีคำเตือนขนาด bundle ตามเดิม; `git diff --check` ผ่าน
+- เปิด `index.html` เริ่มเมืองฝึกเล่น วางเขตบ้านได้ คลังเมืองลด 20,000 → 19,900 บาท
+  เวลาเกมเดินต่อ ตรวจ gallery/เกมไม่มี console error และไม่บันทึกเมืองทดสอบ
+
+### ข้อจำกัด
+
+สองแถว seed 1 ใช้ 3,640 สามเหลี่ยม สูงกว่าเป้าหมายประมาณ 3,500 เล็กน้อย
+แต่ยังอยู่ในงบ 4,000; กระจกเป็นแผ่นทึบสีเข้มสะท้อนแสง ไม่มีห้องโดยสารภายในหรือ refraction
+รถโชว์รูมใช้วัสดุสีรวมสำหรับระยะเมือง จึงไม่มีไฟกลางคืนแยกเป็นเลนส์แบบรถเต็มรายละเอียด
+`CitySprites` ยังใช้ placeholder เดิมสำหรับ traffic; รอบนี้ปรับ factories และ gallery
+การเชื่อมรถเหล่านี้กับ traffic renderer เป็นงานต่อไป
+
+ภาพตรวจสอบ:
+[กระบะก่อน](../../test/render3d/artifacts/vehicles-16b-pickup-before.jpg),
+[กระบะหลัง](../../test/render3d/artifacts/vehicles-16b-pickup-after.jpg),
+[เก๋งก่อน](../../test/render3d/artifacts/vehicles-16b-sedan-before.jpg),
+[เก๋งหลัง](../../test/render3d/artifacts/vehicles-16b-sedan-after.jpg),
+[สองแถว](../../test/render3d/artifacts/vehicles-16b-songthaew-after.jpg),
+[สองแถว 6 ภาค](../../test/render3d/artifacts/vehicles-16b-songthaew-regions.jpg),
+[กระบะระยะเมือง](../../test/render3d/artifacts/vehicles-16b-pickup-distance.jpg),
+[เก๋งระยะเมือง](../../test/render3d/artifacts/vehicles-16b-sedan-distance.jpg),
+[สองแถวระยะเมือง](../../test/render3d/artifacts/vehicles-16b-songthaew-distance.jpg),
+[ไฟท้ายกลางคืน](../../test/render3d/artifacts/vehicles-16b-sedan-night.jpg),
+[โชว์รูม](../../test/render3d/artifacts/vehicles-16b-showroom.jpg),
+[เกมฝึกเล่น](../../test/render3d/artifacts/vehicles-16b-game.jpg)
+
+## Prompt 15 — ท่าเรือและสนามบิน
+
+วันที่ 2026-10-12: เพิ่ม `port.seaport` และ `port.airport` ใน
+`src/render3d/models/transport/` พร้อม registry, geometry animation และ worker material decoding
+ทั้งสองใช้วัสดุจาก library เดิม ไม่มี asset ภายนอกหรือ dependency ใหม่
+
+| id | Tier | Tiles / centre | พื้นที่ใช้งาน | สามเหลี่ยม seed 1 | Draw calls |
+|---|---|---|---|---:|---:|
+| port.seaport | R3 | 693–708 / 698 | 39×39 ม. | 10,232 | 7 |
+| port.airport | R2 | 709–744 / 716 | 59×59 ม. | 4,750 (กลาง); 4,496–4,862 ทั้ง 6 ภาค | 8 |
+
+- ท่าเรือมี concrete quay ด้าน +Z, เครน gantry 2 ตัว, ตู้สินค้า 6 กองซ้อน 2–4 ชั้น
+  หลายสีตาม seed ไม่มีชื่อสายเรือจริง; คลังสินค้า รถลาก terminal tractors 2 คัน
+  ประตูทางเข้าและป้อมยาม พร้อมป้าย “ท่าเรือสินค้า” และ “คลังสินค้า”
+- `anim_crane_0` และ `anim_crane_1` เป็น pivots สำหรับเลื่อนตาม X ±2 ม.
+  เครนสองตัวใช้ geometry เดียวใน `InstancedMesh` เพื่อคงหนึ่ง mesh ต่อวัสดุ
+  Gallery อัปเดต matrices ทั้งตัวตาม pivots; เมืองใช้ shader สำหรับ prototype ที่ worker bake
+  โดยมี time uniform ร่วมและ shader ของ shadow pass เดินตาม
+- สนามบินมีรันเวย์ตาม X ยาวตลอดพื้นที่ใช้งาน 59 ม. กว้าง 12 ม. ที่ Z = 22
+  มีเส้นขอบ เส้นกลาง threshold และ touchdown markings; terminal ผนังกระจก
+  หอควบคุม ที่จอดรถ 4 คัน และถนนเข้าออกด้าน −Z
+- จอด `veh.airplane` ขนาดเดิม 2 ลำที่ X = −14/+14, Z = 0 หันหน้าเข้าหา terminal;
+  geometry และสีจากเครื่องบินเดิมถูกรวมกับ batches ของสนามบิน โดยไม่ทับรันเวย์
+- `anim_radar` หมุนรอบแกน Y ที่ X = −5, Z = −25, Y = 6.4 ม.
+  Gallery ใช้ Group pivot จริง; เมืองหมุน geometry ที่ bake และ normals ผ่าน shader
+- Terminal ใช้ `kit.services` สำหรับหลังคา/เครื่องประดับและ `palette('airport', seed)`:
+  เหนือจั่วไม้พร้อมกาแล, อีสานจั่วสังกะสี, กลาง/ตะวันออก/ตะวันตกจั่วซ้อน, ใต้ปั้นหยา
+  ส่วนอื่นของสนามบินคงรูปทรงแบบชาติเดียวกันทั้ง 6 ภาค
+- Renderer หันท่าเรือให้ด้าน +Z เข้าหาด้านที่มีน้ำมากที่สุดรอบ footprint;
+  กรณีไม่มีน้ำหรือเสมอกันเลือกมุมเดิมอย่าง deterministic และไม่เขียน simulation
+- Worker เก็บ bounds ครอบคลุมการเลื่อนเครนและวงหมุนเรดาร์; pause ของเมืองหยุด clock
+  ใส่ตัวอย่างท่าเรือริมแม่น้ำและสนามบินใกล้มุมเปิดของ City gallery ให้ตรวจได้ทันที
+
+จำนวนสามเหลี่ยมสนามบิน seed 1:
+เหนือ 4,738; อีสาน 4,546; กลาง 4,750; ตะวันออก 4,750; ตะวันตก 4,862; ใต้ 4,496
+ท่าเรือเปลี่ยนจำนวนตู้ตาม seed จึงเปลี่ยนจำนวนสามเหลี่ยม แต่ความสูงเครนและพื้นที่คงเดิม
+
+### ตรวจสอบ
+
+- เพิ่ม `transport-hubs.test.ts` ผ่าน 16 ข้อ: footprint/budget/หนึ่ง mesh ต่อวัสดุทั้ง 6 ภาค,
+  kit ของ terminal, เครื่องบินไม่ทับรันเวย์, 2–4 ชั้นของตู้, real pivot/instance matrices,
+  ขอบเขตทุกมุม animation, worker round trip, uniforms/shadow shaders, tiles/coverage และหันหาน้ำครบ 4 ด้าน
+- รอบตรวจที่เกี่ยวข้อง: 4 suites / 81 tests ผ่าน รวม generic registry ของโมเดลใหม่ทั้ง 5 seeds,
+  determinism และ airport ทั้ง 6 ภาค พร้อม city/motion/LOD cases
+- รันชุดรวมด้วย `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false --testTimeout=20000`
+  ครบ 58 suites / 3,894 tests: 57 suites / 3,892 tests ผ่าน รวมการตรวจทุกโมเดลใน registry;
+  ไม่ผ่านเฉพาะ Bounds เดิม 2 ข้อที่คู่มือระบุไว้ ไม่มีข้อผิดพลาดใหม่จากงานนี้
+- `npm run build` ผ่าน มีคำเตือนขนาด bundle ตามเดิม; `git diff --check` ผ่าน
+- Gallery แสดงโมเดลเดี่ยว หมุน/ซูมได้ เปลี่ยน region/seed และเทียบสนามบิน 6 ภาคได้
+  ตรวจ shader ใน City renderer ไม่มี console error
+- City gallery ขยับกล้อง 10 วินาที: frame เฉลี่ย 17.7 ms, CPU เฉลี่ย 15.0 ms,
+  เปลี่ยน DPR 0 ครั้ง; canvas 1199×502, DPR 1.75 บนเครื่องนี้ขณะรันชุดทดสอบ
+  เป็นค่ารวมของเมือง 200×200 ไม่ใช่ benchmark ของโมเดลเดี่ยว
+- เปิด `index.html` เริ่มเมืองฝึกเล่นและวางทั้งสอง hub จริง ภาพแสดงครบ เวลาเกมเดินต่อ
+  คลังเมืองหักราคากับค่ารื้อพื้นที่ตามปกติ ไม่มี console error และไม่บันทึกเมืองทดสอบ
+- ไม่แก้ shared config หรือ game/simulation และไม่เปลี่ยน license headers เดิม
+
+### ข้อจำกัด
+
+สนามบินและท่าเรือถูกจัดผังย่อให้พอดีพื้นที่เกม รันเวย์จึงยาว 59 ม. ไม่ใช่ระยะบินขึ้นจริง
+เครื่องบินจอดเป็น static props; animation ของเครน/เรดาร์เป็นภาพตกแต่งตามเวลา
+ยังไม่มีการยกตู้ขึ้นเรือหรือการเรียกเครื่องบินจาก simulation
+
+ภาพตรวจสอบ:
+[ท่าเรือ](../../test/render3d/artifacts/transport-seaport.jpg),
+[สนามบินกลาง](../../test/render3d/artifacts/transport-airport-central.jpg),
+[สนามบินเหนือ](../../test/render3d/artifacts/transport-airport-north.jpg),
+[สนามบินใต้](../../test/render3d/artifacts/transport-airport-south.jpg),
+[สนามบิน 6 ภาค](../../test/render3d/artifacts/transport-airport-regions.jpg),
+[แกลเลอรี](../../test/render3d/artifacts/transport-gallery.jpg),
+[City motion](../../test/render3d/artifacts/transport-city-motion.jpg),
+[hub ทั้งคู่ในเกม](../../test/render3d/artifacts/transport-game.jpg)
+
+## โรงไฟฟ้าถ่านหินและนิวเคลียร์ 4×4
+
+วันที่ 2026-10-12: เพิ่ม `power.coal` และ `power.nuclear` ใน
+`src/render3d/models/services/`; ลง registry หมวด services ระดับ R3
+ใช้พื้นที่ 39×39 ม. ทั้ง 6 ภาค โครงสร้างและ anchors เหมือนกันทุกภาค
+สีผนังมาจาก `kit.neutralPalette(seed)` และรวม geometry ต่อวัสดุ
+
+| id | Tiles / centre | สามเหลี่ยม (seed 1) | Draw calls | ความสูง |
+|---|---|---:|---:|---:|
+| power.coal | 745–760 / 750 | 6,604 | 6 | อาคารหม้อไอน้ำ 35 ม.; ปล่อง 44 ม. |
+| power.nuclear | 811–826 / 816 | 6,380 | 7 | หอหล่อเย็น 55 ม.; โดม 25.2 ม. |
+
+- ถ่านหิน: ปล่องเปิด 4 ปล่องมี `anchor_smoke_0` ถึง `anchor_smoke_3`
+  ที่ `(5,44,-15)`, `(15,44,-15)`, `(5,44,-5)`, `(15,44,-5)`
+  ตรงศูนย์ช่อง animation ทาง +X/−Z; สายพานลำเลียง กองถ่านหินดำ
+  switchyard แรงสูง และเสาส่งไฟ 2 ต้นด้าน −X; ป้าย “โรงไฟฟ้าถ่านหิน”
+- นิวเคลียร์เป็นโรงสมมติ: อาคาร containment ทรงกระบอกกับโดมด้าน +X/−Z
+  หอหล่อเย็น hyperbolic ปากเปิดสูง 55 ม. มี `anchor_steam_0` ที่ `(-9,55,-9)`
+  และ `anchor_light_0` ที่ยอดโดม `(9,25.2,-9)` พร้อม beacon emissive สีอุ่นอ่อน
+  โรงกังหัน รั้วรักษาความปลอดภัย 2 ชั้น ป้อมยามและไม้กั้น; ป้ายภาษาไทย ไม่มีตราองค์กร
+- Renderer อ่าน centre tile แล้ววางโรงหนึ่งแห่งต่อ 16 ช่องตามระบบเดิม;
+  coarse height ของโรงถ่านหิน/นิวเคลียร์เป็น 44/55 ม. เพื่อรักษาความสูงขณะเปลี่ยน detail
+  และ worker สร้างวัสดุ beacon กลับผ่าน library ด้วยความสว่างเดิม
+
+### ตรวจสอบ
+
+- `power-plants.test.ts` ผ่าน 15 ข้อ: ขอบเขตและงบทั้ง 6 ภาค, R3 geometry คงเดิม,
+  deterministic seed, วัสดุ library และหนึ่ง mesh ต่อวัสดุ, พิกัด anchor,
+  rim ปล่องเปิด, ความสูงหม้อไอน้ำ, หอหล่อเย็นคอด/ปากเปิด, แสงกลางวัน/กลางคืน
+  และ worker round trip รวมถึง tile coverage/ตำแหน่งอาคาร/coarse height
+- Generic registry cases ของโรงไฟฟ้าทั้งสองผ่าน (5 seeds พร้อม determinism);
+  `npm run build` ผ่าน มีเฉพาะคำเตือนขนาด bundle ตามเดิม
+- รัน `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false`
+  ครบ 57 suites / 3,839 tests: 55 suites / 3,836 tests ผ่าน รวม `models.test.ts`
+  ที่ตรวจทุกโมเดล; ไม่ผ่าน Bounds เดิม 2 ข้อ และตรวจ maps ของวัสดุ 1 ข้อเกินเวลา
+  5 วินาที ตรวจ `materials.test.ts` ซ้ำแยกชุดด้วย `--testTimeout=20000`
+  แล้วผ่านทั้ง 7 ข้อ; ไม่มีข้อผิดพลาดจากโมเดลโรงไฟฟ้าใหม่
+- ตรวจ Gallery โมเดลเดี่ยว หมุน/ซูม เปลี่ยน region/seed และกลางคืน ไม่มี console error
+- เปิด `index.html` เริ่มเมืองฝึกเล่นใหม่ วางโรงไฟฟ้าทั้งสองจริงและซูมดูได้;
+  คลังเมืองหักตามราคา เวลา simulation เดินต่อ ไม่มี console error และไม่บันทึกเมืองทดสอบ
+- ไม่เพิ่ม external assets/dependencies หรือแก้ shared config, game/simulation
+
+### ข้อจำกัด
+
+ส่วนประกอบโรงไฟฟ้าถูกจัดให้กระชับตามพื้นที่ 39×39 ม. ของเกม จึงเป็นโรงสมมติย่อส่วน
+ควันและไอน้ำส่งตำแหน่งผ่าน anchors ให้ระบบ effects ในอนาคต ยังไม่มี particles;
+beacon ใช้ emissive พร้อม anchor ไม่มี dynamic light เพิ่มต่ออาคาร
+
+ภาพตรวจสอบ:
+[ถ่านหิน](../../test/render3d/artifacts/power-coal.jpg),
+[นิวเคลียร์](../../test/render3d/artifacts/power-nuclear.jpg),
+[กลางคืน](../../test/render3d/artifacts/power-nuclear-night.jpg),
+[แกลเลอรี](../../test/render3d/artifacts/power-plants-gallery.jpg),
+[โรงไฟฟ้าทั้งคู่ในเกม](../../test/render3d/artifacts/power-plants-game.jpg)
+
+## อาคารบริการ — ตำรวจ ดับเพลิง และสนามกีฬา
+
+วันที่ 2026-10-12: เพิ่ม factories ใน `src/render3d/models/services/` และลง registry
+พร้อม tile footprints ของสถานีตำรวจ 770–778 (centre 774), ดับเพลิง 761–769 (centre 765)
+และสนามกีฬา 779–794 / 795–810 (centre 784 / 800); game tile 800 เลือก `state_game`
+โดย renderer อ่านค่าจากเมืองเท่านั้น
+
+จำนวนที่ seed 1; ช่วงครอบคลุมทั้ง 6 ภาค; draw calls นับผิวที่แสดง ไม่รวม shadow pass:
+
+| id / state | Tier | พื้นที่ | สามเหลี่ยมกลาง | ช่วง 6 ภาค | Draw calls |
+|---|---|---|---:|---:|---:|
+| svc.police | R2 | 3×3 | 3,556 | 3,112–3,844 | 8 |
+| svc.fire | R2 | 3×3 | 2,304 | 2,050–2,416 | 7–8 |
+| svc.stadium / empty | R3 | 4×4 | 3,288 | 3,288 | 6 |
+| svc.stadium / game | R3 | 4×4 | 12,144 | 12,144 | 8 |
+
+- ตำรวจ: อาคาร 3 ชั้น สีครีม/น้ำตาล ป้าย “สถานีตำรวจ” ธงชาติไทย 5 แถบ สองด้าน
+  ป้อมยาม รถสายตรวจขาวคาดแถบ 2 คัน และมอเตอร์ไซค์ 2 คัน ไม่มีตราหน่วยงานจริง
+- ดับเพลิง: โรงรถ 3 ช่อง ประตูม้วนแดง หอฝึก 5 ชั้น ป้าย “สถานีดับเพลิง”
+  รถดับเพลิงแดง 2 คันพร้อมบันได และลานฝึกพร้อมสายยาง
+- R2 ใช้ `kit.services` สำหรับ palette และหลังคา/หน้าจั่ว/เครื่องประดับทั้งหมด:
+  เหนือเป็นจั่วไม้กับกาแล อีสานจั่วสังกะสี กลาง/ตะวันออก/ตะวันตกจั่วซ้อน
+  และใต้ปั้นหยา; โครงอาคารหลักเหมือนกันทุกภาค
+- สนามมีสนามฟุตบอลย่อ ลู่วิ่งทรง oval อัฒจันทร์มีหลังคา 2 ฝั่ง เสาไฟ 4 ต้น
+  ที่หัวเสามี `anchor_light_0` ถึง `anchor_light_3`; ร้านอาหาร 2 ร้านและที่จอดรถด้านหน้า
+- `state_empty` ไม่มีผู้ชมหรือนักกีฬา และหน้าโคมไม่เรืองแสง; `state_game` มีผู้ชม
+  instanced สีหลายสี 336 จุด นักฟุตบอล 22 ตัว และหน้าโคม emissive ทั้งกลางวัน/กลางคืน
+- Worker ส่งตำแหน่ง/สีของ nested instances เป็น geometry ของ prototype เมือง
+  และสร้างวัสดุคอนกรีต ผู้ชม และโคมไฟกลับผ่าน library เดิม; มี regression ทดสอบจำนวน
+  triangles, bounds และสีหลังส่งข้อมูล รวมถึงการเปลี่ยน prototype เมื่อเริ่มแข่งขัน
+- Gallery เปิดหมวดบริการตรงได้ด้วย `model-gallery.html?category=services`;
+  มีโมเดลเดี่ยว/หมุนกล้อง/seed/state/region และปุ่มเทียบ 6 ภาคตามระบบเดิม
+
+### ข้อจำกัด
+
+สนามฟุตบอลมีขนาด 12.4×20.4 ม. เพื่อให้ทั้งสนาม ลู่วิ่ง และอัฒจันทร์อยู่ใน 39×39 ม.
+ตามสเกลเกม จึงไม่ใช่สนามขนาดแข่งขันจริง; รถและคนเป็นพร็อพแบบย่อ นักฟุตบอลยังไม่เคลื่อนไหว
+โคมไฟใช้ emissive และ anchors พร้อมให้ระบบ effects เพิ่มแสงส่องสนามภายหลัง
+ไม่เพิ่ม assets ภายนอกหรือ dependencies และไม่แก้ game/simulation หรือ shared config
+
+### ตรวจสอบ
+
+- เพิ่ม `test/render3d/services.test.ts`: contracts ทั้ง 6 ภาค, R2 massing, states,
+  แสงกลางวัน/กลางคืน, deterministic crowd และ worker round trip
+- รันชุดรวม 56 suites / 3,810 tests: 54 suites ผ่าน; `models.test.ts` ตรวจทุกโมเดลผ่าน
+  ในการรันนี้มี Bounds เดิม 2 ข้อ และ service shadow regression 1 ข้อจาก dependency
+  รุ่นก่อนหน้าที่ runner โหลดระหว่างแก้ไฟล์; ตรวจไฟล์ล่าสุดซ้ำแล้ว regression นี้ผ่าน
+- การรันสุดท้ายครอบคลุม service contracts, city, motion, materials และ registry service cases
+  ทั้ง 6 ภาค/5 seeds: 5 suites, 212 tests ผ่านทั้งหมด; นอกนั้นเป็น cases ของโมเดลอื่น
+  ที่ผ่านในการรันชุดรวมแล้ว และไม่ได้รันซ้ำ
+- `npm run build` ผ่าน (มีคำเตือนขนาด bundle ตามเดิม); `git diff --check` ผ่าน
+- เปิด `index.html` และเริ่มเมืองฝึกเล่นจริง: ภาพเมือง 3D แสดงและวันที่ simulation เดินต่อ
+  ไม่มี error ใน console; ไม่บันทึกเมืองทดสอบ
+- ตรวจ Gallery โมเดลเดี่ยวและการหมุน/ซูม, หลังคาทั้ง 6 ภาค, lineup ของตำรวจ/ดับเพลิง
+  และสนาม empty/game ทั้งกลางวัน/กลางคืน; ผู้ชมมี vertex color ขาวเพื่อให้สี instance
+  แสดงถูกต้อง และเก็บการตั้งเงาของแต่ละส่วนผ่าน worker
+
+ภาพตรวจสอบอยู่ใน `test/render3d/artifacts/`:
+[ภาพรวม](../../test/render3d/artifacts/services-gallery.jpg),
+[ตำรวจเหนือ](../../test/render3d/artifacts/services-police-north.jpg),
+[ตำรวจใต้](../../test/render3d/artifacts/services-police-south.jpg),
+[ตำรวจ 6 ภาค](../../test/render3d/artifacts/services-police-regions.jpg),
+[ดับเพลิงกลาง](../../test/render3d/artifacts/services-fire-central.jpg),
+[ดับเพลิง 6 ภาค](../../test/render3d/artifacts/services-fire-regions.jpg),
+[สนามว่าง](../../test/render3d/artifacts/services-stadium-empty.jpg),
+[แข่งขัน](../../test/render3d/artifacts/services-stadium-game.jpg),
+[แข่งขันกลางคืน](../../test/render3d/artifacts/services-stadium-night.jpg)
+
 ## Prompt 12 — โซนอุตสาหกรรม 3×3
 
 วันที่ 2026-10-12: เพิ่ม 9 factories ใน `src/render3d/models/industrial/` และลง registry

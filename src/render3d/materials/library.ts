@@ -52,6 +52,7 @@ const definitions = {
 } satisfies Record<string, MeshStandardMaterialParameters>;
 
 export type MaterialKey = keyof typeof definitions;
+export type VehicleMaterialKey = 'car_paint' | 'rubber_tire' | 'chrome' | 'plastic_trim_black' | 'lamp_lens' | 'tail_light_red' | 'glass_vehicle';
 export const MATERIAL_KEYS = Object.freeze(Object.keys(definitions) as MaterialKey[]);
 const cache = new Map<string, MeshStandardMaterial>();
 const owned = new WeakSet<Material>();
@@ -68,6 +69,44 @@ export function getPreviewGround(): MeshStandardMaterial {
     owned.add(previewGround);
   }
   return previewGround;
+}
+
+/** Clean automotive finishes are procedural: no building scans, UV textures, or import-time loads. */
+export function vehicleMaterial(key: VehicleMaterialKey, color?: ColorRepresentation): MeshStandardMaterial {
+  const colors = { car_paint: 0xf4f3ef, rubber_tire: 0x202527, chrome: 0xbfc8cc, plastic_trim_black: 0x242b2c,
+    lamp_lens: 0xfff3d8, tail_light_red: 0xde252b, glass_vehicle: 0x334f58 };
+  const resolved = new Color(color ?? colors[key]), token = `vehicle:${key}:${resolved.getHexString()}`;
+  const cached = cache.get(token); if (cached) return cached;
+  const material = ['car_paint', 'glass_vehicle', 'lamp_lens', 'tail_light_red'].includes(key)
+    ? new MeshPhysicalMaterial() : new MeshStandardMaterial();
+  material.name = token; material.color.copy(resolved);
+  material.userData = { materialKey: key, vehicleMaterial: key, procedural: true };
+  if (key === 'car_paint') {
+    const paint = material as MeshPhysicalMaterial;
+    paint.clearcoat = 1; paint.clearcoatRoughness = 0.1; paint.roughness = 0.35;
+    paint.metalness = resolved.r > 0.83 && resolved.g > 0.83 && resolved.b > 0.83 ? 0 : 0.4;
+    paint.envMapIntensity = 1.1;
+  } else if (key === 'rubber_tire') material.roughness = 0.88;
+  else if (key === 'chrome') { material.metalness = 1; material.roughness = 0.21; }
+  else if (key === 'plastic_trim_black') material.roughness = 0.72;
+  else if (key === 'glass_vehicle') {
+    const glass = material as MeshPhysicalMaterial;
+    glass.roughness = 0.13; glass.metalness = 0.12; glass.clearcoat = 0.6; glass.envMapIntensity = 1.3;
+    // Opaque tinted glass keeps small vehicle windows readable without sorting or refraction passes.
+  } else {
+    material.roughness = 0.18; material.emissive.copy(resolved);
+    (material as MeshPhysicalMaterial).clearcoat = 0.8;
+  }
+  owned.add(material); cache.set(token, material); applyNight(material); return material;
+}
+export const car_paint = (color: ColorRepresentation): MeshPhysicalMaterial => vehicleMaterial('car_paint', color) as MeshPhysicalMaterial;
+
+/** One automotive finish for distant display props, whose glass/tires/paint colors are baked per vertex. */
+export function vehicleDisplayMaterial(): MeshPhysicalMaterial {
+  const token = 'vehicle-display'; const cached = cache.get(token); if (cached) return cached as MeshPhysicalMaterial;
+  const material = car_paint(0xffffff).clone(); material.name = token; material.vertexColors = true;
+  material.userData = { ...material.userData, vehicleDisplay: true, vertexFinish: true };
+  material.roughness = 0.45; owned.add(material); cache.set(token, material); return material;
 }
 
 function applyTextures(material: MeshStandardMaterial, key: MaterialKey, maps: TextureSet): void {
@@ -264,6 +303,7 @@ function configureCityWorldUV(material: MeshStandardMaterial): void {
   material.customProgramCacheKey = () => `phaicity-city-world:${program}`;
 }
 export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMaterial {
+  if (base.userData.vehicleMaterial) return base;
   const key = base.userData.materialKey as MaterialKey;
   if (!key || ['sign_thai', 'foliage_tropical'].includes(key) || base.userData.commercialLED || base.userData.pathCurb) return base;
   return finishedMaterial(`city-world-${base.name}`, key, base.color, material => {
@@ -271,7 +311,9 @@ export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMater
     material.userData = { ...base.userData, cityWorldUV: true };
     // City glass keeps physical reflection and alpha, without an extra full-scene refraction pass.
     if (material instanceof MeshPhysicalMaterial) { material.transmission = 0; material.forceSinglePass = true; }
-    material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey; configureCityWorldUV(material);
+    material.onBeforeCompile = base.onBeforeCompile; material.customProgramCacheKey = base.customProgramCacheKey;
+    if (base.userData.transportMotion) configureTransportMotion(material, base.userData.transportMotion);
+    configureCityWorldUV(material);
   });
 }
 /** Complementary screen-door coverage keeps depth writes and avoids alpha-sorting LOD flashes. */
@@ -311,16 +353,17 @@ export function cityLODMaterial(base: MeshStandardMaterial, coarse = false): Mes
   material.onBeforeCompile=world.onBeforeCompile;material.customProgramCacheKey=world.customProgramCacheKey;configureCityLOD(material,coarse);
   owned.add(material);cache.set(token,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
-  if(key)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
+  if(key&&!base.userData.vehicleMaterial)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
   return material;
 }
 const cityDepthMaterials=new WeakMap<Material,MeshDepthMaterial>();
 export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMaterial {
   const cached=cityDepthMaterials.get(base);if(cached)return cached;
   const material=new MeshDepthMaterial({depthPacking:RGBADepthPacking,side:base.side,map:base.map,alphaMap:base.alphaMap,alphaTest:base.alphaTest});
+  if(base.userData.transportMotion)configureTransportMotion(material,base.userData.transportMotion);
   configureCityLOD(material,false);owned.add(material);cityDepthMaterials.set(base,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
-  if(key)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
+  if(key&&!base.userData.vehicleMaterial)void whenMaterialReady(key).then(()=>{material.map=base.map;material.alphaMap=base.alphaMap;material.alphaTest=base.alphaTest;material.needsUpdate=true;});
   return material;
 }
 export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
@@ -355,6 +398,95 @@ export function commercialLEDMaterial(): MeshStandardMaterial {
     material.customProgramCacheKey = () => 'phaicity-commercial-led-v1';
   });
 }
+/** Neutral scan grain keeps civic paving and seating concrete grey under their baked colors. */
+export function serviceConcreteMaterial(): MeshStandardMaterial {
+  return finishedMaterial('service-concrete', 'concrete_weathered', 0xffffff, material => {
+    material.vertexColors = true; material.userData.vertexFinish = true; material.userData.serviceConcrete = true;
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float civicGrain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.80 + 0.20 * civicGrain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-service-concrete';
+  });
+}
+
+/** Separate from canopy canvas so an instanced crowd remains one material batch. */
+export function stadiumCrowdMaterial(): MeshStandardMaterial {
+  return finishedMaterial('stadium-crowd', 'fabric_canvas', 0xffffff, material => {
+    material.vertexColors = true; material.userData.stadiumCrowd = true; material.roughness = 1;
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+          float crowdGrain = dot(texture2D(map, vMapUv).rgb, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = diffuse * (0.90 + 0.10 * crowdGrain);
+        #endif`);
+    };
+    material.customProgramCacheKey = () => 'phaicity-stadium-crowd';
+  });
+}
+
+/** Match floodlights stay emissive in daylight; the empty state uses unlit housings. */
+export function stadiumFloodlightMaterial(): MeshStandardMaterial {
+  return finishedMaterial('stadium-floodlight', 'emissive_window', 0xfff6db, material => {
+    material.userData.stadiumFloodlight = true; material.emissive.setHex(0xfff1c4); material.emissiveIntensity = 4;
+  });
+}
+
+/** Small warm safety beacon; fixed low emission in both gallery day and night. */
+export function powerDomeGlowMaterial(): MeshStandardMaterial {
+  return finishedMaterial('power-dome-glow', 'emissive_window', 0xffe6b0, material => {
+    material.userData.powerDomeGlow = true; material.emissive.setHex(0xffdfa0); material.emissiveIntensity = 0.65;
+  });
+}
+
+const transportClock = { value: 0 };
+/** Moving parts have dedicated batches; the city animates baked prototypes on the GPU. */
+export function transportCraneMaterial(): MeshStandardMaterial {
+  return finishedMaterial('transport-crane', 'metal_painted', 0xffffff, material => {
+    material.copy(vertexFinish('metal_painted')); material.name = 'transport-crane';
+    material.userData = { ...material.userData, transportMotion: 'cranes' };
+    material.onBeforeCompile = vertexFinish('metal_painted').onBeforeCompile;
+    material.customProgramCacheKey = vertexFinish('metal_painted').customProgramCacheKey;
+  });
+}
+export function transportRadarMaterial(): MeshStandardMaterial {
+  return finishedMaterial('transport-radar', 'metal_painted', 0xffffff, material => {
+    material.copy(vertexFinish('metal_painted')); material.name = 'transport-radar';
+    material.userData = { ...material.userData, transportMotion: 'radar' };
+    material.onBeforeCompile = vertexFinish('metal_painted').onBeforeCompile;
+    material.customProgramCacheKey = vertexFinish('metal_painted').customProgramCacheKey;
+  });
+}
+export function updateTransportClock(seconds: number): void {
+  if (Number.isFinite(seconds)) transportClock.value = seconds;
+}
+
+function configureTransportMotion(material: Material, kind: 'cranes' | 'radar'): void {
+  const original = material.onBeforeCompile, program = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    original.call(material, shader, renderer); shader.uniforms.transportTime = transportClock;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float transportTime;');
+    const rotation = 'mat2(cos(transportTime * 0.65), -sin(transportTime * 0.65), sin(transportTime * 0.65), cos(transportTime * 0.65))';
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n${kind === 'cranes'
+      ? 'transformed.x += sin(transportTime * 0.25) * 2.0 * (position.x < 0.0 ? 1.0 : -1.0);'
+      : `transformed.xz = ${rotation} * (transformed.xz - vec2(-5.0, -25.0)) + vec2(-5.0, -25.0);`}`);
+    if (kind === 'radar') shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>',
+      `#include <beginnormal_vertex>\nobjectNormal.xz = ${rotation} * objectNormal.xz;`);
+  };
+  material.customProgramCacheKey = () => `phaicity-transport-${kind}:${program}`;
+}
+
+const transportDepthMaterials = new WeakMap<Material, MeshDepthMaterial>();
+/** Gallery transforms already move the geometry; its shadows follow the real instances/pivot. */
+export function transportMotionDepthMaterial(base: Material): MeshDepthMaterial {
+  const cached = transportDepthMaterials.get(base); if (cached) return cached;
+  const material = new MeshDepthMaterial({ depthPacking: RGBADepthPacking });
+  owned.add(material); transportDepthMaterials.set(base, material); return material;
+}
+
 export function updateCommercialDisplays(seconds: number): void {
   if (Number.isFinite(seconds)) commercialDisplayClock.value = seconds;
 }
@@ -495,6 +627,7 @@ export function setNightMode(night: boolean): void {
 }
 
 function applyNight(material: MeshStandardMaterial): void {
-  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
+  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = nightMode ? 1.5 : 0.015;
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
   if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
 }

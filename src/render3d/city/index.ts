@@ -6,7 +6,7 @@ import { ACESFilmicToneMapping, Color, DirectionalLight, Fog, HemisphereLight, O
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { CityView, ToolHover, TilePoint, TileRect } from '../../cityView.js';
 import { DAY_SKY_URL } from '../materials/catalog.js';
-import { getMaterial, tint, updateRoadSignals, updateCommercialDisplays } from '../materials/library.js';
+import { getMaterial, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
 import { pickTile, visibleTileRect } from './picking.js';
@@ -94,7 +94,7 @@ export class CityView3D implements CityView {
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
     this.chunks.update(this.visibleTiles(),this.navigation.target,this.navigation.distance);
     this.outline.update(hover);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds);
-    if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);
+    if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.render();this.frameTimes.push(this.now()-start);this.intervals.push(interval);if(this.frameTimes.length>120)this.frameTimes.shift();if(this.intervals.length>120)this.intervals.shift();
     this.metrics.frameMs=this.frameTimes.reduce((a,b)=>a+b,0)/this.frameTimes.length;
