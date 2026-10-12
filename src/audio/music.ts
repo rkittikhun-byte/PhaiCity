@@ -4,7 +4,8 @@
 
 // Music (docs/audio/AUDIO_PLAN.md stage 3): the main theme on the start screen, and in a city the
 // playlist of its region. Tracks stream from assets/audio/music/ and cross-fade; a playlist plays in a
-// shuffled order without repeating the last track. Which files exist is listed in
+// shuffled order without repeating the last track, with a rest between tracks so the city itself is heard
+// (and a short theme does not repeat without a break). Which files exist is listed in
 // assets/audio/music/tracks.json, so a region without music yet stays quiet without failed requests.
 // The music itself (brief, prompts, file spec, how to add a track): docs/audio/SOUND_LIST.md sections 6 and 9–12.
 
@@ -32,12 +33,13 @@ export interface MusicOptions {
   loadLists?: () => Promise<TrackLists>;
   createElement?: (src: string) => HTMLAudioElement;
   random?: () => number;
-  /** Ms of quiet between two tracks of a playlist. */
-  gapMs?: number;
+  /** Ms of quiet between two tracks, picked at random between the two values. */
+  restMs?: readonly [number, number];
 }
 
 export const THEME = "theme";
 const FADE_SECONDS = 2.5;
+const DEFAULT_REST_MS: readonly [number, number] = [20000, 45000];
 
 /** A random track of the list, never the one that just played unless it is the only one. */
 export function pickTrack(tracks: readonly string[], previous: string | null, random: () => number): string | null {
@@ -51,7 +53,7 @@ export class MusicPlayer {
   private readonly loadLists: () => Promise<TrackLists>;
   private readonly createElement: (src: string) => HTMLAudioElement;
   private readonly random: () => number;
-  private readonly gapMs: number;
+  private readonly restMs: readonly [number, number];
   private lists: Promise<TrackLists> | null = null;
   private readonly broken = new Set<string>();
   private wanted: string | null = null;
@@ -68,8 +70,13 @@ export class MusicPlayer {
     });
     this.createElement = options.createElement ?? ((src) => new Audio(src));
     this.random = options.random ?? Math.random;
-    this.gapMs = options.gapMs ?? 1500;
+    this.restMs = options.restMs ?? DEFAULT_REST_MS;
     engine.onUnlock(() => void this.update());
+  }
+
+  private nextRest(): number {
+    const [shortest, longest] = this.restMs;
+    return shortest + (longest - shortest) * this.random();
   }
 
   /** Plays a playlist ("theme" or a region id); asking for the one already playing changes nothing. */
@@ -130,7 +137,6 @@ export class MusicPlayer {
     if (!track) return;
     const element = this.createElement(this.baseUrl + track);
     element.preload = "auto";
-    element.loop = tracks.length === 1;
     const gain = this.engine.connectMedia(element, "music");
     if (!gain) return;
     gain.gain.setValueAtTime(0, this.engine.time);
@@ -142,9 +148,10 @@ export class MusicPlayer {
     element.addEventListener("ended", () => {
       if (this.current !== playing) return;
       this.current = null;
+      // A rest, then the next track (the same one again for a playlist of one)
       this.gapTimer = setTimeout(() => {
         if (this.wanted === list && !this.current) this.startTrack(list, lists);
-      }, this.gapMs);
+      }, this.nextRest());
     });
     // A file that will not play is skipped for the rest of the visit
     element.addEventListener("error", () => {

@@ -29,7 +29,7 @@ class FakeAudio {
   removeAttribute() { /* releases the file in a browser */ }
 }
 
-function setup(lists: TrackLists) {
+function setup(lists: TrackLists, restMs: [number, number] = [0, 0]) {
   const unlockers: Array<() => void> = [];
   const elements: FakeAudio[] = [];
   const engine: MusicEngine & { unlock(): void } = {
@@ -47,7 +47,7 @@ function setup(lists: TrackLists) {
       return element as unknown as HTMLAudioElement;
     },
     random: () => 0,
-    gapMs: 0,
+    restMs,
   });
   return { engine, player, elements };
 }
@@ -73,7 +73,21 @@ describe("MusicPlayer", () => {
     expect(elements).toHaveLength(1);
     expect(elements[0].src).toBe("assets/audio/music/theme.ogg");
     expect(elements[0].played).toBe(true);
-    expect(elements[0].loop).toBe(true); // a single track loops
+    expect(elements[0].loop).toBe(false); // even a single track rests between plays
+  });
+
+  test("rests between tracks, then plays again (the same track for a playlist of one)", async () => {
+    const { engine, player, elements } = setup({ theme: ["theme.ogg"] }, [40, 40]);
+    engine.unlock();
+    player.play("theme");
+    await settle();
+    elements[0].emit("ended");
+    await settle();
+    expect(elements).toHaveLength(1); // still resting
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(elements).toHaveLength(2);
+    expect(elements[1].src).toBe("assets/audio/music/theme.ogg");
+    expect(player.playing?.track).toBe("theme.ogg");
   });
 
   test("asking for the playlist already playing changes nothing; a new one cross-fades", async () => {
