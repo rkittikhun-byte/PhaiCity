@@ -14,6 +14,7 @@ const PANELS: Array<{ id: string; side: "left" | "right" }> = [
   { id: "miscButtons", side: "left" },
   { id: "RCIContainer", side: "left" },
   { id: "controls", side: "right" },
+  { id: "rulerGoals", side: "right" },
 ];
 
 function loadCollapsed(): Set<string> {

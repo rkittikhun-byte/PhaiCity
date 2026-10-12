@@ -38,6 +38,7 @@ import { Notification } from './notification.js';
 import { QueryWindow } from './queryWindow.js';
 import { Random } from './random.ts';
 import { RCI } from './rci.js';
+import { installRulerGoals } from './rulerGoals.ts';
 import { keepHigherRank, rankForCityClass } from './rulerRank.ts';
 import { SaveWindow } from './saveWindow.js';
 import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
@@ -288,6 +289,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
   // Unhide controls
   this.revealControls();
 
+  // First tasks for a new ruler (src/rulerGoals.ts); a city saved before them that is already a town skips them
+  var goalsSave = savedGame ? savedGame.goals : null;
+  if (savedGame && !goalsSave && this.rulerRank !== 'muen')
+    goalsSave = {done: [], dismissed: true};
+  this.rulerGoals = installRulerGoals(this.simulation, goalsSave);
+
   // Run the sim
   this.tick = tick.bind(this);
   this.tick();
@@ -310,7 +317,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name) {
 // Saves this city in its own slot. Returns false when the browser's storage is full.
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
-                  provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank};
+                  provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank,
+                  goals: this.rulerGoals.state()};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 

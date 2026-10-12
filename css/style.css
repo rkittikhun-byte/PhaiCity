@@ -422,6 +422,35 @@ nav li {
   height: 150px;
 }
 
+/* First tasks for a new ruler (src/rulerGoals.ts), on the right under the tools */
+#rulerGoals {
+  position: absolute;
+  top: 300px;
+  width: 250px;
+  max-height: calc(100% - 340px);
+  overflow-y: auto;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+#rulerGoals[hidden] { display: none; }
+#rulerGoals:not([hidden]) { animation: motionFromRight 0.45s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+#rulerGoals .goalsTitle { font-size: 14px; margin: 0 22px 6px 22px; }
+#rulerGoals #goalsProgress { float: right; font-weight: 400; color: #5d6b66; }
+#rulerGoals ol { margin: 0 0 8px 22px; padding-left: 1.2em; }
+#rulerGoals li { margin: 2px 0; color: #34403c; }
+#rulerGoals li.done { color: #7c8a85; text-decoration: line-through; }
+#rulerGoals li.done::marker { content: "✓ "; color: #2f8a4b; }
+#rulerGoals li.current { font-weight: 700; color: #1d2723; }
+#rulerGoals #goalsHint { margin: 0 6px 8px 22px; padding: 6px 8px; border-left: 3px solid #d29a2c; background: rgba(210, 154, 44, 0.1); color: #3a3220; }
+#rulerGoals #goalsClose { width: auto; height: auto; padding: 2px 10px; margin-left: 22px; font-size: 12px; }
+.toolButton.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
+@keyframes goalPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(210, 154, 44, 0.9); }
+  50% { box-shadow: 0 0 0 5px rgba(210, 154, 44, 0); }
+}
+
 /* The ruler's rank (src/rulerRank.ts) under the city name */
 #infobar .rulerRank {
   color: #8a5a00;

@@ -497,6 +497,7 @@
 | `about.start.story` | `about.html` | — | `Each time the game opens, a short story about the Golden Peninsula and its six regions plays. Press “Skip the story” to go straight on.` | `ทุกครั้งที่เปิดเกม จะมีเรื่องเล่าสั้น ๆ เกี่ยวกับแหลมทองและหกภาค กด “ข้ามเรื่องเล่า” เพื่อไปต่อได้ทันที` | ชื่อปุ่มตรงกับ `intro.skip` |
 | `about.start.choose` | `about.html` | — | `Click a region, then a province. Its card shows the starting treasury, the difficulty, the land and its resources. Name your city and press “Become its ruler”.` | `คลิกเลือกภาค แล้วเลือกจังหวัด การ์ดจังหวัดจะบอกเงินตั้งต้น ความยาก ภูมิประเทศ และทรัพยากร ตั้งชื่อเมืองแล้วกด “เริ่มเป็นเจ้าเมือง”` | ชื่อปุ่มตรงกับ `picker.start` |
 | `about.start.land` | `about.html` | — | `Your city starts on a real 2 × 2 km piece of land around the province's town, with its real rivers, coast and forest, but no roads or buildings yet.` | `เมืองของคุณเริ่มบนผืนดินจริงขนาด 2 × 2 กม. รอบตัวเมืองของจังหวัดนั้น มีแม่น้ำ ชายฝั่ง และป่าตามจริง แต่ยังไม่มีถนนหรืออาคาร` | |
+| `about.start.goals` | `about.html` | — | `In a new city, the “Your first tasks” card on the right walks you through the basics one step at a time. Close it whenever you like.` | `ในเมืองใหม่ การ์ด “ภารกิจแรกของเจ้าเมือง” ทางขวาจะพาทำเรื่องพื้นฐานทีละขั้น ปิดได้ทุกเมื่อ` | ชื่อการ์ดตรงกับ `goals.title` |
 | `about.start.cities` | `about.html` | — | `“My cities” keeps every city you have saved, and “Practise on a random map” opens a practice game. In a city, “Main menu” brings you back to the start screen.` | `“เมืองของฉัน” เก็บทุกเมืองที่บันทึกไว้ ส่วน “ฝึกเล่นบนแผนที่สุ่ม” เปิดเกมฝึกหัด เมื่ออยู่ในเมือง กดปุ่ม “เมนูหลัก” เพื่อกลับมาหน้าเริ่มเกม` | ชื่อปุ่มตรงกับ `cities.title`, `start.practice`, `menu.main` |
 | `about.start.keys` | `about.html` | — | `Keys on the start screen: arrows to choose, Enter to confirm, Esc to go back, H to hide the menus.` | `ปุ่มลัดในหน้าเริ่มเกม: ลูกศรเพื่อเลือก Enter เพื่อยืนยัน Esc เพื่อย้อนกลับ และ H เพื่อซ่อนเมนู` | |
 | `about.credits.title` | `about.html` | — | `Credits` | `เครดิต` | |
@@ -666,6 +667,22 @@
 | `ui.show_menus` | `src/provincePicker.ts` | `-` | `Show menus` | `แสดงเมนู` | ปุ่มเดียวกันตอนซ่อนอยู่ |
 | `ui.collapse` | `src/panelCollapse.ts` | `-` | `Collapse` | `ยุบ` | tooltip ปุ่มยุบแผง |
 | `ui.expand` | `src/panelCollapse.ts` | `-` | `Expand` | `ขยาย` | tooltip ปุ่มขยายแผง |
+| `goals.title` | `index.html` | — | `Your first tasks` | `ภารกิจแรกของเจ้าเมือง` | การ์ดภารกิจ (`src/rulerGoals.ts`, Claude Code 12 ต.ค. 2026) |
+| `goals.progress` | `src/rulerGoals.ts` | — | `{done}/{total}` | `{done}/{total}` | |
+| `goals.close` | `index.html` | — | `Close` | `ปิดภารกิจ` | |
+| `goals.done_all` | `src/rulerGoals.ts` | — | `Well done! Your first tasks are complete. The city is yours to grow.` | `ยอดเยี่ยม! ทำภารกิจแรกครบแล้ว ต่อจากนี้เมืองเป็นของคุณ` | |
+| `goals.homes` | `src/rulerGoals.ts` | — | `Zone some homes` | `วางเขตที่อยู่อาศัย` | ชื่อเครื่องมือในคำแนะนำต้องตรงกับ `tool.*` |
+| `goals.homes.hint` | `src/rulerGoals.ts` | — | `Pick Residential and click on open land. People move in once there is power and a road.` | `เลือก “ที่อยู่อาศัย” แล้วคลิกบนพื้นที่ว่าง ผู้คนจะย้ายเข้ามาเมื่อมีไฟฟ้าและถนน` | |
+| `goals.power` | `src/rulerGoals.ts` | — | `Build a power plant` | `สร้างโรงไฟฟ้า` | |
+| `goals.power.hint` | `src/rulerGoals.ts` | — | `A coal plant is cheaper but smoky, so keep it a little away from the homes.` | `โรงไฟฟ้าถ่านหินราคาถูกกว่าแต่ควันเยอะ วางให้ห่างจากบ้านสักหน่อย` | |
+| `goals.wires` | `src/rulerGoals.ts` | — | `Bring power to the homes` | `เดินสายไฟไปถึงบ้าน` | |
+| `goals.wires.hint` | `src/rulerGoals.ts` | — | `Run a Power Line from the plant until it touches a zone. Zones that touch pass the power on.` | `ใช้ “สายไฟฟ้า” ต่อจากโรงไฟฟ้าจนแตะเขตที่อยู่อาศัย เขตที่ติดกันจะส่งไฟต่อกันเอง` | |
+| `goals.roads` | `src/rulerGoals.ts` | — | `Lay roads` | `ตัดถนน` | |
+| `goals.roads.hint` | `src/rulerGoals.ts` | — | `People need roads to get to work and the shops. Drag the mouse to lay a long road.` | `ผู้คนต้องมีถนนไปทำงานและไปตลาด ลากเมาส์เพื่อวางถนนยาว ๆ` | |
+| `goals.jobs` | `src/rulerGoals.ts` | — | `Create jobs: commerce and industry` | `สร้างงาน: เขตพาณิชย์และอุตสาหกรรม` | |
+| `goals.jobs.hint` | `src/rulerGoals.ts` | — | `Shops and factories give people work. The bars on the left show what the city wants next.` | `ร้านค้าและโรงงานให้งานกับราษฎร แถบความต้องการทางซ้ายบอกว่าเมืองอยากได้อะไรเพิ่ม` | |
+| `goals.town` | `src/rulerGoals.ts` | — | `Grow into a town and become Khun` | `ขยายเมืองเป็นตำบล และเลื่อนยศเป็นขุน` | |
+| `goals.town.hint` | `src/rulerGoals.ts` | — | `Past 2,000 people the city becomes a town. Keep homes, jobs and power in balance.` | `ประชากรเกิน 2,000 คน เมืองจะเป็นตำบล รักษาสมดุลระหว่างบ้าน งาน และไฟฟ้า` | |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

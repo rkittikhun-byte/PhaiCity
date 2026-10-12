@@ -141,6 +141,15 @@
           </div>
         </div>
         <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
+        <!-- First tasks for a new ruler (src/rulerGoals.ts); shown by the game, never before -->
+        <div id="rulerGoals" class="controlShadow mintcream z1 rightedge padding10" hidden>
+          <div class="inner">
+            <h3 class="goalsTitle"><span data-i18n="goals.title">Your first tasks</span> <span id="goalsProgress"></span></h3>
+            <ol id="goalsList"></ol>
+            <p id="goalsHint"></p>
+            <button type="button" id="goalsClose" data-i18n="goals.close">Close</button>
+          </div>
+        </div>
         <div id="tooSmall" data-hasscript="false" class="mintcream open"><div id="tooSmallInner" class="alignCenter padding10"><h2 class="chunk" data-i18n="screen.toosmall.title">Uh-oh!</h2><p data-i18n="screen.toosmall.msg">This screen is too small&mdash;I won't be able to fit in all the controls, buttons and gizmos! Sorry!</p></div></div>
         <noscript>
           <div id="noscript" class="open mintcream centred padding10">
