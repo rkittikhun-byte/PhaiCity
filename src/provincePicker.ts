@@ -11,7 +11,8 @@
 //      game difficulty and a start button.
 // Small buttons at the top continue the saved city or start a practice game on a random map.
 
-import { audio, music, pressSoundButton, renderSoundButton, soundWaiting } from "./audio/index";
+import { audio, music, renderSoundButton, soundWaiting, wireSoundControl } from "./audio/index";
+import { tuckable } from "./creditLine";
 import { THEME } from "./audio/music";
 import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
@@ -132,6 +133,8 @@ interface View {
   skip: HTMLButtonElement;
   replay: HTMLButtonElement;
   sound: HTMLButtonElement;
+  /** Shows the credits again for a while. */
+  showCredits: () => void;
   menus: HTMLButtonElement;
   clock: HTMLElement;
   clockTimer: number;
@@ -253,7 +256,22 @@ function buildShell(): View {
   const back = button("ppBack", t("picker.back_regions"), () => showRegions(false));
   const skip = button("ppSkip", `${t("intro.skip")} ›`, () => showRegions(true));
   const replay = button("ppQuiet", t("splash.replay_intro"), () => playIntro());
-  const sound = button("ppQuiet ppSound", "", () => pressSoundButton(sound));
+  // The speaker and its volume, as in the game: a click slides the volume out, the next one mutes (src/audio/index.ts)
+  const soundControl = element("div", "ppSoundControl");
+  const sound = element("button", "ppQuiet ppSound");
+  sound.type = "button";
+  const volume = element("input", "ppVolume");
+  volume.type = "range";
+  volume.min = "0";
+  volume.max = "100";
+  volume.step = "5";
+  volume.setAttribute("aria-label", t("sound.volume"));
+  soundControl.append(sound, volume);
+  wireSoundControl(soundControl, sound, volume, (closed) => {
+    renderSoundButton(sound, closed);
+    // Until the first click the sound waits, so the button says how to start it
+    if (soundWaiting()) sound.append(element("span", "ppSoundHint", t("sound.waiting_short")));
+  });
   // The flag of the language a click switches to (src/languageFlag.ts); the bar is rebuilt after a switch
   const language = button("ppQuiet ppLang", "", () => setLanguage(getLanguage() === "th" ? "en" : "th"));
   renderLanguageButton(language);
@@ -261,7 +279,7 @@ function buildShell(): View {
   const clock = element("span", "ppClock");
   const left = element("div", "ppTopLeft");
   // Hide menus, the sound and the language sit on the left, by the name (owner, 12 Oct 2026)
-  left.append(element("span", "ppBrand", "PhaiCity"), menus, sound, language, back);
+  left.append(element("span", "ppBrand", "PhaiCity"), menus, soundControl, language, back);
   const right = element("div", "ppTopRight");
   const cityCount = actions?.cities.length ?? 0;
   if (cityCount > 0) right.appendChild(button("ppQuiet ppContinue", t("cities.button", { count: cityCount }), () => showCities()));
@@ -323,7 +341,14 @@ function buildShell(): View {
     if (line) credits.appendChild(line.cloneNode(true));
   }
 
-  overlay.append(backdropLayer, stage, vignette, top, hero, row, zoom, dots, panel, credits);
+  // They show when the start screen opens, then wait behind the © button (src/creditLine.ts)
+  const creditButton = button("ppCreditToggle", "©", () => undefined);
+  creditButton.title = t("hud.credit_toggle");
+  creditButton.setAttribute("aria-label", creditButton.title);
+  const showCredits = tuckable(credits, creditButton,
+    (event) => !(event.target as Element | null)?.closest?.(".ppCredits, .ppCreditToggle"));
+
+  overlay.append(backdropLayer, stage, vignette, top, hero, row, zoom, dots, panel, credits, creditButton);
   document.body.appendChild(overlay);
 
   // Clicking anywhere outside the card closes it (tiles and provinces open the next card themselves)
@@ -334,7 +359,8 @@ function buildShell(): View {
       return;
     }
     const target = event.target as Element;
-    if (panel.hidden || panel.contains(target) || target.closest(".ppTile, .ppProvince, .ppTop, .ppZoom, .ppRow")) return;
+    if (panel.hidden || panel.contains(target) ||
+        target.closest(".ppTile, .ppProvince, .ppTop, .ppZoom, .ppRow, .ppCredits, .ppCreditToggle")) return;
     closeCard();
   }, true);
   installZoomAndPan(stage);
@@ -346,9 +372,9 @@ function buildShell(): View {
 
   const built: View = {
     overlay, backdrop: mountStartBackdrop(backdropLayer), stage, hero, row, rowTitle, tiles: tileList, dots, panel,
-    back, skip, replay, sound, menus, clock, clockTimer: window.setInterval(updateClock, CLOCK_MS),
+    back, skip, replay, sound, menus, clock, clockTimer: window.setInterval(updateClock, CLOCK_MS), showCredits,
   };
-  renderSound(built);
+  showCredits();
   return built;
 }
 
@@ -364,13 +390,6 @@ function destroyShell(): void {
   provinceLabels.clear();
   labelBounds.clear();
   tiles = [];
-}
-
-function renderSound(target: View | null = view): void {
-  if (!target) return;
-  renderSoundButton(target.sound);
-  // Until the first click the sound waits, so the button says how to start it
-  if (soundWaiting()) target.sound.append(element("span", "ppSoundHint", t("sound.waiting_short")));
 }
 
 function setChrome(options: { back?: boolean; skip?: boolean; dots?: boolean; row?: boolean }): void {
@@ -1231,12 +1250,18 @@ function diveIntoTerrain(province: Province, map: PresetMap): void {
     x: lensX.toFixed(3), y: lensY.toFixed(3), width: size.toFixed(3), height: size.toFixed(3),
     rx: (unit * 2).toFixed(3),
   });
-  layer.append(leader, pulse, marker, shadow, image, frameRect, label);
+  const credit = svgElement("text", {
+    class: "ppTerrainCredit",
+    x: (lensX + size / 2).toFixed(3), y: (lensY + size + unit * 5).toFixed(3),
+    "font-size": (unit * 3.6).toFixed(3),
+  });
+  credit.textContent = t("picker.preview_credit");
+  layer.append(leader, pulse, marker, shadow, image, frameRect, label, credit);
   svg.querySelector(".ppProvinceLabels")?.before(layer);
 
   // Frame the province and the lens together
   const top = Math.min(py0, lensY - unit * 12);
-  const bottom = Math.max(py1, lensY + size);
+  const bottom = Math.max(py1, lensY + size + unit * 7);
   const right = lensX + size;
   applyMapState({ focus: province.region, selected: province.id });
   flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [px0, top, right, bottom] }], 0.06));
@@ -1431,8 +1456,6 @@ onLanguageChange(() => {
   else showRegions(false);
 });
 
-audio.onChange(() => renderSound());
-audio.onUnlock(() => renderSound());
 
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;

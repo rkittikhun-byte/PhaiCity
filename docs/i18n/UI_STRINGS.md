@@ -576,7 +576,7 @@
 | `view.mouse_hint` | `src/game.js` | — | `Mouse: drag with the left button to move the city (with no tool in hand), drag with the right button to turn it, and scroll to zoom.` | `เมาส์: กดปุ่มซ้ายค้างแล้วลากเพื่อเลื่อนเมือง (ตอนไม่ได้ถือเครื่องมือ) ลากด้วยปุ่มขวาเพื่อหมุน และหมุนลูกกลิ้งเพื่อซูม` | ขึ้นมุมขวาล่างครั้งแรกที่เปิดเมือง 3D ในเบราว์เซอร์นั้น (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `hud.attribution` | `index.html` | — | `Map © {osm} · modified from micropolisJS · {credits}` | `แผนที่ © {osm} · ดัดแปลงจาก micropolisJS · {credits}` | บรรทัดเครดิตเล็กบนแผนที่ในเมือง แทนแถบล่าง (เจ้าของโปรเจค 12 ต.ค. 2026) {osm} คงข้อความ "OpenStreetMap contributors" |
 | `hud.credits` | `index.html` | — | `All credits` | `เครดิตทั้งหมด` | ลิงก์ไปหน้าเกี่ยวกับเกม |
-| `hud.credit_toggle` | `index.html` | — | `Map credits` | `เครดิตแผนที่` | ปุ่ม © มุมซ้ายล่าง เปิดบรรทัดเครดิตที่เก็บตัวเองหลังเปิดเมือง 8 วินาที (เจ้าของโปรเจค 12 ต.ค. 2026) |
+| `hud.credit_toggle` | `index.html` | — | `Credits` | `เครดิต` | ปุ่ม © มุมซ้ายล่าง ในเกมและหน้าเริ่มเกม เปิดเครดิตที่เก็บตัวเองหลังเปิด 8 วินาที (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `about.nav.play` | `about.html` | — | `Play` | `เล่นเกม` | ปุ่มบนหัวหน้า |
 | `about.toc.label` | `about.html` | — | `On this page` | `ในหน้านี้` | aria-label ของสารบัญ |
 | `about.toc.start` | `about.html` | — | `Start` | `เริ่มเกม` | สารบัญ |
@@ -629,6 +629,7 @@
 | `picker.load_failed` | `src/provincePicker.ts` | `-` | `Could not load the map` | `โหลดแผนที่ไม่ได้` | |
 | `picker.neighbors` | `src/provincePicker.ts` | `-` | `Neighbouring provinces` | `จังหวัดเพื่อนบ้าน` | |
 | `picker.preview` | `src/provincePicker.ts` | `-` | `Starting map, 2 × 2 km` | `แผนที่ตั้งต้น 2 × 2 กม.` | |
+| `picker.preview_credit` | `src/provincePicker.ts` | `-` | `Map data © OpenStreetMap contributors` | `ข้อมูลแผนที่ © OpenStreetMap contributors` | ใต้แผนที่ตั้งต้น ข้อมูลมาจาก OSM จึงต้องให้เครดิตตรงนั้น (Claude Code 12 ต.ค. 2026) |
 | `picker.no_preview` | `src/provincePicker.ts` | `-` | `No starting map for this province yet` | `ยังไม่มีแผนที่ตั้งต้นของจังหวัดนี้` | |
 | `picker.land` | `src/provincePicker.ts` | `-` | `Land` | `ที่ดิน` | |
 | `picker.water` | `src/provincePicker.ts` | `-` | `Water` | `น้ำ` | |

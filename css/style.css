@@ -1213,8 +1213,10 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppRowScroll { position: absolute; top: 50%; z-index: 2; width: 44px; height: 44px; min-height: 0; padding: 0;
   transform: translateY(-50%); font-size: 24px; line-height: 40px; text-align: center; opacity: 0; pointer-events: none;
   transition: opacity 0.3s; background: rgba(12, 20, 17, 0.75); }
-#provincePicker .ppRowPrev { left: -22px; }
-#provincePicker .ppRowNext { right: -22px; }
+/* The arrows stand in the row's margins, beside the tiles rather than over them (owner, 12 Oct 2026) */
+#provincePicker .ppTrack { margin: 0 -58px; padding: 0 58px; }
+#provincePicker .ppRowPrev { left: 4px; }
+#provincePicker .ppRowNext { right: 4px; }
 #provincePicker .ppRow.canLeft .ppRowPrev, #provincePicker .ppRow.canRight .ppRowNext { opacity: 1; pointer-events: auto; }
 #provincePicker .ppRow.collapsed .ppRowScroll { opacity: 0; pointer-events: none; }
 #provincePicker .ppTile { flex: 0 0 auto; width: 172px; height: 104px; border-radius: 16px; padding: 12px 14px; scroll-snap-align: start;
@@ -1292,6 +1294,21 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   color: rgba(238, 243, 239, 0.42); }
 #provincePicker .ppCredits a { color: inherit; margin-left: 4px; }
 #provincePicker .ppCredits > * { display: block; margin: 0; }
+/* They show when the start screen opens, then wait behind the © button at the bottom left (src/creditLine.ts) */
+#provincePicker .ppCredits { transition: opacity 0.3s ease, transform 0.3s ease; }
+#provincePicker .ppCredits.tucked { opacity: 0; transform: translateY(6px); pointer-events: none; }
+#provincePicker .ppCreditToggle { position: absolute; left: 14px; bottom: 12px; width: 24px; height: 24px; min-height: 0; padding: 0;
+  font: 400 12px/1 'Open Sans', sans-serif; color: rgba(238, 243, 239, 0.7); }
+/* The starting map's own OpenStreetMap credit, right under it */
+#provincePicker .ppTerrainCredit { fill: rgba(238, 243, 239, 0.75); text-anchor: middle; font-family: Sarabun, sans-serif; }
+
+/* The speaker and its volume, as in the game */
+#provincePicker .ppSoundControl { display: inline-flex; align-items: center; height: 30px; box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(255, 255, 255, 0.07); }
+#provincePicker .ppSoundControl .ppSound { height: 28px; min-height: 28px; border: none; background: none; backdrop-filter: none; }
+#provincePicker .ppSoundControl .ppVolume { width: 0; margin: 0; padding: 0; opacity: 0; accent-color: #f6d77a; cursor: pointer;
+  transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.25s, opacity 0.2s; }
+#provincePicker .ppSoundControl.open .ppVolume { width: 84px; margin: 0 12px 0 2px; opacity: 1; }
 
 @media (max-width: 900px) {
   #provincePicker.ppCardOpen .ppRow { right: 0; }

@@ -79,38 +79,57 @@ export function pressSoundButton(button: Element): void {
   if (!audio.settings.muted) audio.play("ui.click");
 }
 
-function bindSoundControls(doc: Document): void {
-  const toggle = doc.getElementById("soundToggle");
-  // In the game the speaker sits in a pill with the volume slider: the first click slides it out, the next one
-  // mutes or unmutes (owner, 12 Oct 2026). A click anywhere else or Esc tucks it away again.
-  const control = doc.getElementById("soundControl");
-  const volume = doc.getElementById("soundVolume") as HTMLInputElement | null;
-  const muted = doc.getElementById("soundMuted") as HTMLInputElement | null;
-  const sliders = Array.from(doc.querySelectorAll<HTMLInputElement>("input[data-sound-channel]"));
-  const masters = Array.from(doc.querySelectorAll<HTMLInputElement>("input[data-sound-master]"));
-  const isOpen = (): boolean => control?.classList.contains("open") ?? false;
+/** A slider for the master volume: turning it up is a clear wish to hear the game, so it unmutes. */
+function bindMasterSlider(slider: HTMLInputElement): void {
+  slider.addEventListener("input", () => {
+    audio.setMasterVolume(Number(slider.value) / 100);
+    if (audio.settings.muted && audio.settings.volume > 0) audio.setMuted(false);
+    audio.play("ui.click");
+  });
+  // Let go, the arrow keys move the map again
+  slider.addEventListener("change", () => slider.blur());
+}
 
-  const render = (): void => {
-    const { settings } = audio;
-    if (toggle) renderSoundButton(toggle, control !== null && !isOpen());
-    if (muted) muted.checked = settings.muted;
-    for (const slider of sliders) {
-      slider.value = String(Math.round(settings.volumes[slider.dataset.soundChannel as Channel] * 100));
+// Every speaker with a slider on the page, so one click elsewhere or Esc tucks them all away
+const soundControls = new Set<{ control: HTMLElement; setOpen(open: boolean): void }>();
+let tuckersInstalled = false;
+
+function installTuckers(doc: Document): void {
+  if (tuckersInstalled) return;
+  tuckersInstalled = true;
+  doc.addEventListener("pointerdown", (event) => {
+    for (const entry of soundControls) {
+      if (!entry.control.isConnected) soundControls.delete(entry);
+      else if (!entry.control.contains(event.target as Node)) entry.setOpen(false);
     }
-    for (const slider of masters) slider.value = String(Math.round(settings.volume * 100));
-  };
+  });
+  doc.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") soundControls.forEach((entry) => entry.setOpen(false));
+  });
+}
 
+/**
+ * A speaker with the master volume beside it, in the game's top bar and on the start screen (owner, 12 Oct 2026):
+ * the first click slides the volume out, the next one mutes or unmutes, a click anywhere else or Esc tucks it away.
+ * Returns how to redraw it; it redraws itself when the sound settings change.
+ */
+export function wireSoundControl(control: HTMLElement, toggle: HTMLElement, volume: HTMLInputElement,
+    draw: (closed: boolean) => void = (closed) => renderSoundButton(toggle, closed)): () => void {
+  const isOpen = (): boolean => control.classList.contains("open");
+  const render = (): void => {
+    draw(!isOpen());
+    volume.value = String(Math.round(audio.settings.volume * 100));
+  };
   const setOpen = (open: boolean): void => {
-    if (!control || isOpen() === open) return;
+    if (isOpen() === open) return;
     control.classList.toggle("open", open);
-    toggle?.setAttribute("aria-expanded", String(open));
-    if (volume) volume.tabIndex = open ? 0 : -1;
+    toggle.setAttribute("aria-expanded", String(open));
+    volume.tabIndex = open ? 0 : -1;
     render();
   };
-
-  toggle?.addEventListener("click", (event) => {
+  toggle.addEventListener("click", (event) => {
     event.preventDefault();
-    if (!control || isOpen()) {
+    if (isOpen()) {
       pressSoundButton(toggle);
       return;
     }
@@ -118,12 +137,48 @@ function bindSoundControls(doc: Document): void {
     setOpen(true);
     if (!audio.settings.muted) audio.play("ui.click");
   });
-  doc.addEventListener("pointerdown", (event) => {
-    if (control && !control.contains(event.target as Node)) setOpen(false);
+  bindMasterSlider(volume);
+  volume.tabIndex = -1;
+  soundControls.add({ control, setOpen });
+  installTuckers(control.ownerDocument);
+  // A start screen rebuilt after a language switch leaves its old speaker behind: that one stops listening
+  let shown = false;
+  const stop = audio.onChange(() => {
+    if (control.isConnected) {
+      shown = true;
+      render();
+    } else if (shown) {
+      stop();
+    }
   });
-  doc.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setOpen(false);
+  audio.onUnlock(() => {
+    if (control.isConnected) render();
   });
+  render();
+  return render;
+}
+
+function bindSoundControls(doc: Document): void {
+  const toggle = doc.getElementById("soundToggle");
+  const control = doc.getElementById("soundControl");
+  const volume = doc.getElementById("soundVolume") as HTMLInputElement | null;
+  const muted = doc.getElementById("soundMuted") as HTMLInputElement | null;
+  const sliders = Array.from(doc.querySelectorAll<HTMLInputElement>("input[data-sound-channel]"));
+  const masters = Array.from(doc.querySelectorAll<HTMLInputElement>("input[data-sound-master]"));
+
+  // The game's top bar: the speaker and its volume
+  const renderToggle = toggle && control && volume ? wireSoundControl(control, toggle, volume) : null;
+
+  // The settings window's sliders and its "mute all"
+  const render = (): void => {
+    const { settings } = audio;
+    renderToggle?.();
+    if (muted) muted.checked = settings.muted;
+    for (const slider of sliders) {
+      slider.value = String(Math.round(settings.volumes[slider.dataset.soundChannel as Channel] * 100));
+    }
+    for (const slider of masters) slider.value = String(Math.round(settings.volume * 100));
+  };
 
   muted?.addEventListener("change", () => audio.setMuted(muted.checked));
   for (const slider of sliders) {
@@ -134,14 +189,7 @@ function bindSoundControls(doc: Document): void {
       if (preview) audio.play(preview);
     });
   }
-  for (const slider of masters) {
-    slider.addEventListener("input", () => {
-      audio.setMasterVolume(Number(slider.value) / 100);
-      // Turning the volume up is a clear wish to hear the game
-      if (audio.settings.muted && audio.settings.volume > 0) audio.setMuted(false);
-      audio.play("ui.click");
-    });
-  }
+  masters.forEach(bindMasterSlider);
 
   audio.onChange(render);
   audio.onUnlock(render);
