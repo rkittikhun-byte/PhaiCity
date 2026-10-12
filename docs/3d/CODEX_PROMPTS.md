@@ -770,7 +770,8 @@ Land value 3:
 - com.block_3_2 (589)  Grade-A 25-storey office with chamfered corners and a tall lobby.
 - com.block_3_3 (598)  6-storey luxury department store: perforated metal facade panels with an
                        abstract contemporary-Thai pattern, event plaza in front.
-- com.block_3_4 (607)  60-storey mixed-use skyscraper: tapering stepped form, LED-lit crown.
+- com.block_3_4 (607)  About 40-storey mixed-use skyscraper (3.5 m floors, decided by the owner on
+                       12 Oct 2026): tapering stepped form, LED-lit crown.
                        Max height 150 m; this is the tallest building in the game.
 
 Landmark variants of com.block_3_4. variant 0 is the default described above;
