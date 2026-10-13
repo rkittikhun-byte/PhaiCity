@@ -3,6 +3,7 @@
  */
 import { registry } from '../models/registry.js';
 import { roadForMask } from '../models/road/interfaces.js';
+import { LAND_COVER_STATES } from '../models/terrain/terrain.js';
 import { staircase as staircaseOf, staircaseVariant } from '../models/road/centreline.js';
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
@@ -71,7 +72,7 @@ const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, prim
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
@@ -208,7 +209,7 @@ export class TileSnapshot implements CityMapReader {
       else {const pick=powerForMask(this.mask(x,y,isPower))??{id:'power.end',rotationY:0};id=pick.id;rotation=pick.rotationY;}
     } else if(v>=5&&v<=20) {kind='shore';id='terrain.shore';variant=this.mask(x,y,n=>!isWaterNeighbor(n));}
     else if(isWoods(v)) {variant=this.mask(x,y,isWoods);}
-    else if(v===0||v>=44&&v<=51) {variant=(hash>>>2)&3;if(v===0&&this.paintedZones)state='grass';}
+    else if(v===0||v>=44&&v<=51) {variant=(hash>>>2)&3;if(v===0&&this.paintedZones)state=LAND_COVER_STATES[this.source?.landCover?.[i]??0]??'grass';}
     if(id==='svc.stadium')state=v>=795&&v<=810?'game':'empty';
     if(id==='port.seaport'&&zone)rotation=this.portRotation(x,y,w);
     // The water works' gate and the water tower's ladder face their road (RENDERER_SPEC 6C)

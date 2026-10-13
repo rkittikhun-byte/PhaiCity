@@ -13,6 +13,9 @@ export interface CityMapReader {
   /** Homes, shops and factories painted tile by tile (src/plots.ts), and each road tile's level (src/roadLevels.ts) */
   readonly paintedZones?: boolean;
   readonly roadLevels?: Uint8Array | null;
+  /** What covers each open tile of a real-scale city map (scripts/geo/lib/landCover.mjs): 1 paddy, 2 field, 3 orchard,
+   * 4 grass, 5 wetland, 6 village, 7 built-up; 0 none */
+  readonly landCover?: Uint8Array | null;
   /** What stands on each civic 3 × 3, by its centre's index, and the ruler's house (RENDERER_SPEC 6H) */
   readonly civicKinds?: Readonly<Record<string, string>> | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number; readonly wings?: readonly string[] } | null;

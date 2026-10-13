@@ -20,7 +20,7 @@ const LINE_TAGS = `json_build_object('highway', highway, 'railway', railway, 'wa
   'name', name, 'name:en', tags->'name:en', 'lanes', tags->'lanes', 'bridge', bridge, 'tunnel', tunnel, 'layer', layer,
   'width', width, 'ref', ref, 'usage', tags->'usage', 'oneway', oneway)`;
 const AREA_TAGS = `json_build_object('natural', "natural", 'landuse', landuse, 'water', water, 'waterway', waterway,
-  'wetland', wetland, 'name', name)`;
+  'wetland', wetland, 'name', name, 'crop', tags->'crop')`;
 
 /** [lon, lat, lon, lat, …] to five decimals, as the downloaded layers keep them */
 const flat = (coordinates) => {
@@ -73,6 +73,13 @@ function areas(box, where) {
 
 const list = (values) => values.map((v) => `'${v}'`).join(', ');
 
+/** The villages, towns and neighbourhoods of the box, as { lon, lat, place, name } */
+function places(box) {
+  return queryRows(`SELECT ST_X(way), ST_Y(way), place, name FROM planet_osm_point
+    WHERE way && ${envelope(box)} AND place IN ('village', 'hamlet', 'town', 'suburb', 'neighbourhood', 'quarter');`)
+    .map(([lon, lat, place, name]) => ({ lon: Number(lon), lat: Number(lat), place, name }));
+}
+
 /**
  * The layers of the box [west, south, east, north]: the province map builder's own (roads, links, rail, coast,
  * rivers, water, forest) and the streets of a city map.
@@ -84,8 +91,14 @@ export function loadDbLayers(box) {
     rail: lines(box, `railway = 'rail'`),
     coast: lines(box, `"natural" = 'coastline'`),
     rivers: lines(box, `waterway = 'river'`),
+    // A city map's canals, streams and rivers of every name, a tile wide (provinceMap.mjs terrain)
+    waterways: lines(box, `waterway IN ('river', 'canal', 'stream')`),
     water: areas(box, `"natural" = 'water' OR landuse IN ('reservoir', 'basin') OR waterway = 'riverbank'`),
     forest: areas(box, `landuse = 'forest' OR "natural" = 'wood' OR wetland = 'mangrove'`),
     streets: lines(box, `highway IN (${list(STREET_CLASSES)})`),
+    // What covers the open land (landCover.mjs), and the villages
+    landuse: areas(box, `landuse IN ('paddy', 'farmland', 'farmyard', 'orchard', 'plantation', 'vineyard', 'meadow',
+      'grass', 'village_green', 'recreation_ground', 'residential') OR "natural" IN ('wetland', 'grassland', 'scrub', 'heath')`),
+    places: places(box),
   };
 }

@@ -242,6 +242,8 @@ var streetNamesFrom = function(map, preset) {
   map.roadNames = preset.roadNames && preset.streetNames ?
     decodePresetLayerWide(preset.roadNames, preset.width, preset.height) : null;
   map.streetNameList = map.roadNames ? preset.streetNames : null;
+  // ... and what covers the open land (paddy, fields, villages; docs/GAME_PLAN.md phase 4), not kept by saves either
+  map.landCover = preset.landCover ? decodePresetLayer(preset.landCover, preset.width, preset.height) : null;
 };
 
 

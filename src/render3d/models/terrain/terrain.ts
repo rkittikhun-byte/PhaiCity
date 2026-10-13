@@ -20,10 +20,51 @@ export const TERRAIN_TILES: Record<TerrainKind, readonly number[]> = {
 };
 export const FLOOD_LEVELS = [0.4, 0.36, 0.44, 0.48] as const;
 
+/** The open land's covers on a real-scale city map (scripts/geo/lib/landCover.mjs): its state, by cover code */
+export const LAND_COVER_STATES = ['grass', 'paddy', 'field', 'orchard', 'grass', 'wetland', 'village', 'grass'] as const;
+
+/** Rice paddy (นาข้าว): green rice in rows inside low earth dikes (คันนา) along two sides */
+function createPaddy(options: ModelOptions) {
+  const b = new TerrainBuilder(options), rng = seededRng(options.seed), variant = (options.variant ?? 0) & 3;
+  const rice = tint('grass', 0xa6d062), earth = tint('dirt_laterite', 0x8f6a48);
+  for (let row = 0; row < 6; row++) for (let col = 0; col < 6; col++) {
+    b.grass(-3.6 + row * 1.45 + (rng() - 0.5) * 0.2, -3.6 + col * 1.45 + (rng() - 0.5) * 0.2, 0.42 + rng() * 0.1, rice);
+  }
+  // The dikes run along the tile's north and west edges, so neighbouring paddies share them
+  b.box(point(0, 0.12, -4.75), point(10, 0.25, 0.5), earth);
+  if (variant !== 3) b.box(point(-4.75, 0.12, 0), point(0.5, 0.25, 10), earth);
+  const root = b.finishTerrain('terrain.dirt', [horizontal()], tint('grass', 0x86b456), TERRAIN_TILES.dirt);
+  root.userData.variant = variant; return root;
+}
+
+/** Upland field (ไร่): cassava or sugar cane in long rows on reddish earth */
+function createField(options: ModelOptions) {
+  const b = new TerrainBuilder(options), rng = seededRng(options.seed), variant = (options.variant ?? 0) & 3;
+  const crop = tint('grass', variant % 2 ? 0x8cc455 : 0xa2c860), tall = variant % 2 ? 0.7 : 1.3;
+  for (let row = 0; row < 5; row++) for (let k = 0; k < 7; k++) {
+    b.grass(-3.8 + row * 1.9, -3.9 + k * 1.3 + (rng() - 0.5) * 0.3, tall * (0.8 + rng() * 0.3), crop);
+  }
+  const root = b.finishTerrain('terrain.dirt', [horizontal()], tint('dirt_laterite', 0x9a5f3e), TERRAIN_TILES.dirt);
+  root.userData.variant = variant; return root;
+}
+
+/** Wetland (พื้นที่ชุ่มน้ำ): reeds and sedge on wet ground */
+function createWetland(options: ModelOptions) {
+  const b = new TerrainBuilder(options), rng = seededRng(options.seed), variant = (options.variant ?? 0) & 3;
+  const reed = tint('grass', 0x6f8f4a);
+  for (let tuft = 0; tuft < 14 + variant * 2; tuft++) b.grass((rng() - 0.5) * 8.4, (rng() - 0.5) * 8.4, 0.9 + rng() * 0.6, reed);
+  const root = b.finishTerrain('terrain.dirt', [horizontal()], tint('grass', 0x5f7f62), TERRAIN_TILES.dirt);
+  root.userData.variant = variant; return root;
+}
+
 function createDirt(options: ModelOptions) {
+  if (options.state === 'paddy') return createPaddy(options);
+  if (options.state === 'field') return createField(options);
+  if (options.state === 'wetland') return createWetland(options);
   const b = new TerrainBuilder(options), rng = seededRng(options.seed), variant = (options.variant ?? 0) & 3;
   // state 'grass': the open land of a real-scale city map, a meadow rather than laterite (src/render3d/city/tileModels.ts)
-  const meadow = options.state === 'grass';
+  // ... 'orchard' and 'village' a meadow too (their trees come with the woods' kit later)
+  const meadow = options.state === 'grass' || options.state === 'orchard' || options.state === 'village';
   const dry = tint('grass', meadow ? 0x7f9a4c : 0xb7a56c), stones = getMaterial('gravel_ballast');
   for (let patch = 0; patch < (meadow ? 7 : 4) + variant; patch++) {
     const x = (rng() - 0.5) * 7.6, z = (rng() - 0.5) * 7.6;

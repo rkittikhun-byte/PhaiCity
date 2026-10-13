@@ -22,6 +22,7 @@ import { buildProvinceMap } from './lib/provinceMap.mjs';
 import { encodeRle } from './lib/rle.mjs';
 import { LAYER_NAMES, loadLayer } from './provinceData.mjs';
 import { loadDbLayers } from './lib/dbLayers.mjs';
+import { COVER, landCover } from './lib/landCover.mjs';
 import { encodePng } from './lib/png.mjs';
 import { ROAD, RAIL } from './lib/routing.mjs';
 
@@ -89,8 +90,10 @@ function writeDistrictIndex() {
 function writePreview(id, grid, result) {
   const { width, height } = grid, rgb = new Uint8Array(width * height * 3);
   const shades = [[214, 205, 168], [70, 130, 190], [74, 122, 70]];
+  const covers = { [COVER.PADDY]: [150, 190, 90], [COVER.FIELD]: [190, 180, 110], [COVER.ORCHARD]: [95, 140, 70],
+    [COVER.GRASS]: [165, 185, 110], [COVER.WETLAND]: [110, 150, 140], [COVER.VILLAGE]: [120, 150, 90], [COVER.URBAN]: [200, 190, 175] };
   for (let i = 0; i < width * height; i++) {
-    let colour = shades[result.cells[i]] ?? shades[0];
+    let colour = covers[result.cover?.[i]] ?? shades[result.cells[i]] ?? shades[0];
     const transport = result.transport[i], level = result.streets?.levels[i] ?? 0;
     if (transport & RAIL) colour = [40, 40, 40];
     else if (transport & ROAD) colour = level >= 4 ? [200, 60, 40] : level === 3 ? [235, 150, 60] : [120, 110, 100];
@@ -130,6 +133,10 @@ async function main() {
     });
     const streets = result.streets;
     const heights = tileHeights(grid);
+    // What covers the open land: OpenStreetMap's fields and villages, paddy and upland fields where it draws nothing
+    const cover = options.db ? landCover({ grid, cells: result.cells, transport: result.transport, heights,
+      areas: layers.landuse, places: layers.places }) : null;
+    result.cover = cover;
     writeJson(district ? path.join(DISTRICT_DIR, `${district.id}.json`) : path.join(CITY_DIR, `${province.id}.json`), {
       format: 2,
       provinceId: province.id,
@@ -148,6 +155,9 @@ async function main() {
       waterways: result.waterways,
       heights: packHeights(heights),
       // Each road tile's level (src/roadLevels.ts) and the name of its street, an index into streetNames (0: none)
+      // What covers each open tile (landCover.mjs COVER: 1 paddy, 2 field, 3 orchard, 4 grass, 5 wetland, 6 village,
+      // 7 built-up; 0 none, as on water, woods, roads and railways)
+      ...(cover ? { landCover: encodeRle(cover) } : {}),
       ...(streets ? { roadLevels: encodeRle(streets.levels), roadNames: encodeRle(streets.nameAt),
         streetNames: streets.names.slice(1) } : {}),
       stats: result.stats,

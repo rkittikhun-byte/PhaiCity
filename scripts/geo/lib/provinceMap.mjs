@@ -191,6 +191,16 @@ function terrain(grid, layers) {
     }
   }
 
+  // A city map (16 m a tile) also has its canals, streams and smaller rivers, a tile wide (layers.waterways comes
+  // from the local database only: dbLayers.mjs); not where they run in a pipe or under a road
+  for (const element of layers.waterways ?? []) {
+    if (element.type !== 'way') continue;
+    if (element.tags.tunnel && element.tags.tunnel !== 'no') continue;
+    for (const segment of segmentsOf(element.points)) {
+      traceSegmentCells(segment, tileSizeM, width, height, (column, row) => { cells[row * width + column] = WATER; });
+    }
+  }
+
   cleanUp(cells, width, height);
   return { cells, rivers };
 }

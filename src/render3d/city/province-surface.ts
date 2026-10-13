@@ -19,6 +19,8 @@ import type { Placement } from './types.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 type RoadPoint=readonly [number,number,number];
 /** The zones' paint (docs/CITY_SCALE.md), how much of it shows over the ground, and the gap that draws the grid */
+/** The open land's covers far away (scripts/geo/lib/landCover.mjs): paddy, field, orchard, grass, wetland, village, built-up */
+const COVER_COLOURS:Record<number,number>={1:0x7aa84a,2:0x8e5f3f,3:0x5a7d3c,4:0x89a052,5:0x5f8068,6:0x6b8a4a,7:0x8a9568};
 const ZONE_PAINT={residential:new Color(0x3fae4a),commercial:new Color(0x3a7bd5),industrial:new Color(0xe0b020)};
 const ZONE_PAINT_SHARE=.55,ZONE_GAP=.45;
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
@@ -94,7 +96,8 @@ export class ProvinceSurface {
   private landColour():number {return this.snapshot.paintedZones?0x7a9150:0xb49b71;}
   private tileShade(x:number,y:number,out:Color):Color {
     const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v),city=this.snapshot.paintedZones;
-    out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):this.landColour());
+    const cover=this.snapshot.source?.landCover?.[y*this.snapshot.width+x]??0;
+    out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):cover?COVER_COLOURS[cover]??this.landColour():this.landColour());
     if(!wet){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(city?(patch%7-3)*.006:0,0,(patch%9-4)*.006);}
     return out;
   }

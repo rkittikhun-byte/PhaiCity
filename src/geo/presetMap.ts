@@ -67,6 +67,8 @@ export interface PresetMap {
    * and the name of its street, an index into streetNames counted from 1 (0: none) */
   roadLevels?: string;
   roadNames?: string;
+  /** What covers each open tile (scripts/geo/lib/landCover.mjs COVER) */
+  landCover?: string;
   streetNames?: Array<{ th: string; en: string }>;
   stats: {
     land: number; water: number; woods: number; insideTiles?: number; roadTiles?: number; railTiles?: number;
