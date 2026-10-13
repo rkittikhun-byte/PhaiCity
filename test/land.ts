@@ -83,7 +83,7 @@ describe("land blocks", () => {
   });
 
   test("the land tool's outline covers its whole block; the city map shows unbought land darker; saves keep it", () => {
-    const tile = blockOutlineTile(2 * B + 7, 3 * B + 11);
+    const tile = blockOutlineTile({}, 2 * B + 7, 3 * B + 11);
     const tiles = footprint(tile.x, tile.y, B);
     expect(tiles[0]).toEqual({ x: 2 * B, y: 3 * B });
     expect(tiles[tiles.length - 1]).toEqual({ x: 3 * B - 1, y: 4 * B - 1 });

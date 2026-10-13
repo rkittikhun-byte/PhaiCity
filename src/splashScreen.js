@@ -51,6 +51,16 @@ var getRequestedProvince = function() {
 };
 
 
+// index.html?province=TH-40&scale=city starts the province's real-scale city map, 16 m a tile round its town
+// (docs/CITY_SCALE.md, the Khon Kaen prototype); otherwise the whole province scaled down
+var cityScale = function() {
+  return new URLSearchParams(window.location.search).get('scale') === 'city';
+};
+var mapUrl = function(provinceId, city) {
+  return 'data/maps/' + (city ? 'city/' : '') + provinceId + '.json';
+};
+
+
 var fetchJson = function(url) {
   return fetch(url).then(function(response) {
     if (!response.ok)
@@ -119,7 +129,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 var startProvince = function(provinceId, cityName, difficulty) {
   var self = this;
 
-  fetchJson('data/maps/' + provinceId + '.json').then(function(preset) {
+  fetchJson(mapUrl(provinceId, cityScale())).then(function(preset) {
     var layer = function(encoded) {
       return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
     };
@@ -221,11 +231,18 @@ var loadResources = function(provinceId) {
 var savedCityHeights = function(map) {
   if (!map.isSavedGame || !map.provinceId)
     return Promise.resolve();
-  return fetchJson('data/maps/' + map.provinceId + '.json').then(function(preset) {
-    if (preset.width !== map.width || preset.height !== map.height)
-      return;
+  // A city saved on a real-scale city map takes them from that map (docs/CITY_SCALE.md)
+  var heightsFrom = function(preset) {
     map.tileSizeM = preset.tileSizeM || null;
     return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
+  };
+  return fetchJson(mapUrl(map.provinceId, false)).then(function(preset) {
+    if (preset.width !== map.width || preset.height !== map.height)
+      return fetchJson(mapUrl(map.provinceId, true)).then(function(city) {
+        if (city.width === map.width && city.height === map.height)
+          return heightsFrom(city);
+      }, function() {});
+    return heightsFrom(preset);
   }).catch(function(error) {
     console.warn('No heights for ' + map.provinceId + ': ' + error.message);
   });

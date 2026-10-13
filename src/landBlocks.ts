@@ -9,8 +9,12 @@
 // (src/cityCommands.ts). Buying is a command ({ type: "land", x, y }). A practice map, and a city saved before the
 // blocks, owns all its land (gameMap.landBlocks is null). No DOM.
 
-/** Tiles a side of a block */
+/** Tiles a side of a block on a whole-province map */
 export const BLOCK_SIZE = 24;
+/** ... and on a real-scale city map (16 m a tile, docs/CITY_SCALE.md): 512 m, near Cities: Skylines 2's 600 m tiles */
+export const CITY_BLOCK_SIZE = 32;
+/** A map with tiles this small, in metres, is a city map */
+const CITY_TILE_MAX_M = 40;
 /** The first block bought costs this, and each after it this much more */
 export const FIRST_BLOCK_PRICE = 1000;
 export const BLOCK_PRICE_STEP = 500;
@@ -36,14 +40,23 @@ export interface LandMap {
   landBought?: number;
   /** The province's own tiles (1), on a whole-province map */
   insideProvince?: Uint8Array | null;
+  /** Metres a tile: a city map's are small (docs/CITY_SCALE.md) */
+  tileSizeM?: number | null;
 }
 
-export const blockColumns = (map: { readonly width: number }): number => Math.ceil(map.width / BLOCK_SIZE);
-export const blockRows = (map: { readonly height: number }): number => Math.ceil(map.height / BLOCK_SIZE);
+/** Tiles a side of this map's blocks. */
+export const blockSizeOf = (map: { tileSizeM?: number | null }): number =>
+  map.tileSizeM && map.tileSizeM <= CITY_TILE_MAX_M ? CITY_BLOCK_SIZE : BLOCK_SIZE;
+
+export const blockColumns = (map: { readonly width: number; tileSizeM?: number | null }): number =>
+  Math.ceil(map.width / blockSizeOf(map));
+export const blockRows = (map: { readonly height: number; tileSizeM?: number | null }): number =>
+  Math.ceil(map.height / blockSizeOf(map));
 
 /** The block a tile lies in, as its index in landBlocks. */
 export function blockAt(map: LandMap, x: number, y: number): number {
-  return Math.floor(y / BLOCK_SIZE) * blockColumns(map) + Math.floor(x / BLOCK_SIZE);
+  const size = blockSizeOf(map);
+  return Math.floor(y / size) * blockColumns(map) + Math.floor(x / size);
 }
 
 /** Whether the city owns the land at (x, y): always where the map has no blocks. */
@@ -58,10 +71,11 @@ export function blockInProvince(map: LandMap, block: number): boolean {
   const inside = map.insideProvince;
   if (!inside) return true;
   const columns = blockColumns(map);
-  const x0 = (block % columns) * BLOCK_SIZE;
-  const y0 = Math.floor(block / columns) * BLOCK_SIZE;
-  for (let y = y0; y < Math.min(map.height, y0 + BLOCK_SIZE); y++) {
-    for (let x = x0; x < Math.min(map.width, x0 + BLOCK_SIZE); x++) if (inside[y * map.width + x] === 1) return true;
+  const size = blockSizeOf(map);
+  const x0 = (block % columns) * size;
+  const y0 = Math.floor(block / columns) * size;
+  for (let y = y0; y < Math.min(map.height, y0 + size); y++) {
+    for (let x = x0; x < Math.min(map.width, x0 + size); x++) if (inside[y * map.width + x] === 1) return true;
   }
   return false;
 }
@@ -71,8 +85,8 @@ export function startingBlocks(map: LandMap, town: { x: number; y: number }): Ui
   const columns = blockColumns(map);
   const rows = blockRows(map);
   const blocks = new Uint8Array(columns * rows);
-  const bx = Math.floor(town.x / BLOCK_SIZE);
-  const by = Math.floor(town.y / BLOCK_SIZE);
+  const bx = Math.floor(town.x / blockSizeOf(map));
+  const by = Math.floor(town.y / blockSizeOf(map));
   for (let y = by - 1; y <= by + 1; y++) {
     for (let x = bx - 1; x <= bx + 1; x++) if (x >= 0 && y >= 0 && x < columns && y < rows) blocks[y * columns + x] = 1;
   }
@@ -109,9 +123,11 @@ export function buyBlock(map: LandMap, x: number, y: number, budget: { spend(amo
   map.landBought = (map.landBought ?? 0) + 1;
 }
 
-/** A block's first tile, so a tool outline of BLOCK_SIZE drawn from one tile in (src/cityCommands.ts footprint) fills it. */
-export function blockOutlineTile(x: number, y: number): { x: number; y: number } {
-  return { x: Math.floor(x / BLOCK_SIZE) * BLOCK_SIZE + 1, y: Math.floor(y / BLOCK_SIZE) * BLOCK_SIZE + 1 };
+/** A block's first tile, so a tool outline of the block's size drawn from one tile in (src/cityCommands.ts footprint)
+ * fills it. */
+export function blockOutlineTile(map: { tileSizeM?: number | null }, x: number, y: number): { x: number; y: number } {
+  const size = blockSizeOf(map);
+  return { x: Math.floor(x / size) * size + 1, y: Math.floor(y / size) * size + 1 };
 }
 
 /** Reasons a land command or a tool on unowned land is refused (none are logged as errors by the game). */

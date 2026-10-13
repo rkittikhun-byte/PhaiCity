@@ -49,7 +49,7 @@ import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
 import { readPolicies } from './policies.ts';
-import { BLOCK_SIZE, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, LAND_ALL_OPEN, LAND_LOCKED,
+import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, LAND_ALL_OPEN, LAND_LOCKED,
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, ownsLand,
          startingBlocks } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
@@ -1258,8 +1258,8 @@ Game.prototype.calculateMouseForPaint = function() {
   // Buying land shows the whole block under the mouse (src/landBlocks.ts)
   var cityMap = this.gameMap;
   if (this.inputStatus.toolName === 'land') {
-    hover.tile = blockOutlineTile(tile.x, tile.y);
-    hover.size = BLOCK_SIZE;
+    hover.tile = blockOutlineTile(cityMap, tile.x, tile.y);
+    hover.size = blockSizeOf(cityMap);
     if (ownsLand(cityMap, tile.x, tile.y))
       hover.colour = OUTSIDE_COLOUR;
     return hover;
