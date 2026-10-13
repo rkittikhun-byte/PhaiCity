@@ -8,6 +8,9 @@ import { ZONEBIT } from '../../tileFlags.js';
 
 /** Shared scale for DEM, ground, models, camera and picking (RENDERER_SPEC 6B). */
 export const HILL_EXAGGERATION = 4;
+/** A real-scale city map (16 m a tile, docs/CITY_SCALE.md) shows its ground nearly as it is */
+export const CITY_HILL_EXAGGERATION = 1.5;
+const CITY_TILE_MAX_M = 40;
 export const OUTSIDE_BRIGHTNESS = .45;
 const NO_WALLS:readonly (readonly number[])[]=[];
 const BUILDING_KINDS=new Set(['residential','commercial','industrial','services','transport','park']);
@@ -41,7 +44,7 @@ export class CityHeightField {
       let lowest = Infinity;
       for (let i = 0; i < n; i++) if (!isWaterNeighbor(snapshot.values[i])) lowest = Math.min(lowest, Math.max(0, map.heights![i]));
       if (!Number.isFinite(lowest)) lowest = 0;
-      for (let i = 0; i < n; i++) this.tileHeights[i] = (Math.max(0, map.heights![i]) - lowest) * 10 / map.tileSizeM! * HILL_EXAGGERATION;
+      for (let i = 0; i < n; i++) this.tileHeights[i] = (Math.max(0, map.heights![i]) - lowest) * 10 / map.tileSizeM! * (map.tileSizeM! <= CITY_TILE_MAX_M ? CITY_HILL_EXAGGERATION : HILL_EXAGGERATION);
     }
     this.rebuild();
   }

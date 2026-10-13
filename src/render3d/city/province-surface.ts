@@ -10,12 +10,16 @@ import { mergeGeometry } from '../util/geometry.js';
 import { LATERITE_EDGE, lateriteColour, lateriteShape } from '../models/road/laterite.js';
 import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../models/road/centreline.js';
 import { ROAD_SECTION } from '../models/road/interfaces.js';
+import { COMBASE, HOSPITALBASE, INDBASE, PORTBASE, RESBASE } from '../../tileValues.js';
 import { type LandMap, ownsLand } from '../../landBlocks.js';
 import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import type { Placement } from './types.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 type RoadPoint=readonly [number,number,number];
+/** The zones' paint (docs/CITY_SCALE.md), how much of it shows over the ground, and the gap that draws the grid */
+const ZONE_PAINT={residential:new Color(0x3fae4a),commercial:new Color(0x3a7bd5),industrial:new Color(0xe0b020)};
+const ZONE_PAINT_SHARE=.55,ZONE_GAP=.45;
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
   positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,number>;buildingSlots:Map<number,number>;
   publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,number>;publishedBuildings:Map<number,number>;
@@ -140,6 +144,11 @@ export class ProvinceSurface {
     const i=y*w+x,v=values[i],outside=!this.terrain.inside(x,y),wet=isWaterNeighbor(v),woods=isWoods(v);
     const ground=wet?this.terrain.water[i]:undefined;
     this.ground(c,x,y,wet,(xx,zz)=>wet?ground!:this.terrain.sampleTile(x,y,xx,zz));
+    // Zones are painted cell by cell, as in Cities: Skylines (docs/CITY_SCALE.md): green homes, blue shops, yellow
+    // factories, each tile a square a little inside its edges so the grid shows between them
+    const zone=v>=RESBASE&&v<HOSPITALBASE?ZONE_PAINT.residential:v>=COMBASE&&v<INDBASE?ZONE_PAINT.commercial:v>=INDBASE&&v<PORTBASE?ZONE_PAINT.industrial:null;
+    if(zone&&!wet){const paint=this.tileShade(x,y,new Color()).lerp(zone,ZONE_PAINT_SHARE),x0=x*10+ZONE_GAP,z0=y*10+ZONE_GAP,x1=(x+1)*10-ZONE_GAP,z1=(y+1)*10-ZONE_GAP;
+      for(const[px,pz]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){c.positions.push(px,this.terrain.sampleTile(x,y,px,pz)+.015,pz);c.colors.push(paint.r,paint.g,paint.b);c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}}
     for(const[x0,z0,top0,bottom0,x1,z1,top1,bottom1]of this.terrain.walls(x,y)){
       const vertices=[[x0,top0,z0],[x0,bottom0,z0],[x1,bottom1,z1],[x1,top1,z1]];
       for(const n of[0,2,1,0,3,2]){c.positions.push(...vertices[n]);c.colors.push(...new Color(0x9c927e).toArray());c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}
