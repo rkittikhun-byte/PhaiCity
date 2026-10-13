@@ -22,14 +22,17 @@ export const FLOOD_LEVELS = [0.4, 0.36, 0.44, 0.48] as const;
 
 function createDirt(options: ModelOptions) {
   const b = new TerrainBuilder(options), rng = seededRng(options.seed), variant = (options.variant ?? 0) & 3;
-  const dry = tint('grass', 0xb7a56c), stones = getMaterial('gravel_ballast');
-  for (let patch = 0; patch < 4 + variant; patch++) {
+  // state 'grass': the open land of a real-scale city map, a meadow rather than laterite (src/render3d/city/tileModels.ts)
+  const meadow = options.state === 'grass';
+  const dry = tint('grass', meadow ? 0x7f9a4c : 0xb7a56c), stones = getMaterial('gravel_ballast');
+  for (let patch = 0; patch < (meadow ? 7 : 4) + variant; patch++) {
     const x = (rng() - 0.5) * 7.6, z = (rng() - 0.5) * 7.6;
     for (let blade = 0; blade < 8; blade++) b.grass(x + (rng() - 0.5) * 1.1, z + (rng() - 0.5) * 1.1, 0.45, dry);
   }
-  for (let stone = 0; stone < 8 + variant * 3; stone++) b.heap(point((rng() - 0.5) * 8.2, 0, (rng() - 0.5) * 8.2),
+  for (let stone = 0; stone < (meadow ? 2 : 8 + variant * 3); stone++) b.heap(point((rng() - 0.5) * 8.2, 0, (rng() - 0.5) * 8.2),
     0.14 + rng() * 0.15, 0.1 + rng() * 0.15, stones, rng() * Math.PI);
-  const root = b.finishTerrain('terrain.dirt', [horizontal()], getMaterial('dirt_laterite'), TERRAIN_TILES.dirt);
+  const root = b.finishTerrain('terrain.dirt', [horizontal()], meadow ? tint('grass', 0x7f9a52) : getMaterial('dirt_laterite'),
+    TERRAIN_TILES.dirt);
   root.userData.variant = variant; return root;
 }
 

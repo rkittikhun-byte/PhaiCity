@@ -4,6 +4,8 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { groundAt } from './picking.js';
 import type { CityHeightField } from './heightfield.js';
+/** How low the camera may look: near the horizon, so the sky and the land beyond show (owner 13 Oct 2026) */
+const MIN_PITCH=12*Math.PI/180;
 export class CityCamera {
   readonly camera=new PerspectiveCamera(38,1,1,12000); readonly target:Vector3;
   heading=0; pitch=55*Math.PI/180; distance=240;
@@ -39,7 +41,7 @@ export class CityCamera {
     const angle=this.heading+({north:Math.PI,east:Math.PI/2,south:0,west:-Math.PI/2})[direction];
     this.target.x+=Math.sin(angle)*step;this.target.z+=Math.cos(angle)*step;this.fly=undefined;this.clamp();this.update(time);
   }
-  rotate(dx:number,dy:number):void {if(dx||dy)this.interaction=this.now();this.fly=undefined;this.heading-=dx*.006;this.pitch=Math.max(Math.PI/6,Math.min(Math.PI*85/180,this.pitch+dy*.004));this.update(this.now());}
+  rotate(dx:number,dy:number):void {if(dx||dy)this.interaction=this.now();this.fly=undefined;this.heading-=dx*.006;this.pitch=Math.max(MIN_PITCH,Math.min(Math.PI*85/180,this.pitch+dy*.004));this.update(this.now());}
   pan(dx:number,dy:number,height:number):void {
     if(dx||dy)this.interaction=this.now();
     this.fly=undefined;const scale=this.distance*2*Math.tan(19*Math.PI/180)/Math.max(1,height);

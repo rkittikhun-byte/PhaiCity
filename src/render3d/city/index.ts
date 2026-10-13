@@ -6,7 +6,8 @@ import { ACESFilmicToneMapping, Color, DirectionalLight, Fog, HemisphereLight, O
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { CityView, ToolHover, TilePoint, TileRect } from '../../cityView.js';
 import { DAY_SKY_URL } from '../materials/catalog.js';
-import { getMaterial, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
+import { cityBedMaterial, getMaterial, setCityWind, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
+import { seasonWind } from '../../wind.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
 import { pickTile, visibleTileRect } from './picking.js';
@@ -15,6 +16,7 @@ import { TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import { CitySprites } from './sprites.js';
 import { ToolOutline, ZoneGrid } from './overlay.js';
+import { SkyDome } from './sky.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
@@ -40,7 +42,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
-  private bed:Mesh;
+  private bed:Mesh;private bedDrop:number;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
     this.pixelRatioLimit=Math.max(1,Math.min(2,dependencies.pixelRatioLimit??2));
@@ -59,10 +61,16 @@ export class CityView3D implements CityView {
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
-    const bedGeometry=new PlaneGeometry(setup.map.width*10,setup.map.height*10).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-3.015,setup.map.height*5);
-    this.bed=new Mesh(applyWorldUV(bedGeometry,1),tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
+    // Under the map, the bed; a real-scale city map's runs far past its edges in the land's colour, into the haze, so
+    // the land seems to go on (docs/CITY_SCALE.md)
+    const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.bedDrop=wide?.4:3.015;
+    const bedGeometry=new PlaneGeometry(setup.map.width*10*(wide?9:1),setup.map.height*10*(wide?9:1)).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
+    this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
     this.scene.add(this.chunks.root,this.sprites.root,this.outline.root,this.zones.root);
-    this.scene.background=new Color(0xc8dde2);this.scene.fog=new Fog(0xc8dde2,2400,7000);
+    // A sky with clouds, and haze into the distance; a real-scale city map's haze comes nearer (docs/CITY_SCALE.md)
+    const haze=new Color(0xc8dde2),city=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;
+    this.fogNear=city?900:2400;this.fogFar=city?5500:7000;this.fog=new Fog(haze,this.fogNear,this.fogFar);
+    this.scene.background=haze;this.scene.fog=this.fog;this.sky=new SkyDome(9000,haze);this.scene.add(this.sky.mesh);
     this.scene.add(new HemisphereLight(0xd7edff,0xb5a385,1.2),this.sun,this.sun.target);
     this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.bias=-.00025;this.sun.shadow.normalBias=.15;
     this.renderer.setPixelRatio(Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit));
@@ -101,7 +109,7 @@ export class CityView3D implements CityView {
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     this.resize();const changed=this.snapshot.sync(this.setup.map),raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
-    if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-3.015);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
+    if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     this.navigation.update(start,Math.max(this.chunks.tallestNear(this.navigation.target),this.terrain.enabled?this.chunks.tallestNear(this.navigation.camera.position):0));
     const pose=this.navigation.camera.matrixWorld.elements;
     if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
@@ -110,6 +118,13 @@ export class CityView3D implements CityView {
     this.outline.update(hover);this.zones.update(changed.length>0);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
+    this.sky.update(this.navigation.camera.position,this.seconds);
+    // The haze keeps its distance from the camera, so the whole map seen from high up stays clear
+    this.fog.near=this.fogNear+this.navigation.distance*.9;this.fog.far=this.fogFar+this.navigation.distance*1.5;
+    // The season's wind sways the trees (src/wind.ts); it eases in rather than jumping when the month turns
+    {const wind=seasonWind(this.setup.date().month,this.setup.windLevel??2),ease=Math.min(1,dt*.5);
+      this.wind.x+=(wind.x-this.wind.x)*ease;this.wind.y+=(wind.y-this.wind.y)*ease;this.wind.strength+=(wind.strength-this.wind.strength)*ease;
+      setCityWind(this.wind.x,this.wind.y,isPaused?this.wind.strength*.5:this.wind.strength,this.seconds+this.swaySeconds);if(isPaused)this.swaySeconds+=dt;}
     this.render();this.frameTimes.push(this.now()-start);this.intervals.push(interval);if(this.frameTimes.length>120)this.frameTimes.shift();if(this.intervals.length>120)this.intervals.shift();
     this.metrics.frameMs=this.frameTimes.reduce((a,b)=>a+b,0)/this.frameTimes.length;
     this.metrics.intervalMs=this.intervals.reduce((a,b)=>a+b,0)/this.intervals.length;
@@ -155,16 +170,16 @@ export class CityView3D implements CityView {
     const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible;
     target.texture.colorSpace=SRGBColorSpace;
     try {
-      this.outline.root.visible=false;this.zones.root.visible=false;this.scene.fog=null;
+      this.outline.root.visible=false;this.zones.root.visible=false;this.sky.mesh.visible=false;this.scene.fog=null;
       // Map snapshots use the complete low-detail province, not only the nearby detailed chunks.
       this.chunks.mapLOD(true);this.renderer.setRenderTarget(target);this.renderer.render(this.scene,camera);this.renderer.readRenderTargetPixels(target,0,0,width,height,pixels);
       const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return this.screenshotVisible();
       const image=context.createImageData(width,height);for(let y=0;y<height;y++)image.data.set(pixels.subarray((height-y-1)*width*4,(height-y)*width*4),y*width*4);context.putImageData(image,0,0);return canvas.toDataURL('image/png');
-    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;this.scene.fog=new Fog(0xc8dde2,2400,7000);}
+    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;this.sky.mesh.visible=true;this.scene.fog=this.fog;}
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

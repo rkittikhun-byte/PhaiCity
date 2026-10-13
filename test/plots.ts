@@ -12,7 +12,8 @@ import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import {
-  ERASE_TOOL, fillRegion, nearestRoad, PAINT_TOOLS, paintOutcome, PLOT_KINDS, PLOT_REACH, PLOT_TOP, plotFacing, plotOf,
+  ERASE_TOOL, fillRegion, LOT_LEVEL, lotFacing, lotOf, mayRise, nearestRoad, PAINT_TOOLS, paintOutcome, PLOT_KINDS,
+  PLOT_REACH, PLOT_TOP, plotFacing, plotOf,
   plotTile, readPlotValue, zonable,
 } from "../src/plots";
 import { Random } from "../src/random";
@@ -132,6 +133,28 @@ describe("painted zones", () => {
     expect(tiles.length).toBe((19 - 0 + 1) * 3 - 6); // x 0..19 × 3 rows, less the 6 tiles left of x = 2 not in reach
     expect(fillRegion(map, 20, ROAD_Y + 1, null).length).toBe(3);
     expect(fillRegion(map, 10, ROAD_Y + 1, null)).toEqual([]);
+  });
+
+  test("four grown plots of a kind in a square on even tiles make a lot, and only a lot grows to the top", () => {
+    const { map } = city();
+    const set = (x: number, y: number, kind: "residential" | "commercial" | "industrial", level: number): void =>
+      map.setTile(x, y, plotTile(kind, level, 2), BLBNCNBIT);
+    // Rows 10 and 11, below the road at 8: an even square
+    set(10, 10, "residential", 4); set(11, 10, "residential", 4); set(10, 11, "residential", 5); set(11, 11, "residential", 4);
+    expect(lotOf(map, 11, 11)).toEqual({ x: 10, y: 10, kind: "residential", level: 4, value: 2 });
+    expect(lotFacing(map, lotOf(map, 10, 10)!)).toBe(0); // the road is north
+    expect(mayRise(map, 11, 10, plotOf(map, 11, 10)!)).toBe(true);
+    // A plot below the lot's level, or of another kind, breaks it
+    set(11, 11, "residential", 3);
+    expect(lotOf(map, 10, 10)).toBeNull();
+    expect(mayRise(map, 10, 10, plotOf(map, 10, 10)!)).toBe(false);
+    expect(mayRise(map, 11, 11, plotOf(map, 11, 11)!)).toBe(true); // 3 → 4 needs no lot
+    set(11, 11, "commercial", 4);
+    expect(lotOf(map, 10, 10)).toBeNull();
+    // Factories join from their third level
+    set(20, 10, "industrial", 3); set(21, 10, "industrial", 3); set(20, 11, "industrial", 3); set(21, 11, "industrial", 4);
+    expect(lotOf(map, 21, 11)).toMatchObject({ kind: "industrial", level: 3 });
+    expect(LOT_LEVEL.industrial).toBe(3);
   });
 
   test("painted plots grow buildings of their own and count in the census", () => {

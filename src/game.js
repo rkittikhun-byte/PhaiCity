@@ -769,6 +769,8 @@ var createView3D = function(game, view3d) {
       container: document.getElementById('canvasContainer'),
       map: game.gameMap,
       region: view3d.region,
+      // How hard the season's wind blows here, for the trees (src/wind.ts)
+      windLevel: simulation.resources && typeof simulation.resources.wind === 'number' ? simulation.resources.wind : 2,
       overlays: {
         trafficDensityMap: maps.trafficDensityMap,
         pollutionDensityMap: maps.pollutionDensityMap,

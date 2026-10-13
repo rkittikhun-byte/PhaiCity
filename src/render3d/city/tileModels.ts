@@ -7,7 +7,7 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
-import { type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
+import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
 import type { CityMapReader, Placement } from './types.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
@@ -115,9 +115,23 @@ export class TileSnapshot implements CityMapReader {
     let side=2;for(const candidate of [0,1,3])if(scores[candidate]>scores[side])side=candidate;
     return [Math.PI,Math.PI/2,0,-Math.PI/2][side];
   }
+  /** A lot's one building over its four plots (src/plots.ts lotOf), from its top-left tile; null on its other tiles. */
+  private lotPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null|undefined {
+    const lot=lotOf(this,x,y);if(!lot)return undefined;if(lot.x!==x||lot.y!==y)return null;
+    const prefix=PLOT_MODEL_PREFIX[lot.kind],named=`lot.${prefix}_${lot.level}`,single=`plot.${prefix}_${lot.level}`;
+    // Until a lot has a model of its own, the plot's building, bigger
+    const id=registry[named]?named:registry[single]?single:null,scale=registry[named]?1:1.6;
+    const rotation=FACING_ROTATION[lotFacing(this,lot)],cx=(x+LOT_SIZE/2)*10,cz=(y+LOT_SIZE/2)*10;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    return {index:i,x:cx,z:cz,id,kind:lot.kind,footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
+      color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[lot.kind],water:false,rotation,scale,
+      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state:'closed',
+        waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}};
+  }
   /** A painted plot's building, facing its road, or null for an empty plot, whose painted ground is enough. */
   private plotPlacement(i:number,x:number,y:number,plot:Plot,region:RegionId,hash:number):Placement|null {
     if(plot.level<=0)return null;
+    const lot=this.lotPlacement(i,x,y,region,hash);if(lot!==undefined)return lot;
     const named=`plot.${PLOT_MODEL_PREFIX[plot.kind]}_${plot.level}`;
     const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[this.values[i]]?.id??null:registry[named]?named:null;
     const rotation=FACING_ROTATION[plotFacing(this,x,y)];
@@ -155,7 +169,7 @@ export class TileSnapshot implements CityMapReader {
       else {const pick=powerForMask(this.mask(x,y,isPower))??{id:'power.end',rotationY:0};id=pick.id;rotation=pick.rotationY;}
     } else if(v>=5&&v<=20) {kind='shore';id='terrain.shore';variant=this.mask(x,y,n=>!isWaterNeighbor(n));}
     else if(isWoods(v)) {variant=this.mask(x,y,isWoods);}
-    else if(v===0||v>=44&&v<=51) variant=(hash>>>2)&3;
+    else if(v===0||v>=44&&v<=51) {variant=(hash>>>2)&3;if(v===0&&this.paintedZones)state='grass';}
     if(id==='svc.stadium')state=v>=795&&v<=810?'game':'empty';
     if(id==='port.seaport'&&zone)rotation=this.portRotation(x,y,w);
     // A constituent tile without a centre is damaged ground, not another copy of its zone.

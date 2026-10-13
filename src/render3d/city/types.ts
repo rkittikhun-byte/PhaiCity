@@ -21,6 +21,8 @@ export interface CityViewSetup {
   overlays: { trafficDensityMap: BlockMapReader; pollutionDensityMap: BlockMapReader; landValueMap: BlockMapReader };
   date(): { month: number; year: number };
   roadLevel?: 1 | 2 | 3 | ((x: number, y: number) => 1 | 2 | 3);
+  /** The province's wind level, 0–5 (src/geo/provinceResources.ts), for how hard the trees sway (src/wind.ts) */
+  windLevel?: number;
 }
 export interface Placement {
   index: number; x: number; z: number; id: string | null; options: ModelOptions; rotation: number;

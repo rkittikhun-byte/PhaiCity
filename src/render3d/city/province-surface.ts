@@ -5,7 +5,7 @@ import { BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Group, Octa
   InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
-import { cityCoarseSurfaceMaterial, provinceEdgeMaterial, setProvinceMask } from '../materials/library.js';
+import { cityCoarseSurfaceMaterial, cityCoarseTreeMaterial, provinceEdgeMaterial, setProvinceMask } from '../materials/library.js';
 import { mergeGeometry } from '../util/geometry.js';
 import { LATERITE_EDGE, lateriteColour, lateriteShape } from '../models/road/laterite.js';
 import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../models/road/centreline.js';
@@ -57,7 +57,7 @@ export class ProvinceSurface {
     this.edge=new LineSegments2(edgeGeometry,provinceEdgeMaterial());this.edge.visible=boundary.length>0;this.edge.renderOrder=20;this.edge.frustumCulled=false;this.root.add(this.edge);
     for(let y=0;y<snapshot.height;y+=SIZE)for(let x=0;x<snapshot.width;x+=SIZE){
       const group=new Group(),land=new Mesh(new BufferGeometry(),cityCoarseSurfaceMaterial());land.receiveShadow=true;
-      const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseSurfaceMaterial(),SIZE*SIZE);
+      const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseTreeMaterial(),SIZE*SIZE);
       const buildings=new InstancedMesh(this.boxSource.clone(),cityCoarseSurfaceMaterial(),SIZE*SIZE);
       for(const mesh of[trees,buildings]){attributes(mesh.geometry,SIZE*SIZE,true);mesh.count=0;mesh.receiveShadow=true;mesh.castShadow=false;}
       group.add(land,trees,buildings);this.root.add(group);
@@ -65,7 +65,7 @@ export class ProvinceSurface {
         publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(SIZE*SIZE*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(SIZE*SIZE),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
-        this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(0xb49b71),(x,z)=>terrain.sample(x,z),yy*snapshot.width+xx,false);
+        this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(this.landColour()),(x,z)=>terrain.sample(x,z),yy*snapshot.width+xx,false);
       this.publish(chunk);this.resetBuffers(chunk);
     }
   }
@@ -90,10 +90,12 @@ export class ProvinceSurface {
     }
   }
   /** A tile's own ground colour: water, woods or open land, the land a little lighter or darker in 3-tile patches. */
+  /** Open land: laterite on a province map; grass on a real-scale city map, as the land round a town looks close up */
+  private landColour():number {return this.snapshot.paintedZones?0x7a9150:0xb49b71;}
   private tileShade(x:number,y:number,out:Color):Color {
-    const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v);
-    out.setHex(wet?0x487c89:isWoods(v)?0x88966b:0xb49b71);
-    if(!wet)out.offsetHSL(0,0,(tileSeed(Math.floor(x/3),Math.floor(y/3))%9-4)*.006);
+    const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v),city=this.snapshot.paintedZones;
+    out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):this.landColour());
+    if(!wet){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(city?(patch%7-3)*.006:0,0,(patch%9-4)*.006);}
     return out;
   }
   /**

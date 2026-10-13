@@ -252,7 +252,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   scanner. Roads, railways and power lines draw by modes (`src/drawModes.ts`, `src/drawPaths.ts`): straight, curve,
   S-curve, free and grid, with a tip beside the mouse (next click, metres, tiles, price); the brushes paint, fill a
   rectangle or fill a stretch along a road. The 3D view shows 8 m cells, 2 × 2 a tile, and the grid of paintable land
-  while a brush or a road tool is in hand (RENDERER_SPEC 6L).
+  while a brush or a road tool is in hand (RENDERER_SPEC 6L). Four grown plots on an even 2 × 2 join into a lot
+  (`lotOf`), the only place the top level grows. The season's wind (`src/wind.ts`, Thailand's monsoons, the
+  province's wind level) sways the 3D trees; the 3D view has a sky dome with clouds (`src/render3d/city/sky.ts`).
 - **Schools and hospitals (owner, 13 Oct 2026):** `docs/SERVICES.md`, `src/services.ts`. Nine kinds on the same civic
   tiles as the ruler's house (`civicKinds`), chosen above the education and health buttons; the higher ones need a
   higher house (`serviceProblem`). With power they give places; the month's levels (children's seats, the young's,

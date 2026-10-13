@@ -219,6 +219,56 @@ export function fillRegion(map: PlotMap, x: number, y: number, kind: PlotKind | 
   return found;
 }
 
+// Lots (แปลงรวม, owner 13 Oct 2026): four plots of one kind in a square on even tiles, all grown far enough, join into
+// one bigger building, as Cities: Skylines' big buildings take several cells. The top level grows only on a lot.
+
+/** The level from which four plots of a kind join into a lot */
+export const LOT_LEVEL: Readonly<Record<PlotKind, number>> = { residential: 4, commercial: 4, industrial: 3 };
+/** Tiles a side of a lot */
+export const LOT_SIZE = 2;
+
+export interface Lot {
+  /** Its top-left tile, on even coordinates */
+  x: number;
+  y: number;
+  kind: PlotKind;
+  /** The lowest level of its four plots, which its building shows */
+  level: number;
+  /** The richest land class among them */
+  value: number;
+}
+
+/** The lot the plot at (x, y) belongs to, or null: the square of four on even tiles round it, all of one kind and grown. */
+export function lotOf(map: PlotMap, x: number, y: number): Lot | null {
+  if (!map.paintedZones || !inside(map, x, y)) return null;
+  const left = x - (x % LOT_SIZE), top = y - (y % LOT_SIZE);
+  let kind: PlotKind | null = null, level = Infinity, value = 0;
+  for (let dy = 0; dy < LOT_SIZE; dy++) {
+    for (let dx = 0; dx < LOT_SIZE; dx++) {
+      const plot = plotOf(map, left + dx, top + dy);
+      if (!plot || (kind !== null && plot.kind !== kind) || plot.level < LOT_LEVEL[plot.kind]) return null;
+      kind = plot.kind;
+      level = Math.min(level, plot.level);
+      value = Math.max(value, plot.value);
+    }
+  }
+  return kind === null ? null : { x: left, y: top, kind, level, value };
+}
+
+/** Which way a lot's building faces: to the road nearest any of its plots (as plotFacing). */
+export function lotFacing(map: PlotMap, lot: Lot): number {
+  let best: { facing: number; distance: number } | null = null;
+  for (let dy = 0; dy < LOT_SIZE; dy++) {
+    for (let dx = 0; dx < LOT_SIZE; dx++) {
+      const x = lot.x + dx, y = lot.y + dy, road = nearestRoad(map, x, y);
+      if (!road) continue;
+      const distance = Math.abs(road.x - x) + Math.abs(road.y - y);
+      if (!best || distance < best.distance) best = { facing: plotFacing(map, x, y), distance };
+    }
+  }
+  return best ? best.facing : 2;
+}
+
 /** What a plot adds to the population density scan (src/blockMapUtils.js): four house plots match a zone of houses. */
 export function plotDensity(map: PlotMap, x: number, y: number): number {
   const plot = plotOf(map, x, y);
@@ -296,6 +346,11 @@ function homeScore(sim: PlotSimData, x: number, y: number, traffic: number): num
 /** How crowded the neighbourhood must be for a home to rise past each level: towers want a busy town round them */
 const DENSITY_TO_RISE = [0, 32, 64, 96, 128];
 
+/** Whether a plot may grow a level: the top level only on a lot (lotOf). */
+export function mayRise(map: PlotMap, x: number, y: number, plot: Plot): boolean {
+  return plot.level + 1 < PLOT_TOP[plot.kind] || lotOf(map, x, y) !== null;
+}
+
 function setLevel(map: PlotScanMap, x: number, y: number, sim: PlotSimData, plot: Plot, level: number): void {
   if (level < 0 || level > PLOT_TOP[plot.kind] || level === plot.level) return;
   const value = plot.kind === "industrial" ? Random.getRandom16() & 1 :
@@ -354,7 +409,8 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
     if (!powered || (!watered && level >= 1)) score = -500;
     if (grows(score)) {
       const crowd = sim.blockMaps.populationDensityMap.worldGet(x, y);
-      if (sim.blockMaps.pollutionDensityMap.worldGet(x, y) <= 128 && (level === 0 || crowd > DENSITY_TO_RISE[level]))
+      if (sim.blockMaps.pollutionDensityMap.worldGet(x, y) <= 128 && (level === 0 || crowd > DENSITY_TO_RISE[level]) &&
+          mayRise(map, x, y, plot))
         setLevel(map, x, y, sim, plot, level + 1);
     } else if (shrinks(score)) {
       setLevel(map, x, y, sim, plot, level - 1);
@@ -369,7 +425,7 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
   if (!powered || (!watered && level > 1)) score = -500;
   if ((watered || level === 0) && grows(score)) {
     // A shop grows only as far as the land is worth (src/commercial.js)
-    if (kind !== "commercial" || level <= sim.blockMaps.landValueMap.worldGet(x, y) >> 5)
+    if ((kind !== "commercial" || level <= sim.blockMaps.landValueMap.worldGet(x, y) >> 5) && mayRise(map, x, y, plot))
       setLevel(map, x, y, sim, plot, level + 1);
   } else if (shrinks(score)) {
     setLevel(map, x, y, sim, plot, level - 1);

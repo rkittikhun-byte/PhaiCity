@@ -5,7 +5,7 @@
 import {
   ClampToEdgeWrapping, Color, ColorRepresentation, DataTexture, DoubleSide, LinearFilter, Material, MeshPhysicalMaterial,
   MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBAFormat, RGBADepthPacking, MeshLambertMaterial,
-  UnsignedByteType, Vector2,
+  UnsignedByteType, Vector2, Vector3,
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { getWaterNormal, loadMaterialTextures, TextureSet } from './textures.js';
@@ -343,14 +343,37 @@ export function setProvinceMask(outside: Uint8Array | null, width: number, heigh
   texture.wrapS = texture.wrapT = ClampToEdgeWrapping; texture.needsUpdate = true;
   provinceMask.cityMask.value = texture; provinceMask.cityMaskSize.value.set(width, height); provinceMask.cityMaskOn.value = 1;
 }
+/**
+ * The wind the trees sway in (src/wind.ts): where it blows on the map (x, z) and how hard (0–1), and the city's
+ * seconds; one set for every city material, which the view updates each frame (setCityWind).
+ */
+const cityWindUniforms = { cityWind: { value: new Vector3(0, 0, 0) }, cityTime: { value: 0 } };
+export function setCityWind(x: number, z: number, strength: number, seconds: number): void {
+  cityWindUniforms.cityWind.value.set(x, z, strength); cityWindUniforms.cityTime.value = seconds;
+}
+/** Leaves bend with the wind, more the higher they are, in gusts that roll across the city; trunks and roots stay put. */
+const CITY_SWAY = `
+  {
+    float swayHeight = max(0.0, position.y - 0.8);
+    float swayGust = 0.6 + 0.4 * sin(cityTime * 0.45 - dot(cityWorldXZ, cityWind.xy) * 0.012);
+    float swayBend = cityWind.z * swayGust * swayHeight * swayHeight * 0.018
+      * (0.75 + 0.25 * sin(cityTime * 2.3 + dot(floor(cityWorldXZ / 3.0), vec2(1.7, 2.3))));
+    float swayFlutter = cityWind.z * swayHeight * 0.025 * sin(cityTime * 6.0 + position.x * 4.0 + position.z * 3.0);
+    vec3 swayOffset = vec3(cityWind.x, 0.0, cityWind.y) * swayBend + vec3(swayFlutter, 0.0, swayFlutter * 0.6);
+    mvPosition.xyz += (viewMatrix * vec4(swayOffset, 0.0)).xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }`;
 /** Complementary screen-door coverage keeps depth writes and avoids alpha-sorting LOD flashes. */
 function configureCityLOD(material: Material, coarse: boolean): void {
   if (material.onBeforeCompile === material.userData.cityLODWrapper) return;
   const original = material.onBeforeCompile, program = material.customProgramCacheKey();
+  // Leaves sway in the wind: the trees' foliage, and the far view's trees
+  const sway = material.userData.materialKey === 'foliage_tropical' || material.userData.citySway === true;
   material.onBeforeCompile = (shader, renderer) => {
     original.call(material, shader, renderer);
-    Object.assign(shader.uniforms, provinceMask);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround;`)
+    Object.assign(shader.uniforms, provinceMask, cityWindUniforms);
+    if (sway) shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>${CITY_SWAY}`);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround; uniform vec3 cityWind; uniform float cityTime;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;
         #ifdef USE_INSTANCING
           vec2 terrainUV = clamp(((mat3(instanceMatrix) * transformed).xz / 10.0) + 0.5, 0.0, 1.0);
@@ -406,7 +429,7 @@ function configureCityLOD(material: Material, coarse: boolean): void {
         if (${coarse ? 'threshold < cityDetail' : 'threshold >= cityDetail'}) discard;
         }`);
   };
-  material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${program}`;
+  material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${sway}:${program}`;
   material.userData.cityLODWrapper=material.onBeforeCompile;material.userData.cityLODCoarse=coarse;
 }
 /** Untextured, vertex-coloured surface for merged provincial terrain and compacted earth. */
@@ -418,6 +441,19 @@ export function citySurfaceMaterial():MeshStandardMaterial {
 }
 let provinceSurface:MeshLambertMaterial|undefined;
 /** Matte far terrain needs diffuse light and shadows, without a per-pixel environment lookup. */
+/** The land beyond a real-scale city map's edges: shaded as the province surface's land is, so the two meet unseen. */
+export function cityBedMaterial(color:ColorRepresentation):MeshLambertMaterial {
+  const token=`city-bed:${new Color(color).getHexString()}`,cached=cache.get(token) as unknown as MeshLambertMaterial|undefined;if(cached)return cached;
+  const material=new MeshLambertMaterial({color});material.name=token;owned.add(material);cache.set(token,material as unknown as MeshStandardMaterial);
+  return material;
+}
+let provinceTrees:MeshLambertMaterial|undefined;
+/** The far view's trees: the province surface's material, swaying in the wind. */
+export function cityCoarseTreeMaterial():MeshLambertMaterial {
+  if(!provinceTrees){provinceTrees=new MeshLambertMaterial({color:0xffffff,vertexColors:true});provinceTrees.name='city-province-trees';
+    provinceTrees.userData.citySway=true;configureCityLOD(provinceTrees,true);owned.add(provinceTrees);}
+  return provinceTrees;
+}
 export function cityCoarseSurfaceMaterial():MeshLambertMaterial {
   if(!provinceSurface){provinceSurface=new MeshLambertMaterial({color:0xffffff,vertexColors:true});provinceSurface.name='city-province-surface';
     configureCityLOD(provinceSurface,true);owned.add(provinceSurface);}

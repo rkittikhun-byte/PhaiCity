@@ -342,6 +342,10 @@ On a real-scale city map (16 m a tile, `docs/CITY_SCALE.md`) homes, shops and fa
 - A plot of level 1 home is the one-tile house of its tile value; the other levels are the one-tile models
   `plot.res_2`–`plot.res_5`, `plot.com_1`–`plot.com_5`, `plot.ind_1`–`plot.ind_4`, `variant` its land class, front
   to its road. An empty plot has no model. The ground under a plot's building is levelled like a house's.
+- A lot (`lotOf`: four plots of one kind on an even 2 × 2, all at level 4 or more, factories 3) is one building
+  drawn from its top-left tile with footprint 2 × 2: `lot.res_4`, `lot.res_5`, `lot.com_4`, `lot.com_5`, `lot.ind_3`,
+  `lot.ind_4` (the lowest level of the four), facing the road nearest any of them (`lotFacing`); its other tiles draw
+  nothing. Until those models exist, the plot model of that level stands in, 1.6 times bigger.
 - `zoneGrid(on)`: the game calls it while a zone brush or a road tool is in hand; the view shows every tile of bare
   land a road reaches (three tiles straight along a row or column, `PLOT_REACH`) as 2 × 2 pale cells.
 - `ToolHover.path`: while a line is drawn by clicks, a grid or rectangle dragged or a fill pointed at
