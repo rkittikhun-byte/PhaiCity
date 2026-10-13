@@ -111,12 +111,15 @@ export function showTourism(simulation: { addEventListener(event: string, listen
   const render = (): void => {
     const block = doc.getElementById("statusTourism");
     if (!block) return;
-    block.hidden = !month || month.level === 0;
-    if (!month || month.level === 0) return;
+    const shown = month !== null && (month.level > 0 || month.festival !== null);
+    block.hidden = !shown;
+    if (!month || !shown) return;
     const value = block.querySelector(".statValue");
     if (value) value.textContent = t("status.tourists_value", { count: month.visitors.toLocaleString("en-US") });
-    block.title = t(month.season > 1 ? "status.tourists_high" : month.season < 1 ? "status.tourists_low" : "status.tourists_title",
-      { income: formatMoney(month.income), wanted: month.wanted.toLocaleString("en-US") });
+    const params = { income: formatMoney(month.income), wanted: month.wanted.toLocaleString("en-US"),
+      festival: month.festival ? t(`festival.${month.festival}`) : "" };
+    block.title = t(month.festival ? "status.tourists_festival" : month.season > 1 ? "status.tourists_high"
+      : month.season < 1 ? "status.tourists_low" : "status.tourists_title", params);
   };
   simulation.addEventListener(TOURISM_UPDATED, (value) => {
     month = value as TourismMonth;

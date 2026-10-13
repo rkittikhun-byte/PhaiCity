@@ -13,8 +13,8 @@ import * as Messages from "../src/messages";
 import { Simulation } from "../src/simulation.js";
 import { COMBASE } from "../src/tileValues";
 import {
-  livingCostFactor, NO_TOURISM, shopRubbish, SPEND_PER_VISITOR, TOURISM_SEASON, tourismMonth, touristTrips,
-  VISITORS_AT_LEVEL, VISITORS_PER_SHOP,
+  FESTIVALS, festivalIn, festivalWaterUse, livingCostFactor, NO_TOURISM, shopRubbish, SPEND_PER_VISITOR, TOURISM_SEASON,
+  tourismMonth, touristTrips, VISITORS_AT_LEVEL, VISITORS_PER_SHOP,
 } from "../src/tourism";
 import { Valves } from "../src/valves.js";
 
@@ -23,12 +23,14 @@ const town = {
   crimeAverage: 20,
 };
 const JANUARY = 0;
+const MARCH = 2;
+const APRIL = 3;
 const JULY = 6;
 const NOVEMBER = 10;
 
 describe("visitors", () => {
-  test("none come to a province without tourism", () => {
-    expect(tourismMonth(0, town, JANUARY)).toBe(NO_TOURISM);
+  test("none come to a province without tourism, out of the festivals", () => {
+    expect(tourismMonth(0, town, MARCH)).toBe(NO_TOURISM);
   });
 
   test("come by the province's level and the season: most in the cool dry months, fewest in the rains", () => {
@@ -67,6 +69,53 @@ describe("visitors", () => {
     expect(livingCostFactor(month)).toBeLessThan(1);
     expect(livingCostFactor(NO_TOURISM)).toBe(1);
     expect([touristTrips(NO_TOURISM), shopRubbish(NO_TOURISM)]).toEqual([0, 0]);
+  });
+});
+
+describe("the country's festivals", () => {
+  test("are New Year in January and Songkran in April", () => {
+    expect(festivalIn(JANUARY)?.id).toBe("new_year");
+    expect(festivalIn(APRIL)?.id).toBe("songkran");
+    expect(festivalIn(MARCH)).toBeNull();
+    expect(FESTIVALS.map((f) => f.id)).toEqual(["new_year", "songkran"]);
+  });
+
+  test("bring far more visitors than the month before, and people home even where there is no tourism", () => {
+    expect(tourismMonth(3, town, APRIL).wanted).toBeGreaterThan(tourismMonth(3, town, MARCH).wanted * 1.5);
+    const home = tourismMonth(0, town, APRIL);
+    expect(home.festival).toBe("songkran");
+    expect(home.level).toBe(0);
+    expect(home.visitors).toBeGreaterThan(0);
+    expect(tourismMonth(0, town, MARCH)).toBe(NO_TOURISM);
+    // A practice map is no province: no festival comes to it
+    expect(tourismMonth(0, town, APRIL, false)).toBe(NO_TOURISM);
+  });
+
+  test("put the whole country on the road, and Songkran's water fights use up water", () => {
+    const songkran = tourismMonth(1, town, APRIL);
+    expect(touristTrips(songkran)).toBeGreaterThanOrEqual(1);
+    expect(festivalWaterUse(songkran)).toBe(0.15);
+    expect(festivalWaterUse(tourismMonth(1, town, JANUARY))).toBe(0);
+    expect(festivalWaterUse(NO_TOURISM)).toBe(0);
+  });
+
+  test("tell the news, and take water from the supply in April", () => {
+    const sim: any = new (Simulation as any)(new (GameMap as unknown as new (w: number, h: number) => any)(120, 100),
+      0, 3, null, null, { tourism: 0 });
+    const news: string[] = [];
+    sim.addEventListener(Messages.FRONT_END_MESSAGE, (m: { subject: string }) => news.push(m.subject));
+    Object.assign(sim._census, town);
+    sim._cityTime = APRIL * 4;
+    sim._tourismMonth();
+    expect(news).toEqual([Messages.SONGKRAN]);
+    expect(sim.budget.tourismFund).toBeGreaterThan(0);
+    expect(sim._waterManager.festivalUse).toBe(0.15);
+    sim._cityTime = JANUARY * 4 + 48;
+    sim._tourismMonth();
+    expect(news).toEqual([Messages.SONGKRAN, Messages.NEW_YEAR_HOLIDAYS]);
+    expect(sim._waterManager.festivalUse).toBe(0);
+    expect(hasKey("msg.good.songkran") && hasKey("msg.good.new_year") && hasKey("festival.songkran") &&
+      hasKey("festival.new_year") && hasKey("status.tourists_festival")).toBe(true);
   });
 });
 

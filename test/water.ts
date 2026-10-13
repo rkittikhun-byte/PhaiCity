@@ -190,6 +190,11 @@ describe("the water supply", () => {
     water.findSources();
     water.doWaterScan(0, false);
     expect(water.supply).toBe(Math.floor(full * 0.5));
+
+    // Songkran's water fights use up a share of what there is (src/tourism.ts)
+    water.festivalUse = 0.15;
+    water.doWaterScan(5, false);
+    expect(water.supply).toBe(Math.floor(full * 0.85));
   });
 
   test("pumping hard runs the ground low, and the rains fill it again", () => {

@@ -33,7 +33,7 @@ import { Residential } from './residential.js';
 import { Road } from './road.js';
 import { SpriteManager } from './spriteManager.js';
 import { Stadia } from './stadia.js';
-import { livingCostFactor, NO_TOURISM, shopRubbish, tourismMonth, touristTrips } from './tourism.ts';
+import { festivalWaterUse, livingCostFactor, NO_TOURISM, shopRubbish, tourismMonth, touristTrips } from './tourism.ts';
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
@@ -350,7 +350,7 @@ Simulation.prototype.init = function() {
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
   // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
-  this._setTourism(tourismMonth(this._tourismLevel(), this._census, month));
+  this._setTourism(tourismMonth(this._tourismLevel(), this._census, month, this._inProvince()));
 };
 
 
@@ -472,24 +472,35 @@ Simulation.prototype._tourismLevel = function() {
 };
 
 
+// A province's city, which the country's festivals come to; not a practice map
+Simulation.prototype._inProvince = function() {
+  return Object.keys(this.resources).length > 0;
+};
+
+
 Simulation.prototype._setTourism = function(month) {
   this._tourism = month;
+  this._waterManager.festivalUse = festivalWaterUse(month);
   this._valves.touristShops = month.shopsWanted;
   this._valves.livingCost = livingCostFactor(month);
   this._emitEvent(Messages.TOURISM_UPDATED, month);
 };
 
 
-// A month of visitors (src/tourism.ts): what they spend goes to the year's taxes; the news hears when the high season
-// begins and, at most once a year, when pollution or crime keeps them away
+// A month of visitors (src/tourism.ts): what they spend goes to the year's taxes; the news hears when a festival or
+// the high season begins and, at most once a year, when pollution or crime keeps them away
 Simulation.prototype._tourismMonth = function() {
   var month = this.getDate().month;
-  var visit = tourismMonth(this._tourismLevel(), this._census, month);
+  var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
   this._setTourism(visit);
+  this.budget.tourismFund += visit.income;
+  if (visit.festival === 'songkran')
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.SONGKRAN});
+  else if (visit.festival === 'new_year')
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NEW_YEAR_HOLIDAYS});
   if (visit.level === 0)
     return;
 
-  this.budget.tourismFund += visit.income;
   this._monthsSinceTouristWarning++;
   if (month === 10 && visit.level >= 2 && visit.visitors > 0)
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.TOURIST_SEASON});

@@ -116,6 +116,8 @@ goodMessages[Messages.REACHED_MEGALOPOLIS] = true;
 goodMessages[Messages.REACHED_METROPOLIS] = true;
 goodMessages[Messages.REACHED_TOWN] = true;
 goodMessages[Messages.TOURIST_SEASON] = true;
+goodMessages[Messages.SONGKRAN] = true;
+goodMessages[Messages.NEW_YEAR_HOLIDAYS] = true;
 
 var messageKeys = {};
 messageKeys[Messages.FIRE_STATION_NEEDS_FUNDING] = 'msg.fund.fire';
@@ -161,6 +163,8 @@ messageKeys[Messages.REACHED_MEGALOPOLIS] = 'msg.good.reach_megalopolis';
 messageKeys[Messages.REACHED_METROPOLIS] = 'msg.good.reach_metro';
 messageKeys[Messages.REACHED_TOWN] = 'msg.good.reach_town';
 messageKeys[Messages.TOURIST_SEASON] = 'msg.good.tourist_season';
+messageKeys[Messages.SONGKRAN] = 'msg.good.songkran';
+messageKeys[Messages.NEW_YEAR_HOLIDAYS] = 'msg.good.new_year';
 messageKeys[Messages.TOURISTS_AVOID_CRIME] = 'msg.bad.tourists_crime';
 messageKeys[Messages.TOURISTS_AVOID_POLLUTION] = 'msg.bad.tourists_pollution';
 

@@ -471,6 +471,8 @@
 |---|---|---|---|---|---|
 | `msg.good.reach_town` | `src/text.js` | `Population has reached 2,000` | `Population reached 2,000 (Town level)` | `ประชากรในเมืองทะลุ 2,000 คนแล้ว (ยกฐานะเป็นตำบล)` | 2,000 คน |
 | `msg.good.tourist_season` | `src/text.js` | — | `The high season has begun: more visitors are coming` | `เข้าฤดูท่องเที่ยวแล้ว นักท่องเที่ยวมามากขึ้น` | ต้นเดือนพฤศจิกายน (Claude Code 13 ต.ค. 2026) |
+| `msg.good.songkran` | `src/text.js` | — | `Songkran: people come home and visitors fill the city; the water fights use up water` | `สงกรานต์ คนกลับบ้านและนักท่องเที่ยวมาเต็มเมือง เล่นน้ำกันจนน้ำประปาหายไปส่วนหนึ่ง` | เมษายน ทุกจังหวัด |
+| `msg.good.new_year` | `src/text.js` | — | `New Year holidays: people come home and travel all over the country` | `ช่วงปีใหม่ คนกลับบ้านและเที่ยวกันทั่วประเทศ` | มกราคม ทุกจังหวัด |
 | `msg.good.reach_city` | `src/text.js` | `Population has reached 10,000` | `Population reached 10,000 (City level)` | `ประชากรในเมืองทะลุ 10,000 คนแล้ว (ยกฐานะเป็นอำเภอ)` | 10,000 คน |
 | `msg.good.reach_capital`| `src/text.js`| `Population has reached 50,000` | `Population reached 50,000 (Province level)` | `ประชากรในเมืองทะลุ 50,000 คนแล้ว (ยกฐานะเป็นจังหวัด)` | 50,000 คน |
 | `msg.good.reach_metro` | `src/text.js` | `Population has reached 100,000` | `Population reached 100,000 (Metropolis level)` | `ประชากรในเมืองทะลุ 100,000 คนแล้ว (ยกฐานะเป็นนคร)` | 100,000 คน |
@@ -876,6 +878,9 @@
 | `status.tourists_title` | `src/cityStatus.ts` | — | `They spent {income} this month ({wanted} wanted to come)` | `เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | ข้อความเมื่อชี้ |
 | `status.tourists_high` | `src/cityStatus.ts` | — | `High season. They spent {income} this month ({wanted} wanted to come)` | `ฤดูท่องเที่ยว เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ย.–ก.พ. |
 | `status.tourists_low` | `src/cityStatus.ts` | — | `Low season. They spent {income} this month ({wanted} wanted to come)` | `ช่วงซบเซา เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ค.–ก.ย. |
+| `status.tourists_festival` | `src/cityStatus.ts` | — | `{festival}. They spent {income} this month ({wanted} wanted to come)` | `{festival} เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | เดือนที่มีเทศกาล |
+| `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
+| `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `levels.soon` | `src/toolLevels.ts` | `-` | `Coming later` | `เร็ว ๆ นี้` | ช่องระดับที่ยังไม่มี |
 | `menu.language` | `index.html` | `-` | `Language` | `ภาษา` | ไอคอนลูกโลกในแถบเมนูซ้าย เปิดการ์ดเลือกภาษา (เจ้าของโปรเจค 12 ต.ค. 2026) |
