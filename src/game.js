@@ -343,7 +343,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       miningIncome: this.simulation.budget.miningIncome,
       farmIncome: this.simulation.budget.farmIncome,
       tollIncome: this.simulation.budget.tollIncome,
-      houseCost: this.simulation.budget.houseCost
+      houseCost: this.simulation.budget.houseCost,
+      // The shops' and factories' taxes and the two fees (src/budget.js)
+      comTax: this.simulation.budget.comTax,
+      indTax: this.simulation.budget.indTax,
+      waterFee: this.simulation.budget.waterFee,
+      touristFee: this.simulation.budget.touristFee,
+      waterIncome: this.simulation.budget.waterIncome
     };
 
     return [budgetData];
@@ -829,7 +835,11 @@ Game.prototype.handleBudgetWindowClosure = function(data) {
       road: Number(data.roadPercent),
       fire: Number(data.firePercent),
       police: Number(data.policePercent),
-      yearEnd: this.simNeededBudget
+      yearEnd: this.simNeededBudget,
+      comTax: Number(data.comTax),
+      indTax: Number(data.indTax),
+      waterFee: Number(data.waterFee),
+      touristFee: Number(data.touristFee)
     });
     this.simNeededBudget = false;
   }

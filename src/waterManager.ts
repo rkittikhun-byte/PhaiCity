@@ -97,6 +97,8 @@ export class WaterManager {
   poison: { cleanWater(x: number, y: number): number } | null = null;
   /** The share of the supply this month's festival uses up: Songkran's water fights (src/tourism.ts) */
   festivalUse = 0;
+  /** How much further the water goes because people pay for it and save it: the water fee (src/budget.js), 0–0.3 */
+  saving = 0;
   /** Zones the water reaching the pipes can serve this cycle */
   supply = 0;
   readonly view: WaterView;
@@ -276,7 +278,7 @@ export class WaterManager {
             this.view.hasWater(x, y - 1)) stored += TOWER_STORE;
       }
     }
-    this.supply = Math.floor((works + Math.min(lost, stored)) * (1 - this.festivalUse));
+    this.supply = Math.floor((works + Math.min(lost, stored)) * (1 - this.festivalUse) * (1 + this.saving));
   }
 
   /** A month of the ground: the rain fills it (not in a dry month), and each works draws as much as was used. */

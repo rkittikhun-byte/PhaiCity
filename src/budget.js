@@ -59,6 +59,14 @@ var Budget = EventEmitter(function() {
   // the taxes (0, or 0.05 while the house has it; the simulation sets it)
   this.houseCost = 0;
   this.taxBonus = 0;
+  // PhaiCity (owner, 13 Oct 2026): a tax for each kind of zone, cityTax staying the homes' (0–20%), and two fees: the
+  // water fee, in baht a year for each zone the water reaches (0–10), and the visitors' fee, a percentage on what they
+  // spend (0–20). Each brings money and costs something (src/valves.js, src/waterManager.ts, src/simulation.js)
+  this.comTax = 7;
+  this.indTax = 7;
+  this.waterFee = 0;
+  this.touristFee = 0;
+  this.waterIncome = 0;
 
   // These values denote how much money is required to fully maintain the relevant services
   this.roadMaintenanceBudget = 0;
@@ -84,7 +92,8 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'policeSpend', 'fireSpend', 'roadMaintenanceBudget', 'policeMaintenanceBudget',
                  'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
-                 'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost'];
+                 'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
+                 'touristFee', 'waterIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -106,6 +115,14 @@ Budget.prototype.load = function(saveData) {
   this.tollFund = this.tollFund || 0;
   this.tollIncome = this.tollIncome || 0;
   this.houseCost = this.houseCost || 0;
+  // Saves from before the separate taxes: shops and factories pay what homes paid, and there are no fees
+  if (typeof this.comTax !== 'number')
+    this.comTax = this.cityTax;
+  if (typeof this.indTax !== 'number')
+    this.indTax = this.cityTax;
+  this.waterFee = this.waterFee || 0;
+  this.touristFee = this.touristFee || 0;
+  this.waterIncome = this.waterIncome || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -274,8 +291,13 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   var railCost = (census.railTotal - (census.nationalRailTotal || 0)) * railMaintenanceCost;
   this.roadMaintenanceBudget = Math.floor((roadCost + railCost) * RLevels[gameLevel]);
 
-  this.taxFund = Math.floor(Math.floor(census.totalPop * census.landValueAverage / 120) * this.cityTax * FLevels[gameLevel] *
+  // PhaiCity: homes, shops and factories each pay their own rate, on the census's population index of each
+  var taxed = census.resPop / 8 * this.cityTax + census.comPop * this.comTax + census.indPop * this.indTax;
+  this.taxFund = Math.floor(Math.floor(taxed * census.landValueAverage / 120) * FLevels[gameLevel] *
                             (1 + (this.taxBonus || 0)));
+  // ... and the water fee, for each zone the water reaches (src/waterManager.ts)
+  this.waterIncome = Math.floor((census.wateredZoneCount || 0) * this.waterFee);
+  this.taxFund += this.waterIncome;
   this.tourismIncome = Math.floor(this.tourismFund);
   this.tourismFund = 0;
   this.taxFund += this.tourismIncome;
@@ -311,6 +333,25 @@ Budget.prototype.setTax = function(amount) {
     return;
 
   this.cityTax = amount;
+};
+
+
+// PhaiCity: the taxes on shops and factories and the two fees; any left out keep their value
+Budget.prototype.setTaxes = function(rates) {
+  if (rates.commercial !== undefined)
+    this.comTax = rates.commercial;
+  if (rates.industrial !== undefined)
+    this.indTax = rates.industrial;
+  if (rates.water !== undefined)
+    this.waterFee = rates.water;
+  if (rates.tourist !== undefined)
+    this.touristFee = rates.tourist;
+};
+
+
+// The taxes people feel, for the evaluation and the news: the three zones' rates together
+Budget.prototype.averageTax = function() {
+  return (this.cityTax + this.comTax + this.indTax) / 3;
 };
 
 

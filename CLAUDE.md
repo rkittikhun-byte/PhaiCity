@@ -245,6 +245,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   wings chosen in its window (`src/houseWindow.ts`, a `wing` command): treasury, planning office, warning tower,
   granary, culture court, front garden (council hall and trade office wait). It is the city's centre, raises land
   value near it, and ⌂ returns to it; its upkeep is a budget line. Renderers read it (RENDERER_SPEC 6H).
+- **Taxes and fees (owner, 13 Oct 2026):** `docs/TAXES.md`. The budget window sets the homes' (`cityTax`), shops' and
+  factories' taxes (0–20%, each driving its own zone's demand in `valves.js`), a water fee (฿0–10 a watered zone a
+  year: income, water goes further, homes a little less wanted) and a visitors' fee (0–20%: a share of what they
+  spend, fewer of them); the `budget` command carries them, and `budget.averageTax()` stands for "taxes" elsewhere.
 - **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost

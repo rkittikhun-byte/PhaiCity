@@ -50,10 +50,23 @@ var onFundingUpdate = function(elementID, e) {
 };
 
 
+// The taxes and fees (PhaiCity, src/budget.js): the homes' tax (the original one), the shops' and the factories', the
+// water fee and the visitors' fee; each slider, its value in the budget data, and its label
+var rateKeys = [
+  {id: 'taxRate', data: 'taxRate', label: 'budget.tax_label'},
+  {id: 'comTaxRate', data: 'comTax', label: 'budget.tax_label'},
+  {id: 'indTaxRate', data: 'indTax', label: 'budget.tax_label'},
+  {id: 'waterFeeRate', data: 'waterFee', label: 'budget.water_fee_label'},
+  {id: 'touristFeeRate', data: 'touristFee', label: 'budget.tourist_fee_label'}
+];
+
+
 var onTaxUpdate = function(e) {
-  var elem = $('#taxRateLabel')[0];
-  var sourceElem = $('#taxRate')[0];
-  $(elem).text(t('budget.tax_label', {pct: sourceElem.value}));
+  rateKeys.forEach(function(rate) {
+    var sourceElem = $('#' + rate.id)[0];
+    if (sourceElem)
+      $('#' + rate.id + 'Label').text(t(rate.label, {pct: sourceElem.value}));
+  });
 };
 
 
@@ -63,7 +76,11 @@ var resetItems = function(e) {
     $(MiscUtils.normaliseDOMid(spendKeys[i]))[0].value = original;
     setSpendRangeText(spendKeys[i], original, this[dataKeys[i]]);
   }
-  $('#taxRate')[0].value = this.originaltaxRate;
+  rateKeys.forEach(function(rate) {
+    var original = this['original' + rate.id];
+    if (original !== undefined)
+      $('#' + rate.id)[0].value = original;
+  }, this);
   onTaxUpdate();
 
   e.preventDefault();
@@ -93,7 +110,9 @@ var submit = function(e) {
   var taxPercent = $('#taxRate')[0].value;
 
   var data = {cancelled: false, roadPercent: roadPercent, firePercent: firePercent,
-                        policePercent: policePercent, taxPercent: taxPercent, e: e, original: e.type};
+                        policePercent: policePercent, taxPercent: taxPercent, e: e, original: e.type,
+                        comTax: $('#comTaxRate')[0].value, indTax: $('#indTaxRate')[0].value,
+                        waterFee: $('#waterFeeRate')[0].value, touristFee: $('#touristFeeRate')[0].value};
   this.close(data);
 };
 
@@ -126,10 +145,16 @@ BudgetWindow.prototype.open = function(budgetData) {
     throw new Error('Missing budget data (taxRate)');
 
   this.originalTaxRate = budgetData.taxRate;
-  elem = $('#taxRate');
-  elem.on('change', onTaxUpdate);
-  elem = elem[0];
-  elem.value = budgetData.taxRate;
+  // Every tax and fee slider (the shops' and factories' taxes start from the homes' in a budget from before them)
+  rateKeys.forEach(function(rate) {
+    var value = budgetData[rate.data];
+    if (value === undefined)
+      value = rate.data === 'comTax' || rate.data === 'indTax' ? budgetData.taxRate : 0;
+    this['original' + rate.id] = value;
+    elem = $('#' + rate.id);
+    elem.off('input change', onTaxUpdate).on('input change', onTaxUpdate);
+    elem[0].value = value;
+  }, this);
   onTaxUpdate();
 
   // Update static parts
@@ -155,8 +180,12 @@ BudgetWindow.prototype.open = function(budgetData) {
   var tollIncome = budgetData.tollIncome || 0;
   // ... and what the ruler's house and its wings cost is taken from them (src/rulerHouse.ts)
   var houseCost = budgetData.houseCost || 0;
-  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome +
-                                        fuelCost + houseCost));
+  // ... and the water fees are paid in with them (src/budget.js)
+  var waterIncome = budgetData.waterIncome || 0;
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
+                                        waterIncome + fuelCost + houseCost));
+  $('#waterIncome').text(formatMoney(waterIncome));
+  $('#waterInfo').prop('hidden', waterIncome <= 0);
   $('#houseCost').text(formatMoney(houseCost));
   $('#houseInfo').prop('hidden', houseCost <= 0);
   $('#tollIncome').text(formatMoney(tollIncome));

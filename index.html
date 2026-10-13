@@ -240,6 +240,7 @@
           <form id="budgetForm">
             <div id="taxInfo" class="elided budgetData"><span data-i18n="budget.tax_collected">Tax Collected:</span> <span id="taxesCollected"></span></div>
             <div id="tollInfo" class="elided budgetData" hidden><span data-i18n="budget.tolls">Tolls:</span> <span id="tollIncome"></span></div>
+            <div id="waterInfo" class="elided budgetData" hidden><span data-i18n="budget.water_income">Water fees:</span> <span id="waterIncome"></span></div>
             <div id="farmInfo" class="elided budgetData" hidden><span data-i18n="budget.farming">Farms and fishing:</span> <span id="farmIncome"></span></div>
             <div id="miningInfo" class="elided budgetData" hidden><span data-i18n="budget.mining">Mine royalties:</span> <span id="miningIncome"></span></div>
             <div id="fuelInfo" class="elided budgetData" hidden><span data-i18n="budget.fuel">Power plant fuel:</span> <span id="fuelCost"></span></div>
@@ -275,6 +276,27 @@
               <div>
                 <label for="taxRate" class="elided budgetData" id="taxRateLabel">100% of $100 = $100</label>
               </div>
+            </fieldset>
+            <!-- PhaiCity: the shops' and factories' own taxes and two fees (src/budget.js, src/budgetWindow.js) -->
+            <fieldset>
+              <legend data-i18n="budget.tax_commercial">Shops' tax</legend>
+              <input type="range" id="comTaxRate" min="0" max="20" step="1">
+              <div><label for="comTaxRate" class="elided budgetData" id="comTaxRateLabel"></label></div>
+            </fieldset>
+            <fieldset class="budgetRight">
+              <legend data-i18n="budget.tax_industrial">Factories' tax</legend>
+              <input type="range" id="indTaxRate" min="0" max="20" step="1">
+              <div><label for="indTaxRate" class="elided budgetData" id="indTaxRateLabel"></label></div>
+            </fieldset>
+            <fieldset>
+              <legend data-i18n="budget.water_fee">Water fee</legend>
+              <input type="range" id="waterFeeRate" min="0" max="10" step="1">
+              <div><label for="waterFeeRate" class="elided budgetData" id="waterFeeRateLabel"></label></div>
+            </fieldset>
+            <fieldset class="budgetRight">
+              <legend data-i18n="budget.tourist_fee">Visitors' fee</legend>
+              <input type="range" id="touristFeeRate" min="0" max="20" step="1">
+              <div><label for="touristFeeRate" class="elided budgetData" id="touristFeeRateLabel"></label></div>
             </fieldset>
             <div id="budgetButtons" class="alignCenter">
               <button id="budgetReset" data-i18n="budget.btn.reset">Reset</button>

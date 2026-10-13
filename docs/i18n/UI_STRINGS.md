@@ -285,9 +285,16 @@
 | `budget.roads` | `index.html` | `Roads` | `Transportation (Road & Rail)` | `การคมนาคม (ถนน/ราง)` | หมวดงบซ่อมบำรุง |
 | `budget.fire` | `index.html` | `Fire` | `Fire Protection` | `งานป้องกันอัคคีภัย` | หมวดงบดับเพลิง |
 | `budget.police` | `index.html` | `Police` | `Police & Public Safety` | `งานรักษาความสงบ (ตำรวจ)` | หมวดงบตำรวจ |
-| `budget.tax` | `index.html` | `Tax` | `Tax Rate` | `อัตราภาษีท้องถิ่น` | หมวดอัตราภาษี |
+| `budget.tax` | `index.html` | `Tax` | `Homes' tax` | `ภาษีที่อยู่อาศัย` | ภาษีเขตบ้าน (เดิมเป็นภาษีเดียวทั้งเมือง แยกแล้ว 13 ต.ค. 2026) |
 | `budget.rate_label` | `src/budgetWindow.js` | `{pct}% of ${total} = ${spent}` | `{pct}% of ฿{total} = ฿{spent}` | `{pct}% จาก ฿{total} = ฿{spent}` | สรุปยอดเบิกจ่าย |
 | `budget.tax_label` | `src/budgetWindow.js` | `Tax rate: {pct}%` | `Tax rate: {pct}%` | `อัตราภาษี: {pct}%` | ฉลากภาษี |
+| `budget.tax_commercial` | `index.html` | — | `Shops' tax` | `ภาษีร้านค้า` | ภาษีแยกประเภท (Claude Code 13 ต.ค. 2026) |
+| `budget.tax_industrial` | `index.html` | — | `Factories' tax` | `ภาษีโรงงาน` |  |
+| `budget.water_fee` | `index.html` | — | `Water fee` | `ค่าน้ำประปา` | ได้เงินและคนประหยัดน้ำ แต่คนอยากย้ายเข้าน้อยลงเล็กน้อย |
+| `budget.water_fee_label` | `src/budgetWindow.js` | — | `฿{pct} a year for each zone with water` | `เขตละ ฿{pct} ต่อปี` |  |
+| `budget.tourist_fee` | `index.html` | — | `Visitors' fee` | `ค่าธรรมเนียมนักท่องเที่ยว` | ได้ส่วนแบ่งจากที่นักท่องเที่ยวจ่าย แต่มาน้อยลง |
+| `budget.tourist_fee_label` | `src/budgetWindow.js` | — | `{pct}% of what visitors spend` | `{pct}% ของที่นักท่องเที่ยวจ่าย` |  |
+| `budget.water_income` | `index.html` | — | `Water fees: ` | `ค่าน้ำประปา: ` | แสดงเมื่อมี |
 | `budget.btn.reset` | `index.html` | `Reset` | `Reset` | `คืนค่าเดิม` | คืนค่าก่อนแก้ |
 | `budget.btn.cancel` | `index.html` | `Cancel` | `Cancel` | `ยกเลิก` | ปิดโดยไม่เซฟ |
 | `budget.btn.ok` | `index.html` | `OK` | `Confirm` | `ตกลง` | ยืนยันงบประมาณ |

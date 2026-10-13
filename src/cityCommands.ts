@@ -42,6 +42,9 @@ export type SettingName = typeof SETTINGS[number];
 /** The simulation's speeds: 0 paused, 1 slow, 2 medium, 3 fast. */
 export const MAX_SPEED = 3;
 export const MAX_TAX = 20;
+/** The water fee in baht a year for each zone the water reaches, and the visitors' fee in percent (src/budget.js) */
+export const MAX_WATER_FEE = 10;
+export const MAX_TOURIST_FEE = 20;
 /** What the debug window's "add funds" gives. */
 export const DEBUG_FUNDS = 20000;
 /** Why a tool was refused on a tile outside the province. */
@@ -55,8 +58,13 @@ export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
   | { type: "tool"; tool: ToolName; x: number; y: number; stroke?: number }
   | { type: "undo" }
-  /** Tax rate in percent (0-20) and the share of each service's request funded (0-100). yearEnd answers the yearly budget. */
-  | { type: "budget"; tax: number; road: number; fire: number; police: number; yearEnd: boolean }
+  /**
+   * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
+   * request funded (0-100). yearEnd answers the yearly budget. PhaiCity (src/budget.js): comTax and indTax (0-20), the
+   * water fee in baht a year a watered zone (0-10) and the visitors' fee in percent (0-20); any left out stay as they are.
+   */
+  | { type: "budget"; tax: number; road: number; fire: number; police: number; yearEnd: boolean; comTax?: number;
+      indTax?: number; waterFee?: number; touristFee?: number }
   | { type: "disaster"; disaster: DisasterName }
   | { type: "setting"; setting: SettingName; on: boolean }
   | { type: "speed"; speed: number }
@@ -111,6 +119,8 @@ export interface CommandTarget {
     firePercent: number;
     policePercent: number;
     setTax(tax: number): void;
+    /** The shops' and factories' taxes and the two fees; any left undefined stay as they are (src/budget.js) */
+    setTaxes?(rates: { commercial?: number; industrial?: number; water?: number; tourist?: number }): void;
     doBudgetWindow(): void;
     updateFundEffects(): void;
     setAutoBudget(on: boolean): void;
@@ -218,6 +228,10 @@ export function commandProblem(command: unknown, width: number, height: number):
       for (const service of ["road", "fire", "police"]) {
         if (!isInteger(c[service], 0, 100)) return `${service} funding out of range`;
       }
+      for (const [rate, max] of [["comTax", MAX_TAX], ["indTax", MAX_TAX], ["waterFee", MAX_WATER_FEE],
+        ["touristFee", MAX_TOURIST_FEE]] as const) {
+        if (c[rate] !== undefined && !isInteger(c[rate], 0, max)) return `${rate} out of range`;
+      }
       return typeof c.yearEnd === "boolean" ? null : "yearEnd missing";
     case "disaster":
       return isOneOf(DISASTERS, c.disaster) ? null : `unknown disaster ${String(c.disaster)}`;
@@ -301,6 +315,8 @@ export class CityCommands {
         city.budget.firePercent = command.fire / 100;
         city.budget.policePercent = command.police / 100;
         city.budget.setTax(command.tax);
+        city.budget.setTaxes?.({ commercial: command.comTax, industrial: command.indTax, water: command.waterFee,
+          tourist: command.touristFee });
         if (command.yearEnd) city.budget.doBudgetWindow();
         else city.budget.updateFundEffects();
         break;

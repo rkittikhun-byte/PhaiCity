@@ -208,7 +208,8 @@ Evaluation.prototype.doProblems = function(census, budget, blockMaps) {
   problemData[Evaluation.CRIME]        = census.crimeAverage;
   problemData[Evaluation.POLLUTION]    = census.pollutionAverage;
   problemData[Evaluation.HOUSING]      = census.landValueAverage * 7 / 10;
-  problemData[Evaluation.TAXES]        = budget.cityTax * 10;
+  // PhaiCity: the three zones' rates together (src/budget.js)
+  problemData[Evaluation.TAXES]        = (budget.averageTax ? budget.averageTax() : budget.cityTax) * 10;
   problemData[Evaluation.TRAFFIC]      = getTrafficAverage(blockMaps, census);
   problemData[Evaluation.UNEMPLOYMENT] = getUnemployment(census);
   problemData[Evaluation.FIRE]         = getFireSeverity(census);
@@ -294,7 +295,7 @@ Evaluation.prototype.getScore = function(simData) {
   score = Math.round(score * scale);
 
   // Penalize player for having fires and a burdensome tax rate
-  score = score - getFireSeverity(census) - budget.cityTax;
+  score = score - getFireSeverity(census) - (budget.averageTax ? budget.averageTax() : budget.cityTax);
 
   // Penalize player based on ratio of unpowered zones to total zones
   scale = census.unpoweredZoneCount + census.poweredZoneCount;

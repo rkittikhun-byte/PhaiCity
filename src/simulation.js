@@ -488,6 +488,8 @@ var simulate = function(simData) {
       // PhaiCity: the water every cycle (it only follows the roads), and the ground on a month's first cycle; the ruler's
       // house's granary and city tank keep half of what the dry season takes (src/rulerHouse.ts)
       this._waterManager.drought = this._drought();
+      // ... and a water fee makes people save it, so it goes further (src/budget.js)
+      this._waterManager.saving = (this.budget.waterFee || 0) * WATER_FEE_SAVING;
       this._waterManager.doWaterScan(this.getDate().month, (this._cityTime & 3) === 0);
       break;
 
@@ -617,14 +619,24 @@ Simulation.prototype._houseMonth = function() {
 };
 
 
-// A month's visitors (src/tourism.ts), more with the ruler's house's culture court
+// PhaiCity's fees (src/budget.js): how much further the water goes for each baht of the water fee (฿10: 30%), and for
+// each percent of the visitors' fee, how many fewer come and how much more of what they spend is the city's
+var WATER_FEE_SAVING = 0.03;
+var TOURIST_FEE_AWAY = 0.01;
+var TOURIST_FEE_TAKE = 0.02;
+
+// A month's visitors (src/tourism.ts): more with the ruler's house's culture court, fewer with a visitors' fee, which
+// takes a share of what they spend
 Simulation.prototype._visitors = function(month) {
   var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
-  if (visit.level === 0 || !hasWing(this._map, 'culture_court'))
+  var fee = this.budget.touristFee || 0;
+  var court = hasWing(this._map, 'culture_court');
+  if (visit.level === 0 || (!court && fee === 0))
     return visit;
-  return Object.assign({}, visit, {visitors: Math.round(visit.visitors * CULTURE_VISITORS),
-                                   income: visit.income * CULTURE_VISITORS,
-                                   shopsWanted: visit.shopsWanted * CULTURE_VISITORS});
+  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY);
+  return Object.assign({}, visit, {visitors: Math.round(visit.visitors * come),
+                                   income: visit.income * come * (1 + fee * TOURIST_FEE_TAKE),
+                                   shopsWanted: visit.shopsWanted * come});
 };
 
 
@@ -822,7 +834,7 @@ Simulation.prototype._sendMessages = function() {
       break;
 
     case 51:
-      if (this.budget.cityTax > 12)
+      if ((this.budget.averageTax ? this.budget.averageTax() : this.budget.cityTax) > 12)
         this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.TAX_TOO_HIGH});
       break;
 

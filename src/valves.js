@@ -35,6 +35,9 @@ var Valves = EventEmitter(function () {
 });
 
 
+// PhaiCity: how much less the homes are wanted for each baht of the water fee (src/budget.js): ฿10 takes 0.06 off
+var WATER_FEE_PULL = 0.006;
+
 var RES_VALVE_RANGE = 2000;
 var COM_VALVE_RANGE = 1500;
 var IND_VALVE_RANGE = 1500;
@@ -126,8 +129,10 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   else
     indRatio = projectedIndPop;
 
-  // The province's own appetite for each kind of zone; visitors make living dearer, a little
+  // The province's own appetite for each kind of zone; visitors make living dearer, a little, and so does the water fee
+  // (src/budget.js)
   resRatio -= (1 - this.livingCost) * 0.3;
+  resRatio -= (budget.waterFee || 0) * WATER_FEE_PULL;
   resRatio *= this.demand.residential;
   comRatio *= this.demand.commercial;
   indRatio *= this.demand.industrial;
@@ -136,11 +141,13 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   comRatio = Math.min(comRatio, comRatioMax);
   indRatio = Math.min(indRatio, indRatioMax);
 
-  // Constrain growth according to the tax level.
-  var z = Math.min((budget.cityTax + gameLevel), taxMax);
-  resRatio = (resRatio - 1) * taxTableScale + taxTable[z];
-  comRatio = (comRatio - 1) * taxTableScale + taxTable[z];
-  indRatio = (indRatio - 1) * taxTableScale + taxTable[z];
+  // Constrain growth according to the tax level: PhaiCity, each kind of zone by its own rate (src/budget.js)
+  var zone = function(rate) {
+    return Math.min(((typeof rate === 'number' ? rate : budget.cityTax) + gameLevel), taxMax);
+  };
+  resRatio = (resRatio - 1) * taxTableScale + taxTable[zone(budget.cityTax)];
+  comRatio = (comRatio - 1) * taxTableScale + taxTable[zone(budget.comTax)];
+  indRatio = (indRatio - 1) * taxTableScale + taxTable[zone(budget.indTax)];
 
   this.resValve = MiscUtils.clamp(this.resValve + Math.round(resRatio), -RES_VALVE_RANGE, RES_VALVE_RANGE);
   this.comValve = MiscUtils.clamp(this.comValve + Math.round(comRatio), -COM_VALVE_RANGE, COM_VALVE_RANGE);
