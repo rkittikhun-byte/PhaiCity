@@ -1,0 +1,16 @@
+{
+  "productionBuild": "passed",
+  "fullSuite": {
+    "command": "npm test -- --maxWorkers=2 --coverage=false --silent",
+    "passedSuites": 65,
+    "totalSuites": 66,
+    "passedTests": 4184,
+    "failedTests": 2,
+    "existingFailures": ["test/bounds.ts:24 (zero width)", "test/bounds.ts:31 (zero height)"]
+  },
+  "latestCityRenderer": { "passedSuites": 3, "passedTests": 102 },
+  "lateriteModelContract": { "passedTests": 80 },
+  "nativeBenchmark": { "width": 1920, "height": 1080, "pixelRatio": 1, "tiles": [300, 300] },
+  "hillExaggeration": 4,
+  "realProvince": { "id": "TH-50", "width": 160, "height": 304, "town": { "x": 94, "y": 143 } }
+}

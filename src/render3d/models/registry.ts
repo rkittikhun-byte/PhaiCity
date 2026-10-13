@@ -23,6 +23,7 @@ import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
 import { createTerrain, TERRAIN_KINDS, TERRAIN_TILES } from './terrain/terrain.js';
 import { createRoad, ROAD_KINDS, ROAD_TILES } from './road/road.js';
+import { createLateriteRoad, LATERITE_KINDS } from './road/laterite.js';
 import { createRail, RAIL_KINDS, RAIL_TILES } from './rail/rail.js';
 import { createPower, POWER_KINDS, POWER_TILES } from './power/power.js';
 import { createElevatedRail, ELEVATED_KINDS, ELEVATED_STYLES } from './rail/elevated.js';
@@ -34,6 +35,7 @@ import {
 } from './vehicles/index.js';
 
 export interface ModelOptions {
+  roadLevel?: 1 | 2 | 3;
   seed?: number;
   variant?: number;
   state?: string;
@@ -135,6 +137,13 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   ...Object.fromEntries(ROAD_KINDS.map(kind => [`road.${kind}`, {
     factory: (options?: ModelOptions) => createRoad(kind, options),
     category: 'road', footprint: [1, 1], tiles: ROAD_TILES[kind], budget: TRIANGLE_BUDGETS.tile,
+    regionTier: 'R3', tiling: true,
+    ...(kind.includes('bridge') ? { ground: 'bridge' } : {}),
+    ...(['drawbridge', 'rail_crossing'].includes(kind) ? { states: ['closed', 'open'] } : {}),
+  } as ModelRegistration])),
+  ...Object.fromEntries(LATERITE_KINDS.map(kind => [`road.laterite_${kind}`, {
+    factory: (options?: ModelOptions) => createLateriteRoad(kind, options),
+    category: 'road', footprint: [1, 1], tiles: [], budget: TRIANGLE_BUDGETS.tile,
     regionTier: 'R3', tiling: true,
     ...(kind.includes('bridge') ? { ground: 'bridge' } : {}),
     ...(['drawbridge', 'rail_crossing'].includes(kind) ? { states: ['closed', 'open'] } : {}),

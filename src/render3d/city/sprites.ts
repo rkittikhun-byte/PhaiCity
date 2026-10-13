@@ -24,10 +24,10 @@ export class CitySprites {
     const debug=registry['debug.box_3x3'].factory({seed:0}),source=visibleMeshes(debug)[0];
     this.unknown=new InstancedMesh(source.geometry.clone().scale(1/3,1/3,1/3),source.material,128);this.unknown.count=0;this.unknown.frustumCulled=false;this.root.add(this.unknown);disposeModel(debug);
   }
-  update(values:unknown[]|null,dt:number,paused:boolean,roads:readonly Placement[]=[],traffic?:BlockMapReader,seconds=0):void {
+  update(values:unknown[]|null,dt:number,paused:boolean,roads:readonly Placement[]=[],traffic?:BlockMapReader,seconds=0,ground:(x:number,z:number)=>number=()=>0):void {
     const active=new Set<unknown>(),matrix=new Matrix4(),color=new Color();let n=0,unknownCount=0;
     for(const value of values??[]){if(n+unknownCount>=128)break;const s=value as CitySprite;if(!s||!Number.isFinite(s.x+s.y+s.type))continue;
-      active.add(value);const goal=spritePosition(s),p=this.positions.get(value)??goal.clone(),previous=this.last.get(value)??goal;
+      active.add(value);const goal=spritePosition(s);goal.y+=ground(goal.x,goal.z);const p=this.positions.get(value)??goal.clone(),previous=this.last.get(value)??goal;
       if(!paused)p.lerp(goal,1-Math.exp(-dt*12));this.positions.set(value,p);
       const motion=goal.clone().sub(previous),facing=motion.lengthSq()>.0001?Math.atan2(motion.x,motion.z):(Math.max(1,s.frame??1)-1)*Math.PI/4;
       const angle=paused?(this.angles.get(value)??facing):facing;this.angles.set(value,angle);
@@ -42,7 +42,7 @@ export class CitySprites {
       if(random()*255>Math.max(0,traffic?.worldGet(x,y)??0))continue;
       const direction=random()<.5?1:-1,t=((seconds*4+random()*10)%10)-5,offset=direction*1.6;
       const px=p.x+Math.sin(p.rotation)*t+Math.cos(p.rotation)*offset,pz=p.z+Math.cos(p.rotation)*t-Math.sin(p.rotation)*offset;
-      matrix.makeRotationY(p.rotation+(direction<0?Math.PI:0)).scale(new Vector3(1.65,1.25,3.4)).setPosition(px,.73,pz);
+      matrix.makeRotationY(p.rotation+(direction<0?Math.PI:0)).scale(new Vector3(1.65,1.25,3.4)).setPosition(px,ground(px,pz)+.73,pz);
       this.mesh.setMatrixAt(n,matrix);this.mesh.setColorAt(n,color.setHex([0xdfc89b,0xbdcfcd,0x95b2a2,0xd8a088][Math.floor(random()*4)]));n++;
     }
     this.mesh.count=n;this.mesh.instanceMatrix.needsUpdate=true;if(this.mesh.instanceColor)this.mesh.instanceColor.needsUpdate=true;

@@ -101,7 +101,7 @@ function crossingSurface(builder: RoadBuilder, painted: boolean): void {
   builder.line([[-3.2, 3.2], [-0.25, 3.2]], 0.25, crossingHeight);
 }
 
-function railway(builder: RoadBuilder): void {
+export function railway(builder: RoadBuilder): void {
   const { railWidth, gauge, headY, sleeperSpacing } = RAIL_INTERFACE;
   const steel = getMaterial('metal_steel');
   for (const z of [-(gauge + railWidth) / 2, (gauge + railWidth) / 2]) {
@@ -121,7 +121,7 @@ function railway(builder: RoadBuilder): void {
   }
 }
 
-function crossingSignals(builder: RoadBuilder, open: boolean): void {
+export function crossingSignals(builder: RoadBuilder, open: boolean): void {
   for (const side of [-1, 1]) {
     const x = side * 4.28, z = side * 2.4;
     builder.prop('railway_signal', () => {

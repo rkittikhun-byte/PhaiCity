@@ -5,7 +5,7 @@ import { Box3, BufferAttribute, BufferGeometry, MeshStandardMaterial, Sphere, Ve
 import { MaterialKey, getMaterial, tint, vertexFinish, roadConcrete, paintedSteel, polishedStone,
   roadCurbMaterial, railwaySignalMaterial, bambooCulmMaterial, contaminationGlow, commercialLEDMaterial, observationDeckMaterial,
   serviceConcreteMaterial, stadiumCrowdMaterial, stadiumFloodlightMaterial, powerDomeGlowMaterial,
-  transportCraneMaterial, transportRadarMaterial, vehicleMaterial, vehicleDisplayMaterial, VehicleMaterialKey } from '../materials/library.js';
+  transportCraneMaterial, transportRadarMaterial, vehicleMaterial, vehicleDisplayMaterial, VehicleMaterialKey, citySurfaceMaterial } from '../materials/library.js';
 import { hospitalAtlas, thaiSign, thaiSignAtlas } from '../materials/signs.js';
 import type { ModelOptions } from '../models/registry.js';
 export interface MaterialDescription { key:MaterialKey|VehicleMaterialKey; name:string; color:number; data:Record<string,any> }
@@ -18,6 +18,7 @@ export interface PrototypeProvider { request(request:PrototypeRequest):void; tak
 export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial;ground?:boolean;castShadow?:boolean;receiveShadow?:boolean}[];height:number }
 function material(d:MaterialDescription):MeshStandardMaterial {
   const u=d.data,key=d.key as MaterialKey;
+  if(u.provinceSurface)return citySurfaceMaterial();
   if(u.vehicleDisplay)return vehicleDisplayMaterial();
   if(u.vehicleMaterial)return vehicleMaterial(u.vehicleMaterial,d.color);
   if(u.hospitalAtlas)return hospitalAtlas();
