@@ -31,7 +31,7 @@ import { EvaluationWindow } from './evaluationWindow.js';
 import { GameMap } from './gameMap.js';
 import { decodePresetLayer, encodePresetLayer } from './geo/presetMap.ts';
 import { GraphWindow } from './graphWindow.js';
-import { applyTranslations, formatMoney, onLanguageChange, setTerm, t } from './i18n/index.ts';
+import { applyTranslations, formatMoney, getLanguage, onLanguageChange, setTerm, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
@@ -61,6 +61,7 @@ import {
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
+import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -229,6 +230,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
   this.cityView = view3d ? createView3D(this, view3d) : null;
+  if (this.cityView && this.cityView.relabelStreets)
+    onLanguageChange(this.cityView.relabelStreets.bind(this.cityView));
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules);
@@ -786,7 +789,12 @@ var createView3D = function(game, view3d) {
         pollutionDensityMap: maps.pollutionDensityMap,
         landValueMap: maps.landValueMap
       },
-      date: function() { return simulation.getDate(); }
+      date: function() { return simulation.getDate(); },
+      // Street names along the roads, in the player's language (src/streetNames.ts)
+      streetName: function(street) {
+        var label = streetLabel(street, getLanguage());
+        return t(label.key, label.params);
+      }
     });
   } catch (e) {
     console.warn('The 3D city view could not start:', e);

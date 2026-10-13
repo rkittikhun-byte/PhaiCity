@@ -3,6 +3,7 @@
  */
 import type { RegionId } from '../regional/types.js';
 import type { ModelOptions } from '../models/registry.js';
+import type { Street } from '../../streetNames.js';
 export interface CityMapReader {
   readonly width: number; readonly height: number;
   readonly insideProvince?: Uint8Array | null;
@@ -26,6 +27,8 @@ export interface CityViewSetup {
   roadLevel?: 1 | 2 | 3 | ((x: number, y: number) => 1 | 2 | 3);
   /** The province's wind level, 0–5 (src/geo/provinceResources.ts), for how hard the trees sway (src/wind.ts) */
   windLevel?: number;
+  /** A street's name in the player's language (src/streetNames.ts); without it the view writes no names */
+  streetName?: (street: Street) => string;
 }
 export interface Placement {
   index: number; x: number; z: number; id: string | null; options: ModelOptions; rotation: number;

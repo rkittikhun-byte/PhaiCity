@@ -17,6 +17,7 @@ import { CityHeightField } from './heightfield.js';
 import { CitySprites } from './sprites.js';
 import { ToolOutline, ZoneGrid } from './overlay.js';
 import { SkyDome } from './sky.js';
+import { StreetLabels } from './streetLabels.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
@@ -42,6 +43,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
+  private streets?:StreetLabels;
   private bed:Mesh;private bedDrop:number;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
@@ -67,6 +69,8 @@ export class CityView3D implements CityView {
     const bedGeometry=new PlaneGeometry(setup.map.width*10*(wide?9:1),setup.map.height*10*(wide?9:1)).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
     this.scene.add(this.chunks.root,this.sprites.root,this.outline.root,this.zones.root);
+    // Street names along the roads (src/streetNames.ts), when the game says how to write them
+    if(setup.streetName){this.streets=new StreetLabels(setup.map,setup.streetName,this.terrain,this.now);this.scene.add(this.streets.root);}
     // A sky with clouds, and haze into the distance; a real-scale city map's haze comes nearer (docs/CITY_SCALE.md)
     const haze=new Color(0xc8dde2),city=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;
     this.fogNear=city?900:2400;this.fogFar=city?5500:7000;this.fog=new Fog(haze,this.fogNear,this.fogFar);
@@ -104,6 +108,8 @@ export class CityView3D implements CityView {
   }
   /** Shows the tiles that can take painted zones along the roads (src/plots.ts), while a brush or a road tool is in hand. */
   zoneGrid(on:boolean):void {this.zones.show(on);}
+  /** The player's language changed: write the street names again. */
+  relabelStreets():void {this.streets?.relabel();}
   /** The city bought land (src/landBlocks.ts): shade what it still has not. */
   landChanged():void {this.chunks.surfaces?.updateMask();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
@@ -118,7 +124,8 @@ export class CityView3D implements CityView {
     const pose=this.navigation.camera.matrixWorld.elements;
     if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
-    this.chunks.update(this.visibleTiles(),this.navigation.target,this.navigation.distance);
+    const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
+    this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover);this.zones.update(changed.length>0);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
@@ -171,19 +178,19 @@ export class CityView3D implements CityView {
     this.chunks.dirty(this.snapshot.sync(this.setup.map));this.chunks.finishMapLOD();
     const w=this.setup.map.width*10,h=this.setup.map.height*10,scale=Math.min(4096/Math.max(w,h),.8),width=Math.ceil(w*scale),height=Math.ceil(h*scale);
     const camera=new OrthographicCamera(-w/2,w/2,h/2,-h/2,1,10000);camera.position.set(w/2,4000,h/2);camera.up.set(0,0,-1);camera.lookAt(w/2,0,h/2);
-    const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible;
+    const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible,streets=this.streets?.root.visible??false;
     target.texture.colorSpace=SRGBColorSpace;
     try {
-      this.outline.root.visible=false;this.zones.root.visible=false;this.sky.mesh.visible=false;this.scene.fog=null;
+      this.outline.root.visible=false;this.zones.root.visible=false;if(this.streets)this.streets.root.visible=false;this.sky.mesh.visible=false;this.scene.fog=null;
       // Map snapshots use the complete low-detail province, not only the nearby detailed chunks.
       this.chunks.mapLOD(true);this.renderer.setRenderTarget(target);this.renderer.render(this.scene,camera);this.renderer.readRenderTargetPixels(target,0,0,width,height,pixels);
       const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return this.screenshotVisible();
       const image=context.createImageData(width,height);for(let y=0;y<height;y++)image.data.set(pixels.subarray((height-y-1)*width*4,(height-y)*width*4),y*width*4);context.putImageData(image,0,0);return canvas.toDataURL('image/png');
-    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;this.sky.mesh.visible=true;this.scene.fog=this.fog;}
+    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;if(this.streets)this.streets.root.visible=streets;this.sky.mesh.visible=true;this.scene.fog=this.fog;}
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.streets?.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}
