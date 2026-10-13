@@ -577,6 +577,18 @@ Game.prototype.inspectTile = function(x, y) {
 };
 
 
+// With no tool in hand, the outline round what the inspector's card shows (a building's centre is one tile in from
+// its top-left corner, as the tools place it)
+Game.prototype.selectionOutline = function() {
+  var shown = this.inspectCard && this.inspectCard.inspection;
+  if (!shown || this.inputStatus.currentTool !== null)
+    return null;
+  var rect = shown.rect;
+  return {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
+          colour: '#8fdcff'};
+};
+
+
 // ... from a click at (x, y) pixels over the city
 Game.prototype.inspectAtPixel = function(x, y) {
   var tile = this.cityView.tileAt(x, y);
@@ -1236,7 +1248,7 @@ Game.prototype.calculateMouseForPaint = function() {
   // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
   this.showDrawTip(null);
   if (this.inputStatus.mouseX === -1 || !(this.inputStatus.toolWidth > 0))
-    return null;
+    return this.selectionOutline();
 
   var tile = this.cityView.tileAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
   if (tile === null)
