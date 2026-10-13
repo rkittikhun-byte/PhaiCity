@@ -79,7 +79,7 @@ describe("province resources", () => {
     for (const id of RESOURCE_IDS) {
       for (const part of ["level", "gain", "cost"]) expect([id, part, hasKey(`resource.${part}.${key(id)}`)]).toEqual([id, part, true]);
     }
-    for (const extra of ["resource.gain_cost", "resource.inferred", "resource.made_up", "resource.protected", "resource.border"]) {
+    for (const extra of ["resource.gain_cost", "resource.made_up", "resource.protected", "resource.border"]) {
       expect(hasKey(extra)).toBe(true);
     }
     expect(MADE_UP).toEqual(["rareEarth"]);

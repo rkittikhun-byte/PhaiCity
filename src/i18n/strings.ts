@@ -1052,7 +1052,6 @@ export const STRINGS: Record<string, Translation> = {
   "resource.gain.rare_earth": { en: "Prized by high-tech industry", th: "มีค่ามาก ดึงอุตสาหกรรมไฮเทค" },
   "resource.cost.rare_earth": { en: "Hard to extract, with chemical and mildly radioactive waste", th: "สกัดยาก มีกากสารเคมีและกากกัมมันตรังสีอ่อน" },
   "resource.gain_cost": { en: "Brings: {gain}. Costs: {cost}", th: "ได้: {gain} เสีย: {cost}" },
-  "resource.inferred": { en: "inferred", th: "อนุมาน" },
   "resource.made_up": { en: "made up for the game", th: "สมมติในเกม" },
   "resource.protected": { en: "Parks and reserves {pct}%", th: "อุทยานและป่าสงวน {pct}%" },
   "resource.border": { en: "{count} border crossings", th: "ด่านชายแดน {count} แห่ง" },

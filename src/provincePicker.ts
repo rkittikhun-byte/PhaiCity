@@ -1401,10 +1401,9 @@ function resourceLevelList(province: Province): HTMLElement | null {
     const dots = element("span", "ppWealthDots", "●".repeat(resource.level) + "○".repeat(MAX_LEVEL - resource.level));
     dots.setAttribute("aria-label", `${resource.level}/${MAX_LEVEL}`);
     item.appendChild(dots);
-    const made = MADE_UP.includes(resource.id);
-    if (made || resource.source === "inferred") {
-      item.appendChild(element("span", "ppWealthSource", t(made ? "resource.made_up" : "resource.inferred")));
-    }
+    // A level the game made up says so; one it worked out from what is known about the province does not (owner,
+    // 13 Oct 2026: "ไม่ต้องใช้คำว่า อนุมาน ในเกม")
+    if (MADE_UP.includes(resource.id)) item.appendChild(element("span", "ppWealthSource", t("resource.made_up")));
     list.appendChild(item);
   }
   const facts = resources.indicators[province.id] ?? {};

@@ -1227,7 +1227,6 @@
 | `resource.gain.rare_earth` | `src/provincePicker.ts` | `-` | `Prized by high-tech industry` | `มีค่ามาก ดึงอุตสาหกรรมไฮเทค` |  |
 | `resource.cost.rare_earth` | `src/provincePicker.ts` | `-` | `Hard to extract, with chemical and mildly radioactive waste` | `สกัดยาก มีกากสารเคมีและกากกัมมันตรังสีอ่อน` |  |
 | `resource.gain_cost` | `src/provincePicker.ts` | `-` | `Brings: {gain}. Costs: {cost}` | `ได้: {gain} เสีย: {cost}` | ข้อความเมื่อชี้ที่ทรัพยากร |
-| `resource.inferred` | `src/provincePicker.ts` | `-` | `inferred` | `อนุมาน` | ค่าที่เกมเดาจากข้อมูลทั่วไป ไม่ใช่ข้อมูลสำรวจ |
 | `resource.made_up` | `src/provincePicker.ts` | `-` | `made up for the game` | `สมมติในเกม` | แร่หายาก |
 | `resource.protected` | `src/provincePicker.ts` | `-` | `Parks and reserves {pct}%` | `อุทยานและป่าสงวน {pct}%` | จาก OpenStreetMap |
 | `resource.border` | `src/provincePicker.ts` | `-` | `{count} border crossings` | `ด่านชายแดน {count} แห่ง` |  |
