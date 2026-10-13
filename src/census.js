@@ -84,6 +84,11 @@ Census.prototype.clearCensus = function() {
   this.nuclearPowerPop = 0;
   this.seaportPop = 0;
   this.airportPop = 0;
+  // PhaiCity: the water supply (src/waterManager.ts)
+  this.waterWorksPop = 0;
+  this.waterTowerPop = 0;
+  this.wateredZoneCount = 0;
+  this.dryZoneCount = 0;
 };
 
 

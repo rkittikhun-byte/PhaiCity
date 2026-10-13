@@ -183,6 +183,21 @@ which the renderer only reads:
 - `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
   `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.
 
+## 6C. The water supply (added 13 Oct 2026)
+
+The game has a water supply (`docs/WATER_PLAN.md`). Two buildings and a zone state need drawing; the renderer
+only reads them.
+
+| What | Tiles and data |
+|---|---|
+| Water works (โรงผลิตน้ำประปา), 3×3 | Tiles 956–964 (`WATER_WORKS_BASE` … `WATER_WORKS_LAST`), centre 960 (`WATER_WORKS`) with ZONEBIT, laid out like every 3×3 building. It needs power: POWERBIT on its tiles as for any building. |
+| Water tower (หอถังสูง), 1 tile | Tile 1020 (`WATER_TOWER`), BURNBIT and BULLBIT, no ZONEBIT. |
+| Zones' water | `gameMap.water` (`WaterView` in `src/waterManager.ts`), missing on a map no simulation has run. `zoneWater(x, y)`: 1 water, 2 dry but fine at its size, 3 thirsty (dry, and held back or shrinking for want of water), on every tile of a home, shop or factory zone, 0 elsewhere. `hasWater(x, y)`: whether a road carries water. `groundwater(x, y)`: what is in the ground, 0–224. It changes once a simulation cycle, like the power flags. |
+
+- Draw a no-water icon (a water drop with a slash) over the centre of every zone whose `zoneWater` is 3, the way
+  the no-power bolt is drawn, hidden at far zoom like the bolt. Never for 2: houses and small shops need no water.
+- Never call anything on `gameMap.water` but its three readers.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

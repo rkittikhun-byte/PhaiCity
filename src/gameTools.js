@@ -21,6 +21,7 @@ import { DEFAULT_RULES, TOOL_COSTS } from './provinceRules.ts';
 import { RailTool } from './railTool.js';
 import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
+import { WaterTowerTool } from './waterTowerTool.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -44,6 +45,9 @@ function GameTools(map, rules) {
     road: new RoadTool(map),
     query: new QueryTool(map),
     stadium: new BuildingTool(5000, TileValues.STADIUM, map, 4, false),
+    // PhaiCity: the water supply (src/waterManager.ts)
+    watertower: new WaterTowerTool(map),
+    waterworks: new BuildingTool(1500, TileValues.WATER_WORKS, map, 3, false),
     wire: new WireTool(map),
   });
 

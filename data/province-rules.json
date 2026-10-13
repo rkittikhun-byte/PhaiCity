@@ -1,38 +1,44 @@
 {
-  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1. Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
+  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when no rain fills the ground) is 0-0.9. Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
   "version": 1,
   "regions": {
     "north": {
       "_note": "Tourism: shops are wanted. Thick forest: clearing woods costs more.",
       "demand": { "commercial": 1.4 },
-      "clearWoodsCost": 5
+      "clearWoodsCost": 5,
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 }
     },
     "northeast": {
-      "_note": "Cheap land and farm industry. Droughts: fires in the hot season.",
+      "_note": "Cheap land and farm industry. Droughts: a long dry season for the water works, fires in the hot season.",
       "cost": { "residential": 0.6, "commercial": 0.6, "industrial": 0.6 },
       "demand": { "industrial": 1.3 },
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.4 },
       "seasons": [{ "disaster": "fire", "months": [3, 4, 5], "chancePerMonth": 0.25 }]
     },
     "central": {
       "_note": "Trade: shops are wanted. Floods in the rainy season.",
       "demand": { "commercial": 1.4 },
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
       "seasons": [{ "disaster": "flood", "months": [9, 10, 11], "chancePerMonth": 0.3 }]
     },
     "east": {
       "_note": "Industry and seaports. High pollution.",
       "demand": { "industrial": 1.4 },
       "cost": { "port": 0.5 },
-      "industryPollution": 1.5
+      "industryPollution": 1.5,
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 }
     },
     "west": {
       "_note": "Hydropower: power plants give more. Little flat land: roads and rail cost more.",
       "powerPlantOutput": 1.5,
-      "cost": { "road": 1.5, "rail": 1.5 }
+      "cost": { "road": 1.5, "rail": 1.5 },
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 }
     },
     "south": {
       "_note": "Tourism and seaports. Storms at the end of the year.",
       "demand": { "commercial": 1.3 },
       "cost": { "port": 0.5 },
+      "drought": { "months": [2, 3, 4], "share": 0.15 },
       "seasons": [{ "disaster": "tornado", "months": [10, 11, 12], "chancePerMonth": 0.25 }]
     }
   },

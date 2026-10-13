@@ -71,6 +71,8 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   stadium: "about.building.stadium",
   port: "about.building.port",
   airport: "about.building.airport",
+  waterworks: "about.building.waterworks",
+  watertower: "about.building.watertower",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
@@ -163,6 +165,9 @@ export function installToolShortcuts(doc: Document = document): void {
       picture.src = toolIconUrl(tool);
       picture.alt = "";
       picture.draggable = false;
+      // A tool whose icon is not drawn yet shows a square in its colour
+      picture.addEventListener("error", () => icon.classList.add("noIcon"));
+      picture.addEventListener("load", () => icon.classList.remove("noIcon"));
       icon.appendChild(picture);
       if (key) {
         const badge = doc.createElement("span");

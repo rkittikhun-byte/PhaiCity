@@ -129,7 +129,9 @@ function buildTown(commands: CityCommands, x0: number, y0: number): { refused: n
   for (let k = 0; k < 4; k++) orders.push({ type: "tool", tool: "industrial", x: x0 + 5 + 3 * k, y: y0 + 9 });
   orders.push({ type: "tool", tool: "police", x: x0 + 17, y: y0 + 5 }); // touching the shops, so powered
   orders.push({ type: "tool", tool: "fire", x: x0 + 20, y: y0 + 5 });
-  orders.push({ type: "tool", tool: "park", x: x0 + 23, y: y0 + 5 });
+  // Water works touching the fire station (so powered) and both roads, which carry its water to every zone
+  orders.push({ type: "tool", tool: "waterworks", x: x0 + 23, y: y0 + 5 });
+  orders.push({ type: "tool", tool: "park", x: x0 + 26, y: y0 + 5 });
 
   let refused = 0;
   let failed = 0;
@@ -165,7 +167,11 @@ describe("a long game on a real province map", () => {
     expect(sim.getDate().year).toBe(startYear + 10);
     expect(sim.evaluation.cityPop).toBeGreaterThan(1000);
     expect(sim.evaluation.cityClass).not.toBe("VILLAGE");
-    expect(sim._census.poweredZoneCount).toBe(19); // the plant, 8 homes, 4 shops, 4 factories, police, fire
+    // the plant, 8 homes, 4 shops, 4 factories, police, fire, water works
+    expect(sim._census.poweredZoneCount).toBe(20);
+    expect(sim._census.waterWorksPop).toBe(1);
+    expect(sim._census.wateredZoneCount + sim._census.dryZoneCount).toBe(16);
+    expect(sim._census.wateredZoneCount).toBeGreaterThan(0);
     expect(sim._census.unpoweredZoneCount).toBe(0);
     expect(sim.budget.totalFunds).toBeGreaterThanOrEqual(0);
     expect(messages.length).toBeGreaterThan(0);

@@ -10,7 +10,8 @@ import { Simulation } from "../src/simulation.js";
 
 const empty: CityStats = {
   resZones: 0, comZones: 0, indZones: 0, powerPlants: 0, poweredZones: 0, roads: 0, population: 0, rails: 0,
-  policeStations: 0, fireStations: 0, stadiums: 0, airports: 0, litZones: 0, darkZones: 0, pollution: 0, crime: 0,
+  policeStations: 0, fireStations: 0, stadiums: 0, airports: 0, waterWorks: 0, wateredZones: 0, litZones: 0, darkZones: 0,
+  pollution: 0, crime: 0,
 };
 
 const firstDone = new Set(CHAPTERS[0].goals.map((goal) => goal.id));
@@ -26,6 +27,14 @@ describe("ruler's tasks", () => {
     expect(currentGoal(wired)?.id).toBe("roads");
   });
 
+  test("ask for running water once the town has jobs: a water works whose water reaches a zone", () => {
+    const jobs = tickGoals(new Set(), { ...empty, resZones: 2, comZones: 1, indZones: 1, powerPlants: 1, poweredZones: 4,
+      roads: 20 });
+    expect(currentGoal(jobs)?.id).toBe("water");
+    expect(currentGoal(tickGoals(jobs, { ...empty, waterWorks: 1 }))?.id).toBe("water");
+    expect(currentGoal(tickGoals(jobs, { ...empty, waterWorks: 1, wateredZones: 1 }))?.id).toBe("town");
+  });
+
   test("stay ticked when the counts drop for a moment (the census is rebuilt during each scan)", () => {
     const done = tickGoals(new Set(), { ...empty, resZones: 1, powerPlants: 1, poweredZones: 3, roads: 40 });
     expect(tickGoals(done, empty)).toEqual(done);
@@ -33,7 +42,8 @@ describe("ruler's tasks", () => {
 
   test("end the first chapter at a town of over 2,000 people, then go on to Khun's tasks", () => {
     const almost = tickGoals(new Set(),
-      { ...empty, resZones: 9, comZones: 2, indZones: 2, powerPlants: 1, poweredZones: 14, roads: 90, population: 2000 });
+      { ...empty, resZones: 9, comZones: 2, indZones: 2, powerPlants: 1, poweredZones: 14, roads: 90, waterWorks: 1,
+        wateredZones: 5, population: 2000 });
     expect(currentGoal(almost)?.id).toBe("town");
     expect(currentChapter(almost)?.id).toBe("first");
     const town = tickGoals(almost, { ...empty, population: 2001 });
@@ -71,7 +81,8 @@ describe("ruler's tasks", () => {
     };
     expect(readStats({ _census: census, evaluation: { cityPop: 840 } })).toEqual({
       resZones: 3, comZones: 1, indZones: 0, powerPlants: 2, poweredZones: 5, roads: 12, population: 840, rails: 4,
-      policeStations: 1, fireStations: 2, stadiums: 0, airports: 1, litZones: 0, darkZones: 0, pollution: 44, crime: 17,
+      policeStations: 1, fireStations: 2, stadiums: 0, airports: 1, waterWorks: 0, wateredZones: 0, litZones: 0, darkZones: 0,
+      pollution: 44, crime: 17,
     });
 
     // A zone by a coal plant has power, one far away does not
@@ -87,7 +98,8 @@ describe("ruler's tasks", () => {
   });
 
   test("have a title, names and hints in both languages, and point at tools that exist", () => {
-    const tools = ["residential", "coal", "wire", "road", "commercial", "police", "fire", "rail", "stadium", "airport"];
+    const tools = ["residential", "coal", "wire", "road", "commercial", "waterworks", "police", "fire", "rail", "stadium",
+      "airport"];
     const ids = new Set<string>();
     for (const chapter of CHAPTERS) {
       expect(hasKey(chapter.title)).toBe(true);

@@ -2,14 +2,15 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The city map window (#mapWindow in index.html): the whole city at a glance, or its power, traffic, pollution,
-// crime, land value, population, and police and fire cover (src/cityMap.ts). The white frame is the part on screen;
-// clicking the map closes the window with the tile clicked, and the game takes the view there. Only reads the city.
+// The city map window (#mapWindow in index.html): the whole city at a glance, or its power, water supply,
+// groundwater, traffic, pollution, crime, land value, population, and police and fire cover (src/cityMap.ts). The
+// white frame is the part on screen; clicking the map closes the window with the tile clicked, and the game takes
+// the view there. Only reads the city.
 
 import $ from "jquery";
 
-import { CITY_KEYS, heatRamp, isMapLayer, KIND_COLOURS, layerPixels, MAP_LAYERS, mapScale, POWERED, powerCounts,
-         stringId, tileAtPoint, UNPOWERED } from './cityMap.ts';
+import { CITY_KEYS, DRY, heatRamp, isMapLayer, KIND_COLOURS, layerPixels, MAP_LAYERS, mapScale, PIPE, POWERED,
+         powerCounts, stringId, tileAtPoint, UNPOWERED, WATERED, waterCounts } from './cityMap.ts';
 import { onLanguageChange, t } from './i18n/index.ts';
 import { MAP_WINDOW_CLOSED } from './messages.ts';
 import { ModalWindow } from './modalWindow.js';
@@ -149,6 +150,15 @@ MapWindow.prototype._label = function() {
       count.className = 'mapCount';
       count.textContent = t('map.power_count', powerCounts(this._map));
       items.push(count);
+    }
+  } else if (current === 'water') {
+    items = [this._key(WATERED, t('map.key.watered')), this._key(DRY, t('map.key.dry')),
+             this._key(PIPE, t('map.key.pipe'))];
+    if (this._map !== null) {
+      var waterCount = document.createElement('span');
+      waterCount.className = 'mapCount';
+      waterCount.textContent = t('map.water_count', waterCounts(this._map, this._overlays && this._overlays.water));
+      items.push(waterCount);
     }
   } else {
     var ramp = heatRamp(current);

@@ -19,7 +19,7 @@ import { UndoHistory } from "./undoHistory";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
-  "police", "fire", "coal", "nuclear", "stadium", "port", "airport",
+  "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 

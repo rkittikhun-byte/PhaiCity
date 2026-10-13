@@ -114,7 +114,8 @@ var buildHouse = function(map, x, y, lpValue) {
 };
 
 
-var growZone = function(map, x, y, blockMaps, population, lpValue, zonePower) {
+// zoneWater (PhaiCity): whether the zone has water (src/waterManager.ts); houses need none, apartments do
+var growZone = function(map, x, y, blockMaps, population, lpValue, zonePower, zoneWater) {
   var pollution = blockMaps.pollutionDensityMap.worldGet(x, y);
 
   // Cough! Too polluted! No-one wants to move here!
@@ -128,7 +129,7 @@ var growZone = function(map, x, y, blockMaps, population, lpValue, zonePower) {
       // Zone capacity not yet reached: build another house
       buildHouse(map, x, y, lpValue);
       ZoneUtils.incRateOfGrowth(blockMaps, x, y, 1);
-    } else if (blockMaps.populationDensityMap.worldGet(x, y) > 64) {
+    } else if (zoneWater && blockMaps.populationDensityMap.worldGet(x, y) > 64) {
       // There is local demand for higher density housing
       placeResidential(map, x, y, 0, lpValue, zonePower);
       ZoneUtils.incRateOfGrowth(blockMaps, x, y, 8);
@@ -166,7 +167,7 @@ var degradeZone = function(map, x, y, blockMaps, population, lpValue, zonePower)
     for (yy = y - 1; yy <= y + 1; yy++) {
       for (xx = x - 1; xx <= x + 1; xx++) {
         if (xx === x && yy === y) continue;
-        map.setTile(x, y, TileValues.LHTHR + lpValue + Random.getRandom(2), BLBNCNBIT);
+        map.setTile(xx, yy, TileValues.LHTHR + lpValue + Random.getRandom(2), BLBNCNBIT);
       }
     }
 
@@ -223,6 +224,10 @@ var residentialFound = function(map, x, y, simData) {
 
   var zonePower = map.getTile(x, y).isPowered();
 
+  // PhaiCity: whether a road with water touches the zone and the supply reaches it (src/waterManager.ts)
+  // (houses fill the zone without it; eight houses or apartments need it to go on)
+  var zoneWater = simData.waterManager ? simData.waterManager.supplyZone(x, y, simData.census, population >= 8) : true;
+
   var trafficOK = Traffic.ROUTE_FOUND;
 
   // Occasionally check to see if the zone is connected to the road network. The chance of this happening increases
@@ -248,8 +253,8 @@ var residentialFound = function(map, x, y, simData) {
     var locationScore = evalResidential(simData.blockMaps, x, y, trafficOK);
     var zoneScore = simData.valves.resValve + locationScore;
 
-    // Naturally unpowered zones should be penalized
-    if (!zonePower)
+    // Naturally unpowered zones should be penalized, and so (PhaiCity) should apartments without water
+    if (!zonePower || (!zoneWater && population > 8))
       zoneScore = -500;
 
     // The residential demand valve has range -2000 to 2000, so taking into account the "no traffic" and
@@ -271,7 +276,7 @@ var residentialFound = function(map, x, y, simData) {
       // Get an index in the range 0-3 scoring the land desirability and pollution, and grow the zone to the next
       // population rank
       lpValue = ZoneUtils.getLandPollutionValue(simData.blockMaps, x, y);
-      growZone(map, x, y, simData.blockMaps, population, lpValue, zonePower);
+      growZone(map, x, y, simData.blockMaps, population, lpValue, zonePower, zoneWater);
       return;
     }
 

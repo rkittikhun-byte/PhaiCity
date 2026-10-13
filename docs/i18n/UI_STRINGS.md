@@ -118,6 +118,8 @@
 | `tool.port` | `index.html` | `Port $3000` | `Seaport {price}` | `ท่าเรือ {price}` | อาคาร 4x4 |
 | `tool.stadium` | `index.html` | `Stadium $5000` | `Stadium {price}` | `สนามกีฬา {price}` | อาคาร 4x4 |
 | `tool.airport` | `index.html` | `Airport $10000` | `Airport {price}` | `สนามบิน {price}` | อาคาร 6x6 |
+| `tool.waterworks` | `index.html` | — | `Water Works {price}` | `โรงผลิตน้ำประปา {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026) |
+| `tool.watertower` | `index.html` | — | `Water Tower {price}` | `หอถังสูง {price}` | 1 ช่อง |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |
@@ -192,6 +194,8 @@
 | `map.title` | `index.html` | — | `City map` | `แผนที่เมือง` | หัวหน้าต่าง |
 | `map.layer.city` | `src/mapWindow.js` | — | `Whole city` | `ทั้งเมือง` | ปุ่มชั้นข้อมูล |
 | `map.layer.power` | `src/mapWindow.js` | — | `Power` | `ไฟฟ้า` | |
+| `map.layer.water` | `src/mapWindow.js` | — | `Water supply` | `ประปา` | (Claude Code 13 ต.ค. 2026) |
+| `map.layer.groundwater` | `src/mapWindow.js` | — | `Groundwater` | `น้ำใต้ดิน` |  |
 | `map.layer.traffic` | `src/mapWindow.js` | — | `Traffic` | `การจราจร` | |
 | `map.layer.pollution` | `src/mapWindow.js` | — | `Pollution` | `มลพิษ` | |
 | `map.layer.crime` | `src/mapWindow.js` | — | `Crime` | `อาชญากรรม` | |
@@ -201,6 +205,8 @@
 | `map.layer.fire` | `src/mapWindow.js` | — | `Fire cover` | `เขตดับเพลิง` | |
 | `map.about.city` | `src/mapWindow.js` | — | `What stands on every piece of land.` | `สิ่งที่อยู่บนที่ดินทุกผืนในเมือง` | คำอธิบายใต้แผนที่ |
 | `map.about.power` | `src/mapWindow.js` | — | `Yellow has power, red has none: link red zones to a power plant with power lines or other zones.` | `สีเหลืองมีไฟฟ้า สีแดงไม่มี ต่อโซนสีแดงเข้ากับโรงไฟฟ้าด้วยสายไฟหรือผ่านโซนอื่น` | |
+| `map.about.water` | `src/mapWindow.js` | — | `Blue zones have running water, orange ones have none. Water runs from a water works along every road joined to it.` | `เขตสีฟ้ามีน้ำประปา สีส้มไม่มี น้ำไหลจากโรงผลิตน้ำไปตามถนนทุกสายที่ต่อถึงกัน` |  |
+| `map.about.groundwater` | `src/mapWindow.js` | — | `How much water is in the ground: most near rivers, lakes and the sea. A water works pumped hard draws it down; the rains fill it again, but not in the dry season.` | `ปริมาณน้ำใต้ดิน มีมากใกล้แม่น้ำ บึง และทะเล โรงผลิตน้ำที่สูบหนักทำให้ลดลง ฝนเติมกลับ แต่หน้าแล้งไม่เติม` |  |
 | `map.about.traffic` | `src/mapWindow.js` | — | `Where the roads are busiest. Heavy traffic holds the city back and adds pollution.` | `ถนนที่รถหนาแน่น รถติดมากทำให้เมืองโตช้าและเพิ่มมลพิษ` | |
 | `map.about.pollution` | `src/mapWindow.js` | — | `Smoke from factories, power plants, ports, airports and traffic. People do not want to live in it.` | `ควันจากโรงงาน โรงไฟฟ้า ท่าเรือ สนามบิน และรถติด คนไม่อยากอยู่ใกล้` | |
 | `map.about.crime` | `src/mapWindow.js` | — | `Where crime is high. Police stations bring it down.` | `ย่านที่อาชญากรรมสูง สถานีตำรวจช่วยลดได้` | |
@@ -213,6 +219,7 @@
 | `map.key.industrial` | `src/mapWindow.js` | — | `Industry` | `อุตสาหกรรม` | |
 | `map.key.service` | `src/mapWindow.js` | — | `Public buildings` | `อาคารสาธารณะ` | ตำรวจ ดับเพลิง สนามกีฬา ท่าเรือ สนามบิน |
 | `map.key.power_plant` | `src/mapWindow.js` | — | `Power plants` | `โรงไฟฟ้า` | |
+| `map.key.water_supply` | `src/mapWindow.js` | — | `Water works` | `โรงผลิตน้ำประปา` | รวมหอถังสูง |
 | `map.key.road` | `src/mapWindow.js` | — | `Roads` | `ถนน` | |
 | `map.key.rail` | `src/mapWindow.js` | — | `Rail` | `ทางรถไฟ` | |
 | `map.key.power_line` | `src/mapWindow.js` | — | `Power lines` | `สายไฟฟ้า` | |
@@ -222,9 +229,13 @@
 | `map.key.fire` | `src/mapWindow.js` | — | `Fire` | `ไฟไหม้` | |
 | `map.key.powered` | `src/mapWindow.js` | — | `Has power` | `มีไฟฟ้า` | |
 | `map.key.unpowered` | `src/mapWindow.js` | — | `No power` | `ไม่มีไฟฟ้า` | |
+| `map.key.watered` | `src/mapWindow.js` | — | `Has water` | `มีน้ำประปา` |  |
+| `map.key.dry` | `src/mapWindow.js` | — | `No water` | `ไม่มีน้ำประปา` |  |
+| `map.key.pipe` | `src/mapWindow.js` | — | `Pipes under roads` | `ท่อน้ำใต้ถนน` |  |
 | `map.key.low` | `src/mapWindow.js` | — | `Low` | `น้อย` | ปลายแถบสี |
 | `map.key.high` | `src/mapWindow.js` | — | `High` | `มาก` | |
 | `map.power_count` | `src/mapWindow.js` | — | `{powered} with power, {unpowered} without` | `มีไฟ {powered} แห่ง ไม่มีไฟ {unpowered} แห่ง` | นับโซนและอาคาร ไม่นับโรงไฟฟ้า |
+| `map.water_count` | `src/mapWindow.js` | — | `{watered} zones with water, {dry} without` | `มีน้ำ {watered} เขต ไม่มีน้ำ {dry} เขต` | นับเฉพาะเขตบ้าน ร้านค้า โรงงาน |
 | `map.hint` | `index.html` | — | `Click the map to go there. The white frame is what is on screen now.` | `คลิกบนแผนที่เพื่อไปที่นั่น กรอบสีขาวคือส่วนที่เห็นบนจออยู่ตอนนี้` | |
 | `map.close` | `index.html` | — | `Close` | `ปิด` | |
 
@@ -420,6 +431,7 @@
 | `msg.need.more_res` | `src/text.js` | `More residential zones needed` | `More residential zones needed` | `เมืองต้องการเขตที่อยู่อาศัยเพิ่มขึ้น` | ขาดโซนบ้าน |
 | `msg.need.more_com` | `src/text.js` | `More commercial zones needed` | `More commercial zones needed` | `เมืองต้องการเขตพาณิชยกรรมเพิ่มขึ้น` | ขาดร้านค้า/ตลาด |
 | `msg.need.more_ind` | `src/text.js` | `More industrial zones needed` | `More industrial zones needed` | `เมืองต้องการเขตอุตสาหกรรมเพิ่มขึ้น` | ขาดแหล่งงาน |
+| `msg.need.water` | `src/text.js` | — | `The city needs running water: build a Water Works by a road` | `เมืองต้องการน้ำประปา โปรดสร้างโรงผลิตน้ำประปาติดถนน` | ยังไม่มีโรงผลิตน้ำ (Claude Code 13 ต.ค. 2026) |
 | `msg.need.more_roads` | `src/text.js` | `More roads required` | `More roads required to connect zones` | `ต้องการถนนเพิ่มเติมเพื่อเชื่อมต่อเมือง` | ทางไม่พอ |
 | `msg.need.more_rails` | `src/text.js` | `Inadequate rail system` | `Rail transit system needed to relieve traffic` | `ระบบทางรถไฟยังไม่เพียงพอต่อการสัญจร` | รถไฟไม่พอ |
 | `msg.fund.fire` | `src/text.js` | `Fire departments need funding` | `Fire stations need budget funding` | `สถานีดับเพลิงขาดแคลนงบซ่อมบำรุง` | ตัดงบดับเพลิง |
@@ -431,6 +443,8 @@
 |---|---|---|---|---|---|
 | `msg.bad.blackouts` | `src/text.js` | `Brownouts, build another Power Plant` | `Brownouts reported: build another Power Plant` | `เกิดไฟตกเป็นวงกว้าง โปรดสร้างโรงไฟฟ้าเพิ่ม` | ไฟฟ้าตก |
 | `msg.bad.not_enough_power`| `src/text.js` | `Blackouts reported: insufficient power capacity` | `Blackouts reported: insufficient power capacity` | `เกิดไฟฟ้าดับทั่วเมือง! กำลังผลิตไฟฟ้าไม่เพียงพอ` | ไฟดับ |
+| `msg.bad.not_enough_water` | `src/text.js` | — | `Not enough water: some zones on the pipes are dry` | `น้ำประปาไม่พอ บางเขตไม่มีน้ำใช้` | (Claude Code 13 ต.ค. 2026) |
+| `msg.bad.groundwater_low` | `src/text.js` | — | `The groundwater under a water works is running low` | `น้ำใต้ดินรอบโรงผลิตน้ำประปาลดลงมาก` | คลิกข่าวแล้วไปที่โรงผลิตน้ำนั้น |
 | `msg.bad.earthquake` | `src/text.js` | `Major earthquake reported !!` | `Major earthquake reported !!` | `เกิดแผ่นดินไหวรุนแรงขึ้นในพื้นที่ !!` | แผ่นดินไหว |
 | `msg.bad.explosion` | `src/text.js` | `Explosion detected ` | `Major explosion detected!` | `เกิดเหตุระเบิดรุนแรงขึ้นในเมือง!` | ระเบิด |
 | `msg.bad.flooding` | `src/text.js` | `Flooding reported !` | `Flooding reported across city!` | `รายงานด่วน: น้ำท่วมหลากเข้าท่วมพื้นที่เมือง!` | น้ำท่วม |
@@ -532,6 +546,8 @@
 | `about.building.fire` | `about.html` | `Fire Stations: Some people just want to play with matches...` | `Fire Stations: Provide rapid firefighting brigades to extinguish outbreaks before flames consume districts.` | `สถานีดับเพลิง: จัดเตรียมหน่วยดับเพลิงพร้อมระงับเหตุไฟไหม้ก่อนลุกลามเผาผลาญย่านชุมชน` | คำอธิบายอาคาร |
 | `about.building.coal` | `about.html` | `Coal Power: Show your dominion over nature...` | `Coal Power Plant: Affordable, high-capacity electricity, but generates heavy air pollution.` | `โรงไฟฟ้าถ่านหิน: ผลิตไฟฟ้าได้มากในราคาประหยัด แต่ปล่อยเขม่าควันและมลพิษทางอากาศสูง` | คำอธิบายอาคาร |
 | `about.building.nuclear` | `about.html` | `Nuclear Power: More expensive than coal power...` | `Nuclear Power Plant: High-output, clean energy with zero smoke, though costly and catastrophic if meltdown occurs.` | `โรงไฟฟ้านิวเคลียร์: จ่ายไฟได้มหาศาล ไร้ควันพิษ แต่ราคาสูงมากและมีความเสี่ยงร้ายแรงหากหลอมละลาย` | คำอธิบายอาคาร |
+| `about.building.waterworks` | `about.html` | — | `Water Works: Pumps groundwater into the pipes under every road it touches, and needs power. Beside a river or a lake it gives the most; pumped hard for years, the ground around it runs low.` | `โรงผลิตน้ำประปา: สูบน้ำใต้ดินส่งไปตามท่อใต้ถนนทุกสายที่ต่อถึง ต้องมีไฟฟ้า ตั้งริมแม่น้ำหรือบึงได้น้ำมากที่สุด ถ้าสูบหนักนาน ๆ น้ำใต้ดินรอบโรงจะลดลง` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
+| `about.building.watertower` | `about.html` | — | `Water Tower: Stores water through the rains and gives it back in the dry season. Build it beside a road that carries water.` | `หอถังสูง: เก็บน้ำไว้ในหน้าฝน แล้วปล่อยออกมาช่วยในหน้าแล้ง ต้องตั้งติดถนนที่มีน้ำประปา` | คำอธิบายอาคาร |
 | `about.building.stadium` | `about.html` | `Stadium: After a day struggling...` | `Stadium: Large arena boosting resident morale, drawing spectators, and stimulating nearby commerce.` | `สนามกีฬาประจำเมือง: ศูนย์รวมการแข่งขันกีฬา ช่วยยกระดับความสุขประชาชนและกระตุ้นการค้าโดยรอบ` | คำอธิบายอาคาร |
 | `about.building.airport` | `about.html` | `Airport: As your creation grows...` | `Airport: Connects your metropolis to global logistics, tourism, and national commerce.` | `ท่าอากาศยาน: เชื่อมต่อเมืองสู่โครงข่ายการบินระดับประเทศ รองรับนักท่องเที่ยวและการขนส่งทางอากาศ` | คำอธิบายอาคาร |
 | `about.building.port` | `about.html` | `Seaport: Making stuff is hard work!...` | `Seaport: Coastal or riverside terminal vital for waterborne logistics and industrial freight.` | `ท่าเรือพาณิชย์: ประตูระบายสินค้าทางน้ำริมฝั่งแม่น้ำและทะเล จำเป็นต่อการเติบโตของภาคอุตสาหกรรม` | คำอธิบายอาคาร |
@@ -762,9 +778,12 @@
 | `rules.cost.port` | `src/provinceRules.ts` | `-` | `Seaports cost {change}` | `ราคาท่าเรือ {change}` |  |
 | `rules.cost.airport` | `src/provinceRules.ts` | `-` | `Airports cost {change}` | `ราคาสนามบิน {change}` |  |
 | `rules.cost.bulldozer` | `src/provinceRules.ts` | `-` | `Bulldozing costs {change}` | `ค่ารื้อถอน {change}` |  |
+| `rules.cost.waterworks` | `src/provinceRules.ts` | — | `Water works cost {change}` | `ราคาโรงผลิตน้ำประปา {change}` | (Claude Code 13 ต.ค. 2026) |
+| `rules.cost.watertower` | `src/provinceRules.ts` | — | `Water towers cost {change}` | `ราคาหอถังสูง {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
 | `rules.power_output` | `src/provinceRules.ts` | `-` | `Power plants give {change}` | `โรงไฟฟ้าจ่ายไฟ {change}` |  |
+| `rules.drought` | `src/provinceRules.ts` | — | `Dry season, {months}: water works give {change} and no rain fills the ground` | `หน้าแล้ง {months}: โรงผลิตน้ำจ่ายน้ำ {change} และฝนไม่เติมน้ำใต้ดิน` | {change} เช่น -30% (Claude Code 13 ต.ค. 2026) |
 | `rules.season.fire` | `src/provinceRules.ts` | `-` | `Dry-season fires, {months} ({chance} a month)` | `ไฟป่าหน้าแล้ง {months} (เดือนละ {chance})` | เกิดเมื่อเปิดสุ่มภัยพิบัติในตั้งค่า |
 | `rules.season.flood` | `src/provinceRules.ts` | `-` | `Floods, {months} ({chance} a month)` | `น้ำท่วม {months} (เดือนละ {chance})` |  |
 | `rules.season.tornado` | `src/provinceRules.ts` | `-` | `Storms, {months} ({chance} a month)` | `พายุ {months} (เดือนละ {chance})` |  |
@@ -831,6 +850,8 @@
 | `goals.roads.hint` | `src/rulerGoals.ts` | — | `People need roads to get to work and the shops. Drag the mouse to lay a long road.` | `ผู้คนต้องมีถนนไปทำงานและไปตลาด ลากเมาส์เพื่อวางถนนยาว ๆ` | |
 | `goals.jobs` | `src/rulerGoals.ts` | — | `Create jobs: commerce and industry` | `สร้างงาน: เขตพาณิชย์และอุตสาหกรรม` | |
 | `goals.jobs.hint` | `src/rulerGoals.ts` | — | `Shops and factories give people work. The bars on the left show what the city wants next.` | `ร้านค้าและโรงงานให้งานกับราษฎร แถบความต้องการทางซ้ายบอกว่าเมืองอยากได้อะไรเพิ่ม` | |
+| `goals.water` | `src/rulerGoals.ts` | — | `Bring running water` | `ทำน้ำประปา` | (Claude Code 13 ต.ค. 2026) |
+| `goals.water.hint` | `src/rulerGoals.ts` | — | `Build a Water Works beside a road and give it power: water runs along every road joined to it. Near a river it gives the most; see Groundwater on the City map (M).` | `สร้าง “โรงผลิตน้ำประปา” ติดถนนแล้วต่อไฟฟ้าให้ น้ำจะไหลไปตามถนนทุกสายที่ต่อถึง ตั้งใกล้แม่น้ำได้น้ำมากที่สุด ดูชั้น “น้ำใต้ดิน” ในแผนที่เมือง (M)` | ชื่อเครื่องมือตรงกับ `tool.waterworks` ชื่อชั้นตรงกับ `map.layer.groundwater` |
 | `goals.town` | `src/rulerGoals.ts` | — | `Grow into a town and become Khun` | `ขยายเมืองเป็นตำบล และเลื่อนยศเป็นขุน` | |
 | `goals.town.hint` | `src/rulerGoals.ts` | — | `Past 2,000 people the city becomes a town. Keep homes, jobs and power in balance.` | `ประชากรเกิน 2,000 คน เมืองจะเป็นตำบล รักษาสมดุลระหว่างบ้าน งาน และไฟฟ้า` | |
 | `goals.done_chapter` | `src/rulerGoals.ts` | — | `Well done! These tasks are complete. Your next ones are on their way.` | `ยอดเยี่ยม! ทำภารกิจชุดนี้ครบแล้ว ภารกิจชุดต่อไปกำลังมา` | ภารกิจเป็นชุดตามยศ (Claude Code 12 ต.ค. 2026) |

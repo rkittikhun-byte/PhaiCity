@@ -193,14 +193,24 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 - **Province rules (กติกาภาคและจังหวัด):** `src/provinceRules.ts` reads `data/province-rules.json` (owner-edited; the
   server's database later): the game's defaults, then the region's, then the province's. They set zone demand
   (`valves.js`), tool prices and the price of clearing woods (`gameTools.js`, `baseTool.js`), factory smoke
-  (`blockMapUtils.js`), power plant output (`powerManager.js`) and seasonal disasters (`disasterManager.js`, only while
+  (`blockMapUtils.js`), power plant output (`powerManager.js`), the dry season (`drought`: when the water works give
+  less and no rain fills the ground, `src/waterManager.ts`) and seasonal disasters (`disasterManager.js`, only while
   random disasters are on). `splashScreen.js` resolves them when a city starts; the province card lists them and the
   tool buttons show the province's prices (`src/toolShortcuts.ts`). Never hard-code a regional number in code.
+- **Water supply (ระบบประปา, owner 13 Oct 2026):** `docs/WATER_PLAN.md`. Pipes lie under every road: water runs from
+  each powered water works (`waterworks`, 3×3, tiles 956–964) along the roads it touches (`src/waterManager.ts`,
+  beside `powerManager.js`), and each home, shop or factory zone a road with water touches takes one share until the
+  supply runs out. Without water homes stop at houses and shops and factories at their first size, and bigger ones
+  decline. A works gives as much as the groundwater under it (`src/groundwater.ts`: from the land, fullest near
+  water), which its pumping draws down and the rains fill again, never in the dry season; water towers (`watertower`,
+  tile 1020) give back some of what the dry season takes. The ground is saved as `groundwater`; renderers read
+  `gameMap.water` (RENDERER_SPEC 6C).
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
-  of the simulation's overlays (power, traffic, pollution, crime, land value, population, police and fire cover);
+  of the simulation's overlays (power, the water supply, groundwater, traffic, pollution, crime, land value,
+  population, police and fire cover);
   menu button or key M. It only reads the map and the block maps; a click on it asks the game to `centreOn` there.
 - **First tasks (ภารกิจแรกของเจ้าเมือง):** `src/rulerGoals.ts` shows a checklist card on the right in new cities
-  (homes, power, wires, roads, jobs, town) that ticks itself off from the census, points at the next tool, and is
+  (homes, power, wires, roads, jobs, water, town) that ticks itself off from the census, points at the next tool, and is
   saved with the city as `goals`. It only reads the city.
 - **Motion:** windows, screens, panels and buttons slide and fade in (CSS, "Motion" in `css/style.css`).
   Show and hide them through `src/motion.ts` (`show`/`hide`) so the exit animates too; never jQuery `toggle()`.

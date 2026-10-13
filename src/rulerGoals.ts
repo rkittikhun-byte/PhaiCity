@@ -26,6 +26,9 @@ export interface CityStats {
   fireStations: number;
   stadiums: number;
   airports: number;
+  /** Water works, and zones a road with water reaches (src/waterManager.ts) */
+  waterWorks: number;
+  wateredZones: number;
   /** Zones and buildings with and without power, read from the map's tiles rather than the census. */
   litZones: number;
   darkZones: number;
@@ -59,6 +62,8 @@ export const CHAPTERS: Chapter[] = [
       { id: "wires", tool: "wire", done: (s) => s.poweredZones - s.powerPlants >= 1 },
       { id: "roads", tool: "road", done: (s) => s.roads >= 10 },
       { id: "jobs", tool: "commercial", done: (s) => s.comZones >= 1 && s.indZones >= 1 },
+      // Houses grow without water, but nothing bigger does
+      { id: "water", tool: "waterworks", done: (s) => s.waterWorks >= 1 && s.wateredZones >= 1 },
       // A town (over 2,000 people) earns the rank ขุน
       { id: "town", tool: null, done: (s) => s.population > 2000 },
     ],
@@ -129,6 +134,8 @@ interface SimulationLike {
     fireStationPop: number;
     stadiumPop: number;
     airportPop: number;
+    waterWorksPop?: number;
+    wateredZoneCount?: number;
     pollutionAverage: number;
     crimeAverage: number;
   };
@@ -154,6 +161,8 @@ export function readStats(simulation: SimulationLike): CityStats {
     fireStations: census.fireStationPop,
     stadiums: census.stadiumPop,
     airports: census.airportPop,
+    waterWorks: census.waterWorksPop ?? 0,
+    wateredZones: census.wateredZoneCount ?? 0,
     litZones: power.powered,
     darkZones: power.unpowered,
     pollution: census.pollutionAverage,

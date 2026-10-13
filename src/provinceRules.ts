@@ -3,15 +3,15 @@
  */
 
 // The rules that make each region and province play differently (ONLINE_PLAN 5.2): how much the people want homes,
-// shops and factories, what building costs, how much the factories pollute, how much a power plant gives, and
-// disasters that come with the seasons. They are data, not code: data/province-rules.json today, the server's
+// shops and factories, what building costs, how much the factories pollute, how much a power plant gives, the dry
+// season (when the water works give less and no rain fills the ground) and disasters that come with the seasons. They are data, not code: data/province-rules.json today, the server's
 // database once the game is online, edited from an admin page. Three layers, each only saying what it changes:
 // the game's defaults, then the region's, then the province's.
 //
 // Every number is checked before use, so a bad edit is reported and ignored rather than breaking the game.
 
 export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "rail", "wire", "park", "police", "fire",
-  "coal", "nuclear", "stadium", "port", "airport", "bulldozer"] as const;
+  "coal", "nuclear", "stadium", "port", "airport", "bulldozer", "waterworks", "watertower"] as const;
 export type CostTool = typeof TOOL_COSTS[number];
 
 export const ZONES = ["residential", "commercial", "industrial"] as const;
@@ -28,6 +28,12 @@ export interface Season {
   chancePerMonth: number;
 }
 
+/** The dry season (src/waterManager.ts): its months, 1–12, and how much less a water works gives in them, 0–0.9. */
+export interface Drought {
+  months: number[];
+  share: number;
+}
+
 export interface Rules {
   /** Multiplies how much each kind of zone is wanted. */
   demand: Record<Zone, number>;
@@ -39,6 +45,8 @@ export interface Rules {
   industryPollution: number;
   /** Multiplies the power each power plant gives. */
   powerPlantOutput: number;
+  /** No rain fills the ground in these months, and the water works give less. */
+  drought: Drought;
   seasons: Season[];
 }
 
@@ -49,6 +57,7 @@ export interface RulesPatch {
   clearWoodsCost?: number;
   industryPollution?: number;
   powerPlantOutput?: number;
+  drought?: Drought;
   seasons?: Season[];
 }
 
@@ -64,12 +73,14 @@ export const DEFAULT_RULES: Rules = {
   clearWoodsCost: 1,
   industryPollution: 1,
   powerPlantOutput: 1,
+  drought: { months: [], share: 0 },
   seasons: [],
 };
 
 // The range each kind of number may take
 const MULTIPLIER = { min: 0.1, max: 5 };
 const CLEAR_WOODS = { min: 0, max: 100 };
+const DROUGHT_SHARE = { min: 0, max: 0.9 };
 
 const REGION_IDS = ["north", "northeast", "central", "east", "west", "south"];
 const PROVINCE_ID = /^TH-\d{2}$/;
@@ -113,6 +124,24 @@ export function checkPatch(raw: unknown, where: string, problems: string[]): Rul
         if (isNumberIn(value, MULTIPLIER)) patch[key] = value;
         else problems.push(`${where}.${key}: must be ${MULTIPLIER.min}–${MULTIPLIER.max}`);
         break;
+      case "drought": {
+        const d = value as Partial<Drought> | null;
+        if (typeof d !== "object" || d === null || Array.isArray(d)) {
+          problems.push(`${where}.drought: not an object`);
+          break;
+        }
+        const months = Array.isArray(d.months) ? d.months : null;
+        if (!months || !months.every((m) => Number.isInteger(m) && m >= 1 && m <= 12)) {
+          problems.push(`${where}.drought.months: must list months 1–12`);
+          break;
+        }
+        if (!isNumberIn(d.share, DROUGHT_SHARE)) {
+          problems.push(`${where}.drought.share: must be ${DROUGHT_SHARE.min}–${DROUGHT_SHARE.max}`);
+          break;
+        }
+        patch.drought = { months: [...new Set(months)].sort((a, b) => a - b), share: d.share };
+        break;
+      }
       case "seasons":
         if (!Array.isArray(value)) {
           problems.push(`${where}.seasons: not a list`);
@@ -184,6 +213,7 @@ function apply(rules: Rules, patch: RulesPatch | undefined): Rules {
     clearWoodsCost: patch.clearWoodsCost ?? rules.clearWoodsCost,
     industryPollution: patch.industryPollution ?? rules.industryPollution,
     powerPlantOutput: patch.powerPlantOutput ?? rules.powerPlantOutput,
+    drought: patch.drought ?? rules.drought,
     // A province that lists seasons replaces its region's list
     seasons: patch.seasons ?? rules.seasons,
   };
@@ -224,7 +254,7 @@ export function seasonalRisks(rules: Rules, month: number): Array<{ disaster: Se
 /** The game's own price of each tool (src/gameTools.js): a zone or building, or one tile of a line or of bulldozing. */
 export const BASE_PRICES: Record<CostTool, number> = {
   residential: 100, commercial: 100, industrial: 100, road: 10, rail: 20, wire: 5, park: 10, police: 500, fire: 500,
-  coal: 3000, nuclear: 5000, stadium: 5000, port: 3000, airport: 10000, bulldozer: 1,
+  coal: 3000, nuclear: 5000, stadium: 5000, port: 3000, airport: 10000, bulldozer: 1, waterworks: 1500, watertower: 300,
 };
 
 /** A tool's price under these rules, as its button shows it: whole baht, never below 1. */
@@ -258,6 +288,27 @@ function percent(factor: number): string {
 }
 
 /**
+ * Months in words: a run reads as "Sep–Nov", even one that goes round the new year ("Dec–Apr"); anything else is
+ * listed. monthName turns a month key ("sep") into words.
+ */
+export function monthsText(months: readonly number[], monthName: (key: string) => string): string {
+  const sorted = [...new Set(months)].sort((a, b) => a - b);
+  const follows = (m: number, previous: number): boolean => m === (previous % 12) + 1;
+  // Start after the first gap, so a run round the new year stays in one piece
+  let start = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    if (!follows(sorted[i], sorted[(i - 1 + sorted.length) % sorted.length])) {
+      start = i;
+      break;
+    }
+  }
+  const ordered = [...sorted.slice(start), ...sorted.slice(0, start)];
+  const names = ordered.map((m) => monthName(MONTH_KEYS[m - 1]));
+  const run = ordered.every((m, i) => i === 0 || follows(m, ordered[i - 1]));
+  return names.length > 2 && run ? `${names[0]}–${names[names.length - 1]}` : names.join(", ");
+}
+
+/**
  * What these rules change, in words for the province card: one entry per number that differs from the game's own.
  * monthName turns a month key ("sep") into words in the current language.
  */
@@ -283,14 +334,15 @@ export function ruleEffects(rules: Rules, monthName: (key: string) => string): E
     effects.push({ key: "rules.power_output", params: { change: percent(rules.powerPlantOutput) },
       good: rules.powerPlantOutput > 1 });
   }
+  if (rules.drought.months.length > 0) {
+    effects.push({ key: "rules.drought", params: { months: monthsText(rules.drought.months, monthName),
+      change: `-${Math.round(rules.drought.share * 100)}%` }, good: false });
+  }
   for (const season of rules.seasons) {
     if (season.chancePerMonth <= 0) continue;
-    const names = season.months.map((m) => monthName(MONTH_KEYS[m - 1]));
-    // A run of months reads as "Sep–Nov"; anything else is listed
-    const run = season.months.every((m, i) => i === 0 || m === season.months[i - 1] + 1);
-    const months = names.length > 2 && run ? `${names[0]}–${names[names.length - 1]}` : names.join(", ");
     effects.push({ key: `rules.season.${season.disaster}`,
-      params: { months, chance: `${Math.round(season.chancePerMonth * 100)}%` }, good: false });
+      params: { months: monthsText(season.months, monthName), chance: `${Math.round(season.chancePerMonth * 100)}%` },
+      good: false });
   }
   return effects;
 }

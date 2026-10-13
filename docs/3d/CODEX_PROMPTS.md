@@ -14,6 +14,7 @@
 3. ถ้าชอบให้ commit ก่อนไป prompt ถัดไป ถ้าไม่ชอบใช้ "Prompt แก้โมเดล" ท้ายไฟล์
 4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → **R1B** → **UI1** → 13 → … → 15 → **UI2** → **R2** → 17 → **R3** → **R4** → 18
    (**R5** แผนที่ทั้งจังหวัด แทรกได้ทันทีที่ prompt ปัจจุบันเสร็จ)
+   (**W1** ประปา: โรงผลิตน้ำ หอถังสูง และไอคอนไม่มีน้ำ ส่งต่อจาก R5)
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1487,6 +1488,50 @@ Task:
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of
 the test city (inside, outside, the edge, a laterite road, a crossing, the hills) and the frame times at 300 x 300.
+```
+
+## Prompt W1 — ประปา: โรงผลิตน้ำ หอถังสูง และไอคอนไม่มีน้ำ
+
+เจ้าของโปรเจคขอ (13 ต.ค. 2026): ระบบน้ำประปาแบบเกมสร้างเมืองรุ่นหลัง ท่อเดินใต้ถนนเอง มีหน้าแล้งตามกติกาจังหวัด
+และน้ำใต้ดินที่ลดลงเมื่อสูบหนัก ฝั่งเกม Claude Code ทำเสร็จแล้ว (`docs/WATER_PLAN.md`): เครื่องมือ 2 ตัว เลข tile
+ชั้นแผนที่ "ประปา" และ "น้ำใต้ดิน" และข้อมูลให้ตัววาดเมืองอ่าน ส่งต่อจาก prompt ที่ Codex ทำอยู่ได้เลย
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md, docs/3d/RENDERER_SPEC.md (section 6C is new) and docs/WATER_PLAN.md in full
+before starting, and follow their rules (your paths only).
+
+Context: the game now has a water supply. Two new buildings and a new zone state need graphics:
+- Water works (โรงผลิตน้ำประปา), a 3x3 building on tiles 956-964 (centre 960, ZONEBIT at the centre, the old unused
+  CHURCH1 range: the renderer maps 956-964 to "services" today). It pumps groundwater and needs power.
+- Water tower (หอถังสูง), one tile, value 1020 (BURNBIT | BULLBIT, no ZONEBIT). Today it falls to the debug model.
+- Zones without water: gameMap.water is a read-only view (RENDERER_SPEC 6C): gameMap.water.zoneWater(x, y) returns
+  1 (has water), 2 (dry, but fine as it is) or 3 (thirsty: dry and held back or declining for want of water) on
+  every tile of a zone, 0 elsewhere. Never write it.
+
+Task:
+1. Models (MODEL_SPEC rules, tier R3 national, no brands or logos):
+   a. waterworks 3x3: a small Thai municipal water works: a pump house by an intake, two open rectangular
+      sedimentation/filter basins with railings, a round or square clear-water tank, a low chemical/office block,
+      pipes on short supports, a fence and gate. Concrete, painted steel, blue-green water in the basins.
+   b. watertower 1x1: the tall Thai village water tower: a slender concrete column with a wide tank on top shaped
+      like an upturned cone or a goblet (the common public-works design), access ladder, a small light; a second
+      variant on four steel legs with a cylindrical steel tank. Pick the variant from the tile position so a town
+      gets both, deterministically.
+   Add both to the gallery with their real footprints.
+2. City view: draw 956-964 as the water works (centre 960, the usual 3x3 footprint) and 1020 as the water tower,
+   in place of the generic service building and the debug model. Rubble, fire and bulldozing work as for any
+   building.
+3. No-water icon: like the no-power bolt, a water drop with a slash floating over the centre of a zone whose
+   zoneWater is 3 (thirsty), blinking gently, hidden at far zoom like the bolt. Not for 2 (dry houses and small
+   shops are fine without water). Read it at the same rate as the power flags; null gameMap.water means none.
+4. Tool icons: assets/icons/tools/waterworks and watertower (same style and pipeline as Prompt UI1/UI2; the tool
+   buttons show a coloured square until the icons exist).
+5. Tests in test/render3d/: 956-964 and 1020 resolve to the new models, the no-water icon shows only for 3, and a
+   missing gameMap.water draws no icons.
+
+Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of
+both models in the gallery and in a test city, with a thirsty zone showing its icon.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)
