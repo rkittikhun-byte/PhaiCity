@@ -315,6 +315,18 @@ or songthaew stop is the single tile 1021 (`BUS_STOP`) beside a road (`docs/TRAN
   train station a low platform building with a canopy; the metro station an entrance kiosk with stairs going down and a
   pillar of the elevated line; the high-speed station a long glass hall. Fictional names and liveries only.
 
+## 6K. Land blocks (added 13 Oct 2026)
+
+A province map is cut into square blocks of 24 tiles (`docs/LAND.md`, `src/landBlocks.ts`); the city owns some and
+buys the rest. The renderer only reads:
+
+| Field | Meaning |
+|---|---|
+| `gameMap.landBlocks` | A `Uint8Array`, one byte a block, row by row (`ceil(width / 24)` blocks a row): 1 owned. `null` means the city owns all its land (practice maps, older saves). Never write it. |
+
+- Shade the province's land the city does not own a little (about 0.78 brightness, a third desaturated), lighter
+  than outside the province. The game calls the view's optional `landChanged()` after a purchase.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

@@ -4,7 +4,7 @@
 
 import {
   ClampToEdgeWrapping, Color, ColorRepresentation, DataTexture, DoubleSide, LinearFilter, Material, MeshPhysicalMaterial,
-  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGFormat, RGBADepthPacking, MeshLambertMaterial,
+  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBAFormat, RGBADepthPacking, MeshLambertMaterial,
   UnsignedByteType, Vector2,
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -328,12 +328,17 @@ export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMater
 const provinceMask = { cityMask: { value: null as DataTexture | null }, cityMaskSize: { value: new Vector2(1, 1) },
   cityMaskOn: { value: 0 }, cityWaterColour: { value: new Color(0x487c89) }, cityBankColour: { value: new Color(0xb49b71) } };
 /** outside and water: one byte a tile each (255 or 0); null outside means none of it is set. */
-export function setProvinceMask(outside: Uint8Array | null, width: number, height: number, water?: Uint8Array): void {
+/** The masks the city's ground is shaded by, 255 a tile: outside the province, water, and land the city has not
+ * bought (src/landBlocks.ts), which is shaded lightly. */
+export function setProvinceMask(outside: Uint8Array | null, width: number, height: number, water?: Uint8Array,
+    unowned?: Uint8Array): void {
   provinceMask.cityMask.value?.dispose();
   if (!outside) { provinceMask.cityMask.value = null; provinceMask.cityMaskOn.value = 0; return; }
-  const data = new Uint8Array(width * height * 2);
-  for (let i = 0; i < width * height; i++) { data[i * 2] = outside[i]; data[i * 2 + 1] = water ? water[i] : 0; }
-  const texture = new DataTexture(data, width, height, RGFormat, UnsignedByteType);
+  const data = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    data[i * 4] = outside[i]; data[i * 4 + 1] = water ? water[i] : 0; data[i * 4 + 2] = unowned ? unowned[i] : 0; data[i * 4 + 3] = 255;
+  }
+  const texture = new DataTexture(data, width, height, RGBAFormat, UnsignedByteType);
   texture.magFilter = LinearFilter; texture.minFilter = LinearFilter; texture.generateMipmaps = false;
   texture.wrapS = texture.wrapT = ClampToEdgeWrapping; texture.needsUpdate = true;
   provinceMask.cityMask.value = texture; provinceMask.cityMaskSize.value.set(width, height); provinceMask.cityMaskOn.value = 1;
@@ -387,7 +392,10 @@ function configureCityLOD(material: Material, coarse: boolean): void {
         float provinceLuma = dot(gl_FragColor.rgb, vec3(0.2126,0.7152,0.0722));
         float cityOutsideShade = cityProvince;
         if (cityMaskOn > 0.5) cityOutsideShade = smoothstep(0.35, 0.65, texture2D(cityMask, cityWorldXZ / 10.0 / cityMaskSize).r);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityOutsideShade);`)
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityOutsideShade);
+        // Land the city has not bought, lightly (src/landBlocks.ts)
+        float cityUnowned = cityMaskOn > 0.5 ? smoothstep(0.35, 0.65, texture2D(cityMask, cityWorldXZ / 10.0 / cityMaskSize).b) * (1.0 - cityOutsideShade) : 0.0;
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.3)*0.78,cityUnowned);`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         {
         // A fixed 4x4 Bayer pattern: coarse and detail cover opposite samples, including shadows.

@@ -10,6 +10,7 @@ import { mergeGeometry } from '../util/geometry.js';
 import { LATERITE_EDGE, lateriteColour, lateriteShape } from '../models/road/laterite.js';
 import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../models/road/centreline.js';
 import { ROAD_SECTION } from '../models/road/interfaces.js';
+import { type LandMap, ownsLand } from '../../landBlocks.js';
 import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import type { Placement } from './types.js';
@@ -46,12 +47,7 @@ export class ProvinceSurface {
   constructor(readonly snapshot:TileSnapshot,readonly terrain:CityHeightField) {
     this.boxSource.setAttribute('color',new Float32BufferAttribute(new Float32Array(this.boxSource.getAttribute('position').count*3).fill(1),3));
     this.columns=Math.ceil(snapshot.width/SIZE);
-    // The shade outside the province and the edges of the water follow smooth curves drawn from these masks
-    // (materials/library.ts)
-    const outside=new Uint8Array(snapshot.width*snapshot.height),water=new Uint8Array(snapshot.width*snapshot.height);
-    for(let y=0;y<snapshot.height;y++)for(let x=0;x<snapshot.width;x++){const i=y*snapshot.width+x;
-      if(!terrain.inside(x,y))outside[i]=255;if(isWaterNeighbor(snapshot.values[i]))water[i]=255;}
-    setProvinceMask(outside,snapshot.width,snapshot.height,water);
+    this.updateMask();
     const boundary=terrain.boundary(),edgeGeometry=new LineSegmentsGeometry();if(boundary.length)edgeGeometry.setPositions(boundary);
     this.edge=new LineSegments2(edgeGeometry,provinceEdgeMaterial());this.edge.visible=boundary.length>0;this.edge.renderOrder=20;this.edge.frustumCulled=false;this.root.add(this.edge);
     for(let y=0;y<snapshot.height;y+=SIZE)for(let x=0;x<snapshot.width;x+=SIZE){
@@ -67,6 +63,18 @@ export class ProvinceSurface {
         this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(0xb49b71),(x,z)=>terrain.sample(x,z),yy*snapshot.width+xx,false);
       this.publish(chunk);this.resetBuffers(chunk);
     }
+  }
+  /**
+   * The shade outside the province, the edges of the water and the land not yet bought (src/landBlocks.ts) follow
+   * smooth curves drawn from these masks (materials/library.ts); again whenever the city buys land.
+   */
+  updateMask():void {
+    const {snapshot,terrain}=this,n=snapshot.width*snapshot.height,land=terrain.map as unknown as LandMap;
+    const outside=new Uint8Array(n),water=new Uint8Array(n),unowned=land.landBlocks?new Uint8Array(n):undefined;
+    for(let y=0;y<snapshot.height;y++)for(let x=0;x<snapshot.width;x++){const i=y*snapshot.width+x;
+      if(!terrain.inside(x,y))outside[i]=255;if(isWaterNeighbor(snapshot.values[i]))water[i]=255;
+      if(unowned&&!ownsLand(land,x,y))unowned[i]=255;}
+    setProvinceMask(outside,snapshot.width,snapshot.height,water,unowned);
   }
   private resetBuffers(c:SurfaceChunk):void {c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
   private quad(c:SurfaceChunk,x0:number,z0:number,x1:number,z1:number,shade:(x:number,z:number)=>Color,height:(x:number,z:number)=>number,index:number,overlay:boolean):void {

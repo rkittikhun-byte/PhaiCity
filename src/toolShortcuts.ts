@@ -118,6 +118,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   waste_power_plant: "about.building.waste",
   wastewater_plant: "about.building.waste",
   bus_stop: "about.building.transit",
+  land: "about.building.land",
   train_station: "about.building.transit",
   metro_station: "about.building.transit",
   hsr_station: "about.building.transit",

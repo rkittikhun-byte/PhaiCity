@@ -23,6 +23,7 @@ import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
 import { STATION_KINDS, transitProblem } from "./transit";
+import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -77,6 +78,8 @@ export type Command =
   | { type: "wing"; wing: typeof WINGS[number]; add: boolean }
   /** One of the ruler's policies switched on or off (src/policies.ts) */
   | { type: "policy"; policy: typeof POLICIES[number]; on: boolean }
+  /** The block of land at (x, y) bought (src/landBlocks.ts) */
+  | { type: "land"; x: number; y: number }
   | { type: "debugFunds" };
 
 export interface CommandOutcome {
@@ -156,6 +159,8 @@ export interface CommandTarget {
   cityTime?(): number;
   /** Whether a tile may be built on: false outside the province on a province map. Without it, every tile may. */
   canBuildAt?(x: number, y: number): boolean;
+  /** Whether the city owns the land at (x, y) (src/landBlocks.ts). Without it, all the land is the city's. */
+  ownsLand?(x: number, y: number): boolean;
   /** The province's resource levels, which decide its kinds of power plant; none on a practice map. */
   resources?: Readonly<Record<string, number>> | null;
   /** Whether a tile is open water, for dams. Without it, a dam may stand anywhere. */
@@ -183,10 +188,14 @@ export interface CommandTarget {
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
-export function placeProblem(city: Pick<CommandTarget, "canBuildAt">, x: number, y: number,
+export function placeProblem(city: Pick<CommandTarget, "canBuildAt" | "ownsLand">, x: number, y: number,
                              size: number): string | null {
   const canBuildAt = city.canBuildAt;
-  return canBuildAt && footprint(x, y, size).some((t) => !canBuildAt(t.x, t.y)) ? OUTSIDE_PROVINCE : null;
+  const tiles = footprint(x, y, size);
+  if (canBuildAt && tiles.some((t) => !canBuildAt(t.x, t.y))) return OUTSIDE_PROVINCE;
+  // ... and land the city has not bought (src/landBlocks.ts)
+  const ownsLand = city.ownsLand;
+  return ownsLand && tiles.some((t) => !ownsLand(t.x, t.y)) ? LAND_LOCKED : null;
 }
 
 /** Why a kind of power plant may not be built at (x, y): the province lacks its resource, or a dam has no water. */
@@ -264,6 +273,8 @@ export function commandProblem(command: unknown, width: number, height: number):
     case "wing":
       if (!isOneOf(WINGS, c.wing)) return `unknown wing ${String(c.wing)}`;
       return typeof c.add === "boolean" ? null : "add missing";
+    case "land":
+      return isInteger(c.x, 0, width - 1) && isInteger(c.y, 0, height - 1) ? null : "outside the map";
     case "policy":
       if (!isOneOf(POLICIES, c.policy)) return `unknown policy ${String(c.policy)}`;
       return typeof c.on === "boolean" ? null : "on missing";
@@ -376,6 +387,13 @@ export class CityCommands {
         changeWing(city.houseMap, command.wing, command.add, city.budget);
         // Without the council hall there may be less room for policies (src/policies.ts)
         if (!command.add && command.wing === "council_hall") trimPolicies(city.houseMap as PolicyMap);
+        break;
+      }
+      case "land": {
+        const land = city.houseMap as unknown as LandMap | undefined;
+        const refused = land ? landProblem(land, command.x, command.y, city.rank?.() ?? 5, city.budget.totalFunds) : LAND_ALL_OPEN;
+        if (refused || !land) return { accepted: false, reason: refused ?? LAND_ALL_OPEN };
+        buyBlock(land, command.x, command.y, city.budget);
         break;
       }
       case "policy": {

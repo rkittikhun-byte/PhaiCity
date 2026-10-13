@@ -93,6 +93,8 @@ export class CityView3D implements CityView {
     listen('wheel',e=>{const w=e as WheelEvent;w.preventDefault();const rect=this.canvas.getBoundingClientRect();
       this.navigation.zoom(w.deltaY*(w.deltaMode===1?16:w.deltaMode===2?this.height:1),w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);});
   }
+  /** The city bought land (src/landBlocks.ts): shade what it still has not. */
+  landChanged():void {this.chunks.surfaces?.updateMask();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     this.resize();const changed=this.snapshot.sync(this.setup.map),raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);

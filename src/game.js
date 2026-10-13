@@ -49,6 +49,9 @@ import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
 import { readPolicies } from './policies.ts';
+import { BLOCK_SIZE, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, LAND_ALL_OPEN, LAND_LOCKED,
+         LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, ownsLand,
+         startingBlocks } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
@@ -87,6 +90,14 @@ var MINE_COLOUR = '#b07848';
 var WASTE_COLOURS = {landfill: '#8a6d3b', incinerator: '#7a5c58', recycling_plant: '#4f9a5a',
                      waste_power_plant: '#b07a2a', wastewater_plant: '#3f7fa6'};
 // ... and public transport's (src/transit.ts)
+// The notes for a block of land that may not be bought (src/landBlocks.ts)
+var LAND_KEYS = {};
+LAND_KEYS[LAND_OWNED] = 'owned';
+LAND_KEYS[LAND_NOT_BESIDE] = 'not_beside';
+LAND_KEYS[LAND_OUTSIDE] = 'outside';
+LAND_KEYS[LAND_NEEDS_RANK] = 'needs_rank';
+LAND_KEYS[LAND_NO_MONEY] = 'no_money';
+LAND_KEYS[LAND_ALL_OPEN] = 'all_open';
 var TRANSIT_COLOURS = {bus_stop: '#e3a21a', train_station: '#8c5a3c', metro_station: '#2f6db5', hsr_station: '#c0392b'};
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
@@ -152,6 +163,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.policies = readPolicies(savedGame.policies);
     // ... and the stations (src/transit.ts)
     this.gameMap.stationKinds = Object.assign({}, savedGame.stationKinds || {});
+    // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
+    this.gameMap.landBlocks = savedGame.land ?
+      decodePresetLayer(savedGame.land, blockColumns(this.gameMap), blockRows(this.gameMap)) : null;
+    this.gameMap.landBought = savedGame.landBought || 0;
     this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
   } else {
     // A new city builds its ruler's house before anything else
@@ -159,6 +174,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.wasteKinds = {};
     this.gameMap.policies = [];
     this.gameMap.stationKinds = {};
+    // A new province city owns the land round its town, and buys the rest block by block (src/landBlocks.ts)
+    this.gameMap.landBlocks = this.gameMap.insideProvince && this.gameMap.town ?
+      startingBlocks(this.gameMap, this.gameMap.town) : null;
+    this.gameMap.landBought = 0;
     this.gameMap.rulerHouse = null;
     this.gameMap.needsRulerHouse = true;
   }
@@ -197,7 +216,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules);
   // The tool buttons show this province's prices
-  showToolPrices(toolPrices(this.simulation.rules));
+  this._planningFactor = 1;
+  this.refreshPrices();
+  // Buying land only where the map is cut into blocks (src/landBlocks.ts)
+  var landButton = document.getElementById('landButton');
+  if (landButton)
+    landButton.hidden = !this.gameMap.landBlocks;
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
   var simulation = this.simulation;
@@ -225,6 +249,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     map: this.gameMap,
     cityTime: function() { return simulation._cityTime; },
     canBuildAt: canBuildIn(this.gameMap),
+    ownsLand: function(x, y) { return ownsLand(cityMap, x, y); },
     // The kinds of power plant the province can build, dams beside water, and what was built where
     resources: simulation.resources,
     isWaterAt: function(x, y) {
@@ -609,6 +634,9 @@ Game.prototype.save = function() {
                   policies: (this.gameMap.policies || []).length ? this.gameMap.policies.slice() : undefined,
                   // ... and the stations (src/transit.ts)
                   stationKinds: plantsStanding(this.gameMap, 'stationKinds', STATION),
+                  // ... and the land the city owns (src/landBlocks.ts)
+                  land: this.gameMap.landBlocks ? encodePresetLayer(this.gameMap.landBlocks) : undefined,
+                  landBought: this.gameMap.landBlocks ? this.gameMap.landBought || 0 : undefined,
                   rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
@@ -736,7 +764,7 @@ Game.prototype.applyCommand = function(command) {
   // the player looks (handleTool)
   if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL, NEEDS_RAIL, ONE_HSR,
                             TRANSIT_NEEDS_RANK].indexOf(outcome.reason) === -1 &&
-      HOUSE_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
+      HOUSE_REASONS.indexOf(outcome.reason) === -1 && LAND_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
 };
@@ -793,11 +821,22 @@ Game.prototype.applyPlanningDiscount = function(factor) {
   this._planningFactor = factor;
   var rules = this.simulation.rules;
   var tools = this.inputStatus.gameTools;
-  var prices = toolPrices(rules);
   ROAD_TOOLS.concat([UPGRADE_TOOL]).forEach(function(name) {
     tools[name].costFactor = rules.cost[name] * factor;
+  });
+  this.refreshPrices();
+};
+
+
+// The tool buttons' prices: the province's, the planning office's cheaper roads, and the next block of land
+Game.prototype.refreshPrices = function() {
+  var factor = this._planningFactor || 1;
+  var prices = toolPrices(this.simulation.rules);
+  ROAD_TOOLS.concat([UPGRADE_TOOL]).forEach(function(name) {
     prices[name] = Math.max(1, Math.round(prices[name] * factor));
   });
+  if (this.gameMap.landBlocks)
+    prices.land = blockPrice(this.gameMap);
   showToolPrices(prices);
 };
 
@@ -1010,6 +1049,22 @@ Game.prototype.handleTool = function(data) {
   var toolName = this.inputStatus.toolName;
   var result;
 
+  if (toolName === 'land') {
+    // Buying a block of land is a command of its own (src/landBlocks.ts)
+    var bought = this.applyCommand({type: 'land', x: tileCoords.x, y: tileCoords.y});
+    if (bought.accepted) {
+      this.refreshPrices();
+      if (this.cityView.landChanged)
+        this.cityView.landChanged();
+    } else {
+      var rankNeeded = BLOCKS_BY_RANK.findIndex(function(n) { return n > (this.gameMap.landBought || 0); }, this);
+      showCornerNote(t('land.note.' + LAND_KEYS[bought.reason], {
+        rank: t('rank.' + RANKS[Math.max(0, rankNeeded)]), price: formatMoney(blockPrice(this.gameMap))}), OUTSIDE_NOTE_MS);
+    }
+    this.gameAudio.toolUsed('land', bought.accepted ? tool.TOOLRESULT_OK : tool.TOOLRESULT_FAILED, x);
+    return;
+  }
+
   if (toolName === 'query') {
     // Looking at a tile changes nothing, so it is not a command
     tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
@@ -1028,6 +1083,11 @@ Game.prototype.handleTool = function(data) {
                      t('tool.no_resource', {plant: t('tool.' + toolName, {price: ''}).trim(),
                                              resource: t('resource.level.' + resource)}),
                      OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
+    if (outcome.reason === LAND_LOCKED) {
+      showCornerNote(t('land.note.locked'), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
@@ -1195,8 +1255,18 @@ Game.prototype.calculateMouseForPaint = function() {
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
-  // Red where the tool would reach outside the province, which cannot be built on
-  if (placeProblem({canBuildAt: canBuildIn(this.gameMap)}, tile.x, tile.y, hover.size) !== null)
+  // Buying land shows the whole block under the mouse (src/landBlocks.ts)
+  var cityMap = this.gameMap;
+  if (this.inputStatus.toolName === 'land') {
+    hover.tile = blockOutlineTile(tile.x, tile.y);
+    hover.size = BLOCK_SIZE;
+    if (ownsLand(cityMap, tile.x, tile.y))
+      hover.colour = OUTSIDE_COLOUR;
+    return hover;
+  }
+  // Red where the tool would reach outside the province, or land the city has not bought, which cannot be built on
+  if (placeProblem({canBuildAt: canBuildIn(cityMap), ownsLand: function(x, y) { return ownsLand(cityMap, x, y); }},
+                   tile.x, tile.y, hover.size) !== null)
     hover.colour = OUTSIDE_COLOUR;
 
   // While a zone tool drags an area, show every zone it will lay

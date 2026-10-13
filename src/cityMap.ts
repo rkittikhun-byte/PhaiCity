@@ -15,6 +15,7 @@ import {
   FARM_BASE, FARM_LAST, HARBOUR_BASE, HARBOUR_LAST, MINE_BASE, MINE_LAST, VBRDG0, WASTE_BASE, WASTE_LAST, STATION_BASE, STATION_LAST, BUS_STOP, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
 } from "./tileValues";
 import type { WaterView } from "./waterManager";
+import { ownsLand } from "./landBlocks";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 
 export const MAP_LAYERS = ["city", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
@@ -117,10 +118,14 @@ export interface CityMapSource {
   getTileFlags(x: number, y: number): number;
   /** On a whole-province map, 1 for the province's own tiles; the land around it is drawn darker (GEO_SPEC 10) */
   readonly insideProvince?: Uint8Array | null;
+  /** The blocks of land the city owns (src/landBlocks.ts); the rest is drawn a little darker */
+  readonly landBlocks?: Uint8Array | null;
 }
 
 /** How bright the land outside the province is drawn, as in the province picker (src/geo/presetMap.ts) */
 export const OUTSIDE_SHADE = 0.45;
+/** ... and the province's land the city has not bought */
+export const UNOWNED_SHADE = 0.7;
 
 /** The simulation's block maps the overlays are drawn from */
 export type HeatMap = "trafficDensityMap" | "pollutionDensityMap" | "crimeRateMap" | "landValueMap" |
@@ -223,7 +228,7 @@ export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overl
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y);
-      const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : 1;
+      const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : ownsLand(map, x, y) ? 1 : UNOWNED_SHADE;
       pixels[i++] = r * shade;
       pixels[i++] = g * shade;
       pixels[i++] = b * shade;

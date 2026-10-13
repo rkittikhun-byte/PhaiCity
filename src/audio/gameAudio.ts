@@ -122,6 +122,7 @@ const TOOL_SOUNDS: Record<string, string> = {
   train_station: "tool.building",
   metro_station: "tool.building",
   hsr_station: "tool.building",
+  land: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values
