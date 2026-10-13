@@ -53,7 +53,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 | `npm run geo:dem` | Copernicus DEM GLO-90 elevation for the squares the province maps reach into → `data/geo/cache/dem/` (gitignored, 360 MB; `geo:maps` turns it into each map's `heights`) |
 | `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
 | `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
-| `npm run geo:city [-- --only TH-40] [-- --size 400]` | Real-scale city map, 16 m a tile round the town (`docs/CITY_SCALE.md`) → `data/maps/city/TH-xx.json`; a province listed in `CITY_MAPS` (`src/splashScreen.js`, Khon Kaen for now) starts there, `index.html?scale=province` starts its old whole-province map |
+| `npm run geo:city [-- --only TH-40] [-- --size 400]` | Real-scale city map, 16 m a tile round the town (`docs/CITY_SCALE.md`) → `data/maps/city/TH-xx.json`; a province listed in `CITY_MAPS` (`src/splashScreen.js`, Khon Kaen for now) starts there, `index.html?scale=province` starts its old whole-province map. Reads the local PostGIS database (every real street with its level and name, canals and streams, land cover: `scripts/geo/lib/dbLayers.mjs`, `cityStreets.mjs`, `landCover.mjs`); `-- --cache` uses the old downloaded squares, `-- --preview` draws `data/geo/cache/preview/city-<id>.png` |
 | `npm run geo:districts [-- --only TH-40]` | A province's districts from the local Thailand database (names, area, outline, the town each city map centres on) → `data/geo/districts/TH-xx.json`; then `npm run geo:city -- --only TH-40 --districts` makes a city map for each (`data/maps/district/`, with `index.json` for the province card) |
 | `npm run geo:indicators` | Measure every province from the local Thailand database (OpenStreetMap in PostGIS, `docs/geo/THAILAND_DB.md`; psql on the PATH, password in pgpass) and its map → `data/geo/province-indicators.json`; `-- --maps-only` refreshes only what comes from `data/maps` |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
@@ -76,6 +76,13 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 - **Entry:** `src/micropolis.js` → `src/game.js`
   - **Simulation loop:** `tick` uses `setTimeout` and calls `simulation.simTick()`.
   - **Render loop:** `animate` uses `requestAnimationFrame` and calls `gameCanvas.paint()`.
+- **Core (owner, 13 Oct 2026; `docs/CORE_DESIGN.md`, `docs/GAME_PLAN.md`):** `src/core/cityCore.ts` is one city with
+  no screen (map, simulation, objects, commands with a log, systems run monthly, events, save); the game builds its
+  city through it and ticks it, tests and later the worker and server run it the same way. The records kept beside
+  the tiles and the parts commands change are built in `src/core/cityLayers.ts`. Every clickable thing is a class
+  (`src/objects/`): `CityObject` → `Building` → `CommunityBuilding` (homes, shops, factories, farms, harbours) or
+  `CentralService` (everything the ruler builds), found on the tiles each month. The same seed and the same commands
+  at the same steps make the same city (`test/cityCore.ts`); real maps come out the same every time.
 - **Simulation** (do not touch unless asked):
   - `simulation.js`, `residential.js`, `commercial.js`, `industrial.js`, `traffic.js`
   - `powerManager.js`, `evaluation.js`, `budget.js`, `census.js`, `disasterManager.js`, etc.
