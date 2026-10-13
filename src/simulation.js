@@ -33,6 +33,9 @@ import {
   CULTURE_VISITORS, cultureNoise, GRANARY_DROUGHT_FACTOR, hasWing, HOUSE_KIND, houseLandValue, houseStanding,
   houseUpkeep, TREASURY_TAX_BONUS, WARNING_RISK_FACTOR
 } from './rulerHouse.ts';
+import {
+  familyPull, NO_SERVICES, peopleOf, pollutionShield, serviceLevels, Services, skilled, SKILLED_SMOKE, WARN_FROM
+} from './services.ts';
 import { Mining } from './mining.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
@@ -120,6 +123,12 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
   // ... and the ruler's house (src/rulerHouse.ts): whether one stood at the last month's end
   this._houseStood = houseStanding(this._map);
+  // ... and the schools and hospitals (src/services.ts): their levels last month, and the months since the news heard
+  // of too few
+  this._services = new Services();
+  this._serviceLevels = NO_SERVICES;
+  this._monthsSinceSchoolWarning = 12;
+  this._monthsSinceHospitalWarning = 12;
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -301,6 +310,7 @@ Simulation.prototype._clearCensus = function() {
   this._waterManager.clearCycle();
   this._mining.clearCycle();
   this._farming.clearCycle();
+  this._services.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
 };
@@ -318,6 +328,8 @@ Simulation.prototype._constructSimData = function() {
     powerManager: this._powerManager,
     waterManager: this._waterManager,
     simulator: this,
+    // PhaiCity: how much of pollution's harm to homes health takes away (src/services.ts, src/residential.js)
+    pollutionShield: pollutionShield(this._serviceLevels),
     touristTrips: touristTrips(this._tourism),
     spriteManager: this.spriteManager,
     trafficManager: this._traffic,
@@ -452,6 +464,7 @@ var simulate = function(simData) {
       // PhaiCity: a month's visitors, before the year's taxes take in what they spent
       if ((this._cityTime & 3) === 0) {
         this._houseMonth();
+        this._servicesMonth();
         this._tourismMonth();
         this._miningMonth();
         this._farmingMonth();
@@ -556,7 +569,9 @@ Simulation.prototype._house = function() {
 Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var house = this._house();
   this._festivalHouse = house && this._tourism.festival ? house : null;
-  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+  // Higher education makes for cleaner factories (src/services.ts)
+  var smoke = this.rules.industryPollution * (1 - SKILLED_SMOKE * skilled(this._serviceLevels));
+  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
                                               house ? function(x, y) { return houseLandValue(house, x, y); } : null);
 };
@@ -580,8 +595,11 @@ Simulation.prototype._seasonalRisks = function(month) {
 };
 
 
-// A civic building's centre (tile 418): the ruler's house is counted and pays its upkeep with its wings'
+// A civic building's centre (tile 418): a school or hospital (src/services.ts), or the ruler's house, which is counted
+// and pays its upkeep with its wings'
 Simulation.prototype._civicFound = function(map, x, y, simData) {
+  if (this._services.found(map, x, y, simData.census))
+    return;
   var house = map.rulerHouse;
   if (!house || house.x !== x || house.y !== y || !map.civicKinds || map.civicKinds[y * map.width + x] !== HOUSE_KIND)
     return;
@@ -624,6 +642,30 @@ Simulation.prototype._houseMonth = function() {
 var WATER_FEE_SAVING = 0.03;
 var TOURIST_FEE_AWAY = 0.01;
 var TOURIST_FEE_TAKE = 0.02;
+
+// A month of the schools and hospitals (src/services.ts): the levels their places give the people, which the demand and
+// the scans use, and, at most once a year each, the news when a town lacks schools or hospitals
+Simulation.prototype._servicesMonth = function() {
+  var levels = serviceLevels(this._services.places, peopleOf(this._census));
+  this._serviceLevels = levels;
+  this._valves.familyPull = familyPull(levels);
+  this._valves.skilled = skilled(levels);
+  this._emitEvent(Messages.SERVICES_UPDATED, levels);
+
+  this._monthsSinceSchoolWarning++;
+  this._monthsSinceHospitalWarning++;
+  if (levels.people < WARN_FROM)
+    return;
+  if (levels.basic < 50 && this._monthsSinceSchoolWarning >= 12) {
+    this._monthsSinceSchoolWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.FEW_SCHOOLS});
+  }
+  if (levels.health < 50 && this._monthsSinceHospitalWarning >= 12) {
+    this._monthsSinceHospitalWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.FEW_HOSPITALS});
+  }
+};
+
 
 // A month's visitors (src/tourism.ts): more with the ruler's house's culture court, fewer with a visitors' fee, which
 // takes a share of what they spend

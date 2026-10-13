@@ -42,6 +42,7 @@
           <div class="stat statZone" data-zone="commercial"><span class="statTopic"><span data-i18n="status.commercial">Shops</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="industrial"><span class="statTopic"><span data-i18n="status.industrial">Factories</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat" id="statusTourism" hidden><span class="statTopic" data-i18n="status.tourists">Visitors</span><span class="statValue"></span></div>
+          <div class="stat" id="statusServices" hidden><span class="statTopic" data-i18n="status.services">Schools · health</span><span class="statValue"></span></div>
         </div>
       </nav>
       <nav class="hudButtons hudRight">
@@ -150,6 +151,9 @@
             <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
             <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
             <button id="waterworksButton" data-size="3" data-tool="waterworks" data-colour="deepskyblue" class="toolButton unselected">Water works $1500</button>
+            <!-- Schools and hospitals, chosen above these two (src/services.ts) -->
+            <button id="educationButton" data-size="3" data-tool="primary_school" data-colour="#e07b39" class="toolButton unselected">Primary school</button>
+            <button id="healthButton" data-size="3" data-tool="health_centre" data-colour="#3aa17e" class="toolButton unselected">Health centre</button>
             <button id="mineButton" data-size="3" data-tool="mine" data-colour="#b07848" class="toolButton unselected">Mine</button>
             <button id="farmButton" data-size="3" data-tool="farm" data-colour="#9cbf3a" class="toolButton unselected">Farm</button>
             <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
@@ -245,6 +249,8 @@
             <div id="miningInfo" class="elided budgetData" hidden><span data-i18n="budget.mining">Mine royalties:</span> <span id="miningIncome"></span></div>
             <div id="fuelInfo" class="elided budgetData" hidden><span data-i18n="budget.fuel">Power plant fuel:</span> <span id="fuelCost"></span></div>
             <div id="houseInfo" class="elided budgetData" hidden><span data-i18n="budget.house">Ruler's house:</span> <span id="houseCost"></span></div>
+            <div id="educationInfo" class="elided budgetData" hidden><span data-i18n="budget.education">Schools:</span> <span id="educationCost"></span></div>
+            <div id="healthInfo" class="elided budgetData" hidden><span data-i18n="budget.health">Hospitals:</span> <span id="healthCost"></span></div>
             <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
             <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>

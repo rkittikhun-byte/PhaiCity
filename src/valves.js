@@ -14,6 +14,7 @@
 import { EventEmitter } from './eventEmitter.js';
 import { VALVES_UPDATED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
+import { SKILLED_INDUSTRY, SKILLED_SHOPS } from './services.ts';
 
 var Valves = EventEmitter(function () {
   this.resValve = 0;
@@ -32,6 +33,10 @@ var Valves = EventEmitter(function () {
   // (src/farming.ts)
   this.farmFactories = 0;
   this.fishMarkets = 0;
+  // ... and what schools and hospitals do (src/services.ts): the families they draw (−0.1 to 0.1 of the homes' ratio),
+  // and higher education, 0–1, which draws factories and shops
+  this.familyPull = 0;
+  this.skilled = 0;
 });
 
 
@@ -133,6 +138,10 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   // (src/budget.js)
   resRatio -= (1 - this.livingCost) * 0.3;
   resRatio -= (budget.waterFee || 0) * WATER_FEE_PULL;
+  // Schools and hospitals draw families; skilled people draw factories and shops (src/services.ts)
+  resRatio += this.familyPull;
+  comRatio *= 1 + SKILLED_SHOPS * this.skilled;
+  indRatio *= 1 + SKILLED_INDUSTRY * this.skilled;
   resRatio *= this.demand.residential;
   comRatio *= this.demand.commercial;
   indRatio *= this.demand.industrial;

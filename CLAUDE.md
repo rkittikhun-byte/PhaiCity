@@ -245,6 +245,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   wings chosen in its window (`src/houseWindow.ts`, a `wing` command): treasury, planning office, warning tower,
   granary, culture court, front garden (council hall and trade office wait). It is the city's centre, raises land
   value near it, and ⌂ returns to it; its upkeep is a budget line. Renderers read it (RENDERER_SPEC 6H).
+- **Schools and hospitals (owner, 13 Oct 2026):** `docs/SERVICES.md`, `src/services.ts`. Nine kinds on the same civic
+  tiles as the ruler's house (`civicKinds`), chosen above the education and health buttons; the higher ones need a
+  higher house (`serviceProblem`). With power they give places; the month's levels (children's seats, the young's,
+  care; `SERVICES_UPDATED`, the status bar) draw families from 500 people (and hold a town back from 2,000 when low),
+  draw factories and shops and clean factory smoke (higher education), and halve at best pollution's harm to homes
+  (health, `residential.js`). Each costs upkeep (two budget lines).
 - **Taxes and fees (owner, 13 Oct 2026):** `docs/TAXES.md`. The budget window sets the homes' (`cityTax`), shops' and
   factories' taxes (0–20%, each driving its own zone's demand in `valves.js`), a water fee (฿0–10 a watered zone a
   year: income, water goes further, homes a little less wanted) and a visitors' fee (0–20%: a share of what they

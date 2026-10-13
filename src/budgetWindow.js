@@ -182,8 +182,15 @@ BudgetWindow.prototype.open = function(budgetData) {
   var houseCost = budgetData.houseCost || 0;
   // ... and the water fees are paid in with them (src/budget.js)
   var waterIncome = budgetData.waterIncome || 0;
+  // ... and the schools and hospitals cost is taken from them (src/services.ts)
+  var educationCost = budgetData.educationCost || 0;
+  var healthCost = budgetData.healthCost || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
-                                        waterIncome + fuelCost + houseCost));
+                                        waterIncome + fuelCost + houseCost + educationCost + healthCost));
+  $('#educationCost').text(formatMoney(educationCost));
+  $('#educationInfo').prop('hidden', educationCost <= 0);
+  $('#healthCost').text(formatMoney(healthCost));
+  $('#healthInfo').prop('hidden', healthCost <= 0);
   $('#waterIncome').text(formatMoney(waterIncome));
   $('#waterInfo').prop('hidden', waterIncome <= 0);
   $('#houseCost').text(formatMoney(houseCost));

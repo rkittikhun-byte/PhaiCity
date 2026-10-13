@@ -259,7 +259,7 @@ building stands where.
 
 | Field | Meaning |
 |---|---|
-| `gameMap.civicKinds` | `{ [centreIndex]: kind }`, `centreIndex = x + y * width` of the centre tile; `"ruler_house"` for now. A missing entry: draw the generic civic building. |
+| `gameMap.civicKinds` | `{ [centreIndex]: kind }`, `centreIndex = x + y * width` of the centre tile: `"ruler_house"`, or a school or hospital (`docs/SERVICES.md`): `kindergarten`, `primary_school`, `secondary_school`, `vocational_college`, `university`, `health_centre`, `community_hospital`, `provincial_hospital`, `regional_hospital`. A missing entry: draw the generic civic building. |
 | `gameMap.rulerHouse` | `{ x, y, level, wings }` or null: the house's centre, its level 1–6 and its wings (`council_hall`, `treasury`, `planning_office`, `warning_tower`, `granary`, `culture_court`, `front_garden`, `trade_office`) |
 
 - Six levels, one for each rank, growing from a single raised house (เรือนเจ้าเมือง) to a residence with a hall and
@@ -270,6 +270,10 @@ building stands where.
   pavilion with a stage), a front garden, a council hall, a trade office.
 - No palace or temple ornaments (ช่อฟ้า, ใบระกา, หางหงส์), no royal symbols or Garuda, no real government emblems
   or names. A plain Thai sign "จวนเจ้าเมือง" is fine.
+- Schools (added 13 Oct 2026): a kindergarten with a playground, a primary and a secondary school with a flagpole and
+  a sports field (the Thai national flag is fine; no royal or agency emblems), a vocational college with workshops, a
+  university campus. Hospitals: a small health centre (รพ.สต.) up to a large regional hospital block with an
+  ambulance bay. **No Red Cross emblem**: a green cross or the word "โรงพยาบาล" on a sign. Region-dressed (R2).
 - Read `gameMap.rulerHouse` and `civicKinds` only; never write them.
 
 ## 7. Moving things

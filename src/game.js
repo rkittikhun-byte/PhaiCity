@@ -19,7 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
-import { showDemandAndPeople, showTourism } from './cityStatus.ts';
+import { showDemandAndPeople, showServices, showTourism } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -45,6 +45,7 @@ import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
 import { CIVIC, MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { HouseWindow } from './houseWindow.ts';
+import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, PLANNING_DISCOUNT, readHouse
@@ -168,6 +169,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The same demand, as percentages with the people in homes, shops and factories, in the status (src/cityStatus.ts)
   showDemandAndPeople(this.simulation);
   showTourism(this.simulation);
+  showServices(this.simulation);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
@@ -222,6 +224,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     houseMap: cityMap,
     rank: function() {
       return Math.max(0, RANKS.indexOf(game.rulerRank));
+    },
+    // ... and the schools and hospitals on the same civic tiles (src/services.ts)
+    setCivicKind: function(x, y, kind) {
+      cityMap.civicKinds[y * cityMap.width + x] = kind;
     },
     setRulerHouse: function(x, y) {
       cityMap.civicKinds[y * cityMap.width + x] = HOUSE_KIND;
@@ -349,7 +355,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       indTax: this.simulation.budget.indTax,
       waterFee: this.simulation.budget.waterFee,
       touristFee: this.simulation.budget.touristFee,
-      waterIncome: this.simulation.budget.waterIncome
+      waterIncome: this.simulation.budget.waterIncome,
+      educationCost: this.simulation.budget.educationCost,
+      healthCost: this.simulation.budget.healthCost
     };
 
     return [budgetData];
@@ -663,7 +671,7 @@ Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
-  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER].indexOf(outcome.reason) === -1 &&
+  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL].indexOf(outcome.reason) === -1 &&
       HOUSE_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
@@ -673,6 +681,7 @@ Game.prototype.applyCommand = function(command) {
 // The ruler's house (src/rulerHouse.ts): its button's places (build it, raise it a level, its wings), the tools a new
 // city holds back until it stands, and the planning office's cheaper roads
 var HOUSE_COLOUR = '#c9a227';
+var SERVICE_COLOURS = {basic: '#e07b39', higher: '#b8612a', health: '#3aa17e'};
 
 Game.prototype.refreshHouse = function() {
   var map = this.gameMap;
@@ -690,6 +699,14 @@ Game.prototype.refreshHouse = function() {
     {tool: 'ruler_house_wings', available: standing, colour: HOUSE_COLOUR, note: 'house.wings_note',
      reason: 'house.reason.none', action: function() { game.openHouseWindow(); }}
   ]);
+  // Schools and hospitals, the higher ones for a higher house (src/services.ts)
+  var serviceChoice = function(kind) {
+    var spec = SERVICE_SPECS[kind];
+    return {tool: kind, available: spec.house <= level, colour: SERVICE_COLOURS[spec.field],
+            reason: 'service.reason.house.' + spec.house};
+  };
+  setToolChoices('primary_school', EDUCATION_TOOLS.map(serviceChoice));
+  setToolChoices('health_centre', HEALTH_TOOLS.map(serviceChoice));
   // A new city's other tools wait for the house (the commands refuse them too)
   document.body.classList.toggle('houseFirst', houseFirst(map));
   // The planning office takes a tenth off the roads and their upgrades
@@ -934,6 +951,12 @@ Game.prototype.handleTool = function(data) {
     }
     if (outcome.reason === OUTSIDE_PROVINCE) {
       showCornerNote(t('tool.outside_province'), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
+    // A higher school or hospital waits for a higher ruler's house (src/services.ts)
+    if (outcome.reason === NEEDS_HOUSE_LEVEL) {
+      showCornerNote(t('service.note.needs_house', {level: SERVICE_SPECS[toolName].house}), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }

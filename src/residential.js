@@ -193,12 +193,13 @@ var degradeZone = function(map, x, y, blockMaps, population, lpValue, zonePower)
 
 
 // Returns a score for the zone in the range -3000 - 3000
-var evalResidential = function(blockMaps, x, y, traffic) {
+// shield (PhaiCity, src/services.ts): the share of pollution's harm the city's health takes away, 0–0.5
+var evalResidential = function(blockMaps, x, y, traffic, shield) {
   if (traffic === Traffic.NO_ROAD_FOUND)
     return -3000;
 
   var landValue = blockMaps.landValueMap.worldGet(x, y);
-  landValue -= blockMaps.pollutionDensityMap.worldGet(x, y);
+  landValue -= blockMaps.pollutionDensityMap.worldGet(x, y) * (1 - (shield || 0));
 
   if (landValue < 0)
     landValue = 0;
@@ -250,7 +251,7 @@ var residentialFound = function(map, x, y, simData) {
   if (tileValue === TileValues.FREEZ || Random.getChance(7)) {
     // First, score the individual zone. This is a value in the range -3000 to 3000
     // Then take into account global demand for housing.
-    var locationScore = evalResidential(simData.blockMaps, x, y, trafficOK);
+    var locationScore = evalResidential(simData.blockMaps, x, y, trafficOK, simData.pollutionShield || 0);
     var zoneScore = simData.valves.resValve + locationScore;
 
     // Naturally unpowered zones should be penalized, and so (PhaiCity) should apartments without water

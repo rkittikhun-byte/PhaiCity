@@ -17,21 +17,21 @@ describe("tool icons", () => {
   test("every tool button has its icon file", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const tools = [...html.matchAll(/data-tool="(\w+)"/g)].map((m) => m[1]);
-    expect(tools.length).toBe(22);
+    expect(tools.length).toBe(24);
     // The water tools, the mine, the farm, the harbour and the ruler's house wait for their icons (Codex Prompts W1, M1,
     // F1 and RH1); their buttons show a square in their colour until then
-    const awaitingIcons = ["waterworks", "watertower", "mine", "farm", "fishing", "ruler_house"];
+    const awaitingIcons = ["waterworks", "watertower", "mine", "farm", "fishing", "ruler_house", "primary_school", "health_centre"];
     for (const tool of tools.filter((t) => !awaitingIcons.includes(t))) {
       expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
     }
   });
 
-  test("seventeen buttons; the tools grouped into another button's choices keep their size and colour in the page", () => {
+  test("nineteen buttons; the tools grouped into another button's choices keep their size and colour in the page", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const buttons = [...html.matchAll(/<button [^>]*data-tool="(\w+)"/g)].map((m) => m[1]);
     const template = html.match(/<template id="toolChoices">([\s\S]*?)<\/template>/)?.[1] ?? "";
     const kept = [...template.matchAll(/data-size="(\d)" data-tool="(\w+)" data-colour="([^"]+)"/g)].map((m) => m[2]);
-    expect(buttons).toHaveLength(17);
+    expect(buttons).toHaveLength(19);
     expect(buttons[0]).toBe("ruler_house"); // a new city builds it first (src/rulerHouse.ts)
     expect([...kept].sort()).toEqual(["airport", "fire", "fishing", "nuclear", "watertower"]);
     for (const tool of kept) {

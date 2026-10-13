@@ -105,6 +105,15 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   ruler_house: "about.building.ruler_house",
   ruler_house_upgrade: "about.building.ruler_house",
   ruler_house_wings: "about.building.ruler_house_wings",
+  kindergarten: "about.building.education",
+  primary_school: "about.building.education",
+  secondary_school: "about.building.education",
+  vocational_college: "about.building.education",
+  university: "about.building.education",
+  health_centre: "about.building.health",
+  community_hospital: "about.building.health",
+  provincial_hospital: "about.building.health",
+  regional_hospital: "about.building.health",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */

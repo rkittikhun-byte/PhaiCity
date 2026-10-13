@@ -2027,10 +2027,12 @@ body #buttons [data-tool="query"] { order: 9; }
 body #buttons [data-tool="police"] { order: 10; }
 body #buttons [data-tool="coal"] { order: 11; }
 body #buttons [data-tool="waterworks"] { order: 12; }
-body #buttons [data-tool="mine"] { order: 13; }
-body #buttons [data-tool="farm"] { order: 14; }
-body #buttons [data-tool="port"] { order: 15; }
-body #buttons [data-tool="stadium"] { order: 16; }
+body #buttons [data-tool="primary_school"] { order: 13; }
+body #buttons [data-tool="health_centre"] { order: 14; }
+body #buttons [data-tool="mine"] { order: 15; }
+body #buttons [data-tool="farm"] { order: 16; }
+body #buttons [data-tool="port"] { order: 17; }
+body #buttons [data-tool="stadium"] { order: 18; }
 /* A tool with no choice here, such as the mine in a province with no ore */
 body #buttons .toolButton:disabled { opacity: 0.4; cursor: not-allowed; }
 /* A new city's tools wait until its ruler's house stands; only the house and the bulldozer may be used (the commands

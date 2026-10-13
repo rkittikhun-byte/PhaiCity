@@ -195,6 +195,31 @@
 | `choice.ruler_house` | `src/toolLevels.ts` | — | `Build` | `สร้างจวน` |  |
 | `choice.ruler_house_upgrade` | `src/toolLevels.ts` | — | `Raise` | `ยกระดับ` |  |
 | `choice.ruler_house_wings` | `src/toolLevels.ts` | — | `Wings…` | `ส่วนต่อเติม…` |  |
+| `tool.kindergarten` | `index.html` | — | `Kindergarten {price}` | `โรงเรียนอนุบาล {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026, docs/SERVICES.md) |
+| `tool.primary_school` | `index.html` | — | `Primary School {price}` | `โรงเรียนประถม {price}` |  |
+| `tool.secondary_school` | `index.html` | — | `Secondary School {price}` | `โรงเรียนมัธยม {price}` |  |
+| `tool.vocational_college` | `index.html` | — | `Vocational College {price}` | `วิทยาลัยอาชีวะ {price}` |  |
+| `tool.university` | `index.html` | — | `University {price}` | `มหาวิทยาลัย {price}` |  |
+| `tool.health_centre` | `index.html` | — | `Health Centre {price}` | `โรงพยาบาลส่งเสริมสุขภาพตำบล {price}` |  |
+| `tool.community_hospital` | `index.html` | — | `Community Hospital {price}` | `โรงพยาบาลชุมชน {price}` |  |
+| `tool.provincial_hospital` | `index.html` | — | `Provincial Hospital {price}` | `โรงพยาบาลจังหวัด {price}` |  |
+| `tool.regional_hospital` | `index.html` | — | `Regional Hospital {price}` | `โรงพยาบาลศูนย์ {price}` |  |
+| `choice.kindergarten` | `src/toolLevels.ts` | — | `Kindergarten` | `อนุบาล` |  |
+| `choice.primary_school` | `src/toolLevels.ts` | — | `Primary` | `ประถม` |  |
+| `choice.secondary_school` | `src/toolLevels.ts` | — | `Secondary` | `มัธยม` |  |
+| `choice.vocational_college` | `src/toolLevels.ts` | — | `Vocational` | `อาชีวะ` |  |
+| `choice.university` | `src/toolLevels.ts` | — | `University` | `มหาวิทยาลัย` |  |
+| `choice.health_centre` | `src/toolLevels.ts` | — | `Health centre` | `รพ.สต.` |  |
+| `choice.community_hospital` | `src/toolLevels.ts` | — | `Community` | `รพ.ชุมชน` |  |
+| `choice.provincial_hospital` | `src/toolLevels.ts` | — | `Provincial` | `รพ.จังหวัด` |  |
+| `choice.regional_hospital` | `src/toolLevels.ts` | — | `Regional` | `รพ.ศูนย์` |  |
+| `choice.title.primary_school` | `src/toolLevels.ts` | — | `Education: choose the school` | `การศึกษา: เลือกโรงเรียน` |  |
+| `choice.title.health_centre` | `src/toolLevels.ts` | — | `Health: choose the hospital` | `สาธารณสุข: เลือกโรงพยาบาล` |  |
+| `service.reason.house.0` | `src/toolLevels.ts` | — | `Not yet` | `ยังไม่ได้` |  |
+| `service.reason.house.2` | `src/toolLevels.ts` | — | `Needs a level 2 house` | `ต้องมีจวนขั้น 2` |  |
+| `service.reason.house.3` | `src/toolLevels.ts` | — | `Needs a level 3 house` | `ต้องมีจวนขั้น 3` |  |
+| `service.reason.house.4` | `src/toolLevels.ts` | — | `Needs a level 4 house` | `ต้องมีจวนขั้น 4` |  |
+| `service.note.needs_house` | `src/game.js` | — | `This needs the ruler's house at level {level} first` | `ต้องยกระดับจวนเจ้าเมืองถึงขั้น {level} ก่อน` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |
 | `house.level.1` | `src/houseWindow.ts` | — | `Ruler's house` | `เรือนเจ้าเมือง` | ชื่อขั้นของจวน แก้ได้ |
 | `house.level.2` | `src/houseWindow.ts` | — | `House with halls` | `เรือนหมู่เจ้าเมือง` |  |
@@ -276,6 +301,8 @@
 | `budget.tourism` | `index.html` | — | `Visitors spent: ` | `รายได้จากนักท่องเที่ยว: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.fuel` | `index.html` | — | `Power plant fuel: ` | `ค่าเชื้อเพลิงโรงไฟฟ้า: ` | ลิกไนต์และก๊าซ แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.house` | `index.html` | — | `Ruler's house: ` | `จวนเจ้าเมือง: ` | ค่าบำรุงจวนและส่วนต่อเติม แสดงเมื่อมี |
+| `budget.education` | `index.html` | — | `Schools: ` | `การศึกษา: ` | ค่าบำรุงโรงเรียน แสดงเมื่อมี |
+| `budget.health` | `index.html` | — | `Hospitals: ` | `สาธารณสุข: ` | ค่าบำรุงโรงพยาบาล แสดงเมื่อมี |
 | `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.farming` | `index.html` | — | `Farms and fishing: ` | `รายได้จากเกษตรและประมง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.tolls` | `index.html` | — | `Tolls: ` | `ค่าผ่านทางด่วน: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
@@ -623,6 +650,8 @@
 | `msg.bad.fire_season_ahead` | `src/text.js` | — | `Warning tower: the wildfire season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูไฟป่า` |  |
 | `msg.bad.flood_season_ahead` | `src/text.js` | — | `Warning tower: the flood season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูน้ำท่วม` |  |
 | `msg.bad.storm_season_ahead` | `src/text.js` | — | `Warning tower: the storm season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูพายุ` |  |
+| `msg.bad.few_schools` | `src/text.js` | — | `Too few schools: families are leaving for towns with places for their children` | `เด็ก ๆ มีที่เรียนไม่พอ ครอบครัวเริ่มย้ายไปเมืองที่มีโรงเรียน` | ไม่เกินปีละครั้ง |
+| `msg.bad.few_hospitals` | `src/text.js` | — | `Too few hospitals: people worry about falling ill here` | `โรงพยาบาลไม่พอ คนเริ่มกังวลเรื่องเจ็บป่วย` | ไม่เกินปีละครั้ง |
 | `msg.bad.ship_crash` | `src/text.js` | `Shipwreck reported ` | `Shipwreck reported in waters!` | `รายงานอุบัติเหตุเรือชนกันหรือเรืออับปาง!` | เรือล่ม |
 | `msg.bad.high_crime` | `src/text.js` | `Crime very high` | `Crime rate is dangerously high!` | `สถิติอาชญากรรมพุ่งสูงขึ้นขั้นวิกฤต!` | อาชญากรรมสูง |
 | `msg.bad.high_pollution`| `src/text.js` | `Pollution very high` | `Air & water pollution dangerously high!` | `มลพิษทางอากาศและสิ่งแวดล้อมเกินค่ามาตรฐาน!`| มลพิษสูง |
@@ -724,6 +753,8 @@
 | `about.building.fishing` | `about.html` | — | `Fishing Harbour: built beside water, it sells its catch every month and calls for markets and eating places. Too many harbours empty the province's fish, which grow back slowly, and dirty water halves the catch.` | `ท่าเรือประมง: ตั้งติดน้ำ ขายปลาทุกเดือน และดึงตลาดกับร้านอาหาร แต่ถ้ามีท่าเรือมากเกิน ปลาในจังหวัดจะหมด ฟื้นตัวช้า และน้ำเสียทำให้จับปลาได้ลดลงครึ่งหนึ่ง` | คำอธิบายอาคาร |
 | `about.building.ruler_house` | `about.html` | — | `Ruler's House: a new city's first building; until it stands no other tool works. The city's centre moves to it and the land near it is worth more. It rises a level for each rank, for the difference in price, and costs more upkeep at each level. If it burns or is bulldozed, its gains are gone until it is built again.` | `จวนเจ้าเมือง: อาคารแรกของเมืองใหม่ ก่อนมีจวนใช้เครื่องมืออื่นไม่ได้ ใจกลางเมืองย้ายมาที่จวนและที่ดินรอบ ๆ ราคาสูงขึ้น ยกระดับได้ขั้นละหนึ่งยศ จ่ายส่วนต่าง ค่าบำรุงสูงขึ้นทุกขั้น ถ้าไฟไหม้หรือถูกรื้อ ผลดีทั้งหมดหายไปจนกว่าจะสร้างใหม่` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.ruler_house_wings` | `about.html` | — | `Wings of the House: from its second level the house has room for wings, one more at each level, chosen in its window: a treasury, a planning office, a warning tower, a granary and city tank, a culture court, a front garden (and later a council hall and a trade office). Each costs its price and an upkeep, and comes off without a refund.` | `ส่วนต่อเติมจวน: ตั้งแต่ขั้นที่ 2 จวนมีช่องต่อเติมเพิ่มขั้นละหนึ่ง เลือกในหน้าต่างจวน ได้แก่ คลังเมือง กองผังเมือง หอเตือนภัย ยุ้งฉางและถังน้ำเมือง ลานวัฒนธรรม สวนหน้าจวน (หอประชุมเมืองและสำนักการค้าจะมาภายหลัง) แต่ละอย่างมีค่าสร้างและค่าบำรุง รื้อออกได้แต่ไม่ได้เงินคืน` |  |
+| `about.building.education` | `about.html` | — | `Schools: kindergartens, primary and secondary schools give children places, vocational colleges and universities the young. With power they draw families, and higher education draws factories and shops and makes factories cleaner. Secondary schools and up need a higher ruler's house; each costs its upkeep every year.` | `โรงเรียน: อนุบาล ประถม มัธยม รับเด็ก อาชีวะและมหาวิทยาลัยรับคนหนุ่มสาว เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า การศึกษาขั้นสูงดึงโรงงานและร้านค้า และทำให้โรงงานควันน้อยลง ตั้งแต่มัธยมขึ้นไปต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
+| `about.building.health` | `about.html` | — | `Hospitals: from the health centre to the regional hospital, each cares for more people. With power they draw families and take up to half of pollution's harm away from homes. The bigger ones need a higher ruler's house; each costs its upkeep every year.` | `โรงพยาบาล: ตั้งแต่ รพ.สต. ถึง รพ.ศูนย์ ยิ่งใหญ่ยิ่งดูแลคนได้มาก เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า และลดผลของมลพิษต่อเขตบ้านได้ถึงครึ่งหนึ่ง แห่งใหญ่ต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
 | `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
 | `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |
@@ -987,6 +1018,15 @@
 | `rules.cost.tollway` | `src/provinceRules.ts` | — | `Tollway costs {change}` | `ราคาทางด่วน {change}` |  |
 | `rules.cost.ruler_house` | `src/provinceRules.ts` | — | `Ruler's house costs {change}` | `ราคาจวนเจ้าเมือง {change}` |  |
 | `rules.cost.ruler_house_upgrade` | `src/provinceRules.ts` | — | `Raising the house costs {change}` | `ราคายกระดับจวน {change}` |  |
+| `rules.cost.kindergarten` | `src/provinceRules.ts` | — | `Kindergarten costs {change}` | `ราคาโรงเรียนอนุบาล {change}` |  |
+| `rules.cost.primary_school` | `src/provinceRules.ts` | — | `Primary School costs {change}` | `ราคาโรงเรียนประถม {change}` |  |
+| `rules.cost.secondary_school` | `src/provinceRules.ts` | — | `Secondary School costs {change}` | `ราคาโรงเรียนมัธยม {change}` |  |
+| `rules.cost.vocational_college` | `src/provinceRules.ts` | — | `Vocational College costs {change}` | `ราคาวิทยาลัยอาชีวะ {change}` |  |
+| `rules.cost.university` | `src/provinceRules.ts` | — | `University costs {change}` | `ราคามหาวิทยาลัย {change}` |  |
+| `rules.cost.health_centre` | `src/provinceRules.ts` | — | `Health Centre costs {change}` | `ราคาโรงพยาบาลส่งเสริมสุขภาพตำบล {change}` |  |
+| `rules.cost.community_hospital` | `src/provinceRules.ts` | — | `Community Hospital costs {change}` | `ราคาโรงพยาบาลชุมชน {change}` |  |
+| `rules.cost.provincial_hospital` | `src/provinceRules.ts` | — | `Provincial Hospital costs {change}` | `ราคาโรงพยาบาลจังหวัด {change}` |  |
+| `rules.cost.regional_hospital` | `src/provinceRules.ts` | — | `Regional Hospital costs {change}` | `ราคาโรงพยาบาลศูนย์ {change}` |  |
 | `rules.cost.road_upgrade` | `src/provinceRules.ts` | — | `Road upgrades cost {change}` | `ค่าอัปเกรดถนน {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
@@ -1076,6 +1116,9 @@
 | `status.industrial` | `index.html` | `-` | `Factories` | `อุตสาหกรรม` | แถบสถานะ (แท่ง I เดิม) |
 | `status.people` | `src/cityStatus.ts` | `-` | `{count} people` | `{count} คน` | คนที่อยู่ในบ้าน หรือทำงานในร้านและโรงงาน |
 | `status.tourists` | `index.html` | — | `Visitors` | `นักท่องเที่ยว` | แถบสถานะ เฉพาะจังหวัดที่มีการท่องเที่ยว (Claude Code 13 ต.ค. 2026) |
+| `status.services` | `index.html` | — | `Schools · health` | `การศึกษา · สุขภาพ` | แถบสถานะ (Claude Code 13 ต.ค. 2026) |
+| `status.services_value` | `src/cityStatus.ts` | — | `{school}% · {health}%` | `{school}% · {health}%` |  |
+| `status.services_title` | `src/cityStatus.ts` | — | `Places for children {school}%, for the young {higher}%, care for people {health}%` | `ที่เรียนของเด็ก {school}% ของคนหนุ่มสาว {higher}% การดูแลสุขภาพ {health}%` |  |
 | `status.tourists_value` | `src/cityStatus.ts` | — | `{count} a month` | `{count} คน/เดือน` |  |
 | `status.tourists_title` | `src/cityStatus.ts` | — | `They spent {income} this month ({wanted} wanted to come)` | `เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | ข้อความเมื่อชี้ |
 | `status.tourists_high` | `src/cityStatus.ts` | — | `High season. They spent {income} this month ({wanted} wanted to come)` | `ฤดูท่องเที่ยว เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ย.–ก.พ. |

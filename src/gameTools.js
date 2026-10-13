@@ -26,6 +26,7 @@ import { QueryTool } from './queryTool.js';
 import { WaterTowerTool } from './waterTowerTool.ts';
 import { RoadUpgradeTool } from './roadLevels.ts';
 import { RulerHouseUpgradeTool } from './rulerHouse.ts';
+import { SERVICE_KINDS, SERVICE_SPECS } from './services.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -83,6 +84,12 @@ function GameTools(map, rules) {
     watertower: new WaterTowerTool(map),
     waterworks: new BuildingTool(1500, TileValues.WATER_WORKS, map, 3, false),
     wire: new WireTool(map),
+  });
+
+  // PhaiCity: schools and hospitals (src/services.ts), on the ruler's house's civic tiles; the map records which
+  SERVICE_KINDS.forEach(function(kind) {
+    tools[kind] = new BuildingTool(SERVICE_SPECS[kind].price, TileValues.CIVIC, map, 3, false);
+    tools[kind].civicKind = kind;
   });
 
   TOOL_COSTS.forEach(function(name) {

@@ -20,7 +20,8 @@ import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
-import { changeWing, type HouseMap, houseProblem, WINGS, wingProblem } from "./rulerHouse";
+import { changeWing, type HouseMap, houseProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
+import { serviceProblem } from "./services";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
 
@@ -29,7 +30,9 @@ export const TOOL_NAMES = [
   "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
   "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
   "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
-  "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade",
+  "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
+  "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
+  "regional_hospital",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -100,6 +103,8 @@ interface CommandTool {
   noUndo?: boolean;
   /** It builds the ruler's house (src/rulerHouse.ts) */
   rulerHouse?: boolean;
+  /** The school or hospital it builds on the civic tiles (src/services.ts) */
+  civicKind?: string;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -159,6 +164,8 @@ export interface CommandTarget {
   rank?(): number;
   /** Records the ruler's house just built at (x, y), its centre. */
   setRulerHouse?(x: number, y: number): void;
+  /** Records the school or hospital just built at (x, y), its centre (src/services.ts). */
+  setCivicKind?(x: number, y: number, kind: string): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -269,7 +276,10 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
-        const refused = houseProblem(city.houseMap, command.tool, city.rank?.() ?? 0) ??
+        const houseMap = city.houseMap;
+        const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
+        const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
+          serviceProblem(command.tool, houseLevel) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
           plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
           farmProblem(city, command.tool, command.x, command.y);
@@ -284,6 +294,7 @@ export class CityCommands {
         if (applied && tool.powerKind) city.setPowerKind?.(command.x, command.y, tool.powerKind);
         if (applied && tool.mineKind) city.setMineKind?.(command.x, command.y, tool.mineKind);
         if (applied && tool.rulerHouse) city.setRulerHouse?.(command.x, command.y);
+        if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         // Roads laid where there were none take the tool's level; roads already there keep theirs
         if (applied && map && tool.roadLevel) {
           for (const c of before) {

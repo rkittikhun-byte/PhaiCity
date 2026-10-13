@@ -8,7 +8,8 @@
 // are copied from the city card, which src/infoBar.js keeps up to date; the rest comes from the simulation.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index";
-import { POPULATION_UPDATED, TOURISM_UPDATED, VALVES_UPDATED } from "./messages";
+import { POPULATION_UPDATED, SERVICES_UPDATED, TOURISM_UPDATED, VALVES_UPDATED } from "./messages";
+import { type ServiceLevels, SERVICES_FROM } from "./services";
 import type { TourismMonth } from "./tourism";
 
 /** How the money reads in the status: ฿16,295. Anything that is not a number is shown as it is. */
@@ -123,6 +124,30 @@ export function showTourism(simulation: { addEventListener(event: string, listen
   };
   simulation.addEventListener(TOURISM_UPDATED, (value) => {
     month = value as TourismMonth;
+    render();
+  });
+  onLanguageChange(render);
+  render();
+}
+
+/**
+ * The schools and hospitals block (src/services.ts): their levels, 0–100, once the city has any of them or has people
+ * enough for them to count; pointing at it tells what each level is.
+ */
+export function showServices(simulation: { addEventListener(event: string, listener: (value: unknown) => void): void },
+    doc: Document = document): void {
+  let levels: ServiceLevels | null = null;
+  const render = (): void => {
+    const block = doc.getElementById("statusServices");
+    if (!block) return;
+    block.hidden = !levels || levels.people < SERVICES_FROM;
+    if (!levels || block.hidden) return;
+    const value = block.querySelector(".statValue");
+    if (value) value.textContent = t("status.services_value", { school: levels.basic, health: levels.health });
+    block.title = t("status.services_title", { school: levels.basic, higher: levels.higher, health: levels.health });
+  };
+  simulation.addEventListener(SERVICES_UPDATED, (value) => {
+    levels = value as ServiceLevels;
     render();
   });
   onLanguageChange(render);
