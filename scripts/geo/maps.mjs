@@ -2,114 +2,191 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// npm run geo:maps [-- --only TH-50,TH-83] [-- --width 200 --height 200 --tile 10]
-// Builds a preset starting map per province from OpenStreetMap water, coast and woods
-// (GEO_SPEC sections 5, 6 and 9) and writes data/maps/TH-xx.json. Run geo:centers first.
+// npm run geo:maps [-- --only TH-40,TH-50] [-- --preview] [-- --partial]
+// Builds every province's map, the whole province scaled down (GEO_SPEC sections 2, 5, 6 and 6B), from the data
+// that geo:download keeps in data/geo/cache/, and writes data/maps/TH-xx.json in format 2. Run geo:centers first.
+// --preview also draws each map into data/geo/cache/preview/TH-xx.png; --partial builds from whatever has been
+// downloaded so far, to look at results before the download is done, and writes those maps beside the previews
+// instead of into data/maps/.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { MAPS_DIR, loadProvinces, overpass, resolveCenters, toRepoPath, writeJson } from './lib/common.mjs';
-import { buildPreset } from './lib/preset.mjs';
-import { makeGrid } from './lib/projection.mjs';
+import { CACHE_DIR, MAPS_DIR, loadProvinces, resolveCenters, toRepoPath, writeJson } from './lib/common.mjs';
+import { packHeights, tileHeights } from './lib/elevation.mjs';
+import { encodePng } from './lib/png.mjs';
+import { loadForeignShapes, loadProvinceShapes } from './lib/provinceArea.mjs';
+import { buildProvinceMap, WATER, WOODS } from './lib/provinceMap.mjs';
 import { encodeRle } from './lib/rle.mjs';
+import { CROSSING, RAIL, ROAD } from './lib/routing.mjs';
+import { provinceAt } from './lib/links.mjs';
+import { LAYER_NAMES, loadAirports, loadLayer, provinceGrid } from './provinceData.mjs';
 
-const FETCH_MARGIN_M = 300;
 const MIN_LAND_FRACTION = 0.4;
+const PREVIEW_DIR = path.join(CACHE_DIR, 'preview');
 
 function parseArgs(argv) {
-  const options = { only: null, width: 200, height: 200, tileSizeM: 10 };
+  const options = { only: null, preview: false, partial: false };
   for (let i = 0; i < argv.length; i++) {
-    const value = argv[i + 1];
     switch (argv[i]) {
-      case '--only': options.only = new Set(value.split(',').map((s) => s.trim())); i++; break;
-      case '--width': options.width = Number(value); i++; break;
-      case '--height': options.height = Number(value); i++; break;
-      case '--tile': options.tileSizeM = Number(value); i++; break;
+      case '--only': options.only = new Set(argv[i + 1].split(',').map((s) => s.trim())); i++; break;
+      case '--preview': options.preview = true; break;
+      case '--partial': options.partial = true; break;
       default: throw new Error(`Unknown argument ${argv[i]}`);
     }
   }
   return options;
 }
 
-function overpassQuery([west, south, east, north]) {
-  const bb = `(${south.toFixed(6)},${west.toFixed(6)},${north.toFixed(6)},${east.toFixed(6)})`;
-  // Bay relations are skipped on purpose: some (e.g. the Gulf of Thailand) are enormous,
-  // and the sea is built from the coastline anyway.
-  return `[out:json][timeout:180];
-(
-  way["natural"="water"]${bb}; relation["natural"="water"]${bb};
-  way["waterway"="riverbank"]${bb}; relation["waterway"="riverbank"]${bb};
-  way["landuse"~"^(reservoir|basin)$"]${bb}; relation["landuse"~"^(reservoir|basin)$"]${bb};
-  way["natural"="bay"]${bb};
-  way["waterway"~"^(river|canal|stream)$"]${bb};
-  way["natural"="coastline"]${bb};
-  way["landuse"="forest"]${bb}; relation["landuse"="forest"]${bb};
-  way["natural"~"^(wood|scrub)$"]${bb}; relation["natural"~"^(wood|scrub)$"]${bb};
-  way["leisure"="park"]${bb}; relation["leisure"="park"]${bb};
-  way["wetland"="mangrove"]${bb}; relation["wetland"="mangrove"]${bb};
-);
-out geom;`;
-}
-
-function flagsFor(province, result) {
+function flagsFor(province, result, neighborsByLand) {
   const flags = [];
   const { stats } = result;
+  if (!result.town) flags.push('center_missing');
   if (stats.land + stats.woods < MIN_LAND_FRACTION) flags.push('too_much_water');
-  const hasWaterTag = province.tags.some((t) => t.startsWith('river_') || t.startsWith('coast_'));
-  if (hasWaterTag && stats.water === 0) flags.push('no_water');
-  if (province.tags.some((t) => t.startsWith('coast_')) && !result.seaTouchesEdge) flags.push('coast_not_on_edge');
-  return flags;
+  const linked = new Set(result.exits.filter((exit) => exit.kind === 'road').map((exit) => exit.neighbor));
+  const unlinked = neighborsByLand.filter((id) => !linked.has(id));
+  if (unlinked.length) flags.push('neighbor_unlinked');
+  if (result.problems.some((problem) => problem.includes('could not be laid'))) flags.push('route_failed');
+  return { flags, unlinked };
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const shapes = loadProvinceShapes();
+  const foreign = loadForeignShapes();
   const centers = resolveCenters();
+  const towns = new Map(Object.entries(centers).filter(([, center]) => center));
   const provinces = loadProvinces().filter((p) => !options.only || options.only.has(p.id));
+  const airports = await loadAirports();
   const report = [];
 
   for (const province of provinces) {
-    const center = centers[province.id];
-    if (!center) {
-      report.push({ province, flags: ['center_missing'] });
-      continue;
+    const started = Date.now();
+    const shape = shapes.get(province.id);
+    const { grid, fetchBox } = provinceGrid(shape);
+    const layers = {};
+    for (const layer of LAYER_NAMES) layers[layer] = loadLayer(layer, fetchBox, { partial: options.partial });
+
+    const result = buildProvinceMap({
+      id: province.id, shape, shapes, foreign, grid, layers, town: centers[province.id], towns,
+      neighbors: province.neighbors,
+    });
+    const { flags, unlinked } = flagsFor(province, result, province.neighbors);
+    const heights = tileHeights(grid);
+    let heightMin = Infinity;
+    let heightMax = -Infinity;
+    for (let i = 0; i < heights.length; i++) {
+      if (!result.inside[i]) continue;
+      heightMin = Math.min(heightMin, heights[i]);
+      heightMax = Math.max(heightMax, heights[i]);
     }
+    const round = (v) => Math.round(v * 1e6) / 1e6;
 
-    const grid = makeGrid({ center, width: options.width, height: options.height, tileSizeM: options.tileSizeM });
-    const cacheName = `maps/${province.id}_${options.width}x${options.height}_${options.tileSizeM}m_` +
-      `${center.lat.toFixed(5)}_${center.lon.toFixed(5)}`;
-    const data = await overpass(overpassQuery(grid.bbox(FETCH_MARGIN_M)), cacheName);
-    const result = buildPreset(grid, data.elements);
-    const flags = flagsFor(province, result);
-    const bbox = grid.bbox().map((v) => Math.round(v * 1e6) / 1e6);
-
-    writeJson(path.join(MAPS_DIR, `${province.id}.json`), {
-      format: 1,
+    writeJson(path.join(options.partial ? PREVIEW_DIR : MAPS_DIR, `${province.id}.json`), {
+      format: 2,
       provinceId: province.id,
-      width: options.width,
-      height: options.height,
-      tileSizeM: options.tileSizeM,
-      center: { lat: center.lat, lon: center.lon },
-      bbox,
+      width: grid.width,
+      height: grid.height,
+      tileSizeM: grid.tileSizeM,
+      center: { lat: round(grid.center.lat), lon: round(grid.center.lon) },
+      bbox: grid.bbox().map(round),
       cells: encodeRle(result.cells),
-      stats: result.stats,
+      transport: encodeRle(result.transport),
+      inside: encodeRle(result.inside),
+      town: result.town,
+      exits: result.exits,
+      waterways: result.waterways,
+      airports: airports
+        .filter((airport) => provinceAt(airport.lon, airport.lat, shapes) === province.id)
+        .map((airport) => ({ th: airport.name, en: airport.nameEn, iata: airport.iata })),
+      // Ground height of each tile (Copernicus DEM GLO-90); the lowest and highest in the province, in metres
+      heights: packHeights(heights),
+      stats: { ...result.stats, heightMin: Math.round(heightMin), heightMax: Math.round(heightMax) },
       flags,
-      sources: ['OpenStreetMap contributors (ODbL 1.0)'],
+      unlinked,
+      sources: ['OpenStreetMap contributors (ODbL 1.0)', 'Natural Earth (public domain)',
+        'produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 ' +
+        'provided under COPERNICUS by the European Union and ESA; all rights reserved'],
       generatedAt: new Date().toISOString(),
     });
-    report.push({ province, flags, stats: result.stats });
-    process.stdout.write(`${province.id} ${flags.length ? `[${flags.join(', ')}]` : 'ok'}  `);
+    if (options.preview) writePreview(province.id, grid, result, heights);
+    report.push({ province, flags, unlinked, problems: result.problems, stats: result.stats, exits: result.exits });
+    console.log(`${province.id} ${province.nameTh.padEnd(14)} ${grid.width}×${grid.height}  ` +
+      `roads ${result.stats.roadTiles} rail ${result.stats.railTiles}  ` +
+      `links ${result.exits.filter((e) => e.kind === 'road').map((e) => e.neighbor.slice(3)).join(' ') || '-'}` +
+      `${flags.length ? `  [${flags.join(', ')}]` : ''}  ${((Date.now() - started) / 1000).toFixed(1)} s`);
   }
 
   printReport(report);
 }
 
+// ── Preview pictures ───────────────────────────────────────────────────────────────────────────────────────────
+
+const COLORS = {
+  land: [200, 162, 107],
+  water: [63, 127, 184],
+  woods: [63, 138, 70],
+  road: [196, 84, 40], // laterite
+  rail: [30, 30, 30],
+  crossing: [255, 230, 0],
+  town: [255, 255, 255],
+  exit: [255, 0, 255],
+};
+const PIXELS_PER_TILE = 3;
+
+function writePreview(id, grid, result, heights) {
+  const { width, height } = grid;
+  const scale = PIXELS_PER_TILE;
+  const rgb = new Uint8Array(width * scale * height * scale * 3);
+  const paint = (x, y, color) => {
+    for (let dy = 0; dy < scale; dy++) {
+      for (let dx = 0; dx < scale; dx++) {
+        const p = ((y * scale + dy) * width * scale + x * scale + dx) * 3;
+        rgb[p] = color[0];
+        rgb[p + 1] = color[1];
+        rgb[p + 2] = color[2];
+      }
+    }
+  };
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      const cell = result.cells[i];
+      let color = cell === WATER ? COLORS.water : cell === WOODS ? COLORS.woods : COLORS.land;
+      const transport = result.transport[i];
+      if (transport === ROAD) color = COLORS.road;
+      else if (transport === RAIL) color = COLORS.rail;
+      else if (transport === CROSSING) color = COLORS.crossing;
+      // Outside the province: dimmed
+      // Hills lit from the north-west, so the mountains show
+      color = color.map((c) => Math.min(255, Math.round(c * hillshade(heights, x, y, width, height, grid.tileSizeM))));
+      if (!result.inside[i]) color = color.map((c) => Math.round(c * 0.45));
+      paint(x, y, color);
+    }
+  }
+  for (const exit of result.exits) paint(exit.x, exit.y, COLORS.exit);
+  if (result.town) paint(result.town.x, result.town.y, COLORS.town);
+  fs.mkdirSync(PREVIEW_DIR, { recursive: true });
+  fs.writeFileSync(path.join(PREVIEW_DIR, `${id}.png`), encodePng(width * scale, height * scale, rgb));
+}
+
+/** How much light a tile catches from the north-west, about 0.6 (facing away) to 1.3 (facing the light). */
+function hillshade(heights, x, y, width, height, tileSizeM) {
+  const at = (cx, cy) => heights[Math.min(height - 1, Math.max(0, cy)) * width + Math.min(width - 1, Math.max(0, cx))];
+  const slopeX = (at(x + 1, y) - at(x - 1, y)) / (2 * tileSizeM);
+  const slopeY = (at(x, y + 1) - at(x, y - 1)) / (2 * tileSizeM);
+  // Exaggerated four times so gentle hills show at a kilometre a tile
+  const shade = 1 + 4 * (slopeX + slopeY) * 0.7;
+  return Math.max(0.6, Math.min(1.3, shade));
+}
+
 function printReport(report) {
-  console.log('\n');
-  const flagged = report.filter((r) => r.flags.length);
-  console.log(`Maps written: ${report.filter((r) => r.stats).length}. Flagged: ${flagged.length}.`);
-  for (const { province, flags, stats } of flagged) {
-    const detail = stats ? ` land ${stats.land} water ${stats.water} woods ${stats.woods}` : '';
-    console.log(`  ${province.id} ${province.nameTh}: ${flags.join(', ')}${detail}`);
+  console.log('');
+  const flagged = report.filter((r) => r.flags.length || r.problems.length);
+  console.log(`Maps written: ${report.length}. Flagged: ${flagged.length}.`);
+  for (const { province, flags, unlinked, problems } of flagged) {
+    const details = [...flags.map((flag) => (flag === 'neighbor_unlinked' ? `${flag} (${unlinked.join(', ')})` : flag)),
+      ...problems];
+    console.log(`  ${province.id} ${province.nameTh}: ${details.join('; ')}`);
   }
   const bytes = fs.readdirSync(MAPS_DIR)
     .filter((f) => f.endsWith('.json'))
@@ -118,6 +195,6 @@ function printReport(report) {
 }
 
 main().catch((error) => {
-  console.error(`\n${error.message}`);
+  console.error(`\n${error.stack ?? error.message}`);
   process.exit(1);
 });

@@ -41,6 +41,7 @@
           <div class="stat statZone" data-zone="residential"><span class="statTopic"><span data-i18n="status.residential">Homes</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="commercial"><span class="statTopic"><span data-i18n="status.commercial">Shops</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="industrial"><span class="statTopic"><span data-i18n="status.industrial">Factories</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
+          <div class="stat" id="statusTourism" hidden><span class="statTopic" data-i18n="status.tourists">Visitors</span><span class="statValue"></span></div>
         </div>
       </nav>
       <nav class="hudButtons hudRight">
@@ -149,6 +150,8 @@
             <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
             <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
             <button id="airportButton" data-size="6" data-tool="airport" data-colour="violet" class="toolButton unselected">Airport $10000</button>
+            <button id="waterworksButton" data-size="3" data-tool="waterworks" data-colour="deepskyblue" class="toolButton unselected">Water works $1500</button>
+            <button id="watertowerButton" data-size="1" data-tool="watertower" data-colour="lightskyblue" class="toolButton unselected">Water tower $300</button>
             <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
             <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
           </div>
@@ -226,6 +229,7 @@
         <div id="budgetFormContainer" class="padding10 open">
           <form id="budgetForm">
             <div id="taxInfo" class="elided budgetData"><span data-i18n="budget.tax_collected">Tax Collected:</span> <span id="taxesCollected"></span></div>
+            <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
             <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>
             <div id="currentInfo" class="elided budgetRight budgetData"><span data-i18n="budget.current_funds">Current funds:</span> <span id="currentFunds"></span></div>

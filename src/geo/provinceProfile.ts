@@ -33,10 +33,14 @@ export function startingFunds(stats: MapStats): number {
   return Math.round((BASE_FUNDS * (1 + fundsBonus(stats))) / FUNDS_STEP) * FUNDS_STEP;
 }
 
-/** 1 (easy) to 3 (hard), from the share of open land that can be built on straight away. */
+/**
+ * 1 (easy) to 3 (hard), from the share of open land that can be built on straight away. A whole province has far
+ * more forest than the old 2 × 2 km town maps (half the provinces are under 81% open land), so the steps are lower
+ * than they were.
+ */
 export function difficultyStars(stats: MapStats): 1 | 2 | 3 {
-  if (stats.land >= 0.9) return 1;
-  if (stats.land >= 0.75) return 2;
+  if (stats.land >= 0.85) return 1;
+  if (stats.land >= 0.6) return 2;
   return 3;
 }
 

@@ -9,13 +9,17 @@
 // Looking at the city (the query tool, opening windows) is not a change, so it is not a command.
 // Building can be undone (src/undoHistory.ts): tool commands of one stroke form one step, and "undo" takes the last
 // step back, tiles and money.
+// On a province map only the province's own tiles can be built on (docs/geo/GEO_SPEC.md section 10): a tool whose
+// footprint touches a tile outside it is refused, the bulldozer included. The roads and railways the map starts
+// with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
+// player may build over them and widen them like any road.
 
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
-  "police", "fire", "coal", "nuclear", "stadium", "port", "airport",
+  "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -30,6 +34,8 @@ export const MAX_SPEED = 3;
 export const MAX_TAX = 20;
 /** What the debug window's "add funds" gives. */
 export const DEBUG_FUNDS = 20000;
+/** Why a tool was refused on a tile outside the province. */
+export const OUTSIDE_PROVINCE = "outside the province";
 
 export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
@@ -54,6 +60,8 @@ export interface CommandOutcome {
 
 interface CommandTool {
   result: number | null;
+  /** Buildings: the side of their square, centred one tile in from its top-left corner; other tools cover one tile */
+  size?: number;
   doTool(x: number, y: number, blockMaps: unknown): void;
   modifyIfEnoughFunding(budget: unknown): boolean;
   /** The tiles the tool is about to change (src/baseTool.js), for undo. */
@@ -97,6 +105,25 @@ export interface CommandTarget {
   readonly map?: CommandMap;
   /** The simulation's cityTime (4 a month), so only recent building can be undone. */
   cityTime?(): number;
+  /** Whether a tile may be built on: false outside the province on a province map. Without it, every tile may. */
+  canBuildAt?(x: number, y: number): boolean;
+}
+
+/** Why a tool may not be used at (x, y): outside the province, or null when it may. */
+export function placeProblem(city: Pick<CommandTarget, "canBuildAt">, x: number, y: number,
+                             size: number): string | null {
+  const canBuildAt = city.canBuildAt;
+  return canBuildAt && footprint(x, y, size).some((t) => !canBuildAt(t.x, t.y)) ? OUTSIDE_PROVINCE : null;
+}
+
+/** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
+export function footprint(x: number, y: number, size: number): Array<{ x: number; y: number }> {
+  const offset = size > 2 ? 1 : 0;
+  const tiles = [];
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) tiles.push({ x: x - offset + dx, y: y - offset + dy });
+  }
+  return tiles;
 }
 
 const isInteger = (value: unknown, min: number, max: number): boolean =>
@@ -156,6 +183,8 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
+        const refused = placeProblem(city, command.x, command.y, tool.size ?? 1);
+        if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
         tool.doTool(command.x, command.y, city.blockMaps);

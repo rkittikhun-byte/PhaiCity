@@ -3,19 +3,22 @@
  */
 
 // The city map (src/mapWindow.js): the whole city at one pixel per tile, coloured by what stands there, or one of the
-// simulation's overlays laid over a dimmed city: power, traffic, pollution, crime, land value, population, and police
-// and fire cover. Pure functions over a read-only view of the map and the block maps, so they run in Node tests.
+// simulation's overlays laid over a dimmed city: power, the water supply and the groundwater (src/waterManager.ts),
+// traffic, pollution, crime, land value, population, and police and fire cover. Pure functions over a read-only view
+// of the map and the block maps, so they run in Node tests.
 
 import { CONDBIT, POWERBIT, ZONEBIT } from "./tileFlags";
 import {
   COALBASE, COALSMOKE1, COMBASE, FIRE, FIRESTBASE, FLOOD, FOOTBALLGAME1, FOUNTAIN, HBRDG0, INDBASE, LASTFIRE, LASTFLOOD,
   LASTPOWER, LASTRAIL, LASTRIVEDGE, LASTROAD, LASTRUBBLE, LASTTREE, LASTZONE, NUCLEARBASE, NUKESWIRL1, PORTBASE,
   POWERBASE, RADAR0, RADTILE, RAILBASE, RESBASE, RIVER, ROADBASE, RUBBLE, TELEBASE, TINYEXP, TINYEXPLAST, TREEBASE,
-  VBRDG0, WOODS, WOODS2, WOODS5,
+  VBRDG0, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
 } from "./tileValues";
+import type { WaterView } from "./waterManager";
+import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 
-export const MAP_LAYERS = ["city", "power", "traffic", "pollution", "crime", "landValue", "population", "police",
-  "fire"] as const;
+export const MAP_LAYERS = ["city", "power", "water", "groundwater", "traffic", "pollution", "crime", "landValue",
+  "population", "police", "fire"] as const;
 export type MapLayer = typeof MAP_LAYERS[number];
 
 export function isMapLayer(value: unknown): value is MapLayer {
@@ -23,7 +26,7 @@ export function isMapLayer(value: unknown): value is MapLayer {
 }
 
 export type TileKind = "dirt" | "water" | "woods" | "park" | "rubble" | "fire" | "flood" | "radiation" | "road" |
-  "rail" | "powerLine" | "residential" | "commercial" | "industrial" | "service" | "powerPlant";
+  "rail" | "powerLine" | "residential" | "commercial" | "industrial" | "service" | "powerPlant" | "waterSupply";
 
 export type Rgb = readonly [number, number, number];
 
@@ -45,6 +48,7 @@ export const KIND_COLOURS: Record<TileKind, Rgb> = {
   industrial: [242, 194, 0],
   service: [196, 92, 255],
   powerPlant: [255, 143, 0],
+  waterSupply: [0, 176, 230],
 };
 
 /** What a tile is, for the map. Animated tiles count as the building they belong to. */
@@ -77,6 +81,7 @@ export function tileKind(value: number): TileKind {
   if (value >= FOOTBALLGAME1 && value < VBRDG0) return "service"; // a game at the stadium
   if (value >= VBRDG0 && value < NUKESWIRL1) return "road";
   if (value >= NUKESWIRL1 && value < NUKESWIRL1 + 4) return "powerPlant";
+  if ((value >= WATER_WORKS_BASE && value <= WATER_WORKS_LAST) || value === WATER_TOWER) return "waterSupply";
   if (value >= NUKESWIRL1 + 4 && value < 1020) return "residential"; // the extended residential buildings
   return "dirt";
 }
@@ -88,7 +93,7 @@ export function stringId(name: string): string {
 
 /** The legend of the whole-city layer, in drawing order. */
 export const CITY_KEYS: readonly TileKind[] = ["residential", "commercial", "industrial", "service", "powerPlant",
-  "road", "rail", "powerLine", "water", "woods", "park", "fire"];
+  "waterSupply", "road", "rail", "powerLine", "water", "woods", "park", "fire"];
 
 export interface BlockMapLike {
   worldGet(x: number, y: number): number;
@@ -99,15 +104,26 @@ export interface CityMapSource {
   readonly height: number;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
+  /** On a whole-province map, 1 for the province's own tiles; the land around it is drawn darker (GEO_SPEC 10) */
+  readonly insideProvince?: Uint8Array | null;
 }
 
-export type Overlays = Record<"trafficDensityMap" | "pollutionDensityMap" | "crimeRateMap" | "landValueMap" |
-  "populationDensityMap" | "policeStationEffectMap" | "fireStationEffectMap", BlockMapLike>;
+/** How bright the land outside the province is drawn, as in the province picker (src/geo/presetMap.ts) */
+export const OUTSIDE_SHADE = 0.45;
 
-export type HeatLayer = Exclude<MapLayer, "city" | "power">;
+/** The simulation's block maps the overlays are drawn from */
+export type HeatMap = "trafficDensityMap" | "pollutionDensityMap" | "crimeRateMap" | "landValueMap" |
+  "populationDensityMap" | "policeStationEffectMap" | "fireStationEffectMap";
+
+export type Overlays = Record<HeatMap, BlockMapLike> & {
+  /** The water supply and the groundwater, read only (src/waterManager.ts); a city from before it has none */
+  water?: WaterView;
+};
+
+export type HeatLayer = Exclude<MapLayer, "city" | "power" | "water" | "groundwater">;
 
 // Each overlay's block map, the top of its range (src/simulation.js) and its colour at the top
-export const HEAT: Record<HeatLayer, { map: keyof Overlays; max: number; colour: Rgb }> = {
+export const HEAT: Record<HeatLayer, { map: HeatMap; max: number; colour: Rgb }> = {
   traffic: { map: "trafficDensityMap", max: 240, colour: [255, 64, 32] },
   pollution: { map: "pollutionDensityMap", max: 255, colour: [196, 120, 32] },
   crime: { map: "crimeRateMap", max: 250, colour: [230, 32, 90] },
@@ -119,6 +135,13 @@ export const HEAT: Record<HeatLayer, { map: keyof Overlays; max: number; colour:
 
 export const POWERED: Rgb = [255, 213, 0];
 export const UNPOWERED: Rgb = [229, 57, 53];
+
+// The water layer: zones with water, zones without, and the roads that carry it
+export const WATERED: Rgb = [64, 170, 255];
+export const DRY: Rgb = [236, 120, 40];
+export const PIPE: Rgb = [150, 220, 255];
+/** The groundwater layer's colour where the ground is full */
+export const GROUND_BLUE: Rgb = [40, 140, 255];
 
 /** The city in grey and darkened, for an overlay to stand out on. */
 export function dimmed([r, g, b]: Rgb): Rgb {
@@ -142,9 +165,25 @@ function mix(base: Rgb, top: Rgb, amount: number): Rgb {
 }
 
 /** The colours at the bottom and the top of an overlay's scale, over empty land, for the legend. */
-export function heatRamp(layer: HeatLayer): [Rgb, Rgb] {
+export function heatRamp(layer: HeatLayer | "groundwater"): [Rgb, Rgb] {
   const base = dimmed(KIND_COLOURS.dirt);
-  return [base, mix(base, HEAT[layer].colour, 0.9)];
+  return [base, mix(base, layer === "groundwater" ? GROUND_BLUE : HEAT[layer].colour, 0.9)];
+}
+
+/** A tile on the water layer: the works and towers, zones with and without water, and the roads with water. */
+function waterColour(value: number, city: Rgb, water: WaterView | undefined, x: number, y: number): Rgb {
+  if (tileKind(value) === "waterSupply") return WATERED;
+  if (!water) return dimmed(city);
+  const zone = water.zoneWater(x, y);
+  if (zone === ZONE_WATERED) return WATERED;
+  if (zone === ZONE_DRY || zone === ZONE_THIRSTY) return DRY;
+  return water.hasWater(x, y) ? PIPE : dimmed(city);
+}
+
+/** A tile on the groundwater layer: deeper blue where the ground holds more, linear so dry land looks dry. */
+function groundwaterColour(city: Rgb, water: WaterView | undefined, x: number, y: number): Rgb {
+  const amount = water?.groundwater(x, y) ?? null;
+  return amount === null ? dimmed(city) : mix(dimmed(city), GROUND_BLUE, 0.9 * groundShare(amount));
 }
 
 /** The colour of one tile on a layer. */
@@ -157,6 +196,8 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
     if (flags & CONDBIT) return flags & POWERBIT ? POWERED : UNPOWERED;
     return dimmed(city);
   }
+  if (layer === "water") return waterColour(value, city, overlays.water, x, y);
+  if (layer === "groundwater") return groundwaterColour(city, overlays.water, x, y);
   const heat = HEAT[layer];
   return mix(dimmed(city), heat.colour, 0.9 * heatLevel(overlays[heat.map].worldGet(x, y), heat.max));
 }
@@ -164,13 +205,15 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
 /** The whole map as RGBA pixels, one per tile, row by row (ready for an ImageData). */
 export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overlays): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(map.width * map.height * 4);
+  const inside = map.insideProvince ?? null;
   let i = 0;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y);
-      pixels[i++] = r;
-      pixels[i++] = g;
-      pixels[i++] = b;
+      const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : 1;
+      pixels[i++] = r * shade;
+      pixels[i++] = g * shade;
+      pixels[i++] = b * shade;
       pixels[i++] = 255;
     }
   }
@@ -190,6 +233,23 @@ export function tileAtPoint(clientX: number, clientY: number,
   const x = Math.floor((clientX - box.left) / box.width * width);
   const y = Math.floor((clientY - box.top) / box.height * height);
   return x >= 0 && y >= 0 && x < width && y < height ? { x, y } : null;
+}
+
+/** How many zones have water and how many do not, as last scanned, for the water layer's legend. */
+export function waterCounts(map: CityMapSource, water: WaterView | undefined): { watered: number; dry: number } {
+  let watered = 0;
+  let dry = 0;
+  if (!water) return { watered, dry };
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      // A zone is counted once, at its centre tile
+      if (!(map.getTileFlags(x, y) & ZONEBIT)) continue;
+      const zone = water.zoneWater(x, y);
+      if (zone === ZONE_WATERED) watered++;
+      else if (zone === ZONE_DRY || zone === ZONE_THIRSTY) dry++;
+    }
+  }
+  return { watered, dry };
 }
 
 /** How many zones and buildings have power and how many do not (power plants aside), for the power layer's legend. */

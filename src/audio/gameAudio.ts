@@ -76,6 +76,8 @@ const TOOL_SOUNDS: Record<string, string> = {
   stadium: "tool.building",
   coal: "tool.building",
   nuclear: "tool.building",
+  waterworks: "tool.building",
+  watertower: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values

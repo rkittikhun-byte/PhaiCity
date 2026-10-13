@@ -315,7 +315,14 @@ export const CHURCH7BASE    = 1010;
 export const CHURCH7        = 1014;
 export const CHURCH7LAST    = 1018;
 
-// tiles 1020-1023 unused
+// PhaiCity: the water supply (src/waterManager.ts). The water works takes the first 3x3 of the extended zones
+// (CHURCH1, which the game never placed), the water tower the first free tile.
+export const WATER_WORKS_BASE = CHURCH1BASE;
+export const WATER_WORKS      = CHURCH1; // Centre of the water works (tiles 956--964)
+export const WATER_WORKS_LAST = CHURCH1BASE + 8;
+export const WATER_TOWER      = 1020;
+
+// tiles 1021-1023 unused
 
 export const TILE_COUNT     = 1024;
 

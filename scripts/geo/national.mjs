@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import mapshaper from 'mapshaper';
 import {
-  CACHE_DIR, NATIONAL_FULL_GEOJSON, NATIONAL_TOPO_FILE, ROOT,
+  CACHE_DIR, FOREIGN_GEOJSON, NATIONAL_FULL_GEOJSON, NATIONAL_TOPO_FILE, ROOT,
   download, loadProvinces, readJson, toRepoPath,
 } from './lib/common.mjs';
 
@@ -33,6 +33,16 @@ async function main() {
   ].join(' '));
 
   verifyProvinceIds(readJson(NATIONAL_FULL_GEOJSON).features.map((f) => f.properties.id));
+
+  // The neighbouring countries' land, for the cache only: province maps use it to stop roads and railways at the
+  // border (GEO_SPEC section 11). It is never drawn.
+  await mapshaper.runCommands([
+    `-i ${toRepoPath(zip)}`,
+    "-filter \"['MM', 'LA', 'KH', 'MY'].includes(iso_a2)\" target=ne_10m_admin_1_states_provinces",
+    '-dissolve iso_a2',
+    '-rename-layers countries',
+    `-o ${toRepoPath(FOREIGN_GEOJSON)} format=geojson`,
+  ].join(' '));
 
   await mapshaper.runCommands([
     `-i ${toRepoPath(NATIONAL_FULL_GEOJSON)}`,

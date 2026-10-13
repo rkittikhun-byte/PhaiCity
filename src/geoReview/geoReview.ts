@@ -25,12 +25,16 @@ interface CenterInfo {
 
 const CARD_PIXELS_PER_TILE = 2;
 const DETAIL_PIXELS_PER_TILE = 5;
+/** The detail view of a whole-province map stays about this wide or tall */
+const DETAIL_MAX_PIXELS = 900;
 
 const FLAG_TEXT: Record<PresetFlag, string> = {
   too_much_water: "น้ำเยอะเกินไป (ที่ดินน้อยกว่า 40%)",
   no_water: "ไม่มีน้ำเลย ทั้งที่จังหวัดมีแม่น้ำหรือทะเล จุดกลางอาจไม่ตรง",
   coast_not_on_edge: "จังหวัดติดทะเล แต่ทะเลไม่อยู่ในแผนที่นี้",
   center_missing: "หาจุดกลางเมืองไม่ได้",
+  neighbor_unlinked: "ไม่มีถนนหลักข้ามไปจังหวัดข้างเคียงบางจังหวัด",
+  route_failed: "วางถนนหรือรางบางเส้นตามกติกาไม่ได้",
 };
 
 const SOURCE_TEXT: Record<string, string> = {
@@ -55,12 +59,15 @@ function drawMap(canvas: HTMLCanvasElement, map: PresetMap, pixelsPerTile: numbe
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  // The map center sits in the middle of the grid by construction.
-  const radius = Math.max(3, pixelsPerTile * 1.5);
+  // The town: on a whole-province map (format 2) where it is, on an old map in the middle by construction
+  const scale = canvas.width / map.width;
+  const x = map.town ? (map.town.x + 0.5) * scale : canvas.width / 2;
+  const y = map.town ? (map.town.y + 0.5) * scale : canvas.height / 2;
+  const radius = Math.max(3, scale * 1.5);
   context.strokeStyle = "#ffffff";
-  context.lineWidth = Math.max(1.5, pixelsPerTile / 2);
+  context.lineWidth = Math.max(1.5, scale / 2);
   context.beginPath();
-  context.arc(canvas.width / 2, canvas.height / 2, radius, 0, Math.PI * 2);
+  context.arc(x, y, radius, 0, Math.PI * 2);
   context.stroke();
 }
 
@@ -70,8 +77,13 @@ function percent(value: number): string {
 
 function describeMap(map: PresetMap, center: CenterInfo | undefined): string {
   const source = center ? SOURCE_TEXT[center.source] ?? center.source : "ไม่ทราบ";
+  const transport = map.format >= 2
+    ? ` · ถนนลูกรัง ${map.stats.roadTiles ?? 0} ช่อง · ราง ${map.stats.railTiles ?? 0} ช่อง` +
+      ` · ถนนไป ${(map.exits ?? []).filter((e) => e.kind === "road").map((e) => e.neighbor).join(" ") || "-"}` +
+      (map.unlinked?.length ? ` · ไม่มีถนนไป ${map.unlinked.join(" ")}` : "")
+    : "";
   return `ที่ดิน ${percent(map.stats.land)} · น้ำ ${percent(map.stats.water)} · ป่า ${percent(map.stats.woods)}` +
-    ` · จุดกลาง: ${source}`;
+    `${transport} · จุดกลาง: ${source}`;
 }
 
 function openDetail(province: Province, map: PresetMap, center: CenterInfo | undefined): void {
@@ -79,7 +91,8 @@ function openDetail(province: Province, map: PresetMap, center: CenterInfo | und
   const { lat, lon } = map.center;
   (document.getElementById("detailTitle") as HTMLElement).textContent =
     `${province.nameTh} (${province.nameEn}) · ${province.id}`;
-  drawMap(document.getElementById("detailCanvas") as HTMLCanvasElement, map, DETAIL_PIXELS_PER_TILE);
+  drawMap(document.getElementById("detailCanvas") as HTMLCanvasElement, map,
+    Math.min(DETAIL_PIXELS_PER_TILE, DETAIL_MAX_PIXELS / Math.max(map.width, map.height)));
   (document.getElementById("detailMeta") as HTMLElement).textContent =
     `${describeMap(map, center)} · ศูนย์กลาง ${lat.toFixed(6)}, ${lon.toFixed(6)} · ` +
     `${map.width}×${map.height} ช่อง ช่องละ ${map.tileSizeM} ม.` +

@@ -3,6 +3,7 @@ import CopyPlugin from 'copy-webpack-plugin';
 import { GitRevisionPlugin } from 'git-revision-webpack-plugin';
 import HtmlWebpackPlugin  from 'html-webpack-plugin';
 import path from 'path';
+import { addAdminRoutes } from './scripts/admin/adminServer.mjs';
 
 // Workaround now this is a module...
 import { fileURLToPath } from 'url';
@@ -98,10 +99,28 @@ function injectBuildIdIntoNameLicense(gitHash) {
   });
 }
 
+// The owner's admin page (rules and resources of every region and province, docs/PROVINCE_PROFILE.md): built only
+// for the dev server, whose endpoint saves into data/; never part of a release
+function injectAdminBundle() {
+  return new HtmlWebpackPlugin({
+    template: './admin.html',
+    filename: 'admin.html',
+    chunks: ['admin'],
+    inject: true,
+    hash: true,
+  });
+}
+
 function addDevelopmentConfigTo(options) {
   options.devServer = {
-    static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY) }
+    static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY) },
+    setupMiddlewares: (middlewares, devServer) => {
+      addAdminRoutes(devServer.app, __dirname);
+      return middlewares;
+    },
   };
+  options.entry.admin = './src/admin/adminPage.ts';
+  options.plugins.push(injectAdminBundle());
 
   options.devtool = 'source-map';
   options.mode = 'development';

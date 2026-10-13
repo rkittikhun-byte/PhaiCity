@@ -85,11 +85,17 @@ var commercialFound = function(map, x, y, simData) {
 
   var zonePower = map.getTile(x, y).isPowered();
 
+  // PhaiCity: whether a road with water touches the zone and the supply reaches it (src/waterManager.ts). Without
+  // water a zone grows no bigger than the first size of shop
+  var zoneWater = simData.waterManager ? simData.waterManager.supplyZone(x, y, simData.census, population >= 1) : true;
+
   // Occasionally check to see if the zone is connected to the transport network (the chance of this happening
   // increases as the population increases). Growth naturally stalls if consumers cannot reach the shops.
   // Note in particular, we will never take this branch if the zone is empty.
   var trafficOK = Traffic.ROUTE_FOUND;
-  if (population > Random.getRandom(5)) {
+  // PhaiCity: visitors' trips make busy shops send out traffic more often (src/tourism.ts)
+  var trips = population > 0 ? population + (simData.touristTrips || 0) : 0;
+  if (trips > Random.getRandom(5)) {
     // Try to find a route from here to an industrial zone
     trafficOK = simData.trafficManager.makeTraffic(x, y, simData.blockMaps, TileUtils.isIndustrial);
 
@@ -107,8 +113,8 @@ var commercialFound = function(map, x, y, simData) {
                         simData.blockMaps.cityCentreDistScoreMap.worldGet(x, y);
     var zoneScore = simData.valves.comValve + locationScore;
 
-    // Unpowered zones should of course be penalized
-    if (!zonePower)
+    // Unpowered zones should of course be penalized, and so (PhaiCity) should bigger shops without water
+    if (!zonePower || (!zoneWater && population > 1))
       zoneScore = -500;
 
     // The commercial demand valve has range -1500 to 1500, so taking into account the "no traffic" and
@@ -123,7 +129,8 @@ var commercialFound = function(map, x, y, simData) {
     // Thus, there's approximately a 3% chance that the value will be in the range, and we *might* grow.
     // This has the nice effect of not preventing an individual unit from growing even if overall demand has collapsed
     // (the business itself might still be growing.
-    if (zonePower && zoneScore > -350 && (zoneScore - 26380) > Random.getRandom16Signed()) {
+    if (zonePower && (zoneWater || population === 0) && zoneScore > -350 &&
+        (zoneScore - 26380) > Random.getRandom16Signed()) {
       lpValue = ZoneUtils.getLandPollutionValue(simData.blockMaps, x, y);
       growZone(map, x, y, simData.blockMaps, population, lpValue, zonePower);
       return;

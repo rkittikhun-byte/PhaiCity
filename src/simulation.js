@@ -33,14 +33,22 @@ import { Residential } from './residential.js';
 import { Road } from './road.js';
 import { SpriteManager } from './spriteManager.js';
 import { Stadia } from './stadia.js';
+import { livingCostFactor, NO_TOURISM, shopRubbish, tourismMonth, touristTrips } from './tourism.ts';
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
+import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 
-// rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own
-var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, rules) {
+// rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
+// resources (PhaiCity): the province's resource levels, 0–5 by id (src/geo/provinceResources.ts); none for a
+// practice map
+var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, rules, resources) {
   this._map = gameMap;
   this.rules = rules || DEFAULT_RULES;
+  this.resources = resources || {};
+  // This month's visitors (src/tourism.ts) and the months since the news last heard of them staying away
+  this._tourism = NO_TOURISM;
+  this._monthsSinceTouristWarning = 12;
   this.setLevel(gameLevel);
   this.setSpeed(speed);
 
@@ -57,6 +65,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
 
   // Last time we relayed a message from PowerManager to the front-end
   this._lastPowerMessage = null;
+  // ... and from the water supply (PhaiCity, src/waterManager.ts)
+  this._lastWaterMessage = null;
 
   // And now, the main cast of characters
   this.evaluation = new Evaluation(this._gameLevel);
@@ -64,6 +74,7 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this.budget = new Budget();
   this._census = new Census();
   this._powerManager = new PowerManager(this._map);
+  this._waterManager = new WaterManager(this._map);
   this.spriteManager = new SpriteManager(this._map);
   this._mapScanner = new MapScanner(this._map);
   this._repairManager = new RepairManager(this._map);
@@ -71,6 +82,7 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this.disasterManager = new DisasterManager(this._map, this.spriteManager, this._gameLevel);
   this._valves.demand = this.rules.demand;
   this._powerManager.outputFactor = this.rules.powerPlantOutput;
+  this._waterManager.drought = this.rules.drought || NO_DROUGHT;
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -112,7 +124,10 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     // Temporary maps
     tempMap1: new BlockMap(this._map.width, this._map.height, 2),
     tempMap2: new BlockMap(this._map.width, this._map.height, 2),
-    tempMap3: new BlockMap(this._map.width, this._map.height, 4)
+    tempMap3: new BlockMap(this._map.width, this._map.height, 4),
+
+    // PhaiCity: the water supply as last scanned and the groundwater, read only (the city map's water layers)
+    water: this._waterManager.view
   };
 
   this._clearCensus();
@@ -123,6 +138,11 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     this.budget.setFunds(20000);
     this._census.totalPop = 1;
   }
+
+  // The ground's water comes from the land as it is now (and its heights on a province map); a save brings what
+  // the city has pumped from it. Renderers read the water supply through the map, never write it.
+  this._waterManager.prepareGround(this._map.heights || null);
+  this._map.water = this._waterManager.view;
 
   this.init();
 });
@@ -165,6 +185,7 @@ Simulation.prototype.save = function(saveData) {
   this._valves.save(saveData);
   this.budget.save(saveData);
   this._census.save(saveData);
+  this._waterManager.save(saveData);
   // The random generator carries on where it was, so a loaded city goes on as the saved one would have
   saveData.randomState = Random.getState();
 };
@@ -179,6 +200,7 @@ Simulation.prototype.load = function(saveData) {
   this._valves.load(saveData);
   this.budget.load(saveData);
   this._census.load(saveData);
+  this._waterManager.load(saveData);
   Random.setState(saveData.randomState);
 };
 
@@ -230,6 +252,7 @@ Simulation.prototype._simFrame = function() {
 Simulation.prototype._clearCensus = function() {
   this._census.clearCensus();
   this._powerManager.clearPowerStack();
+  this._waterManager.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
 };
@@ -245,7 +268,9 @@ Simulation.prototype._constructSimData = function() {
     gameLevel: this._gameLevel,
     repairManager: this._repairManager,
     powerManager: this._powerManager,
+    waterManager: this._waterManager,
     simulator: this,
+    touristTrips: touristTrips(this._tourism),
     spriteManager: this.spriteManager,
     trafficManager: this._traffic,
     valves: this._valves
@@ -272,6 +297,16 @@ Simulation.prototype.init = function() {
     }
   }.bind(this));
 
+  this._waterManager.addEventListener(Messages.NOT_ENOUGH_WATER, function() {
+    var d = new Date();
+
+    if (this._lastWaterMessage === null || d - this._lastWaterMessage > 1000 * 60 * 2) {
+      this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NOT_ENOUGH_WATER});
+      this._lastWaterMessage = d;
+    }
+  }.bind(this));
+  this._waterManager.addEventListener(Messages.GROUNDWATER_LOW, this._wrapMessage.bind(this, Messages.GROUNDWATER_LOW));
+
   this.budget.addEventListener(Messages.FUNDS_CHANGED, MiscUtils.reflectEvent.bind(this, Messages.FUNDS_CHANGED));
   this.budget.addEventListener(Messages.BUDGET_NEEDED, MiscUtils.reflectEvent.bind(this, Messages.BUDGET_NEEDED));
   this.budget.addEventListener(Messages.NO_MONEY, this._wrapMessage.bind(this, Messages.NO_MONEY));
@@ -293,18 +328,29 @@ Simulation.prototype.init = function() {
   Industrial.registerHandlers(this._mapScanner, this._repairManager);
   MiscTiles.registerHandlers(this._mapScanner, this._repairManager);
   this._powerManager.registerHandlers(this._mapScanner, this._repairManager);
+  this._waterManager.registerHandlers(this._mapScanner, this._repairManager);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
   Transport.registerHandlers(this._mapScanner, this._repairManager);
 
+  // The zones' first scan needs the water already running, as it needs power already in the tiles
+  var month = this.getDate().month;
+  this._waterManager.findSources();
+  this._waterManager.doWaterScan(month, false);
+  this._waterManager.clearCycle();
+
   var simData = this._constructSimData();
   this._mapScanner.mapScan(0, this._map.width, simData);
   this._powerManager.doPowerScan(this._census);
-  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
+  this._waterManager.doWaterScan(month, false);
+  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+                                              shopRubbish(this._tourism));
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
+  // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
+  this._setTourism(tourismMonth(this._tourismLevel(), this._census, month));
 };
 
 
@@ -348,6 +394,10 @@ var simulate = function(simData) {
       break;
 
     case 9:
+      // PhaiCity: a month's visitors, before the year's taxes take in what they spent
+      if ((this._cityTime & 3) === 0)
+        this._tourismMonth();
+
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
         this._census.take10Census(this.budget);
 
@@ -372,11 +422,14 @@ var simulate = function(simData) {
     case 11:
       if ((this._simCycle % speedPowerScan[speedIndex]) === 0)
         this._powerManager.doPowerScan(this._census);
+      // PhaiCity: the water every cycle (it only follows the roads), and the ground on a month's first cycle
+      this._waterManager.doWaterScan(this.getDate().month, (this._cityTime & 3) === 0);
       break;
 
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
-        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
+        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+                                                    shopRubbish(this._tourism));
       break;
 
     case 13:
@@ -409,6 +462,44 @@ Simulation.prototype._simulate = function(simData) {
   this.evaluation.cityEvaluation(simData);
   this._simulate = simulate;
   this._simulate(simData);
+};
+
+
+// PhaiCity: the province's tourism level, 0–5
+Simulation.prototype._tourismLevel = function() {
+  var level = this.resources.tourism;
+  return typeof level === 'number' ? level : 0;
+};
+
+
+Simulation.prototype._setTourism = function(month) {
+  this._tourism = month;
+  this._valves.touristShops = month.shopsWanted;
+  this._valves.livingCost = livingCostFactor(month);
+  this._emitEvent(Messages.TOURISM_UPDATED, month);
+};
+
+
+// A month of visitors (src/tourism.ts): what they spend goes to the year's taxes; the news hears when the high season
+// begins and, at most once a year, when pollution or crime keeps them away
+Simulation.prototype._tourismMonth = function() {
+  var month = this.getDate().month;
+  var visit = tourismMonth(this._tourismLevel(), this._census, month);
+  this._setTourism(visit);
+  if (visit.level === 0)
+    return;
+
+  this.budget.tourismFund += visit.income;
+  this._monthsSinceTouristWarning++;
+  if (month === 10 && visit.level >= 2 && visit.visitors > 0)
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.TOURIST_SEASON});
+
+  var worst = Math.max(visit.pollutionPenalty, visit.crimePenalty);
+  if (worst >= 0.25 && this._monthsSinceTouristWarning >= 12) {
+    this._monthsSinceTouristWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: visit.pollutionPenalty >= visit.crimePenalty ?
+                    Messages.TOURISTS_AVOID_POLLUTION : Messages.TOURISTS_AVOID_CRIME});
+  }
 };
 
 
@@ -453,6 +544,11 @@ Simulation.prototype._sendMessages = function() {
     case 22:
       if (totalZonePop > 10 && powerPop === 0)
         this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NEED_ELECTRICITY});
+      break;
+
+    case 24:
+      if (totalZonePop > 10 && this._census.waterWorksPop === 0)
+        this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NEED_WATER});
       break;
 
     case 26:

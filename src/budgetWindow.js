@@ -143,7 +143,11 @@ BudgetWindow.prototype.open = function(budgetData) {
 
   var cashFlow = taxesCollected - this.roadMaintenanceBudget - this.fireMaintenanceBudget - this.policeMaintenanceBudget;
   var currentFunds = previousFunds + cashFlow;
-  $('#taxesCollected').text(formatMoney(taxesCollected));
+  // PhaiCity: what visitors spent is paid in with the taxes (src/tourism.ts); shown apart, and only where there is some
+  var tourismIncome = budgetData.tourismIncome || 0;
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome));
+  $('#tourismIncome').text(formatMoney(tourismIncome));
+  $('#tourismInfo').prop('hidden', tourismIncome <= 0);
   $('#cashFlow').text(formatMoney(cashFlow));
   $('#previousFunds').text(formatMoney(previousFunds));
   $('#currentFunds').text(formatMoney(currentFunds));

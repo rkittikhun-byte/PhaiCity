@@ -19,9 +19,14 @@ import * as TileValues from "./tileValues.ts";
 
 var railFound = function(map, x, y, simData) {
   simData.census.railTotal += 1;
+  // PhaiCity: a state railway (GameMap.isNationalTransport) is counted apart, so the city does not pay for it, and
+  // it never wears out
+  var national = map.isNationalTransport(x, y);
+  if (national)
+    simData.census.nationalRailTotal += 1;
   simData.spriteManager.generateTrain(simData.census, x, y);
 
-  if (simData.budget.shouldDegradeRoad()) {
+  if (!national && simData.budget.shouldDegradeRoad()) {
     if (Random.getChance(511)) {
       var currentTile = map.getTile(x, y);
 

@@ -8,7 +8,8 @@
 // are copied from the city card, which src/infoBar.js keeps up to date; the rest comes from the simulation.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index";
-import { POPULATION_UPDATED, VALVES_UPDATED } from "./messages";
+import { POPULATION_UPDATED, TOURISM_UPDATED, VALVES_UPDATED } from "./messages";
+import type { TourismMonth } from "./tourism";
 
 /** How the money reads in the status: ฿16,295. Anything that is not a number is shown as it is. */
 export function statusMoney(text: string): string {
@@ -94,6 +95,31 @@ export function showDemandAndPeople(simulation: StatusSource, doc: Document = do
   });
   simulation.addEventListener(POPULATION_UPDATED, () => {
     people = zonePeople(simulation._census);
+    render();
+  });
+  onLanguageChange(render);
+  render();
+}
+
+/**
+ * The visitors block (src/tourism.ts): how many came this month, shown only in a province with tourism; pointing at
+ * it tells what they spent and whether it is the high season.
+ */
+export function showTourism(simulation: { addEventListener(event: string, listener: (value: unknown) => void): void },
+    doc: Document = document): void {
+  let month: TourismMonth | null = null;
+  const render = (): void => {
+    const block = doc.getElementById("statusTourism");
+    if (!block) return;
+    block.hidden = !month || month.level === 0;
+    if (!month || month.level === 0) return;
+    const value = block.querySelector(".statValue");
+    if (value) value.textContent = t("status.tourists_value", { count: month.visitors.toLocaleString("en-US") });
+    block.title = t(month.season > 1 ? "status.tourists_high" : month.season < 1 ? "status.tourists_low" : "status.tourists_title",
+      { income: formatMoney(month.income), wanted: month.wanted.toLocaleString("en-US") });
+  };
+  simulation.addEventListener(TOURISM_UPDATED, (value) => {
+    month = value as TourismMonth;
     render();
   });
   onLanguageChange(render);

@@ -10,7 +10,7 @@ import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import * as Messages from "../src/messages";
 import {
-  BASE_PRICES, chancePerCycle, checkRulesData, DEFAULT_RULES, formatPrice, resolveRules, ruleEffects, Rules,
+  BASE_PRICES, chancePerCycle, checkRulesData, DEFAULT_RULES, formatPrice, monthsText, resolveRules, ruleEffects, Rules,
   seasonalRisks, TOOL_COSTS, toolPrices, ZONES,
 } from "../src/provinceRules";
 import { Random } from "../src/random";
@@ -238,5 +238,46 @@ describe("province rules in a city", () => {
     };
     expect(fires(true)).toBeGreaterThan(0);
     expect(fires(false)).toBe(0);
+  });
+
+  test("set a dry season per region and province, checked, and say what it does", () => {
+    const { data, problems } = checkRulesData({ version: 1,
+      regions: { northeast: { drought: { months: [12, 1, 2, 3, 4], share: 0.4 } } },
+      provinces: {
+        "TH-40": { drought: { months: [1, 2, 3], share: 0.5 } },
+        "TH-41": { drought: { months: [13], share: 0.2 } },
+        "TH-42": { drought: { months: [1], share: 0.95 } },
+        "TH-43": { drought: [1, 2] },
+      } });
+    expect(problems).toEqual([
+      "provinces.TH-41.drought.months: must list months 1–12",
+      "provinces.TH-42.drought.share: must be 0–0.9",
+      "provinces.TH-43.drought: not an object",
+    ]);
+    expect(resolveRules(data, "northeast", "TH-44").drought).toEqual({ months: [1, 2, 3, 4, 12], share: 0.4 });
+    expect(resolveRules(data, "northeast", "TH-40").drought).toEqual({ months: [1, 2, 3], share: 0.5 });
+    expect(resolveRules(data, "north", null).drought).toEqual(DEFAULT_RULES.drought);
+    expect(ruleEffects(resolveRules(data, "northeast", "TH-44"), month)).toContainEqual(
+      { key: "rules.drought", params: { months: "dec–apr", change: "-40%" }, good: false });
+    expect(ruleEffects(DEFAULT_RULES, month).some((e) => e.key === "rules.drought")).toBe(false);
+    expect(hasKey("rules.drought")).toBe(true);
+  });
+
+  test("name months as a run even round the new year, and list the rest", () => {
+    expect(monthsText([12, 1, 2, 3, 4], month)).toBe("dec–apr");
+    expect(monthsText([9, 10, 11], month)).toBe("sep–nov");
+    expect(monthsText([3, 5], month)).toBe("mar, may");
+    expect(monthsText([1, 2, 6], month)).toBe("jan, feb, jun");
+    expect(monthsText([11, 12], month)).toBe("nov, dec");
+    expect(monthsText([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], month)).toBe("jan–dec");
+  });
+
+  test("give every region a dry season, and the water works their prices", () => {
+    for (const region of provinces.regions) {
+      expect(resolveRules(checkRulesData(rulesFile).data, region.id, null).drought.months.length).toBeGreaterThan(0);
+    }
+    expect([BASE_PRICES.waterworks, BASE_PRICES.watertower]).toEqual([1500, 300]);
+    const tools: any = new (GameTools as any)(blank(), rulesWith({ cost: { ...DEFAULT_RULES.cost, waterworks: 2 } }));
+    expect(tools.waterworks.costFactor).toBe(2);
   });
 });

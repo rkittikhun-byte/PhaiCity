@@ -113,7 +113,8 @@ var neutraliseTrafficMap = function(blockMaps) {
 
 // Given a tileValue, score it on the pollution it generates, in the range 0-255
 // industryPollution (PhaiCity, src/provinceRules.ts): how much more or less the factories smoke in this province
-var getPollutionValue = function(tileValue, industryPollution) {
+// shopRubbish (PhaiCity, src/tourism.ts): pollution from visitors' rubbish on each shop tile
+var getPollutionValue = function(tileValue, industryPollution, shopRubbish) {
   if (tileValue < TileValues.POWERBASE) {
     // Roads, fires and radiation lie below POWERBASE
 
@@ -141,7 +142,10 @@ var getPollutionValue = function(tileValue, industryPollution) {
 
   // If we've reached this point, we're classifying some form of zone tile
 
-  // Residential and commercial zones don't pollute
+  // Residential and commercial zones don't pollute, but for visitors' rubbish in the shops
+  if (tileValue >= TileValues.COMBASE && tileValue < TileValues.INDBASE)
+    return shopRubbish || 0;
+
   if (tileValue <= TileValues.LASTIND)
     return 0;
 
@@ -185,7 +189,7 @@ var getCityCentreDistance = function(map, x, y) {
 //   * Proximity to undeveloped terrain (who doesn't love a good view?)
 //
 // Pollution is completely determined by the tile types in the block
-var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution) {
+var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish) {
   if (industryPollution === undefined)
     industryPollution = 1;
 
@@ -234,7 +238,7 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
             continue;
           }
 
-          pollutionLevel += getPollutionValue(tileValue, industryPollution);
+          pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish);
           if (tileValue >= TileValues.ROADBASE)
             developed = true;
         }

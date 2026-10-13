@@ -51,6 +51,11 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run lint` | **Broken**: tslint is not installed |
 | `npm run geo:national` | Thai province shapes from Natural Earth → `data/geo/thailand-provinces.topo.json` |
 | `npm run geo:centers` | Map center per province from OpenStreetMap → `data/geo/province-centers.json` (run `geo:national` first) |
+| `npm run geo:download` | OpenStreetMap main roads, railways, coast, rivers, lakes and forest for all of Thailand, in 1° squares → `data/geo/cache/overpass/national/` (gitignored; about 300 MB; cached, so a rerun downloads nothing) |
+| `npm run geo:dem` | Copernicus DEM GLO-90 elevation for the squares the province maps reach into → `data/geo/cache/dem/` (gitignored, 360 MB; `geo:maps` turns it into each map's `heights`) |
+| `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
+| `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
+| `npm run geo:indicators` | Measure every province from the local Thailand database (OpenStreetMap in PostGIS, `docs/geo/THAILAND_DB.md`; psql on the PATH, password in pgpass) and its map → `data/geo/province-indicators.json`; `-- --maps-only` refreshes only what comes from `data/maps` |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
 | `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
@@ -157,6 +162,17 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   congratulations window opens once per new rank (`game.processFrontEndMessage`).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
+  **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side
+  (`docs/geo/GEO_SPEC.md`). The map brings the real railways and one laterite road (ถนนลูกรัง) to each neighbouring
+  province, from the border to the town; every other road is the player's. Tiles outside the province
+  (`gameMap.insideProvince` 0) show the land around it but every tool is refused there (`CityCommands`,
+  `canBuildAt`; the tool outline turns red), and the mask is saved with the city as `inside`. The starting roads and
+  railways are the state's (`gameMap.nationalTransport`, saved as `national`): no upkeep and no wear (a small,
+  owner-approved change in `road.js`, `transport.js`, `census.js`, `budget.js`), but the player may build over them.
+  Each tile's ground height (`gameMap.heights`, metres; `gameMap.tileSizeM`) comes from the province map, for
+  the 3D view's hills; saves do not keep it, so a saved city reads it again (`savedCityHeights` in `src/splashScreen.js`). The camera opens on
+  the town (`gameMap.town`, saved as `town`) and ⌂ returns to it. The province card lists its transport
+  (การคมนาคม: roads, railways, waterways, sea; `src/geo/provinceTransport.ts`). Old 2 × 2 km maps (format 1) still load.
   The game opens on a title page (`src/titleGate.ts`: the name, a flag per language, "sound on" and "Enter the game";
   that click is what lets the music start at once, as browsers need one; LINE and Google sign-in will join it), then a
   dark, full-screen, cinematic map of Thailand (`src/provincePicker.ts`, geometry in
@@ -178,14 +194,36 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 - **Province rules (กติกาภาคและจังหวัด):** `src/provinceRules.ts` reads `data/province-rules.json` (owner-edited; the
   server's database later): the game's defaults, then the region's, then the province's. They set zone demand
   (`valves.js`), tool prices and the price of clearing woods (`gameTools.js`, `baseTool.js`), factory smoke
-  (`blockMapUtils.js`), power plant output (`powerManager.js`) and seasonal disasters (`disasterManager.js`, only while
+  (`blockMapUtils.js`), power plant output (`powerManager.js`), the dry season (`drought`: when the water works give
+  less and no rain fills the ground, `src/waterManager.ts`) and seasonal disasters (`disasterManager.js`, only while
   random disasters are on). `splashScreen.js` resolves them when a city starts; the province card lists them and the
   tool buttons show the province's prices (`src/toolShortcuts.ts`). Never hard-code a regional number in code.
+- **Water supply (ระบบประปา, owner 13 Oct 2026):** `docs/WATER_PLAN.md`. Pipes lie under every road: water runs from
+  each powered water works (`waterworks`, 3×3, tiles 956–964) along the roads it touches (`src/waterManager.ts`,
+  beside `powerManager.js`), and each home, shop or factory zone a road with water touches takes one share until the
+  supply runs out. Without water homes stop at houses and shops and factories at their first size, and bigger ones
+  decline. A works gives as much as the groundwater under it (`src/groundwater.ts`: from the land, fullest near
+  water), which its pumping draws down and the rains fill again, never in the dry season; water towers (`watertower`,
+  tile 1020) give back some of what the dry season takes. The ground is saved as `groundwater`; renderers read
+  `gameMap.water` (RENDERER_SPEC 6C).
+- **Province profile (โปรไฟล์จังหวัด, owner 13 Oct 2026):** `docs/PROVINCE_PROFILE.md`. Each province has 17 resources
+  (tourism, water, forest, farmland, fishing, solar, hydro, wind, lignite, oil and gas, limestone, potash, tin, zinc,
+  gold, gems, rare earths) at levels 0–5, each with what it brings and what it costs (`src/geo/provinceResources.ts`):
+  the owner's own level (`data/province-profiles.json` `levels`), else the game's inference (`inferred`; rare
+  earths are made up and say so), else ranked from `data/geo/province-indicators.json`. The province card shows them.
+  **Tourism counts in the game** (`docs/TOURISM.md`, `src/tourism.ts`): each month visitors come by the province's
+  level, the season, the city's appeal and its shops; they pay into the year's taxes and want shops, and cost
+  traffic, rubbish and dearer living. The province's levels reach the simulation as its `resources`
+  (`loadResources` in `src/splashScreen.js`); the others have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
+  and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
+  pages only), checked with the game's own checks, into the two data files.
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
-  of the simulation's overlays (power, traffic, pollution, crime, land value, population, police and fire cover);
+  of the simulation's overlays (power, the water supply, groundwater, traffic, pollution, crime, land value,
+  population, police and fire cover);
   menu button or key M. It only reads the map and the block maps; a click on it asks the game to `centreOn` there.
 - **First tasks (ภารกิจแรกของเจ้าเมือง):** `src/rulerGoals.ts` shows a checklist card on the right in new cities
-  (homes, power, wires, roads, jobs, town) that ticks itself off from the census, points at the next tool, and is
+  (homes, power, wires, roads, jobs, water, town) that ticks itself off from the census, points at the next tool, and is
   saved with the city as `goals`. It only reads the city.
 - **Motion:** windows, screens, panels and buttons slide and fade in (CSS, "Motion" in `css/style.css`).
   Show and hide them through `src/motion.ts` (`show`/`hide`) so the exit animates too; never jQuery `toggle()`.
@@ -236,8 +274,9 @@ Even before any server exists, all new code must keep this future possible:
 
 ## Real geography
 
-- The national province picker uses real province shapes. Each province starts from the real natural
-  geography (water, coast, woods) of a 2 × 2 km area (200×200 tiles) around its city center. No real roads or buildings.
+- The national province picker uses real province shapes. Each province is played on the whole province, scaled
+  down: its real shape, water, coast and woods, its real railways and one laterite road to each neighbour
+  (owner, 12 Oct 2026). No other real roads, and no buildings.
 - Read `docs/geo/GEO_SPEC.md` before touching `scripts/geo/`, `data/geo/` or `data/maps/`.
   The prompts are in `docs/geo/CODEX_PROMPTS.md`.
 - Only the data sources listed in GEO_SPEC section 3 are allowed:

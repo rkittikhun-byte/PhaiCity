@@ -106,6 +106,10 @@ var industrialFound = function(map, x, y, simData) {
   var zonePower = map.getTile(x, y).isPowered();
   setAnimation(map, x, y, tileValue, zonePower);
 
+  // PhaiCity: whether a road with water touches the zone and the supply reaches it (src/waterManager.ts). Without
+  // water a zone grows no bigger than the first size of factory
+  var zoneWater = simData.waterManager ? simData.waterManager.supplyZone(x, y, simData.census, population >= 1) : true;
+
   // Occasionally check to see if the zone is connected to the transport network (the chance of this happening
   // increases as the population increases). Growth naturally stalls if workers cannot reach the factories.
   // Note in particular, we will never take this branch if the zone is empty.
@@ -126,8 +130,8 @@ var industrialFound = function(map, x, y, simData) {
   if (Random.getChance(7)) {
     var zoneScore = simData.valves.indValve + (trafficOK === Traffic.NO_ROAD_FOUND ? -1000 : 0);
 
-    // Unpowered zones should of course be penalized
-    if (!zonePower)
+    // Unpowered zones should of course be penalized, and so (PhaiCity) should bigger factories without water
+    if (!zonePower || (!zoneWater && population > 1))
       zoneScore = -500;
 
     // The industrial demand valve has range -1500 to 1500, so taking into account the "no traffic" and
@@ -141,7 +145,7 @@ var industrialFound = function(map, x, y, simData) {
     // Thus, there's approximately a 2.9% chance that the value will be in the range, and we *might* grow.
     // This has the nice effect of not preventing an individual unit from growing even if overall demand has collapsed
     // (the business itself might still be growing.
-    if (zoneScore > -350 && (zoneScore - 26380) > Random.getRandom16Signed()) {
+    if ((zoneWater || population === 0) && zoneScore > -350 && (zoneScore - 26380) > Random.getRandom16Signed()) {
       growZone(map, x, y, simData.blockMaps, population, Random.getRandom16() & 1, zonePower);
       return;
     }
