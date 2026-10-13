@@ -16,8 +16,10 @@ import { createCoal } from './services/coal.js';
 import { createNuclear } from './services/nuclear.js';
 import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
+import { createRulerHouse, RULER_HOUSE_ID, RULER_HOUSE_LEVELS } from './civic/ruler-house.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
+import { createPlot, PLOT_SPECS } from './plot/index.js';
 import type { RegionId, RegionTier } from '../regional/types.js';
 import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
@@ -94,6 +96,9 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     tiles: Array.from({ length: 9 }, (_, i) => 770 + i), budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2' },
   'svc.fire': { factory: createFire, category: 'services', footprint: [3, 3],
     tiles: Array.from({ length: 9 }, (_, i) => 761 + i), budget: TRIANGLE_BUDGETS.highRise, regionTier: 'R2' },
+  // The city view picks it from gameMap.civicKinds, not by tile; variant = level 1–6, state = its wings.
+  [RULER_HOUSE_ID]: { factory: createRulerHouse, category: 'services', footprint: [3, 3], tiles: [],
+    budget: TRIANGLE_BUDGETS.special, regionTier: 'R1', variants: RULER_HOUSE_LEVELS },
   'svc.stadium': { factory: createStadium, category: 'services', footprint: [4, 4],
     tiles: STADIUM_TILES, budget: TRIANGLE_BUDGETS.special, regionTier: 'R3', states: ['empty', 'game'] },
   'power.coal': { factory: createCoal, category: 'services', footprint: [4, 4],
@@ -113,6 +118,11 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   ...Object.fromEntries(HOUSE_IDS.map((id, i) => [id, {
     factory: (options?: ModelOptions) => createHouse(i, options), category: 'residential', footprint: [1, 1],
     tiles: [249 + i], budget: TRIANGLE_BUDGETS.prop, regionTier: HOUSE_TIERS[i],
+  } as ModelRegistration])),
+  // Plot buildings: one-tile plots (แปลง) and two-by-two lots, placed by the city view's plots layer, not by tile values.
+  ...Object.fromEntries(PLOT_SPECS.map(spec => [spec.id, {
+    factory: (options?: ModelOptions) => createPlot(spec.id, options), category: spec.category, footprint: spec.footprint,
+    tiles: [], budget: spec.budget, regionTier: spec.regionTier, variants: spec.variants,
   } as ModelRegistration])),
   'debug.region_house': { factory: createRegionHouse, category: 'debug', footprint: [1, 1], tiles: [],
     budget: TRIANGLE_BUDGETS.prop, regionTier: 'R1' },

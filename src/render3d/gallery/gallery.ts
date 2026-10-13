@@ -359,7 +359,9 @@ function startGallery(): void {
   }
 
   function updateStateChoices(): void {
-    const states = new Set(views.filter(view => !selected || view === selected).flatMap(view => view.entry.states ?? []));
+    // A model may suggest free-form states too (the ruler's house lists its wings in userData.stateChoices).
+    const states = new Set(views.filter(view => !selected || view === selected).flatMap(view =>
+      [...view.entry.states ?? [], ...(selected ? view.root.userData.stateChoices as string[] ?? [] : [])]));
     element('states').replaceChildren(...Array.from(states, name => {
       const option = document.createElement('option');
       option.value = name;
