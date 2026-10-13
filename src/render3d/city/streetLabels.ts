@@ -16,7 +16,7 @@ export type StreetText = (street: Street) => string;
 
 /** Names show nearer than this camera distance and fade out over the last part of it */
 export const LABEL_DISTANCE = 720;
-const FADE_FROM = 520, TEXT_HEIGHT = 3.4, PX = 64, MAX_LABELS = 160, CHECK_MS = 2000;
+const FADE_FROM = 520, TEXT_HEIGHT = 3.4, PX = 64, MAX_LABELS = 160, CHECK_MS = 2000, SPACE_TILES = 5;
 
 interface Label { mesh: Mesh; text: string; street: Street; x: number; z: number; angle: number; length: number }
 interface Text { texture: CanvasTexture; aspect: number; users: number }
@@ -83,8 +83,14 @@ export class StreetLabels {
     this.relabel();
   }
   private place(visible: TileRect): void {
-    const margin = 4, inside = this.spots.filter(s => s.x >= visible.x0 - margin && s.y >= visible.y0 - margin
-      && s.x <= visible.x1 + 1 + margin && s.y <= visible.y1 + 1 + margin).slice(0, MAX_LABELS);
+    const margin = 4, inside: typeof this.spots = [];
+    // Bigger streets come first (src/streetNames.ts sorts them); a name too near one already written is left off
+    for (const s of this.spots) {
+      if (inside.length >= MAX_LABELS) break;
+      if (s.x < visible.x0 - margin || s.y < visible.y0 - margin || s.x > visible.x1 + 1 + margin || s.y > visible.y1 + 1 + margin) continue;
+      if (inside.some(o => Math.hypot(o.x - s.x, o.y - s.y) < SPACE_TILES)) continue;
+      inside.push(s);
+    }
     const keep = new Set(inside.map(s => s.key));
     for (const [key, label] of this.labels) if (!keep.has(key)) { this.drop(label); this.labels.delete(key); }
     for (const spot of inside) {
