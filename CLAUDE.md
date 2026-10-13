@@ -23,9 +23,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 
 - **Codex only works when the owner asks it for a specific task** (`AGENTS.md`): on a branch of its own, touching only
   the files that task names. Claude Code reviews and merges that branch.
-- **Where Claude Code works:** its own branches in a separate git worktree; it merges into `main` only after the owner
-  approves. Sub-agents may build graphics in parallel, each in a worktree of its own, and are reviewed (tests in
-  `test/render3d/`, the model gallery) before their work is merged.
+- **Where Claude Code works (owner, 13 Oct 2026):** on `main` in the main folder, committing each piece once its tests
+  pass; no worktree and no merge step for the owner. Push to GitHub only when the owner asks. Sub-agents may build in
+  parallel, each in a worktree of its own, and are reviewed (tests in `test/render3d/`, the model gallery) before
+  Claude Code merges them into `main`.
+- **At the start of a session read `docs/HANDOFF.md`:** what is pending, and how to watch the plan's usage limits,
+  pause near them and resume after they reset (its "ตอนนี้" section says where a paused session stopped).
 - **Shared files** (`package.json`, `package-lock.json`, `webpack.config.js`, `tsconfig.json`, `jest.config.cjs`,
   `.gitignore`, `CLAUDE.md`, `AGENTS.md`): never reformat or reorder them; a Codex task may only add to them and lists
   every change in its report.
