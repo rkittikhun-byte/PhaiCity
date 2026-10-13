@@ -61,11 +61,20 @@ describe("the game's core", () => {
     const map = khonKaen();
     const core = new CityCore({ map, seed: 11 });
     map.landBlocks = null; // own all the land, as a practice map does (src/landBlocks.ts)
+    const heard: string[] = [];
+    core.on("built", e => heard.push(`built ${e.object.kind}`));
+    core.on("month", e => heard.push(`month ${e.month}`));
+    let commandsHeard = 0;
+    const stop = core.on("command", () => commandsHeard++);
     core.simulation.budget.setFunds(80000);
     const area = dryArea(map, 26, 8);
     const outcomes = townOrders(area.x, area.y).map(order => core.apply(order));
     expect(outcomes.map((o, i) => o.accepted ? null : [i, o.reason]).filter(Boolean)).toEqual([]);
     expect(core.log.length).toBe(outcomes.length);
+    expect(commandsHeard).toBe(outcomes.length);
+    stop();
+    core.apply({ type: "setting", setting: "autoBudget", on: true });
+    expect(commandsHeard).toBe(outcomes.length);
     // The kinds the game records are recorded here too: the plant is gas, the house is the ruler's
     expect(Object.values(map.powerKinds)).toEqual(["gas"]);
     expect(map.rulerHouse).toMatchObject({ x: area.x + 1, y: area.y + 1, level: 1 });
@@ -78,6 +87,12 @@ describe("the game's core", () => {
     expect(kinds).toContain("civic");
     expect(core.objects.all().find(o => o.kind === "power_plant")!.sort(map)).toBe("gas");
     expect(kinds.filter(k => k === "home")).toHaveLength(5);
+    // The first month's look found what the commands built; every month turned once
+    expect(heard.filter(h => h.startsWith("built")).sort()).toEqual(
+      ["built civic", "built home", "built home", "built home", "built home", "built home", "built power_plant",
+        "built shop", "built shop", "built shop"]);
+    // The first step reports the month the city starts in, then twelve months turn
+    expect(heard.filter(h => h.startsWith("month"))).toHaveLength(13);
     expect(core.simulation.getDate().year).toBe(start + 1);
   });
 

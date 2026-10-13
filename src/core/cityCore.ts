@@ -13,6 +13,7 @@ import { CityCommands, type Command, type CommandOutcome } from "../cityCommands
 import { GameTools } from "../gameTools.js";
 import * as Messages from "../messages.js";
 import { CityObjects } from "../objects/cityObjects.js";
+import type { Building } from "../objects/cityObject.js";
 import { Random } from "../random.js";
 import { Simulation } from "../simulation.js";
 import { type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
@@ -26,6 +27,17 @@ export interface CitySystem {
   /** Once a game month, when the month turns */
   monthly?(core: CityCore): void;
 }
+
+/** What the core tells whoever listens (the screen, the sound, the news), as plain data (docs/CORE_DESIGN.md) */
+export type CoreEvent =
+  /** A month turned (0 January) */
+  | { type: "month"; month: number; year: number }
+  /** The monthly look over the map found a new building, or one gone (burned, flooded, bulldozed) */
+  | { type: "built"; object: Building }
+  | { type: "removed"; object: Building }
+  /** A player's command was accepted */
+  | { type: "command"; step: number; command: Command };
+type Listener<T extends CoreEvent["type"]> = (event: Extract<CoreEvent, { type: T }>) => void;
 
 /** A command the city accepted, and the step it came at: replaying them makes the same city */
 export interface LoggedCommand {
@@ -68,6 +80,7 @@ export class CityCore {
   /** Simulation steps run since the city opened (16 make one of the city's time units, 48 units a year) */
   steps = 0;
   private systems: CitySystem[] = [];
+  private listeners = new Map<string, Array<(event: CoreEvent) => void>>();
 
   constructor(setup: CoreSetup) {
     const saved = setup.saved ?? null;
@@ -87,10 +100,27 @@ export class CityCore {
       on => Tools.setAutoBulldoze(on), setup.hooks));
     // Every building as an object of its own (src/objects/), found on the tiles again each month
     this.objects = CityObjects.restore(this.map, saved ? saved.objects : null);
-    this.addSystem({ name: "objects", monthly: core => { core.objects.scan(core.map, core.simulation._cityTime); } });
-    this.simulation.addEventListener(Messages.DATE_UPDATED, () => {
+    this.addSystem({ name: "objects", monthly: core => {
+      const { added, removed } = core.objects.scan(core.map, core.simulation._cityTime);
+      for (const object of added) core.emit({ type: "built", object });
+      for (const object of removed) core.emit({ type: "removed", object });
+    } });
+    this.simulation.addEventListener(Messages.DATE_UPDATED, (date: { month: number; year: number }) => {
       for (const system of this.systems) system.monthly?.(this);
+      this.emit({ type: "month", month: date.month, year: date.year });
     });
+  }
+
+  /** Listens for one kind of event; returns the way to stop */
+  on<T extends CoreEvent["type"]>(type: T, listener: Listener<T>): () => void {
+    const list = this.listeners.get(type) ?? [];
+    list.push(listener as (event: CoreEvent) => void);
+    this.listeners.set(type, list);
+    return () => { const at = list.indexOf(listener as (event: CoreEvent) => void); if (at >= 0) list.splice(at, 1); };
+  }
+  /** Tells the listeners; systems call it for what they do */
+  emit(event: CoreEvent): void {
+    for (const listener of this.listeners.get(event.type) ?? []) listener(event);
   }
 
   /** Adds a rule that runs after the ones already added */
@@ -100,7 +130,10 @@ export class CityCore {
   /** A player's command, checked and applied (src/cityCommands.ts); accepted ones are logged */
   apply(command: Command): CommandOutcome {
     const outcome = this.commands.apply(command);
-    if (outcome.accepted) this.log.push({ step: this.steps, command });
+    if (outcome.accepted) {
+      this.log.push({ step: this.steps, command });
+      this.emit({ type: "command", step: this.steps, command });
+    }
     return outcome;
   }
 
