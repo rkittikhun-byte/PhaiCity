@@ -1161,4 +1161,12 @@ export const STRINGS: Record<string, Translation> = {
   "goals.safe.hint": { en: "Bring the city's average crime down, with over 10,000 people: police stations all over, and their budget paid in full.", th: "ลดอาชญากรรมเฉลี่ยของเมืองให้ต่ำ ขณะมีคนเกิน 10,000: วางสถานีตำรวจให้ทั่ว และจ่ายงบตำรวจให้เต็ม" },
   "goals.capital": { en: "Grow into a province centre and become Phra", th: "ขยายเป็นจังหวัด และเลื่อนยศเป็นพระ" },
   "goals.capital.hint": { en: "Past 50,000 people the city becomes a province centre.", th: "ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด" },
+  "street.road": { en: "{name} Road", th: "ถนน{name}" },
+  "street.soi": { en: "Soi {name} {number}", th: "ซอย{name} {number}" },
+  "street.soi_highway": { en: "Highway {name} Soi {number}", th: "ทางหลวง {name} ซอย {number}" },
+  "street.lane": { en: "Soi {name} {number} Yaek {sub}", th: "ซอย{name} {number} แยก {sub}" },
+  "street.lane_highway": { en: "Highway {name} Soi {number} Yaek {sub}", th: "ทางหลวง {name} ซอย {number} แยก {sub}" },
+  "street.highway": { en: "Highway {number}", th: "ทางหลวง {number}" },
+  "street.motorway": { en: "Motorway {number}", th: "มอเตอร์เวย์ สาย {number}" },
+  "street.tollway": { en: "Expressway {number}", th: "ทางพิเศษ สาย {number}" },
 };

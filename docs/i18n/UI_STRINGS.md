@@ -1336,6 +1336,14 @@
 | `goals.safe.hint` | `src/rulerGoals.ts` | — | `Bring the city's average crime down, with over 10,000 people: police stations all over, and their budget paid in full.` | `ลดอาชญากรรมเฉลี่ยของเมืองให้ต่ำ ขณะมีคนเกิน 10,000: วางสถานีตำรวจให้ทั่ว และจ่ายงบตำรวจให้เต็ม` | อาชญากรรมเฉลี่ยต่ำกว่า 50 |
 | `goals.capital` | `src/rulerGoals.ts` | — | `Grow into a province centre and become Phra` | `ขยายเป็นจังหวัด และเลื่อนยศเป็นพระ` | ชื่อตรงกับ `city.capital` |
 | `goals.capital.hint` | `src/rulerGoals.ts` | — | `Past 50,000 people the city becomes a province centre.` | `ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด` | |
+| `street.road` | `src/streetNames.ts` | — | `{name} Road` | `ถนน{name}` | ชื่อถนนบนแผนที่ 3D (Claude Code, 13 ต.ค. 2026) |
+| `street.soi` | `src/streetNames.ts` | — | `Soi {name} {number}` | `ซอย{name} {number}` | ซอยเลขคี่ฝั่งหนึ่ง เลขคู่อีกฝั่ง |
+| `street.soi_highway` | `src/streetNames.ts` | — | `Highway {name} Soi {number}` | `ทางหลวง {name} ซอย {number}` | ซอยที่แยกจากทางหลวง |
+| `street.lane` | `src/streetNames.ts` | — | `Soi {name} {number} Yaek {sub}` | `ซอย{name} {number} แยก {sub}` | ซอยที่แยกจากซอย |
+| `street.lane_highway` | `src/streetNames.ts` | — | `Highway {name} Soi {number} Yaek {sub}` | `ทางหลวง {name} ซอย {number} แยก {sub}` | |
+| `street.highway` | `src/streetNames.ts` | — | `Highway {number}` | `ทางหลวง {number}` | ถนนของรัฐไปจังหวัดข้างเคียง |
+| `street.motorway` | `src/streetNames.ts` | — | `Motorway {number}` | `มอเตอร์เวย์ สาย {number}` | |
+| `street.tollway` | `src/streetNames.ts` | — | `Expressway {number}` | `ทางพิเศษ สาย {number}` | |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 
