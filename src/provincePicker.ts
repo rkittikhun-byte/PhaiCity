@@ -24,6 +24,10 @@ import { renderLanguageButton } from "./languageFlag";
 import { setLoadingProgress } from "./loadingProgress";
 import { hide, show } from "./motion";
 import { checkRulesData, resolveRules, ruleEffects, type RulesData } from "./provinceRules";
+import {
+  checkProfilesData, type Indicators, type Levels, MADE_UP, MAX_LEVEL, measuredLevels, provinceLevels, type ProfilesData,
+  type ResourceId,
+} from "./geo/provinceResources";
 import { keepHigherRank, rankForPopulation } from "./rulerRank";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
 
@@ -48,6 +52,8 @@ interface PickerData {
   map: NationalMap;
   /** How each region and province plays (src/provinceRules.ts); null when the file could not be read. */
   rules: RulesData | null;
+  /** Each province's resources (src/geo/provinceResources.ts); null when the files could not be read. */
+  resources: { indicators: Record<string, Indicators>; measured: Record<string, Levels>; profiles: ProfilesData } | null;
 }
 
 interface Scene {
@@ -217,11 +223,18 @@ function loadData(): Promise<PickerData> {
     track(fetchJson<unknown>("data/geo/thailand-provinces.topo.json"), 0.25),
     // The cards can do without the rules, so a missing file only leaves them out
     fetchJson<unknown>("data/province-rules.json").then((raw) => checkRulesData(raw).data, () => null),
-  ]).then(([json, topology, rules]) => ({
+    // ... and without the resources
+    Promise.all([
+      fetchJson<{ provinces: Record<string, Indicators> }>("data/geo/province-indicators.json"),
+      fetchJson<unknown>("data/province-profiles.json"),
+    ]).then(([indicators, profiles]) => ({ indicators: indicators.provinces, measured: measuredLevels(indicators.provinces),
+      profiles: checkProfilesData(profiles).data }), () => null),
+  ]).then(([json, topology, rules, resources]) => ({
     regions: json.regions,
     provinces: new Map(json.provinces.map((p) => [p.id, p])),
     map: projectNationalMap(topology),
     rules,
+    resources,
   }));
   dataPromise.catch(() => {
     dataPromise = null; // Let the next open try again
@@ -1344,6 +1357,8 @@ function showTerrainHero(province: Province, map: PresetMap): void {
   }
   body.appendChild(list);
   for (const note of resourceNotes(province.tags ?? [], map.stats)) body.appendChild(element("p", "ppNote", t(note)));
+  const levels = resourceLevelList(province);
+  if (levels) body.appendChild(levels);
   const transport = transportList(province, map);
   if (transport) body.append(element("h4", undefined, t("picker.transport")), transport);
   // What its region's and its own rules change, in numbers (src/provinceRules.ts)
@@ -1364,6 +1379,41 @@ function showTerrainHero(province: Province, map: PresetMap): void {
     sub: `${t("picker.terrain_title")} · ${region ? localName(region) : ""}`,
     body,
   });
+}
+
+/** "rare_earth" for "rareEarth": resources are named in the strings table in snake_case */
+const resourceKey = (id: ResourceId): string => id.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+// The province's resources at their levels, richest first, each saying on hover what it brings and what it costs;
+// then its parks and reserves and its border crossings. Null when the resources could not be read.
+function resourceLevelList(province: Province): HTMLElement | null {
+  const resources = data?.resources;
+  if (!resources) return null;
+  const levels = provinceLevels(resources.measured[province.id], resources.profiles.provinces[province.id])
+    .filter((resource) => resource.level > 0)
+    .sort((a, b) => b.level - a.level);
+  const list = element("ul", "ppWealth");
+  for (const resource of levels) {
+    const key = resourceKey(resource.id);
+    const item = element("li");
+    item.title = t("resource.gain_cost", { gain: t(`resource.gain.${key}`), cost: t(`resource.cost.${key}`) });
+    item.appendChild(element("span", "ppWealthName", t(`resource.level.${key}`)));
+    const dots = element("span", "ppWealthDots", "●".repeat(resource.level) + "○".repeat(MAX_LEVEL - resource.level));
+    dots.setAttribute("aria-label", `${resource.level}/${MAX_LEVEL}`);
+    item.appendChild(dots);
+    const made = MADE_UP.includes(resource.id);
+    if (made || resource.source === "inferred") {
+      item.appendChild(element("span", "ppWealthSource", t(made ? "resource.made_up" : "resource.inferred")));
+    }
+    list.appendChild(item);
+  }
+  const facts = resources.indicators[province.id] ?? {};
+  const protectedPct = Math.round((facts.protectedShare ?? 0) * 100);
+  if (protectedPct >= 1) list.appendChild(element("li", "ppWealthFact", t("resource.protected", { pct: protectedPct })));
+  if ((facts.borderCrossings ?? 0) > 0) {
+    list.appendChild(element("li", "ppWealthFact", t("resource.border", { count: facts.borderCrossings ?? 0 })));
+  }
+  return list.childElementCount > 0 ? list : null;
 }
 
 // What links the province to the rest of the country (src/geo/provinceTransport.ts): its laterite roads and railways

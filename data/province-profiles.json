@@ -1,0 +1,53 @@
+{
+  "_note": "Each province's resources (src/geo/provinceResources.ts, docs/PROVINCE_PROFILE.md), at levels 0-5. 'levels' are the owner's own, set on the admin page (admin.html under npm run dev) and win over everything. 'inferred' are the game's guesses where open map data says nothing: wind, lignite, oil and gas, potash and rock salt, tin, zinc and lead, gold, gems, from widely known public information, not from surveys; rare earths are made up for the game. Everything else comes from data/geo/province-indicators.json. '_why' says where a guess comes from.",
+  "version": 1,
+  "provinces": {
+    "TH-19": { "inferred": { "limestone": 5 }, "_why": "limestone and the cement industry around Kaeng Khoi" },
+    "TH-20": { "inferred": { "petroleum": 3 }, "_why": "refineries at Sriracha" },
+    "TH-21": { "inferred": { "petroleum": 5 }, "_why": "gas from the Gulf comes ashore; petrochemical estates" },
+    "TH-22": { "inferred": { "gems": 5 }, "_why": "the gem trade" },
+    "TH-23": { "inferred": { "gems": 4 }, "_why": "ruby and sapphire diggings" },
+    "TH-25": { "inferred": { "gold": 2 } },
+    "TH-30": {
+      "inferred": { "wind": 4, "potash": 4 },
+      "_why": "wind farms on the plateau edge; potash and rock salt of the Khorat basin"
+    },
+    "TH-36": { "inferred": { "wind": 4, "potash": 4 }, "_why": "wind farms in the hills; potash" },
+    "TH-40": { "inferred": { "petroleum": 2, "potash": 3 }, "_why": "a gas field; rock salt" },
+    "TH-41": { "inferred": { "petroleum": 2, "potash": 5 }, "_why": "a gas field; the largest potash deposit" },
+    "TH-42": { "inferred": { "gold": 3 } },
+    "TH-43": { "inferred": { "potash": 2 } },
+    "TH-44": { "inferred": { "potash": 3 }, "_why": "rock salt" },
+    "TH-45": { "inferred": { "potash": 2 } },
+    "TH-46": { "inferred": { "potash": 2 } },
+    "TH-47": { "inferred": { "potash": 3 } },
+    "TH-51": { "inferred": { "lignite": 2 } },
+    "TH-52": { "inferred": { "lignite": 5 }, "_why": "the big lignite mine and power plant" },
+    "TH-54": { "inferred": { "lignite": 1 } },
+    "TH-62": { "inferred": { "petroleum": 4 }, "_why": "the onshore oilfield" },
+    "TH-63": {
+      "inferred": { "zinc": 5, "rareEarth": 1 },
+      "_why": "zinc mining, and the cadmium it left in the fields"
+    },
+    "TH-64": { "inferred": { "petroleum": 2 } },
+    "TH-65": { "inferred": { "petroleum": 2 } },
+    "TH-66": { "inferred": { "gold": 4 } },
+    "TH-67": { "inferred": { "petroleum": 1, "gold": 3 } },
+    "TH-71": {
+      "inferred": { "tin": 2, "zinc": 3, "gems": 3, "rareEarth": 2 },
+      "_why": "lead and tin in the western hills; sapphire"
+    },
+    "TH-72": { "inferred": { "petroleum": 2 } },
+    "TH-73": { "inferred": { "petroleum": 1 } },
+    "TH-77": { "inferred": { "wind": 2 } },
+    "TH-80": { "inferred": { "wind": 3, "petroleum": 2, "tin": 2, "rareEarth": 2 } },
+    "TH-81": { "inferred": { "lignite": 2, "tin": 1 } },
+    "TH-82": { "inferred": { "tin": 4, "rareEarth": 3 }, "_why": "the tin belt" },
+    "TH-83": { "inferred": { "tin": 3, "rareEarth": 2 }, "_why": "the tin belt" },
+    "TH-85": { "inferred": { "tin": 4, "rareEarth": 3 }, "_why": "the tin belt" },
+    "TH-90": { "inferred": { "wind": 2, "petroleum": 4 }, "_why": "gas from the Gulf comes ashore" },
+    "TH-92": { "inferred": { "tin": 1 } },
+    "TH-95": { "inferred": { "tin": 3, "rareEarth": 2 }, "_why": "the tin belt" },
+    "TH-96": { "inferred": { "gold": 2, "rareEarth": 2 } }
+  }
+}

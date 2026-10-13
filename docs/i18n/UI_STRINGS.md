@@ -795,6 +795,62 @@
 | `resource.flat` | `src/provincePicker.ts` | `-` | `Open land {pct}%` | `ที่ราบ {pct}%` | จากแผนที่ตั้งต้น |
 | `resource.forest` | `src/provincePicker.ts` | `-` | `Forest {pct}%` | `ป่าไม้ {pct}%` | จากแผนที่ตั้งต้น |
 | `resource.water` | `src/provincePicker.ts` | `-` | `Water {pct}%` | `แหล่งน้ำ {pct}%` | จากแผนที่ตั้งต้น |
+| `resource.level.tourism` | `src/provincePicker.ts` | `-` | `Tourism` | `การท่องเที่ยว` | ระดับทรัพยากร 0–5 บนการ์ดจังหวัด (Claude Code 13 ต.ค. 2026) |
+| `resource.gain.tourism` | `src/provincePicker.ts` | `-` | `Shops grow and visitors spend` | `ร้านค้าโต และนักท่องเที่ยวมาใช้จ่าย` | สิ่งที่ได้ |
+| `resource.cost.tourism` | `src/provincePicker.ts` | `-` | `Traffic, rubbish and dearer land; visitors leave a dirty or unsafe town, and come in seasons` | `รถติด ขยะเยอะ ที่ดินแพง นักท่องเที่ยวหนีเมืองสกปรกหรือไม่ปลอดภัย และมาเป็นฤดู` | สิ่งที่เสีย |
+| `resource.level.water` | `src/provincePicker.ts` | `-` | `Water` | `แหล่งน้ำ` |  |
+| `resource.gain.water` | `src/provincePicker.ts` | `-` | `Plenty for the water works and the farms` | `มีน้ำให้โรงผลิตน้ำประปาและการเกษตร` |  |
+| `resource.cost.water` | `src/provincePicker.ts` | `-` | `Floods in the rains; pumped hard, the ground runs low or sinks` | `หน้าฝนน้ำท่วม สูบหนักน้ำใต้ดินหมดหรือดินทรุด` |  |
+| `resource.level.forest` | `src/provincePicker.ts` | `-` | `Forest` | `ป่าไม้` |  |
+| `resource.gain.forest` | `src/provincePicker.ts` | `-` | `Clean air, visitors, and water kept in the ground` | `อากาศดี มีนักท่องเที่ยว และเก็บน้ำไว้ใต้ดิน` |  |
+| `resource.cost.forest` | `src/provincePicker.ts` | `-` | `Cleared, it brings floods and landslides` | `ถางป่าแล้วเสี่ยงน้ำท่วมและดินถล่ม` |  |
+| `resource.level.farmland` | `src/provincePicker.ts` | `-` | `Farmland` | `ที่ดินเกษตร` |  |
+| `resource.gain.farmland` | `src/provincePicker.ts` | `-` | `Farm industry and food` | `อุตสาหกรรมเกษตรและอาหาร` |  |
+| `resource.cost.farmland` | `src/provincePicker.ts` | `-` | `Burnt fields bring haze in the dry season; it uses much water, and farm chemicals reach the rivers` | `เผาไร่หน้าแล้งเกิดหมอกควัน ใช้น้ำมาก และสารเคมีลงแหล่งน้ำ` |  |
+| `resource.level.fishery` | `src/provincePicker.ts` | `-` | `Fishing` | `ประมง` |  |
+| `resource.gain.fishery` | `src/provincePicker.ts` | `-` | `Food and income for the coast` | `อาหารและรายได้ของเมืองชายฝั่ง` |  |
+| `resource.cost.fishery` | `src/provincePicker.ts` | `-` | `Overfished, the catch runs out; the city's sewage kills fish` | `จับมากเกินปลาหมด น้ำเสียจากเมืองทำให้ปลาลด` |  |
+| `resource.level.solar` | `src/provincePicker.ts` | `-` | `Solar power` | `พลังงานแสงอาทิตย์` |  |
+| `resource.gain.solar` | `src/provincePicker.ts` | `-` | `Clean power that never runs out` | `ไฟฟ้าสะอาด ไม่มีวันหมด` |  |
+| `resource.cost.solar` | `src/provincePicker.ts` | `-` | `Takes much land, and gives nothing at night` | `ใช้ที่ดินมาก และกลางคืนไม่มีไฟ` |  |
+| `resource.level.hydro` | `src/provincePicker.ts` | `-` | `Hydropower` | `พลังน้ำ (เขื่อน)` |  |
+| `resource.gain.hydro` | `src/provincePicker.ts` | `-` | `Cheap, clean power` | `ไฟฟ้าถูกและสะอาด` |  |
+| `resource.cost.hydro` | `src/provincePicker.ts` | `-` | `Its reservoir floods the forest; less power in the dry season` | `อ่างเก็บน้ำท่วมป่า และหน้าแล้งไฟลด` |  |
+| `resource.level.wind` | `src/provincePicker.ts` | `-` | `Wind power` | `พลังงานลม` |  |
+| `resource.gain.wind` | `src/provincePicker.ts` | `-` | `Clean power` | `ไฟฟ้าสะอาด` |  |
+| `resource.cost.wind` | `src/provincePicker.ts` | `-` | `Noisy, and power only while the wind blows` | `เสียงดัง และได้ไฟเฉพาะตอนลมพัด` |  |
+| `resource.level.lignite` | `src/provincePicker.ts` | `-` | `Lignite` | `ถ่านหินลิกไนต์` |  |
+| `resource.gain.lignite` | `src/provincePicker.ts` | `-` | `Much cheap power` | `ไฟฟ้ามากและถูก` |  |
+| `resource.cost.lignite` | `src/provincePicker.ts` | `-` | `Toxic smoke, acid rain and sick people; the seam runs out` | `ควันพิษ ฝนกรด คนป่วย และถ่านหมดได้` |  |
+| `resource.level.petroleum` | `src/provincePicker.ts` | `-` | `Oil and gas` | `น้ำมันและก๊าซธรรมชาติ` |  |
+| `resource.gain.petroleum` | `src/provincePicker.ts` | `-` | `Royalties every month, and the petrochemical industry` | `ค่าภาคหลวงเข้าเมืองทุกเดือน และดึงโรงงานปิโตรเคมี` |  |
+| `resource.cost.petroleum` | `src/provincePicker.ts` | `-` | `Spills and toxic waste; when the field runs dry the income goes` | `น้ำมันรั่ว สารพิษ และเมื่อหลุมหมดรายได้ก็หายไป` |  |
+| `resource.level.limestone` | `src/provincePicker.ts` | `-` | `Limestone` | `หินปูน` |  |
+| `resource.gain.limestone` | `src/provincePicker.ts` | `-` | `Cement and building stone` | `ปูนซีเมนต์และหินก่อสร้าง` |  |
+| `resource.cost.limestone` | `src/provincePicker.ts` | `-` | `Dust in the air, and scarred hills` | `ฝุ่นในอากาศ และภูเขาเป็นแผล` |  |
+| `resource.level.potash` | `src/provincePicker.ts` | `-` | `Potash and rock salt` | `โพแทชและเกลือหิน` |  |
+| `resource.gain.potash` | `src/provincePicker.ts` | `-` | `Fertiliser and the chemical industry` | `ปุ๋ยและอุตสาหกรรมเคมี` |  |
+| `resource.cost.potash` | `src/provincePicker.ts` | `-` | `Salt spreads into the soil and the water, and the ground can sink` | `ดินเค็มและน้ำเค็มลามออกไป และพื้นดินอาจยุบ` |  |
+| `resource.level.tin` | `src/provincePicker.ts` | `-` | `Tin` | `ดีบุก` |  |
+| `resource.gain.tin` | `src/provincePicker.ts` | `-` | `Mining income` | `รายได้จากเหมือง` |  |
+| `resource.cost.tin` | `src/provincePicker.ts` | `-` | `Mud in the rivers and the sea; spent mines need restoring` | `ตะกอนลงแม่น้ำและทะเล และเหมืองที่หมดแล้วต้องฟื้นฟู` |  |
+| `resource.level.zinc` | `src/provincePicker.ts` | `-` | `Zinc and lead` | `สังกะสีและตะกั่ว` |  |
+| `resource.gain.zinc` | `src/provincePicker.ts` | `-` | `The metal industry` | `อุตสาหกรรมโลหะ` |  |
+| `resource.cost.zinc` | `src/provincePicker.ts` | `-` | `Cadmium and lead poison the fields, the water and the people` | `แคดเมียมและตะกั่วปนเปื้อนนา แหล่งน้ำ และคน` |  |
+| `resource.level.gold` | `src/provincePicker.ts` | `-` | `Gold` | `ทองคำ` |  |
+| `resource.gain.gold` | `src/provincePicker.ts` | `-` | `Great value` | `มูลค่าสูง` |  |
+| `resource.cost.gold` | `src/provincePicker.ts` | `-` | `Cyanide and arsenic in the water, and neighbours who protest` | `ไซยาไนด์และสารหนูลงแหล่งน้ำ และชาวบ้านต่อต้าน` |  |
+| `resource.level.gems` | `src/provincePicker.ts` | `-` | `Gems` | `พลอย` |  |
+| `resource.gain.gems` | `src/provincePicker.ts` | `-` | `The gem trade, and visitors` | `การค้าพลอย และนักท่องเที่ยว` |  |
+| `resource.cost.gems` | `src/provincePicker.ts` | `-` | `Pits and mud where they are dug` | `หลุมบ่อและโคลนตรงที่ขุด` |  |
+| `resource.level.rare_earth` | `src/provincePicker.ts` | `-` | `Rare earths` | `แร่หายาก` |  |
+| `resource.gain.rare_earth` | `src/provincePicker.ts` | `-` | `Prized by high-tech industry` | `มีค่ามาก ดึงอุตสาหกรรมไฮเทค` |  |
+| `resource.cost.rare_earth` | `src/provincePicker.ts` | `-` | `Hard to extract, with chemical and mildly radioactive waste` | `สกัดยาก มีกากสารเคมีและกากกัมมันตรังสีอ่อน` |  |
+| `resource.gain_cost` | `src/provincePicker.ts` | `-` | `Brings: {gain}. Costs: {cost}` | `ได้: {gain} เสีย: {cost}` | ข้อความเมื่อชี้ที่ทรัพยากร |
+| `resource.inferred` | `src/provincePicker.ts` | `-` | `inferred` | `อนุมาน` | ค่าที่เกมเดาจากข้อมูลทั่วไป ไม่ใช่ข้อมูลสำรวจ |
+| `resource.made_up` | `src/provincePicker.ts` | `-` | `made up for the game` | `สมมติในเกม` | แร่หายาก |
+| `resource.protected` | `src/provincePicker.ts` | `-` | `Parks and reserves {pct}%` | `อุทยานและป่าสงวน {pct}%` | จาก OpenStreetMap |
+| `resource.border` | `src/provincePicker.ts` | `-` | `{count} border crossings` | `ด่านชายแดน {count} แห่ง` |  |
 | `resource.note.flat` | `src/provincePicker.ts` | `-` | `Wide open land: easy to build on` | `ที่ราบกว้าง สร้างเมืองได้ง่าย` | ตอนซูมดูภูมิประเทศ |
 | `resource.note.forest` | `src/provincePicker.ts` | `-` | `Thick forest: clear it before you build` | `ป่าไม้อุดมสมบูรณ์ ต้องถางก่อนสร้าง` | ตอนซูมดูภูมิประเทศ |
 | `resource.note.water` | `src/provincePicker.ts` | `-` | `Plenty of water: you will need bridges` | `มีแหล่งน้ำมาก ต้องสร้างสะพานข้าม` | ตอนซูมดูภูมิประเทศ |

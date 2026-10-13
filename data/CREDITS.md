@@ -9,7 +9,9 @@ Every external data source used under `data/` is listed here (rules: `docs/geo/G
 | Neighbor edges | `data/geo/neighbor-edges.json` | Computed from the centers above | ODbL 1.0 (derived from OpenStreetMap) | As above |
 | Province maps | `data/maps/*.json` | OpenStreetMap (water, coast, forest, main roads, railways, airports), via the Overpass API and the [Geofabrik](https://download.geofabrik.de/asia/thailand.html) extract of Thailand; province outlines from Natural Earth (above) | ODbL 1.0 | As above; see `data/maps/LICENSE.md` |
 | Province map heights | `data/maps/*.json` (`heights`) | [Copernicus DEM](https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM) GLO-90, from its [open-data copy on AWS](https://registry.opendata.aws/copernicus-dem/) | Copernicus DEM licence: free for any use, with this notice | "produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved" |
+| Province measurements | `data/geo/province-indicators.json` | Counted from OpenStreetMap (the Geofabrik extract of Thailand in PostgreSQL, `docs/geo/THAILAND_DB.md`): places to stay and to see, beaches, parks and reserves, town land, power plants, quarries, reservoirs, border crossings, coastline; and the province maps above | ODbL 1.0 (derived from OpenStreetMap) | As above; the heights in it carry the Copernicus notice above |
 
 `data/thailand-provinces.json` (names, regions and neighbor lists) was compiled by hand for this project.
+`data/province-profiles.json` (each province's resource levels) is the project's own: the owner's values and the game's guesses from general knowledge; rare earths are made up for the game.
 
 The game must show "© OpenStreetMap contributors" and "Natural Earth" in its credits (GEO_SPEC section 11).

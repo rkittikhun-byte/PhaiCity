@@ -55,6 +55,7 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run geo:dem` | Copernicus DEM GLO-90 elevation for the squares the province maps reach into → `data/geo/cache/dem/` (gitignored, 360 MB; `geo:maps` turns it into each map's `heights`) |
 | `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
 | `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
+| `npm run geo:indicators` | Measure every province from the local Thailand database (OpenStreetMap in PostGIS, `docs/geo/THAILAND_DB.md`; psql on the PATH, password in pgpass) and its map → `data/geo/province-indicators.json`; `-- --maps-only` refreshes only what comes from `data/maps` |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
 | `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
@@ -205,6 +206,15 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   water), which its pumping draws down and the rains fill again, never in the dry season; water towers (`watertower`,
   tile 1020) give back some of what the dry season takes. The ground is saved as `groundwater`; renderers read
   `gameMap.water` (RENDERER_SPEC 6C).
+- **Province profile (โปรไฟล์จังหวัด, owner 13 Oct 2026):** `docs/PROVINCE_PROFILE.md`. Each province has 17 resources
+  (tourism, water, forest, farmland, fishing, solar, hydro, wind, lignite, oil and gas, limestone, potash, tin, zinc,
+  gold, gems, rare earths) at levels 0–5, each with what it brings and what it costs (`src/geo/provinceResources.ts`):
+  the owner's own level (`data/province-profiles.json` `levels`), else the game's inference (`inferred`; rare
+  earths are made up and say so), else ranked from `data/geo/province-indicators.json`. The province card shows them;
+  they have no effect in the game yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
+  and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
+  pages only), checked with the game's own checks, into the two data files.
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
   of the simulation's overlays (power, the water supply, groundwater, traffic, pollution, crime, land value,
   population, police and fire cover);

@@ -1,0 +1,86 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity — หลังบ้าน</title>
+    <style>
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+      :root { --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57;
+              --gold: #b8860b; --bad: #b3261e; --good: #2e7d4f; }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 Sarabun, system-ui, sans-serif; }
+      header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; padding: 10px 24px;
+               background: var(--card); border-bottom: 1px solid var(--line); }
+      header h1 { margin: 0; font-size: 18px; font-weight: 400; }
+      header .status { margin-left: auto; color: var(--muted); }
+      header .status.dirty { color: var(--gold); }
+      header .status.error { color: var(--bad); }
+      button { font: inherit; border: 1px solid var(--line); border-radius: 6px; background: white; padding: 4px 12px; cursor: pointer; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: calc(100vh - 52px); }
+      aside { border-right: 1px solid var(--line); padding: 12px; background: #eef1e8; }
+      aside input, aside select { width: 100%; font: inherit; padding: 4px 8px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; }
+      #provinceList { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 160px); overflow: auto; }
+      #provinceList button { width: 100%; text-align: left; border: none; background: none; padding: 3px 8px; border-radius: 5px; display: flex; gap: 6px; }
+      #provinceList button:hover { background: white; }
+      #provinceList button.selected { background: var(--accent); color: white; }
+      #provinceList .id { margin-left: auto; color: var(--muted); font-size: 12px; }
+      #provinceList .selected .id { color: #d9efe7; }
+      #provinceList .mark { color: var(--gold); }
+      main { padding: 16px 28px 60px; max-width: 1180px; }
+      h2 { margin: 0 0 2px; font-size: 24px; font-weight: 400; }
+      h3 { margin: 24px 0 8px; font-size: 16px; font-weight: 400; color: var(--accent); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+      .sub { color: var(--muted); margin: 0 0 8px; }
+      .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 16px; }
+      .facts div { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+      .facts b { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+      table { border-collapse: collapse; width: 100%; background: var(--card); }
+      th, td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+      th { font-weight: 400; color: var(--muted); font-size: 12px; }
+      td.num { text-align: center; }
+      .dots { color: var(--gold); letter-spacing: 1px; white-space: nowrap; }
+      .tradeoff { font-size: 12px; color: var(--muted); }
+      .tradeoff .gain { color: var(--good); }
+      .tradeoff .cost { color: var(--bad); }
+      select.level { font: inherit; padding: 1px 4px; }
+      textarea { width: 100%; min-height: 60px; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+      .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+      .tabs button.selected { background: var(--accent); color: white; border-color: var(--accent); }
+      .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
+      .fields label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); }
+      .fields input { font: inherit; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+      .fields input.own { border-color: var(--accent); background: #f3faf6; }
+      .months { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 6px 0; }
+      .months label { font-size: 13px; color: var(--ink); flex-direction: row; gap: 3px; }
+      .effects { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+      .effects li { padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+      .effects li.good { background: #e3f3e8; color: var(--good); }
+      .effects li.bad { background: #fbe7e4; color: var(--bad); }
+      .problems { color: var(--bad); white-space: pre-wrap; }
+      .hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>PhaiCity — หลังบ้าน: กติกาและทรัพยากรของภาคและจังหวัด</h1>
+      <span id="status" class="status">กำลังโหลด…</span>
+      <button id="save" class="primary" disabled>บันทึก</button>
+    </header>
+    <div class="layout">
+      <aside>
+        <input id="search" type="search" placeholder="ค้นหาจังหวัด">
+        <select id="regionFilter"><option value="">ทุกภาค</option></select>
+        <ul id="provinceList"></ul>
+        <p class="hint">★ คือจังหวัดที่ตั้งค่าเองไว้แล้ว</p>
+      </aside>
+      <main id="detail">
+        <p class="sub">เลือกจังหวัดทางซ้าย</p>
+      </main>
+    </div>
+  </body>
+</html>
