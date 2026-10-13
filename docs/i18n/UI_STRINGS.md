@@ -490,6 +490,7 @@
 | `menu.map` | `index.html` | — | `City map` | `แผนที่เมือง` | ปุ่มเมนู กว้าง 140px เปิด `src/mapWindow.js` (Claude Code 12 ต.ค. 2026) |
 | `map.title` | `index.html` | — | `City map` | `แผนที่เมือง` | หัวหน้าต่าง |
 | `map.layer.city` | `src/mapWindow.js` | — | `Whole city` | `ทั้งเมือง` | ปุ่มชั้นข้อมูล |
+| `map.layer.satisfaction` | `src/mapWindow.js` | — | `Satisfaction` | `ความพอใจ` | ความพอใจของอาคารแต่ละหลัง (src/objects/satisfaction.ts) |
 | `map.layer.power` | `src/mapWindow.js` | — | `Power` | `ไฟฟ้า` | |
 | `map.layer.water` | `src/mapWindow.js` | — | `Water supply` | `ประปา` | (Claude Code 13 ต.ค. 2026) |
 | `map.layer.groundwater` | `src/mapWindow.js` | — | `Groundwater` | `น้ำใต้ดิน` |  |
@@ -509,6 +510,7 @@
 | `map.about.traffic` | `src/mapWindow.js` | — | `Where the roads are busiest. Heavy traffic holds the city back and adds pollution.` | `ถนนที่รถหนาแน่น รถติดมากทำให้เมืองโตช้าและเพิ่มมลพิษ` | |
 | `map.about.pollution` | `src/mapWindow.js` | — | `Smoke from factories, power plants, ports, airports and traffic. People do not want to live in it.` | `ควันจากโรงงาน โรงไฟฟ้า ท่าเรือ สนามบิน และรถติด คนไม่อยากอยู่ใกล้` | |
 | `map.about.crime` | `src/mapWindow.js` | — | `Where crime is high. Police stations bring it down.` | `ย่านที่อาชญากรรมสูง สถานีตำรวจช่วยลดได้` | |
+| `map.about.satisfaction` | `src/mapWindow.js` | — | `How content each building is: red unhappy, yellow so-so, green content. Click one on the map to see why.` | `อาคารแต่ละหลังพอใจแค่ไหน สีแดงไม่พอใจ สีเหลืองพอใช้ สีเขียวพอใจ คลิกอาคารบนแผนที่เพื่อดูเหตุผล` | |
 | `map.about.land_value` | `src/mapWindow.js` | — | `Land is worth more near water, woods, parks and the city centre, and less near pollution and crime.` | `ที่ดินราคาดีใกล้น้ำ ป่า สวน และใจกลางเมือง และราคาตกใกล้มลพิษและอาชญากรรม` | |
 | `map.about.population` | `src/mapWindow.js` | — | `Where most people live.` | `ย่านที่คนอยู่หนาแน่น` | |
 | `map.about.police` | `src/mapWindow.js` | — | `How far each police station's protection reaches.` | `ขอบเขตที่สถานีตำรวจแต่ละแห่งดูแลถึง` | |

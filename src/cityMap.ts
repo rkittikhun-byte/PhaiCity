@@ -18,7 +18,7 @@ import type { WaterView } from "./waterManager";
 import { ownsLand } from "./landBlocks";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 
-export const MAP_LAYERS = ["city", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
+export const MAP_LAYERS = ["city", "satisfaction", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
   "landValue", "population", "police", "fire"] as const;
 export type MapLayer = typeof MAP_LAYERS[number];
 
@@ -134,9 +134,11 @@ export type HeatMap = "trafficDensityMap" | "pollutionDensityMap" | "crimeRateMa
 export type Overlays = Record<HeatMap, BlockMapLike> & {
   /** The water supply and the groundwater, read only (src/waterManager.ts); a city from before it has none */
   water?: WaterView;
+  /** How content the building on a tile is, 0–100, or null where none stands (src/objects/satisfaction.ts) */
+  satisfaction?: (x: number, y: number) => number | null;
 };
 
-export type HeatLayer = Exclude<MapLayer, "city" | "power" | "water" | "groundwater">;
+export type HeatLayer = Exclude<MapLayer, "city" | "satisfaction" | "power" | "water" | "groundwater">;
 
 // Each overlay's block map, the top of its range (src/simulation.js) and its colour at the top
 export const HEAT: Record<HeatLayer, { map: HeatMap; max: number; colour: Rgb }> = {
@@ -182,8 +184,18 @@ function mix(base: Rgb, top: Rgb, amount: number): Rgb {
   ];
 }
 
+// Satisfaction's colours: discontent red, so-so yellow, content green
+const DISCONTENT: Rgb = [217, 99, 76], SO_SO: Rgb = [224, 184, 74], CONTENT: Rgb = [76, 175, 122];
+
+/** A building on the satisfaction layer: red to yellow to green as it grows content; nothing built, dimmed */
+function satisfactionColour(city: Rgb, score: number | null | undefined): Rgb {
+  if (score === null || score === undefined) return dimmed(city);
+  return score < 50 ? mix(DISCONTENT, SO_SO, Math.max(0, score - 20) / 30) : mix(SO_SO, CONTENT, Math.min(1, (score - 50) / 30));
+}
+
 /** The colours at the bottom and the top of an overlay's scale, over empty land, for the legend. */
-export function heatRamp(layer: HeatLayer | "groundwater"): [Rgb, Rgb] {
+export function heatRamp(layer: HeatLayer | "groundwater" | "satisfaction"): [Rgb, Rgb] {
+  if (layer === "satisfaction") return [DISCONTENT, CONTENT];
   const base = dimmed(KIND_COLOURS.dirt);
   return [base, mix(base, layer === "groundwater" ? GROUND_BLUE : HEAT[layer].colour, 0.9)];
 }
@@ -216,6 +228,7 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
   }
   if (layer === "water") return waterColour(value, city, overlays.water, x, y);
   if (layer === "groundwater") return groundwaterColour(city, overlays.water, x, y);
+  if (layer === "satisfaction") return satisfactionColour(city, overlays.satisfaction?.(x, y));
   const heat = HEAT[layer];
   return mix(dimmed(city), heat.colour, 0.9 * heatLevel(overlays[heat.map].worldGet(x, y), heat.max));
 }

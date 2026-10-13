@@ -317,7 +317,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   // The city map (src/mapWindow.js) reads the map, the overlays and the part on screen; a click on it moves the view
   this.handleMapRequest = makeWindowOpenHandler('map', function() {
-    return [this.gameMap, this.simulation.blockMaps, this.cityView.visibleTiles()];
+    return [this.gameMap, this.mapOverlays(), this.cityView.visibleTiles()];
   }.bind(this));
 
   this.mapWindow = new MapWindow(opacityLayerID, 'mapWindow');
@@ -569,10 +569,7 @@ Game.prototype.inspectTile = function(x, y) {
   this.core.objects.scan(this.gameMap, this.simulation._cityTime);
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
                          cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
-                         language: getLanguage(),
-                         satisfaction: {blockMaps: this.simulation.blockMaps, budget: this.simulation.budget,
-                                        valves: this.simulation._valves, services: this.simulation._serviceLevels}},
-                        x, y);
+                         language: getLanguage(), satisfaction: this.satisfactionContext()}, x, y);
   if (found)
     this.inspectCard.open(found);
   else
@@ -589,6 +586,36 @@ Game.prototype.selectionOutline = function() {
   var rect = shown.rect;
   return {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
           colour: '#8fdcff'};
+};
+
+
+// What the satisfaction scores read besides the map (src/objects/satisfaction.ts)
+Game.prototype.satisfactionContext = function() {
+  return {blockMaps: this.simulation.blockMaps, budget: this.simulation.budget, valves: this.simulation._valves,
+          services: this.simulation._serviceLevels};
+};
+
+
+// The city map's overlays: the simulation's block maps, and how content each building is (its satisfaction layer)
+Game.prototype.mapOverlays = function() {
+  var map = this.gameMap, context = this.satisfactionContext();
+  this.core.objects.scan(map, this.simulation._cityTime);
+  var scores = new Int16Array(map.width * map.height).fill(-1);
+  this.core.objects.all().forEach(function(object) {
+    var satisfaction = object.satisfaction(map, context);
+    if (!satisfaction)
+      return;
+    for (var y = object.top; y < object.top + object.size; y++)
+      for (var x = object.left; x < object.left + object.size; x++)
+        if (x >= 0 && y >= 0 && x < map.width && y < map.height)
+          scores[y * map.width + x] = satisfaction.score;
+  });
+  var overlays = Object.create(this.simulation.blockMaps);
+  overlays.satisfaction = function(x, y) {
+    var score = scores[y * map.width + x];
+    return score < 0 ? null : score;
+  };
+  return overlays;
 };
 
 
