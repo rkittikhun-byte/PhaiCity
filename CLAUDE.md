@@ -247,6 +247,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   care; `SERVICES_UPDATED`, the status bar) draw families from 500 people (and hold a town back from 2,000 when low),
   draw factories and shops and clean factory smoke (higher education), and halve at best pollution's harm to homes
   (health, `residential.js`). Each costs upkeep (two budget lines).
+- **Ruler's policies (นโยบายเจ้าเมือง, owner 13 Oct 2026):** `docs/POLICIES.md`, `src/policies.ts`. Seven policies, each
+  with a gain, a cost and a yearly sum (no field burning, water saving, a closed fishing season, green zoning, a
+  water-wise Songkran, a factory pollution tax, higher tolls), switched in their window (`src/policyWindow.ts`, the
+  house card's fourth place) as a `policy` command. A house of level n has room for ⌈n/2⌉, its council hall for one
+  more; they live in `gameMap.policies` (saved), work only while the house stands and are forgotten with it. The
+  simulation reads them each month (`_policiesMonth`) and at the year's end (two budget lines).
 - **Rubbish and wastewater (owner, 13 Oct 2026):** `docs/WASTE.md`, `src/waste.ts`. Five kinds on one 3×3 of tiles
   (992–1000, `gameMap.wasteKinds`, saved; RENDERER_SPEC 6I), chosen above the rubbish button: landfill, incinerator,
   recycling plant, waste power plant, wastewater plant. Each month people and visitors make rubbish, which the working

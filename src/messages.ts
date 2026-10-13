@@ -75,6 +75,7 @@ export const NUCLEAR_MELTDOWN = "Nuclear Meltdown";
 export const OIL_SPILL = "Oil spill";
 export const PLANE_CRASHED = "Plane crashed";
 export const POLICE_NEEDS_FUNDING = "Police need funding";
+export const POLICY_WINDOW_CLOSED = "Ruler's policies window closed";
 export const POPULATION_UPDATED = "Population updated";
 export const QUERY_WINDOW_CLOSED = "Query window closed";
 export const QUERY_WINDOW_NEEDED = "Query window needed";

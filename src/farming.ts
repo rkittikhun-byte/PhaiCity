@@ -17,6 +17,7 @@
 // No DOM, nothing random: the simulation's census and saved state only.
 
 import { drawGroundwater, pumpFactor } from "./groundwater";
+import { NO_BURNING_YIELD } from "./policies";
 import { FARM_BASE, FARM_LAST } from "./tileValues";
 
 /** Baht a farm or a harbour sells a month at level 3, with full ground or full fish */
@@ -121,6 +122,10 @@ export class Farming {
   fishStock = 1;
   /** Haze on each tile this month, from stubble fires */
   haze: Uint8Array;
+  /** The ruler's policies (src/policies.ts), set before each month: fields are not burned, and the harbours are shut
+   * while the fish spawn */
+  noBurning = false;
+  closedSeason = false;
 
   constructor(private readonly width: number, private readonly height: number, private resources: Resources = {}) {
     this.haze = new Uint8Array(width * height);
@@ -169,10 +174,11 @@ export class Farming {
     const result: FarmingMonth = { income: 0, burning: false, fewFish: false, dirty: null };
     const level = farmLevel(this.resources);
     this.haze.fill(0);
-    const burning = BURNING_MONTHS.includes(month) && this.farms.length > 0;
+    const burning = BURNING_MONTHS.includes(month) && this.farms.length > 0 && !this.noBurning;
+    const yieldShare = this.noBurning ? NO_BURNING_YIELD : 1;
     for (const farm of this.farms) {
       const share = ground ? pumpFactor(ground.stores, this.width, this.height, farm.x, farm.y, 3) : 0.5;
-      result.income += farmIncome(level, share, month, dryMonths);
+      result.income += farmIncome(level, share, month, dryMonths) * yieldShare;
       if (ground) drawGroundwater(ground.stores, ground.natural, this.width, this.height, farm.x, farm.y, FARM_DRAW);
       if (poison) stamp(poison, this.width, this.height, farm.x, farm.y, FARM_CHEMICALS, CHEMICALS_RADIUS, true);
       if (burning) stamp(this.haze, this.width, this.height, farm.x, farm.y, HAZE, HAZE_RADIUS, false);
@@ -181,12 +187,13 @@ export class Farming {
 
     const fishing = fisheryLevel(this.resources);
     const wasPlenty = this.fishStock >= 1 / 3;
-    for (const harbour of this.harbours) {
+    const fishingHarbours = this.closedSeason ? [] : this.harbours;
+    for (const harbour of fishingHarbours) {
       const dirty = pollutionAt(harbour.x, harbour.y) > DIRTY_WATER;
       if (dirty && !result.dirty) result.dirty = harbour;
       result.income += harbourIncome(fishing, this.fishStock, dirty);
     }
-    this.fishStock = nextStock(this.fishStock, this.harbours.length);
+    this.fishStock = nextStock(this.fishStock, fishingHarbours.length);
     result.fewFish = wasPlenty && this.fishStock < 1 / 3;
     return result;
   }

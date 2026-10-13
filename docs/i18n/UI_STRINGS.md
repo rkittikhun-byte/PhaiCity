@@ -195,6 +195,8 @@
 | `choice.ruler_house` | `src/toolLevels.ts` | — | `Build` | `สร้างจวน` |  |
 | `choice.ruler_house_upgrade` | `src/toolLevels.ts` | — | `Raise` | `ยกระดับ` |  |
 | `choice.ruler_house_wings` | `src/toolLevels.ts` | — | `Wings…` | `ส่วนต่อเติม…` |  |
+| `tool.ruler_house_policies` | `src/toolLevels.ts` | — | `Ruler's Policies {price}` | `นโยบายเจ้าเมือง {price}` | เปิดหน้าต่างนโยบาย (Claude Code 13 ต.ค. 2026, docs/POLICIES.md) |
+| `choice.ruler_house_policies` | `src/toolLevels.ts` | — | `Policies…` | `นโยบาย…` |  |
 | `tool.kindergarten` | `index.html` | — | `Kindergarten {price}` | `โรงเรียนอนุบาล {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026, docs/SERVICES.md) |
 | `tool.primary_school` | `index.html` | — | `Primary School {price}` | `โรงเรียนประถม {price}` |  |
 | `tool.secondary_school` | `index.html` | — | `Secondary School {price}` | `โรงเรียนมัธยม {price}` |  |
@@ -264,13 +266,41 @@
 | `house.wing.money` | `src/houseWindow.ts` | — | `Price {price} · upkeep {upkeep} a year` | `ราคา {price} · ค่าบำรุงปีละ {upkeep}` |  |
 | `house.wing.state.build` | `src/houseWindow.ts` | — | `Build` | `สร้าง` |  |
 | `house.wing.state.remove` | `src/houseWindow.ts` | — | `Take off` | `รื้อออก` |  |
-| `house.wing.state.waits_policies` | `src/houseWindow.ts` | — | `Comes with the policies` | `มากับนโยบายเจ้าเมือง` |  |
 | `house.wing.state.waits_network` | `src/houseWindow.ts` | — | `Network mode` | `โหมดเครือข่าย` |  |
 | `house.wing.state.no_room` | `src/houseWindow.ts` | — | `No room` | `ไม่มีช่องว่าง` |  |
 | `house.wing.state.no_money` | `src/houseWindow.ts` | — | `Not enough money` | `เงินไม่พอ` |  |
+| `policy.window.title` | `index.html` | — | `Ruler's policies` | `นโยบายเจ้าเมือง` | หน้าต่างนโยบาย (Claude Code 13 ต.ค. 2026) |
+| `policy.window.none` | `src/policyWindow.ts` | — | `Policies need the ruler's house` | `ต้องมีจวนเจ้าเมืองก่อนจึงออกนโยบายได้` |  |
+| `policy.window.summary` | `src/policyWindow.ts` | — | `Policies {used}/{room} · they cost {upkeep} a year` | `นโยบาย {used}/{room} · ค่าใช้จ่ายปีละ {upkeep}` |  |
+| `policy.money` | `src/policyWindow.ts` | — | `Costs {upkeep} a year` | `ค่าใช้จ่ายปีละ {upkeep}` |  |
+| `policy.state.on` | `src/policyWindow.ts` | — | `Switch off` | `ยกเลิก` |  |
+| `policy.state.off` | `src/policyWindow.ts` | — | `Switch on` | `ประกาศใช้` |  |
+| `policy.state.no_room` | `src/policyWindow.ts` | — | `No room` | `ไม่มีช่องว่าง` |  |
+| `policy.state.no_house` | `src/policyWindow.ts` | — | `No house` | `ยังไม่มีจวน` |  |
+| `policy.no_field_burning` | `src/policyWindow.ts` | — | `No field burning` | `ห้ามเผาไร่` |  |
+| `policy.no_field_burning.gain` | `src/policyWindow.ts` | — | `No stubble fires, and no haze from them` | `ไม่มีการเผาตอซัง หมอกควันหายไป` |  |
+| `policy.no_field_burning.cost` | `src/policyWindow.ts` | — | `The farms sell a fifth less` | `ไร่นาขายผลผลิตได้น้อยลงหนึ่งในห้า` |  |
+| `policy.water_saving` | `src/policyWindow.ts` | — | `Water saving campaign` | `รณรงค์ประหยัดน้ำ` |  |
+| `policy.water_saving.gain` | `src/policyWindow.ts` | — | `The water goes 15% further` | `น้ำประปาใช้ได้มากขึ้น 15%` |  |
+| `policy.water_saving.cost` | `src/policyWindow.ts` | — | `People like the town a little less` | `คนพอใจเมืองน้อยลงเล็กน้อย` |  |
+| `policy.fishing_closure` | `src/policyWindow.ts` | — | `Closed fishing season` | `ปิดอ่าวช่วงปลาวางไข่` |  |
+| `policy.fishing_closure.gain` | `src/policyWindow.ts` | — | `No fishing while the fish spawn, so they recover faster` | `หยุดจับปลาช่วงปลาวางไข่ ปลาฟื้นตัวเร็วขึ้น` |  |
+| `policy.fishing_closure.cost` | `src/policyWindow.ts` | — | `Harbours earn nothing from February to April` | `ท่าเรือประมงไม่มีรายได้ตั้งแต่กุมภาพันธ์ถึงเมษายน` |  |
+| `policy.green_zoning` | `src/policyWindow.ts` | — | `Green zoning` | `ผังเมืองสีเขียว` |  |
+| `policy.green_zoning.gain` | `src/policyWindow.ts` | — | `Land is worth more, and the rain fills the ground faster` | `ราคาที่ดินดีขึ้น และฝนเติมน้ำใต้ดินได้เร็วขึ้น` |  |
+| `policy.green_zoning.cost` | `src/policyWindow.ts` | — | `Every kind of zone is wanted a tenth less` | `ความต้องการเขตทุกประเภทลดลงหนึ่งในสิบ` |  |
+| `policy.songkran_saving` | `src/policyWindow.ts` | — | `Water-wise Songkran` | `สงกรานต์ประหยัดน้ำ` |  |
+| `policy.songkran_saving.gain` | `src/policyWindow.ts` | — | `Songkran takes no water from the supply` | `ช่วงสงกรานต์น้ำประปาไม่หมดไปกับการเล่นน้ำ` |  |
+| `policy.songkran_saving.cost` | `src/policyWindow.ts` | — | `Fewer visitors come for Songkran` | `นักท่องเที่ยวช่วงสงกรานต์ลดลง` |  |
+| `policy.pollution_tax` | `src/policyWindow.ts` | — | `Factory pollution tax` | `ภาษีมลพิษโรงงาน` |  |
+| `policy.pollution_tax.gain` | `src/policyWindow.ts` | — | `Factories smoke a quarter less, and pay the tax` | `ควันโรงงานลดลงหนึ่งในสี่ และได้เงินภาษี` |  |
+| `policy.pollution_tax.cost` | `src/policyWindow.ts` | — | `Factories are wanted a tenth less` | `ความต้องการเขตอุตสาหกรรมลดลงหนึ่งในสิบ` |  |
+| `policy.higher_tolls` | `src/policyWindow.ts` | — | `Higher tolls` | `ขึ้นค่าผ่านทางด่วน` |  |
+| `policy.higher_tolls.gain` | `src/policyWindow.ts` | — | `Tollways take half as much again` | `ทางด่วนเก็บค่าผ่านทางได้มากขึ้นครึ่งหนึ่ง` |  |
+| `policy.higher_tolls.cost` | `src/policyWindow.ts` | — | `Shops are wanted a little less` | `ความต้องการร้านค้าลดลงเล็กน้อย` |  |
 | `house.wing.confirm_remove` | `src/houseWindow.ts` | — | `Take it off? No refund` | `รื้อจริงไหม ไม่ได้เงินคืน` |  |
 | `house.wing.council_hall` | `src/houseWindow.ts` | — | `Council hall` | `หอประชุมเมือง` |  |
-| `house.wing.council_hall.gain` | `src/houseWindow.ts` | — | `One more of the ruler's policies (they come later)` | `ช่องนโยบายเจ้าเมือง +1 (นโยบายจะมาภายหลัง)` |  |
+| `house.wing.council_hall.gain` | `src/houseWindow.ts` | — | `Room for one more of the ruler's policies` | `ช่องนโยบายเจ้าเมือง +1` |  |
 | `house.wing.council_hall.cost` | `src/houseWindow.ts` | — | `Upkeep` | `ค่าบำรุงรายปี` |  |
 | `house.wing.treasury` | `src/houseWindow.ts` | — | `Treasury` | `คลังเมือง` |  |
 | `house.wing.treasury.gain` | `src/houseWindow.ts` | — | `Taxes +5%` | `เก็บภาษีได้เพิ่ม 5%` |  |
@@ -316,6 +346,8 @@
 | `budget.health` | `index.html` | — | `Hospitals: ` | `สาธารณสุข: ` | ค่าบำรุงโรงพยาบาล แสดงเมื่อมี |
 | `budget.waste` | `index.html` | — | `Rubbish and wastewater: ` | `ขยะและน้ำเสีย: ` | ค่าบำรุงอาคารขยะและน้ำเสีย แสดงเมื่อมี |
 | `budget.recycling` | `index.html` | — | `Recycling sold: ` | `รายได้จากขายของรีไซเคิล: ` | แสดงเมื่อมี |
+| `budget.policies` | `index.html` | — | `Ruler's policies: ` | `นโยบายเจ้าเมือง: ` | ค่าใช้จ่ายนโยบาย แสดงเมื่อมี |
+| `budget.pollution_tax` | `index.html` | — | `Pollution tax: ` | `ภาษีมลพิษ: ` | แสดงเมื่อมี |
 | `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.farming` | `index.html` | — | `Farms and fishing: ` | `รายได้จากเกษตรและประมง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.tolls` | `index.html` | — | `Tolls: ` | `ค่าผ่านทางด่วน: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
@@ -773,6 +805,7 @@
 | `about.building.education` | `about.html` | — | `Schools: kindergartens, primary and secondary schools give children places, vocational colleges and universities the young. With power they draw families, and higher education draws factories and shops and makes factories cleaner. Secondary schools and up need a higher ruler's house; each costs its upkeep every year.` | `โรงเรียน: อนุบาล ประถม มัธยม รับเด็ก อาชีวะและมหาวิทยาลัยรับคนหนุ่มสาว เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า การศึกษาขั้นสูงดึงโรงงานและร้านค้า และทำให้โรงงานควันน้อยลง ตั้งแต่มัธยมขึ้นไปต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.health` | `about.html` | — | `Hospitals: from the health centre to the regional hospital, each cares for more people. With power they draw families and take up to half of pollution's harm away from homes. The bigger ones need a higher ruler's house; each costs its upkeep every year.` | `โรงพยาบาล: ตั้งแต่ รพ.สต. ถึง รพ.ศูนย์ ยิ่งใหญ่ยิ่งดูแลคนได้มาก เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า และลดผลของมลพิษต่อเขตบ้านได้ถึงครึ่งหนึ่ง แห่งใหญ่ต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.waste` | `about.html` | — | `Rubbish and Wastewater: every month people and visitors make rubbish, and a small town buries and burns its own. Beyond that, a recycling plant takes a little and sells it, a waste power plant burns it into electricity, an incinerator burns it with smoke, and a landfill takes the most for the least, but smells, seeps poison into the ground and fills up for good. Rubbish nobody takes lies in the streets as pollution. A wastewater treatment plant cleans the sewage of 20,000 people; a big town's untreated sewage spoils the fishing harbours' catch and keeps visitors away. All but the landfill and the waste power plant need power, and each costs its upkeep every year.` | `ขยะและน้ำเสีย: ทุกเดือนคนในเมืองและนักท่องเที่ยวสร้างขยะ เมืองเล็กฝังและเผาเองได้ ถ้ามากกว่านั้น โรงคัดแยกรีไซเคิลรับได้น้อยแต่ขายได้ โรงไฟฟ้าขยะเผาเป็นไฟฟ้า โรงเผาขยะเผาทิ้งแต่มีควัน บ่อฝังกลบรับได้มากที่สุดและถูกที่สุด แต่มีกลิ่น ซึมพิษลงดิน และเต็มแล้วเต็มเลย ขยะที่ไม่มีใครรับจะกองตามถนนเป็นมลพิษ โรงบำบัดน้ำเสียบำบัดน้ำเสียของคนได้ 20,000 คน เมืองใหญ่ที่ปล่อยน้ำเสียไม่บำบัดทำให้ท่าเรือประมงจับปลาได้น้อยลงและนักท่องเที่ยวลดลง ทุกแห่งยกเว้นบ่อฝังกลบและโรงไฟฟ้าขยะต้องมีไฟฟ้า และมีค่าบำรุงรายปี` |  |
+| `about.building.ruler_policies` | `about.html` | — | `Ruler's Policies: from the ruler's house's card, switch policies on and off: no field burning, a water saving campaign, a closed fishing season, green zoning, a water-wise Songkran, a factory pollution tax and higher tolls. Each brings something and costs something, and every one costs a sum each year. A house has room for one policy for every two of its levels, and its council hall for one more; they are forgotten if the house falls.` | `นโยบายเจ้าเมือง: เปิดปิดได้จากการ์ดของจวนเจ้าเมือง ได้แก่ ห้ามเผาไร่ รณรงค์ประหยัดน้ำ ปิดอ่าวช่วงปลาวางไข่ ผังเมืองสีเขียว สงกรานต์ประหยัดน้ำ ภาษีมลพิษโรงงาน และขึ้นค่าผ่านทางด่วน ทุกนโยบายมีทั้งได้และเสีย และมีค่าใช้จ่ายรายปี จวนมีช่องนโยบายหนึ่งช่องต่อสองขั้น หอประชุมเมืองเพิ่มให้อีกหนึ่งช่อง ถ้าจวนพัง นโยบายทั้งหมดก็หายไปด้วย` |  |
 | `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
 | `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
 | `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |

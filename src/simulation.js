@@ -38,6 +38,10 @@ import {
 } from './services.ts';
 import { Mining } from './mining.ts';
 import { SEWAGE_AWAY, SEWAGE_DIRT, Waste, WASTE_FROM } from './waste.ts';
+import {
+  CLOSED_MONTHS, GREEN_DEMAND, GREEN_LAND_VALUE, GREEN_RECHARGE, hasPolicy, POLLUTION_TAX_DEMAND, POLLUTION_TAX_RATE,
+  POLLUTION_TAX_SMOKE, policyUpkeep, SONGKRAN_VISITORS, TOLL_RAISE, TOLL_SHOPS, WATER_SAVING, WATER_SAVING_PULL
+} from './policies.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
 import { Random } from './random.ts';
@@ -476,13 +480,15 @@ var simulate = function(simData) {
       // PhaiCity: a month's visitors, before the year's taxes take in what they spent
       if ((this._cityTime & 3) === 0) {
         this._houseMonth();
+        this._policiesMonth();
         this._servicesMonth();
         this._tourismMonth();
         this._wasteMonth();
         this._miningMonth();
         this._farmingMonth();
-        // ... and the tollways' tolls (src/roadLevels.ts)
-        this.budget.tollFund += tollsThisMonth(this._map, this.blockMaps.trafficDensityMap);
+        // ... and the tollways' tolls (src/roadLevels.ts), higher by the ruler's policy
+        this.budget.tollFund += tollsThisMonth(this._map, this.blockMaps.trafficDensityMap) *
+                                (hasPolicy(this._map, 'higher_tolls') ? TOLL_RAISE : 1);
       }
 
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
@@ -494,6 +500,9 @@ var simulate = function(simData) {
       if (this._cityTime % TAX_FREQUENCY === 0)  {
         // The ruler's house's treasury takes in a little more (src/rulerHouse.ts)
         this.budget.taxBonus = hasWing(this._map, 'treasury') ? TREASURY_TAX_BONUS : 0;
+        // ... and the ruler's policies cost their year, and the pollution tax takes its share (src/policies.ts)
+        this.budget.policyCost = policyUpkeep(this._map);
+        this.budget.pollutionTaxRate = hasPolicy(this._map, 'pollution_tax') ? POLLUTION_TAX_RATE : 0;
         this.budget.collectTax(this._gameLevel, this._census);
         this.evaluation.cityEvaluation(simData);
       }
@@ -515,7 +524,8 @@ var simulate = function(simData) {
       // house's granary and city tank keep half of what the dry season takes (src/rulerHouse.ts)
       this._waterManager.drought = this._drought();
       // ... and a water fee makes people save it, so it goes further (src/budget.js)
-      this._waterManager.saving = (this.budget.waterFee || 0) * WATER_FEE_SAVING;
+      this._waterManager.saving = (this.budget.waterFee || 0) * WATER_FEE_SAVING +
+                                  (hasPolicy(this._map, 'water_saving') ? WATER_SAVING : 0);
       this._waterManager.doWaterScan(this.getDate().month, (this._cityTime & 3) === 0);
       break;
 
@@ -583,10 +593,16 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var house = this._house();
   this._festivalHouse = house && this._tourism.festival ? house : null;
   // Higher education makes for cleaner factories (src/services.ts)
-  var smoke = this.rules.industryPollution * (1 - SKILLED_SMOKE * skilled(this._serviceLevels));
+  // ... and the ruler's pollution tax (src/policies.ts)
+  var smoke = this.rules.industryPollution * (1 - SKILLED_SMOKE * skilled(this._serviceLevels)) *
+              (hasPolicy(this._map, 'pollution_tax') ? POLLUTION_TAX_SMOKE : 1);
+  // The ruler's green zoning adds to the land's value everywhere
+  var green = hasPolicy(this._map, 'green_zoning') ? GREEN_LAND_VALUE : 0;
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
-                                              house ? function(x, y) { return houseLandValue(house, x, y); } : null);
+                                              house || green ? function(x, y) {
+                                                return (house ? houseLandValue(house, x, y) : 0) + green;
+                                              } : null);
 };
 
 
@@ -658,6 +674,23 @@ Simulation.prototype._wasteMonth = function() {
 };
 
 
+// A month of the ruler's policies (src/policies.ts): what they do to the demand for each kind of zone, the ground's rain,
+// the fields and the harbours, set for the month ahead
+Simulation.prototype._policiesMonth = function() {
+  var map = this._map;
+  var green = hasPolicy(map, 'green_zoning') ? GREEN_DEMAND : 1;
+  this._valves.policyPull = hasPolicy(map, 'water_saving') ? -WATER_SAVING_PULL : 0;
+  this._valves.policyDemand = {
+    residential: green,
+    commercial: green * (hasPolicy(map, 'higher_tolls') ? TOLL_SHOPS : 1),
+    industrial: green * (hasPolicy(map, 'pollution_tax') ? POLLUTION_TAX_DEMAND : 1)
+  };
+  this._waterManager.recharge = hasPolicy(map, 'green_zoning') ? GREEN_RECHARGE : 1;
+  this._farming.noBurning = hasPolicy(map, 'no_field_burning');
+  this._farming.closedSeason = hasPolicy(map, 'fishing_closure') && CLOSED_MONTHS.indexOf(this.getDate().month) !== -1;
+};
+
+
 // A month of the ruler's house: a new city that has built it is no longer held back; the news hears when it falls,
 // and it is forgotten with its wings; its warning tower tells of a season of disasters a month ahead
 var SEASON_WARNINGS = {fire: Messages.FIRE_SEASON_AHEAD, flood: Messages.FLOOD_SEASON_AHEAD,
@@ -673,6 +706,8 @@ Simulation.prototype._houseMonth = function() {
       this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.RULER_HOUSE_LOST,
                                                    data: {x: map.rulerHouse.x, y: map.rulerHouse.y}});
     map.rulerHouse = null;
+    // ... and with it the ruler's policies (src/policies.ts)
+    map.policies = [];
   }
   this._houseStood = standing;
 
@@ -724,9 +759,11 @@ Simulation.prototype._visitors = function(month) {
   var fee = this.budget.touristFee || 0;
   var court = hasWing(this._map, 'culture_court');
   var sewage = this._waste.sewage;
-  if (visit.level === 0 || (!court && fee === 0 && sewage === 0))
+  // ... and fewer at a Songkran without water fights (src/policies.ts)
+  var dry = visit.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? SONGKRAN_VISITORS : 1;
+  if (visit.level === 0 || (!court && fee === 0 && sewage === 0 && dry === 1))
     return visit;
-  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY);
+  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY) * dry;
   return Object.assign({}, visit, {visitors: Math.round(visit.visitors * come),
                                    income: visit.income * come * (1 + fee * TOURIST_FEE_TAKE),
                                    shopsWanted: visit.shopsWanted * come});
@@ -735,7 +772,9 @@ Simulation.prototype._visitors = function(month) {
 
 Simulation.prototype._setTourism = function(month) {
   this._tourism = month;
-  this._waterManager.festivalUse = festivalWaterUse(month);
+  // A water-wise Songkran uses none of the supply (src/policies.ts)
+  this._waterManager.festivalUse = month.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? 0 :
+                                   festivalWaterUse(month);
   this._valves.touristShops = month.shopsWanted;
   this._valves.livingCost = livingCostFactor(month);
   this._emitEvent(Messages.TOURISM_UPDATED, month);

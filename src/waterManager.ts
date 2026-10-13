@@ -97,8 +97,11 @@ export class WaterManager {
   poison: { cleanWater(x: number, y: number): number } | null = null;
   /** The share of the supply this month's festival uses up: Songkran's water fights (src/tourism.ts) */
   festivalUse = 0;
-  /** How much further the water goes because people pay for it and save it: the water fee (src/budget.js), 0–0.3 */
+  /** How much further the water goes because people pay for it and save it: the water fee (src/budget.js), 0–0.3,
+   * and the ruler's water saving (src/policies.ts) */
   saving = 0;
+  /** How much faster the rain fills the ground: the ruler's green zoning (src/policies.ts) */
+  recharge = 1;
   /** Zones the water reaching the pipes can serve this cycle */
   supply = 0;
   readonly view: WaterView;
@@ -288,7 +291,7 @@ export class WaterManager {
     const { width, height } = this.map;
     // The share of the last supply the zones took: every works pumped that share of what it could
     const taken = this.supply > 0 ? Math.min(1, this.used / this.supply) : 0;
-    if (!this.isDryMonth(month)) rechargeGroundwater(stores, natural);
+    if (!this.isDryMonth(month)) rechargeGroundwater(stores, natural, this.recharge);
 
     let low: Source | null = null;
     for (const source of this.sources) {

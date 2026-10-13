@@ -46,6 +46,8 @@ import { showToolPrices } from './toolShortcuts.ts';
 import { CIVIC, MINE, POWERPLANT, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
+import { PolicyWindow } from './policyWindow.ts';
+import { readPolicies } from './policies.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
@@ -143,11 +145,14 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // ... and the rubbish and wastewater buildings (src/waste.ts)
     this.gameMap.wasteKinds = Object.assign({}, savedGame.wasteKinds || {});
     this.gameMap.rulerHouse = readHouse(savedGame.rulerHouse);
+    // ... and the ruler's policies (src/policies.ts)
+    this.gameMap.policies = readPolicies(savedGame.policies);
     this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
   } else {
     // A new city builds its ruler's house before anything else
     this.gameMap.civicKinds = {};
     this.gameMap.wasteKinds = {};
+    this.gameMap.policies = [];
     this.gameMap.rulerHouse = null;
     this.gameMap.needsRulerHouse = true;
   }
@@ -197,6 +202,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   cityMap.roadLevels = cityMap.roadLevels || newRoadLevels(cityMap.width, cityMap.height);
   cityMap.civicKinds = cityMap.civicKinds || {};
   cityMap.wasteKinds = cityMap.wasteKinds || {};
+  cityMap.policies = cityMap.policies || [];
   var game = this;
   this.commands = new CityCommands({
     width: this.gameMap.width,
@@ -377,7 +383,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       healthCost: this.simulation.budget.healthCost,
       // ... and the rubbish and wastewater (src/waste.ts)
       wasteCost: this.simulation.budget.wasteCost,
-      recyclingIncome: this.simulation.budget.recyclingIncome
+      recyclingIncome: this.simulation.budget.recyclingIncome,
+      // ... and the ruler's policies (src/policies.ts)
+      policyCost: this.simulation.budget.policyCost,
+      pollutionTaxIncome: this.simulation.budget.pollutionTaxIncome
     };
 
     return [budgetData];
@@ -502,6 +511,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     }
   };
   this.houseWindow.addEventListener(Messages.HOUSE_WINDOW_CLOSED, this.genericDialogClosure);
+  // ... and the ruler's policies (src/policyWindow.ts), switched as commands
+  this.policyWindow = new PolicyWindow(opacityLayerID, 'policyWindow');
+  this.policyWindow.source = {
+    map: function() { return self.gameMap; },
+    change: function(policy, on) {
+      return self.applyCommand({type: 'policy', policy: policy, on: on}).accepted;
+    }
+  };
+  this.policyWindow.addEventListener(Messages.POLICY_WINDOW_CLOSED, this.genericDialogClosure);
 
   // Listen for touches, so we can warn tablet users
   this.touchListener = touchListener.bind(this);
@@ -568,6 +586,8 @@ Game.prototype.save = function() {
                   civicKinds: plantsStanding(this.gameMap, 'civicKinds', CIVIC),
                   // ... and the rubbish and wastewater buildings (src/waste.ts)
                   wasteKinds: plantsStanding(this.gameMap, 'wasteKinds', WASTE),
+                  // ... and the ruler's policies (src/policies.ts)
+                  policies: (this.gameMap.policies || []).length ? this.gameMap.policies.slice() : undefined,
                   rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
@@ -719,7 +739,10 @@ Game.prototype.refreshHouse = function() {
      reason: !standing ? 'house.reason.none' : level >= MAX_HOUSE_LEVEL ? 'house.reason.top' :
              'house.reason.rank.' + houseSpec(next).rank},
     {tool: 'ruler_house_wings', available: standing, colour: HOUSE_COLOUR, note: 'house.wings_note',
-     reason: 'house.reason.none', action: function() { game.openHouseWindow(); }}
+     reason: 'house.reason.none', action: function() { game.openHouseWindow(); }},
+    // The ruler's policies (src/policies.ts)
+    {tool: 'ruler_house_policies', available: standing, colour: HOUSE_COLOUR, note: 'house.wings_note',
+     reason: 'house.reason.none', action: function() { game.openPolicyWindow(); }}
   ]);
   // Schools and hospitals, the higher ones for a higher house (src/services.ts)
   var serviceChoice = function(kind) {
@@ -748,6 +771,15 @@ Game.prototype.applyPlanningDiscount = function(factor) {
     prices[name] = Math.max(1, Math.round(prices[name] * factor));
   });
   showToolPrices(prices);
+};
+
+
+Game.prototype.openPolicyWindow = function() {
+  if (this.dialogOpen)
+    return;
+  this.dialogOpen = true;
+  this._openWindow = 'policyWindow';
+  this.policyWindow.open();
 };
 
 

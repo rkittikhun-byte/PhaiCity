@@ -105,6 +105,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   ruler_house: "about.building.ruler_house",
   ruler_house_upgrade: "about.building.ruler_house",
   ruler_house_wings: "about.building.ruler_house_wings",
+  ruler_house_policies: "about.building.ruler_policies",
   kindergarten: "about.building.education",
   primary_school: "about.building.education",
   secondary_school: "about.building.education",

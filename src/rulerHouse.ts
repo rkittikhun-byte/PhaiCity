@@ -63,8 +63,8 @@ export const BEFORE_HOUSE: readonly string[] = [HOUSE_TOOL, "bulldozer"];
 
 /**
  * The wings (ส่วนต่อเติม, owner 13 Oct 2026): a house of level n may have n − 1 of them, chosen in its window. Each costs
- * a price and an upkeep a year, and is lost without a refund when taken off or when the house falls. Two wait for
- * what they work with: the council hall for the ruler's policies, the trade office for the online network mode.
+ * a price and an upkeep a year, and is lost without a refund when taken off or when the house falls. The council hall
+ * gives room for one more of the ruler's policies (src/policies.ts); the trade office waits for the online network mode.
  */
 export const WINGS = ["council_hall", "treasury", "planning_office", "warning_tower", "granary", "culture_court",
   "front_garden", "trade_office"] as const;
@@ -74,11 +74,11 @@ export interface WingSpec {
   price: number;
   upkeep: number;
   /** Not in the game yet: what it waits for */
-  waitsFor?: "policies" | "network";
+  waitsFor?: "network";
 }
 
 export const WING_SPECS: Readonly<Record<Wing, WingSpec>> = {
-  council_hall: { price: 2000, upkeep: 100, waitsFor: "policies" },
+  council_hall: { price: 2000, upkeep: 100 },
   treasury: { price: 3000, upkeep: 200 },
   planning_office: { price: 2500, upkeep: 150 },
   warning_tower: { price: 2000, upkeep: 100 },
@@ -177,7 +177,7 @@ export interface WingRow {
   wing: Wing;
   owned: boolean;
   /** "build", "remove", or why it cannot be built */
-  state: "build" | "remove" | "waits_policies" | "waits_network" | "no_room" | "no_money";
+  state: "build" | "remove" | "waits_network" | "no_room" | "no_money";
 }
 
 /** The rows of the house's window for a house and the money in the treasury. */
@@ -188,7 +188,6 @@ export function wingRows(house: RulerHouse, funds: number): WingRow[] {
     const spec = WING_SPECS[wing];
     const owned = wings.includes(wing);
     const state: WingRow["state"] = owned ? "remove"
-      : spec.waitsFor === "policies" ? "waits_policies"
       : spec.waitsFor === "network" ? "waits_network"
       : !room ? "no_room"
       : funds < spec.price ? "no_money"

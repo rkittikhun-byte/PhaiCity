@@ -67,6 +67,11 @@ var Budget = EventEmitter(function() {
   this.wasteFund = 0;
   this.recyclingIncome = 0;
   this.wasteCost = 0;
+  // ... and what the ruler's policies cost last year, and the pollution tax they took (src/policies.ts); the simulation
+  // sets the year's cost and the tax's rate before the taxes are collected
+  this.policyCost = 0;
+  this.pollutionTaxRate = 0;
+  this.pollutionTaxIncome = 0;
   // PhaiCity (owner, 13 Oct 2026): a tax for each kind of zone, cityTax staying the homes' (0–20%), and two fees: the
   // water fee, in baht a year for each zone the water reaches (0–10), and the visitors' fee, a percentage on what they
   // spend (0–20). Each brings money and costs something (src/valves.js, src/waterManager.ts, src/simulation.js)
@@ -102,7 +107,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
                  'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
-                 'wasteCost'];
+                 'wasteCost', 'policyCost', 'pollutionTaxIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -137,6 +142,8 @@ Budget.prototype.load = function(saveData) {
   this.wasteFund = this.wasteFund || 0;
   this.recyclingIncome = this.recyclingIncome || 0;
   this.wasteCost = this.wasteCost || 0;
+  this.policyCost = this.policyCost || 0;
+  this.pollutionTaxIncome = this.pollutionTaxIncome || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -338,6 +345,10 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   // ... and the rubbish and wastewater buildings' upkeep (src/waste.ts)
   this.wasteCost = Math.round(census.wasteUpkeep || 0);
   this.taxFund -= this.wasteCost;
+  // ... and the ruler's policies cost what they cost, and the pollution tax is paid by the factories (src/policies.ts)
+  this.taxFund -= this.policyCost || 0;
+  this.pollutionTaxIncome = Math.round(census.indPop * (this.pollutionTaxRate || 0));
+  this.taxFund += this.pollutionTaxIncome;
 
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);

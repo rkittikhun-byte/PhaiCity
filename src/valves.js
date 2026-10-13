@@ -37,6 +37,9 @@ var Valves = EventEmitter(function () {
   // and higher education, 0–1, which draws factories and shops
   this.familyPull = 0;
   this.skilled = 0;
+  // ... and the ruler's policies (src/policies.ts): what they add to the homes' ratio, and each kind's share of its demand
+  this.policyPull = 0;
+  this.policyDemand = {residential: 1, commercial: 1, industrial: 1};
 });
 
 
@@ -142,6 +145,10 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   resRatio += this.familyPull;
   comRatio *= 1 + SKILLED_SHOPS * this.skilled;
   indRatio *= 1 + SKILLED_INDUSTRY * this.skilled;
+  // The ruler's policies (src/policies.ts)
+  resRatio = (resRatio + this.policyPull) * this.policyDemand.residential;
+  comRatio *= this.policyDemand.commercial;
+  indRatio *= this.policyDemand.industrial;
   resRatio *= this.demand.residential;
   comRatio *= this.demand.commercial;
   indRatio *= this.demand.industrial;

@@ -21,6 +21,7 @@ import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
+import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
 import { serviceProblem } from "./services";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -73,6 +74,8 @@ export type Command =
   | { type: "speed"; speed: number }
   /** A wing of the ruler's house built (add) or taken off (src/rulerHouse.ts) */
   | { type: "wing"; wing: typeof WINGS[number]; add: boolean }
+  /** One of the ruler's policies switched on or off (src/policies.ts) */
+  | { type: "policy"; policy: typeof POLICIES[number]; on: boolean }
   | { type: "debugFunds" };
 
 export interface CommandOutcome {
@@ -254,6 +257,9 @@ export function commandProblem(command: unknown, width: number, height: number):
     case "wing":
       if (!isOneOf(WINGS, c.wing)) return `unknown wing ${String(c.wing)}`;
       return typeof c.add === "boolean" ? null : "add missing";
+    case "policy":
+      if (!isOneOf(POLICIES, c.policy)) return `unknown policy ${String(c.policy)}`;
+      return typeof c.on === "boolean" ? null : "on missing";
     case "debugFunds":
       return null;
     default:
@@ -356,6 +362,15 @@ export class CityCommands {
         const refused = wingProblem(city.houseMap, command.wing, command.add, city.budget.totalFunds);
         if (refused || !city.houseMap) return { accepted: false, reason: refused ?? "no house" };
         changeWing(city.houseMap, command.wing, command.add, city.budget);
+        // Without the council hall there may be less room for policies (src/policies.ts)
+        if (!command.add && command.wing === "council_hall") trimPolicies(city.houseMap as PolicyMap);
+        break;
+      }
+      case "policy": {
+        const map = city.houseMap as PolicyMap | undefined;
+        const refused = policyProblem(map, command.policy, command.on);
+        if (refused || !map) return { accepted: false, reason: refused ?? "no house" };
+        changePolicy(map, command.policy, command.on);
         break;
       }
       case "debugFunds":

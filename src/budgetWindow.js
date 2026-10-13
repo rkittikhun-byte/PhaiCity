@@ -188,9 +188,16 @@ BudgetWindow.prototype.open = function(budgetData) {
   // ... and the rubbish and wastewater buildings cost is taken from them, and what recycling sold paid in (src/waste.ts)
   var wasteCost = budgetData.wasteCost || 0;
   var recyclingIncome = budgetData.recyclingIncome || 0;
+  // ... and the ruler's policies cost is taken from them, and the pollution tax paid in (src/policies.ts)
+  var policyCost = budgetData.policyCost || 0;
+  var pollutionTaxIncome = budgetData.pollutionTaxIncome || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
-                                        waterIncome - recyclingIncome + fuelCost + houseCost + educationCost +
-                                        healthCost + wasteCost));
+                                        waterIncome - recyclingIncome - pollutionTaxIncome + fuelCost + houseCost +
+                                        educationCost + healthCost + wasteCost + policyCost));
+  $('#policyCost').text(formatMoney(policyCost));
+  $('#policyInfo').prop('hidden', policyCost <= 0);
+  $('#pollutionTaxIncome').text(formatMoney(pollutionTaxIncome));
+  $('#pollutionTaxInfo').prop('hidden', pollutionTaxIncome <= 0);
   $('#wasteCost').text(formatMoney(wasteCost));
   $('#wasteInfo').prop('hidden', wasteCost <= 0);
   $('#recyclingIncome').text(formatMoney(recyclingIncome));

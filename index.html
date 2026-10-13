@@ -256,6 +256,8 @@
             <div id="healthInfo" class="elided budgetData" hidden><span data-i18n="budget.health">Hospitals:</span> <span id="healthCost"></span></div>
             <div id="wasteInfo" class="elided budgetData" hidden><span data-i18n="budget.waste">Rubbish and wastewater:</span> <span id="wasteCost"></span></div>
             <div id="recyclingInfo" class="elided budgetData" hidden><span data-i18n="budget.recycling">Recycling sold:</span> <span id="recyclingIncome"></span></div>
+            <div id="policyInfo" class="elided budgetData" hidden><span data-i18n="budget.policies">Ruler's policies:</span> <span id="policyCost"></span></div>
+            <div id="pollutionTaxInfo" class="elided budgetData" hidden><span data-i18n="budget.pollution_tax">Pollution tax:</span> <span id="pollutionTaxIncome"></span></div>
             <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
             <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>
@@ -499,6 +501,17 @@
           <ul id="houseWings"></ul>
           <form id="houseForm" class="alignCenter margin10">
             <input type="submit" id="houseOK" data-i18n-value="house.window.ok" class="dialogOK" value="OK">
+          </form>
+        </div>
+      </div>
+      <!-- The ruler's policies (src/policyWindow.ts); the game writes its lines -->
+      <div class="hidden modal shadow" id="policyWindow" data-anchor="controls">
+        <header data-i18n="policy.window.title" class="padding10 chunk alignCenter">Ruler's policies</header>
+        <div id="policyContainer" class="padding10 open">
+          <div id="policySummary" class="alignCenter"></div>
+          <ul id="policyList"></ul>
+          <form id="policyForm" class="alignCenter margin10">
+            <input type="submit" id="policyOK" data-i18n-value="house.window.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>

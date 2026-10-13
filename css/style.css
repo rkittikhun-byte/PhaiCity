@@ -2043,20 +2043,21 @@ body.houseFirst #buttons .toolButton:not([data-tool="ruler_house"]):not([data-to
 }
 body.houseFirst #buttons .toolButton[data-tool="ruler_house"] { box-shadow: 0 0 0 2px #c9a227; }
 /* The ruler's house window: its wings, each with what it brings and costs (src/houseWindow.ts) */
-body #houseWindow { max-width: 360px; }
-body #houseSummary { margin-bottom: 6px; }
-body #houseWings { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow: auto; }
-body #houseWings .houseWing {
+/* ... and the ruler's policies window, laid out the same (src/policyWindow.ts) */
+body :is(#houseWindow, #policyWindow) { max-width: 360px; }
+body :is(#houseSummary, #policySummary) { margin-bottom: 6px; }
+body :is(#houseWings, #policyList) { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow: auto; }
+body :is(#houseWings, #policyList) .houseWing {
   display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 5px 0;
   border-top: 1px solid rgba(29, 41, 37, 0.12); font-weight: 400;
 }
-body #houseWings .houseWing > span { grid-column: 1; }
-body #houseWings .houseWing .name { font-weight: 400; }
-body #houseWings .houseWing .wingGain { color: #2e7d4f; }
-body #houseWings .houseWing .wingCost { color: #b3261e; }
-body #houseWings .houseWing .wingMoney { opacity: 0.75; }
-body #houseWings .houseWing button { grid-column: 2; grid-row: 1 / span 4; align-self: center; font: inherit; }
-body #houseWings .houseWing.owned .name::after { content: " ✓"; }
+body :is(#houseWings, #policyList) .houseWing > span { grid-column: 1; }
+body :is(#houseWings, #policyList) .houseWing .name { font-weight: 400; }
+body :is(#houseWings, #policyList) .houseWing .wingGain { color: #2e7d4f; }
+body :is(#houseWings, #policyList) .houseWing .wingCost { color: #b3261e; }
+body :is(#houseWings, #policyList) .houseWing .wingMoney { opacity: 0.75; }
+body :is(#houseWings, #policyList) .houseWing button { grid-column: 2; grid-row: 1 / span 4; align-self: center; font: inherit; }
+body :is(#houseWings, #policyList) .houseWing.owned .name::after { content: " ✓"; }
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }
 

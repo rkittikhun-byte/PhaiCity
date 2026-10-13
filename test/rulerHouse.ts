@@ -150,9 +150,9 @@ describe("the house's wings", () => {
     expect(map.rulerHouse.wings).toEqual([]);
   });
 
-  test("the council hall and the trade office wait for the policies and the network mode", () => {
+  test("the council hall is built for the policies; the trade office waits for the network mode", () => {
     const { commands } = raised(3);
-    expect(commands.apply({ type: "wing", wing: "council_hall", add: true })).toMatchObject({ reason: WING_WAITS });
+    expect(commands.apply({ type: "wing", wing: "council_hall", add: true }).accepted).toBe(true);
     expect(commands.apply({ type: "wing", wing: "trade_office", add: true })).toMatchObject({ reason: WING_WAITS });
     expect(commands.apply({ type: "wing", wing: "nope" as any, add: true }).accepted).toBe(false);
   });
@@ -179,7 +179,8 @@ describe("the house's wings", () => {
     const rows = wingRows({ x: 0, y: 0, level: 2, wings: ["treasury"] }, 100);
     expect(rows.find((row) => row.wing === "treasury")?.state).toBe("remove");
     expect(rows.find((row) => row.wing === "granary")?.state).toBe("no_room");
-    expect(rows.find((row) => row.wing === "council_hall")?.state).toBe("waits_policies");
+    expect(rows.find((row) => row.wing === "council_hall")?.state).toBe("no_room");
+    expect(rows.find((row) => row.wing === "trade_office")?.state).toBe("waits_network");
     expect(wingRows({ x: 0, y: 0, level: 3, wings: [] }, 100).find((row) => row.wing === "granary")?.state)
       .toBe("no_money");
   });

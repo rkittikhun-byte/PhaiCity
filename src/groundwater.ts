@@ -96,13 +96,14 @@ export function fullStores(natural: Uint8Array): Uint8Array {
   return natural.map((level) => level * UNITS_PER_LEVEL);
 }
 
-/** A month of rain: every store below its land's natural level fills part of the way back. */
-export function rechargeGroundwater(stores: Uint8Array, natural: Uint8Array): void {
+/** A month of rain: every store below its land's natural level fills part of the way back, faster by factor (the
+ * ruler's green zoning, src/policies.ts). */
+export function rechargeGroundwater(stores: Uint8Array, natural: Uint8Array, factor = 1): void {
   for (let i = 0; i < stores.length; i++) {
     const level = natural[i];
     const target = level * UNITS_PER_LEVEL;
     if (stores[i] >= target) continue;
-    stores[i] += Math.ceil((target - stores[i]) * level * level / RECHARGE_DIVISOR);
+    stores[i] = Math.min(target, stores[i] + Math.ceil((target - stores[i]) * level * level * factor / RECHARGE_DIVISOR));
   }
 }
 
