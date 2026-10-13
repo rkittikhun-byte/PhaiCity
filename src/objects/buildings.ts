@@ -29,6 +29,10 @@ export abstract class ZoneBuilding extends CommunityBuilding {
 export class Home extends ZoneBuilding { readonly kind = "home"; }
 export class Shop extends ZoneBuilding { readonly kind = "shop"; }
 export class Factory extends ZoneBuilding { readonly kind = "factory"; }
+/** Farms and fishing harbours are the villagers' own (owner, 13 Oct 2026): the community's, on land the ruler set aside
+ * for them; mines stay central, as concessions the ruler grants for royalties (docs/GAME_PLAN.md decision 13) */
+export class Farm extends CommunityBuilding { readonly kind = "farm"; }
+export class Harbour extends CommunityBuilding { readonly kind = "harbour"; }
 
 /** A building whose sort the map records beside its tiles, by its centre's index */
 abstract class RecordedBuilding extends CentralService {
@@ -81,8 +85,8 @@ const CENTRES: ReadonlyArray<[number, number, (id: number, x: number, y: number)
   [CIVIC, 3, (id, x, y) => new Civic(id, x, y, 3)],
   [WATER_WORKS, 3, (id, x, y) => new Plain("water_works", id, x, y, 3)],
   [MINE, 3, (id, x, y) => new Mine(id, x, y, 3)],
-  [FARM, 3, (id, x, y) => new Plain("farm", id, x, y, 3)],
-  [HARBOUR, 3, (id, x, y) => new Plain("harbour", id, x, y, 3)],
+  [FARM, 3, (id, x, y) => new Farm(id, x, y, 3)],
+  [HARBOUR, 3, (id, x, y) => new Harbour(id, x, y, 3)],
   [WASTE, 3, (id, x, y) => new WasteSite(id, x, y, 3)],
   [STATION, 3, (id, x, y) => new Station(id, x, y, 3)],
 ];

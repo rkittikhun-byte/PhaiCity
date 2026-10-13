@@ -8,7 +8,7 @@ import { Building, CentralService, CityObject, CommunityBuilding } from "../src/
 import { Civic, Factory, Home, PowerPlant, Shop } from "../src/objects/buildings";
 import { CityObjects } from "../src/objects/cityObjects";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
-import { BUS_STOP, CIVIC, CZB, HOUSE, IZB, NUCLEAR, POWERPLANT, RZB } from "../src/tileValues";
+import { BUS_STOP, CIVIC, CZB, FARM, HARBOUR, HOUSE, IZB, MINE, NUCLEAR, POWERPLANT, RZB } from "../src/tileValues";
 
 function city(width = 30, height = 20) {
   const values = new Uint16Array(width * height), flags = new Uint16Array(width * height);
@@ -61,6 +61,14 @@ describe("city objects", () => {
       .toEqual(["factory", "home", "home", "shop"]);
     expect(gas).toBeInstanceOf(CentralService);
     expect(objects.all().filter(o => o instanceof CentralService).length).toBe(4);
+  });
+
+  test("farms and harbours are the community's, mines the ruler's concessions", () => {
+    const c = city();
+    c.put(2, 2, FARM, ZONEBIT); c.put(6, 2, HARBOUR, ZONEBIT); c.put(10, 2, MINE, ZONEBIT);
+    const objects = new CityObjects(30, 20); objects.scan(c, 0);
+    expect([objects.at(2, 2)!.sector, objects.at(6, 2)!.sector, objects.at(10, 2)!.sector])
+      .toEqual(["community", "community", "central"]);
   });
 
   test("a card's facts: level, land, sort and power, as i18n keys", () => {
