@@ -9,6 +9,7 @@ import { hasKey } from "../src/i18n/index";
 import { homePeople, inspectAt } from "../src/inspect";
 import { CityObjects } from "../src/objects/cityObjects";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
+import { CZB, POLICESTATION } from "../src/tileValues";
 import { HOUSE, POWERPLANT, RIVER, ROADS, RZB, WOODS } from "../src/tileValues";
 
 function city() {
@@ -26,7 +27,9 @@ function city() {
   const objects = new CityObjects(width, height);
   const look = (x: number, y: number) => {
     objects.scan(map, 96);
-    return inspectAt({ map, objects, blockMaps, cityTime: 96, startingYear: 1900, language: "th" }, x, y);
+    return inspectAt({ map, objects, blockMaps, cityTime: 96, startingYear: 1900, language: "th",
+      satisfaction: { blockMaps, budget: { cityTax: 7, comTax: 12, policePercent: 0.5 }, valves: { comValve: 1000 },
+        services: { basic: 80, higher: 0, health: 30, people: 800 } } }, x, y);
   };
   return { map, look };
 }
@@ -62,6 +65,25 @@ describe("the inspector", () => {
     expect(house.facts.find(f => f.key === "object.fact.people")?.params).toEqual({ people: 20 });
     expect(homePeople(5, 1, true)).toBe(Math.round(48 * 20 / 8));
     for (const key of [...keysOf(zone), ...keysOf(house)]) expect(hasKey(key)).toBe(true);
+  });
+
+  test("each kind is content in its own way, with its reasons biggest first", () => {
+    const { map, look } = city();
+    map.put(2, 2, RZB, ZONEBIT | POWERBIT);            // a home with power
+    map.put(8, 2, CZB, ZONEBIT);                       // a shop without
+    map.put(14, 2, POLICESTATION, ZONEBIT | POWERBIT); // police paid half their budget
+    map.put(20, 2, POWERPLANT, ZONEBIT);               // a plant without power
+    const home = look(2, 2)!.satisfaction!, shop = look(8, 2)!.satisfaction!;
+    // Home: power +4, low pollution +4, high crime -5, good land +3, schools +3, health -2 (0 traffic, 7% tax)
+    expect(home.score).toBe(50 + 4 + 4 - 5 + 3 + 3 - 2);
+    expect(home.factors[0]).toEqual({ key: "satisfaction.crime", points: -5 });
+    // Shop: no power -10, low pollution +2, high crime -6, good land +3, quiet street -1, market +5, 12% tax -2
+    expect(shop.score).toBe(50 - 10 + 2 - 6 + 3 - 1 + 5 - 2);
+    expect(look(14, 2)!.satisfaction).toEqual({ score: 50 + 6 - 15, factors: [
+      { key: "satisfaction.budget", points: -15 }, { key: "satisfaction.power", points: 6 }] });
+    expect(look(20, 2)!.satisfaction!.score).toBe(30);
+    for (const s of [home, shop]) for (const f of s.factors) expect(hasKey(f.key)).toBe(true);
+    expect(hasKey("object.satisfaction")).toBe(true);
   });
 
   test("roads, water, woods and open land", () => {

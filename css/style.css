@@ -2193,3 +2193,11 @@ body #inspectCard .inspectClose:hover { background: var(--hud-glass-strong); }
 body #inspectCard .inspectSub { opacity: 0.75; margin: 2px 0 6px; }
 body #inspectCard ul { margin: 0; padding-left: 16px; }
 body #inspectCard li { margin: 1px 0; }
+body #inspectCard .inspectSatisfaction { margin: 4px 0 8px; }
+body #inspectCard .inspectScore { font-size: 12px; }
+body #inspectCard .inspectBar { height: 5px; margin: 3px 0 4px; border-radius: 3px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
+body #inspectCard .inspectBar span { display: block; height: 100%; border-radius: 3px; background: #4caf7a; }
+body #inspectCard .inspectBar span[data-mood="fair"] { background: #e0b84a; }
+body #inspectCard .inspectBar span[data-mood="poor"] { background: #d9634c; }
+body #inspectCard li[data-sign="plus"] { color: #3f9a68; }
+body #inspectCard li[data-sign="minus"] { color: #c45a46; }

@@ -67,6 +67,30 @@ export class InspectCard {
       subtitle.className = "inspectSub"; subtitle.textContent = sub.join(" · ");
       element.append(subtitle);
     }
+    // How content it is, and why: the biggest reasons first (src/objects/satisfaction.ts)
+    const satisfaction = inspection.satisfaction;
+    if (satisfaction) {
+      const box = doc.createElement("div");
+      box.className = "inspectSatisfaction";
+      const score = doc.createElement("div");
+      score.className = "inspectScore";
+      score.textContent = t("object.satisfaction", { score: satisfaction.score });
+      const bar = doc.createElement("div");
+      bar.className = "inspectBar";
+      const fill = doc.createElement("span");
+      fill.style.width = `${satisfaction.score}%`;
+      fill.dataset.mood = satisfaction.score >= 60 ? "good" : satisfaction.score >= 40 ? "fair" : "poor";
+      bar.append(fill);
+      const reasons = doc.createElement("ul");
+      for (const factor of satisfaction.factors.slice(0, 6)) {
+        const item = doc.createElement("li");
+        item.dataset.sign = factor.points > 0 ? "plus" : "minus";
+        item.textContent = `${factor.points > 0 ? "+" : "−"}${Math.abs(factor.points)} ${t(factor.key)}`;
+        reasons.append(item);
+      }
+      box.append(score, bar, reasons);
+      element.append(box);
+    }
     const list = doc.createElement("ul");
     for (const fact of inspection.facts) {
       const item = doc.createElement("li");

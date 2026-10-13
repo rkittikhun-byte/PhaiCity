@@ -569,7 +569,10 @@ Game.prototype.inspectTile = function(x, y) {
   this.core.objects.scan(this.gameMap, this.simulation._cityTime);
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
                          cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
-                         language: getLanguage()}, x, y);
+                         language: getLanguage(),
+                         satisfaction: {blockMaps: this.simulation.blockMaps, budget: this.simulation.budget,
+                                        valves: this.simulation._valves, services: this.simulation._serviceLevels}},
+                        x, y);
   if (found)
     this.inspectCard.open(found);
   else

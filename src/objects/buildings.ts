@@ -13,6 +13,8 @@ import {
   POLICESTATION, PORT, POWERPLANT, STADIUM, STATION, WASTE, WATER_TOWER, WATER_WORKS,
 } from "../tileValues.js";
 import { Building, CentralService, CityReader, CommunityBuilding, Fact, ObjectKind } from "./cityObject.js";
+import { areaFactors, demandFactor, type Satisfaction, type SatisfactionContext, type SatisfactionFactor,
+  serviceFactors, settle, taxFactor } from "./satisfaction.js";
 
 /** A home, a shop or a factory: a 3 × 3 zone building, a house or a painted plot. */
 export abstract class ZoneBuilding extends CommunityBuilding {
@@ -28,9 +30,42 @@ export abstract class ZoneBuilding extends CommunityBuilding {
     return facts;
   }
 }
-export class Home extends ZoneBuilding { readonly kind = "home"; }
-export class Shop extends ZoneBuilding { readonly kind = "shop"; }
-export class Factory extends ZoneBuilding { readonly kind = "factory"; }
+/** Power and water as a building's people feel them: a lack hurts more than having them pleases */
+function utilities(building: Building, city: CityReader, power: [number, number], water: [number, number]): SatisfactionFactor[] {
+  const factors: SatisfactionFactor[] = [{ key: "satisfaction.power", points: building.powered(city) ? power[0] : power[1] }];
+  if (city.water) factors.push({ key: "satisfaction.water", points: building.watered(city) ? water[0] : water[1] });
+  return factors;
+}
+
+/** A home: whether its people are content to stay (docs/INSPECTOR.md, the households' factors) */
+export class Home extends ZoneBuilding {
+  readonly kind = "home";
+  override satisfaction(city: CityReader, context: SatisfactionContext): Satisfaction {
+    return settle([...utilities(this, city, [4, -10], [4, -6]),
+      ...areaFactors(context, this.x, this.y, { pollution: [4, 0, -4, -8], crime: [3, 0, -3, -5], land: [-2, 1, 3, 4],
+        traffic: [0, 0, -2, -4] }),
+      ...serviceFactors(context), taxFactor(context.budget?.cityTax)]);
+  }
+}
+/** A shop: whether its owner is content with the customers, the place and the costs */
+export class Shop extends ZoneBuilding {
+  readonly kind = "shop";
+  override satisfaction(city: CityReader, context: SatisfactionContext): Satisfaction {
+    return settle([...utilities(this, city, [4, -10], [3, -5]),
+      ...areaFactors(context, this.x, this.y, { pollution: [2, 0, -2, -4], crime: [3, 0, -3, -6], land: [-3, 0, 3, 5],
+        traffic: [-1, 2, 1, -3] }),
+      demandFactor(context.valves?.comValve), taxFactor(context.budget?.comTax)]);
+  }
+}
+/** A factory: whether its owner is content with the market, the roads and the costs */
+export class Factory extends ZoneBuilding {
+  readonly kind = "factory";
+  override satisfaction(city: CityReader, context: SatisfactionContext): Satisfaction {
+    return settle([...utilities(this, city, [4, -12], [2, -4]),
+      ...areaFactors(context, this.x, this.y, { crime: [2, 0, -2, -4], traffic: [0, 1, -1, -3] }),
+      demandFactor(context.valves?.indValve), taxFactor(context.budget?.indTax)]);
+  }
+}
 /** Farms and fishing harbours are the villagers' own (owner, 13 Oct 2026): the community's, on land the ruler set aside
  * for them; mines stay central, as concessions the ruler grants for royalties (docs/GAME_PLAN.md decision 13) */
 export class Farm extends CommunityBuilding { readonly kind = "farm"; }

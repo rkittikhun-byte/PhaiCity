@@ -10,6 +10,7 @@
 // tiles cannot tell, such as when a building went up, are saved with the city. Plain code: no DOM, nothing random.
 
 import { POWERBIT } from "../tileFlags.js";
+import { settle, type Satisfaction, type SatisfactionContext } from "./satisfaction.js";
 
 /** What the objects read of the city: the map and the records kept beside its tiles */
 export interface CityReader {
@@ -77,6 +78,8 @@ export abstract class CityObject {
   }
   /** What sort of its kind it is (a lignite plant, a landfill, a school …), or "" if its kind has no sorts */
   sort(_city: CityReader): string { return ""; }
+  /** How content it is (src/objects/satisfaction.ts), or null for what has no one to be content */
+  satisfaction(_city: CityReader, _context: SatisfactionContext): Satisfaction | null { return null; }
   /** The lines of its card, in order */
   facts(city: CityReader): Fact[] {
     const sort = this.sort(city);
@@ -117,4 +120,11 @@ export abstract class CommunityBuilding extends Building {
  * and the ruler's house. Their satisfaction is how well they serve: budget, staff, load and reach. */
 export abstract class CentralService extends Building {
   readonly sector = "central";
+  /** How well it serves: power, and for the police and the fire brigade the share of their budget paid */
+  override satisfaction(city: CityReader, context: SatisfactionContext): Satisfaction {
+    const factors = this.needsPower ? [{ key: "satisfaction.power", points: this.powered(city) ? 6 : -20 }] : [];
+    const paid = this.kind === "police" ? context.budget?.policePercent : this.kind === "fire" ? context.budget?.firePercent : undefined;
+    if (paid !== undefined) factors.push({ key: "satisfaction.budget", points: Math.round((paid - 1) * 30) });
+    return settle(factors);
+  }
 }

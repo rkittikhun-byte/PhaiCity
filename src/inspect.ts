@@ -10,6 +10,7 @@
 import { ownsLand } from "./landBlocks.js";
 import type { Fact } from "./objects/cityObject.js";
 import type { CityObjects } from "./objects/cityObjects.js";
+import { DENSITY_GRADES, gradeAt, LAND_GRADES, type Satisfaction, type SatisfactionContext } from "./objects/satisfaction.js";
 import { MINE_TOOLS } from "./mining.js";
 import { PLANT_TOOLS } from "./powerPlants.js";
 import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
@@ -23,6 +24,8 @@ export interface Inspection {
   street?: { key: string; params: Record<string, string | number> };
   /** The community's or the ruler's, for a building */
   sector?: "community" | "central";
+  /** How content it is (src/objects/satisfaction.ts), for what has someone to be content */
+  satisfaction?: Satisfaction;
   facts: Fact[];
   /** The tiles it covers, for the outline in the view */
   rect: { x: number; y: number; width: number; height: number };
@@ -40,6 +43,8 @@ export interface InspectCity {
   cityTime: number;
   startingYear: number;
   language: "th" | "en";
+  /** What the satisfaction scores read besides the map (budget, demand, services) */
+  satisfaction?: SatisfactionContext;
 }
 
 /** The tool whose name a building's sort takes as its title */
@@ -56,19 +61,13 @@ function titleOf(kind: string, sort: string): string {
   }
 }
 
-/** A block map's value at a tile in four grades, as the old query window had them (src/queryTool.js) */
-function grade(map: Legacy, x: number, y: number, thresholds: [number, number, number]): number {
-  const value = map?.worldGet?.(x, y) ?? 0;
-  return value >= thresholds[2] ? 3 : value >= thresholds[1] ? 2 : value >= thresholds[0] ? 1 : 0;
-}
-
 /** The area round a tile, from the simulation's block maps */
 function areaFacts(blockMaps: Legacy, x: number, y: number): Fact[] {
   if (!blockMaps) return [];
   return [
-    { key: "object.fact.land_value", params: { grade: `object.grade.${grade(blockMaps.landValueMap, x, y, [30, 80, 150])}` } },
-    { key: "object.fact.pollution", params: { grade: `object.grade.${grade(blockMaps.pollutionDensityMap, x, y, [64, 128, 192])}` } },
-    { key: "object.fact.crime", params: { grade: `object.grade.${grade(blockMaps.crimeRateMap, x, y, [64, 128, 192])}` } },
+    { key: "object.fact.land_value", params: { grade: `object.grade.${gradeAt(blockMaps.landValueMap, x, y, LAND_GRADES)}` } },
+    { key: "object.fact.pollution", params: { grade: `object.grade.${gradeAt(blockMaps.pollutionDensityMap, x, y, DENSITY_GRADES)}` } },
+    { key: "object.fact.crime", params: { grade: `object.grade.${gradeAt(blockMaps.crimeRateMap, x, y, DENSITY_GRADES)}` } },
   ];
 }
 
@@ -122,8 +121,9 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
       : { key: "object.fact.built_before" });
     facts.push(...areaFacts(city.blockMaps, building.x, building.y));
     const street = streetBeside(map, rect);
+    const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
     return { title: { key: titleOf(building.kind, building.sort(map)), params: { price: "" } }, sector: building.sector,
-      street: street ? streetLabel(street, city.language) : undefined, facts, rect };
+      street: street ? streetLabel(street, city.language) : undefined, satisfaction, facts, rect };
   }
   const rect = { x, y, width: 1, height: 1 };
   const outside = map.insideProvince && map.insideProvince[i] !== 1 ? [{ key: "object.fact.outside" }] : [];

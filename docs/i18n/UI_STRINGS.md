@@ -1382,6 +1382,18 @@
 | `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |
 | `object.card.close` | `src/inspect.ts` | — | `Close` | `ปิด` |  |
 | `object.card.label` | `src/inspect.ts` | — | `Inspect` | `ตรวจดู` | ชื่อการ์ดสำหรับโปรแกรมอ่านจอ |
+| `object.satisfaction` | `src/objects/satisfaction.ts` | — | `Satisfaction {score}%` | `ความพอใจ {score}%` | ความพอใจของวัตถุ (src/objects/satisfaction.ts; GAME_PLAN เฟส 7 ข้อ 2) |
+| `satisfaction.power` | `src/objects/satisfaction.ts` | — | `Power` | `ไฟฟ้า` |  |
+| `satisfaction.water` | `src/objects/satisfaction.ts` | — | `Water` | `น้ำประปา` |  |
+| `satisfaction.pollution` | `src/objects/satisfaction.ts` | — | `Pollution` | `มลพิษ` |  |
+| `satisfaction.crime` | `src/objects/satisfaction.ts` | — | `Crime` | `อาชญากรรม` |  |
+| `satisfaction.land` | `src/objects/satisfaction.ts` | — | `Location` | `ทำเล` |  |
+| `satisfaction.traffic` | `src/objects/satisfaction.ts` | — | `Traffic` | `การจราจร` |  |
+| `satisfaction.schools` | `src/objects/satisfaction.ts` | — | `Schools` | `โรงเรียน` |  |
+| `satisfaction.health` | `src/objects/satisfaction.ts` | — | `Doctors and hospitals` | `หมอและโรงพยาบาล` |  |
+| `satisfaction.taxes` | `src/objects/satisfaction.ts` | — | `Taxes` | `ภาษี` |  |
+| `satisfaction.demand` | `src/objects/satisfaction.ts` | — | `Market` | `ความต้องการของตลาด` |  |
+| `satisfaction.budget` | `src/objects/satisfaction.ts` | — | `Budget paid` | `งบที่ได้รับ` |  |
 | `street.soi` | `src/streetNames.ts` | — | `Soi {name} {number}` | `ซอย{name} {number}` | ซอยเลขคี่ฝั่งหนึ่ง เลขคู่อีกฝั่ง |
 | `street.soi_highway` | `src/streetNames.ts` | — | `Highway {name} Soi {number}` | `ทางหลวง {name} ซอย {number}` | ซอยที่แยกจากทางหลวง |
 | `street.lane` | `src/streetNames.ts` | — | `Soi {name} {number} Yaek {sub}` | `ซอย{name} {number} แยก {sub}` | ซอยที่แยกจากซอย |
