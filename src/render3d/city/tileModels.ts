@@ -38,7 +38,8 @@ export function makeTileTable(): readonly TileResolution[] {
   for (const [start, size, kind] of [[693,4,'transport'],[709,6,'transport'],[745,4,'services'],[761,3,'services'],
     [770,3,'services'],[779,4,'services'],[795,4,'services'],[811,4,'services'],[414,3,'services']] as const)
     for (let i = 0; i < size * size; i++) if (table[start+i].kind === 'debug') table[start+i] = { kind, id: null, footprint:[size,size], density:1 };
-  for (let start = 956; start <= 1010; start += 9) for (let i=0;i<9;i++) table[start+i] = { kind:'services', id:null, footprint:[3,3], density:1 };
+  // The extended 3 × 3s (water works, mines, farms, harbours, waste, stations) are generic buildings until registered
+  for (let start = 956; start <= 1010; start += 9) for (let i=0;i<9;i++) if (table[start+i].kind==='debug') table[start+i] = { kind:'services', id:null, footprint:[3,3], density:1 };
   // PhaiCity: a bus or songthaew stop (src/transit.ts) shows a songthaew waiting until the stop has a model of its own
   table[1021] = { kind:'transport', id:'veh.songthaew', footprint:[1,1], density:0 };
   return Object.freeze(table.map(entry=>Object.freeze(entry)));
@@ -64,6 +65,9 @@ const PLOT_HEIGHTS: Readonly<Record<PlotKind, readonly number[]>> = {
 const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 'res', commercial: 'com', industrial: 'ind' };
 /** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
 const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
+/** Far-view heights of the schools on the civic 3 × 3 (their models are 8–18 m at the highest point) */
+const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, primary_school: 7, secondary_school: 10,
+  vocational_college: 8, university: 10 };
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
@@ -125,6 +129,27 @@ export class TileSnapshot implements CityMapReader {
       water:false,rotation:0,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
         variant:house.level,state:[...(house.wings??[])].sort().join(','),waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:0}};
   }
+  /** The side of a building centred at x, y (size 1 or 3 tiles) with the most road beside it: 0 north, 1 east, 2 south,
+   * 3 west; south when it has none or a tie with the south. */
+  roadSide(x:number,y:number,size:number):number {
+    const r=(size-1)/2,scores=[0,0,0,0];
+    for(let n=-r;n<=r;n++){
+      const points=[[x+n,y-r-1],[x+r+1,y+n],[x+n,y+r+1],[x-r-1,y+n]];
+      points.forEach(([px,py],side)=>{if(px>=0&&py>=0&&px<this.width&&py<this.height&&isRoad(this.getTileValue(px,py)))scores[side]++;});
+    }
+    let side=2;for(const candidate of [1,3,0])if(scores[candidate]>scores[side])side=candidate;
+    return side;
+  }
+  /** A school on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its gate
+   * toward its road. The ruler's house keeps its own placement; other kinds (hospitals for now) stay generic. */
+  private civicPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
+    const kind=this.source?.civicKinds?.[i];
+    if(this.values[i]!==CIVIC||!kind||kind==='ruler_house'||!registry[`civic.${kind}`])return null;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
+    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:`civic.${kind}`,kind:'services',footprint:[3,3],height:SCHOOL_HEIGHTS[kind]??12,color:0xb8ad94,
+      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+  }
   /** A lot's one building over its four plots (src/plots.ts lotOf), from its top-left tile; null on its other tiles. */
   private lotPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null|undefined {
     const lot=lotOf(this,x,y);if(!lot)return undefined;if(lot.x!==x||lot.y!==y)return null;
@@ -159,6 +184,8 @@ export class TileSnapshot implements CityMapReader {
     if(plot)return this.plotPlacement(i,x,y,plot,region,hash);
     const house=zone?this.housePlacement(i,x,y,region,hash):null;
     if(house)return house;
+    const school=zone?this.civicPlacement(i,x,y,region,hash):null;
+    if(school)return school;
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };
@@ -184,10 +211,12 @@ export class TileSnapshot implements CityMapReader {
     else if(v===0||v>=44&&v<=51) {variant=(hash>>>2)&3;if(v===0&&this.paintedZones)state='grass';}
     if(id==='svc.stadium')state=v>=795&&v<=810?'game':'empty';
     if(id==='port.seaport'&&zone)rotation=this.portRotation(x,y,w);
+    // The water works' gate and the water tower's ladder face their road (RENDERER_SPEC 6C)
+    if(id==='water.works'&&zone||id==='water.tower')rotation=FACING_ROTATION[this.roadSide(x,y,id==='water.tower'?1:3)];
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;
-    const height=id?.endsWith('zone_empty')?.12:id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:v===1021?3:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
+    const height=id?.endsWith('zone_empty')?.12:id==='water.works'?7:id==='water.tower'?9:id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:v===1021?3:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;

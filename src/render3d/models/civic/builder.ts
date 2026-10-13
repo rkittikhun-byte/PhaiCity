@@ -58,6 +58,8 @@ export interface RoofSpec {
   fill?: number | false;
   /** Plain eave brackets (คันทวย) under the eaves; default on */
   brackets?: boolean;
+  /** A tie beam and battens on a timber gable (หน้าจั่วลูกฟัก); default on, off for plain plastered gables */
+  panels?: boolean;
 }
 
 export const STONE = 0xbab3a4;
@@ -94,10 +96,11 @@ export class CivicBuilder extends ServiceBuilder {
   private frame = new Matrix4();
   private frameYaw = 0;
 
-  constructor(options: ModelOptions) {
+  /** form: parts of the regional form to replace, e.g. a school's modern roof (models/civic/school-builder.ts) */
+  constructor(options: ModelOptions, form: Partial<CivicForm> = {}) {
     super(options);
     this.seed = options.seed ?? 1;
-    this.form = civicForm(this.kit);
+    this.form = { ...civicForm(this.kit), ...form };
     this.colors = this.kit.palette.pick(this.seed);
     // Structural timber: the kit's trim, except Lanna's cream trim, where posts and decks stay dark teak.
     this.timber = this.kit.id === 'north' ? shade(this.colors.wall, -0.04) : this.colors.trim;
@@ -229,14 +232,14 @@ export class CivicBuilder extends ServiceBuilder {
       for (const offset of pieces) {
         const parts = spec.civic ? this.kit.services.roof([pieceSpan, length], options) : this.kit.roofs[form]([pieceSpan, length], options);
         this.take(this.adopt(parts), offset, 0, 0);
-        if (spec.fill !== false) this.gableFill(form, pieceSpan, length, base, overhang, pitch, spec.fill ?? this.colors.wall, offset, !!spec.civic);
+        if (spec.fill !== false) this.gableFill(form, pieceSpan, length, base, overhang, pitch, spec.fill ?? this.colors.wall, offset, !!spec.civic, spec.panels !== false);
       }
       if (pieces.length > 1) this.bx(this.wood, this.colors.trim, 0.32, 0.16, length + overhang * 2, 0, base + 0.08, 0);
     });
   }
 
   private gableFill(form: RoofForm, span: number, length: number, base: number, overhang: number, pitch: number,
-    color: number, offset: number, civic: boolean): void {
+    color: number, offset: number, civic: boolean, panels = true): void {
     if (form !== 'gable' && form !== 'layeredGable') return;
     const close = (vertices: Vector3[], side: number): void => this.colored(color, () =>
       this.panel(side > 0 ? vertices : [...vertices].reverse(), point(0, 0, side), 0.06, this.wood));
@@ -248,7 +251,7 @@ export class CivicBuilder extends ServiceBuilder {
         point(offset + span / 2, base + low * overhang, z), point(offset, base + low * (span / 2 + overhang) - 0.1, z),
         point(offset - span / 2, base + low * overhang, z)], side);
       // Panelled gable (หน้าจั่วลูกฟัก): a tie beam and battens standing up to the roof line.
-      if (!civic && span >= 4) this.colored(this.colors.trim, () => {
+      if (!civic && panels && span >= 4) this.colored(this.colors.trim, () => {
         this.box(span, 0.12, 0.08, offset, base + 0.06, z + side * 0.05, this.wood);
         for (const t of [-0.3, -0.15, 0, 0.15, 0.3]) {
           const h = low * (span / 2 + overhang - Math.abs(t) * span) - 0.2;
