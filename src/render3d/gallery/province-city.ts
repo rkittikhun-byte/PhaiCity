@@ -25,6 +25,10 @@ export class ProvinceTestCity implements CityMapReader {
     for(let x=25;x<292;x++)this.values[165*300+x]=this.values[165*300+x]===2?64:66;
     for(let y=20;y<282;y++)this.values[y*300+163]=this.values[y*300+163]===2?225:227;
     this.values[165*300+163]=238;
+    // Staircases: one stepping diagonally south-west from the main road, one rising a tile for every two east.
+    for(let k=0;k<26;k++)for(const x of[140-k,139-k])this.values[(166+k)*300+x]=66;
+    this.values[164*300+190]=66;
+    for(let k=0,x=190,y=163;k<18;k++){this.values[y*300+x]=66;this.values[y*300+x+1]=66;this.values[y*300+x+2]=66;x+=2;y--;}
     for(const[x,y,value,size]of[[151,160,244,3],[157,159,265,3],[151,170,427,3],[158,171,774,3],[143,167,765,3],[111,171,265,3]]){
       const first=value-size-1;
       for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++)this.values[(y-1+dy)*300+x-1+dx]=first+dy*size+dx;

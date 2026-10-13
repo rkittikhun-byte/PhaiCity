@@ -24,6 +24,7 @@ import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
 import { createTerrain, TERRAIN_KINDS, TERRAIN_TILES } from './terrain/terrain.js';
 import { createRoad, ROAD_KINDS, ROAD_TILES } from './road/road.js';
 import { createLateriteRoad, LATERITE_KINDS } from './road/laterite.js';
+import { STAIRCASE_VARIANTS } from './road/centreline.js';
 import { createRail, RAIL_KINDS, RAIL_TILES } from './rail/rail.js';
 import { createPower, POWER_KINDS, POWER_TILES } from './power/power.js';
 import { createElevatedRail, ELEVATED_KINDS, ELEVATED_STYLES } from './rail/elevated.js';
@@ -140,6 +141,8 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     regionTier: 'R3', tiling: true,
     ...(kind.includes('bridge') ? { ground: 'bridge' } : {}),
     ...(['drawbridge', 'rail_crossing'].includes(kind) ? { states: ['closed', 'open'] } : {}),
+    // Corner variants: which sides are steps of a staircase (models/road/centreline.ts).
+    ...(kind === 'corner' ? { variants: STAIRCASE_VARIANTS } : {}),
   } as ModelRegistration])),
   ...Object.fromEntries(LATERITE_KINDS.map(kind => [`road.laterite_${kind}`, {
     factory: (options?: ModelOptions) => createLateriteRoad(kind, options),
@@ -147,6 +150,7 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     regionTier: 'R3', tiling: true,
     ...(kind.includes('bridge') ? { ground: 'bridge' } : {}),
     ...(['drawbridge', 'rail_crossing'].includes(kind) ? { states: ['closed', 'open'] } : {}),
+    ...(kind === 'corner' ? { variants: STAIRCASE_VARIANTS } : {}),
   } as ModelRegistration])),
   ...Object.fromEntries(TERRAIN_KINDS.map(kind => [`terrain.${kind}`, {
     factory: (options?: ModelOptions) => createTerrain(kind, options),

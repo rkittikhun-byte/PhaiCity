@@ -2,14 +2,17 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { PlaneGeometry } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Material, PlaneGeometry } from 'three';
 import { getMaterial, tint } from '../../materials/library.js';
 import { thaiSign } from '../../materials/signs.js';
 import { seededRng } from '../../rng.js';
 import type { ModelOptions } from '../registry.js';
 import { point } from '../vegetation/builder.js';
-import { BASIC_MASKS, BasicRoadKind } from './interfaces.js';
+import { BASIC_MASKS, BasicRoadKind, ROAD_SECTION } from './interfaces.js';
 import { Point2, RoadBuilder } from './builder.js';
+import { alongRoad, clipTriangle, roadDistance, roadShape } from './centreline.js';
+
+type BandPoint = readonly [number, number, number];
 
 const rectangle = (x0: number, z0: number, x1: number, z1: number): Point2[] => [[x0, z0], [x0, z1], [x1, z1], [x1, z0]];
 export const CORNER_RADIUS = 3;
@@ -97,6 +100,45 @@ export function roadBase(builder: RoadBuilder, kind: BasicRoadKind, painted: boo
   }
 }
 
+/**
+ * A corner that is a step of a staircase (`variant` as centreline.ts `staircaseVariant`: bit 1 its north side, bit 2 its east):
+ * the 7 m carriageway with its edge lines and dashed centre follows the bent centre line and stops at the tile's
+ * edges. Kerbs and pavements are left out, as they would not fit beside the step.
+ */
+export function bentRoadBase(builder: RoadBuilder, variant: number): void {
+  const shape = roadShape(BASIC_MASKS.corner, variant & 3, false, variant >> 2 & 3), half = ROAD_SECTION.carriageway / 2;
+  // The carriageway and its edge lines are bands of distance from the road, so they never fold inside a tight bend.
+  const band = (from: number, to: number, y: number, material: Material): void => {
+    const grid = 10, at = (x: number, z: number): BandPoint => [x, z, roadDistance(x, z, shape)];
+    const between = (a: BandPoint, b: BandPoint, t: number): BandPoint => at(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+    const points = Array.from({ length: (grid + 1) ** 2 }, (_, n) => at(n % (grid + 1) * 10 / grid - 5, Math.floor(n / (grid + 1)) * 10 / grid - 5));
+    const corner = (x: number, z: number): BandPoint => points[z * (grid + 1) + x], vertices: number[] = [];
+    for (let z = 0; z < grid; z++) for (let x = 0; x < grid; x++)
+      for (const triangle of alongRoad(corner(x, z), corner(x + 1, z), corner(x, z + 1), corner(x + 1, z + 1)))
+        for (const piece of clipTriangle(triangle, p => p[2] - to, between))
+          for (const inner of from > 0 ? clipTriangle(piece as [BandPoint, BandPoint, BandPoint], p => from - p[2], between) : [piece])
+            for (const [px, pz] of inner) vertices.push(px, y, pz);
+    const geometry = new BufferGeometry().setAttribute('position', new Float32BufferAttribute(vertices, 3));
+    geometry.computeVertexNormals(); builder.world(geometry, material);
+  };
+  band(0, half, 0, getMaterial('asphalt'));
+  band(3.22, 3.34, 0.004, getMaterial('road_marking_white'));
+  // Dashes spaced evenly along the curve, halved at both edges like the straight road's.
+  const curve = shape.lines[0].slice(1, -1), lengths = [0];
+  for (let i = 1; i < curve.length; i++) lengths.push(lengths[i - 1] + Math.hypot(curve[i][0] - curve[i - 1][0], curve[i][1] - curve[i - 1][1]));
+  const total = lengths[lengths.length - 1], count = Math.max(1, Math.round(total / 2.5));
+  const at = (s: number): Point2 => {
+    let i = 1;
+    while (i < curve.length - 1 && lengths[i] < s) i++;
+    const t = (s - lengths[i - 1]) / (lengths[i] - lengths[i - 1] || 1);
+    return [curve[i - 1][0] + (curve[i][0] - curve[i - 1][0]) * t, curve[i - 1][1] + (curve[i][1] - curve[i - 1][1]) * t];
+  };
+  for (let n = 0; n <= count; n++) {
+    const from = Math.max(0, n * total / count - 0.6), to = Math.min(total, n * total / count + 0.6);
+    builder.line(Array.from({ length: 4 }, (_, j) => at(from + (to - from) * j / 3)));
+  }
+}
+
 export function streetLamp(builder: RoadBuilder, x: number, z: number, y = 0.15, height = 6.5): void {
   const steel = getMaterial('metal_steel');
   builder.prop('street_light', () => {
@@ -149,9 +191,13 @@ export function roadProps(builder: RoadBuilder, kind: BasicRoadKind, options: Mo
 
 export function createBasicRoad(kind: BasicRoadKind, options: ModelOptions, tiles: readonly number[]): ReturnType<RoadBuilder['finishRoad']> {
   const builder = new RoadBuilder(options), painted = seededRng(options.seed)() < 0.5;
-  roadBase(builder, kind, painted); roadProps(builder, kind, options);
+  // A corner's variant names its staircase sides; a lone corner keeps its kerbs and pavements.
+  const variant = kind === 'corner' ? options.variant ?? 0 : 0, diagonal = variant & 3;
+  if (diagonal) bentRoadBase(builder, variant);
+  else { roadBase(builder, kind, painted); roadProps(builder, kind, options); }
   const root = builder.finishRoad(`road.${kind}`, tiles, BASIC_MASKS[kind]);
-  root.userData.paintedCurb = painted;
-  if (kind === 'corner') root.userData.curbRadius = CORNER_RADIUS;
+  if (diagonal) root.userData.staircase = variant;
+  else root.userData.paintedCurb = painted;
+  if (kind === 'corner' && !diagonal) root.userData.curbRadius = CORNER_RADIUS;
   return root;
 }

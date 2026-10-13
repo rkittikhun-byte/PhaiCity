@@ -352,6 +352,8 @@ function configureCityLOD(material: Material, coarse: boolean): void {
           float u = terrainUV.x, v = terrainUV.y;
           transformed.y += u+v<=1.0 ? cityTerrain.x + u*(cityTerrain.y-cityTerrain.x) + v*(cityTerrain.z-cityTerrain.x)
             : cityTerrain.w + (1.0-v)*(cityTerrain.y-cityTerrain.w) + (1.0-u)*(cityTerrain.z-cityTerrain.w);
+          // A slanted road's triangles cross the ground's fold; on a hollow tile they would dip by up to 1/16 of its twist.
+          transformed.y += max(0.0, cityTerrain.y + cityTerrain.z - cityTerrain.x - cityTerrain.w) * 0.0625;
         #endif
         // Extend only the piers below the deck, leaving the deck, rails and animation pivots level.
         transformed.y -= max(0.0,(-position.y-1.0)/2.0) * cityBridgeDepth;

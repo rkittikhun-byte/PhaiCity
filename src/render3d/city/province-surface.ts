@@ -7,11 +7,14 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { cityCoarseSurfaceMaterial, provinceEdgeMaterial, setProvinceMask } from '../materials/library.js';
 import { mergeGeometry } from '../util/geometry.js';
-import { lateriteColour, lateriteDistance } from '../models/road/laterite.js';
+import { LATERITE_EDGE, lateriteColour, lateriteShape } from '../models/road/laterite.js';
+import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../models/road/centreline.js';
+import { ROAD_SECTION } from '../models/road/interfaces.js';
 import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import type { Placement } from './types.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
+type RoadPoint=readonly [number,number,number];
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
   positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,number>;buildingSlots:Map<number,number>;
   publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,number>;publishedBuildings:Map<number,number>;
@@ -102,6 +105,28 @@ export class ProvinceSurface {
       for(const p of[{x:cx,z:cz,shade:own,outside:ownOutside},b,a]){
         c.positions.push(p.x,height(p.x,p.z),p.z);c.colors.push(p.shade.r,p.shade.g,p.shade.b);c.outside.push(p.outside);c.fade.push(0);c.ground.push(1);}}
   }
+  /**
+   * A road tile's paint over the ground: 2.5 m squares coloured by the distance to the tile's centre lines and cut
+   * where the road ends along them, so turns and staircases read as curves and diagonals from afar as well as close
+   * up (models/road/centreline.ts). Laterite stops at its verge; asphalt fills the tile with its pavements unless it bends.
+   */
+  private road(c:SurfaceChunk,x:number,y:number,i:number,mask:number,level:number,bridge:boolean,height:(x:number,z:number)=>number):void {
+    const laterite=level===1&&!bridge,steps=bridge?0:this.snapshot.staircase(x,y),diagonal=steps&15;
+    const shape=laterite?lateriteShape(mask,diagonal,steps>>4):roadShape(mask,diagonal,false,steps>>4);
+    const edge=bridge?Infinity:laterite?LATERITE_EDGE:bends(mask,diagonal,false)?ROAD_SECTION.carriageway/2:Infinity;
+    const cx=(x+.5)*10,cz=(y+.5)*10,outside=this.terrain.inside(x,y)?0:1,fade=this.detail.get(i)??0;
+    const at=(px:number,pz:number):RoadPoint=>[px,pz,roadDistance(px-cx,pz-cz,shape)];
+    const between=(a:RoadPoint,b:RoadPoint,t:number):RoadPoint=>at(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);
+    const points=Array.from({length:25},(_,n)=>at(x*10+n%5*2.5,y*10+Math.floor(n/5)*2.5)),p=(dx:number,dy:number):RoadPoint=>points[dy*5+dx];
+    // Squares split across the ground's own fold would dip into a hollow tile by up to an eighth of its twist.
+    const t=this.terrain,twist=bridge?0:t.corner(x+1,y)+t.corner(x,y+1)-t.corner(x,y)-t.corner(x+1,y+1),lift=.025+Math.max(0,twist)/8;
+    for(let dy=0;dy<4;dy++)for(let dx=0;dx<4;dx++)for(const triangle of alongRoad(p(dx,dy),p(dx+1,dy),p(dx,dy+1),p(dx+1,dy+1)))
+      for(const piece of clipTriangle(triangle,q=>q[2]-edge,between))for(const[px,pz,d]of piece){
+        c.positions.push(px,height(px,pz)+lift,pz);
+        c.colors.push(...(bridge?scratch.setHex(0xa6a196):laterite?lateriteColour(d):scratch.setHex(d>ROAD_SECTION.carriageway/2?0xa39c8f:0x555959)).toArray());
+        c.outside.push(outside);c.fade.push(fade);c.ground.push(0);
+      }
+  }
   private cell(c:SurfaceChunk,n:number):void {
     const x=c.x+n%SIZE,y=c.y+Math.floor(n/SIZE),{width:w,height:h,values}=this.snapshot;if(x>=w||y>=h)return;
     const i=y*w+x,v=values[i],outside=!this.terrain.inside(x,y),wet=isWaterNeighbor(v),woods=isWoods(v);
@@ -118,8 +143,7 @@ export class ProvinceSurface {
       const height=(xx:number,zz:number)=>bridge?this.terrain.base(i):this.terrain.sampleTile(x,y,xx,zz);
       if(isRoad(v)){
         const level=typeof this.snapshot.roadLevel==='function'?this.snapshot.roadLevel(x,y):this.snapshot.roadLevel;
-        for(let dy=0;dy<4;dy++)for(let dx=0;dx<4;dx++)this.quad(c,x*10+dx*2.5,y*10+dy*2.5,x*10+(dx+1)*2.5,y*10+(dy+1)*2.5,
-          (xx,zz)=>bridge?new Color(0xa6a196):level===1?lateriteColour(lateriteDistance(xx-(x+.5)*10,zz-(y+.5)*10,mask)):new Color(0x555959),height,i,true);
+        this.road(c,x,y,i,mask,level,bridge,height);
       }else{
         const cx=(x+.5)*10,cz=(y+.5)*10;
         for(const[bit,dx,dz]of[[1,0,-1],[2,1,0],[4,0,1],[8,-1,0]])if(mask&bit||mask===0&&bit===1){

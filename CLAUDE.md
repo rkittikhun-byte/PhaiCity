@@ -233,6 +233,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads
   fill with traffic more slowly but cost more upkeep (`census.roadUpkeep`); motorways and tollways give zones no way
   in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`).
+  A slanted road (a staircase of corner tiles) is drawn as diagonals and curves (`src/render3d/models/road/centreline.ts`).
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
   building: until it stands only the house and the bulldozer work (`houseProblem` in `CityCommands`, the dock greys the
   rest with `body.houseFirst`); cities saved before it are not held back. One house, on the civic 3×3 (tiles 414–422,

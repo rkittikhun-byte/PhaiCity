@@ -170,6 +170,16 @@ which the renderer only reads:
   province's edge as a thin line between inside and outside tiles, visible from any zoom.
 - **Level-1 roads are laterite (ถนนลูกรัง).** The map starts with one laterite road to each neighbouring province; the
   player's roads are level 1 too until road levels exist (asphalt, concrete: `docs/POLISH_BACKLOG.md`).
+- **Slanted roads (owner, 13 Oct 2026).** The game lays roads tile by tile, so a slanted road is a staircase of
+  corners. A corner whose neighbour on a side is the opposite corner is a step, and its road crosses that side at
+  45°: steps in a row make one straight diagonal, a step beside a straight road eases into it (a 1:2 slope becomes
+  S-bends), and a lone laterite turn is a quarter circle (`src/render3d/models/road/centreline.ts`).
+  - A corner's model takes its staircase as `variant` (`staircaseVariant`: which sides are steps, and whether each
+    step goes on), and draws both its own curve and the steps' beyond it, so neighbours meet without a seam.
+  - The far-view paint measures the same distances, so near and far views match.
+  - Laterite is 7 m wide and stops short of its tile's edges, so open land shows beside it and no tile's square
+    shows. A slanted asphalt corner has its carriageway and lines but no kerbs or pavements, which would not fit
+    beside the step. Lone asphalt corners keep their kerbs, pavements and square corner.
 - **Hills** from `gameMap.heights`. The simulation stays flat; only the picture rises.
   - World height of a tile: `(max(h, 0) − lowest) × 10 / tileSizeM × HILL_EXAGGERATION`, where `lowest` is the map's
     lowest dry tile and `HILL_EXAGGERATION` a constant to tune by eye (start at 4): true scale makes Chiang Mai's

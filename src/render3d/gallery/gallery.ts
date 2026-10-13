@@ -32,6 +32,8 @@ import { animateTransportModels } from '../models/transport/animation.js';
 import { CityView3D, createCityView3D } from '../city/index.js';
 import { TestCity, testCitySetup, testCitySprites, moveTestSprites } from '../city/test-city.js';
 import { ProvinceTestCity, realProvinceCity, ROAD_LEVELS_PREVIEW } from './province-city.js';
+import { TileSnapshot } from '../city/tileModels.js';
+import { isCornerMask } from '../models/road/centreline.js';
 import type { CityMapReader } from '../city/types.js';
 import { HILL_EXAGGERATION } from '../city/heightfield.js';
 import type { ToolHover } from '../../cityView.js';
@@ -135,7 +137,7 @@ function startGallery(): void {
       const selectedRegion=cityMapPicker.value==='TH-50'?'north':regionPicker.value as RegionId;
       const setup=testCitySetup(element('city-stage'),selectedRegion,cityMap);
       cityView=cityBenchmark?new CityView3D(setup,{pixelRatioLimit:1}):createCityView3D(setup);
-      for(const name of['inside','outside','edge','crossing','hills'])element<HTMLButtonElement>(`province-${name}`).disabled=cityMapPicker.value==='legacy';
+      for(const name of['inside','outside','edge','crossing','hills','diagonal'])element<HTMLButtonElement>(`province-${name}`).disabled=cityMapPicker.value==='legacy';
       localText(element('province-status'),`${cityMap.width}×${cityMap.height} ช่อง · ลูกรังระดับ 1 · พื้นสูง ×${HILL_EXAGGERATION} · เส้นอุ่นคือขอบจังหวัด`,`${cityMap.width}×${cityMap.height} tiles · level-1 laterite · relief ×${HILL_EXAGGERATION} · warm line marks province edge`);
     }catch(error){localText(element('province-status'),`เปิดแผนที่ไม่สำเร็จ: ${String(error)}`,`Map failed: ${String(error)}`);}
     cityLast=performance.now();
@@ -563,14 +565,17 @@ function startGallery(): void {
   element('icons-tab').addEventListener('click', () => switchTab('icons'));
   element('city-default').addEventListener('click',()=>cityView?.navigation.reset());
   cityMapPicker.addEventListener('change',()=>{void buildCity();});
-  for(const[id,x,y,distance,heading]of[['inside',155,165,240,0],['outside',276,165,240,0],['edge',259,165,380,0],['crossing',170,165,160,0],['hills',131,123,780,.65]]as const)
+  for(const[id,x,y,distance,heading]of[['inside',155,165,240,0],['outside',276,165,240,0],['edge',259,165,380,0],['crossing',170,165,160,0],['hills',131,123,780,.65],['diagonal',202,157,190,0]]as const)
     element(`province-${id}`).addEventListener('click',()=>{if(cityView){const n=cityView.navigation;let tx:number=x,ty:number=y;
       if(cityMapPicker.value==='TH-50'){
         const town=cityMap.town??{x:cityMap.width/2,y:cityMap.height/2};tx=town.x;ty=town.y;
         let best=Infinity;
+        // A corner both of whose sides are staircase steps lies on a diagonal stretch of road.
+        const tiles=id==='diagonal'?new TileSnapshot(cityMap.width,cityMap.height):null;tiles?.sync(cityMap);
         for(let yy=0;yy<cityMap.height;yy++)for(let xx=0;xx<cityMap.width;xx++){
           const i=yy*cityMap.width+xx,inside=cityMap.insideProvince?.[i]!==0,v=cityMap.getTileValue(xx,yy);
-          const eligible=id==='outside'?!inside:id==='edge'?xx+1<cityMap.width&&inside!==(cityMap.insideProvince?.[i+1]!==0):id==='crossing'?v===237||v===238||v===64||v===65:id==='hills'?inside:false;
+          const eligible=id==='outside'?!inside:id==='edge'?xx+1<cityMap.width&&inside!==(cityMap.insideProvince?.[i+1]!==0):id==='crossing'?v===237||v===238||v===64||v===65:id==='hills'?inside:
+            tiles!==null&&isCornerMask(tiles.staircase(xx,yy)&15);
           const score=id==='hills'?-(cityMap.heights?.[i]??0):(xx-town.x)**2+(yy-town.y)**2;
           if(eligible&&score<best){best=score;tx=xx;ty=yy;}
         }

@@ -3,6 +3,7 @@
  */
 import { registry } from '../models/registry.js';
 import { roadForMask } from '../models/road/interfaces.js';
+import { staircase as staircaseOf, staircaseVariant } from '../models/road/centreline.js';
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
@@ -44,6 +45,8 @@ export const tileSeed = (x: number, y: number): number => {
   h = Math.imul(h ^ h >>> 16, 0x45d9f3b); return (h ^ h >>> 16) >>> 0;
 };
 export const isRoad = (v: number): boolean => v >= 64 && v <= 206 || v === 237 || v === 238 || v >= 828 && v <= 832 || v >= 948 && v <= 951 || v === 239;
+/** A road tile drawn from its neighbours alone: not a bridge, a crossing or a drawbridge. */
+export const isPlainRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 77 && v !== 78;
 export const isRail = (v: number): boolean => v >= 224 && v <= 238 || v === 221 || v === 222;
 export const isPower = (v: number): boolean => v >= 208 && v <= 222 || v === 77 || v === 78 || v === 239;
 export const isWater = (v: number): boolean => v >= 2 && v <= 20;
@@ -81,6 +84,13 @@ export class TileSnapshot implements CityMapReader {
     let mask=0; for(const[dx,dy,bit]of SIDES) if(x+dx>=0&&y+dy>=0&&x+dx<this.width&&y+dy<this.height&&predicate(this.getTileValue(x+dx,y+dy))) mask|=bit;
     return mask;
   }
+  /** A plain road corner's staircase, so its road bends there: packed as `staircase` in models/road/centreline.ts. */
+  staircase(x:number,y:number):number {
+    if(!isPlainRoad(this.getTileValue(x,y)))return 0;
+    const step=(px:number,py:number,side:number):[number,number]=>{const[dx,dy]=SIDES.find(s=>s[2]===side)!;return[px+dx,py+dy];};
+    return staircaseOf(this.mask(x,y,isRoad),(side,far)=>{let[nx,ny]=step(x,y,side);if(far)[nx,ny]=step(nx,ny,far);
+      return nx>=0&&ny>=0&&nx<this.width&&ny<this.height&&isPlainRoad(this.getTileValue(nx,ny))?this.mask(nx,ny,isRoad):null;});
+  }
   private portRotation(x:number,y:number,size:number):number {
     const left=x-1,top=y-1,scores=[0,0,0,0];
     for(let n=0;n<size;n++) {
@@ -104,7 +114,8 @@ export class TileSnapshot implements CityMapReader {
       else if(v===77||v===78||v===239) { id='road.power_crossing'; special(v===77); }
       else if(v===237||v===238) {id='road.rail_crossing'; special(v===238);}
       else if(v>=828&&v<=832||v>=948&&v<=951) {id='road.drawbridge'; special(v<948);state='open';}
-      else {const pick=roadForMask(this.mask(x,y,isRoad),roadLevel);id=pick.id;rotation=pick.rotationY;}
+      else {const pick=roadForMask(this.mask(x,y,isRoad),roadLevel);id=pick.id;rotation=pick.rotationY;
+        if(id.endsWith('corner'))variant=staircaseVariant(this.staircase(x,y),pick.quarterTurns);}
       if(roadLevel===1&&id&&!id.includes('laterite_'))id=id.replace('road.','road.laterite_');
     } else if(isRail(v)) {
       kind='rail';
