@@ -338,6 +338,12 @@ export const CIVIC_BASE       = CHURCH0BASE;
 export const CIVIC            = CHURCH0; // Centre of a civic building (tiles 414--422)
 export const CIVIC_LAST       = CHURCH0BASE + 8;
 
+// PhaiCity: rubbish and wastewater (src/waste.ts) take the fifth 3x3 of the extended zones (CHURCH5); the map records
+// which building stands there (gameMap.wasteKinds)
+export const WASTE_BASE       = CHURCH5BASE;
+export const WASTE            = CHURCH5; // Centre of a waste building (tiles 992--1000)
+export const WASTE_LAST       = CHURCH5BASE + 8;
+
 // tiles 1021-1023 unused
 
 export const TILE_COUNT     = 1024;

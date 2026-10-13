@@ -62,6 +62,11 @@ var Budget = EventEmitter(function() {
   // ... and what the schools and the hospitals cost last year (src/services.ts)
   this.educationCost = 0;
   this.healthCost = 0;
+  // ... and what recycling sells through the year, paid in with the taxes, and what the rubbish and wastewater
+  // buildings cost last year (src/waste.ts)
+  this.wasteFund = 0;
+  this.recyclingIncome = 0;
+  this.wasteCost = 0;
   // PhaiCity (owner, 13 Oct 2026): a tax for each kind of zone, cityTax staying the homes' (0–20%), and two fees: the
   // water fee, in baht a year for each zone the water reaches (0–10), and the visitors' fee, a percentage on what they
   // spend (0–20). Each brings money and costs something (src/valves.js, src/waterManager.ts, src/simulation.js)
@@ -96,7 +101,8 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
-                 'touristFee', 'waterIncome', 'educationCost', 'healthCost'];
+                 'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
+                 'wasteCost'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -128,6 +134,9 @@ Budget.prototype.load = function(saveData) {
   this.waterIncome = this.waterIncome || 0;
   this.educationCost = this.educationCost || 0;
   this.healthCost = this.healthCost || 0;
+  this.wasteFund = this.wasteFund || 0;
+  this.recyclingIncome = this.recyclingIncome || 0;
+  this.wasteCost = this.wasteCost || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -312,6 +321,10 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.farmIncome = Math.floor(this.farmFund);
   this.farmFund = 0;
   this.taxFund += this.farmIncome;
+  // ... and what recycling sold (src/waste.ts)
+  this.recyclingIncome = Math.floor(this.wasteFund);
+  this.wasteFund = 0;
+  this.taxFund += this.recyclingIncome;
   this.tollIncome = Math.floor(this.tollFund);
   this.tollFund = 0;
   this.taxFund += this.tollIncome;
@@ -322,6 +335,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.educationCost = Math.round(census.educationUpkeep || 0);
   this.healthCost = Math.round(census.healthUpkeep || 0);
   this.taxFund -= this.educationCost + this.healthCost;
+  // ... and the rubbish and wastewater buildings' upkeep (src/waste.ts)
+  this.wasteCost = Math.round(census.wasteUpkeep || 0);
+  this.taxFund -= this.wasteCost;
 
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);

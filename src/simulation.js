@@ -28,7 +28,7 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { CIVIC, COALBASE, FARM, HARBOUR, MINE } from './tileValues.ts';
+import { CIVIC, COALBASE, FARM, HARBOUR, MINE, WASTE } from './tileValues.ts';
 import {
   CULTURE_VISITORS, cultureNoise, GRANARY_DROUGHT_FACTOR, hasWing, HOUSE_KIND, houseLandValue, houseStanding,
   houseUpkeep, TREASURY_TAX_BONUS, WARNING_RISK_FACTOR
@@ -37,6 +37,7 @@ import {
   familyPull, NO_SERVICES, peopleOf, pollutionShield, serviceLevels, Services, skilled, SKILLED_SMOKE, WARN_FROM
 } from './services.ts';
 import { Mining } from './mining.ts';
+import { SEWAGE_AWAY, SEWAGE_DIRT, Waste, WASTE_FROM } from './waste.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
 import { Random } from './random.ts';
@@ -68,7 +69,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     var road = isRoadTile(tileValue) ? roadSpec(roadLevelAt(map, x, y)).noise : 0;
     // ... and a festival at the ruler's house's culture court (src/rulerHouse.ts)
     var festival = this._festivalHouse ? cultureNoise(this._festivalHouse, x, y) : 0;
-    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road + festival;
+    // ... and the smoke and smell of the rubbish buildings, and rubbish nobody takes in the streets (src/waste.ts)
+    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road + festival +
+           this._waste.pollutionAt(map, x, y, tileValue);
   }.bind(this);
   // The ruler's house, while a festival's month makes noise at its culture court (set before each pollution scan)
   this._festivalHouse = null;
@@ -129,6 +132,10 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._serviceLevels = NO_SERVICES;
   this._monthsSinceSchoolWarning = 12;
   this._monthsSinceHospitalWarning = 12;
+  // ... and the rubbish and wastewater (src/waste.ts), and the months since the news last heard of them
+  this._waste = new Waste(this._map.width, this._map.height);
+  this._monthsSinceRubbishWarning = 12;
+  this._monthsSinceSewageWarning = 12;
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -239,6 +246,7 @@ Simulation.prototype.save = function(saveData) {
   this._waterManager.save(saveData);
   this._mining.save(saveData);
   this._farming.save(saveData);
+  this._waste.save(saveData);
   // The random generator carries on where it was, so a loaded city goes on as the saved one would have
   saveData.randomState = Random.getState();
 };
@@ -256,6 +264,7 @@ Simulation.prototype.load = function(saveData) {
   this._waterManager.load(saveData);
   this._mining.load(saveData);
   this._farming.load(saveData);
+  this._waste.load(saveData);
   Random.setState(saveData.randomState);
 };
 
@@ -311,6 +320,7 @@ Simulation.prototype._clearCensus = function() {
   this._mining.clearCycle();
   this._farming.clearCycle();
   this._services.clearCycle();
+  this._waste.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
 };
@@ -397,6 +407,8 @@ Simulation.prototype.init = function() {
   this._repairManager.addAction(HARBOUR, 15, 3);
   this._mapScanner.addAction(CIVIC, this._civicFound.bind(this));
   this._repairManager.addAction(CIVIC, 15, 3);
+  this._mapScanner.addAction(WASTE, this._wasteFound.bind(this));
+  this._repairManager.addAction(WASTE, 15, 3);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
@@ -466,6 +478,7 @@ var simulate = function(simData) {
         this._houseMonth();
         this._servicesMonth();
         this._tourismMonth();
+        this._wasteMonth();
         this._miningMonth();
         this._farmingMonth();
         // ... and the tollways' tolls (src/roadLevels.ts)
@@ -608,6 +621,43 @@ Simulation.prototype._civicFound = function(map, x, y, simData) {
 };
 
 
+// A rubbish or wastewater building's centre (src/waste.ts): it costs its upkeep and, working, gives work; a waste power
+// plant feeds the grid like any power plant
+Simulation.prototype._wasteFound = function(map, x, y, simData) {
+  var power = this._waste.found(map, x, y, simData.census);
+  if (power > 0) {
+    simData.census.plantPower += power;
+    this._powerManager.addSource(x, y);
+  }
+};
+
+
+// A month of the rubbish and wastewater (src/waste.ts): this month's people and visitors make rubbish, the buildings
+// take what they can and recycling's sales go to the year's taxes; at most once a year each, the news when rubbish lies
+// in the streets or a big town's sewage goes untreated, and when a landfill fills up
+Simulation.prototype._wasteMonth = function() {
+  var month = this._waste.month(peopleOf(this._census), this._tourism.visitors || 0, this._mining.ground);
+  this.budget.wasteFund += month.sales;
+  this._emitEvent(Messages.WASTE_UPDATED, month);
+  month.filled.forEach(function(site) {
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.LANDFILL_FULL, data: {x: site.x, y: site.y}});
+  }, this);
+
+  this._monthsSinceRubbishWarning++;
+  this._monthsSinceSewageWarning++;
+  if (month.people < WASTE_FROM)
+    return;
+  if (month.overflow >= 0.25 && this._monthsSinceRubbishWarning >= 12) {
+    this._monthsSinceRubbishWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.RUBBISH_OVERFLOW});
+  }
+  if (month.sewage >= 0.3 && this._monthsSinceSewageWarning >= 12) {
+    this._monthsSinceSewageWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.UNTREATED_SEWAGE});
+  }
+};
+
+
 // A month of the ruler's house: a new city that has built it is no longer held back; the news hears when it falls,
 // and it is forgotten with its wings; its warning tower tells of a season of disasters a month ahead
 var SEASON_WARNINGS = {fire: Messages.FIRE_SEASON_AHEAD, flood: Messages.FLOOD_SEASON_AHEAD,
@@ -668,14 +718,15 @@ Simulation.prototype._servicesMonth = function() {
 
 
 // A month's visitors (src/tourism.ts): more with the ruler's house's culture court, fewer with a visitors' fee, which
-// takes a share of what they spend
+// takes a share of what they spend, and fewer where the town's sewage dirties the water (src/waste.ts)
 Simulation.prototype._visitors = function(month) {
   var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
   var fee = this.budget.touristFee || 0;
   var court = hasWing(this._map, 'culture_court');
-  if (visit.level === 0 || (!court && fee === 0))
+  var sewage = this._waste.sewage;
+  if (visit.level === 0 || (!court && fee === 0 && sewage === 0))
     return visit;
-  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY);
+  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY);
   return Object.assign({}, visit, {visitors: Math.round(visit.visitors * come),
                                    income: visit.income * come * (1 + fee * TOURIST_FEE_TAKE),
                                    shopsWanted: visit.shopsWanted * come});
@@ -719,13 +770,15 @@ Simulation.prototype._tourismMonth = function() {
 
 
 // A month of the farms and fishing harbours (src/farming.ts): their sales to the year's taxes, the factories and markets
-// they ask for, and the news when stubble fires spread haze, when the fish run low, or when dirty water spoils a catch
+// they ask for, and the news when stubble fires spread haze, when the fish run low, or when dirty water spoils a catch;
+// the town's untreated sewage dirties the harbours' water too (src/waste.ts)
 Simulation.prototype._farmingMonth = function() {
   var water = this._waterManager;
   var pollution = this.blockMaps.pollutionDensityMap;
+  var sewage = this._waste.sewage * SEWAGE_DIRT;
   var month = this._farming.month(this.getDate().month, (this.rules.drought && this.rules.drought.months) || [],
     water.stores && water.natural ? {stores: water.stores, natural: water.natural} : null, this._mining.ground,
-    function(x, y) { return pollution.worldGet(x, y); });
+    function(x, y) { return pollution.worldGet(x, y) + sewage; });
   this.budget.farmFund += month.income;
   this._valves.farmFactories = this._farming.farms.length * FACTORIES_PER_FARM;
   this._valves.fishMarkets = this._farming.harbours.length * SHOPS_PER_HARBOUR;

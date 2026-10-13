@@ -185,8 +185,16 @@ BudgetWindow.prototype.open = function(budgetData) {
   // ... and the schools and hospitals cost is taken from them (src/services.ts)
   var educationCost = budgetData.educationCost || 0;
   var healthCost = budgetData.healthCost || 0;
+  // ... and the rubbish and wastewater buildings cost is taken from them, and what recycling sold paid in (src/waste.ts)
+  var wasteCost = budgetData.wasteCost || 0;
+  var recyclingIncome = budgetData.recyclingIncome || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
-                                        waterIncome + fuelCost + houseCost + educationCost + healthCost));
+                                        waterIncome - recyclingIncome + fuelCost + houseCost + educationCost +
+                                        healthCost + wasteCost));
+  $('#wasteCost').text(formatMoney(wasteCost));
+  $('#wasteInfo').prop('hidden', wasteCost <= 0);
+  $('#recyclingIncome').text(formatMoney(recyclingIncome));
+  $('#recyclingInfo').prop('hidden', recyclingIncome <= 0);
   $('#educationCost').text(formatMoney(educationCost));
   $('#educationInfo').prop('hidden', educationCost <= 0);
   $('#healthCost').text(formatMoney(healthCost));

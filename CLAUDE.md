@@ -129,10 +129,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     shows under the bar for a few seconds, then fades (`src/notification.js`).
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
-    Sixteen buttons (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card (safety:
-    police or fire; power: every kind and nuclear; water: works or tower; farms or harbours; port or airport), and a
-    button wears the chosen tool's size and colour. Tools without a button of their own keep theirs in
-    `index.html`'s `<template id="toolChoices">` (`pageChoice`).
+    Twenty buttons (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card (safety:
+    police or fire; power: every kind and nuclear; water: works or tower; rubbish: five buildings; schools; hospitals;
+    farms or harbours; port or airport), and a button wears the chosen tool's size and colour. Tools without a button
+    of their own keep theirs in `index.html`'s `<template id="toolChoices">` (`pageChoice`).
   - `index.html?city=<id>` opens a saved city straight away.
   - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
     city the small `#mapAttribution` line keeps the OpenStreetMap credit and "modified from micropolisJS" on screen
@@ -247,6 +247,13 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   care; `SERVICES_UPDATED`, the status bar) draw families from 500 people (and hold a town back from 2,000 when low),
   draw factories and shops and clean factory smoke (higher education), and halve at best pollution's harm to homes
   (health, `residential.js`). Each costs upkeep (two budget lines).
+- **Rubbish and wastewater (owner, 13 Oct 2026):** `docs/WASTE.md`, `src/waste.ts`. Five kinds on one 3×3 of tiles
+  (992–1000, `gameMap.wasteKinds`, saved; RENDERER_SPEC 6I), chosen above the rubbish button: landfill, incinerator,
+  recycling plant, waste power plant, wastewater plant. Each month people and visitors make rubbish, which the working
+  buildings take, the cleanest first; a small town handles its own, and the rest lies in the streets as pollution on
+  homes and shops. Landfills fill for good and seep into the mines' poison layer; the waste power plant feeds the grid
+  by what it burns (`PowerManager.addSource`). A big town's untreated sewage dirties fishing harbours' water and keeps
+  visitors away. Upkeep and recycling's sales are budget lines; the status bar shows both shares.
 - **Taxes and fees (owner, 13 Oct 2026):** `docs/TAXES.md`. The budget window sets the homes' (`cityTax`), shops' and
   factories' taxes (0–20%, each driving its own zone's demand in `valves.js`), a water fee (฿0–10 a watered zone a
   year: income, water goes further, homes a little less wanted) and a visitors' fee (0–20%: a share of what they

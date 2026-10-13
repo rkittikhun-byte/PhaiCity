@@ -32,7 +32,7 @@ export const TOOL_NAMES = [
   "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
   "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
-  "regional_hospital",
+  "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -105,6 +105,8 @@ interface CommandTool {
   rulerHouse?: boolean;
   /** The school or hospital it builds on the civic tiles (src/services.ts) */
   civicKind?: string;
+  /** The rubbish or wastewater building it builds (src/waste.ts) */
+  wasteKind?: string;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -166,6 +168,8 @@ export interface CommandTarget {
   setRulerHouse?(x: number, y: number): void;
   /** Records the school or hospital just built at (x, y), its centre (src/services.ts). */
   setCivicKind?(x: number, y: number, kind: string): void;
+  /** Records the rubbish or wastewater building just built at (x, y), its centre (src/waste.ts). */
+  setWasteKind?(x: number, y: number, kind: string): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -295,6 +299,7 @@ export class CityCommands {
         if (applied && tool.mineKind) city.setMineKind?.(command.x, command.y, tool.mineKind);
         if (applied && tool.rulerHouse) city.setRulerHouse?.(command.x, command.y);
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
+        if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         // Roads laid where there were none take the tool's level; roads already there keep theirs
         if (applied && map && tool.roadLevel) {
           for (const c of before) {

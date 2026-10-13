@@ -19,7 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
-import { showDemandAndPeople, showServices, showTourism } from './cityStatus.ts';
+import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -43,7 +43,8 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { pageChoice, setToolChoices } from './toolLevels.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { CIVIC, MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { CIVIC, MINE, POWERPLANT, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import {
@@ -79,6 +80,9 @@ var OUTSIDE_NOTE_MS = 2500;
 // The kinds of power plant's colours, for their squares until their icons are drawn (src/toolLevels.ts)
 var PLANT_COLOURS = {lignite: 'gray', gas: '#6f9fc4', hydro: '#2a7fd4', solar: '#e8b100', wind: '#7fc8b5'};
 var MINE_COLOUR = '#b07848';
+// The rubbish and wastewater buildings' colours above the tools (src/waste.ts)
+var WASTE_COLOURS = {landfill: '#8a6d3b', incinerator: '#7a5c58', recycling_plant: '#4f9a5a',
+                     waste_power_plant: '#b07a2a', wastewater_plant: '#3f7fa6'};
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
 var MILESTONES = {};
@@ -136,11 +140,14 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
     // the game is not held back by it
     this.gameMap.civicKinds = Object.assign({}, savedGame.civicKinds || {});
+    // ... and the rubbish and wastewater buildings (src/waste.ts)
+    this.gameMap.wasteKinds = Object.assign({}, savedGame.wasteKinds || {});
     this.gameMap.rulerHouse = readHouse(savedGame.rulerHouse);
     this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
   } else {
     // A new city builds its ruler's house before anything else
     this.gameMap.civicKinds = {};
+    this.gameMap.wasteKinds = {};
     this.gameMap.rulerHouse = null;
     this.gameMap.needsRulerHouse = true;
   }
@@ -170,6 +177,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   showDemandAndPeople(this.simulation);
   showTourism(this.simulation);
   showServices(this.simulation);
+  showWaste(this.simulation);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
@@ -188,6 +196,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   cityMap.mineKinds = cityMap.mineKinds || {};
   cityMap.roadLevels = cityMap.roadLevels || newRoadLevels(cityMap.width, cityMap.height);
   cityMap.civicKinds = cityMap.civicKinds || {};
+  cityMap.wasteKinds = cityMap.wasteKinds || {};
   var game = this;
   this.commands = new CityCommands({
     width: this.gameMap.width,
@@ -229,6 +238,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     setCivicKind: function(x, y, kind) {
       cityMap.civicKinds[y * cityMap.width + x] = kind;
     },
+    // ... and the rubbish and wastewater buildings (src/waste.ts)
+    setWasteKind: function(x, y, kind) {
+      cityMap.wasteKinds[y * cityMap.width + x] = kind;
+    },
     setRulerHouse: function(x, y) {
       cityMap.civicKinds[y * cityMap.width + x] = HOUSE_KIND;
       cityMap.rulerHouse = {x: x, y: y, level: 1, wings: []};
@@ -249,6 +262,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   setToolChoices('farm', [pageChoice('farm', farmLevel(simulation.resources) >= 1),
     pageChoice('fishing', fisheryLevel(simulation.resources) >= 1)]);
   setToolChoices('port', [pageChoice('port'), pageChoice('airport')]);
+  // The rubbish button's places are its five buildings, the landfill first (src/waste.ts)
+  setToolChoices('landfill', WASTE_KINDS.map(function(kind) {
+    return {tool: kind, available: true, colour: WASTE_COLOURS[kind]};
+  }));
   // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
   setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
     .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
@@ -357,7 +374,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       touristFee: this.simulation.budget.touristFee,
       waterIncome: this.simulation.budget.waterIncome,
       educationCost: this.simulation.budget.educationCost,
-      healthCost: this.simulation.budget.healthCost
+      healthCost: this.simulation.budget.healthCost,
+      // ... and the rubbish and wastewater (src/waste.ts)
+      wasteCost: this.simulation.budget.wasteCost,
+      recyclingIncome: this.simulation.budget.recyclingIncome
     };
 
     return [budgetData];
@@ -546,6 +566,8 @@ Game.prototype.save = function() {
                   mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE),
                   // The ruler's house, its wings, and whether a new city still has to build it (src/rulerHouse.ts)
                   civicKinds: plantsStanding(this.gameMap, 'civicKinds', CIVIC),
+                  // ... and the rubbish and wastewater buildings (src/waste.ts)
+                  wasteKinds: plantsStanding(this.gameMap, 'wasteKinds', WASTE),
                   rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};

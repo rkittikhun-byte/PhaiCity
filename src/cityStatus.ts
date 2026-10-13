@@ -8,9 +8,10 @@
 // are copied from the city card, which src/infoBar.js keeps up to date; the rest comes from the simulation.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index";
-import { POPULATION_UPDATED, SERVICES_UPDATED, TOURISM_UPDATED, VALVES_UPDATED } from "./messages";
+import { POPULATION_UPDATED, SERVICES_UPDATED, TOURISM_UPDATED, VALVES_UPDATED, WASTE_UPDATED } from "./messages";
 import { type ServiceLevels, SERVICES_FROM } from "./services";
 import type { TourismMonth } from "./tourism";
+import { WASTE_FROM, type WasteMonth } from "./waste";
 
 /** How the money reads in the status: ฿16,295. Anything that is not a number is shown as it is. */
 export function statusMoney(text: string): string {
@@ -148,6 +149,31 @@ export function showServices(simulation: { addEventListener(event: string, liste
   };
   simulation.addEventListener(SERVICES_UPDATED, (value) => {
     levels = value as ServiceLevels;
+    render();
+  });
+  onLanguageChange(render);
+  render();
+}
+
+/**
+ * The rubbish and wastewater block (src/waste.ts): how much of the month's rubbish was taken and of the sewage treated,
+ * once the city has people enough for them to count or any of their buildings; pointing at it tells the tonnes.
+ */
+export function showWaste(simulation: { addEventListener(event: string, listener: (value: unknown) => void): void },
+    doc: Document = document): void {
+  let month: WasteMonth | null = null;
+  const render = (): void => {
+    const block = doc.getElementById("statusWaste");
+    if (!block) return;
+    block.hidden = !month || (month.people < WASTE_FROM && month.buildings === 0);
+    if (!month || block.hidden) return;
+    const value = block.querySelector(".statValue");
+    if (value) value.textContent = t("status.waste_value", { rubbish: month.rubbishShare, sewage: month.sewageShare });
+    block.title = t("status.waste_title", { rubbish: month.rubbishShare, tonnes: Math.round(month.rubbish),
+      sewage: month.sewageShare });
+  };
+  simulation.addEventListener(WASTE_UPDATED, (value) => {
+    month = value as WasteMonth;
     render();
   });
   onLanguageChange(render);

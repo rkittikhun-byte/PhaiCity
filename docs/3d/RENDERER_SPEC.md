@@ -286,6 +286,20 @@ building stands where.
   ambulance bay. **No Red Cross emblem**: a green cross or the word "โรงพยาบาล" on a sign. Region-dressed (R2).
 - Read `gameMap.rulerHouse` and `civicKinds` only; never write them.
 
+## 6I. Rubbish and wastewater (added 13 Oct 2026)
+
+Five kinds of 3×3 building share tiles 992–1000 (`WASTE_BASE` … `WASTE_LAST`, centre 996 `WASTE` with ZONEBIT;
+`docs/WASTE.md`). The map records which stands where; the renderer only reads it.
+
+| Field | Meaning |
+|---|---|
+| `gameMap.wasteKinds` | An object from a building's centre tile index (`x + y * width`, string key) to its kind: `"landfill"`, `"incinerator"`, `"recycling_plant"`, `"waste_power_plant"` or `"wastewater_plant"`. No entry, or no object, is a landfill. Never write it. |
+
+- Choose the model by the kind at the centre. Until models exist the tiles draw as the generic 3×3 service box.
+- Art brief: a landfill is an open pit with a fence and a bulldozer; an incinerator and a waste power plant are sheds
+  with a tall stack (the incinerator smokes only while powered, the waste power plant always); a recycling plant is a
+  shed with bales; a wastewater plant has round settling tanks. No real brands or logos.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

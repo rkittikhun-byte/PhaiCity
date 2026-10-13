@@ -220,6 +220,17 @@
 | `service.reason.house.3` | `src/toolLevels.ts` | — | `Needs a level 3 house` | `ต้องมีจวนขั้น 3` |  |
 | `service.reason.house.4` | `src/toolLevels.ts` | — | `Needs a level 4 house` | `ต้องมีจวนขั้น 4` |  |
 | `service.note.needs_house` | `src/game.js` | — | `This needs the ruler's house at level {level} first` | `ต้องยกระดับจวนเจ้าเมืองถึงขั้น {level} ก่อน` |  |
+| `tool.landfill` | `index.html` | — | `Landfill {price}` | `บ่อฝังกลบขยะ {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026, docs/WASTE.md) |
+| `tool.incinerator` | `index.html` | — | `Incinerator {price}` | `โรงเผาขยะ {price}` |  |
+| `tool.recycling_plant` | `index.html` | — | `Recycling Plant {price}` | `โรงคัดแยกขยะรีไซเคิล {price}` |  |
+| `tool.waste_power_plant` | `index.html` | — | `Waste Power Plant {price}` | `โรงไฟฟ้าขยะ {price}` |  |
+| `tool.wastewater_plant` | `index.html` | — | `Wastewater Treatment Plant {price}` | `โรงบำบัดน้ำเสีย {price}` |  |
+| `choice.landfill` | `src/toolLevels.ts` | — | `Landfill` | `บ่อฝังกลบ` |  |
+| `choice.incinerator` | `src/toolLevels.ts` | — | `Incinerator` | `โรงเผา` |  |
+| `choice.recycling_plant` | `src/toolLevels.ts` | — | `Recycling` | `รีไซเคิล` |  |
+| `choice.waste_power_plant` | `src/toolLevels.ts` | — | `Waste power` | `ไฟฟ้าขยะ` |  |
+| `choice.wastewater_plant` | `src/toolLevels.ts` | — | `Wastewater` | `บำบัดน้ำเสีย` |  |
+| `choice.title.landfill` | `src/toolLevels.ts` | — | `Rubbish and wastewater: choose the building` | `ขยะและน้ำเสีย: เลือกอาคาร` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |
 | `house.level.1` | `src/houseWindow.ts` | — | `Ruler's house` | `เรือนเจ้าเมือง` | ชื่อขั้นของจวน แก้ได้ |
 | `house.level.2` | `src/houseWindow.ts` | — | `House with halls` | `เรือนหมู่เจ้าเมือง` |  |
@@ -303,6 +314,8 @@
 | `budget.house` | `index.html` | — | `Ruler's house: ` | `จวนเจ้าเมือง: ` | ค่าบำรุงจวนและส่วนต่อเติม แสดงเมื่อมี |
 | `budget.education` | `index.html` | — | `Schools: ` | `การศึกษา: ` | ค่าบำรุงโรงเรียน แสดงเมื่อมี |
 | `budget.health` | `index.html` | — | `Hospitals: ` | `สาธารณสุข: ` | ค่าบำรุงโรงพยาบาล แสดงเมื่อมี |
+| `budget.waste` | `index.html` | — | `Rubbish and wastewater: ` | `ขยะและน้ำเสีย: ` | ค่าบำรุงอาคารขยะและน้ำเสีย แสดงเมื่อมี |
+| `budget.recycling` | `index.html` | — | `Recycling sold: ` | `รายได้จากขายของรีไซเคิล: ` | แสดงเมื่อมี |
 | `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.farming` | `index.html` | — | `Farms and fishing: ` | `รายได้จากเกษตรและประมง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.tolls` | `index.html` | — | `Tolls: ` | `ค่าผ่านทางด่วน: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
@@ -404,6 +417,7 @@
 | `map.key.mine` | `src/mapWindow.js` | — | `Mines` | `เหมือง` |  |
 | `map.key.farm` | `src/mapWindow.js` | — | `Farms` | `ไร่นา` | (Claude Code 13 ต.ค. 2026) |
 | `map.key.fishing` | `src/mapWindow.js` | — | `Fishing harbours` | `ท่าเรือประมง` |  |
+| `map.key.waste` | `src/mapWindow.js` | — | `Rubbish and wastewater` | `ขยะและน้ำเสีย` |  |
 | `map.key.road` | `src/mapWindow.js` | — | `Roads` | `ถนน` | |
 | `map.key.rail` | `src/mapWindow.js` | — | `Rail` | `ทางรถไฟ` | |
 | `map.key.power_line` | `src/mapWindow.js` | — | `Power lines` | `สายไฟฟ้า` | |
@@ -652,6 +666,9 @@
 | `msg.bad.storm_season_ahead` | `src/text.js` | — | `Warning tower: the storm season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูพายุ` |  |
 | `msg.bad.few_schools` | `src/text.js` | — | `Too few schools: families are leaving for towns with places for their children` | `เด็ก ๆ มีที่เรียนไม่พอ ครอบครัวเริ่มย้ายไปเมืองที่มีโรงเรียน` | ไม่เกินปีละครั้ง |
 | `msg.bad.few_hospitals` | `src/text.js` | — | `Too few hospitals: people worry about falling ill here` | `โรงพยาบาลไม่พอ คนเริ่มกังวลเรื่องเจ็บป่วย` | ไม่เกินปีละครั้ง |
+| `msg.bad.rubbish_overflow` | `src/text.js` | — | `Rubbish is piling up in the streets: build a landfill or an incinerator` | `ขยะล้นเมือง กองอยู่ตามถนน ควรสร้างบ่อฝังกลบหรือโรงเผาขยะ` | ไม่เกินปีละครั้ง |
+| `msg.bad.landfill_full` | `src/text.js` | — | `A landfill is full and takes no more rubbish` | `บ่อฝังกลบขยะเต็มแล้ว รับขยะเพิ่มไม่ได้` |  |
+| `msg.bad.untreated_sewage` | `src/text.js` | — | `The town's sewage runs untreated into the water: fishing and visitors suffer` | `น้ำเสียของเมืองไหลลงแหล่งน้ำโดยไม่ผ่านการบำบัด ประมงและการท่องเที่ยวเสียหาย` | ไม่เกินปีละครั้ง |
 | `msg.bad.ship_crash` | `src/text.js` | `Shipwreck reported ` | `Shipwreck reported in waters!` | `รายงานอุบัติเหตุเรือชนกันหรือเรืออับปาง!` | เรือล่ม |
 | `msg.bad.high_crime` | `src/text.js` | `Crime very high` | `Crime rate is dangerously high!` | `สถิติอาชญากรรมพุ่งสูงขึ้นขั้นวิกฤต!` | อาชญากรรมสูง |
 | `msg.bad.high_pollution`| `src/text.js` | `Pollution very high` | `Air & water pollution dangerously high!` | `มลพิษทางอากาศและสิ่งแวดล้อมเกินค่ามาตรฐาน!`| มลพิษสูง |
@@ -755,6 +772,7 @@
 | `about.building.ruler_house_wings` | `about.html` | — | `Wings of the House: from its second level the house has room for wings, one more at each level, chosen in its window: a treasury, a planning office, a warning tower, a granary and city tank, a culture court, a front garden (and later a council hall and a trade office). Each costs its price and an upkeep, and comes off without a refund.` | `ส่วนต่อเติมจวน: ตั้งแต่ขั้นที่ 2 จวนมีช่องต่อเติมเพิ่มขั้นละหนึ่ง เลือกในหน้าต่างจวน ได้แก่ คลังเมือง กองผังเมือง หอเตือนภัย ยุ้งฉางและถังน้ำเมือง ลานวัฒนธรรม สวนหน้าจวน (หอประชุมเมืองและสำนักการค้าจะมาภายหลัง) แต่ละอย่างมีค่าสร้างและค่าบำรุง รื้อออกได้แต่ไม่ได้เงินคืน` |  |
 | `about.building.education` | `about.html` | — | `Schools: kindergartens, primary and secondary schools give children places, vocational colleges and universities the young. With power they draw families, and higher education draws factories and shops and makes factories cleaner. Secondary schools and up need a higher ruler's house; each costs its upkeep every year.` | `โรงเรียน: อนุบาล ประถม มัธยม รับเด็ก อาชีวะและมหาวิทยาลัยรับคนหนุ่มสาว เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า การศึกษาขั้นสูงดึงโรงงานและร้านค้า และทำให้โรงงานควันน้อยลง ตั้งแต่มัธยมขึ้นไปต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.health` | `about.html` | — | `Hospitals: from the health centre to the regional hospital, each cares for more people. With power they draw families and take up to half of pollution's harm away from homes. The bigger ones need a higher ruler's house; each costs its upkeep every year.` | `โรงพยาบาล: ตั้งแต่ รพ.สต. ถึง รพ.ศูนย์ ยิ่งใหญ่ยิ่งดูแลคนได้มาก เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า และลดผลของมลพิษต่อเขตบ้านได้ถึงครึ่งหนึ่ง แห่งใหญ่ต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
+| `about.building.waste` | `about.html` | — | `Rubbish and Wastewater: every month people and visitors make rubbish, and a small town buries and burns its own. Beyond that, a recycling plant takes a little and sells it, a waste power plant burns it into electricity, an incinerator burns it with smoke, and a landfill takes the most for the least, but smells, seeps poison into the ground and fills up for good. Rubbish nobody takes lies in the streets as pollution. A wastewater treatment plant cleans the sewage of 20,000 people; a big town's untreated sewage spoils the fishing harbours' catch and keeps visitors away. All but the landfill and the waste power plant need power, and each costs its upkeep every year.` | `ขยะและน้ำเสีย: ทุกเดือนคนในเมืองและนักท่องเที่ยวสร้างขยะ เมืองเล็กฝังและเผาเองได้ ถ้ามากกว่านั้น โรงคัดแยกรีไซเคิลรับได้น้อยแต่ขายได้ โรงไฟฟ้าขยะเผาเป็นไฟฟ้า โรงเผาขยะเผาทิ้งแต่มีควัน บ่อฝังกลบรับได้มากที่สุดและถูกที่สุด แต่มีกลิ่น ซึมพิษลงดิน และเต็มแล้วเต็มเลย ขยะที่ไม่มีใครรับจะกองตามถนนเป็นมลพิษ โรงบำบัดน้ำเสียบำบัดน้ำเสียของคนได้ 20,000 คน เมืองใหญ่ที่ปล่อยน้ำเสียไม่บำบัดทำให้ท่าเรือประมงจับปลาได้น้อยลงและนักท่องเที่ยวลดลง ทุกแห่งยกเว้นบ่อฝังกลบและโรงไฟฟ้าขยะต้องมีไฟฟ้า และมีค่าบำรุงรายปี` |  |
 | `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
 | `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
 | `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |
@@ -1027,6 +1045,11 @@
 | `rules.cost.community_hospital` | `src/provinceRules.ts` | — | `Community Hospital costs {change}` | `ราคาโรงพยาบาลชุมชน {change}` |  |
 | `rules.cost.provincial_hospital` | `src/provinceRules.ts` | — | `Provincial Hospital costs {change}` | `ราคาโรงพยาบาลจังหวัด {change}` |  |
 | `rules.cost.regional_hospital` | `src/provinceRules.ts` | — | `Regional Hospital costs {change}` | `ราคาโรงพยาบาลศูนย์ {change}` |  |
+| `rules.cost.landfill` | `src/provinceRules.ts` | — | `Landfills cost {change}` | `ราคาบ่อฝังกลบขยะ {change}` |  |
+| `rules.cost.incinerator` | `src/provinceRules.ts` | — | `Incinerators cost {change}` | `ราคาโรงเผาขยะ {change}` |  |
+| `rules.cost.recycling_plant` | `src/provinceRules.ts` | — | `Recycling plants cost {change}` | `ราคาโรงคัดแยกขยะรีไซเคิล {change}` |  |
+| `rules.cost.waste_power_plant` | `src/provinceRules.ts` | — | `Waste power plants cost {change}` | `ราคาโรงไฟฟ้าขยะ {change}` |  |
+| `rules.cost.wastewater_plant` | `src/provinceRules.ts` | — | `Wastewater plants cost {change}` | `ราคาโรงบำบัดน้ำเสีย {change}` |  |
 | `rules.cost.road_upgrade` | `src/provinceRules.ts` | — | `Road upgrades cost {change}` | `ค่าอัปเกรดถนน {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
@@ -1119,6 +1142,9 @@
 | `status.services` | `index.html` | — | `Schools · health` | `การศึกษา · สุขภาพ` | แถบสถานะ (Claude Code 13 ต.ค. 2026) |
 | `status.services_value` | `src/cityStatus.ts` | — | `{school}% · {health}%` | `{school}% · {health}%` |  |
 | `status.services_title` | `src/cityStatus.ts` | — | `Places for children {school}%, for the young {higher}%, care for people {health}%` | `ที่เรียนของเด็ก {school}% ของคนหนุ่มสาว {higher}% การดูแลสุขภาพ {health}%` |  |
+| `status.waste` | `index.html` | — | `Rubbish · sewage` | `ขยะ · น้ำเสีย` | แถบสถานะ (Claude Code 13 ต.ค. 2026) |
+| `status.waste_value` | `src/cityStatus.ts` | — | `{rubbish}% · {sewage}%` | `{rubbish}% · {sewage}%` |  |
+| `status.waste_title` | `src/cityStatus.ts` | — | `Rubbish taken {rubbish}% of {tonnes} tonnes a month, sewage treated {sewage}%` | `เก็บขยะได้ {rubbish}% จาก {tonnes} ตันต่อเดือน บำบัดน้ำเสียได้ {sewage}%` |  |
 | `status.tourists_value` | `src/cityStatus.ts` | — | `{count} a month` | `{count} คน/เดือน` |  |
 | `status.tourists_title` | `src/cityStatus.ts` | — | `They spent {income} this month ({wanted} wanted to come)` | `เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | ข้อความเมื่อชี้ |
 | `status.tourists_high` | `src/cityStatus.ts` | — | `High season. They spent {income} this month ({wanted} wanted to come)` | `ฤดูท่องเที่ยว เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ย.–ก.พ. |

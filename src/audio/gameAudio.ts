@@ -101,6 +101,23 @@ const TOOL_SOUNDS: Record<string, string> = {
   tollway: "tool.road",
   road_upgrade: "tool.road",
   fishing: "tool.building",
+  // PhaiCity: the ruler's house, the schools and hospitals, and the rubbish and wastewater buildings
+  ruler_house: "tool.building",
+  ruler_house_upgrade: "tool.building",
+  kindergarten: "tool.building",
+  primary_school: "tool.building",
+  secondary_school: "tool.building",
+  vocational_college: "tool.building",
+  university: "tool.building",
+  health_centre: "tool.building",
+  community_hospital: "tool.building",
+  provincial_hospital: "tool.building",
+  regional_hospital: "tool.building",
+  landfill: "tool.building",
+  incinerator: "tool.building",
+  recycling_plant: "tool.building",
+  waste_power_plant: "tool.building",
+  wastewater_plant: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values

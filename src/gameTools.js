@@ -27,6 +27,7 @@ import { WaterTowerTool } from './waterTowerTool.ts';
 import { RoadUpgradeTool } from './roadLevels.ts';
 import { RulerHouseUpgradeTool } from './rulerHouse.ts';
 import { SERVICE_KINDS, SERVICE_SPECS } from './services.ts';
+import { WASTE_KINDS, WASTE_SPECS } from './waste.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -90,6 +91,11 @@ function GameTools(map, rules) {
   SERVICE_KINDS.forEach(function(kind) {
     tools[kind] = new BuildingTool(SERVICE_SPECS[kind].price, TileValues.CIVIC, map, 3, false);
     tools[kind].civicKind = kind;
+  });
+  // ... and the rubbish and wastewater buildings (src/waste.ts), all on one 3x3 of tiles; the map records which
+  WASTE_KINDS.forEach(function(kind) {
+    tools[kind] = new BuildingTool(WASTE_SPECS[kind].price, TileValues.WASTE, map, 3, false);
+    tools[kind].wasteKind = kind;
   });
 
   TOOL_COSTS.forEach(function(name) {

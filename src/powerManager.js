@@ -119,6 +119,13 @@ PowerManager.prototype.doPowerScan = function(census) {
 };
 
 
+// PhaiCity: another source of power the map scan found, such as a waste power plant (src/waste.ts); the census
+// counts its power
+PowerManager.prototype.addSource = function(x, y) {
+  this._powerStack.push(new Position(x, y));
+};
+
+
 PowerManager.prototype.coalPowerFound = function(map, x, y, simData) {
   simData.census.coalPowerPop += 1;
 
