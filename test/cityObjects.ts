@@ -4,7 +4,7 @@
 
 // The city's objects (src/objects/): one base class, a class per kind, found on the tiles and kept in step with them.
 
-import { CityObject, Building } from "../src/objects/cityObject";
+import { Building, CentralService, CityObject, CommunityBuilding } from "../src/objects/cityObject";
 import { Civic, Factory, Home, PowerPlant, Shop } from "../src/objects/buildings";
 import { CityObjects } from "../src/objects/cityObjects";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
@@ -55,6 +55,12 @@ describe("city objects", () => {
     expect((objects.at(8, 8) as Home).level(c)).toBe(1);
     expect(objects.at(10, 8)!.kind).toBe("bus_stop");
     expect(objects.all().every(o => o.built === 7)).toBe(true);
+    // The community's buildings and the central services
+    expect(home).toBeInstanceOf(CommunityBuilding);
+    expect(objects.all().filter(o => o.sector === "community").map(o => o.kind).sort())
+      .toEqual(["factory", "home", "home", "shop"]);
+    expect(gas).toBeInstanceOf(CentralService);
+    expect(objects.all().filter(o => o instanceof CentralService).length).toBe(4);
   });
 
   test("a card's facts: level, land, sort and power, as i18n keys", () => {

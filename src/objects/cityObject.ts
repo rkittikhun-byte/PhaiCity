@@ -45,6 +45,13 @@ export type ObjectKind =
   | "station" | "bus_stop" | "port" | "airport"
   | "stadium";
 
+/**
+ * The two sides of the city (owner, 13 Oct 2026: "แบ่งแยก ในส่วนของ ชุมชนกับ service ของส่วนกลาง"): the community's
+ * buildings, which people and businesses own, grow by themselves and pay taxes on; and the central services, which
+ * the ruler builds, pays the upkeep of and runs for everyone.
+ */
+export type Sector = "community" | "central";
+
 /** What a save keeps of an object: only what the tiles cannot tell */
 export interface SavedObject {
   id: number;
@@ -93,6 +100,8 @@ export abstract class Building extends CityObject {
     }
     return false;
   }
+  /** Whose it is: the community's or the ruler's (see Sector) */
+  abstract readonly sector: Sector;
   /** Whether it takes power at all; parks, stops and the like do not */
   get needsPower(): boolean { return true; }
   override facts(city: CityReader): Fact[] {
@@ -101,4 +110,16 @@ export abstract class Building extends CityObject {
     return facts;
   }
   toJSON(): SavedObject { return { id: this.id, built: this.built }; }
+}
+
+/** The community's buildings: homes, shops and factories (and later hotels); people and owners live and work in them,
+ * they grow and decline by themselves, and pay taxes. Their satisfaction is whether they are content to stay. */
+export abstract class CommunityBuilding extends Building {
+  readonly sector = "community";
+}
+
+/** The central services the ruler builds and pays for: power, water, rubbish, schools, hospitals, safety, transport
+ * and the ruler's house. Their satisfaction is how well they serve: budget, staff, load and reach. */
+export abstract class CentralService extends Building {
+  readonly sector = "central";
 }

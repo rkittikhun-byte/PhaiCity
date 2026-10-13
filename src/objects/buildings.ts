@@ -12,10 +12,10 @@ import {
   AIRPORT, BUS_STOP, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, HHTHR, LHTHR, MINE, NUCLEAR,
   POLICESTATION, PORT, POWERPLANT, STADIUM, STATION, WASTE, WATER_TOWER, WATER_WORKS,
 } from "../tileValues.js";
-import { Building, CityReader, Fact, ObjectKind } from "./cityObject.js";
+import { Building, CentralService, CityReader, CommunityBuilding, Fact, ObjectKind } from "./cityObject.js";
 
 /** A home, a shop or a factory: a 3 × 3 zone building, a house or a painted plot. */
-export abstract class ZoneBuilding extends Building {
+export abstract class ZoneBuilding extends CommunityBuilding {
   /** Its level (0 for an empty zone or plot) and land class, read from its tile */
   level(city: CityReader): number { return readPlotValue(city.getTileValue(this.x, this.y))?.level ?? 0; }
   landClass(city: CityReader): number { return readPlotValue(city.getTileValue(this.x, this.y))?.value ?? 0; }
@@ -31,7 +31,7 @@ export class Shop extends ZoneBuilding { readonly kind = "shop"; }
 export class Factory extends ZoneBuilding { readonly kind = "factory"; }
 
 /** A building whose sort the map records beside its tiles, by its centre's index */
-abstract class RecordedBuilding extends Building {
+abstract class RecordedBuilding extends CentralService {
   protected abstract record(city: CityReader): Readonly<Record<string, string>> | null | undefined;
   protected fallback = "";
   override sort(city: CityReader): string { return this.record(city)?.[this.id] ?? this.fallback; }
@@ -61,7 +61,7 @@ export class Station extends RecordedBuilding {
   protected record(city: CityReader) { return city.stationKinds; }
 }
 
-class Plain extends Building {
+class Plain extends CentralService {
   constructor(readonly kind: ObjectKind, id: number, x: number, y: number, size: number, private power = true) {
     super(id, x, y, size);
   }
