@@ -188,11 +188,15 @@
 | `choice.title.port` | `src/toolLevels.ts` | — | `Long-distance transport: port or airport` | `การเดินทางไกล: ท่าเรือหรือสนามบิน` |  |
 | `choice.port` | `src/toolLevels.ts` | — | `Port` | `ท่าเรือ` |  |
 | `choice.airport` | `src/toolLevels.ts` | — | `Airport` | `สนามบิน` |  |
-| `tool.ruler_house` | `index.html` | — | `Ruler's House {price}` | `จวนเจ้าเมือง {price}` | อาคาร 3x3 สร้างก่อนอย่างอื่น (Claude Code 13 ต.ค. 2026) |
-| `tool.ruler_house_upgrade` | `src/toolLevels.ts` | — | `Raise the House {price}` | `ยกระดับจวน {price}` | คลิกที่จวน ขึ้นทีละขั้น จ่ายส่วนต่าง |
-| `tool.ruler_house_wings` | `src/toolLevels.ts` | — | `Wings of the House {price}` | `ส่วนต่อเติมจวน {price}` | เปิดหน้าต่างจวน |
-| `choice.title.ruler_house` | `src/toolLevels.ts` | — | `Ruler's house: build, raise, add wings` | `จวนเจ้าเมือง: สร้าง ยกระดับ ต่อเติม` |  |
-| `choice.ruler_house` | `src/toolLevels.ts` | — | `Build` | `สร้างจวน` |  |
+| `office.district` | `src/i18n/index.ts` | — | `District Office` | `ที่ว่าการอำเภอ` | อาคารแรกของเมืองในอำเภอ แทนคำว่าจวน (เจ้าของ 13 ต.ค. 2026) ใช้เป็น {office} |
+| `office.district.short` | `src/i18n/index.ts` | — | `Office` | `ที่ว่าการ` | {office_short} |
+| `office.province` | `src/i18n/index.ts` | — | `Provincial Hall` | `ศาลากลางจังหวัด` | เมืองระดับจังหวัด |
+| `office.province.short` | `src/i18n/index.ts` | — | `Hall` | `ศาลากลาง` |  |
+| `tool.ruler_house` | `index.html` | — | `{office} {price}` | `{office} {price}` | อาคาร 3x3 สร้างก่อนอย่างอื่น (Claude Code 13 ต.ค. 2026) |
+| `tool.ruler_house_upgrade` | `src/toolLevels.ts` | — | `Raise the {office_short} {price}` | `ยกระดับ{office_short} {price}` | คลิกที่จวน ขึ้นทีละขั้น จ่ายส่วนต่าง |
+| `tool.ruler_house_wings` | `src/toolLevels.ts` | — | `Annexes of the {office_short} {price}` | `ส่วนต่อเติม{office_short} {price}` | เปิดหน้าต่างจวน |
+| `choice.title.ruler_house` | `src/toolLevels.ts` | — | `{office}: build, raise, add annexes` | `{office}: สร้าง ยกระดับ ต่อเติม` |  |
+| `choice.ruler_house` | `src/toolLevels.ts` | — | `Build the {office_short}` | `สร้าง{office_short}` |  |
 | `choice.ruler_house_upgrade` | `src/toolLevels.ts` | — | `Raise` | `ยกระดับ` |  |
 | `choice.ruler_house_wings` | `src/toolLevels.ts` | — | `Wings…` | `ส่วนต่อเติม…` |  |
 | `tool.ruler_house_policies` | `src/toolLevels.ts` | — | `Ruler's Policies {price}` | `นโยบายเจ้าเมือง {price}` | เปิดหน้าต่างนโยบาย (Claude Code 13 ต.ค. 2026, docs/POLICIES.md) |
@@ -218,10 +222,10 @@
 | `choice.title.primary_school` | `src/toolLevels.ts` | — | `Education: choose the school` | `การศึกษา: เลือกโรงเรียน` |  |
 | `choice.title.health_centre` | `src/toolLevels.ts` | — | `Health: choose the hospital` | `สาธารณสุข: เลือกโรงพยาบาล` |  |
 | `service.reason.house.0` | `src/toolLevels.ts` | — | `Not yet` | `ยังไม่ได้` |  |
-| `service.reason.house.2` | `src/toolLevels.ts` | — | `Needs a level 2 house` | `ต้องมีจวนขั้น 2` |  |
-| `service.reason.house.3` | `src/toolLevels.ts` | — | `Needs a level 3 house` | `ต้องมีจวนขั้น 3` |  |
-| `service.reason.house.4` | `src/toolLevels.ts` | — | `Needs a level 4 house` | `ต้องมีจวนขั้น 4` |  |
-| `service.note.needs_house` | `src/game.js` | — | `This needs the ruler's house at level {level} first` | `ต้องยกระดับจวนเจ้าเมืองถึงขั้น {level} ก่อน` |  |
+| `service.reason.house.2` | `src/toolLevels.ts` | — | `Needs a level 2 {office_short}` | `ต้องมี{office_short}ขั้น 2` |  |
+| `service.reason.house.3` | `src/toolLevels.ts` | — | `Needs a level 3 {office_short}` | `ต้องมี{office_short}ขั้น 3` |  |
+| `service.reason.house.4` | `src/toolLevels.ts` | — | `Needs a level 4 {office_short}` | `ต้องมี{office_short}ขั้น 4` |  |
+| `service.note.needs_house` | `src/game.js` | — | `This needs the {office} at level {level} first` | `ต้องยกระดับ{office}ถึงขั้น {level} ก่อน` |  |
 | `tool.landfill` | `index.html` | — | `Landfill {price}` | `บ่อฝังกลบขยะ {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026, docs/WASTE.md) |
 | `tool.incinerator` | `index.html` | — | `Incinerator {price}` | `โรงเผาขยะ {price}` |  |
 | `tool.recycling_plant` | `index.html` | — | `Recycling Plant {price}` | `โรงคัดแยกขยะรีไซเคิล {price}` |  |
@@ -301,35 +305,35 @@
 | `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
 | `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |
-| `house.level.1` | `src/houseWindow.ts` | — | `Ruler's house` | `เรือนเจ้าเมือง` | ชื่อขั้นของจวน แก้ได้ |
-| `house.level.2` | `src/houseWindow.ts` | — | `House with halls` | `เรือนหมู่เจ้าเมือง` |  |
-| `house.level.3` | `src/houseWindow.ts` | — | `Ruler's residence` | `จวนเจ้าเมือง` |  |
-| `house.level.4` | `src/houseWindow.ts` | — | `Grand residence` | `จวนใหญ่` |  |
-| `house.level.5` | `src/houseWindow.ts` | — | `Residence and hall` | `จวนและหอประชุม` |  |
-| `house.level.6` | `src/houseWindow.ts` | — | `Residence and city garden` | `จวนและสวนเมือง` |  |
+| `house.level.1` | `src/houseWindow.ts` | — | `Old wooden {office}` | `{office}เรือนไม้` | ชื่อขั้นของจวน แก้ได้ |
+| `house.level.2` | `src/houseWindow.ts` | — | `Two-storey {office}` | `{office}สองชั้น` |  |
+| `house.level.3` | `src/houseWindow.ts` | — | `New {office}` | `{office}หลังใหม่` |  |
+| `house.level.4` | `src/houseWindow.ts` | — | `Government centre` | `ศูนย์ราชการ` |  |
+| `house.level.5` | `src/houseWindow.ts` | — | `Government centre and meeting hall` | `ศูนย์ราชการและหอประชุม` |  |
+| `house.level.6` | `src/houseWindow.ts` | — | `Government centre and public garden` | `ศูนย์ราชการและสวนสาธารณะ` |  |
 | `house.next.1` | `src/toolLevels.ts` | — | `→ level 1` | `→ ขั้น 1` | ช่องยกระดับ |
 | `house.next.2` | `src/toolLevels.ts` | — | `→ level 2` | `→ ขั้น 2` |  |
 | `house.next.3` | `src/toolLevels.ts` | — | `→ level 3` | `→ ขั้น 3` |  |
 | `house.next.4` | `src/toolLevels.ts` | — | `→ level 4` | `→ ขั้น 4` |  |
 | `house.next.5` | `src/toolLevels.ts` | — | `→ level 5` | `→ ขั้น 5` |  |
 | `house.next.6` | `src/toolLevels.ts` | — | `→ level 6` | `→ ขั้น 6` |  |
-| `house.reason.built` | `src/toolLevels.ts` | — | `Already built` | `มีจวนแล้ว` |  |
-| `house.reason.none` | `src/toolLevels.ts` | — | `Build the house first` | `ยังไม่มีจวน` |  |
+| `house.reason.built` | `src/toolLevels.ts` | — | `The {office_short} is built` | `มี{office_short}แล้ว` |  |
+| `house.reason.none` | `src/toolLevels.ts` | — | `Build the {office_short} first` | `ยังไม่มี{office_short}` |  |
 | `house.reason.top` | `src/toolLevels.ts` | — | `Highest level` | `ขั้นสูงสุดแล้ว` |  |
 | `house.reason.rank.1` | `src/toolLevels.ts` | — | `Needs the rank Khun` | `ต้องได้ยศขุน` |  |
 | `house.reason.rank.2` | `src/toolLevels.ts` | — | `Needs the rank Luang` | `ต้องได้ยศหลวง` |  |
 | `house.reason.rank.3` | `src/toolLevels.ts` | — | `Needs the rank Phra` | `ต้องได้ยศพระ` |  |
 | `house.reason.rank.4` | `src/toolLevels.ts` | — | `Needs the rank Phraya` | `ต้องได้ยศพระยา` |  |
 | `house.reason.rank.5` | `src/toolLevels.ts` | — | `Needs the rank Chao Phraya` | `ต้องได้ยศเจ้าพระยา` |  |
-| `house.note.first` | `src/game.js` | — | `Lay a road, then build the ruler's house beside it: the other tools wait for the house` | `วาดถนนก่อน แล้วสร้างจวนเจ้าเมืองติดถนน เครื่องมืออื่นใช้ได้เมื่อมีจวนแล้ว` |  |
-| `house.note.needs_road` | `src/game.js` | — | `The ruler's house must stand beside a road: lay one first` | `จวนเจ้าเมืองต้องตั้งติดถนน วาดถนนก่อน` | (Claude Code 13 ต.ค. 2026) |
-| `house.note.stands` | `src/game.js` | — | `The city has its ruler's house; it can be raised a level` | `เมืองมีจวนเจ้าเมืองแล้ว ยกระดับได้อย่างเดียว` |  |
-| `house.note.none` | `src/game.js` | — | `There is no ruler's house to raise` | `ยังไม่มีจวนให้ยกระดับ` |  |
-| `house.note.top` | `src/game.js` | — | `The house is at its highest level` | `จวนอยู่ขั้นสูงสุดแล้ว` |  |
+| `house.note.first` | `src/game.js` | — | `Lay a road, then build the {office} beside it: the other tools wait for it` | `วาดถนนก่อน แล้วสร้าง{office}ติดถนน เครื่องมืออื่นใช้ได้เมื่อสร้างเสร็จแล้ว` |  |
+| `house.note.needs_road` | `src/game.js` | — | `The {office} must stand beside a road: lay one first` | `{office}ต้องตั้งติดถนน วาดถนนก่อน` | (Claude Code 13 ต.ค. 2026) |
+| `house.note.stands` | `src/game.js` | — | `The city has its {office}; it can be raised a level` | `เมืองมี{office}แล้ว ยกระดับได้อย่างเดียว` |  |
+| `house.note.none` | `src/game.js` | — | `There is no {office} to raise` | `ยังไม่มี{office}ให้ยกระดับ` |  |
+| `house.note.top` | `src/game.js` | — | `The {office_short} is at its highest level` | `{office_short}อยู่ขั้นสูงสุดแล้ว` |  |
 | `house.note.needs_rank` | `src/game.js` | — | `The next level needs the rank {rank}` | `ขั้นถัดไปต้องได้ยศ{rank}ก่อน` |  |
-| `house.window.title` | `index.html` | — | `Ruler's house` | `จวนเจ้าเมือง` |  |
+| `house.window.title` | `index.html` | — | `{office}` | `{office}` |  |
 | `house.window.ok` | `index.html` | — | `Close` | `ปิด` |  |
-| `house.window.none` | `src/houseWindow.ts` | — | `There is no ruler's house` | `ยังไม่มีจวนเจ้าเมือง` |  |
+| `house.window.none` | `src/houseWindow.ts` | — | `There is no {office}` | `ยังไม่มี{office}` |  |
 | `house.window.summary` | `src/houseWindow.ts` | — | `Level {level}: {name} · wings {used}/{room} · upkeep {upkeep} a year` | `ขั้น {level}: {name} · ส่วนต่อเติม {used}/{room} · ค่าบำรุงปีละ {upkeep}` |  |
 | `house.wing.money` | `src/houseWindow.ts` | — | `Price {price} · upkeep {upkeep} a year` | `ราคา {price} · ค่าบำรุงปีละ {upkeep}` |  |
 | `house.wing.state.build` | `src/houseWindow.ts` | — | `Build` | `สร้าง` |  |
@@ -338,13 +342,13 @@
 | `house.wing.state.no_room` | `src/houseWindow.ts` | — | `No room` | `ไม่มีช่องว่าง` |  |
 | `house.wing.state.no_money` | `src/houseWindow.ts` | — | `Not enough money` | `เงินไม่พอ` |  |
 | `policy.window.title` | `index.html` | — | `Ruler's policies` | `นโยบายเจ้าเมือง` | หน้าต่างนโยบาย (Claude Code 13 ต.ค. 2026) |
-| `policy.window.none` | `src/policyWindow.ts` | — | `Policies need the ruler's house` | `ต้องมีจวนเจ้าเมืองก่อนจึงออกนโยบายได้` |  |
+| `policy.window.none` | `src/policyWindow.ts` | — | `Policies need the {office}` | `ต้องมี{office}ก่อนจึงออกนโยบายได้` |  |
 | `policy.window.summary` | `src/policyWindow.ts` | — | `Policies {used}/{room} · they cost {upkeep} a year` | `นโยบาย {used}/{room} · ค่าใช้จ่ายปีละ {upkeep}` |  |
 | `policy.money` | `src/policyWindow.ts` | — | `Costs {upkeep} a year` | `ค่าใช้จ่ายปีละ {upkeep}` |  |
 | `policy.state.on` | `src/policyWindow.ts` | — | `Switch off` | `ยกเลิก` |  |
 | `policy.state.off` | `src/policyWindow.ts` | — | `Switch on` | `ประกาศใช้` |  |
 | `policy.state.no_room` | `src/policyWindow.ts` | — | `No room` | `ไม่มีช่องว่าง` |  |
-| `policy.state.no_house` | `src/policyWindow.ts` | — | `No house` | `ยังไม่มีจวน` |  |
+| `policy.state.no_house` | `src/policyWindow.ts` | — | `No {office_short}` | `ยังไม่มี{office_short}` |  |
 | `policy.no_field_burning` | `src/policyWindow.ts` | — | `No field burning` | `ห้ามเผาไร่` |  |
 | `policy.no_field_burning.gain` | `src/policyWindow.ts` | — | `No stubble fires, and no haze from them` | `ไม่มีการเผาตอซัง หมอกควันหายไป` |  |
 | `policy.no_field_burning.cost` | `src/policyWindow.ts` | — | `The farms sell a fifth less` | `ไร่นาขายผลผลิตได้น้อยลงหนึ่งในห้า` |  |
@@ -384,9 +388,9 @@
 | `house.wing.granary.cost` | `src/houseWindow.ts` | — | `The dearest to build` | `ค่าสร้างแพงที่สุด` |  |
 | `house.wing.culture_court` | `src/houseWindow.ts` | — | `Culture court` | `ลานวัฒนธรรม` |  |
 | `house.wing.culture_court.gain` | `src/houseWindow.ts` | — | `15% more visitors, who spend 15% more` | `นักท่องเที่ยวมากขึ้น 15% และใช้จ่ายมากขึ้น 15%` |  |
-| `house.wing.culture_court.cost` | `src/houseWindow.ts` | — | `Noise around the house in festival months` | `เสียงดังรอบจวนในเดือนเทศกาล` |  |
-| `house.wing.front_garden` | `src/houseWindow.ts` | — | `Front garden` | `สวนหน้าจวน` |  |
-| `house.wing.front_garden.gain` | `src/houseWindow.ts` | — | `The house adds twice as much to the land near it` | `ราคาที่ดินที่จวนเพิ่มให้รอบ ๆ เป็นสองเท่า` |  |
+| `house.wing.culture_court.cost` | `src/houseWindow.ts` | — | `Noise around the {office_short} in festival months` | `เสียงดังรอบ{office_short}ในเดือนเทศกาล` |  |
+| `house.wing.front_garden` | `src/houseWindow.ts` | — | `Front garden` | `สวนด้านหน้า` |  |
+| `house.wing.front_garden.gain` | `src/houseWindow.ts` | — | `The {office_short} adds twice as much to the land near it` | `ราคาที่ดินที่{office_short}เพิ่มให้รอบ ๆ เป็นสองเท่า` |  |
 | `house.wing.front_garden.cost` | `src/houseWindow.ts` | — | `Upkeep` | `ค่าบำรุงรายปี` |  |
 | `house.wing.trade_office` | `src/houseWindow.ts` | — | `Trade office` | `สำนักการค้า` |  |
 | `house.wing.trade_office.gain` | `src/houseWindow.ts` | — | `Sells more, at better prices, on the market (network mode)` | `ตลาดในโหมดเครือข่ายขายได้มากขึ้นและราคาดีขึ้น` |  |
@@ -409,7 +413,7 @@
 | `budget.tax_collected` | `index.html` | `Tax Collected: ` | `Taxes Collected: ` | `ภาษีที่จัดเก็บได้: ` | รายรับภาษี |
 | `budget.tourism` | `index.html` | — | `Visitors spent: ` | `รายได้จากนักท่องเที่ยว: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.fuel` | `index.html` | — | `Power plant fuel: ` | `ค่าเชื้อเพลิงโรงไฟฟ้า: ` | ลิกไนต์และก๊าซ แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
-| `budget.house` | `index.html` | — | `Ruler's house: ` | `จวนเจ้าเมือง: ` | ค่าบำรุงจวนและส่วนต่อเติม แสดงเมื่อมี |
+| `budget.house` | `index.html` | — | `{office}: ` | `{office}: ` | ค่าบำรุงจวนและส่วนต่อเติม แสดงเมื่อมี |
 | `budget.education` | `index.html` | — | `Schools: ` | `การศึกษา: ` | ค่าบำรุงโรงเรียน แสดงเมื่อมี |
 | `budget.health` | `index.html` | — | `Hospitals: ` | `สาธารณสุข: ` | ค่าบำรุงโรงพยาบาล แสดงเมื่อมี |
 | `budget.waste` | `index.html` | — | `Rubbish and wastewater: ` | `ขยะและน้ำเสีย: ` | ค่าบำรุงอาคารขยะและน้ำเสีย แสดงเมื่อมี |
@@ -762,7 +766,7 @@
 | `msg.bad.haze` | `src/text.js` | — | `Haze! Stubble fires on the farms are filling the air with smoke` | `หมอกควัน! การเผาไร่ทำให้อากาศเต็มไปด้วยควัน` | ก.พ.–เม.ย. ไม่เกินปีละครั้ง (Claude Code 13 ต.ค. 2026) |
 | `msg.bad.few_fish` | `src/text.js` | — | `The fish are running low: fewer harbours would let them grow back` | `ปลาเริ่มหมด ลดจำนวนท่าเรือประมงเพื่อให้ปลาฟื้นตัว` |  |
 | `msg.bad.dirty_harbour` | `src/text.js` | — | `Dirty water at a fishing harbour is halving the catch` | `น้ำเสียแถวท่าเรือประมงทำให้จับปลาได้ลดลงครึ่งหนึ่ง` | ไม่เกินปีละครั้ง |
-| `msg.bad.ruler_house_lost` | `src/text.js` | — | `The ruler's house is gone: the city loses its centre and the house's wings until it is built again` | `จวนเจ้าเมืองพังแล้ว เมืองเสียใจกลางเมืองและส่วนต่อเติมจนกว่าจะสร้างใหม่` |  |
+| `msg.bad.ruler_house_lost` | `src/text.js` | — | `The {office} is gone: the city loses its centre and the annexes until it is built again` | `{office}พังแล้ว เมืองเสียใจกลางเมืองและส่วนต่อเติมจนกว่าจะสร้างใหม่` |  |
 | `msg.bad.fire_season_ahead` | `src/text.js` | — | `Warning tower: the wildfire season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูไฟป่า` |  |
 | `msg.bad.flood_season_ahead` | `src/text.js` | — | `Warning tower: the flood season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูน้ำท่วม` |  |
 | `msg.bad.storm_season_ahead` | `src/text.js` | — | `Warning tower: the storm season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูพายุ` |  |
@@ -870,14 +874,14 @@
 | `about.building.mines` | `about.html` | — | `Mines: press the Mine button and choose an ore the province has. A working mine needs power, pays royalties every year and gives work, but raises dust, most kinds poison the ground and its water for years, oil wells now and then spill, and the province's ore runs out sooner the more mines dig it.` | `เหมือง: กดปุ่มเหมืองแล้วเลือกแร่ที่จังหวัดมี เหมืองต้องมีไฟฟ้า ให้ค่าภาคหลวงทุกปีและมีงานให้คน แต่มีฝุ่น แร่ส่วนใหญ่ทำให้ดินและน้ำใต้ดินปนเปื้อนนานหลายปี บ่อน้ำมันรั่วได้ และยิ่งเปิดหลายเหมือง แร่ในจังหวัดยิ่งหมดเร็ว` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.farm` | `about.html` | — | `Farm: sells its crop every month, more on wet ground and in a farming province, and calls for factories that process farm goods. It pumps the groundwater around it, its chemicals seep into the ground, and from February to April its stubble fires spread haze.` | `ไร่นา: ขายผลผลิตทุกเดือน ได้มากบนดินชุ่มน้ำและในจังหวัดเกษตร ดึงโรงงานแปรรูปเกษตร แต่สูบน้ำใต้ดินรอบ ๆ สารเคมีลงดิน และช่วง ก.พ.–เม.ย. การเผาไร่ทำให้เกิดหมอกควัน` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.fishing` | `about.html` | — | `Fishing Harbour: built beside water, it sells its catch every month and calls for markets and eating places. Too many harbours empty the province's fish, which grow back slowly, and dirty water halves the catch.` | `ท่าเรือประมง: ตั้งติดน้ำ ขายปลาทุกเดือน และดึงตลาดกับร้านอาหาร แต่ถ้ามีท่าเรือมากเกิน ปลาในจังหวัดจะหมด ฟื้นตัวช้า และน้ำเสียทำให้จับปลาได้ลดลงครึ่งหนึ่ง` | คำอธิบายอาคาร |
-| `about.building.ruler_house` | `about.html` | — | `Ruler's House: a new city's first building; until it stands no other tool works. The city's centre moves to it and the land near it is worth more. It rises a level for each rank, for the difference in price, and costs more upkeep at each level. If it burns or is bulldozed, its gains are gone until it is built again.` | `จวนเจ้าเมือง: อาคารแรกของเมืองใหม่ ก่อนมีจวนใช้เครื่องมืออื่นไม่ได้ ใจกลางเมืองย้ายมาที่จวนและที่ดินรอบ ๆ ราคาสูงขึ้น ยกระดับได้ขั้นละหนึ่งยศ จ่ายส่วนต่าง ค่าบำรุงสูงขึ้นทุกขั้น ถ้าไฟไหม้หรือถูกรื้อ ผลดีทั้งหมดหายไปจนกว่าจะสร้างใหม่` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
-| `about.building.ruler_house_wings` | `about.html` | — | `Wings of the House: from its second level the house has room for wings, one more at each level, chosen in its window: a treasury, a planning office, a warning tower, a granary and city tank, a culture court, a front garden (and later a council hall and a trade office). Each costs its price and an upkeep, and comes off without a refund.` | `ส่วนต่อเติมจวน: ตั้งแต่ขั้นที่ 2 จวนมีช่องต่อเติมเพิ่มขั้นละหนึ่ง เลือกในหน้าต่างจวน ได้แก่ คลังเมือง กองผังเมือง หอเตือนภัย ยุ้งฉางและถังน้ำเมือง ลานวัฒนธรรม สวนหน้าจวน (หอประชุมเมืองและสำนักการค้าจะมาภายหลัง) แต่ละอย่างมีค่าสร้างและค่าบำรุง รื้อออกได้แต่ไม่ได้เงินคืน` |  |
-| `about.building.education` | `about.html` | — | `Schools: kindergartens, primary and secondary schools give children places, vocational colleges and universities the young. With power they draw families, and higher education draws factories and shops and makes factories cleaner. Secondary schools and up need a higher ruler's house; each costs its upkeep every year.` | `โรงเรียน: อนุบาล ประถม มัธยม รับเด็ก อาชีวะและมหาวิทยาลัยรับคนหนุ่มสาว เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า การศึกษาขั้นสูงดึงโรงงานและร้านค้า และทำให้โรงงานควันน้อยลง ตั้งแต่มัธยมขึ้นไปต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
-| `about.building.health` | `about.html` | — | `Hospitals: from the health centre to the regional hospital, each cares for more people. With power they draw families and take up to half of pollution's harm away from homes. The bigger ones need a higher ruler's house; each costs its upkeep every year.` | `โรงพยาบาล: ตั้งแต่ รพ.สต. ถึง รพ.ศูนย์ ยิ่งใหญ่ยิ่งดูแลคนได้มาก เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า และลดผลของมลพิษต่อเขตบ้านได้ถึงครึ่งหนึ่ง แห่งใหญ่ต้องมีจวนขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
+| `about.building.ruler_house` | `about.html` | — | `{office}: a new city's first building, beside a road; until it stands only roads can be built. The city's centre moves to it and the land near it is worth more. It rises a level for each rank, for the difference in price, and costs more upkeep at each level. If it burns or is bulldozed, its gains are gone until it is built again. In a district's town it is the District Office, in a province's the Provincial Hall.` | `{office}: อาคารแรกของเมืองใหม่ ต้องตั้งติดถนน ก่อนสร้างเสร็จสร้างได้แค่ถนน ใจกลางเมืองย้ายมาที่นี่และที่ดินรอบ ๆ ราคาสูงขึ้น ยกระดับได้ขั้นละหนึ่งยศ จ่ายส่วนต่าง ค่าบำรุงสูงขึ้นทุกขั้น ถ้าไฟไหม้หรือถูกรื้อ ผลดีทั้งหมดหายไปจนกว่าจะสร้างใหม่ เมืองในอำเภอเรียกที่ว่าการอำเภอ เมืองระดับจังหวัดเรียกศาลากลางจังหวัด` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
+| `about.building.ruler_house_wings` | `about.html` | — | `Annexes of the {office_short}: from its second level it has room for annexes, one more at each level, chosen in its window: a treasury, a planning office, a warning tower, a granary and city tank, a culture court, a front garden (and later a council hall and a trade office). Each costs its price and an upkeep, and comes off without a refund.` | `ส่วนต่อเติม{office_short}: ตั้งแต่ขั้นที่ 2 มีช่องต่อเติมเพิ่มขั้นละหนึ่ง เลือกในหน้าต่างของอาคาร ได้แก่ คลังเมือง กองผังเมือง หอเตือนภัย ยุ้งฉางและถังน้ำเมือง ลานวัฒนธรรม สวนด้านหน้า (หอประชุมเมืองและสำนักการค้าจะมาภายหลัง) แต่ละอย่างมีค่าสร้างและค่าบำรุง รื้อออกได้แต่ไม่ได้เงินคืน` |  |
+| `about.building.education` | `about.html` | — | `Schools: kindergartens, primary and secondary schools give children places, vocational colleges and universities the young. With power they draw families, and higher education draws factories and shops and makes factories cleaner. Secondary schools and up need a higher {office_short}; each costs its upkeep every year.` | `โรงเรียน: อนุบาล ประถม มัธยม รับเด็ก อาชีวะและมหาวิทยาลัยรับคนหนุ่มสาว เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า การศึกษาขั้นสูงดึงโรงงานและร้านค้า และทำให้โรงงานควันน้อยลง ตั้งแต่มัธยมขึ้นไปต้องมี{office_short}ขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
+| `about.building.health` | `about.html` | — | `Hospitals: from the health centre to the regional hospital, each cares for more people. With power they draw families and take up to half of pollution's harm away from homes. The bigger ones need a higher {office_short}; each costs its upkeep every year.` | `โรงพยาบาล: ตั้งแต่ รพ.สต. ถึง รพ.ศูนย์ ยิ่งใหญ่ยิ่งดูแลคนได้มาก เมื่อมีไฟฟ้าจะดึงครอบครัวให้ย้ายเข้า และลดผลของมลพิษต่อเขตบ้านได้ถึงครึ่งหนึ่ง แห่งใหญ่ต้องมี{office_short}ขั้นสูงขึ้น ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.waste` | `about.html` | — | `Rubbish and Wastewater: every month people and visitors make rubbish, and a small town buries and burns its own. Beyond that, a recycling plant takes a little and sells it, a waste power plant burns it into electricity, an incinerator burns it with smoke, and a landfill takes the most for the least, but smells, seeps poison into the ground and fills up for good. Rubbish nobody takes lies in the streets as pollution. A wastewater treatment plant cleans the sewage of 20,000 people; a big town's untreated sewage spoils the fishing harbours' catch and keeps visitors away. All but the landfill and the waste power plant need power, and each costs its upkeep every year.` | `ขยะและน้ำเสีย: ทุกเดือนคนในเมืองและนักท่องเที่ยวสร้างขยะ เมืองเล็กฝังและเผาเองได้ ถ้ามากกว่านั้น โรงคัดแยกรีไซเคิลรับได้น้อยแต่ขายได้ โรงไฟฟ้าขยะเผาเป็นไฟฟ้า โรงเผาขยะเผาทิ้งแต่มีควัน บ่อฝังกลบรับได้มากที่สุดและถูกที่สุด แต่มีกลิ่น ซึมพิษลงดิน และเต็มแล้วเต็มเลย ขยะที่ไม่มีใครรับจะกองตามถนนเป็นมลพิษ โรงบำบัดน้ำเสียบำบัดน้ำเสียของคนได้ 20,000 คน เมืองใหญ่ที่ปล่อยน้ำเสียไม่บำบัดทำให้ท่าเรือประมงจับปลาได้น้อยลงและนักท่องเที่ยวลดลง ทุกแห่งยกเว้นบ่อฝังกลบและโรงไฟฟ้าขยะต้องมีไฟฟ้า และมีค่าบำรุงรายปี` |  |
 | `about.building.transit` | `about.html` | — | `Public Transport: a bus or songthaew stop beside a road, and train, metro and high-speed rail stations. Some of the people near them ride instead of drive, so the roads carry less traffic; near a train or metro station, people with no way by road still get to work. Train stations bring visitors, the high-speed station visitors and trade, and the metro raises the land's value around it. Stations need power, train and high-speed stations a railway beside them; the metro needs two stations and the rank Luang, the high-speed station the rank Phra, and only one may stand. Each costs its upkeep every year.` | `ขนส่งสาธารณะ: ป้ายรถเมล์/สองแถวติดถนน สถานีรถไฟ สถานีรถไฟฟ้า และสถานีรถไฟความเร็วสูง คนที่อยู่ใกล้จะนั่งรถแทนการขับเอง ถนนจึงรถติดน้อยลง ใกล้สถานีรถไฟหรือรถไฟฟ้า คนที่ไปทางถนนไม่ได้ก็ยังไปทำงานได้ สถานีรถไฟพานักท่องเที่ยวมา สถานีรถไฟความเร็วสูงพาทั้งนักท่องเที่ยวและการค้า และรถไฟฟ้าทำให้ที่ดินรอบ ๆ ราคาสูงขึ้น ทุกสถานีต้องมีไฟฟ้า สถานีรถไฟและรถไฟความเร็วสูงต้องติดทางรถไฟ รถไฟฟ้าต้องมีอย่างน้อยสองสถานีและได้ยศหลวง สถานีรถไฟความเร็วสูงต้องได้ยศพระและมีได้แห่งเดียว ทุกแห่งมีค่าบำรุงรายปี` |  |
 | `about.building.land` | `about.html` | — | `Buy Land: a province map is cut into square blocks. A new city owns the three by three blocks round its town; buy more one block at a time, each beside land the city owns and dearer than the last. The ruler's rank sets how many may be bought. Land not yet bought shows a little darker and takes no tool.` | `ซื้อที่ดิน: แผนที่จังหวัดแบ่งเป็นบล็อกสี่เหลี่ยม เมืองใหม่ได้บล็อก 3×3 รอบตัวเมือง ซื้อเพิ่มได้ทีละบล็อก ต้องติดกับที่ดินของเมือง และแพงขึ้นทุกบล็อก ยศเจ้าเมืองกำหนดว่าซื้อได้กี่บล็อก ที่ดินที่ยังไม่ได้ซื้อจะดูมืดลงเล็กน้อยและใช้เครื่องมือไม่ได้` |  |
-| `about.building.ruler_policies` | `about.html` | — | `Ruler's Policies: from the ruler's house's card, switch policies on and off: no field burning, a water saving campaign, a closed fishing season, green zoning, a water-wise Songkran, a factory pollution tax and higher tolls. Each brings something and costs something, and every one costs a sum each year. A house has room for one policy for every two of its levels, and its council hall for one more; they are forgotten if the house falls.` | `นโยบายเจ้าเมือง: เปิดปิดได้จากการ์ดของจวนเจ้าเมือง ได้แก่ ห้ามเผาไร่ รณรงค์ประหยัดน้ำ ปิดอ่าวช่วงปลาวางไข่ ผังเมืองสีเขียว สงกรานต์ประหยัดน้ำ ภาษีมลพิษโรงงาน และขึ้นค่าผ่านทางด่วน ทุกนโยบายมีทั้งได้และเสีย และมีค่าใช้จ่ายรายปี จวนมีช่องนโยบายหนึ่งช่องต่อสองขั้น หอประชุมเมืองเพิ่มให้อีกหนึ่งช่อง ถ้าจวนพัง นโยบายทั้งหมดก็หายไปด้วย` |  |
+| `about.building.ruler_policies` | `about.html` | — | `Ruler's Policies: from the {office}'s card, switch policies on and off: no field burning, a water saving campaign, a closed fishing season, green zoning, a water-wise Songkran, a factory pollution tax and higher tolls. Each brings something and costs something, and every one costs a sum each year. The {office_short} has room for one policy for every two of its levels, and its council hall for one more; they are forgotten if it falls.` | `นโยบายเจ้าเมือง: เปิดปิดได้จากการ์ดของ{office} ได้แก่ ห้ามเผาไร่ รณรงค์ประหยัดน้ำ ปิดอ่าวช่วงปลาวางไข่ ผังเมืองสีเขียว สงกรานต์ประหยัดน้ำ ภาษีมลพิษโรงงาน และขึ้นค่าผ่านทางด่วน ทุกนโยบายมีทั้งได้และเสีย และมีค่าใช้จ่ายรายปี {office_short}มีช่องนโยบายหนึ่งช่องต่อสองขั้น หอประชุมเมืองเพิ่มให้อีกหนึ่งช่อง ถ้าอาคารพัง นโยบายทั้งหมดก็หายไปด้วย` |  |
 | `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
 | `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
 | `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |
@@ -1139,8 +1143,8 @@
 | `rules.cost.road_concrete8` | `src/provinceRules.ts` | — | `Concrete Road, 8 lanes costs {change}` | `ราคาถนนคอนกรีต 8 เลน {change}` |  |
 | `rules.cost.motorway` | `src/provinceRules.ts` | — | `Motorway costs {change}` | `ราคามอเตอร์เวย์ {change}` |  |
 | `rules.cost.tollway` | `src/provinceRules.ts` | — | `Tollway costs {change}` | `ราคาทางด่วน {change}` |  |
-| `rules.cost.ruler_house` | `src/provinceRules.ts` | — | `Ruler's house costs {change}` | `ราคาจวนเจ้าเมือง {change}` |  |
-| `rules.cost.ruler_house_upgrade` | `src/provinceRules.ts` | — | `Raising the house costs {change}` | `ราคายกระดับจวน {change}` |  |
+| `rules.cost.ruler_house` | `src/provinceRules.ts` | — | `The {office} costs {change}` | `ราคา{office} {change}` |  |
+| `rules.cost.ruler_house_upgrade` | `src/provinceRules.ts` | — | `Raising the {office_short} costs {change}` | `ราคายกระดับ{office_short} {change}` |  |
 | `rules.cost.kindergarten` | `src/provinceRules.ts` | — | `Kindergarten costs {change}` | `ราคาโรงเรียนอนุบาล {change}` |  |
 | `rules.cost.primary_school` | `src/provinceRules.ts` | — | `Primary School costs {change}` | `ราคาโรงเรียนประถม {change}` |  |
 | `rules.cost.secondary_school` | `src/provinceRules.ts` | — | `Secondary School costs {change}` | `ราคาโรงเรียนมัธยม {change}` |  |
@@ -1304,9 +1308,9 @@
 | `goals.water` | `src/rulerGoals.ts` | — | `Bring running water` | `ทำน้ำประปา` | (Claude Code 13 ต.ค. 2026) |
 | `goals.water.hint` | `src/rulerGoals.ts` | — | `Build a Water Works beside a road and give it power: water runs along every road joined to it. Near a river it gives the most; see Groundwater on the City map (M).` | `สร้าง “โรงผลิตน้ำประปา” ติดถนนแล้วต่อไฟฟ้าให้ น้ำจะไหลไปตามถนนทุกสายที่ต่อถึง ตั้งใกล้แม่น้ำได้น้ำมากที่สุด ดูชั้น “น้ำใต้ดิน” ในแผนที่เมือง (M)` | ชื่อเครื่องมือตรงกับ `tool.waterworks` ชื่อชั้นตรงกับ `map.layer.groundwater` |
 | `goals.street` | `src/rulerGoals.ts` | — | `Lay the first road` | `วาดถนนสายแรก` | ภารกิจแรก: ถนนมาก่อนจวน (Claude Code 13 ต.ค. 2026) |
-| `goals.street.hint` | `src/rulerGoals.ts` | — | `Pick Road, click where it starts, then where it ends. The ruler's house will stand beside it.` | `เลือก “ถนน” คลิกจุดเริ่ม แล้วคลิกจุดปลาย จวนเจ้าเมืองจะตั้งติดถนนสายนี้` |  |
-| `goals.house` | `src/rulerGoals.ts` | — | `Build the ruler's house` | `สร้างจวนเจ้าเมือง` | ภารกิจแรก (Claude Code 13 ต.ค. 2026) |
-| `goals.house.hint` | `src/rulerGoals.ts` | — | `Pick Ruler's House and click on open land beside your road, where the town should grow. The other tools wait until it stands.` | `เลือก “จวนเจ้าเมือง” แล้วคลิกบนพื้นที่ว่างติดถนน ตรงที่อยากให้เป็นใจกลางเมือง เครื่องมืออื่นจะใช้ได้เมื่อมีจวนแล้ว` | ชื่อเครื่องมือตรงกับ `tool.ruler_house` |
+| `goals.street.hint` | `src/rulerGoals.ts` | — | `Pick Road, click where it starts, then where it ends. The {office} will stand beside it.` | `เลือก “ถนน” คลิกจุดเริ่ม แล้วคลิกจุดปลาย {office}จะตั้งติดถนนสายนี้` |  |
+| `goals.house` | `src/rulerGoals.ts` | — | `Build the {office}` | `สร้าง{office}` | ภารกิจแรก (Claude Code 13 ต.ค. 2026) |
+| `goals.house.hint` | `src/rulerGoals.ts` | — | `Pick {office} and click on open land beside your road, where the town should grow. The other tools wait until it stands.` | `เลือก “{office}” แล้วคลิกบนพื้นที่ว่างติดถนน ตรงที่อยากให้เป็นใจกลางเมือง เครื่องมืออื่นจะใช้ได้เมื่อสร้างเสร็จแล้ว` | ชื่อเครื่องมือตรงกับ `tool.ruler_house` |
 | `goals.town` | `src/rulerGoals.ts` | — | `Grow into a town and become Khun` | `ขยายเมืองเป็นตำบล และเลื่อนยศเป็นขุน` | |
 | `goals.town.hint` | `src/rulerGoals.ts` | — | `Past 2,000 people the city becomes a town. Keep homes, jobs and power in balance.` | `ประชากรเกิน 2,000 คน เมืองจะเป็นตำบล รักษาสมดุลระหว่างบ้าน งาน และไฟฟ้า` | |
 | `goals.done_chapter` | `src/rulerGoals.ts` | — | `Well done! These tasks are complete. Your next ones are on their way.` | `ยอดเยี่ยม! ทำภารกิจชุดนี้ครบแล้ว ภารกิจชุดต่อไปกำลังมา` | ภารกิจเป็นชุดตามยศ (Claude Code 12 ต.ค. 2026) |

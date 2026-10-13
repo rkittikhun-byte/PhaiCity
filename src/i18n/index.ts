@@ -50,8 +50,22 @@ export function getLanguage(): Language {
 export function t(key: string, params?: Params): string {
   const entry = STRINGS[key];
   const text = entry ? entry[current] || entry.en || key : key;
-  if (!params) return text;
-  return text.replace(/\{(\w+)\}/g, (token, name: string) => (name in params ? String(params[name]) : token));
+  return text.replace(/\{(\w+)\}/g, (token, name: string) => {
+    if (params && name in params) return String(params[name]);
+    // A term the game sets (setTerm), in the language shown, such as {office}
+    const term = terms[name];
+    return term !== undefined && term !== key ? t(term) : token;
+  });
+}
+
+/**
+ * Terms every string may name as a placeholder, each a string key: {office} is the city's office, the district's
+ * ที่ว่าการอำเภอ or the province's ศาลากลางจังหวัด (owner 13 Oct 2026). Set when a city starts; the district's by default.
+ */
+const terms: Record<string, string> = { office: "office.district", office_short: "office.district.short" };
+
+export function setTerm(name: string, key: string): void {
+  terms[name] = key;
 }
 
 export function hasKey(key: string): boolean {

@@ -31,7 +31,7 @@ import { EvaluationWindow } from './evaluationWindow.js';
 import { GameMap } from './gameMap.js';
 import { decodePresetLayer, encodePresetLayer } from './geo/presetMap.ts';
 import { GraphWindow } from './graphWindow.js';
-import { formatMoney, onLanguageChange, t } from './i18n/index.ts';
+import { applyTranslations, formatMoney, onLanguageChange, setTerm, t } from './i18n/index.ts';
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
@@ -45,7 +45,7 @@ import { drawModeOf, isAreaMode, POINTS_NEEDED, showsZoneGrid, snapOn } from './
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
-import { showToolPrices } from './toolShortcuts.ts';
+import { relabelTools, showToolPrices } from './toolShortcuts.ts';
 import { CIVIC, LASTPOWER, LASTRAIL, MINE, POWERBASE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { NEEDS_RAIL, ONE_HSR, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS } from './transit.ts';
 import { WASTE_KINDS } from './waste.ts';
@@ -135,6 +135,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.provinceId = source.provinceId || null;
   // ... and which district, when the city stands in one district's town (data/maps/district/)
   this.districtId = source.districtId || null;
+  // Its first building is the district's ที่ว่าการอำเภอ, or a province city's ศาลากลางจังหวัด (owner 13 Oct 2026); every
+  // string names it as {office} (src/i18n/index.ts setTerm)
+  var provinceCity = this.provinceId !== null && this.districtId === null;
+  setTerm('office', provinceCity ? 'office.province' : 'office.district');
+  setTerm('office_short', provinceCity ? 'office.province.short' : 'office.district.short');
+  applyTranslations();
+  relabelTools();
   // Which saved city this is (src/cityStorage.ts); a new city gets its id when first saved
   this.cityId = savedGame ? savedGame.cityId || null : null;
   // When the city was last saved, for the main menu (ms since 1970, null for a city never saved)
