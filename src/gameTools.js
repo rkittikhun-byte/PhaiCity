@@ -50,6 +50,9 @@ function GameTools(map, rules) {
     rare_earth_mine: new BuildingTool(4000, TileValues.MINE, map, 3, false),
     lignite_mine: new BuildingTool(2500, TileValues.MINE, map, 3, false),
     oil_well: new BuildingTool(3500, TileValues.MINE, map, 3, false),
+    // PhaiCity: farms and fishing harbours (src/farming.ts)
+    farm: new BuildingTool(300, TileValues.FARM, map, 3, false),
+    fishing: new BuildingTool(1200, TileValues.HARBOUR, map, 3, false),
     commercial: new BuildingTool(100, TileValues.COMCLR, map, 3, false),
     fire: new BuildingTool(500, TileValues.FIRESTATION, map, 3, false),
     industrial: new BuildingTool(100, TileValues.INDCLR, map, 3, false),

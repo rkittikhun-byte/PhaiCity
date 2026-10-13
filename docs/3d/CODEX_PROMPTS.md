@@ -17,6 +17,7 @@
    (**W1** ประปา: โรงผลิตน้ำ หอถังสูง และไอคอนไม่มีน้ำ ส่งต่อจาก R5)
    (**P1** โรงไฟฟ้าตามจังหวัด: ก๊าซ เขื่อน แสงอาทิตย์ และลม ส่งต่อจาก W1)
    (**M1** เหมืองและบ่อน้ำมัน ส่งต่อจาก P1)
+   (**F1** ไร่นาตามภาค และท่าเรือประมง ส่งต่อจาก M1)
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1612,6 +1613,35 @@ Task:
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of the
 nine models in the gallery and a few in a test city.
+```
+
+## Prompt F1 — ไร่นาตามภาค และท่าเรือประมง
+
+เจ้าของโปรเจคขอ (13 ต.ค. 2026): จังหวัดเกษตรสร้างไร่นาได้ จังหวัดชายฝั่งสร้างท่าเรือประมงได้ ฝั่งเกม Claude Code ทำแล้ว
+(`docs/FARMING.md`) ส่งต่อจาก prompt ที่ Codex ทำอยู่ได้เลย
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md, docs/3d/RENDERER_SPEC.md (section 6F is new) and docs/FARMING.md in full before
+starting, and follow their rules (your paths only).
+
+Context: two new 3x3 buildings: a farm on tiles 974-982 (centre 978, ZONEBIT) and a fishing harbour on 983-991
+(centre 987, ZONEBIT, always beside water). Today they fall back to the generic service building.
+
+Task:
+1. Farm (tier R1, regional form, MODEL_SPEC 6A kits): low, open, mostly ground: plots with crops and a small field hut
+   on stilts; by region: wet rice paddies with bunds and a water channel (central, northeast), maize on terraced hill
+   fields (north), sugarcane and cassava rows (east, west), rubber or oil palm rows (south). No animals needed. From
+   February to April (months 1-3) light smoke drifts from a burnt patch.
+2. Fishing harbour (tier R2): a timber or concrete pier on its water side with two or three moored long-tail and
+   small trawler boats, an ice house, a covered fish market with a roof, nets and baskets. Orient the pier toward the
+   nearest water tile around the footprint.
+3. City view: draw 974-982 and 983-991 with these models; rubble, fire and bulldozing as for other 3x3 buildings.
+4. Icons: assets/icons/tools/farm and fishing (same style and pipeline as Prompts UI1/UI2).
+5. Gallery: the farm in all six regions, and the harbour; tests in test/render3d/ that the tiles resolve to the
+   models, each region gets its crop, and the pier faces the water.
+
+Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)

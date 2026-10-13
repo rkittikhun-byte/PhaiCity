@@ -49,6 +49,9 @@ var Budget = EventEmitter(function() {
   // PhaiCity (src/mining.ts): the mines' royalties through the year, paid in with the taxes, and last year's
   this.miningFund = 0;
   this.miningIncome = 0;
+  // ... and the farms' and harbours' sales (src/farming.ts)
+  this.farmFund = 0;
+  this.farmIncome = 0;
 
   // These values denote how much money is required to fully maintain the relevant services
   this.roadMaintenanceBudget = 0;
@@ -73,7 +76,8 @@ var Budget = EventEmitter(function() {
 var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'firePercent', 'roadSpend',
                  'policeSpend', 'fireSpend', 'roadMaintenanceBudget', 'policeMaintenanceBudget',
                  'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
-                 'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome'];
+                 'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
+                 'farmFund', 'farmIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -90,6 +94,8 @@ Budget.prototype.load = function(saveData) {
   this.fuelCost = this.fuelCost || 0;
   this.miningFund = this.miningFund || 0;
   this.miningIncome = this.miningIncome || 0;
+  this.farmFund = this.farmFund || 0;
+  this.farmIncome = this.farmIncome || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -263,6 +269,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.miningIncome = Math.floor(this.miningFund);
   this.miningFund = 0;
   this.taxFund += this.miningIncome;
+  this.farmIncome = Math.floor(this.farmFund);
+  this.farmFund = 0;
+  this.taxFund += this.farmIncome;
   this.fuelCost = Math.round(census.plantFuel || 0);
   this.taxFund -= this.fuelCost;
 

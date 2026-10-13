@@ -149,7 +149,11 @@ BudgetWindow.prototype.open = function(budgetData) {
   var fuelCost = budgetData.fuelCost || 0;
   // ... and the mines' royalties are paid in with them too (src/mining.ts)
   var miningIncome = budgetData.miningIncome || 0;
-  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome + fuelCost));
+  // ... and the farms' and fishing harbours' sales (src/farming.ts)
+  var farmIncome = budgetData.farmIncome || 0;
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome + fuelCost));
+  $('#farmIncome').text(formatMoney(farmIncome));
+  $('#farmInfo').prop('hidden', farmIncome <= 0);
   $('#miningIncome').text(formatMoney(miningIncome));
   $('#miningInfo').prop('hidden', miningIncome <= 0);
   $('#fuelCost').text(formatMoney(fuelCost));

@@ -14,6 +14,7 @@
 // with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
 // player may build over them and widen them like any road.
 
+import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
@@ -23,7 +24,7 @@ export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
   "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
   "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
-  "oil_well",
+  "oil_well", "farm", "fishing",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -152,6 +153,17 @@ export function mineProblem(city: Pick<CommandTarget, "resources">, kind: string
   return canDig(kind, city.resources ?? {}) ? null : NO_RESOURCE;
 }
 
+/** Why a farm or a fishing harbour may not be built: no farmland or fishing in the province, or no water beside it. */
+export function farmProblem(city: Pick<CommandTarget, "resources" | "isWaterAt">, tool: string, x: number,
+                            y: number): string | null {
+  const resources = city.resources ?? {};
+  if (tool === "farm") return farmLevel(resources) >= 1 ? null : NO_RESOURCE;
+  if (tool !== "fishing") return null;
+  if (fisheryLevel(resources) < 1) return NO_RESOURCE;
+  const isWaterAt = city.isWaterAt;
+  return isWaterAt && !besideWater3(x, y, isWaterAt) ? NEEDS_WATER : null;
+}
+
 /** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
 export function footprint(x: number, y: number, size: number): Array<{ x: number; y: number }> {
   const offset = size > 2 ? 1 : 0;
@@ -220,7 +232,8 @@ export class CityCommands {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
         const refused = placeProblem(city, command.x, command.y, tool.size ?? 1) ??
-          plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind);
+          plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
+          farmProblem(city, command.tool, command.x, command.y);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;

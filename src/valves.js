@@ -28,6 +28,10 @@ var Valves = EventEmitter(function () {
   // they make living, 0.9–1
   this.touristShops = 0;
   this.livingCost = 1;
+  // ... and the factories that process the farms' goods, and the markets and eating places for the harbours' fish
+  // (src/farming.ts)
+  this.farmFactories = 0;
+  this.fishMarkets = 0;
 });
 
 
@@ -99,8 +103,8 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   // Project future industry and commercial needs, taking into account available labour, and competition from
   // other global cities
   var internalMarket = (normalizedResPop + census.comPop + census.indPop) / internalMarketDenom;
-  var projectedComPop = internalMarket * labourBase + this.touristShops;
-  var projectedIndPop = census.indPop * labourBase * extMarketParamTable[gameLevel];
+  var projectedComPop = internalMarket * labourBase + this.touristShops + this.fishMarkets;
+  var projectedIndPop = census.indPop * labourBase * extMarketParamTable[gameLevel] + this.farmFactories;
   projectedIndPop = Math.max(projectedIndPop, projectedIndPopMin);
 
   // Calculate the expected percentage changes in each population type

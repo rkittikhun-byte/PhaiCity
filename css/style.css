@@ -2029,9 +2029,11 @@ body #buttons [data-tool="nuclear"] { order: 13; }
 body #buttons [data-tool="waterworks"] { order: 14; }
 body #buttons [data-tool="watertower"] { order: 15; }
 body #buttons [data-tool="mine"] { order: 16; }
-body #buttons [data-tool="port"] { order: 17; }
-body #buttons [data-tool="stadium"] { order: 18; }
-body #buttons [data-tool="airport"] { order: 19; }
+body #buttons [data-tool="farm"] { order: 17; }
+body #buttons [data-tool="fishing"] { order: 18; }
+body #buttons [data-tool="port"] { order: 19; }
+body #buttons [data-tool="stadium"] { order: 20; }
+body #buttons [data-tool="airport"] { order: 21; }
 /* A tool with no choice here, such as the mine in a province with no ore */
 body #buttons .toolButton:disabled { opacity: 0.4; cursor: not-allowed; }
 /* The ruler's tasks take the tools' old place on the right */

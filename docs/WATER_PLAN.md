@@ -57,7 +57,8 @@ Most of the fall comes in the first two or three years. A works serving half of 
 - News (`src/simulation.js` `_sendMessages`): NEED_WATER when a city with more than ten zones has no works.
 - Tiles: the water works uses the unused 3×3 tile range 956–964 (once CHURCH1, never placed by the game; no religious
   buildings are allowed anyway), centre 960 with ZONEBIT; the tower uses 1020 (BURNBIT | BULLBIT). 965–973 became
-  the mines (docs/MINING.md); 974–1018 stay free for the high-speed rail station (ONLINE_PLAN 5.5).
+  the mines (docs/MINING.md), 974–991 the farms and fishing harbours (docs/FARMING.md); 992–1018 stay free for the
+  high-speed rail station (ONLINE_PLAN 5.5).
 - Commands: two new tools, `waterworks` (`BuildingTool`, size 3) and `watertower` (`src/waterTowerTool.ts`), through
   `CityCommands` like every tool; prices in `provinceRules.ts` (`BASE_PRICES`), changeable per province.
 - Dry season: `drought: { months, share }` in each region of `data/province-rules.json` (north, central, west, east

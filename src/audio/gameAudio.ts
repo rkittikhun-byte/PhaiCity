@@ -91,6 +91,8 @@ const TOOL_SOUNDS: Record<string, string> = {
   rare_earth_mine: "tool.building",
   lignite_mine: "tool.building",
   oil_well: "tool.building",
+  farm: "tool.park",
+  fishing: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values

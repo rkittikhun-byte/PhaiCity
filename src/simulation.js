@@ -28,8 +28,9 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { COALBASE, MINE } from './tileValues.ts';
+import { COALBASE, FARM, HARBOUR, MINE } from './tileValues.ts';
 import { Mining } from './mining.ts';
+import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -55,7 +56,7 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // The pollution on each tile of a power plant, by the kind built there (src/powerPlants.ts)
   var map = gameMap;
   this._extraPollution = function(x, y, tileValue) {
-    return this._mining.pollutionAt(map, x, y, tileValue);
+    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y);
   }.bind(this);
   this._plantPollution = function(x, y, tileValue) {
     var index = tileValue - COALBASE;
@@ -101,6 +102,10 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // PhaiCity: the province's mines: its ore, the poisoned ground (src/mining.ts)
   this._mining = new Mining(this._map.width, this._map.height, this.resources);
   this._monthsSinceToxicWarning = 12;
+  // ... and its farms and fishing harbours (src/farming.ts)
+  this._farming = new Farming(this._map.width, this._map.height, this.resources);
+  this._monthsSinceHazeWarning = 12;
+  this._monthsSinceDirtyWarning = 12;
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
 
   this.blockMaps = {
@@ -211,6 +216,7 @@ Simulation.prototype.save = function(saveData) {
   this._census.save(saveData);
   this._waterManager.save(saveData);
   this._mining.save(saveData);
+  this._farming.save(saveData);
   // The random generator carries on where it was, so a loaded city goes on as the saved one would have
   saveData.randomState = Random.getState();
 };
@@ -227,6 +233,7 @@ Simulation.prototype.load = function(saveData) {
   this._census.load(saveData);
   this._waterManager.load(saveData);
   this._mining.load(saveData);
+  this._farming.load(saveData);
   Random.setState(saveData.randomState);
 };
 
@@ -280,6 +287,7 @@ Simulation.prototype._clearCensus = function() {
   this._powerManager.clearPowerStack();
   this._waterManager.clearCycle();
   this._mining.clearCycle();
+  this._farming.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
 };
@@ -358,6 +366,10 @@ Simulation.prototype.init = function() {
   this._waterManager.registerHandlers(this._mapScanner, this._repairManager);
   this._mapScanner.addAction(MINE, this._mining.mineFound.bind(this._mining));
   this._repairManager.addAction(MINE, 15, 3);
+  this._mapScanner.addAction(FARM, this._farming.farmFound.bind(this._farming));
+  this._mapScanner.addAction(HARBOUR, this._farming.harbourFound.bind(this._farming));
+  this._repairManager.addAction(FARM, 15, 3);
+  this._repairManager.addAction(HARBOUR, 15, 3);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
@@ -427,6 +439,7 @@ var simulate = function(simData) {
       if ((this._cityTime & 3) === 0) {
         this._tourismMonth();
         this._miningMonth();
+        this._farmingMonth();
       }
 
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
@@ -542,6 +555,34 @@ Simulation.prototype._tourismMonth = function() {
     this._monthsSinceTouristWarning = 0;
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: visit.pollutionPenalty >= visit.crimePenalty ?
                     Messages.TOURISTS_AVOID_POLLUTION : Messages.TOURISTS_AVOID_CRIME});
+  }
+};
+
+
+// A month of the farms and fishing harbours (src/farming.ts): their sales to the year's taxes, the factories and markets
+// they ask for, and the news when stubble fires spread haze, when the fish run low, or when dirty water spoils a catch
+Simulation.prototype._farmingMonth = function() {
+  var water = this._waterManager;
+  var pollution = this.blockMaps.pollutionDensityMap;
+  var month = this._farming.month(this.getDate().month, (this.rules.drought && this.rules.drought.months) || [],
+    water.stores && water.natural ? {stores: water.stores, natural: water.natural} : null, this._mining.ground,
+    function(x, y) { return pollution.worldGet(x, y); });
+  this.budget.farmFund += month.income;
+  this._valves.farmFactories = this._farming.farms.length * FACTORIES_PER_FARM;
+  this._valves.fishMarkets = this._farming.harbours.length * SHOPS_PER_HARBOUR;
+
+  this._monthsSinceHazeWarning++;
+  this._monthsSinceDirtyWarning++;
+  var farm = this._farming.farms[0];
+  if (month.burning && farm && this._monthsSinceHazeWarning >= 12) {
+    this._monthsSinceHazeWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.HAZE, data: {x: farm.x, y: farm.y}});
+  }
+  if (month.fewFish)
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.FEW_FISH});
+  if (month.dirty && this._monthsSinceDirtyWarning >= 12) {
+    this._monthsSinceDirtyWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.DIRTY_HARBOUR, data: {x: month.dirty.x, y: month.dirty.y}});
   }
 };
 

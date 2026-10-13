@@ -92,6 +92,8 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   rare_earth_mine: "about.building.mines",
   lignite_mine: "about.building.mines",
   oil_well: "about.building.mines",
+  farm: "about.building.farm",
+  fishing: "about.building.fishing",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */

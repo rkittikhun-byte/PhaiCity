@@ -225,6 +225,17 @@ the renderer only reads both.
 - Choose the model by the kind at the centre. A mine works only with power (POWERBIT); an idle one (no power, or its
   ore used up) shows still machinery and no dust.
 
+## 6F. Farms and fishing harbours (added 13 Oct 2026)
+
+Two more 3×3 buildings (`docs/FARMING.md`), drawn from their tiles alone:
+
+| Building | Tiles |
+|---|---|
+| Farm (ไร่นา) | 974–982 (`FARM_BASE` … `FARM_LAST`), centre 978 (`FARM`) with ZONEBIT. Its crop follows the city's region (`opts.region`): wet rice in the central plain and the northeast, maize on hill fields in the north, sugarcane and cassava in the east and west, rubber and oil palm in the south. |
+| Fishing harbour (ท่าเรือประมง) | 983–991 (`HARBOUR_BASE` … `HARBOUR_LAST`), centre 987 (`HARBOUR`) with ZONEBIT, always beside water. |
+
+- From February to April (the game's months 1–3) farms burn their stubble: thin smoke over farms in those months.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

@@ -87,6 +87,9 @@ Census.prototype.clearCensus = function() {
   this.plantFuel = 0;
   // PhaiCity: the mines working this cycle (src/mining.ts)
   this.mineCount = 0;
+  // ... and the farms and fishing harbours (src/farming.ts)
+  this.farmCount = 0;
+  this.harbourCount = 0;
   this.seaportPop = 0;
   this.airportPop = 0;
   // PhaiCity: the water supply (src/waterManager.ts)

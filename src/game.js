@@ -290,7 +290,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       taxesCollected: this.simulation.budget.taxFund,
       tourismIncome: this.simulation.budget.tourismIncome,
       fuelCost: this.simulation.budget.fuelCost,
-      miningIncome: this.simulation.budget.miningIncome
+      miningIncome: this.simulation.budget.miningIncome,
+      farmIncome: this.simulation.budget.farmIncome
     };
 
     return [budgetData];
@@ -777,8 +778,9 @@ Game.prototype.handleTool = function(data) {
       var kind = kindOfTool(toolName);
       var ore = mineKindOfTool(toolName);
       var resource = ore ? ore.replace(/[A-Z]/g, function(c) { return '_' + c.toLowerCase(); }) :
+                     toolName === 'farm' ? 'farmland' : toolName === 'fishing' ? 'fishery' :
                      (kind === 'wind' ? 'wind' : 'hydro');
-      showCornerNote(outcome.reason === NEEDS_WATER ? t('tool.needs_water') :
+      showCornerNote(outcome.reason === NEEDS_WATER ? t(toolName === 'fishing' ? 'tool.needs_water_harbour' : 'tool.needs_water') :
                      t('tool.no_resource', {plant: t('tool.' + toolName, {price: ''}).trim(),
                                              resource: t('resource.level.' + resource)}),
                      OUTSIDE_NOTE_MS);

@@ -17,9 +17,9 @@ describe("tool icons", () => {
   test("every tool button has its icon file", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const tools = [...html.matchAll(/data-tool="(\w+)"/g)].map((m) => m[1]);
-    expect(tools.length).toBe(19);
-    // The water tools and the mine wait for their icons (Codex Prompts W1 and M1); their buttons show a square in their colour until then
-    const awaitingIcons = ["waterworks", "watertower", "mine"];
+    expect(tools.length).toBe(21);
+    // The water tools, the mine, the farm and the harbour wait for their icons (Codex Prompts W1, M1 and F1); their buttons show a square in their colour until then
+    const awaitingIcons = ["waterworks", "watertower", "mine", "farm", "fishing"];
     for (const tool of tools.filter((t) => !awaitingIcons.includes(t))) {
       expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
     }

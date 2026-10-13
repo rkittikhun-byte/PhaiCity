@@ -325,6 +325,13 @@ export const WATER_TOWER      = 1020;
 export const MINE_BASE        = CHURCH2BASE;
 export const MINE             = CHURCH2; // Centre of a mine (tiles 965--973)
 export const MINE_LAST        = CHURCH2BASE + 8;
+// PhaiCity: farms and fishing harbours (src/farming.ts) take the third and fourth 3x3s (CHURCH3, CHURCH4)
+export const FARM_BASE        = CHURCH3BASE;
+export const FARM             = CHURCH3; // Centre of a farm (tiles 974--982)
+export const FARM_LAST        = CHURCH3BASE + 8;
+export const HARBOUR_BASE     = CHURCH4BASE;
+export const HARBOUR          = CHURCH4; // Centre of a fishing harbour (tiles 983--991)
+export const HARBOUR_LAST     = CHURCH4BASE + 8;
 
 // tiles 1021-1023 unused
 

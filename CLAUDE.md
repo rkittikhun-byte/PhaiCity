@@ -223,7 +223,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   3×3 building (tiles 965–973) per ore the province has, chosen above the mine button; with power it pays royalties
   and gives work, raises dust, poisons the ground (`mining.ground`, the city map's toxic layer, spoiling water works)
   and uses up the province's ore; `gameMap.mineKinds` (saved as `mineKinds`) says what each digs (RENDERER_SPEC 6E).
-  The other resources have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  **Farms and fishing harbours** (`docs/FARMING.md`, `src/farming.ts`): 3×3 buildings (974–982, 983–991) where the
+  province has farmland or fishing; farms sell their crop, ask for farm-goods factories, pump groundwater, seep
+  chemicals and burn stubble into haze from February to April; harbours sell their catch, ask for markets and use
+  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

@@ -111,6 +111,9 @@ badMessages[Messages.TOURISTS_AVOID_POLLUTION] = true;
 badMessages[Messages.MINE_EXHAUSTED] = true;
 badMessages[Messages.OIL_SPILL] = true;
 badMessages[Messages.TOXIC_GROUND] = true;
+badMessages[Messages.HAZE] = true;
+badMessages[Messages.FEW_FISH] = true;
+badMessages[Messages.DIRTY_HARBOUR] = true;
 
 var goodMessages = {};
 goodMessages[Messages.REACHED_CAPITAL] = true;
@@ -173,6 +176,9 @@ messageKeys[Messages.TOURISTS_AVOID_POLLUTION] = 'msg.bad.tourists_pollution';
 messageKeys[Messages.MINE_EXHAUSTED] = 'msg.bad.mine_exhausted';
 messageKeys[Messages.OIL_SPILL] = 'msg.bad.oil_spill';
 messageKeys[Messages.TOXIC_GROUND] = 'msg.bad.toxic_ground';
+messageKeys[Messages.HAZE] = 'msg.bad.haze';
+messageKeys[Messages.FEW_FISH] = 'msg.bad.few_fish';
+messageKeys[Messages.DIRTY_HARBOUR] = 'msg.bad.dirty_harbour';
 
 
 var translateList = function(keys) {
