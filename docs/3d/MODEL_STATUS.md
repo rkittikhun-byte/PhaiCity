@@ -3,6 +3,89 @@
 
 # สถานะโมเดล
 
+## Prompt 16C — รถเมล์ รถบรรทุก อีแต๋น ตุ๊กตุ๊ก และสกู๊ตเตอร์
+
+วันที่ 2026-10-13: ยกระดับ `veh.bus`, `veh.truck`, `veh.etan`, `veh.tuktuk`, `veh.motorbike`
+ด้วย kit และวัสดุรถจาก 16B คง id/category/footprint/regionTier เดิม
+รถหัน +Z ล้อสัมผัส y = 0 ไม่มีโลโก้หรือยี่ห้อจริง
+
+| id | Tier | สามเหลี่ยมก่อน → หลัง (seed 1, กลาง) | Draw calls ก่อน → หลัง | สัดส่วนงบ 4,000 |
+|---|---|---:|---:|---:|
+| veh.bus | R3 | 696 → 3,186 | 6 → 8 | 79.7% |
+| veh.truck | R3 | 644 → 3,520 | 6 → 8 | 88.0% |
+| veh.etan | R2 | 732 → 3,452 | 6 → 8 | 86.3% |
+| veh.tuktuk | R3 | 540 → 2,822 | 7 → 8 | 70.6% |
+| veh.motorbike | R3 | 396 → 3,168 | 6 → 8 | 79.2% |
+
+- ขยาย `VehicleKit` ด้วย `wheelAt()` สำหรับล้อกลาง/ขอบล้อสองด้าน ล้อจานหนักและยางวงในของล้อคู่
+  ใช้ Lathe 16 segments พร้อมแก้มมน; รถบรรทุกและรถเมล์มีล้อหลังคู่แยกจริง โดยมีช่องว่างระหว่างยาง
+  `sideSheet()`/`sidePanel()` รองรับแถบกระจก ประตูและแผ่นข้างเว้าซุ้มล้อ
+  เพิ่มการบีบส่วนหน้าของตุ๊กตุ๊กและตำแหน่งกระจกมองข้างสำหรับ cab สูง
+  ตัดขอบซุ้มล้อที่ปลายตัวถังสกู๊ตเตอร์เพื่อไม่ให้ contour ย้อนทับตัวเอง
+  ยก apron ตุ๊กตุ๊กให้เห็นล้อหน้าจาก +Z; แผ่นสี offside รถเมล์ไม่ซ้อน coplanar กัน
+  API เดิมของ 16B ยังให้รูปทรงและจำนวนสามเหลี่ยมเดิม
+- รถเมล์พื้นต่ำ 0.58 ม. ตัวถัง/หลังคาโค้ง แถบกระจกยาวพร้อมเสาดำและกระจกหน้า inset
+  ประตูพับสองแห่งทาง −X, ป้ายสมมติ `P100`–`P199` ตาม seed เป็น glyph geometry ที่ใช้วัสดุไฟหน้าร่วม
+  หลังคามีชุด AC พร้อมช่องระบาย/พัดลม สี cream/red สำหรับ seed คี่และ blue/light-blue สำหรับ seed คู่ตามเดิม
+- รถบรรทุก cab-over มีตัวถังโค้งแยกจากกระบะบรรทุก, ล้อหน้า 2 / ล้อหลัง 4
+  seed คี่เป็น flatbed พร้อม dropsides คู่เป็น cargo box; โครง ladder, ถังน้ำมัน
+  บันไดข้าง มือจับประตูและกระจกบนก้าน ขนาดภายนอกรวมคงเดิมข้าม seed
+- อีแต๋นมีเครื่องยนต์และ radiator เปิดด้านหน้า flywheel/belt/exhaust โครงเหล็กเรียบง่าย
+  กระบะไม้เป็นแผ่นเว้นช่อง พร้อมเบาะคนขับ พวงมาลัยและหลังคา วัสดุไม้ใช้ข้อยกเว้นตามโจทย์
+  สีไม้สามสีตาม seed เดิมมาจาก `kit.vehicles.etanColor()`; ยังคง R2 และรับ opts.region ครบ 6 ภาค
+- ตุ๊กตุ๊กมี apron แผ่นโลหะโค้งที่แคบลงด้านหน้า สามล้อจริง กระจกหน้าบนกรอบท่อ
+  หลังคาโค้งสีสด 4 สีตาม seed เดิม เบาะคนขับและเบาะผู้โดยสารหลัง พร้อมไฟกลมหน้าและไฟท้ายแดง
+- มอเตอร์ไซค์เป็นสกู๊ตเตอร์ step-through ตัวถังโค้ง ล้อสองด้านพร้อมแก้มยางมน
+  คนขี่มีแขน/ขางอและหมวกทรงมนพร้อม visor; seed คู่เสื้อวินสีส้ม/หมวกเหลือง คี่เสื้อฟ้า/หมวกดำตามเดิม
+  เสื้อผ้าใช้ procedural trim finish สีด้านจาก library ไม่มีวัสดุอาคารหรือพื้นถนน
+- ปรับ registry budget ของ bus/truck จาก 8,000 ลงเหลือ 4,000 ตามโจทย์
+  ไม่มีการเพิ่ม dependencies/assets ภายนอก ไม่แก้ shared config หรือ game/simulation
+  และไม่แก้ license headers เดิม
+
+### ตรวจสอบ
+
+- รอบตรวจสุดท้ายที่เกี่ยวข้องผ่าน 4 suites / 174 tests รวม generic registry ของรถทั้งห้า
+  ทั้ง 5 seeds/etan ทั้ง 6 ภาค รถทั้งหมดเดิม และ regression ของ kit 16B
+- `road-vehicle-kit.test.ts` ผ่าน 39 ข้อ: งบ 2,000–4,000, ไม่เกิน 8 calls/หนึ่ง mesh ต่อวัสดุ
+  grounded tire vertices, finite geometry, กระจกหน้า/ไฟหน้าด้วย raycast, ล้อคู่/box/flatbed
+  สีและ parity เดิม, kit ของอีแต๋น, worker round trip, ล้อหน้ามองเห็นจาก +Z และผิวแผ่นสีไม่ซ้อนกัน
+- ชุดรวม `npm test -- --maxWorkers=2 --coverage=false --silent --verbose=false --testTimeout=20000`
+  ครบ 60 suites / 3,968 tests ใน 822.6 วินาที: 59 suites / 3,966 tests ผ่าน
+  รวม registry ทุกโมเดลและทั้ง 6 ภาค ไม่ผ่านเฉพาะ Bounds เดิม 2 ข้อที่ CLAUDE.md ระบุไว้
+  ไม่มีข้อผิดพลาดใหม่จากงานนี้
+- `npm run build` ผ่าน มีคำเตือนขนาด bundle ตามเดิม; `git diff --check` ผ่าน
+- ตรวจ production gallery ทั้ง 5 รุ่นระยะใกล้/ระยะเมือง เปลี่ยน seed, หมุน, zoom,
+  ตรวจ cargo box/flatbed, taxi vest, ประตู, โหมดกลางคืน และ lineup อีแต๋น 6 ภาค
+  ไม่มี error ของโมเดลหรือ shader; dev-server disconnect logs ก่อนเปลี่ยนไปใช้ production preview เป็นคนละกรณี
+- เปิด `index.html` จาก production build เริ่มเมืองฝึกเล่น วางเขตบ้านได้
+  คลังเมืองลด 20,000 → 19,900 บาท เวลาเกมเดินต่อ ไม่มี console error ไม่บันทึกเมืองทดสอบ
+
+ภาพตรวจสอบ:
+[รถเมล์ก่อน](../../test/render3d/artifacts/vehicles-16c-bus-before.jpg),
+[รถเมล์หลัง](../../test/render3d/artifacts/vehicles-16c-bus-after.jpg),
+[ตุ๊กตุ๊กก่อน](../../test/render3d/artifacts/vehicles-16c-tuktuk-before.jpg),
+[ตุ๊กตุ๊กหลัง](../../test/render3d/artifacts/vehicles-16c-tuktuk-after.jpg),
+[รถบรรทุก](../../test/render3d/artifacts/vehicles-16c-truck-after.jpg),
+[cargo box](../../test/render3d/artifacts/vehicles-16c-truck-box.jpg),
+[อีแต๋น](../../test/render3d/artifacts/vehicles-16c-etan-after.jpg),
+[อีแต๋น 6 ภาค](../../test/render3d/artifacts/vehicles-16c-etan-regions.jpg),
+[สกู๊ตเตอร์](../../test/render3d/artifacts/vehicles-16c-motorbike-after.jpg),
+[มอเตอร์ไซค์วิน](../../test/render3d/artifacts/vehicles-16c-motorbike-taxi.jpg),
+[ประตูพับ](../../test/render3d/artifacts/vehicles-16c-bus-doors.jpg),
+[กลางคืน](../../test/render3d/artifacts/vehicles-16c-bus-night.jpg),
+[รถเมล์ระยะเมือง](../../test/render3d/artifacts/vehicles-16c-bus-distance.jpg),
+[รถบรรทุกระยะเมือง](../../test/render3d/artifacts/vehicles-16c-truck-distance.jpg),
+[อีแต๋นระยะเมือง](../../test/render3d/artifacts/vehicles-16c-etan-distance.jpg),
+[ตุ๊กตุ๊กระยะเมือง](../../test/render3d/artifacts/vehicles-16c-tuktuk-distance.jpg),
+[สกู๊ตเตอร์ระยะเมือง](../../test/render3d/artifacts/vehicles-16c-motorbike-distance.jpg),
+[เกมฝึกเล่น](../../test/render3d/artifacts/vehicles-16c-game.jpg)
+
+### ข้อจำกัด
+
+ประตูพับเป็นโมเดลปิดพร้อมแนวรอยพับ ยังไม่มี animation เปิดรับผู้โดยสาร
+เครื่องยนต์/พัดลม AC/คนขี่เป็นภาพตกแต่ง กระจกเป็นแผ่นสีเข้มสะท้อนแสงตาม 16B
+`CitySprites` ยังใช้ placeholder เดิมสำหรับ traffic; รอบนี้ปรับ factories และ gallery
+
 ## Prompt 16B — วัสดุรถและกระบะ เก๋ง สองแถว
 
 วันที่ 2026-10-12: ยกระดับ `veh.pickup`, `veh.sedan` และ `veh.songthaew`

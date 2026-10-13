@@ -256,7 +256,7 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     category: 'veh',
     footprint: [1, 2],
     tiles: [],
-    budget: TRIANGLE_BUDGETS.largeVehicle,
+    budget: TRIANGLE_BUDGETS.smallVehicle,
     regionTier: 'R3',
   },
   'veh.truck': {
@@ -264,7 +264,7 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     category: 'veh',
     footprint: [1, 2],
     tiles: [],
-    budget: TRIANGLE_BUDGETS.largeVehicle,
+    budget: TRIANGLE_BUDGETS.smallVehicle,
     regionTier: 'R3',
   },
   'veh.longtail_boat': {
