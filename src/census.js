@@ -100,6 +100,8 @@ Census.prototype.clearCensus = function() {
   this.healthUpkeep = 0;
   // ... and the rubbish and wastewater buildings' (src/waste.ts)
   this.wasteUpkeep = 0;
+  // ... and public transport's (src/transit.ts)
+  this.transitUpkeep = 0;
   this.seaportPop = 0;
   this.airportPop = 0;
   // PhaiCity: the water supply (src/waterManager.ts)

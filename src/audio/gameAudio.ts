@@ -118,6 +118,10 @@ const TOOL_SOUNDS: Record<string, string> = {
   recycling_plant: "tool.building",
   waste_power_plant: "tool.building",
   wastewater_plant: "tool.building",
+  bus_stop: "tool.building",
+  train_station: "tool.building",
+  metro_station: "tool.building",
+  hsr_station: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values

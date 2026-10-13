@@ -28,6 +28,8 @@ import { RoadUpgradeTool } from './roadLevels.ts';
 import { RulerHouseUpgradeTool } from './rulerHouse.ts';
 import { SERVICE_KINDS, SERVICE_SPECS } from './services.ts';
 import { WASTE_KINDS, WASTE_SPECS } from './waste.ts';
+import { STATION_KINDS, TRANSIT_SPECS } from './transit.ts';
+import { BusStopTool } from './busStopTool.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -96,6 +98,13 @@ function GameTools(map, rules) {
   WASTE_KINDS.forEach(function(kind) {
     tools[kind] = new BuildingTool(WASTE_SPECS[kind].price, TileValues.WASTE, map, 3, false);
     tools[kind].wasteKind = kind;
+  });
+  // ... and public transport (src/transit.ts): a stop is one tile, the stations share one 3x3 of tiles
+  tools.bus_stop = new BusStopTool(map);
+  tools.bus_stop.transitKind = 'bus_stop';
+  STATION_KINDS.forEach(function(kind) {
+    tools[kind] = new BuildingTool(TRANSIT_SPECS[kind].price, TileValues.STATION, map, 3, false);
+    tools[kind].transitKind = kind;
   });
 
   TOOL_COSTS.forEach(function(name) {

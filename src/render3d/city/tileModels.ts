@@ -37,6 +37,8 @@ export function makeTileTable(): readonly TileResolution[] {
     [770,3,'services'],[779,4,'services'],[795,4,'services'],[811,4,'services'],[414,3,'services']] as const)
     for (let i = 0; i < size * size; i++) if (table[start+i].kind === 'debug') table[start+i] = { kind, id: null, footprint:[size,size], density:1 };
   for (let start = 956; start <= 1010; start += 9) for (let i=0;i<9;i++) table[start+i] = { kind:'services', id:null, footprint:[3,3], density:1 };
+  // PhaiCity: a bus or songthaew stop (src/transit.ts) shows a songthaew waiting until the stop has a model of its own
+  table[1021] = { kind:'transport', id:'veh.songthaew', footprint:[1,1], density:0 };
   return Object.freeze(table.map(entry=>Object.freeze(entry)));
 }
 export const TILE_TABLE = makeTileTable();
@@ -133,7 +135,7 @@ export class TileSnapshot implements CityMapReader {
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;
-    const height=id?.endsWith('zone_empty')?.12:id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
+    const height=id?.endsWith('zone_empty')?.12:id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:v===1021?3:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;

@@ -16,7 +16,7 @@ export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "r
   "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
   "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
-  "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant"] as const;
+  "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station"] as const;
 export type CostTool = typeof TOOL_COSTS[number];
 
 export const ZONES = ["residential", "commercial", "industrial"] as const;
@@ -268,6 +268,7 @@ export const BASE_PRICES: Record<CostTool, number> = {
   kindergarten: 400, primary_school: 800, secondary_school: 1500, vocational_college: 2500, university: 6000,
   health_centre: 500, community_hospital: 1500, provincial_hospital: 4000, regional_hospital: 8000,
   landfill: 300, incinerator: 2000, recycling_plant: 3000, waste_power_plant: 6000, wastewater_plant: 4000,
+  bus_stop: 150, train_station: 2500, metro_station: 6000, hsr_station: 20000,
 };
 
 /** A tool's price under these rules, as its button shows it: whole baht, never below 1. */

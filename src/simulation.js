@@ -28,7 +28,8 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { CIVIC, COALBASE, FARM, HARBOUR, MINE, WASTE } from './tileValues.ts';
+import { BUS_STOP, CIVIC, COALBASE, FARM, HARBOUR, MINE, STATION, WASTE } from './tileValues.ts';
+import { Transit } from './transit.ts';
 import {
   CULTURE_VISITORS, cultureNoise, GRANARY_DROUGHT_FACTOR, hasWing, HOUSE_KIND, houseLandValue, houseStanding,
   houseUpkeep, TREASURY_TAX_BONUS, WARNING_RISK_FACTOR
@@ -74,8 +75,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     // ... and a festival at the ruler's house's culture court (src/rulerHouse.ts)
     var festival = this._festivalHouse ? cultureNoise(this._festivalHouse, x, y) : 0;
     // ... and the smoke and smell of the rubbish buildings, and rubbish nobody takes in the streets (src/waste.ts)
+    // ... and the high-speed rail station's noise (src/transit.ts)
     return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road + festival +
-           this._waste.pollutionAt(map, x, y, tileValue);
+           this._waste.pollutionAt(map, x, y, tileValue) + this._transit.pollutionAt(map, x, y, tileValue);
   }.bind(this);
   // The ruler's house, while a festival's month makes noise at its culture court (set before each pollution scan)
   this._festivalHouse = null;
@@ -140,6 +142,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._waste = new Waste(this._map.width, this._map.height);
   this._monthsSinceRubbishWarning = 12;
   this._monthsSinceSewageWarning = 12;
+  // ... and public transport (src/transit.ts), whose reach the zones' trips read (src/traffic.js)
+  this._transit = new Transit(this._map.width, this._map.height);
+  this._traffic.transit = this._transit;
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -318,6 +323,8 @@ Simulation.prototype._simFrame = function() {
 
 
 Simulation.prototype._clearCensus = function() {
+  // The cycle's stops and stations reach the next cycle's trips (src/transit.ts)
+  this._transit.endCycle();
   this._census.clearCensus();
   this._powerManager.clearPowerStack();
   this._waterManager.clearCycle();
@@ -413,6 +420,9 @@ Simulation.prototype.init = function() {
   this._repairManager.addAction(CIVIC, 15, 3);
   this._mapScanner.addAction(WASTE, this._wasteFound.bind(this));
   this._repairManager.addAction(WASTE, 15, 3);
+  this._mapScanner.addAction(BUS_STOP, this._busStopFound.bind(this));
+  this._mapScanner.addAction(STATION, this._stationFound.bind(this));
+  this._repairManager.addAction(STATION, 15, 3);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
@@ -484,6 +494,8 @@ var simulate = function(simData) {
         this._servicesMonth();
         this._tourismMonth();
         this._wasteMonth();
+        // ... and the high-speed rail station's trade (src/transit.ts)
+        this._valves.transitTrade = this._transit.tradeFactor();
         this._miningMonth();
         this._farmingMonth();
         // ... and the tollways' tolls (src/roadLevels.ts), higher by the ruler's policy
@@ -598,11 +610,14 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
               (hasPolicy(this._map, 'pollution_tax') ? POLLUTION_TAX_SMOKE : 1);
   // The ruler's green zoning adds to the land's value everywhere
   var green = hasPolicy(this._map, 'green_zoning') ? GREEN_LAND_VALUE : 0;
+  // ... and the metro near its stations (src/transit.ts)
+  var transit = this._transit;
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
-                                              house || green ? function(x, y) {
-                                                return (house ? houseLandValue(house, x, y) : 0) + green;
-                                              } : null);
+                                              function(x, y) {
+                                                return (house ? houseLandValue(house, x, y) : 0) + green +
+                                                       transit.landValueAt(x, y);
+                                              });
 };
 
 
@@ -671,6 +686,23 @@ Simulation.prototype._wasteMonth = function() {
     this._monthsSinceSewageWarning = 0;
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.UNTREATED_SEWAGE});
   }
+};
+
+
+// A bus or songthaew stop (src/transit.ts): it costs its upkeep, and works beside a road
+Simulation.prototype._busStopFound = function(map, x, y, simData) {
+  var road = false;
+  [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(function(d) {
+    if (map.testBounds(x + d[0], y + d[1]) && isRoadTile(map.getTileValue(x + d[0], y + d[1])))
+      road = true;
+  });
+  this._transit.stopFound(x, y, simData.census, road);
+};
+
+
+// A station's centre (src/transit.ts): it costs its upkeep, and works with power
+Simulation.prototype._stationFound = function(map, x, y, simData) {
+  this._transit.stationFound(map, x, y, simData.census);
 };
 
 
@@ -761,9 +793,11 @@ Simulation.prototype._visitors = function(month) {
   var sewage = this._waste.sewage;
   // ... and fewer at a Songkran without water fights (src/policies.ts)
   var dry = visit.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? SONGKRAN_VISITORS : 1;
-  if (visit.level === 0 || (!court && fee === 0 && sewage === 0 && dry === 1))
+  // ... and more by train and high-speed rail (src/transit.ts)
+  var rail = this._transit.visitorFactor();
+  if (visit.level === 0 || (!court && fee === 0 && sewage === 0 && dry === 1 && rail === 1))
     return visit;
-  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY) * dry;
+  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY) * dry * rail;
   return Object.assign({}, visit, {visitors: Math.round(visit.visitors * come),
                                    income: visit.income * come * (1 + fee * TOURIST_FEE_TAKE),
                                    shopsWanted: visit.shopsWanted * come});

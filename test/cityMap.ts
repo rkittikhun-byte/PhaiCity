@@ -26,7 +26,7 @@ describe("city map", () => {
       [44, "rubble"], [48, "flood"], [52, "radiation"], [56, "fire"], [860, "fire"],
       [64, "road"], [80, "road"], [206, "road"], [828, "road"], [948, "road"],
       [208, "powerLine"], [221, "powerLine"], [224, "rail"], [237, "rail"],
-      [240, "residential"], [249, "residential"], [409, "residential"], [992, "waste"], [996, "waste"], [1000, "waste"], [1001, "residential"], [974, "farm"], [978, "farm"], [983, "fishing"], [991, "fishing"], [965, "mine"], [969, "mine"], [973, "mine"],
+      [240, "residential"], [249, "residential"], [409, "residential"], [992, "waste"], [996, "waste"], [1000, "waste"], [1001, "transit"], [1005, "transit"], [1010, "residential"], [1021, "transit"], [974, "farm"], [978, "farm"], [983, "fishing"], [991, "fishing"], [965, "mine"], [969, "mine"], [973, "mine"],
       [956, "waterSupply"], [960, "waterSupply"], [964, "waterSupply"], [1020, "waterSupply"],
       [423, "commercial"], [611, "commercial"], [612, "industrial"], [844, "industrial"],
       [698, "service"], [716, "service"], [832, "service"], [765, "service"], [774, "service"], [784, "service"],

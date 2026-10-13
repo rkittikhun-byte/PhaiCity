@@ -344,7 +344,14 @@ export const WASTE_BASE       = CHURCH5BASE;
 export const WASTE            = CHURCH5; // Centre of a waste building (tiles 992--1000)
 export const WASTE_LAST       = CHURCH5BASE + 8;
 
-// tiles 1021-1023 unused
+// PhaiCity: public transport (src/transit.ts): the stations take the sixth 3x3 of the extended zones (CHURCH6), the map
+// recording which stands there (gameMap.stationKinds); a bus or songthaew stop is one tile
+export const STATION_BASE     = CHURCH6BASE;
+export const STATION          = CHURCH6; // Centre of a station (tiles 1001--1009)
+export const STATION_LAST     = CHURCH6BASE + 8;
+export const BUS_STOP         = 1021;
+
+// tiles 1022-1023 unused
 
 export const TILE_COUNT     = 1024;
 

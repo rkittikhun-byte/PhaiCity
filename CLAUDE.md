@@ -129,9 +129,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     shows under the bar for a few seconds, then fades (`src/notification.js`).
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
-    Twenty buttons (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card (safety:
-    police or fire; power: every kind and nuclear; water: works or tower; rubbish: five buildings; schools; hospitals;
-    farms or harbours; port or airport), and a button wears the chosen tool's size and colour. Tools without a button
+    Twenty-one buttons (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card
+    (safety: police or fire; power: every kind and nuclear; water: works or tower; rubbish: five buildings; schools;
+    hospitals; farms or harbours; port or airport; public transport: a stop and three stations), and a button wears the
+    chosen tool's size and colour. Tools without a button
     of their own keep theirs in `index.html`'s `<template id="toolChoices">` (`pageChoice`).
   - `index.html?city=<id>` opens a saved city straight away.
   - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
@@ -247,6 +248,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   care; `SERVICES_UPDATED`, the status bar) draw families from 500 people (and hold a town back from 2,000 when low),
   draw factories and shops and clean factory smoke (higher education), and halve at best pollution's harm to homes
   (health, `residential.js`). Each costs upkeep (two budget lines).
+- **Public transport (ขนส่งสาธารณะ, owner 13 Oct 2026):** `docs/TRANSIT.md`, `src/transit.ts`. A bus or songthaew stop
+  (tile 1021, beside a road) and three stations on one 3×3 (1001–1009, `gameMap.stationKinds`, saved; RENDERER_SPEC 6J):
+  train (beside a railway), metro (rank หลวง, works with two stations) and high-speed rail (rank พระ, beside a railway,
+  one per city). A share of the trips near them ride instead of drive, so roads carry less traffic, and where rail
+  reaches, a trip with no road route still arrives (`Traffic.transit` in `src/traffic.js`); trains and high-speed
+  rail bring visitors, high-speed rail trade, the metro land value. Upkeep is a budget line.
 - **Ruler's policies (นโยบายเจ้าเมือง, owner 13 Oct 2026):** `docs/POLICIES.md`, `src/policies.ts`. Seven policies, each
   with a gain, a cost and a yearly sum (no field burning, water saving, a closed fishing season, green zoning, a
   water-wise Songkran, a factory pollution tax, higher tolls), switched in their window (`src/policyWindow.ts`, the

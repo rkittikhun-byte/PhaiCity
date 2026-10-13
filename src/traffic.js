@@ -25,6 +25,9 @@ function Traffic(map, spriteManager) {
   this._map = map;
   this._stack = [];
   this._spriteManager = spriteManager;
+  // PhaiCity: public transport (src/transit.ts), which the simulation sets: a share of the trips from where it reaches
+  // ride instead of drive, and where a train or metro reaches, a trip with no way by road still gets there
+  this.transit = null;
 }
 
 
@@ -35,9 +38,12 @@ Traffic.prototype.makeTraffic = function(x, y, blockMaps, destFn) {
 
   if (this.findPerimeterRoad(pos)) {
     if (this.tryDrive(pos, destFn)) {
-      this.addToTrafficDensityMap(blockMaps);
+      this.addToTrafficDensityMap(blockMaps, this.transit ? 1 - this.transit.ridersAt(x, y) : 1);
       return Traffic.ROUTE_FOUND;
     }
+
+    if (this.transit && this.transit.railAt(x, y))
+      return Traffic.ROUTE_FOUND;
 
     return Traffic.NO_ROUTE_FOUND;
   } else {
@@ -46,7 +52,9 @@ Traffic.prototype.makeTraffic = function(x, y, blockMaps, destFn) {
 };
 
 
-Traffic.prototype.addToTrafficDensityMap = function(blockMaps) {
+// share: of the trip's people who drive (PhaiCity, the rest ride public transport)
+Traffic.prototype.addToTrafficDensityMap = function(blockMaps, share) {
+  var driving = share === undefined ? 1 : share;
   var trafficDensityMap = blockMaps.trafficDensityMap;
 
   while (this._stack.length > 0) {
@@ -62,7 +70,7 @@ Traffic.prototype.addToTrafficDensityMap = function(blockMaps) {
       // Update traffic density.
       var traffic = trafficDensityMap.worldGet(pos.x, pos.y);
       // PhaiCity: a wider road fills more slowly (src/roadLevels.ts)
-      traffic += Math.round(50 * roadSpec(roadLevelAt(this._map, pos.x, pos.y)).load);
+      traffic += Math.round(50 * roadSpec(roadLevelAt(this._map, pos.x, pos.y)).load * driving);
       traffic = Math.min(traffic, 240);
       trafficDensityMap.worldSet(pos.x, pos.y, traffic);
 

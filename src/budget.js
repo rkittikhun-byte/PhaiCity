@@ -72,6 +72,8 @@ var Budget = EventEmitter(function() {
   this.policyCost = 0;
   this.pollutionTaxRate = 0;
   this.pollutionTaxIncome = 0;
+  // ... and what public transport cost last year (src/transit.ts)
+  this.transitCost = 0;
   // PhaiCity (owner, 13 Oct 2026): a tax for each kind of zone, cityTax staying the homes' (0–20%), and two fees: the
   // water fee, in baht a year for each zone the water reaches (0–10), and the visitors' fee, a percentage on what they
   // spend (0–20). Each brings money and costs something (src/valves.js, src/waterManager.ts, src/simulation.js)
@@ -107,7 +109,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
                  'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
-                 'wasteCost', 'policyCost', 'pollutionTaxIncome'];
+                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -144,6 +146,7 @@ Budget.prototype.load = function(saveData) {
   this.wasteCost = this.wasteCost || 0;
   this.policyCost = this.policyCost || 0;
   this.pollutionTaxIncome = this.pollutionTaxIncome || 0;
+  this.transitCost = this.transitCost || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -349,6 +352,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.taxFund -= this.policyCost || 0;
   this.pollutionTaxIncome = Math.round(census.indPop * (this.pollutionTaxRate || 0));
   this.taxFund += this.pollutionTaxIncome;
+  // ... and public transport costs its upkeep (src/transit.ts)
+  this.transitCost = Math.round(census.transitUpkeep || 0);
+  this.taxFund -= this.transitCost;
 
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);

@@ -22,6 +22,7 @@ import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
+import { STATION_KINDS, transitProblem } from "./transit";
 import { serviceProblem } from "./services";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -33,7 +34,7 @@ export const TOOL_NAMES = [
   "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
   "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
-  "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant",
+  "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -110,6 +111,8 @@ interface CommandTool {
   civicKind?: string;
   /** The rubbish or wastewater building it builds (src/waste.ts) */
   wasteKind?: string;
+  /** The stop or station it builds (src/transit.ts) */
+  transitKind?: string;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -157,6 +160,8 @@ export interface CommandTarget {
   resources?: Readonly<Record<string, number>> | null;
   /** Whether a tile is open water, for dams. Without it, a dam may stand anywhere. */
   isWaterAt?(x: number, y: number): boolean;
+  /** Whether a tile is a railway, for train stations (src/transit.ts). Without it, a station may stand anywhere. */
+  isRailAt?(x: number, y: number): boolean;
   /** Records the kind of power plant built at (x, y), its centre (src/powerPlants.ts). */
   setPowerKind?(x: number, y: number, kind: string): void;
   /** Records the kind of mine dug at (x, y), its centre (src/mining.ts). */
@@ -173,6 +178,8 @@ export interface CommandTarget {
   setCivicKind?(x: number, y: number, kind: string): void;
   /** Records the rubbish or wastewater building just built at (x, y), its centre (src/waste.ts). */
   setWasteKind?(x: number, y: number, kind: string): void;
+  /** Records the station just built at (x, y), its centre (src/transit.ts). */
+  setStationKind?(x: number, y: number, kind: string): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -290,6 +297,8 @@ export class CityCommands {
         const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
         const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
           serviceProblem(command.tool, houseLevel) ??
+          transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
+            (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
           plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
           farmProblem(city, command.tool, command.x, command.y);
@@ -306,6 +315,9 @@ export class CityCommands {
         if (applied && tool.rulerHouse) city.setRulerHouse?.(command.x, command.y);
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
+        if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
+          city.setStationKind?.(command.x, command.y, tool.transitKind);
+        }
         // Roads laid where there were none take the tool's level; roads already there keep theirs
         if (applied && map && tool.roadLevel) {
           for (const c of before) {

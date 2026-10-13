@@ -191,9 +191,13 @@ BudgetWindow.prototype.open = function(budgetData) {
   // ... and the ruler's policies cost is taken from them, and the pollution tax paid in (src/policies.ts)
   var policyCost = budgetData.policyCost || 0;
   var pollutionTaxIncome = budgetData.pollutionTaxIncome || 0;
+  // ... and public transport's upkeep is taken from them (src/transit.ts)
+  var transitCost = budgetData.transitCost || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
                                         waterIncome - recyclingIncome - pollutionTaxIncome + fuelCost + houseCost +
-                                        educationCost + healthCost + wasteCost + policyCost));
+                                        educationCost + healthCost + wasteCost + policyCost + transitCost));
+  $('#transitCost').text(formatMoney(transitCost));
+  $('#transitInfo').prop('hidden', transitCost <= 0);
   $('#policyCost').text(formatMoney(policyCost));
   $('#policyInfo').prop('hidden', policyCost <= 0);
   $('#pollutionTaxIncome').text(formatMoney(pollutionTaxIncome));

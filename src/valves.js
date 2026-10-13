@@ -40,6 +40,8 @@ var Valves = EventEmitter(function () {
   // ... and the ruler's policies (src/policies.ts): what they add to the homes' ratio, and each kind's share of its demand
   this.policyPull = 0;
   this.policyDemand = {residential: 1, commercial: 1, industrial: 1};
+  // ... and the high-speed rail station's trade, which shops want (src/transit.ts)
+  this.transitTrade = 1;
 });
 
 
@@ -147,7 +149,7 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   indRatio *= 1 + SKILLED_INDUSTRY * this.skilled;
   // The ruler's policies (src/policies.ts)
   resRatio = (resRatio + this.policyPull) * this.policyDemand.residential;
-  comRatio *= this.policyDemand.commercial;
+  comRatio *= this.policyDemand.commercial * this.transitTrade;
   indRatio *= this.policyDemand.industrial;
   resRatio *= this.demand.residential;
   comRatio *= this.demand.commercial;

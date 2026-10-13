@@ -12,7 +12,7 @@ import {
   COALBASE, COALSMOKE1, COMBASE, FIRE, FIRESTBASE, FLOOD, FOOTBALLGAME1, FOUNTAIN, HBRDG0, INDBASE, LASTFIRE, LASTFLOOD,
   LASTPOWER, LASTRAIL, LASTRIVEDGE, LASTROAD, LASTRUBBLE, LASTTREE, LASTZONE, NUCLEARBASE, NUKESWIRL1, PORTBASE,
   POWERBASE, RADAR0, RADTILE, RAILBASE, RESBASE, RIVER, ROADBASE, RUBBLE, TELEBASE, TINYEXP, TINYEXPLAST, TREEBASE,
-  FARM_BASE, FARM_LAST, HARBOUR_BASE, HARBOUR_LAST, MINE_BASE, MINE_LAST, VBRDG0, WASTE_BASE, WASTE_LAST, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
+  FARM_BASE, FARM_LAST, HARBOUR_BASE, HARBOUR_LAST, MINE_BASE, MINE_LAST, VBRDG0, WASTE_BASE, WASTE_LAST, STATION_BASE, STATION_LAST, BUS_STOP, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
 } from "./tileValues";
 import type { WaterView } from "./waterManager";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
@@ -27,7 +27,7 @@ export function isMapLayer(value: unknown): value is MapLayer {
 
 export type TileKind = "dirt" | "water" | "woods" | "park" | "rubble" | "fire" | "flood" | "radiation" | "road" |
   "rail" | "powerLine" | "residential" | "commercial" | "industrial" | "service" | "powerPlant" | "waterSupply" | "mine" |
-  "farm" | "fishing" | "waste";
+  "farm" | "fishing" | "waste" | "transit";
 
 export type Rgb = readonly [number, number, number];
 
@@ -54,6 +54,7 @@ export const KIND_COLOURS: Record<TileKind, Rgb> = {
   farm: [156, 191, 58],
   fishing: [47, 155, 176],
   waste: [138, 109, 59],
+  transit: [227, 162, 26],
 };
 
 /** What a tile is, for the map. Animated tiles count as the building they belong to. */
@@ -91,6 +92,7 @@ export function tileKind(value: number): TileKind {
   if (value >= FARM_BASE && value <= FARM_LAST) return "farm";
   if (value >= HARBOUR_BASE && value <= HARBOUR_LAST) return "fishing";
   if (value >= WASTE_BASE && value <= WASTE_LAST) return "waste";
+  if ((value >= STATION_BASE && value <= STATION_LAST) || value === BUS_STOP) return "transit";
   if (value >= NUKESWIRL1 + 4 && value < 1020) return "residential"; // the extended residential buildings
   return "dirt";
 }
@@ -102,7 +104,7 @@ export function stringId(name: string): string {
 
 /** The legend of the whole-city layer, in drawing order. */
 export const CITY_KEYS: readonly TileKind[] = ["residential", "commercial", "industrial", "service", "powerPlant",
-  "waterSupply", "mine", "farm", "fishing", "waste", "road", "rail", "powerLine", "water", "woods", "park", "fire"];
+  "waterSupply", "mine", "farm", "fishing", "waste", "transit", "road", "rail", "powerLine", "water", "woods", "park", "fire"];
 
 export interface BlockMapLike {
   worldGet(x: number, y: number): number;

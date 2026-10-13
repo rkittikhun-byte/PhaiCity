@@ -300,6 +300,21 @@ Five kinds of 3×3 building share tiles 992–1000 (`WASTE_BASE` … `WASTE_LAST
   with a tall stack (the incinerator smokes only while powered, the waste power plant always); a recycling plant is a
   shed with bales; a wastewater plant has round settling tanks. No real brands or logos.
 
+## 6J. Public transport (added 13 Oct 2026)
+
+Three stations share tiles 1001–1009 (`STATION_BASE` … `STATION_LAST`, centre 1005 `STATION` with ZONEBIT); a bus
+or songthaew stop is the single tile 1021 (`BUS_STOP`) beside a road (`docs/TRANSIT.md`). The renderer only reads:
+
+| Field | Meaning |
+|---|---|
+| `gameMap.stationKinds` | An object from a station's centre tile index (`x + y * width`, string key) to its kind: `"train_station"`, `"metro_station"` or `"hsr_station"`. No entry, or no object, is a train station. Never write it. |
+
+- Until models exist the stations draw as the generic 3×3 service box, and the stop shows a waiting songthaew
+  (`veh.songthaew`).
+- Art brief: the stop is a small roofed shelter with a bench and a sign in Thai (songthaew blue or bus yellow); the
+  train station a low platform building with a canopy; the metro station an entrance kiosk with stairs going down and a
+  pillar of the elevated line; the high-speed station a long glass hall. Fictional names and liveries only.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

@@ -43,7 +43,8 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { pageChoice, setToolChoices } from './toolLevels.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { CIVIC, MINE, POWERPLANT, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { NEEDS_RAIL, ONE_HSR, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS } from './transit.ts';
 import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
@@ -85,6 +86,8 @@ var MINE_COLOUR = '#b07848';
 // The rubbish and wastewater buildings' colours above the tools (src/waste.ts)
 var WASTE_COLOURS = {landfill: '#8a6d3b', incinerator: '#7a5c58', recycling_plant: '#4f9a5a',
                      waste_power_plant: '#b07a2a', wastewater_plant: '#3f7fa6'};
+// ... and public transport's (src/transit.ts)
+var TRANSIT_COLOURS = {bus_stop: '#e3a21a', train_station: '#8c5a3c', metro_station: '#2f6db5', hsr_station: '#c0392b'};
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
 var MILESTONES = {};
@@ -147,12 +150,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.rulerHouse = readHouse(savedGame.rulerHouse);
     // ... and the ruler's policies (src/policies.ts)
     this.gameMap.policies = readPolicies(savedGame.policies);
+    // ... and the stations (src/transit.ts)
+    this.gameMap.stationKinds = Object.assign({}, savedGame.stationKinds || {});
     this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
   } else {
     // A new city builds its ruler's house before anything else
     this.gameMap.civicKinds = {};
     this.gameMap.wasteKinds = {};
     this.gameMap.policies = [];
+    this.gameMap.stationKinds = {};
     this.gameMap.rulerHouse = null;
     this.gameMap.needsRulerHouse = true;
   }
@@ -203,6 +209,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   cityMap.civicKinds = cityMap.civicKinds || {};
   cityMap.wasteKinds = cityMap.wasteKinds || {};
   cityMap.policies = cityMap.policies || [];
+  cityMap.stationKinds = cityMap.stationKinds || {};
   var game = this;
   this.commands = new CityCommands({
     width: this.gameMap.width,
@@ -247,6 +254,16 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // ... and the rubbish and wastewater buildings (src/waste.ts)
     setWasteKind: function(x, y, kind) {
       cityMap.wasteKinds[y * cityMap.width + x] = kind;
+    },
+    // ... and the stations, which train and high-speed stations put beside a railway (src/transit.ts)
+    setStationKind: function(x, y, kind) {
+      cityMap.stationKinds[y * cityMap.width + x] = kind;
+    },
+    isRailAt: function(x, y) {
+      if (!cityMap.testBounds(x, y))
+        return false;
+      var value = cityMap.getTileValue(x, y);
+      return value >= RAILBASE && value <= LASTRAIL;
     },
     setRulerHouse: function(x, y) {
       cityMap.civicKinds[y * cityMap.width + x] = HOUSE_KIND;
@@ -386,7 +403,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       recyclingIncome: this.simulation.budget.recyclingIncome,
       // ... and the ruler's policies (src/policies.ts)
       policyCost: this.simulation.budget.policyCost,
-      pollutionTaxIncome: this.simulation.budget.pollutionTaxIncome
+      pollutionTaxIncome: this.simulation.budget.pollutionTaxIncome,
+      // ... and public transport (src/transit.ts)
+      transitCost: this.simulation.budget.transitCost
     };
 
     return [budgetData];
@@ -588,6 +607,8 @@ Game.prototype.save = function() {
                   wasteKinds: plantsStanding(this.gameMap, 'wasteKinds', WASTE),
                   // ... and the ruler's policies (src/policies.ts)
                   policies: (this.gameMap.policies || []).length ? this.gameMap.policies.slice() : undefined,
+                  // ... and the stations (src/transit.ts)
+                  stationKinds: plantsStanding(this.gameMap, 'stationKinds', STATION),
                   rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
@@ -713,7 +734,8 @@ Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
-  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL].indexOf(outcome.reason) === -1 &&
+  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL, NEEDS_RAIL, ONE_HSR,
+                            TRANSIT_NEEDS_RANK].indexOf(outcome.reason) === -1 &&
       HOUSE_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
@@ -752,6 +774,12 @@ Game.prototype.refreshHouse = function() {
   };
   setToolChoices('primary_school', EDUCATION_TOOLS.map(serviceChoice));
   setToolChoices('health_centre', HEALTH_TOOLS.map(serviceChoice));
+  // Public transport, the metro and the high-speed rail station for a higher rank (src/transit.ts)
+  setToolChoices('bus_stop', TRANSIT_KINDS.map(function(kind) {
+    var spec = TRANSIT_SPECS[kind];
+    return {tool: kind, available: spec.rank <= rank, colour: TRANSIT_COLOURS[kind], size: kind === 'bus_stop' ? 1 : 3,
+            reason: 'house.reason.rank.' + spec.rank};
+  }));
   // A new city's other tools wait for the house (the commands refuse them too)
   document.body.classList.toggle('houseFirst', houseFirst(map));
   // The planning office takes a tenth off the roads and their upgrades
@@ -1005,6 +1033,18 @@ Game.prototype.handleTool = function(data) {
     }
     if (outcome.reason === OUTSIDE_PROVINCE) {
       showCornerNote(t('tool.outside_province'), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
+    // A station beside a railway, the metro and high-speed rail for a higher rank, one high-speed station
+    // (src/transit.ts)
+    var transitNotes = {};
+    transitNotes[NEEDS_RAIL] = 'transit.note.needs_rail';
+    transitNotes[ONE_HSR] = 'transit.note.one_hsr';
+    transitNotes[TRANSIT_NEEDS_RANK] = 'transit.note.needs_rank';
+    if (transitNotes[outcome.reason]) {
+      showCornerNote(t(transitNotes[outcome.reason], TRANSIT_SPECS[toolName] ?
+        {rank: t('rank.' + RANKS[TRANSIT_SPECS[toolName].rank])} : {}), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
