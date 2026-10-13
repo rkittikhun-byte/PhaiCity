@@ -113,8 +113,9 @@ var neutraliseTrafficMap = function(blockMaps) {
 
 // Given a tileValue, score it on the pollution it generates, in the range 0-255
 // industryPollution (PhaiCity, src/provinceRules.ts): how much more or less the factories smoke in this province
-// shopRubbish (PhaiCity, src/tourism.ts): pollution from visitors' rubbish on each shop tile
-var getPollutionValue = function(tileValue, industryPollution, shopRubbish) {
+// shopRubbish (PhaiCity, src/tourism.ts): pollution from visitors' rubbish on each shop tile.
+// plantPollution(x, y, tileValue) (PhaiCity, src/powerPlants.ts): a power plant tile's pollution by its kind
+var getPollutionValue = function(tileValue, industryPollution, shopRubbish, plantPollution, x, y) {
   if (tileValue < TileValues.POWERBASE) {
     // Roads, fires and radiation lie below POWERBASE
 
@@ -153,9 +154,9 @@ var getPollutionValue = function(tileValue, industryPollution, shopRubbish) {
   if (tileValue < TileValues.PORTBASE)
     return Math.round(50 * industryPollution);
 
-  // Coal power plants are bad
+  // Coal power plants are bad (PhaiCity: and the other kinds less so, or not at all)
   if (tileValue <= TileValues.LASTPOWERPLANT)
-      return 100;
+      return plantPollution && tileValue >= TileValues.COALBASE ? plantPollution(x, y, tileValue) : 100;
 
   return 0;
 };
@@ -189,7 +190,7 @@ var getCityCentreDistance = function(map, x, y) {
 //   * Proximity to undeveloped terrain (who doesn't love a good view?)
 //
 // Pollution is completely determined by the tile types in the block
-var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish) {
+var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish, plantPollution) {
   if (industryPollution === undefined)
     industryPollution = 1;
 
@@ -238,7 +239,7 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
             continue;
           }
 
-          pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish);
+          pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish, plantPollution, mapX, mapY);
           if (tileValue >= TileValues.ROADBASE)
             developed = true;
         }

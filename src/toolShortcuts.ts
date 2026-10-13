@@ -27,6 +27,11 @@ export function toolLabel(tool: string): { name: string; price: string } {
   return { name: t(`tool.${tool}`, { price: "" }).trim(), price: price === undefined ? "" : formatPrice(price) };
 }
 
+/** Writes the tool buttons' names, prices and icons again: after a button's chosen tool changes. */
+export function relabelTools(): void {
+  relabel?.();
+}
+
 /** Shows a city's prices on the tool buttons. */
 export function showToolPrices(next: Record<string, number>): void {
   prices = { ...next };
@@ -73,6 +78,10 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   airport: "about.building.airport",
   waterworks: "about.building.waterworks",
   watertower: "about.building.watertower",
+  gas: "about.building.gas",
+  hydro: "about.building.hydro",
+  solar: "about.building.solar",
+  wind: "about.building.wind",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */
@@ -151,8 +160,9 @@ export function installToolShortcuts(doc: Document = document): void {
   // Each tool button shows its name and price, says what it does when pointed at, and shows its key if it has one
   const label = (): void => {
     doc.querySelectorAll<HTMLElement>(".toolButton[data-tool]").forEach((button) => {
-      const tool = button.dataset.tool as string;
-      const key = TOOL_KEYS.find((k) => k.tool === tool)?.key ?? null;
+      // A button with choices (src/toolLevels.ts) shows the one chosen; its key belongs to the button
+      const tool = button.dataset.activeTool ?? button.dataset.tool as string;
+      const key = TOOL_KEYS.find((k) => k.tool === button.dataset.tool)?.key ?? null;
       if (key) button.dataset.key = key;
       // A square in the tool's colour (its shortcut key inside) until the tool icons come, then the name and price
       button.style.setProperty("--tool", button.dataset.colour ?? "#888");

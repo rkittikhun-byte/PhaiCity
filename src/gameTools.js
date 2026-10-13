@@ -18,6 +18,7 @@ import { QUERY_WINDOW_NEEDED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 import { ParkTool } from './parkTool.js';
 import { DEFAULT_RULES, TOOL_COSTS } from './provinceRules.ts';
+import { PLANT_TOOLS, POWER_KINDS } from './powerPlants.ts';
 import { RailTool } from './railTool.js';
 import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
@@ -33,6 +34,11 @@ function GameTools(map, rules) {
     airport: new BuildingTool(10000, TileValues.AIRPORT, map, 6, false),
     bulldozer: new BulldozerTool(map),
     coal: new BuildingTool(3000, TileValues.POWERPLANT, map, 4, false),
+    // PhaiCity: the other kinds of power plant, on the coal plant's tiles (src/powerPlants.ts)
+    gas: new BuildingTool(4000, TileValues.POWERPLANT, map, 4, false),
+    hydro: new BuildingTool(6000, TileValues.POWERPLANT, map, 4, false),
+    solar: new BuildingTool(2500, TileValues.POWERPLANT, map, 4, false),
+    wind: new BuildingTool(3500, TileValues.POWERPLANT, map, 4, false),
     commercial: new BuildingTool(100, TileValues.COMCLR, map, 3, false),
     fire: new BuildingTool(500, TileValues.FIRESTATION, map, 3, false),
     industrial: new BuildingTool(100, TileValues.INDCLR, map, 3, false),
@@ -54,6 +60,11 @@ function GameTools(map, rules) {
   TOOL_COSTS.forEach(function(name) {
     tools[name].costFactor = rules.cost[name];
     tools[name].clearWoodsCost = rules.clearWoodsCost;
+  });
+
+  // What kind of plant each power tool builds; the map records it where it stands (src/cityCommands.ts)
+  POWER_KINDS.forEach(function(kind) {
+    tools[PLANT_TOOLS[kind]].powerKind = kind;
   });
 
   tools.query.addEventListener(QUERY_WINDOW_NEEDED, MiscUtils.reflectEvent.bind(tools, QUERY_WINDOW_NEEDED));

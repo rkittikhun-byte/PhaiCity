@@ -70,6 +70,14 @@ var InputStatus = EventEmitter(function(map, tileWidth, rules) {
   this.canvasClickHandler = canvasClickHandler.bind(this);
 
   $('.toolButton').click(toolButtonHandler.bind(this));
+  // PhaiCity: a button with choices (src/toolLevels.ts) may change the tool it uses while in hand
+  document.addEventListener('phaicity:toolchoice', function(e) {
+    var button = $('.toolButton.selected');
+    if (this.currentTool === null || button.length === 0)
+      return;
+    this.toolName = e.detail;
+    this.currentTool = this.gameTools[this.toolName];
+  }.bind(this));
   $('#budgetRequest').click(budgetHandler.bind(this));
   $('#evalRequest').click(evalHandler.bind(this));
   $('#mapRequest').click(mapHandler.bind(this));
@@ -282,8 +290,11 @@ var toolButtonHandler = function(e) {
   // The button itself: a click may land on its icon or its name inside
   var button = $(e.currentTarget);
 
+  // The tool the button uses: its own, or the one chosen for it above the tools (PhaiCity, src/toolLevels.ts)
+  var toolName = button.attr('data-active-tool') || button.attr('data-tool');
+
   // Pressing the tool in hand again (or its number key) puts it down, as Esc does
-  if (this.currentTool !== null && button.attr('data-tool') === this.toolName) {
+  if (this.currentTool !== null && toolName === this.toolName) {
     this.clearTool();
     e.preventDefault();
     return;
@@ -299,7 +310,7 @@ var toolButtonHandler = function(e) {
   button.removeClass('unselected');
   button.addClass('selected');
 
-  this.toolName = button.attr('data-tool');
+  this.toolName = toolName;
   this.toolWidth = button.attr('data-size');
   this.currentTool = this.gameTools[this.toolName];
   this.toolColour = button.attr('data-colour');

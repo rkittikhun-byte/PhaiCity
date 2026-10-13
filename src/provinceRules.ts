@@ -11,7 +11,8 @@
 // Every number is checked before use, so a bad edit is reported and ignored rather than breaking the game.
 
 export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "rail", "wire", "park", "police", "fire",
-  "coal", "nuclear", "stadium", "port", "airport", "bulldozer", "waterworks", "watertower"] as const;
+  "coal", "nuclear", "stadium", "port", "airport", "bulldozer", "waterworks", "watertower", "gas", "hydro", "solar",
+  "wind"] as const;
 export type CostTool = typeof TOOL_COSTS[number];
 
 export const ZONES = ["residential", "commercial", "industrial"] as const;
@@ -255,6 +256,7 @@ export function seasonalRisks(rules: Rules, month: number): Array<{ disaster: Se
 export const BASE_PRICES: Record<CostTool, number> = {
   residential: 100, commercial: 100, industrial: 100, road: 10, rail: 20, wire: 5, park: 10, police: 500, fire: 500,
   coal: 3000, nuclear: 5000, stadium: 5000, port: 3000, airport: 10000, bulldozer: 1, waterworks: 1500, watertower: 300,
+  gas: 4000, hydro: 6000, solar: 2500, wind: 3500,
 };
 
 /** A tool's price under these rules, as its button shows it: whole baht, never below 1. */

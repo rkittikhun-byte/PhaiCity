@@ -2063,6 +2063,13 @@ body #toolLevels .levelSlot.empty .levelIcon::before {
   content: ""; width: 14px; height: 14px; border: 1px dashed rgba(29, 41, 37, 0.35); border-radius: 4px;
 }
 body #toolLevels .levelName { font-size: 8.5px; }
+/* A tool's choices (the power button's kinds of plant): each place a button; one the province lacks waits, greyed */
+body #toolLevels button.levelSlot { border: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 0;
+  cursor: pointer; }
+body #toolLevels button.levelSlot:hover:not(:disabled) { background: rgba(255, 255, 255, 0.6); }
+body #toolLevels button.levelSlot.current { background: rgba(255, 255, 255, 0.92); }
+body #toolLevels button.levelSlot.unavailable { opacity: 0.45; cursor: not-allowed; border-style: dashed;
+  border-color: rgba(29, 41, 37, 0.3); }
 body #toolLevels .levelNote { font-size: 7.5px; color: var(--hud-dim); }
 body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 

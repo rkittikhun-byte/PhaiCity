@@ -15,12 +15,13 @@ import { BlockMap } from './blockMap.ts';
 import { forEachCardinalDirection } from './direction.ts';
 import { EventEmitter } from './eventEmitter.js';
 import { Position } from './position.ts';
+import { plantFuel, plantPower, plantSmokes, powerKindAt } from './powerPlants.ts';
 import { NOT_ENOUGH_POWER } from './messages.ts';
 import { Random } from './random.ts';
 import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
 import { NUCLEAR, POWERPLANT } from "./tileValues.ts";
 
-var COAL_POWER_STRENGTH = 700;
+// PhaiCity: the plants on the coal plant's tiles are of five kinds now, each with its own power (src/powerPlants.ts)
 var NUCLEAR_POWER_STRENGTH = 2000;
 
 
@@ -30,6 +31,9 @@ var PowerManager = EventEmitter(function(map) {
   this.powerGridMap = new BlockMap(this._map.width, this._map.height, 1);
   // PhaiCity: how much more or less power each plant gives in this province (src/provinceRules.ts)
   this.outputFactor = 1;
+  // ... the province's resources, which run its kinds of plant, and its dry season, which slows its dams
+  this.resources = {};
+  this.drySeason = null;
 });
 
 
@@ -74,8 +78,8 @@ PowerManager.prototype.doPowerScan = function(census) {
   // Clear power this._map.
   this.powerGridMap.clear();
 
-  // Power that the combined coal and nuclear power plants can deliver.
-  var maxPower = (census.coalPowerPop * COAL_POWER_STRENGTH +
+  // Power that the combined power plants of every kind and the nuclear plants can deliver.
+  var maxPower = ((census.plantPower || 0) +
                   census.nuclearPowerPop * NUCLEAR_POWER_STRENGTH) * this.outputFactor;
 
   var powerConsumption = 0; // Amount of power used.
@@ -118,7 +122,17 @@ PowerManager.prototype.doPowerScan = function(census) {
 PowerManager.prototype.coalPowerFound = function(map, x, y, simData) {
   simData.census.coalPowerPop += 1;
 
+  // PhaiCity: what kind of plant stands here, as built (src/powerPlants.ts): its power this month and its fuel
+  var kind = powerKindAt(map.powerKinds, y * map.width + x);
+  var month = Math.floor((simData.cityTime || 0) % 48) >> 2;
+  simData.census.plantPower += plantPower(kind, this.resources, month, this.drySeason);
+  simData.census.plantFuel += plantFuel(kind, this.resources);
+
   this._powerStack.push(new Position(x, y));
+
+  // Only plants that burn fuel smoke
+  if (!plantSmokes(kind))
+    return;
 
   // Ensure animation runs
   var dX = [-1, 2, 1, 2];

@@ -198,6 +198,20 @@ only reads them.
   the no-power bolt is drawn, hidden at far zoom like the bolt. Never for 2: houses and small shops need no water.
 - Never call anything on `gameMap.water` but its three readers.
 
+## 6D. Kinds of power plant (added 13 Oct 2026)
+
+The coal plant's tiles (745–760, centre 750, 4×4) now carry five kinds of plant (`docs/POWER_PLANTS.md`):
+lignite (the old coal plant), gas, hydro (a dam), solar and wind. The tiles are the same; the map records which kind
+stands where, and the renderer only reads it.
+
+| Field | Meaning |
+|---|---|
+| `gameMap.powerKinds` | An object from a plant's centre tile index (`x + y * width`, as a string key) to its kind: `"lignite"`, `"gas"`, `"hydro"`, `"solar"` or `"wind"`. A centre with no entry, or a missing object, is lignite. Never write it. |
+
+- Choose the model by the kind at the plant's centre; every tile of the 4×4 belongs to that plant.
+- Smoke only from lignite (heavy) and gas (light). A dam stands beside water, so its model faces the water side;
+  wind turbines turn. Nuclear (816–826) is unchanged.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

@@ -27,6 +27,8 @@ import { MiscTiles } from './miscTiles.js';
 import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
+import { plantPollution, powerKindAt } from './powerPlants.ts';
+import { COALBASE } from './tileValues.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -49,6 +51,14 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // This month's visitors (src/tourism.ts) and the months since the news last heard of them staying away
   this._tourism = NO_TOURISM;
   this._monthsSinceTouristWarning = 12;
+  // The pollution on each tile of a power plant, by the kind built there (src/powerPlants.ts)
+  var map = gameMap;
+  this._plantPollution = function(x, y, tileValue) {
+    var index = tileValue - COALBASE;
+    var centreX = x - (index % 4) + 1;
+    var centreY = y - Math.floor(index / 4) + 1;
+    return plantPollution(powerKindAt(map.powerKinds, centreY * map.width + centreX));
+  };
   this.setLevel(gameLevel);
   this.setSpeed(speed);
 
@@ -82,6 +92,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this.disasterManager = new DisasterManager(this._map, this.spriteManager, this._gameLevel);
   this._valves.demand = this.rules.demand;
   this._powerManager.outputFactor = this.rules.powerPlantOutput;
+  this._powerManager.resources = this.resources;
+  this._powerManager.drySeason = this.rules.drought || null;
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
 
   this.blockMaps = {
@@ -345,7 +357,7 @@ Simulation.prototype.init = function() {
   this._powerManager.doPowerScan(this._census);
   this._waterManager.doWaterScan(month, false);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                              shopRubbish(this._tourism));
+                                              shopRubbish(this._tourism), this._plantPollution);
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
@@ -429,7 +441,7 @@ var simulate = function(simData) {
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
         BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                                    shopRubbish(this._tourism));
+                                                    shopRubbish(this._tourism), this._plantPollution);
       break;
 
     case 13:

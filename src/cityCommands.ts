@@ -14,12 +14,14 @@
 // with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
 // player may build over them and widen them like any road.
 
+import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
-  "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower",
+  "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
+  "wind",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -36,6 +38,10 @@ export const MAX_TAX = 20;
 export const DEBUG_FUNDS = 20000;
 /** Why a tool was refused on a tile outside the province. */
 export const OUTSIDE_PROVINCE = "outside the province";
+/** Why a kind of power plant was refused: the province lacks what it runs on (src/powerPlants.ts). */
+export const NO_RESOURCE = "not in this province";
+/** Why a dam was refused: no river or lake beside it. */
+export const NEEDS_WATER = "needs water beside it";
 
 export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
@@ -66,6 +72,8 @@ interface CommandTool {
   modifyIfEnoughFunding(budget: unknown): boolean;
   /** The tiles the tool is about to change (src/baseTool.js), for undo. */
   pendingTiles?(): Array<{ x: number; y: number }>;
+  /** The kind of power plant it builds (src/gameTools.js, src/powerPlants.ts) */
+  powerKind?: string;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -107,6 +115,12 @@ export interface CommandTarget {
   cityTime?(): number;
   /** Whether a tile may be built on: false outside the province on a province map. Without it, every tile may. */
   canBuildAt?(x: number, y: number): boolean;
+  /** The province's resource levels, which decide its kinds of power plant; none on a practice map. */
+  resources?: Readonly<Record<string, number>> | null;
+  /** Whether a tile is open water, for dams. Without it, a dam may stand anywhere. */
+  isWaterAt?(x: number, y: number): boolean;
+  /** Records the kind of power plant built at (x, y), its centre (src/powerPlants.ts). */
+  setPowerKind?(x: number, y: number, kind: string): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -114,6 +128,16 @@ export function placeProblem(city: Pick<CommandTarget, "canBuildAt">, x: number,
                              size: number): string | null {
   const canBuildAt = city.canBuildAt;
   return canBuildAt && footprint(x, y, size).some((t) => !canBuildAt(t.x, t.y)) ? OUTSIDE_PROVINCE : null;
+}
+
+/** Why a kind of power plant may not be built at (x, y): the province lacks its resource, or a dam has no water. */
+export function plantProblem(city: Pick<CommandTarget, "resources" | "isWaterAt">, kind: string | undefined,
+                             x: number, y: number): string | null {
+  if (!kind || !isOneOf(POWER_KINDS, kind)) return null;
+  if (!canBuildKind(kind, city.resources ?? {})) return NO_RESOURCE;
+  const isWaterAt = city.isWaterAt;
+  if (kind === "hydro" && isWaterAt && !besideWater(x, y, isWaterAt)) return NEEDS_WATER;
+  return null;
 }
 
 /** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
@@ -183,7 +207,8 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
-        const refused = placeProblem(city, command.x, command.y, tool.size ?? 1);
+        const refused = placeProblem(city, command.x, command.y, tool.size ?? 1) ??
+          plantProblem(city, tool.powerKind, command.x, command.y);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
@@ -191,7 +216,9 @@ export class CityCommands {
         const before = map && tool.pendingTiles
           ? tool.pendingTiles().map(({ x, y }) => ({ x, y, before: map.getTile(x, y).getRawValue() }))
           : [];
-        if (tool.modifyIfEnoughFunding(city.budget) && map) {
+        const applied = tool.modifyIfEnoughFunding(city.budget);
+        if (applied && tool.powerKind) city.setPowerKind?.(command.x, command.y, tool.powerKind);
+        if (applied && map) {
           const changes = before.map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
             .filter((c) => c.after !== c.before);
           const cost = fundsBefore - city.budget.totalFunds;

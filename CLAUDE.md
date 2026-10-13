@@ -214,7 +214,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   **Tourism counts in the game** (`docs/TOURISM.md`, `src/tourism.ts`): each month visitors come by the province's
   level, the season, the city's appeal and its shops; they pay into the year's taxes and want shops, and cost
   traffic, rubbish and dearer living. The province's levels reach the simulation as its `resources`
-  (`loadResources` in `src/splashScreen.js`); the others have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  (`loadResources` in `src/splashScreen.js`). **Kinds of power plant** (`docs/POWER_PLANTS.md`, `src/powerPlants.ts`):
+  lignite (the old coal plant), gas, dam, solar and wind, all on the coal plant's tiles and chosen in the tool levels
+  card above the power button (`setToolChoices` in `src/toolLevels.ts`, the button's `data-active-tool`); the map
+  records each plant's kind (`gameMap.powerKinds`, saved as `powerKinds`; renderers read it, RENDERER_SPEC 6D).
+  Dams and wind farms need the province's resource, dams water beside them (`plantProblem` in `CityCommands`);
+  lignite and gas burn fuel paid at the year's end. The other resources have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

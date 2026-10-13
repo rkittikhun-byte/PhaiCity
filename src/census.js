@@ -82,6 +82,9 @@ Census.prototype.clearCensus = function() {
   this.stadiumPop = 0;
   this.coalPowerPop = 0;
   this.nuclearPowerPop = 0;
+  // PhaiCity: the power the plants on the coal plant's tiles give this month, and their fuel a year (src/powerPlants.ts)
+  this.plantPower = 0;
+  this.plantFuel = 0;
   this.seaportPop = 0;
   this.airportPop = 0;
   // PhaiCity: the water supply (src/waterManager.ts)

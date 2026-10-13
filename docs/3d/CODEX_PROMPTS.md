@@ -15,6 +15,7 @@
 4. ลำดับ: 0 → 1 → **1C** → 2 → 3 → 4 → **4B** → 5 → **5B** → 6 → **6A** → 7 → 8 → … → 11 → **R1** → 12 → **R1B** → **UI1** → 13 → … → 15 → **UI2** → **R2** → 17 → **R3** → **R4** → 18
    (**R5** แผนที่ทั้งจังหวัด แทรกได้ทันทีที่ prompt ปัจจุบันเสร็จ)
    (**W1** ประปา: โรงผลิตน้ำ หอถังสูง และไอคอนไม่มีน้ำ ส่งต่อจาก R5)
+   (**P1** โรงไฟฟ้าตามจังหวัด: ก๊าซ เขื่อน แสงอาทิตย์ และลม ส่งต่อจาก W1)
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1532,6 +1533,44 @@ Task:
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of
 both models in the gallery and in a test city, with a thirsty zone showing its icon.
+```
+
+## Prompt P1 — โรงไฟฟ้าตามจังหวัด: ก๊าซ เขื่อน แสงอาทิตย์ และลม
+
+เจ้าของโปรเจคขอ (13 ต.ค. 2026): โรงไฟฟ้ามีหลายชนิดตามทรัพยากรของจังหวัด ฝั่งเกม Claude Code ทำแล้ว (`docs/POWER_PLANTS.md`):
+ผู้เล่นเลือกชนิดในการ์ดเหนือปุ่มโรงไฟฟ้า ทุกชนิดวางบนไทล์ของโรงไฟฟ้าถ่านหินเดิม และแผนที่บอกว่าแต่ละจุดเป็นชนิดอะไร
+ส่งต่อจาก prompt ที่ Codex ทำอยู่ได้เลย
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md, docs/3d/RENDERER_SPEC.md (section 6D is new) and docs/POWER_PLANTS.md in full
+before starting, and follow their rules (your paths only).
+
+Context: the coal power plant's 4x4 tiles (745-760, centre 750) now hold five kinds of plant. gameMap.powerKinds maps
+a plant's centre tile index (x + y * width, string key) to "lignite", "gas", "hydro", "solar" or "wind"; no entry
+means lignite. It is read-only. Lignite keeps the current coal plant model.
+
+Task:
+1. Models (MODEL_SPEC rules, tier R3 national, no brands or logos), each on a 4x4 footprint:
+   a. gas: a combined-cycle gas plant: two compact turbine halls, heat-recovery boilers with short stacks and light
+      vapour, a switchyard with transformers, pipework, a small control building.
+   b. hydro: a concrete gravity dam section with a spillway and gates, a powerhouse at its foot, penstocks and a
+      switchyard, built to stand beside a river or lake: it must read well with water on any of its four sides, so
+      orient its water face toward the nearest water tile around the footprint (pass the side in from the renderer).
+   c. solar: rows of tilted photovoltaic panels on steel frames with gravel paths, an inverter house and a fence.
+   d. wind: three tall three-blade wind turbines on tubular towers with slowly turning rotors, service tracks and a
+      small substation; keep the rotors within the footprint at the usual zoom.
+   Add them to the gallery beside the coal plant.
+2. City view: choose the model by gameMap.powerKinds at the plant's centre. Smoke: heavy for lignite, light vapour
+   for gas, none for the others. Rubble, fire and bulldozing as for the coal plant today. A missing powerKinds draws
+   every plant as lignite, exactly as now.
+3. Icons: assets/icons/tools/gas, hydro, solar and wind (same style and pipeline as Prompt UI1/UI2); the power
+   button's kind choices above the tools show them by tool name.
+4. Tests in test/render3d/: each kind resolves to its model from powerKinds, no entry gives the coal plant, the dam
+   faces the water side, and only lignite and gas smoke.
+
+Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of the
+four models in the gallery and in a test city.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)

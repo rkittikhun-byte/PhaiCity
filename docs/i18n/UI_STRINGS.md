@@ -120,6 +120,19 @@
 | `tool.airport` | `index.html` | `Airport $10000` | `Airport {price}` | `สนามบิน {price}` | อาคาร 6x6 |
 | `tool.waterworks` | `index.html` | — | `Water Works {price}` | `โรงผลิตน้ำประปา {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026) |
 | `tool.watertower` | `index.html` | — | `Water Tower {price}` | `หอถังสูง {price}` | 1 ช่อง |
+| `tool.gas` | `src/toolLevels.ts` | — | `Gas Power Plant {price}` | `โรงไฟฟ้าก๊าซธรรมชาติ {price}` | อาคาร 4x4 เลือกจากการ์ดเหนือปุ่มโรงไฟฟ้า (Claude Code 13 ต.ค. 2026) |
+| `tool.hydro` | `src/toolLevels.ts` | — | `Dam {price}` | `เขื่อนพลังน้ำ {price}` | ต้องติดแม่น้ำหรือบึง |
+| `tool.solar` | `src/toolLevels.ts` | — | `Solar Farm {price}` | `โซลาร์ฟาร์ม {price}` |  |
+| `tool.wind` | `src/toolLevels.ts` | — | `Wind Farm {price}` | `ฟาร์มกังหันลม {price}` |  |
+| `choice.title.coal` | `src/toolLevels.ts` | — | `Power plant: choose its kind` | `โรงไฟฟ้า: เลือกชนิด` | หัวการ์ดเหนือแถบเครื่องมือ |
+| `choice.coal` | `src/toolLevels.ts` | — | `Lignite` | `ลิกไนต์` | ชื่อสั้นในช่องเลือก |
+| `choice.gas` | `src/toolLevels.ts` | — | `Gas` | `ก๊าซ` |  |
+| `choice.hydro` | `src/toolLevels.ts` | — | `Dam` | `เขื่อน` |  |
+| `choice.solar` | `src/toolLevels.ts` | — | `Solar` | `แสงอาทิตย์` |  |
+| `choice.wind` | `src/toolLevels.ts` | — | `Wind` | `ลม` |  |
+| `choice.unavailable` | `src/toolLevels.ts` | — | `Not in this province` | `ไม่มีในจังหวัดนี้` | ช่องที่จังหวัดสร้างไม่ได้ |
+| `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
+| `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |
@@ -135,6 +148,7 @@
 | `budget.title` | `index.html` | `Budget` | `City Budget` | `งบประมาณเมือง` | หัวหน้าต่าง |
 | `budget.tax_collected` | `index.html` | `Tax Collected: ` | `Taxes Collected: ` | `ภาษีที่จัดเก็บได้: ` | รายรับภาษี |
 | `budget.tourism` | `index.html` | — | `Visitors spent: ` | `รายได้จากนักท่องเที่ยว: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
+| `budget.fuel` | `index.html` | — | `Power plant fuel: ` | `ค่าเชื้อเพลิงโรงไฟฟ้า: ` | ลิกไนต์และก๊าซ แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.cashflow` | `index.html` | `Cashflow: ` | `Net Cashflow: ` | `กระแสเงินสดสุทธิ: ` | กำไร/ขาดทุนสุทธิ |
 | `budget.previous_funds` | `index.html` | `Previous funds: ` | `Previous Balance: ` | `เงินคลังปีก่อน: ` | ยอดยกมา |
 | `budget.current_funds` | `index.html` | `Current funds: ` | `Current Balance: ` | `เงินคลังปัจจุบัน: ` | ยอดยกไป |
@@ -552,6 +566,11 @@
 | `about.building.fire` | `about.html` | `Fire Stations: Some people just want to play with matches...` | `Fire Stations: Provide rapid firefighting brigades to extinguish outbreaks before flames consume districts.` | `สถานีดับเพลิง: จัดเตรียมหน่วยดับเพลิงพร้อมระงับเหตุไฟไหม้ก่อนลุกลามเผาผลาญย่านชุมชน` | คำอธิบายอาคาร |
 | `about.building.coal` | `about.html` | `Coal Power: Show your dominion over nature...` | `Coal Power Plant: Affordable, high-capacity electricity, but generates heavy air pollution.` | `โรงไฟฟ้าถ่านหิน: ผลิตไฟฟ้าได้มากในราคาประหยัด แต่ปล่อยเขม่าควันและมลพิษทางอากาศสูง` | คำอธิบายอาคาร |
 | `about.building.nuclear` | `about.html` | `Nuclear Power: More expensive than coal power...` | `Nuclear Power Plant: High-output, clean energy with zero smoke, though costly and catastrophic if meltdown occurs.` | `โรงไฟฟ้านิวเคลียร์: จ่ายไฟได้มหาศาล ไร้ควันพิษ แต่ราคาสูงมากและมีความเสี่ยงร้ายแรงหากหลอมละลาย` | คำอธิบายอาคาร |
+| `about.building.power_kinds` | `about.html` | — | `Kinds of power plant: press the Power Plant button and choose above the tools: lignite (much power, heavy smoke, fuel every year), gas (the most power, little smoke, fuel every year), a dam (clean but dear, beside water, weak in the dry season), solar (clean, weak in the rains) or wind (clean, noisy). Dams and wind farms only where the province has them.` | `ชนิดโรงไฟฟ้า: กดปุ่มโรงไฟฟ้าแล้วเลือกในการ์ดเหนือแถบเครื่องมือ ลิกไนต์ (ไฟมาก ควันพิษมาก ค่าเชื้อเพลิงทุกปี) ก๊าซ (ไฟมากที่สุด ควันน้อย ค่าเชื้อเพลิงทุกปี) เขื่อน (สะอาดแต่แพง ต้องติดน้ำ หน้าแล้งไฟลด) แสงอาทิตย์ (สะอาด หน้าฝนไฟลด) และลม (สะอาด เสียงดัง) เขื่อนและลมสร้างได้เฉพาะจังหวัดที่มี` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
+| `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
+| `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
+| `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |
+| `about.building.wind` | `src/toolShortcuts.ts` | — | `Wind Farm: clean power, but noisy for its neighbours, and calm in the hot months.` | `ฟาร์มกังหันลม: ไฟสะอาด แต่เสียงดังรบกวนรอบ ๆ และช่วงหน้าร้อนลมสงบ` |  |
 | `about.building.waterworks` | `about.html` | — | `Water Works: Pumps groundwater into the pipes under every road it touches, and needs power. Beside a river or a lake it gives the most; pumped hard for years, the ground around it runs low.` | `โรงผลิตน้ำประปา: สูบน้ำใต้ดินส่งไปตามท่อใต้ถนนทุกสายที่ต่อถึง ต้องมีไฟฟ้า ตั้งริมแม่น้ำหรือบึงได้น้ำมากที่สุด ถ้าสูบหนักนาน ๆ น้ำใต้ดินรอบโรงจะลดลง` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.watertower` | `about.html` | — | `Water Tower: Stores water through the rains and gives it back in the dry season. Build it beside a road that carries water.` | `หอถังสูง: เก็บน้ำไว้ในหน้าฝน แล้วปล่อยออกมาช่วยในหน้าแล้ง ต้องตั้งติดถนนที่มีน้ำประปา` | คำอธิบายอาคาร |
 | `about.building.stadium` | `about.html` | `Stadium: After a day struggling...` | `Stadium: Large arena boosting resident morale, drawing spectators, and stimulating nearby commerce.` | `สนามกีฬาประจำเมือง: ศูนย์รวมการแข่งขันกีฬา ช่วยยกระดับความสุขประชาชนและกระตุ้นการค้าโดยรอบ` | คำอธิบายอาคาร |
@@ -786,6 +805,10 @@
 | `rules.cost.bulldozer` | `src/provinceRules.ts` | `-` | `Bulldozing costs {change}` | `ค่ารื้อถอน {change}` |  |
 | `rules.cost.waterworks` | `src/provinceRules.ts` | — | `Water works cost {change}` | `ราคาโรงผลิตน้ำประปา {change}` | (Claude Code 13 ต.ค. 2026) |
 | `rules.cost.watertower` | `src/provinceRules.ts` | — | `Water towers cost {change}` | `ราคาหอถังสูง {change}` |  |
+| `rules.cost.gas` | `src/provinceRules.ts` | — | `Gas power plants cost {change}` | `ราคาโรงไฟฟ้าก๊าซ {change}` | (Claude Code 13 ต.ค. 2026) |
+| `rules.cost.hydro` | `src/provinceRules.ts` | — | `Dams cost {change}` | `ราคาเขื่อน {change}` |  |
+| `rules.cost.solar` | `src/provinceRules.ts` | — | `Solar farms cost {change}` | `ราคาโซลาร์ฟาร์ม {change}` |  |
+| `rules.cost.wind` | `src/provinceRules.ts` | — | `Wind farms cost {change}` | `ราคาฟาร์มกังหันลม {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
 | `rules.power_output` | `src/provinceRules.ts` | `-` | `Power plants give {change}` | `โรงไฟฟ้าจ่ายไฟ {change}` |  |

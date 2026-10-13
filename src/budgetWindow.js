@@ -145,7 +145,11 @@ BudgetWindow.prototype.open = function(budgetData) {
   var currentFunds = previousFunds + cashFlow;
   // PhaiCity: what visitors spent is paid in with the taxes (src/tourism.ts); shown apart, and only where there is some
   var tourismIncome = budgetData.tourismIncome || 0;
-  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome));
+  // ... and what the power plants' fuel cost is taken from them (src/powerPlants.ts)
+  var fuelCost = budgetData.fuelCost || 0;
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome + fuelCost));
+  $('#fuelCost').text(formatMoney(fuelCost));
+  $('#fuelInfo').prop('hidden', fuelCost <= 0);
   $('#tourismIncome').text(formatMoney(tourismIncome));
   $('#tourismInfo').prop('hidden', tourismIncome <= 0);
   $('#cashFlow').text(formatMoney(cashFlow));

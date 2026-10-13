@@ -18,7 +18,7 @@ import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
-import { CityCommands, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { showDemandAndPeople, showTourism } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -38,7 +38,10 @@ import { MainMenuWindow } from './mainMenuWindow.js';
 import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
+import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
+import { setToolChoices } from './toolLevels.ts';
 import { showToolPrices } from './toolShortcuts.ts';
+import { POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -64,6 +67,8 @@ var disasterTimeout = 20 * 1000;
 // A tool outside the province: its outline turns this colour, and a click says why nothing happens
 var OUTSIDE_COLOUR = '#e0453a';
 var OUTSIDE_NOTE_MS = 2500;
+// The kinds of power plant's colours, for their squares until their icons are drawn (src/toolLevels.ts)
+var PLANT_COLOURS = {lignite: 'gray', gas: '#6f9fc4', hydro: '#2a7fd4', solar: '#e8b100', wind: '#7fc8b5'};
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
 var MILESTONES = {};
@@ -108,6 +113,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // The roads and railways the map started with, which are the state's (src/gameMap.js isNationalTransport)
     this.gameMap.nationalTransport = savedGame.national ?
       decodePresetLayer(savedGame.national, this.gameMap.width, this.gameMap.height) : null;
+    // What kind of power plant stands where (src/powerPlants.ts); plants from before the kinds are lignite
+    this.gameMap.powerKinds = Object.assign({}, savedGame.powerKinds || {});
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     this.gameMap.heights = savedGame.heights || null;
     this.gameMap.tileSizeM = savedGame.tileSizeM || null;
@@ -149,6 +156,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
   var simulation = this.simulation;
+  // What kind of power plant stands where (src/powerPlants.ts); a new city has none yet
+  var cityMap = this.gameMap;
+  cityMap.powerKinds = cityMap.powerKinds || {};
   this.commands = new CityCommands({
     width: this.gameMap.width,
     height: this.gameMap.height,
@@ -162,8 +172,24 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // For undo: the map to put back, and the time, as only recent building can be undone
     map: this.gameMap,
     cityTime: function() { return simulation._cityTime; },
-    canBuildAt: canBuildIn(this.gameMap)
+    canBuildAt: canBuildIn(this.gameMap),
+    // The kinds of power plant the province can build, dams beside water, and what was built where
+    resources: simulation.resources,
+    isWaterAt: function(x, y) {
+      if (!cityMap.testBounds(x, y))
+        return false;
+      var value = cityMap.getTileValue(x, y);
+      return value >= WATER_LOW && value <= WATER_HIGH;
+    },
+    setPowerKind: function(x, y, kind) {
+      cityMap.powerKinds[y * cityMap.width + x] = kind;
+    }
   });
+
+  // The power button's places above the tools are its kinds of plant; those the province cannot build wait
+  setToolChoices('coal', POWER_KINDS.map(function(kind) {
+    return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
+  }));
 
   // Sound only listens to the game; it never changes the city
   this.gameAudio = attachGameAudio(this, audio, Text);
@@ -251,7 +277,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       taxRate: this.simulation.budget.cityTax,
       totalFunds: this.simulation.budget.totalFunds,
       taxesCollected: this.simulation.budget.taxFund,
-      tourismIncome: this.simulation.budget.tourismIncome
+      tourismIncome: this.simulation.budget.tourismIncome,
+      fuelCost: this.simulation.budget.fuelCost
     };
 
     return [budgetData];
@@ -422,7 +449,8 @@ Game.prototype.save = function() {
                   // A whole-province map's own tiles and town (run-length encoded like the map)
                   inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
                   town: this.gameMap.town || undefined,
-                  national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined};
+                  national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined,
+                  powerKinds: plantsStanding(this.gameMap)};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -541,10 +569,25 @@ var createView3D = function(game, view3d) {
 // The one way the player changes the city (src/cityCommands.ts)
 Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
-  // Building outside the province is refused all the time, and says so where the player looks (handleTool)
-  if (!outcome.accepted && outcome.reason !== OUTSIDE_PROVINCE)
+  // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
+  // the player looks (handleTool)
+  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER].indexOf(outcome.reason) === -1)
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
+};
+
+
+// The kinds of the power plants still standing, by their centre tile, for the save (src/powerPlants.ts)
+var plantsStanding = function(gameMap) {
+  var kinds = {};
+  Object.keys(gameMap.powerKinds || {}).forEach(function(index) {
+    var i = Number(index);
+    var x = i % gameMap.width;
+    var y = (i - x) / gameMap.width;
+    if (gameMap.testBounds(x, y) && gameMap.getTileValue(x, y) === POWERPLANT)
+      kinds[index] = gameMap.powerKinds[index];
+  });
+  return kinds;
 };
 
 
@@ -715,6 +758,15 @@ Game.prototype.handleTool = function(data) {
     var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
                                      stroke: data.stroke});
     result = outcome.toolResult;
+    if (outcome.reason === NO_RESOURCE || outcome.reason === NEEDS_WATER) {
+      var kind = kindOfTool(toolName);
+      showCornerNote(outcome.reason === NEEDS_WATER ? t('tool.needs_water') :
+                     t('tool.no_resource', {plant: t('tool.' + toolName, {price: ''}).trim(),
+                                             resource: t('resource.level.' + (kind === 'wind' ? 'wind' : 'hydro'))}),
+                     OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
     if (outcome.reason === OUTSIDE_PROVINCE) {
       showCornerNote(t('tool.outside_province'), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
