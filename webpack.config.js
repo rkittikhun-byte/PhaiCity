@@ -20,7 +20,9 @@ const SUPPORT_FULLY_QUALIFIED_TS_ESM_IMPORTS = {
   ".cjs": [".cjs", ".cts"],
   ".mjs": [".mjs", ".mts"],
 };
-const HANDLE_TYPESCRIPT_WITH_TS_LOADER = { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader" };
+// Type errors are reported only for files in the bundle, so a test file never puts the dev server's error overlay over
+// the game
+const HANDLE_TYPESCRIPT_WITH_TS_LOADER = { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader", options: { onlyCompileBundledFiles: true } };
 
 const OUTPUT_DIRECTORY = 'dist';
 
@@ -194,7 +196,7 @@ function commonOptions() {
         {
           ...HANDLE_TYPESCRIPT_WITH_TS_LOADER,
           include: ES_MODULE_TYPESCRIPT,
-          options: { compilerOptions: { module: 'esnext', moduleResolution: 'node' } },
+          options: { onlyCompileBundledFiles: true, compilerOptions: { module: 'esnext', moduleResolution: 'node' } },
         },
       ],
     },
