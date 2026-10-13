@@ -384,5 +384,8 @@ Even before any server exists, all new code must keep this future possible:
    - CC0 sources (Poly Haven, ambientCG, Kenney, Freesound CC0, Natural Earth) are optional;
      list them on one credits page.
 8. No real brands or logos, no Garuda emblem or royal symbols, no Red Cross emblem.
-   No Buddha images and no religious buildings of any faith (temples, mosques, churches, Chinese shrines);
-   spirit houses are the only exception. No temple or palace roof ornaments on houses (ช่อฟ้า, ใบระกา, หางหงส์).
+   No Buddha images. **Thai Buddhist temples (วัด) are allowed as landmarks** (owner, 13 Oct 2026: "วัดเป็นที่พึ่งทาง
+   จิตใจของคนไทย และเป็น landmark ด้วย"): ordination hall, viharn, chedi, sala, bell tower, with ช่อฟ้า, ใบระกา and
+   หางหงส์ on temple buildings only; inspired by real temples, never replicas; fire and disasters reach them, but do
+   less harm. Other faiths' buildings (mosques, churches, Chinese shrines) wait for the owner; spirit houses are fine.
+   No temple or palace roof ornaments on houses or any other building.

@@ -110,9 +110,13 @@ So top-left = center − (1,1), and the model is placed at top-left + (N×10)/2.
 - Any real brand name or logo: convenience stores, gas stations, banks, airlines, metro/rail operators, shipping lines, car makers.
 - Liveries that resemble a real company, e.g. purple-and-gold like Thai Airways.
 - The Garuda emblem (ตราครุฑ), and any royal symbols or imagery.
-- Buddha images and religious buildings of any faith: temples, mosques, churches, Chinese shrines (ศาลเจ้า).
-  Out of scope for this phase. Spirit houses (ศาลพระภูมิ) are the only exception, as household props.
-- Temple and palace roof ornaments on houses: ช่อฟ้า, ใบระกา, หางหงส์.
+- Buddha images.
+- Religious buildings other than Thai Buddhist temples: mosques, churches, Chinese shrines (ศาลเจ้า) wait for the
+  owner. Spirit houses (ศาลพระภูมิ) are fine, as household props.
+- **Thai Buddhist temples (วัด) are allowed as landmarks** (owner, 13 Oct 2026): ordination hall (อุโบสถ), viharn,
+  chedi, sala, bell tower, walls and gates, drawn with respect and inspired by real temples, never replicas. ช่อฟ้า,
+  ใบระกา and หางหงส์ belong on temple buildings only. No Buddha images, inside or out.
+- Temple and palace roof ornaments on houses or any other building: ช่อฟ้า, ใบระกา, หางหงส์.
   Plain carved bargeboards (ป้านลม) and Lanna กาแล are fine.
 - The Red Cross emblem (red cross on white), which is protected by law.
   Use a "โรงพยาบาล" text sign or a green/blue "H" instead.

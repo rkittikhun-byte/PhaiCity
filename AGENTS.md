@@ -30,6 +30,7 @@ The most important rules, summarized from `CLAUDE.md`:
    - real brands
    - the Garuda emblem or royal symbols
    - the Red Cross emblem
-   - Buddha images and religious buildings of any faith (spirit houses are the only exception)
+   - Buddha images, and religious buildings other than Thai Buddhist temples, which are allowed as landmarks with
+     their roof ornaments on temple buildings only (owner, 13 Oct 2026; spirit houses are fine)
 6. External assets must be CC0 and recorded in `assets/CREDITS.md`.
    Map data comes only from Natural Earth and OpenStreetMap and is recorded in `data/CREDITS.md`.
