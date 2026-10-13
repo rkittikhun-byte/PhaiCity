@@ -52,6 +52,9 @@ var Budget = EventEmitter(function() {
   // ... and the farms' and harbours' sales (src/farming.ts)
   this.farmFund = 0;
   this.farmIncome = 0;
+  // ... and the tollways' tolls (src/roadLevels.ts)
+  this.tollFund = 0;
+  this.tollIncome = 0;
 
   // These values denote how much money is required to fully maintain the relevant services
   this.roadMaintenanceBudget = 0;
@@ -77,7 +80,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'policeSpend', 'fireSpend', 'roadMaintenanceBudget', 'policeMaintenanceBudget',
                  'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
-                 'farmFund', 'farmIncome'];
+                 'farmFund', 'farmIncome', 'tollFund', 'tollIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -96,6 +99,8 @@ Budget.prototype.load = function(saveData) {
   this.miningIncome = this.miningIncome || 0;
   this.farmFund = this.farmFund || 0;
   this.farmIncome = this.farmIncome || 0;
+  this.tollFund = this.tollFund || 0;
+  this.tollIncome = this.tollIncome || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -258,7 +263,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.fireMaintenanceBudget = census.fireStationPop * fireMaintenanceCost;
 
   // PhaiCity: the state pays for its own roads and railways (src/road.js, src/transport.js)
-  var roadCost = (census.roadTotal - (census.nationalRoadTotal || 0)) * roadMaintenanceCost;
+  // ... and the city's roads cost by their levels (src/roadLevels.ts)
+  var roadCost = (census.roadUpkeep !== undefined ? census.roadUpkeep :
+                  census.roadTotal - (census.nationalRoadTotal || 0)) * roadMaintenanceCost;
   var railCost = (census.railTotal - (census.nationalRailTotal || 0)) * railMaintenanceCost;
   this.roadMaintenanceBudget = Math.floor((roadCost + railCost) * RLevels[gameLevel]);
 
@@ -272,6 +279,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.farmIncome = Math.floor(this.farmFund);
   this.farmFund = 0;
   this.taxFund += this.farmIncome;
+  this.tollIncome = Math.floor(this.tollFund);
+  this.tollFund = 0;
+  this.taxFund += this.tollIncome;
   this.fuelCost = Math.round(census.plantFuel || 0);
   this.taxFund -= this.fuelCost;
 

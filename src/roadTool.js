@@ -16,8 +16,10 @@ import { BULLBIT, BURNBIT, CONDBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 
-var RoadTool = ConnectingTool(function(map) {
-  this.init(10, map, true, true);
+// PhaiCity: cost and level for the road levels (src/roadLevels.ts); the old road is laterite at ฿10 a tile
+var RoadTool = ConnectingTool(function(map, cost, level) {
+  this.init(cost || 10, map, true, true);
+  this.roadLevel = level || 1;
 });
 
 
@@ -34,7 +36,8 @@ RoadTool.prototype.layRoad = function(x, y) {
     case TileValues.RIVER:
     case TileValues.REDGE:
     case TileValues.CHANNEL:
-      cost = 50;
+      // A bridge costs five tiles of its road (PhaiCity: of its level)
+      cost = 5 * this.toolCost;
 
       if (x < this._map.width - 1) {
         tile = this._worldEffects.getTileValue(x + 1, y);

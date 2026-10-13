@@ -93,6 +93,14 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   lignite_mine: "about.building.mines",
   oil_well: "about.building.mines",
   farm: "about.building.farm",
+  road_asphalt: "about.infra.road_levels",
+  road_concrete2: "about.infra.road_levels",
+  road_concrete4: "about.infra.road_levels",
+  road_concrete6: "about.infra.road_levels",
+  road_concrete8: "about.infra.road_levels",
+  motorway: "about.infra.road_levels",
+  tollway: "about.infra.road_levels",
+  road_upgrade: "about.infra.road_levels",
   fishing: "about.building.fishing",
 };
 

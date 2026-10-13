@@ -92,6 +92,14 @@ const TOOL_SOUNDS: Record<string, string> = {
   lignite_mine: "tool.building",
   oil_well: "tool.building",
   farm: "tool.park",
+  road_asphalt: "tool.road",
+  road_concrete2: "tool.road",
+  road_concrete4: "tool.road",
+  road_concrete6: "tool.road",
+  road_concrete8: "tool.road",
+  motorway: "tool.road",
+  tollway: "tool.road",
+  road_upgrade: "tool.road",
   fishing: "tool.building",
 };
 

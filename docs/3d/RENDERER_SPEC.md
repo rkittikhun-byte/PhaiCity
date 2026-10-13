@@ -236,6 +236,21 @@ Two more 3×3 buildings (`docs/FARMING.md`), drawn from their tiles alone:
 
 - From February to April (the game's months 1–3) farms burn their stubble: thin smoke over farms in those months.
 
+## 6G. Road levels (added 13 Oct 2026)
+
+Every road tile now has a level (`docs/ROADS.md`). The tile values are unchanged (roads, bridges and their traffic
+variants); the map records the level, and the renderer only reads it.
+
+| Field | Meaning |
+|---|---|
+| `gameMap.roadLevels` | `Uint8Array`, one byte a tile (`x + y * width`): 1 laterite, 2 asphalt, 3 concrete 2 lanes, 4 concrete 4 lanes, 5 concrete 6 lanes, 6 concrete 8 lanes, 7 motorway, 8 tollway; 0 or a missing array means laterite. Read it only for road tiles: other tiles may hold an old value. Never write it. |
+
+- R5's `roadLevel` choice becomes per tile: draw each road tile at its own level. A junction of two levels joins
+  them at the wider one's edge. Bridges follow their level too.
+- Levels 3–6 are one tile wide in the game; show the lanes by markings and kerbs, wider levels with a central
+  reservation. Motorways have crash barriers and no kerbside access; tollways stand on piers (elevated) with a toll
+  plaza where they meet a road of another level.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

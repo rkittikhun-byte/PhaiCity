@@ -151,7 +151,12 @@ BudgetWindow.prototype.open = function(budgetData) {
   var miningIncome = budgetData.miningIncome || 0;
   // ... and the farms' and fishing harbours' sales (src/farming.ts)
   var farmIncome = budgetData.farmIncome || 0;
-  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome + fuelCost));
+  // ... and the tollways' tolls (src/roadLevels.ts)
+  var tollIncome = budgetData.tollIncome || 0;
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome +
+                                        fuelCost));
+  $('#tollIncome').text(formatMoney(tollIncome));
+  $('#tollInfo').prop('hidden', tollIncome <= 0);
   $('#farmIncome').text(formatMoney(farmIncome));
   $('#farmInfo').prop('hidden', farmIncome <= 0);
   $('#miningIncome').text(formatMoney(miningIncome));

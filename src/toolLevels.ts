@@ -28,6 +28,8 @@ export interface ToolChoice {
   available: boolean;
   /** Its colour, for the square shown until its icon is drawn */
   colour?: string;
+  /** What its place says in place of its price, a string key (the road upgrade: "one level at a time") */
+  note?: string;
 }
 
 const choices = new Map<string, readonly ToolChoice[]>();
@@ -87,7 +89,7 @@ export function installToolLevels(doc: Document = document): void {
       label.textContent = t(`choice.${choice.tool}`);
       const note = doc.createElement("span");
       note.className = "levelNote";
-      note.textContent = choice.available ? price : t("choice.unavailable");
+      note.textContent = !choice.available ? t("choice.unavailable") : choice.note ? t(choice.note) : price;
       slot.title = choice.available ? name : `${name}: ${t("choice.unavailable")}`;
       slot.append(icon, label, note);
       slot.addEventListener("click", () => {

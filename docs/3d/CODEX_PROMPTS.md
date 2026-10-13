@@ -18,6 +18,7 @@
    (**P1** โรงไฟฟ้าตามจังหวัด: ก๊าซ เขื่อน แสงอาทิตย์ และลม ส่งต่อจาก W1)
    (**M1** เหมืองและบ่อน้ำมัน ส่งต่อจาก P1)
    (**F1** ไร่นาตามภาค และท่าเรือประมง ส่งต่อจาก M1)
+   (**RD1** ถนนแต่ละระดับ: คอนกรีต มอเตอร์เวย์ ทางด่วน ส่งต่อจาก F1)
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1639,6 +1640,39 @@ Task:
 4. Icons: assets/icons/tools/farm and fishing (same style and pipeline as Prompts UI1/UI2).
 5. Gallery: the farm in all six regions, and the harbour; tests in test/render3d/ that the tiles resolve to the
    models, each region gets its crop, and the pier faces the water.
+
+Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots.
+```
+
+## Prompt RD1 — ถนนแต่ละระดับ: คอนกรีต มอเตอร์เวย์ และทางด่วน
+
+เจ้าของโปรเจคขอ (13 ต.ค. 2026): ถนนมี 8 ระดับ ลูกรัง ลาดยาง คอนกรีต 2/4/6/8 เลน มอเตอร์เวย์ และทางด่วน พร้อมปุ่มอัปเกรด
+ฝั่งเกม Claude Code ทำแล้ว (`docs/ROADS.md`) แผนที่บอกระดับทุกช่อง ส่งหลัง R5 (ซึ่งทำถนนลูกรังกับลาดยางไว้แล้ว)
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md, docs/3d/RENDERER_SPEC.md (section 6G is new) and docs/ROADS.md in full before
+starting, and follow their rules (your paths only).
+
+Context: gameMap.roadLevels is a Uint8Array, one byte a tile: 1 laterite, 2 asphalt, 3-6 concrete with 2, 4, 6 and
+8 lanes, 7 motorway, 8 tollway (0 or missing: laterite). Read it only for road tiles. Prompt R5 made laterite and
+asphalt sets with a selectable roadLevel; now the level comes from each tile.
+
+Task:
+1. Road sets (tier R3 national, the same masks and junctions as today's roads, bridges included):
+   a. concrete 2 lanes: pale concrete slabs with joints, painted centre line, kerbs;
+   b. concrete 4, 6 and 8 lanes: the same tile width, more lane lines, a raised central reservation from 6 lanes,
+      street lights on the reservation at 8;
+   c. motorway: dark asphalt, crash barriers on both edges and a median barrier, overhead sign gantries now and then
+      (signs in Thai, no brands), no kerbside entrances;
+   d. tollway: elevated on concrete piers about one storey up, with a toll plaza of booths where a tollway tile meets
+      a road tile of another level; the ground under it stays drawn.
+2. City view: draw each road tile by its level from gameMap.roadLevels; where two levels meet, join them at the wider
+   one's edge. Traffic animation and vehicles keep working on every level.
+3. Icons: assets/icons/tools/road_asphalt, road_concrete2, road_concrete4, road_concrete6, road_concrete8, motorway,
+   tollway and road_upgrade (an arrow up over a road), same style as UI1/UI2.
+4. Gallery: every level straight, in a junction and on a bridge; tests in test/render3d/ that each level resolves to
+   its set, a missing roadLevels draws laterite, and tollway tiles are elevated.
 
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots.

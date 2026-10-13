@@ -16,6 +16,7 @@ import { Tile } from "./tile.ts";
 import { ANIMBIT, BIT_MASK, BULLBIT } from "./tileFlags.ts";
 import * as TileValues from "./tileValues.ts";
 import { TileUtils } from './tileUtils.js';
+import { roadLevelAt, roadSpec } from './roadLevels.ts';
 
 var openBridge = function(map, origX, origY, xDelta, yDelta, oldTiles, newTiles) {
   for (var i = 0; i < 7; i++) {
@@ -118,8 +119,12 @@ var roadFound = function(map, x, y, simData) {
   var national = map.isNationalTransport(x, y);
   var before = simData.census.roadTotal;
   roadTile(map, x, y, simData, national);
+  var counted = simData.census.roadTotal - before;
   if (national)
-    simData.census.nationalRoadTotal += simData.census.roadTotal - before;
+    simData.census.nationalRoadTotal += counted;
+  else
+    // PhaiCity: the upkeep by the road's level (src/roadLevels.ts): laterite costs half, a motorway six times as much
+    simData.census.roadUpkeep += counted * roadSpec(roadLevelAt(map, x, y)).upkeep;
 };
 
 

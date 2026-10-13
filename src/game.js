@@ -43,6 +43,7 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { setToolChoices } from './toolLevels.ts';
 import { showToolPrices } from './toolShortcuts.ts';
 import { MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -119,6 +120,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.powerKinds = Object.assign({}, savedGame.powerKinds || {});
     // ... and what each mine digs (src/mining.ts)
     this.gameMap.mineKinds = Object.assign({}, savedGame.mineKinds || {});
+    // ... and each road's level (src/roadLevels.ts); roads from before the levels are laterite
+    this.gameMap.roadLevels = savedGame.roadLevels ?
+      decodePresetLayer(savedGame.roadLevels, this.gameMap.width, this.gameMap.height) : null;
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     this.gameMap.heights = savedGame.heights || null;
     this.gameMap.tileSizeM = savedGame.tileSizeM || null;
@@ -164,6 +168,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   var cityMap = this.gameMap;
   cityMap.powerKinds = cityMap.powerKinds || {};
   cityMap.mineKinds = cityMap.mineKinds || {};
+  cityMap.roadLevels = cityMap.roadLevels || newRoadLevels(cityMap.width, cityMap.height);
   this.commands = new CityCommands({
     width: this.gameMap.width,
     height: this.gameMap.height,
@@ -191,6 +196,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     },
     setMineKind: function(x, y, kind) {
       cityMap.mineKinds[y * cityMap.width + x] = kind;
+    },
+    setRoadLevel: function(x, y, level) {
+      cityMap.roadLevels[y * cityMap.width + x] = level;
     }
   });
 
@@ -198,6 +206,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   setToolChoices('coal', POWER_KINDS.map(function(kind) {
     return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
   }));
+  // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
+  setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
+    .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
   // The mine button's places are the ores the province has; those it lacks are left out
   setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
     .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
@@ -291,7 +302,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       tourismIncome: this.simulation.budget.tourismIncome,
       fuelCost: this.simulation.budget.fuelCost,
       miningIncome: this.simulation.budget.miningIncome,
-      farmIncome: this.simulation.budget.farmIncome
+      farmIncome: this.simulation.budget.farmIncome,
+      tollIncome: this.simulation.budget.tollIncome
     };
 
     return [budgetData];
@@ -464,7 +476,8 @@ Game.prototype.save = function() {
                   town: this.gameMap.town || undefined,
                   national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined,
                   powerKinds: plantsStanding(this.gameMap, 'powerKinds', POWERPLANT),
-                  mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE)};
+                  mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE),
+                  roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 

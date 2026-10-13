@@ -24,6 +24,7 @@ import { RailTool } from './railTool.js';
 import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
 import { WaterTowerTool } from './waterTowerTool.ts';
+import { RoadUpgradeTool } from './roadLevels.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -63,6 +64,15 @@ function GameTools(map, rules) {
     rail: new RailTool(map),
     residential: new BuildingTool(100, TileValues.FREEZ, map, 3, false),
     road: new RoadTool(map),
+    // PhaiCity: the road levels and the upgrade tool (src/roadLevels.ts)
+    road_asphalt: new RoadTool(map, 20, 2),
+    road_concrete2: new RoadTool(map, 30, 3),
+    road_concrete4: new RoadTool(map, 50, 4),
+    road_concrete6: new RoadTool(map, 80, 5),
+    road_concrete8: new RoadTool(map, 120, 6),
+    motorway: new RoadTool(map, 200, 7),
+    tollway: new RoadTool(map, 250, 8),
+    road_upgrade: new RoadUpgradeTool(map),
     query: new QueryTool(map),
     stadium: new BuildingTool(5000, TileValues.STADIUM, map, 4, false),
     // PhaiCity: the water supply (src/waterManager.ts)

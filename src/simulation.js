@@ -31,6 +31,7 @@ import { plantPollution, powerKindAt } from './powerPlants.ts';
 import { COALBASE, FARM, HARBOUR, MINE } from './tileValues.ts';
 import { Mining } from './mining.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
+import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -56,7 +57,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // The pollution on each tile of a power plant, by the kind built there (src/powerPlants.ts)
   var map = gameMap;
   this._extraPollution = function(x, y, tileValue) {
-    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y);
+    // ... and the dust or noise of a road by its level (src/roadLevels.ts)
+    var road = isRoadTile(tileValue) ? roadSpec(roadLevelAt(map, x, y)).noise : 0;
+    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road;
   }.bind(this);
   this._plantPollution = function(x, y, tileValue) {
     var index = tileValue - COALBASE;
@@ -440,6 +443,8 @@ var simulate = function(simData) {
         this._tourismMonth();
         this._miningMonth();
         this._farmingMonth();
+        // ... and the tollways' tolls (src/roadLevels.ts)
+        this.budget.tollFund += tollsThisMonth(this._map, this.blockMaps.trafficDensityMap);
       }
 
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)

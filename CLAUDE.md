@@ -226,7 +226,12 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   **Farms and fishing harbours** (`docs/FARMING.md`, `src/farming.ts`): 3×3 buildings (974–982, 983–991) where the
   province has farmland or fishing; farms sell their crop, ask for farm-goods factories, pump groundwater, seep
   chemicals and burn stubble into haze from February to April; harbours sell their catch, ask for markets and use
-  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts.
+- **Road levels (ชนิดถนน, owner 13 Oct 2026):** `docs/ROADS.md`, `src/roadLevels.ts`. Eight levels, laterite to tollway,
+  chosen above the road button, with an upgrade tool that raises a road one level for the difference. The map keeps
+  each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads
+  fill with traffic more slowly but cost more upkeep (`census.roadUpkeep`); motorways and tollways give zones no way
+  in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`). **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

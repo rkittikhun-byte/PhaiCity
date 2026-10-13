@@ -16,6 +16,7 @@
 
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
+import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -24,7 +25,8 @@ export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
   "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
   "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
-  "oil_well", "farm", "fishing",
+  "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
+  "motorway", "tollway", "road_upgrade",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -79,6 +81,10 @@ interface CommandTool {
   powerKind?: string;
   /** The kind of mine it digs (src/mining.ts) */
   mineKind?: string;
+  /** The level of the roads it lays (src/roadLevels.ts) */
+  roadLevel?: number;
+  /** It changes what undo cannot put back (the road upgrade tool) */
+  noUndo?: boolean;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -128,6 +134,8 @@ export interface CommandTarget {
   setPowerKind?(x: number, y: number, kind: string): void;
   /** Records the kind of mine dug at (x, y), its centre (src/mining.ts). */
   setMineKind?(x: number, y: number, kind: string): void;
+  /** Records the level of a road just laid at (x, y) (src/roadLevels.ts). */
+  setRoadLevel?(x: number, y: number, level: number): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -244,7 +252,15 @@ export class CityCommands {
         const applied = tool.modifyIfEnoughFunding(city.budget);
         if (applied && tool.powerKind) city.setPowerKind?.(command.x, command.y, tool.powerKind);
         if (applied && tool.mineKind) city.setMineKind?.(command.x, command.y, tool.mineKind);
-        if (applied && map) {
+        // Roads laid where there were none take the tool's level; roads already there keep theirs
+        if (applied && map && tool.roadLevel) {
+          for (const c of before) {
+            if (!isRoadTile(c.before & BIT_MASK) && isRoadTile(map.getTile(c.x, c.y).getRawValue() & BIT_MASK)) {
+              city.setRoadLevel?.(c.x, c.y, tool.roadLevel);
+            }
+          }
+        }
+        if (applied && map && !tool.noUndo) {
           const changes = before.map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
             .filter((c) => c.after !== c.before);
           const cost = fundsBefore - city.budget.totalFunds;

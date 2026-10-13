@@ -136,6 +136,14 @@
 | `tool.oil_well` | `src/toolLevels.ts` | — | `Oil and Gas Well {price}` | `บ่อน้ำมันและก๊าซ {price}` |  |
 | `tool.farm` | `index.html` | — | `Farm {price}` | `ไร่นา {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026) |
 | `tool.fishing` | `index.html` | — | `Fishing Harbour {price}` | `ท่าเรือประมง {price}` | อาคาร 3x3 ติดน้ำ |
+| `tool.road_asphalt` | `src/toolLevels.ts` | — | `Asphalt Road {price}` | `ถนนลาดยาง {price}` | ต่อช่อง เลือกในการ์ดเหนือปุ่มถนน (Claude Code 13 ต.ค. 2026) |
+| `tool.road_concrete2` | `src/toolLevels.ts` | — | `Concrete Road, 2 lanes {price}` | `ถนนคอนกรีต 2 เลน {price}` |  |
+| `tool.road_concrete4` | `src/toolLevels.ts` | — | `Concrete Road, 4 lanes {price}` | `ถนนคอนกรีต 4 เลน {price}` |  |
+| `tool.road_concrete6` | `src/toolLevels.ts` | — | `Concrete Road, 6 lanes {price}` | `ถนนคอนกรีต 6 เลน {price}` |  |
+| `tool.road_concrete8` | `src/toolLevels.ts` | — | `Concrete Road, 8 lanes {price}` | `ถนนคอนกรีต 8 เลน {price}` |  |
+| `tool.motorway` | `src/toolLevels.ts` | — | `Motorway {price}` | `มอเตอร์เวย์ {price}` |  |
+| `tool.tollway` | `src/toolLevels.ts` | — | `Tollway {price}` | `ทางด่วน {price}` |  |
+| `tool.road_upgrade` | `src/toolLevels.ts` | — | `Upgrade Road {price}` | `อัปเกรดถนน {price}` | ลากผ่านถนน ขึ้นทีละระดับ จ่ายส่วนต่าง |
 | `tool.needs_water_harbour` | `src/game.js` | — | `A fishing harbour must stand beside water` | `ท่าเรือประมงต้องตั้งติดน้ำ` |  |
 | `choice.title.coal` | `src/toolLevels.ts` | — | `Power plant: choose its kind` | `โรงไฟฟ้า: เลือกชนิด` | หัวการ์ดเหนือแถบเครื่องมือ |
 | `choice.coal` | `src/toolLevels.ts` | — | `Lignite` | `ลิกไนต์` | ชื่อสั้นในช่องเลือก |
@@ -154,6 +162,17 @@
 | `choice.rare_earth_mine` | `src/toolLevels.ts` | — | `Rare earths` | `แร่หายาก` |  |
 | `choice.lignite_mine` | `src/toolLevels.ts` | — | `Lignite` | `ลิกไนต์` |  |
 | `choice.oil_well` | `src/toolLevels.ts` | — | `Oil` | `น้ำมัน` |  |
+| `choice.title.road` | `src/toolLevels.ts` | — | `Road: choose its level` | `ถนน: เลือกระดับ` | (Claude Code 13 ต.ค. 2026) |
+| `choice.road` | `src/toolLevels.ts` | — | `Laterite` | `ลูกรัง` | ระดับ 1 |
+| `choice.road_asphalt` | `src/toolLevels.ts` | — | `Asphalt` | `ลาดยาง` |  |
+| `choice.road_concrete2` | `src/toolLevels.ts` | — | `2 lanes` | `คอนกรีต 2` |  |
+| `choice.road_concrete4` | `src/toolLevels.ts` | — | `4 lanes` | `4 เลน` |  |
+| `choice.road_concrete6` | `src/toolLevels.ts` | — | `6 lanes` | `6 เลน` |  |
+| `choice.road_concrete8` | `src/toolLevels.ts` | — | `8 lanes` | `8 เลน` |  |
+| `choice.motorway` | `src/toolLevels.ts` | — | `Motorway` | `มอเตอร์เวย์` |  |
+| `choice.tollway` | `src/toolLevels.ts` | — | `Tollway` | `ทางด่วน` |  |
+| `choice.road_upgrade` | `src/toolLevels.ts` | — | `Upgrade` | `อัปเกรด` |  |
+| `choice.upgrade_note` | `src/toolLevels.ts` | — | `one level up` | `ขึ้นทีละขั้น` | แทนราคาในช่องอัปเกรด |
 | `choice.unavailable` | `src/toolLevels.ts` | — | `Not in this province` | `ไม่มีในจังหวัดนี้` | ช่องที่จังหวัดสร้างไม่ได้ |
 | `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
 | `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
@@ -175,6 +194,7 @@
 | `budget.fuel` | `index.html` | — | `Power plant fuel: ` | `ค่าเชื้อเพลิงโรงไฟฟ้า: ` | ลิกไนต์และก๊าซ แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.farming` | `index.html` | — | `Farms and fishing: ` | `รายได้จากเกษตรและประมง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
+| `budget.tolls` | `index.html` | — | `Tolls: ` | `ค่าผ่านทางด่วน: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.cashflow` | `index.html` | `Cashflow: ` | `Net Cashflow: ` | `กระแสเงินสดสุทธิ: ` | กำไร/ขาดทุนสุทธิ |
 | `budget.previous_funds` | `index.html` | `Previous funds: ` | `Previous Balance: ` | `เงินคลังปีก่อน: ` | ยอดยกมา |
 | `budget.current_funds` | `index.html` | `Current funds: ` | `Current Balance: ` | `เงินคลังปัจจุบัน: ` | ยอดยกไป |
@@ -618,6 +638,7 @@
 | `about.building.port` | `about.html` | `Seaport: Making stuff is hard work!...` | `Seaport: Coastal or riverside terminal vital for waterborne logistics and industrial freight.` | `ท่าเรือพาณิชย์: ประตูระบายสินค้าทางน้ำริมฝั่งแม่น้ำและทะเล จำเป็นต่อการเติบโตของภาคอุตสาหกรรม` | คำอธิบายอาคาร |
 | `about.building.park` | `about.html` | `Park: Sometimes you need to get away...` | `Park: Green sanctuaries improving air quality, community well-being, and surrounding land values.` | `สวนสาธารณะ: พื้นที่สีเขียวร่มรื่น ฟอกอากาศบริสุทธิ์ ช่วยเพิ่มความสุขและเพิ่มราคาที่ดินรอบข้าง` | คำอธิบายอาคาร |
 | `about.infra.road_rail` | `about.html` | `Road, Rail: Your citizens are going places...` | `Roads & Railways: Connect zones so citizens can commute and raw materials can reach markets.` | `ถนนและทางรถไฟ: เส้นทางสัญจรเชื่อมต่อเมือง เพื่อให้ประชาชนเดินทางสะดวกและสินค้ากระจายได้ทั่วถึง` | คำอธิบายโครงสร้าง |
+| `about.infra.road_levels` | `about.html` | — | `Road levels: choose above the Road button: laterite (cheap, dusty, jams first), asphalt, concrete with 2, 4, 6 or 8 lanes (each takes more traffic and costs more to keep), a motorway or a tollway (the most traffic, but no driveways for the zones beside them; a tollway takes tolls). Upgrade raises a road one level for the difference.` | `ระดับถนน: เลือกในการ์ดเหนือปุ่มถนน ลูกรัง (ถูก ฝุ่นเยอะ รถติดก่อน) ลาดยาง คอนกรีต 2 4 6 หรือ 8 เลน (ยิ่งกว้างยิ่งรับรถได้มากและค่าบำรุงสูง) มอเตอร์เวย์และทางด่วน (รับรถได้มากที่สุด แต่เขตข้าง ๆ ใช้เป็นทางเข้าไม่ได้ ทางด่วนเก็บค่าผ่านทาง) ปุ่มอัปเกรดยกถนนขึ้นทีละระดับ จ่ายแค่ส่วนต่าง` | คำอธิบาย (Claude Code 13 ต.ค. 2026) |
 | `about.infra.wire` | `about.html` | `Wire: Plug your citizens into the matrix...` | `Power Lines: Distribute electricity from power plants across rivers and undeveloped corridors.` | `สายไฟฟ้า: ส่งจ่ายกระแสไฟฟ้าจากโรงไฟฟ้าข้ามแม่น้ำและพื้นที่ว่างไปยังทุกย่านของเมือง` | คำอธิบายโครงสร้าง |
 | `about.tips.title` | `about.html` | `Tips` | `Ruler's Advice` | `ข้อแนะนำสำหรับเจ้าเมือง` | หัวข้อคำแนะนำ |
 | `about.tips.body1` | `about.html` | `If you're starting to run out of money...` | `Balance the yearly budget every January. Adjust taxes and service funds carefully—cutting too deep deteriorates roads and public safety.` | `จัดสรรงบประมาณเมืองทุกเดือนมกราคม ปรับภาษีและงบซ่อมบำรุงให้สมดุล การตัดงบมากไปจะทำให้ถนนพังและอาชญากรรมเพิ่ม` | คำแนะนำงบประมาณ |
@@ -860,6 +881,14 @@
 | `rules.cost.oil_well` | `src/provinceRules.ts` | — | `Oil and gas wells cost {change}` | `ราคาบ่อน้ำมันและก๊าซ {change}` |  |
 | `rules.cost.farm` | `src/provinceRules.ts` | — | `Farms cost {change}` | `ราคาไร่นา {change}` | (Claude Code 13 ต.ค. 2026) |
 | `rules.cost.fishing` | `src/provinceRules.ts` | — | `Fishing harbours cost {change}` | `ราคาท่าเรือประมง {change}` |  |
+| `rules.cost.road_asphalt` | `src/provinceRules.ts` | — | `Asphalt Road costs {change}` | `ราคาถนนลาดยาง {change}` | (Claude Code 13 ต.ค. 2026) |
+| `rules.cost.road_concrete2` | `src/provinceRules.ts` | — | `Concrete Road, 2 lanes costs {change}` | `ราคาถนนคอนกรีต 2 เลน {change}` |  |
+| `rules.cost.road_concrete4` | `src/provinceRules.ts` | — | `Concrete Road, 4 lanes costs {change}` | `ราคาถนนคอนกรีต 4 เลน {change}` |  |
+| `rules.cost.road_concrete6` | `src/provinceRules.ts` | — | `Concrete Road, 6 lanes costs {change}` | `ราคาถนนคอนกรีต 6 เลน {change}` |  |
+| `rules.cost.road_concrete8` | `src/provinceRules.ts` | — | `Concrete Road, 8 lanes costs {change}` | `ราคาถนนคอนกรีต 8 เลน {change}` |  |
+| `rules.cost.motorway` | `src/provinceRules.ts` | — | `Motorway costs {change}` | `ราคามอเตอร์เวย์ {change}` |  |
+| `rules.cost.tollway` | `src/provinceRules.ts` | — | `Tollway costs {change}` | `ราคาทางด่วน {change}` |  |
+| `rules.cost.road_upgrade` | `src/provinceRules.ts` | — | `Road upgrades cost {change}` | `ค่าอัปเกรดถนน {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
 | `rules.power_output` | `src/provinceRules.ts` | `-` | `Power plants give {change}` | `โรงไฟฟ้าจ่ายไฟ {change}` |  |

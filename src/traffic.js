@@ -19,6 +19,7 @@ import { SPRITE_HELICOPTER } from './spriteConstants.ts';
 import { SpriteUtils } from './spriteUtils.js';
 import { TileUtils } from './tileUtils.js';
 import { DIRT, POWERBASE, ROADBASE } from "./tileValues.ts";
+import { isRoadTile, roadLevelAt, roadSpec, servesZones } from './roadLevels.ts';
 
 function Traffic(map, spriteManager) {
   this._map = map;
@@ -60,7 +61,8 @@ Traffic.prototype.addToTrafficDensityMap = function(blockMaps) {
     if (tileValue >= ROADBASE && tileValue < POWERBASE) {
       // Update traffic density.
       var traffic = trafficDensityMap.worldGet(pos.x, pos.y);
-      traffic += 50;
+      // PhaiCity: a wider road fills more slowly (src/roadLevels.ts)
+      traffic += Math.round(50 * roadSpec(roadLevelAt(this._map, pos.x, pos.y)).load);
       traffic = Math.min(traffic, 240);
       trafficDensityMap.worldSet(pos.x, pos.y, traffic);
 
@@ -86,7 +88,9 @@ Traffic.prototype.findPerimeterRoad = function(pos) {
     var yy = pos.y + perimY[i];
 
     if (this._map.testBounds(xx, yy)) {
-      if (TileUtils.isDriveable(this._map.getTileValue(xx, yy))) {
+      // PhaiCity: motorways and tollways have no driveways for the zones beside them (src/roadLevels.ts)
+      var value = this._map.getTileValue(xx, yy);
+      if (TileUtils.isDriveable(value) && (!isRoadTile(value) || servesZones(roadLevelAt(this._map, xx, yy)))) {
         pos.x = xx;
         pos.y = yy;
         return true;
@@ -102,17 +106,19 @@ var MAX_TRAFFIC_DISTANCE = 30;
 
 Traffic.prototype.tryDrive = function(startPos, destFn) {
   var dirLast;
-  var drivePos = new Position(startPos);
+  // PhaiCity: a position is made from its x and y; the port passed a whole position, and moved an undefined one, so
+  // no car ever left its zone and the roads never carried traffic
+  var drivePos = new Position(startPos.x, startPos.y);
 
   /* Maximum distance to try */
   for (var dist = 0; dist < MAX_TRAFFIC_DISTANCE; dist++) {
     var  dir = this.tryGo(drivePos, dirLast);
     if (dir) {
-      drivePos = Position.move(pos, dir);
+      drivePos = Position.move(drivePos, dir);
       dirLast = dir.oppositeDirection();
 
       if (dist & 1)
-        this._stack.push(new Position(drivePos));
+        this._stack.push(new Position(drivePos.x, drivePos.y));
 
       if (this.driveDone(drivePos, destFn))
         return true;
