@@ -62,6 +62,9 @@ var cityScale = function(provinceId) {
 var mapUrl = function(provinceId, city) {
   return 'data/maps/' + (city ? 'city/' : '') + provinceId + '.json';
 };
+var districtUrl = function(districtId) {
+  return 'data/maps/district/' + districtId + '.json';
+};
 
 
 var fetchJson = function(url) {
@@ -129,10 +132,12 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 // Builds the province's real-geography map and starts the city on it. We won't return from here.
 // A whole-province map (format 2) also brings its railways and roads to the neighbours, which tiles are in the
 // province (only those can be built on) and the town the camera starts at (docs/geo/GEO_SPEC.md section 10).
-var startProvince = function(provinceId, cityName, difficulty) {
+// districtId (owner 13 Oct 2026, Khon Kaen first): the district whose town the city stands in, on its own real-scale
+// map (data/maps/district/<id>.json, npm run geo:city -- --districts)
+var startProvince = function(provinceId, cityName, difficulty, districtId) {
   var self = this;
 
-  fetchJson(mapUrl(provinceId, cityScale(provinceId))).then(function(preset) {
+  fetchJson(districtId ? districtUrl(districtId) : mapUrl(provinceId, cityScale(provinceId))).then(function(preset) {
     var layer = function(encoded) {
       return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
     };
@@ -143,6 +148,7 @@ var startProvince = function(provinceId, cityName, difficulty) {
     map.insideProvince = layer(preset.inside);
     map.town = preset.town || null;
     map.provinceId = provinceId;
+    map.districtId = preset.districtId || null;
     map.tileSizeM = preset.tileSizeM || null;
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);
@@ -239,6 +245,12 @@ var savedCityHeights = function(map) {
     map.tileSizeM = preset.tileSizeM || null;
     return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
   };
+  // ... and a district's city from its district's map
+  if (map.districtId) {
+    return fetchJson(districtUrl(map.districtId)).then(heightsFrom).catch(function(error) {
+      console.warn('No heights for ' + map.districtId + ': ' + error.message);
+    });
+  }
   return fetchJson(mapUrl(map.provinceId, false)).then(function(preset) {
     if (preset.width !== map.width || preset.height !== map.height)
       return fetchJson(mapUrl(map.provinceId, true)).then(function(city) {

@@ -30,6 +30,7 @@
     "geo:extract": "node scripts/geo/osmExtract.mjs",
     "geo:maps": "node scripts/geo/maps.mjs",
     "geo:city": "node scripts/geo/cityMaps.mjs",
+    "geo:districts": "node scripts/geo/districts.mjs",
     "geo:review": "webpack serve --mode development --open /geo-review.html",
     "test:geo": "node --test \"test/geo/*.test.mjs\"",
     "test:server": "npm --prefix server test",

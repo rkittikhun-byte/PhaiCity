@@ -1,0 +1,160 @@
+{
+  "TH-40": [
+    {
+      "id": "TH-40-mueang-khon-kaen",
+      "nameTh": "เมืองขอนแก่น",
+      "nameEn": "Mueang Khon Kaen",
+      "areaKm2": 985
+    },
+    {
+      "id": "TH-40-kranuan",
+      "nameTh": "กระนวน",
+      "nameEn": "Kranuan",
+      "areaKm2": 478.9
+    },
+    {
+      "id": "TH-40-khao-suan-kwang",
+      "nameTh": "เขาสวนกวาง",
+      "nameEn": "Khao Suan Kwang",
+      "areaKm2": 356.3
+    },
+    {
+      "id": "TH-40-khok-pho-chai",
+      "nameTh": "โคกโพธิ์ไชย",
+      "nameEn": "Khok Pho Chai",
+      "areaKm2": 259.7
+    },
+    {
+      "id": "TH-40-chonnabot",
+      "nameTh": "ชนบท",
+      "nameEn": "Chonnabot",
+      "areaKm2": 318.4
+    },
+    {
+      "id": "TH-40-chum-phae",
+      "nameTh": "ชุมแพ",
+      "nameEn": "Chum Phae",
+      "areaKm2": 669.7
+    },
+    {
+      "id": "TH-40-sam-sung",
+      "nameTh": "ซำสูง",
+      "nameEn": "Sam Sung",
+      "areaKm2": 194.2
+    },
+    {
+      "id": "TH-40-nam-phong",
+      "nameTh": "น้ำพอง",
+      "nameEn": "Nam Phong",
+      "areaKm2": 741.9
+    },
+    {
+      "id": "TH-40-non-sila",
+      "nameTh": "โนนศิลา",
+      "nameEn": "Non Sila",
+      "areaKm2": 181.4
+    },
+    {
+      "id": "TH-40-ban-phai",
+      "nameTh": "บ้านไผ่",
+      "nameEn": "Ban Phai",
+      "areaKm2": 497
+    },
+    {
+      "id": "TH-40-ban-fang",
+      "nameTh": "บ้านฝาง",
+      "nameEn": "Ban Fang",
+      "areaKm2": 341.6
+    },
+    {
+      "id": "TH-40-ban-haet",
+      "nameTh": "บ้านแฮด",
+      "nameEn": "Ban Haet",
+      "areaKm2": 217.9
+    },
+    {
+      "id": "TH-40-pueai-noi",
+      "nameTh": "เปือยน้อย",
+      "nameEn": "Pueai Noi",
+      "areaKm2": 138.1
+    },
+    {
+      "id": "TH-40-phra-yuen",
+      "nameTh": "พระยืน",
+      "nameEn": "Phra Yuen",
+      "areaKm2": 222.9
+    },
+    {
+      "id": "TH-40-phon",
+      "nameTh": "พล",
+      "nameEn": "Phon",
+      "areaKm2": 449.1
+    },
+    {
+      "id": "TH-40-phu-pha-man",
+      "nameTh": "ภูผาม่าน",
+      "nameEn": "Phu Pha Man",
+      "areaKm2": 305
+    },
+    {
+      "id": "TH-40-phu-wiang",
+      "nameTh": "ภูเวียง",
+      "nameEn": "Phu Wiang",
+      "areaKm2": 599.5
+    },
+    {
+      "id": "TH-40-mancha-khiri",
+      "nameTh": "มัญจาคีรี",
+      "nameEn": "Mancha Khiri",
+      "areaKm2": 675.1
+    },
+    {
+      "id": "TH-40-wiang-kao",
+      "nameTh": "เวียงเก่า",
+      "nameEn": "Wiang Kao",
+      "areaKm2": 312.9
+    },
+    {
+      "id": "TH-40-waeng-noi",
+      "nameTh": "แวงน้อย",
+      "nameEn": "Waeng Noi",
+      "areaKm2": 292
+    },
+    {
+      "id": "TH-40-waeng-yai",
+      "nameTh": "แวงใหญ่",
+      "nameEn": "Waeng Yai",
+      "areaKm2": 227.7
+    },
+    {
+      "id": "TH-40-si-chomphu",
+      "nameTh": "สีชมพู",
+      "nameEn": "Si Chomphu",
+      "areaKm2": 525.7
+    },
+    {
+      "id": "TH-40-nong-na-kham",
+      "nameTh": "หนองนาคำ",
+      "nameEn": "Nong Na Kham",
+      "areaKm2": 174.9
+    },
+    {
+      "id": "TH-40-nong-ruea",
+      "nameTh": "หนองเรือ",
+      "nameEn": "Nong Ruea",
+      "areaKm2": 527.7
+    },
+    {
+      "id": "TH-40-nong-song-hong",
+      "nameTh": "หนองสองห้อง",
+      "nameEn": "Nong Song Hong",
+      "areaKm2": 512.5
+    },
+    {
+      "id": "TH-40-ubolratana",
+      "nameTh": "อุบลรัตน์",
+      "nameEn": "Ubolratana",
+      "areaKm2": 407.2
+    }
+  ]
+}

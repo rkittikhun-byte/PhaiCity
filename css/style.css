@@ -1272,6 +1272,9 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppLevel input:checked + span { background: rgba(246, 215, 122, 0.18); border-color: #f6d77a; color: #f6d77a; }
 #provincePicker .ppLevel input:focus-visible + span { outline: 2px solid #f6d77a; }
 #provincePicker .ppField { display: block; margin-top: 14px; }
+#provincePicker .ppDistrict { width: 100%; box-sizing: border-box; padding: 6px 10px; font: inherit; color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; background: rgba(255, 255, 255, 0.07); }
+#provincePicker .ppDistrict option { color: #10201a; }
 #provincePicker .ppField span { display: block; font-size: 9px; color: #93a79f; margin-bottom: 4px; }
 #provincePicker .ppName { width: 100%; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 11px; color: #ffffff;
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; }

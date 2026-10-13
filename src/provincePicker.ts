@@ -54,6 +54,16 @@ interface PickerData {
   rules: RulesData | null;
   /** Each province's resources (src/geo/provinceResources.ts); null when the files could not be read. */
   resources: { indicators: Record<string, Indicators>; measured: Record<string, Levels>; profiles: ProfilesData } | null;
+  /** The districts a city can start in, by province (data/maps/district/index.json); null when none have maps yet. */
+  districts: Record<string, District[]> | null;
+}
+
+/** A district with a city map of its own (npm run geo:city -- --districts; owner 13 Oct 2026, Khon Kaen first) */
+interface District {
+  id: string;
+  nameTh: string;
+  nameEn: string;
+  areaKm2: number;
 }
 
 interface Scene {
@@ -68,8 +78,8 @@ interface Scene {
 export interface StartActions {
   /** Saved cities, most recent first (src/cityStorage.ts) */
   cities: CityMeta[];
-  /** difficulty is a Simulation level: 0 easy, 1 medium, 2 hard */
-  start(provinceId: string, cityName: string, difficulty: number): void;
+  /** difficulty is a Simulation level: 0 easy, 1 medium, 2 hard; districtId, the district whose town it stands in */
+  start(provinceId: string, cityName: string, difficulty: number, districtId?: string): void;
   continueCity(id: string): void;
   deleteCity(id: string): void;
   practice(): void;
@@ -229,12 +239,15 @@ function loadData(): Promise<PickerData> {
       fetchJson<unknown>("data/province-profiles.json"),
     ]).then(([indicators, profiles]) => ({ indicators: indicators.provinces, measured: measuredLevels(indicators.provinces),
       profiles: checkProfilesData(profiles).data }), () => null),
-  ]).then(([json, topology, rules, resources]) => ({
+    // ... and without the districts, where none have maps
+    fetchJson<Record<string, District[]>>("data/maps/district/index.json").catch(() => null),
+  ]).then(([json, topology, rules, resources, districts]) => ({
     regions: json.regions,
     provinces: new Map(json.provinces.map((p) => [p.id, p])),
     map: projectNationalMap(topology),
     rules,
     resources,
+    districts,
   }));
   dataPromise.catch(() => {
     dataPromise = null; // Let the next open try again
@@ -1485,6 +1498,30 @@ function openCard(provinceId: string, focusName = true): void {
   nameInput.value = localName(province).slice(0, MAX_CITY_NAME_LENGTH);
   nameLabel.append(element("span", undefined, t("start.label.name")), nameInput);
 
+  // The district whose town the city stands in, where the province's districts have maps; the city takes its name
+  // until the player gives it another
+  const districts = data.districts?.[province.id] ?? [];
+  const districtLabel = element("label", "ppField");
+  const districtSelect = element("select", "ppDistrict");
+  const districtName = (district: District): string => {
+    const name = getLanguage() === "en" ? district.nameEn : district.nameTh;
+    return /^(เมือง|Mueang)\s?/.test(name) ? localName(province) : name;
+  };
+  for (const district of districts) {
+    const option = element("option");
+    option.value = district.id;
+    option.textContent = `${getLanguage() === "en" ? district.nameEn : district.nameTh} · ${t("picker.district_area", { area: Math.round(district.areaKm2) })}`;
+    districtSelect.appendChild(option);
+  }
+  let named = false;
+  nameInput.addEventListener("input", () => { named = true; });
+  districtSelect.addEventListener("change", () => {
+    const district = districts.find((d) => d.id === districtSelect.value);
+    if (district && !named) nameInput.value = districtName(district).slice(0, MAX_CITY_NAME_LENGTH);
+  });
+  districtSelect.addEventListener("keydown", (event) => event.stopPropagation()); // arrows choose, not move the tiles
+  districtLabel.append(element("span", undefined, t("picker.district")), districtSelect);
+
   const levels = element("div", "ppLevels");
   levels.setAttribute("role", "radiogroup");
   levels.setAttribute("aria-label", t("start.label.difficulty"));
@@ -1502,7 +1539,8 @@ function openCard(provinceId: string, focusName = true): void {
   const start = button("ppStart", t("picker.start"), () => {
     const name = nameInput.value.trim() || localName(province);
     const level = Number((levels.querySelector("input:checked") as HTMLInputElement | null)?.value ?? 0);
-    leaveTo(() => actions?.start(province.id, name.slice(0, MAX_CITY_NAME_LENGTH), level));
+    const districtId = districts.length ? districtSelect.value : undefined;
+    leaveTo(() => actions?.start(province.id, name.slice(0, MAX_CITY_NAME_LENGTH), level, districtId));
   });
   nameInput.addEventListener("keydown", (event) => {
     event.stopPropagation(); // typing must not move the tiles
@@ -1522,6 +1560,7 @@ function openCard(provinceId: string, focusName = true): void {
     }));
   }
 
+  if (districts.length) card.append(districtLabel);
   card.append(nameLabel, element("h4", undefined, t("start.label.difficulty")), levels, start,
     element("h4", undefined, t("picker.neighbors")), neighbors);
   view.panel.replaceChildren(card);

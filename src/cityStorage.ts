@@ -18,6 +18,8 @@ export interface CityMeta {
   id: string;
   name: string;
   provinceId: string | null;
+  /** The district whose town the city stands in (data/maps/district/), if it does */
+  districtId?: string;
   worldId: string | null;
   savedAt: number;
   population: number;

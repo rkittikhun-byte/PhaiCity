@@ -133,6 +133,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // Which province and online world this city belongs to (both null for offline random maps)
   var source = savedGame || gameMap;
   this.provinceId = source.provinceId || null;
+  // ... and which district, when the city stands in one district's town (data/maps/district/)
+  this.districtId = source.districtId || null;
   // Which saved city this is (src/cityStorage.ts); a new city gets its id when first saved
   this.cityId = savedGame ? savedGame.cityId || null : null;
   // When the city was last saved, for the main menu (ms since 1970, null for a city never saved)
@@ -643,7 +645,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 // Saves this city in its own slot. Returns false when the browser's storage is full.
 Game.prototype.save = function() {
   var saveData = {name: this.name, everClicked: this.everClicked,
-                  provinceId: this.provinceId, worldId: this.worldId, rulerRank: this.rulerRank,
+                  provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
+                  rulerRank: this.rulerRank,
                   goals: this.rulerGoals.state(), news: this.newsLog.items(),
                   // A whole-province map's own tiles and town (run-length encoded like the map)
                   inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
@@ -673,7 +676,7 @@ Game.prototype.save = function() {
   var date = this.simulation.getDate();
   try {
     this.cityId = saveCity(saveData, {
-      name: this.name, provinceId: this.provinceId, worldId: this.worldId,
+      name: this.name, provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
       population: this.simulation.evaluation.cityPop, funds: this.simulation.budget.totalFunds,
       year: date.year, month: date.month, rank: this.rulerRank
     }, this.cityId);
