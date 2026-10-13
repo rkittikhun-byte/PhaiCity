@@ -108,6 +108,9 @@ badMessages[Messages.TRAFFIC_JAMS] = true;
 badMessages[Messages.TRAIN_CRASHED] = true;
 badMessages[Messages.TOURISTS_AVOID_CRIME] = true;
 badMessages[Messages.TOURISTS_AVOID_POLLUTION] = true;
+badMessages[Messages.MINE_EXHAUSTED] = true;
+badMessages[Messages.OIL_SPILL] = true;
+badMessages[Messages.TOXIC_GROUND] = true;
 
 var goodMessages = {};
 goodMessages[Messages.REACHED_CAPITAL] = true;
@@ -167,6 +170,9 @@ messageKeys[Messages.SONGKRAN] = 'msg.good.songkran';
 messageKeys[Messages.NEW_YEAR_HOLIDAYS] = 'msg.good.new_year';
 messageKeys[Messages.TOURISTS_AVOID_CRIME] = 'msg.bad.tourists_crime';
 messageKeys[Messages.TOURISTS_AVOID_POLLUTION] = 'msg.bad.tourists_pollution';
+messageKeys[Messages.MINE_EXHAUSTED] = 'msg.bad.mine_exhausted';
+messageKeys[Messages.OIL_SPILL] = 'msg.bad.oil_spill';
+messageKeys[Messages.TOXIC_GROUND] = 'msg.bad.toxic_ground';
 
 
 var translateList = function(keys) {

@@ -14,6 +14,7 @@
 // with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
 // player may build over them and widen them like any road.
 
+import { canDig, MINE_KINDS } from "./mining";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
@@ -21,7 +22,8 @@ import { UndoHistory } from "./undoHistory";
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
   "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
-  "wind",
+  "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
+  "oil_well",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -74,6 +76,8 @@ interface CommandTool {
   pendingTiles?(): Array<{ x: number; y: number }>;
   /** The kind of power plant it builds (src/gameTools.js, src/powerPlants.ts) */
   powerKind?: string;
+  /** The kind of mine it digs (src/mining.ts) */
+  mineKind?: string;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -121,6 +125,8 @@ export interface CommandTarget {
   isWaterAt?(x: number, y: number): boolean;
   /** Records the kind of power plant built at (x, y), its centre (src/powerPlants.ts). */
   setPowerKind?(x: number, y: number, kind: string): void;
+  /** Records the kind of mine dug at (x, y), its centre (src/mining.ts). */
+  setMineKind?(x: number, y: number, kind: string): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -138,6 +144,12 @@ export function plantProblem(city: Pick<CommandTarget, "resources" | "isWaterAt"
   const isWaterAt = city.isWaterAt;
   if (kind === "hydro" && isWaterAt && !besideWater(x, y, isWaterAt)) return NEEDS_WATER;
   return null;
+}
+
+/** Why a kind of mine may not be dug: the province has none of that ore (src/mining.ts). */
+export function mineProblem(city: Pick<CommandTarget, "resources">, kind: string | undefined): string | null {
+  if (!kind || !isOneOf(MINE_KINDS, kind)) return null;
+  return canDig(kind, city.resources ?? {}) ? null : NO_RESOURCE;
 }
 
 /** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
@@ -208,7 +220,7 @@ export class CityCommands {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
         const refused = placeProblem(city, command.x, command.y, tool.size ?? 1) ??
-          plantProblem(city, tool.powerKind, command.x, command.y);
+          plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
@@ -218,6 +230,7 @@ export class CityCommands {
           : [];
         const applied = tool.modifyIfEnoughFunding(city.budget);
         if (applied && tool.powerKind) city.setPowerKind?.(command.x, command.y, tool.powerKind);
+        if (applied && tool.mineKind) city.setMineKind?.(command.x, command.y, tool.mineKind);
         if (applied && map) {
           const changes = before.map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
             .filter((c) => c.after !== c.before);

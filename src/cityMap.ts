@@ -12,13 +12,13 @@ import {
   COALBASE, COALSMOKE1, COMBASE, FIRE, FIRESTBASE, FLOOD, FOOTBALLGAME1, FOUNTAIN, HBRDG0, INDBASE, LASTFIRE, LASTFLOOD,
   LASTPOWER, LASTRAIL, LASTRIVEDGE, LASTROAD, LASTRUBBLE, LASTTREE, LASTZONE, NUCLEARBASE, NUKESWIRL1, PORTBASE,
   POWERBASE, RADAR0, RADTILE, RAILBASE, RESBASE, RIVER, ROADBASE, RUBBLE, TELEBASE, TINYEXP, TINYEXPLAST, TREEBASE,
-  VBRDG0, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
+  MINE_BASE, MINE_LAST, VBRDG0, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
 } from "./tileValues";
 import type { WaterView } from "./waterManager";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 
-export const MAP_LAYERS = ["city", "power", "water", "groundwater", "traffic", "pollution", "crime", "landValue",
-  "population", "police", "fire"] as const;
+export const MAP_LAYERS = ["city", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
+  "landValue", "population", "police", "fire"] as const;
 export type MapLayer = typeof MAP_LAYERS[number];
 
 export function isMapLayer(value: unknown): value is MapLayer {
@@ -26,7 +26,7 @@ export function isMapLayer(value: unknown): value is MapLayer {
 }
 
 export type TileKind = "dirt" | "water" | "woods" | "park" | "rubble" | "fire" | "flood" | "radiation" | "road" |
-  "rail" | "powerLine" | "residential" | "commercial" | "industrial" | "service" | "powerPlant" | "waterSupply";
+  "rail" | "powerLine" | "residential" | "commercial" | "industrial" | "service" | "powerPlant" | "waterSupply" | "mine";
 
 export type Rgb = readonly [number, number, number];
 
@@ -49,6 +49,7 @@ export const KIND_COLOURS: Record<TileKind, Rgb> = {
   service: [196, 92, 255],
   powerPlant: [255, 143, 0],
   waterSupply: [0, 176, 230],
+  mine: [176, 120, 72],
 };
 
 /** What a tile is, for the map. Animated tiles count as the building they belong to. */
@@ -82,6 +83,7 @@ export function tileKind(value: number): TileKind {
   if (value >= VBRDG0 && value < NUKESWIRL1) return "road";
   if (value >= NUKESWIRL1 && value < NUKESWIRL1 + 4) return "powerPlant";
   if ((value >= WATER_WORKS_BASE && value <= WATER_WORKS_LAST) || value === WATER_TOWER) return "waterSupply";
+  if (value >= MINE_BASE && value <= MINE_LAST) return "mine";
   if (value >= NUKESWIRL1 + 4 && value < 1020) return "residential"; // the extended residential buildings
   return "dirt";
 }
@@ -93,7 +95,7 @@ export function stringId(name: string): string {
 
 /** The legend of the whole-city layer, in drawing order. */
 export const CITY_KEYS: readonly TileKind[] = ["residential", "commercial", "industrial", "service", "powerPlant",
-  "waterSupply", "road", "rail", "powerLine", "water", "woods", "park", "fire"];
+  "waterSupply", "mine", "road", "rail", "powerLine", "water", "woods", "park", "fire"];
 
 export interface BlockMapLike {
   worldGet(x: number, y: number): number;
@@ -113,7 +115,7 @@ export const OUTSIDE_SHADE = 0.45;
 
 /** The simulation's block maps the overlays are drawn from */
 export type HeatMap = "trafficDensityMap" | "pollutionDensityMap" | "crimeRateMap" | "landValueMap" |
-  "populationDensityMap" | "policeStationEffectMap" | "fireStationEffectMap";
+  "populationDensityMap" | "policeStationEffectMap" | "fireStationEffectMap" | "toxicMap";
 
 export type Overlays = Record<HeatMap, BlockMapLike> & {
   /** The water supply and the groundwater, read only (src/waterManager.ts); a city from before it has none */
@@ -131,6 +133,8 @@ export const HEAT: Record<HeatLayer, { map: HeatMap; max: number; colour: Rgb }>
   population: { map: "populationDensityMap", max: 510, colour: [170, 110, 255] },
   police: { map: "policeStationEffectMap", max: 1000, colour: [64, 150, 255] },
   fire: { map: "fireStationEffectMap", max: 1000, colour: [255, 120, 40] },
+  // The poison mines put into the ground (src/mining.ts)
+  toxic: { map: "toxicMap", max: 255, colour: [190, 60, 220] },
 };
 
 export const POWERED: Rgb = [255, 213, 0];

@@ -93,6 +93,8 @@ export class WaterManager {
   /** As full as each tile's land holds, for the warnings */
   private full: Uint8Array | null = null;
   drought: Drought = NO_DROUGHT;
+  /** The poisoned ground (src/mining.ts): a works on it gives less water fit to use */
+  poison: { cleanWater(x: number, y: number): number } | null = null;
   /** The share of the supply this month's festival uses up: Songkran's water fights (src/tourism.ts) */
   festivalUse = 0;
   /** Zones the water reaching the pipes can serve this cycle */
@@ -231,8 +233,9 @@ export class WaterManager {
     for (const source of this.sources) {
       if (source.tower || !source.powered) continue;
       const ground = this.stores ? pumpFactor(this.stores, this.map.width, this.map.height, source.x, source.y, 3) : 0.5;
-      works += WORKS_SUPPLY * ground * (dry ? 1 - this.drought.share : 1);
-      if (dry) lost += WORKS_SUPPLY * ground * this.drought.share;
+      const clean = this.poison ? this.poison.cleanWater(source.x, source.y) : 1;
+      works += WORKS_SUPPLY * ground * clean * (dry ? 1 - this.drought.share : 1);
+      if (dry) lost += WORKS_SUPPLY * ground * clean * this.drought.share;
     }
 
     // Along the roads from every powered works: a road touching a works' side is where the water enters

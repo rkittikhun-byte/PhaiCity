@@ -190,7 +190,9 @@ var getCityCentreDistance = function(map, x, y) {
 //   * Proximity to undeveloped terrain (who doesn't love a good view?)
 //
 // Pollution is completely determined by the tile types in the block
-var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish, plantPollution) {
+// extraPollution(x, y, tileValue) (PhaiCity, src/mining.ts): a mine's dust and the poison in the ground
+var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish, plantPollution,
+                                             extraPollution) {
   if (industryPollution === undefined)
     industryPollution = 1;
 
@@ -240,6 +242,8 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
           }
 
           pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish, plantPollution, mapX, mapY);
+          if (extraPollution)
+            pollutionLevel += extraPollution(mapX, mapY, tileValue);
           if (tileValue >= TileValues.ROADBASE)
             developed = true;
         }

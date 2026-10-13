@@ -16,6 +16,7 @@
    (**R5** แผนที่ทั้งจังหวัด แทรกได้ทันทีที่ prompt ปัจจุบันเสร็จ)
    (**W1** ประปา: โรงผลิตน้ำ หอถังสูง และไอคอนไม่มีน้ำ ส่งต่อจาก R5)
    (**P1** โรงไฟฟ้าตามจังหวัด: ก๊าซ เขื่อน แสงอาทิตย์ และลม ส่งต่อจาก W1)
+   (**M1** เหมืองและบ่อน้ำมัน ส่งต่อจาก P1)
    (ลำดับจริงของ Codex อยู่ในตารางด้านล่าง; R1–R4 คือตัววาดเมือง 3D ในเกม)
    - ต้องทำ Prompt 0 และ 1 ก่อนเสมอ
    - Prompt 3 ต้องทำหลัง Prompt 2 เพราะป่าใช้โมเดลต้นไม้
@@ -1571,6 +1572,46 @@ Task:
 Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
 No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of the
 four models in the gallery and in a test city.
+```
+
+## Prompt M1 — เหมืองและบ่อน้ำมัน
+
+เจ้าของโปรเจคขอ (13 ต.ค. 2026): จังหวัดที่มีแร่ทำเหมืองได้ ได้ค่าภาคหลวงแต่มีฝุ่นและสารพิษ ฝั่งเกม Claude Code ทำแล้ว
+(`docs/MINING.md`): ปุ่ม "เหมือง" เลือกแร่ในการ์ดเหนือแถบเครื่องมือ ทุกชนิดเป็นอาคาร 3×3 บนไทล์ชุดเดียว และแผนที่บอกชนิดแร่
+ส่งต่อจาก prompt ที่ Codex ทำอยู่ได้เลย
+
+```text
+Read AGENTS.md, docs/3d/MODEL_SPEC.md, docs/3d/RENDERER_SPEC.md (section 6E is new) and docs/MINING.md in full before
+starting, and follow their rules (your paths only).
+
+Context: mines are one 3x3 building on tiles 965-973 (centre 969, ZONEBIT); today the renderer shows them as a generic
+service building. gameMap.mineKinds maps a mine's centre tile index (x + y * width, string key) to its kind:
+limestone, potash, tin, zinc, gold, gems, rareEarth, lignite or petroleum; no entry means limestone. Read-only.
+
+Task:
+1. Models (MODEL_SPEC rules, tier R3 national, no brands or logos), each on a 3x3 footprint:
+   a. limestone: a stepped quarry face with benches, a crusher and a conveyor, white dust on the ground;
+   b. potash: a headframe over a shaft, a long processing shed, salt-white stockpiles;
+   c. tin: a gravel-pump tin pit with a sluice and a dredge pond (the southern kind);
+   d. zinc: an open pit with ochre spoil, a small concentrator, settling ponds;
+   e. gold: an open pit with haul trucks, a leaching plant and lined tailings ponds;
+   f. gems: small hand diggings: pits, washing sieves under thatched shelters (gem fields of the east);
+   g. rareEarth: a compact chemical processing plant with tanks and a lined waste pond;
+   h. lignite: an open-cast pit with stepped dark seams and a conveyor;
+   i. petroleum: two or three nodding pump jacks, storage tanks and a flare stack.
+   Add them to the gallery.
+2. City view: draw 965-973 by gameMap.mineKinds at the centre, in place of the generic service building. A mine
+   without POWERBIT stands still: pump jacks and conveyors stop, no dust. Rubble, fire and bulldozing as for other
+   3x3 buildings. A missing mineKinds draws every mine as limestone.
+3. Icons: assets/icons/tools/mine (the tool button) and one per kind by tool name: limestone_mine, potash_mine,
+   tin_mine, zinc_mine, gold_mine, gem_mine, rare_earth_mine, lignite_mine, oil_well (same style and pipeline as
+   Prompts UI1/UI2); the mine button's choices above the tools show them.
+4. Tests in test/render3d/: each kind resolves to its model from mineKinds, no entry gives limestone, and an unpowered
+   mine does not animate.
+
+Do not edit src/*.js, src/*.ts outside src/render3d/, index.html, css/ or data/: the game side is done.
+No brands, no temple or palace roof ornaments, no royal symbols, no Red Cross. Report in Thai with screenshots of the
+nine models in the gallery and a few in a test city.
 ```
 
 ## Prompt แก้โมเดล (ใช้ซ้ำได้)

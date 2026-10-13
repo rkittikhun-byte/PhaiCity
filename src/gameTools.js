@@ -19,6 +19,7 @@ import { MiscUtils } from './miscUtils.js';
 import { ParkTool } from './parkTool.js';
 import { DEFAULT_RULES, TOOL_COSTS } from './provinceRules.ts';
 import { PLANT_TOOLS, POWER_KINDS } from './powerPlants.ts';
+import { MINE_KINDS, MINE_TOOLS } from './mining.ts';
 import { RailTool } from './railTool.js';
 import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
@@ -39,6 +40,16 @@ function GameTools(map, rules) {
     hydro: new BuildingTool(6000, TileValues.POWERPLANT, map, 4, false),
     solar: new BuildingTool(2500, TileValues.POWERPLANT, map, 4, false),
     wind: new BuildingTool(3500, TileValues.POWERPLANT, map, 4, false),
+    // PhaiCity: mines and oil wells, one 3x3 building for every kind (src/mining.ts)
+    limestone_mine: new BuildingTool(1500, TileValues.MINE, map, 3, false),
+    potash_mine: new BuildingTool(2500, TileValues.MINE, map, 3, false),
+    tin_mine: new BuildingTool(2000, TileValues.MINE, map, 3, false),
+    zinc_mine: new BuildingTool(2500, TileValues.MINE, map, 3, false),
+    gold_mine: new BuildingTool(3000, TileValues.MINE, map, 3, false),
+    gem_mine: new BuildingTool(1500, TileValues.MINE, map, 3, false),
+    rare_earth_mine: new BuildingTool(4000, TileValues.MINE, map, 3, false),
+    lignite_mine: new BuildingTool(2500, TileValues.MINE, map, 3, false),
+    oil_well: new BuildingTool(3500, TileValues.MINE, map, 3, false),
     commercial: new BuildingTool(100, TileValues.COMCLR, map, 3, false),
     fire: new BuildingTool(500, TileValues.FIRESTATION, map, 3, false),
     industrial: new BuildingTool(100, TileValues.INDCLR, map, 3, false),
@@ -65,6 +76,9 @@ function GameTools(map, rules) {
   // What kind of plant each power tool builds; the map records it where it stands (src/cityCommands.ts)
   POWER_KINDS.forEach(function(kind) {
     tools[PLANT_TOOLS[kind]].powerKind = kind;
+  });
+  MINE_KINDS.forEach(function(kind) {
+    tools[MINE_TOOLS[kind]].mineKind = kind;
   });
 
   tools.query.addEventListener(QUERY_WINDOW_NEEDED, MiscUtils.reflectEvent.bind(tools, QUERY_WINDOW_NEEDED));

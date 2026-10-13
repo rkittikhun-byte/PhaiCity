@@ -28,7 +28,8 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { COALBASE } from './tileValues.ts';
+import { COALBASE, MINE } from './tileValues.ts';
+import { Mining } from './mining.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -53,6 +54,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._monthsSinceTouristWarning = 12;
   // The pollution on each tile of a power plant, by the kind built there (src/powerPlants.ts)
   var map = gameMap;
+  this._extraPollution = function(x, y, tileValue) {
+    return this._mining.pollutionAt(map, x, y, tileValue);
+  }.bind(this);
   this._plantPollution = function(x, y, tileValue) {
     var index = tileValue - COALBASE;
     var centreX = x - (index % 4) + 1;
@@ -94,6 +98,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._powerManager.outputFactor = this.rules.powerPlantOutput;
   this._powerManager.resources = this.resources;
   this._powerManager.drySeason = this.rules.drought || null;
+  // PhaiCity: the province's mines: its ore, the poisoned ground (src/mining.ts)
+  this._mining = new Mining(this._map.width, this._map.height, this.resources);
+  this._monthsSinceToxicWarning = 12;
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
 
   this.blockMaps = {
@@ -139,7 +146,10 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     tempMap3: new BlockMap(this._map.width, this._map.height, 4),
 
     // PhaiCity: the water supply as last scanned and the groundwater, read only (the city map's water layers)
-    water: this._waterManager.view
+    water: this._waterManager.view,
+
+    // PhaiCity: the poison in the ground from mines, 0-255, read only (the city map's toxic layer)
+    toxicMap: {worldGet: function(x, y) { return this._mining.ground[y * this._map.width + x]; }.bind(this)}
   };
 
   this._clearCensus();
@@ -154,6 +164,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // The ground's water comes from the land as it is now (and its heights on a province map); a save brings what
   // the city has pumped from it. Renderers read the water supply through the map, never write it.
   this._waterManager.prepareGround(this._map.heights || null);
+  this._mining.start(this.resources);
+  this._waterManager.poison = this._mining;
   this._map.water = this._waterManager.view;
 
   this.init();
@@ -198,6 +210,7 @@ Simulation.prototype.save = function(saveData) {
   this.budget.save(saveData);
   this._census.save(saveData);
   this._waterManager.save(saveData);
+  this._mining.save(saveData);
   // The random generator carries on where it was, so a loaded city goes on as the saved one would have
   saveData.randomState = Random.getState();
 };
@@ -213,6 +226,7 @@ Simulation.prototype.load = function(saveData) {
   this.budget.load(saveData);
   this._census.load(saveData);
   this._waterManager.load(saveData);
+  this._mining.load(saveData);
   Random.setState(saveData.randomState);
 };
 
@@ -265,6 +279,7 @@ Simulation.prototype._clearCensus = function() {
   this._census.clearCensus();
   this._powerManager.clearPowerStack();
   this._waterManager.clearCycle();
+  this._mining.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
 };
@@ -341,6 +356,8 @@ Simulation.prototype.init = function() {
   MiscTiles.registerHandlers(this._mapScanner, this._repairManager);
   this._powerManager.registerHandlers(this._mapScanner, this._repairManager);
   this._waterManager.registerHandlers(this._mapScanner, this._repairManager);
+  this._mapScanner.addAction(MINE, this._mining.mineFound.bind(this._mining));
+  this._repairManager.addAction(MINE, 15, 3);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
@@ -357,7 +374,7 @@ Simulation.prototype.init = function() {
   this._powerManager.doPowerScan(this._census);
   this._waterManager.doWaterScan(month, false);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                              shopRubbish(this._tourism), this._plantPollution);
+                                              shopRubbish(this._tourism), this._plantPollution, this._extraPollution);
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
@@ -407,8 +424,10 @@ var simulate = function(simData) {
 
     case 9:
       // PhaiCity: a month's visitors, before the year's taxes take in what they spent
-      if ((this._cityTime & 3) === 0)
+      if ((this._cityTime & 3) === 0) {
         this._tourismMonth();
+        this._miningMonth();
+      }
 
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
         this._census.take10Census(this.budget);
@@ -441,7 +460,8 @@ var simulate = function(simData) {
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
         BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                                    shopRubbish(this._tourism), this._plantPollution);
+                                                    shopRubbish(this._tourism), this._plantPollution,
+                                                    this._extraPollution);
       break;
 
     case 13:
@@ -522,6 +542,26 @@ Simulation.prototype._tourismMonth = function() {
     this._monthsSinceTouristWarning = 0;
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: visit.pollutionPenalty >= visit.crimePenalty ?
                     Messages.TOURISTS_AVOID_POLLUTION : Messages.TOURISTS_AVOID_CRIME});
+  }
+};
+
+
+// A month of the mines (src/mining.ts): royalties to the year's taxes; the news hears when a kind's ore runs out, when
+// an oil well spills, and, at most once a year, when the mines are poisoning the ground
+Simulation.prototype._miningMonth = function() {
+  var month = this._mining.month(function(n) { return Random.getRandom(n - 1); });
+  this.budget.miningFund += month.income;
+  month.exhausted.forEach(function(mine) {
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.MINE_EXHAUSTED, data: {x: mine.x, y: mine.y}});
+  }, this);
+  month.spills.forEach(function(mine) {
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.OIL_SPILL, data: {x: mine.x, y: mine.y}});
+  }, this);
+  this._monthsSinceToxicWarning++;
+  var poisoner = this._mining.mines.find(function(mine) { return mine.kind !== 'limestone' && mine.kind !== 'petroleum'; });
+  if (poisoner && this._monthsSinceToxicWarning >= 12) {
+    this._monthsSinceToxicWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.TOXIC_GROUND, data: {x: poisoner.x, y: poisoner.y}});
   }
 };
 

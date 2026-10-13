@@ -39,9 +39,10 @@ import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
+import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { setToolChoices } from './toolLevels.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -69,6 +70,7 @@ var OUTSIDE_COLOUR = '#e0453a';
 var OUTSIDE_NOTE_MS = 2500;
 // The kinds of power plant's colours, for their squares until their icons are drawn (src/toolLevels.ts)
 var PLANT_COLOURS = {lignite: 'gray', gas: '#6f9fc4', hydro: '#2a7fd4', solar: '#e8b100', wind: '#7fc8b5'};
+var MINE_COLOUR = '#b07848';
 
 // Each size the city can reach, with its city class (src/evaluation.js), which sets the ruler's rank
 var MILESTONES = {};
@@ -115,6 +117,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       decodePresetLayer(savedGame.national, this.gameMap.width, this.gameMap.height) : null;
     // What kind of power plant stands where (src/powerPlants.ts); plants from before the kinds are lignite
     this.gameMap.powerKinds = Object.assign({}, savedGame.powerKinds || {});
+    // ... and what each mine digs (src/mining.ts)
+    this.gameMap.mineKinds = Object.assign({}, savedGame.mineKinds || {});
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     this.gameMap.heights = savedGame.heights || null;
     this.gameMap.tileSizeM = savedGame.tileSizeM || null;
@@ -159,6 +163,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // What kind of power plant stands where (src/powerPlants.ts); a new city has none yet
   var cityMap = this.gameMap;
   cityMap.powerKinds = cityMap.powerKinds || {};
+  cityMap.mineKinds = cityMap.mineKinds || {};
   this.commands = new CityCommands({
     width: this.gameMap.width,
     height: this.gameMap.height,
@@ -183,6 +188,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     },
     setPowerKind: function(x, y, kind) {
       cityMap.powerKinds[y * cityMap.width + x] = kind;
+    },
+    setMineKind: function(x, y, kind) {
+      cityMap.mineKinds[y * cityMap.width + x] = kind;
     }
   });
 
@@ -190,6 +198,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   setToolChoices('coal', POWER_KINDS.map(function(kind) {
     return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
   }));
+  // The mine button's places are the ores the province has; those it lacks are left out
+  setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
+    .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
 
   // Sound only listens to the game; it never changes the city
   this.gameAudio = attachGameAudio(this, audio, Text);
@@ -278,7 +289,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       totalFunds: this.simulation.budget.totalFunds,
       taxesCollected: this.simulation.budget.taxFund,
       tourismIncome: this.simulation.budget.tourismIncome,
-      fuelCost: this.simulation.budget.fuelCost
+      fuelCost: this.simulation.budget.fuelCost,
+      miningIncome: this.simulation.budget.miningIncome
     };
 
     return [budgetData];
@@ -450,7 +462,8 @@ Game.prototype.save = function() {
                   inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
                   town: this.gameMap.town || undefined,
                   national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined,
-                  powerKinds: plantsStanding(this.gameMap)};
+                  powerKinds: plantsStanding(this.gameMap, 'powerKinds', POWERPLANT),
+                  mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE)};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -577,15 +590,17 @@ Game.prototype.applyCommand = function(command) {
 };
 
 
-// The kinds of the power plants still standing, by their centre tile, for the save (src/powerPlants.ts)
-var plantsStanding = function(gameMap) {
+// The kinds of the power plants (src/powerPlants.ts) or mines (src/mining.ts) still standing, by their centre tile,
+// for the save: field is the map's record, centre the centre tile they stand on
+var plantsStanding = function(gameMap, field, centre) {
   var kinds = {};
-  Object.keys(gameMap.powerKinds || {}).forEach(function(index) {
+  var record = gameMap[field] || {};
+  Object.keys(record).forEach(function(index) {
     var i = Number(index);
     var x = i % gameMap.width;
     var y = (i - x) / gameMap.width;
-    if (gameMap.testBounds(x, y) && gameMap.getTileValue(x, y) === POWERPLANT)
-      kinds[index] = gameMap.powerKinds[index];
+    if (gameMap.testBounds(x, y) && gameMap.getTileValue(x, y) === centre)
+      kinds[index] = record[index];
   });
   return kinds;
 };
@@ -760,9 +775,12 @@ Game.prototype.handleTool = function(data) {
     result = outcome.toolResult;
     if (outcome.reason === NO_RESOURCE || outcome.reason === NEEDS_WATER) {
       var kind = kindOfTool(toolName);
+      var ore = mineKindOfTool(toolName);
+      var resource = ore ? ore.replace(/[A-Z]/g, function(c) { return '_' + c.toLowerCase(); }) :
+                     (kind === 'wind' ? 'wind' : 'hydro');
       showCornerNote(outcome.reason === NEEDS_WATER ? t('tool.needs_water') :
                      t('tool.no_resource', {plant: t('tool.' + toolName, {price: ''}).trim(),
-                                             resource: t('resource.level.' + (kind === 'wind' ? 'wind' : 'hydro'))}),
+                                             resource: t('resource.level.' + resource)}),
                      OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;

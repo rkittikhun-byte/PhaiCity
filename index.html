@@ -152,6 +152,7 @@
             <button id="airportButton" data-size="6" data-tool="airport" data-colour="violet" class="toolButton unselected">Airport $10000</button>
             <button id="waterworksButton" data-size="3" data-tool="waterworks" data-colour="deepskyblue" class="toolButton unselected">Water works $1500</button>
             <button id="watertowerButton" data-size="1" data-tool="watertower" data-colour="lightskyblue" class="toolButton unselected">Water tower $300</button>
+            <button id="mineButton" data-size="3" data-tool="mine" data-colour="#b07848" class="toolButton unselected">Mine</button>
             <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
             <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
           </div>
@@ -229,6 +230,7 @@
         <div id="budgetFormContainer" class="padding10 open">
           <form id="budgetForm">
             <div id="taxInfo" class="elided budgetData"><span data-i18n="budget.tax_collected">Tax Collected:</span> <span id="taxesCollected"></span></div>
+            <div id="miningInfo" class="elided budgetData" hidden><span data-i18n="budget.mining">Mine royalties:</span> <span id="miningIncome"></span></div>
             <div id="fuelInfo" class="elided budgetData" hidden><span data-i18n="budget.fuel">Power plant fuel:</span> <span id="fuelCost"></span></div>
             <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>

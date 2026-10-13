@@ -124,12 +124,33 @@
 | `tool.hydro` | `src/toolLevels.ts` | — | `Dam {price}` | `เขื่อนพลังน้ำ {price}` | ต้องติดแม่น้ำหรือบึง |
 | `tool.solar` | `src/toolLevels.ts` | — | `Solar Farm {price}` | `โซลาร์ฟาร์ม {price}` |  |
 | `tool.wind` | `src/toolLevels.ts` | — | `Wind Farm {price}` | `ฟาร์มกังหันลม {price}` |  |
+| `tool.mine` | `index.html` | — | `Mine` | `เหมือง` | ปุ่มกลุ่ม เลือกแร่ในการ์ดเหนือแถบเครื่องมือ (Claude Code 13 ต.ค. 2026) |
+| `tool.limestone_mine` | `src/toolLevels.ts` | — | `Limestone Quarry {price}` | `เหมืองหินปูน {price}` | อาคาร 3x3 |
+| `tool.potash_mine` | `src/toolLevels.ts` | — | `Potash and Salt Mine {price}` | `เหมืองโพแทชและเกลือหิน {price}` |  |
+| `tool.tin_mine` | `src/toolLevels.ts` | — | `Tin Mine {price}` | `เหมืองดีบุก {price}` |  |
+| `tool.zinc_mine` | `src/toolLevels.ts` | — | `Zinc and Lead Mine {price}` | `เหมืองสังกะสีและตะกั่ว {price}` |  |
+| `tool.gold_mine` | `src/toolLevels.ts` | — | `Gold Mine {price}` | `เหมืองทองคำ {price}` |  |
+| `tool.gem_mine` | `src/toolLevels.ts` | — | `Gem Diggings {price}` | `บ่อพลอย {price}` |  |
+| `tool.rare_earth_mine` | `src/toolLevels.ts` | — | `Rare Earth Mine {price}` | `เหมืองแร่หายาก {price}` |  |
+| `tool.lignite_mine` | `src/toolLevels.ts` | — | `Lignite Mine {price}` | `เหมืองลิกไนต์ {price}` |  |
+| `tool.oil_well` | `src/toolLevels.ts` | — | `Oil and Gas Well {price}` | `บ่อน้ำมันและก๊าซ {price}` |  |
 | `choice.title.coal` | `src/toolLevels.ts` | — | `Power plant: choose its kind` | `โรงไฟฟ้า: เลือกชนิด` | หัวการ์ดเหนือแถบเครื่องมือ |
 | `choice.coal` | `src/toolLevels.ts` | — | `Lignite` | `ลิกไนต์` | ชื่อสั้นในช่องเลือก |
 | `choice.gas` | `src/toolLevels.ts` | — | `Gas` | `ก๊าซ` |  |
 | `choice.hydro` | `src/toolLevels.ts` | — | `Dam` | `เขื่อน` |  |
 | `choice.solar` | `src/toolLevels.ts` | — | `Solar` | `แสงอาทิตย์` |  |
 | `choice.wind` | `src/toolLevels.ts` | — | `Wind` | `ลม` |  |
+| `choice.title.mine` | `src/toolLevels.ts` | — | `Mine: choose the ore` | `เหมือง: เลือกแร่` | (Claude Code 13 ต.ค. 2026) |
+| `choice.none.mine` | `src/toolLevels.ts` | — | `This province has no ore to mine` | `จังหวัดนี้ไม่มีแร่ให้ทำเหมือง` | ปุ่มเหมืองจาง |
+| `choice.limestone_mine` | `src/toolLevels.ts` | — | `Limestone` | `หินปูน` |  |
+| `choice.potash_mine` | `src/toolLevels.ts` | — | `Potash` | `โพแทช` |  |
+| `choice.tin_mine` | `src/toolLevels.ts` | — | `Tin` | `ดีบุก` |  |
+| `choice.zinc_mine` | `src/toolLevels.ts` | — | `Zinc` | `สังกะสี` |  |
+| `choice.gold_mine` | `src/toolLevels.ts` | — | `Gold` | `ทองคำ` |  |
+| `choice.gem_mine` | `src/toolLevels.ts` | — | `Gems` | `พลอย` |  |
+| `choice.rare_earth_mine` | `src/toolLevels.ts` | — | `Rare earths` | `แร่หายาก` |  |
+| `choice.lignite_mine` | `src/toolLevels.ts` | — | `Lignite` | `ลิกไนต์` |  |
+| `choice.oil_well` | `src/toolLevels.ts` | — | `Oil` | `น้ำมัน` |  |
 | `choice.unavailable` | `src/toolLevels.ts` | — | `Not in this province` | `ไม่มีในจังหวัดนี้` | ช่องที่จังหวัดสร้างไม่ได้ |
 | `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
 | `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
@@ -149,6 +170,7 @@
 | `budget.tax_collected` | `index.html` | `Tax Collected: ` | `Taxes Collected: ` | `ภาษีที่จัดเก็บได้: ` | รายรับภาษี |
 | `budget.tourism` | `index.html` | — | `Visitors spent: ` | `รายได้จากนักท่องเที่ยว: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.fuel` | `index.html` | — | `Power plant fuel: ` | `ค่าเชื้อเพลิงโรงไฟฟ้า: ` | ลิกไนต์และก๊าซ แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
+| `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.cashflow` | `index.html` | `Cashflow: ` | `Net Cashflow: ` | `กระแสเงินสดสุทธิ: ` | กำไร/ขาดทุนสุทธิ |
 | `budget.previous_funds` | `index.html` | `Previous funds: ` | `Previous Balance: ` | `เงินคลังปีก่อน: ` | ยอดยกมา |
 | `budget.current_funds` | `index.html` | `Current funds: ` | `Current Balance: ` | `เงินคลังปัจจุบัน: ` | ยอดยกไป |
@@ -211,6 +233,7 @@
 | `map.layer.power` | `src/mapWindow.js` | — | `Power` | `ไฟฟ้า` | |
 | `map.layer.water` | `src/mapWindow.js` | — | `Water supply` | `ประปา` | (Claude Code 13 ต.ค. 2026) |
 | `map.layer.groundwater` | `src/mapWindow.js` | — | `Groundwater` | `น้ำใต้ดิน` |  |
+| `map.layer.toxic` | `src/mapWindow.js` | — | `Toxic ground` | `สารพิษ` | (Claude Code 13 ต.ค. 2026) |
 | `map.layer.traffic` | `src/mapWindow.js` | — | `Traffic` | `การจราจร` | |
 | `map.layer.pollution` | `src/mapWindow.js` | — | `Pollution` | `มลพิษ` | |
 | `map.layer.crime` | `src/mapWindow.js` | — | `Crime` | `อาชญากรรม` | |
@@ -222,6 +245,7 @@
 | `map.about.power` | `src/mapWindow.js` | — | `Yellow has power, red has none: link red zones to a power plant with power lines or other zones.` | `สีเหลืองมีไฟฟ้า สีแดงไม่มี ต่อโซนสีแดงเข้ากับโรงไฟฟ้าด้วยสายไฟหรือผ่านโซนอื่น` | |
 | `map.about.water` | `src/mapWindow.js` | — | `Blue zones have running water, orange ones have none. Water runs from a water works along every road joined to it.` | `เขตสีฟ้ามีน้ำประปา สีส้มไม่มี น้ำไหลจากโรงผลิตน้ำไปตามถนนทุกสายที่ต่อถึงกัน` |  |
 | `map.about.groundwater` | `src/mapWindow.js` | — | `How much water is in the ground: most near rivers, lakes and the sea. A water works pumped hard draws it down; the rains fill it again, but not in the dry season.` | `ปริมาณน้ำใต้ดิน มีมากใกล้แม่น้ำ บึง และทะเล โรงผลิตน้ำที่สูบหนักทำให้ลดลง ฝนเติมกลับ แต่หน้าแล้งไม่เติม` |  |
+| `map.about.toxic` | `src/mapWindow.js` | — | `Poison the mines put into the ground: it lowers the land's value and spoils the water pumped there, and fades only over years.` | `สารพิษที่เหมืองปล่อยลงดิน ทำให้ราคาที่ดินตก และทำให้น้ำที่สูบตรงนั้นใช้ได้น้อยลง ใช้เวลาหลายปีกว่าจะจางไป` |  |
 | `map.about.traffic` | `src/mapWindow.js` | — | `Where the roads are busiest. Heavy traffic holds the city back and adds pollution.` | `ถนนที่รถหนาแน่น รถติดมากทำให้เมืองโตช้าและเพิ่มมลพิษ` | |
 | `map.about.pollution` | `src/mapWindow.js` | — | `Smoke from factories, power plants, ports, airports and traffic. People do not want to live in it.` | `ควันจากโรงงาน โรงไฟฟ้า ท่าเรือ สนามบิน และรถติด คนไม่อยากอยู่ใกล้` | |
 | `map.about.crime` | `src/mapWindow.js` | — | `Where crime is high. Police stations bring it down.` | `ย่านที่อาชญากรรมสูง สถานีตำรวจช่วยลดได้` | |
@@ -235,6 +259,7 @@
 | `map.key.service` | `src/mapWindow.js` | — | `Public buildings` | `อาคารสาธารณะ` | ตำรวจ ดับเพลิง สนามกีฬา ท่าเรือ สนามบิน |
 | `map.key.power_plant` | `src/mapWindow.js` | — | `Power plants` | `โรงไฟฟ้า` | |
 | `map.key.water_supply` | `src/mapWindow.js` | — | `Water works` | `โรงผลิตน้ำประปา` | รวมหอถังสูง |
+| `map.key.mine` | `src/mapWindow.js` | — | `Mines` | `เหมือง` |  |
 | `map.key.road` | `src/mapWindow.js` | — | `Roads` | `ถนน` | |
 | `map.key.rail` | `src/mapWindow.js` | — | `Rail` | `ทางรถไฟ` | |
 | `map.key.power_line` | `src/mapWindow.js` | — | `Power lines` | `สายไฟฟ้า` | |
@@ -471,6 +496,9 @@
 | `msg.bad.train_crash` | `src/text.js` | `A train crashed ` | `A train collision reported!` | `เกิดอุบัติเหตุขบวนรถไฟชนกัน/ตกราง!` | รถไฟชน |
 | `msg.bad.tourists_pollution` | `src/text.js` | — | `Visitors are staying away: the city is too dirty` | `นักท่องเที่ยวหนี เพราะเมืองสกปรก` | มลพิษสูง (Claude Code 13 ต.ค. 2026) |
 | `msg.bad.tourists_crime` | `src/text.js` | — | `Visitors are staying away: the city is not safe` | `นักท่องเที่ยวหนี เพราะเมืองไม่ปลอดภัย` | อาชญากรรมสูง |
+| `msg.bad.mine_exhausted` | `src/text.js` | — | `The ore has run out: the mines of that kind have stopped. Their pits still need restoring` | `แร่หมดแล้ว เหมืองแร่ชนิดนั้นหยุดทำงาน หลุมเหมืองยังต้องฟื้นฟู` | คลิกข่าวไปที่เหมือง (Claude Code 13 ต.ค. 2026) |
+| `msg.bad.oil_spill` | `src/text.js` | — | `Oil spill! A well has poisoned the ground around it` | `น้ำมันรั่ว! บ่อน้ำมันทำให้ดินรอบ ๆ ปนเปื้อน` |  |
+| `msg.bad.toxic_ground` | `src/text.js` | — | `The mines are poisoning the ground and the groundwater around them` | `สารพิษจากเหมืองปนเปื้อนดินและน้ำใต้ดินรอบ ๆ` | ไม่เกินปีละครั้ง |
 | `msg.bad.ship_crash` | `src/text.js` | `Shipwreck reported ` | `Shipwreck reported in waters!` | `รายงานอุบัติเหตุเรือชนกันหรือเรืออับปาง!` | เรือล่ม |
 | `msg.bad.high_crime` | `src/text.js` | `Crime very high` | `Crime rate is dangerously high!` | `สถิติอาชญากรรมพุ่งสูงขึ้นขั้นวิกฤต!` | อาชญากรรมสูง |
 | `msg.bad.high_pollution`| `src/text.js` | `Pollution very high` | `Air & water pollution dangerously high!` | `มลพิษทางอากาศและสิ่งแวดล้อมเกินค่ามาตรฐาน!`| มลพิษสูง |
@@ -567,6 +595,7 @@
 | `about.building.coal` | `about.html` | `Coal Power: Show your dominion over nature...` | `Coal Power Plant: Affordable, high-capacity electricity, but generates heavy air pollution.` | `โรงไฟฟ้าถ่านหิน: ผลิตไฟฟ้าได้มากในราคาประหยัด แต่ปล่อยเขม่าควันและมลพิษทางอากาศสูง` | คำอธิบายอาคาร |
 | `about.building.nuclear` | `about.html` | `Nuclear Power: More expensive than coal power...` | `Nuclear Power Plant: High-output, clean energy with zero smoke, though costly and catastrophic if meltdown occurs.` | `โรงไฟฟ้านิวเคลียร์: จ่ายไฟได้มหาศาล ไร้ควันพิษ แต่ราคาสูงมากและมีความเสี่ยงร้ายแรงหากหลอมละลาย` | คำอธิบายอาคาร |
 | `about.building.power_kinds` | `about.html` | — | `Kinds of power plant: press the Power Plant button and choose above the tools: lignite (much power, heavy smoke, fuel every year), gas (the most power, little smoke, fuel every year), a dam (clean but dear, beside water, weak in the dry season), solar (clean, weak in the rains) or wind (clean, noisy). Dams and wind farms only where the province has them.` | `ชนิดโรงไฟฟ้า: กดปุ่มโรงไฟฟ้าแล้วเลือกในการ์ดเหนือแถบเครื่องมือ ลิกไนต์ (ไฟมาก ควันพิษมาก ค่าเชื้อเพลิงทุกปี) ก๊าซ (ไฟมากที่สุด ควันน้อย ค่าเชื้อเพลิงทุกปี) เขื่อน (สะอาดแต่แพง ต้องติดน้ำ หน้าแล้งไฟลด) แสงอาทิตย์ (สะอาด หน้าฝนไฟลด) และลม (สะอาด เสียงดัง) เขื่อนและลมสร้างได้เฉพาะจังหวัดที่มี` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
+| `about.building.mines` | `about.html` | — | `Mines: press the Mine button and choose an ore the province has. A working mine needs power, pays royalties every year and gives work, but raises dust, most kinds poison the ground and its water for years, oil wells now and then spill, and the province's ore runs out sooner the more mines dig it.` | `เหมือง: กดปุ่มเหมืองแล้วเลือกแร่ที่จังหวัดมี เหมืองต้องมีไฟฟ้า ให้ค่าภาคหลวงทุกปีและมีงานให้คน แต่มีฝุ่น แร่ส่วนใหญ่ทำให้ดินและน้ำใต้ดินปนเปื้อนนานหลายปี บ่อน้ำมันรั่วได้ และยิ่งเปิดหลายเหมือง แร่ในจังหวัดยิ่งหมดเร็ว` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.gas` | `src/toolShortcuts.ts` | — | `Gas Power Plant: the most power, with little smoke, but its gas must be bought every year.` | `โรงไฟฟ้าก๊าซธรรมชาติ: ไฟมากที่สุด ควันน้อย แต่ต้องซื้อก๊าซทุกปี` | คำอธิบายเครื่องมือ |
 | `about.building.hydro` | `src/toolShortcuts.ts` | — | `Dam: clean power with no fuel, but dear, only beside a river or a lake, and weaker in the dry season.` | `เขื่อนพลังน้ำ: ไฟสะอาด ไม่มีค่าเชื้อเพลิง แต่แพง ต้องติดแม่น้ำหรือบึง และหน้าแล้งไฟลด` |  |
 | `about.building.solar` | `src/toolShortcuts.ts` | — | `Solar Farm: clean power that costs nothing to run, but little of it, and less in the rains.` | `โซลาร์ฟาร์ม: ไฟสะอาด ไม่มีค่าใช้จ่ายรายปี แต่ได้ไฟน้อย และหน้าฝนได้น้อยลง` |  |
@@ -809,6 +838,15 @@
 | `rules.cost.hydro` | `src/provinceRules.ts` | — | `Dams cost {change}` | `ราคาเขื่อน {change}` |  |
 | `rules.cost.solar` | `src/provinceRules.ts` | — | `Solar farms cost {change}` | `ราคาโซลาร์ฟาร์ม {change}` |  |
 | `rules.cost.wind` | `src/provinceRules.ts` | — | `Wind farms cost {change}` | `ราคาฟาร์มกังหันลม {change}` |  |
+| `rules.cost.limestone_mine` | `src/provinceRules.ts` | — | `Limestone quarries cost {change}` | `ราคาเหมืองหินปูน {change}` | (Claude Code 13 ต.ค. 2026) |
+| `rules.cost.potash_mine` | `src/provinceRules.ts` | — | `Potash and salt mines cost {change}` | `ราคาเหมืองโพแทชและเกลือหิน {change}` |  |
+| `rules.cost.tin_mine` | `src/provinceRules.ts` | — | `Tin mines cost {change}` | `ราคาเหมืองดีบุก {change}` |  |
+| `rules.cost.zinc_mine` | `src/provinceRules.ts` | — | `Zinc and lead mines cost {change}` | `ราคาเหมืองสังกะสีและตะกั่ว {change}` |  |
+| `rules.cost.gold_mine` | `src/provinceRules.ts` | — | `Gold mines cost {change}` | `ราคาเหมืองทองคำ {change}` |  |
+| `rules.cost.gem_mine` | `src/provinceRules.ts` | — | `Gem diggings cost {change}` | `ราคาบ่อพลอย {change}` |  |
+| `rules.cost.rare_earth_mine` | `src/provinceRules.ts` | — | `Rare earth mines cost {change}` | `ราคาเหมืองแร่หายาก {change}` |  |
+| `rules.cost.lignite_mine` | `src/provinceRules.ts` | — | `Lignite mines cost {change}` | `ราคาเหมืองลิกไนต์ {change}` |  |
+| `rules.cost.oil_well` | `src/provinceRules.ts` | — | `Oil and gas wells cost {change}` | `ราคาบ่อน้ำมันและก๊าซ {change}` |  |
 | `rules.clear_woods` | `src/provinceRules.ts` | `-` | `Clearing woods ฿{price} a tile` | `ถางป่าช่องละ ฿{price}` | เกมเดิมช่องละ ฿1 |
 | `rules.industry_pollution` | `src/provinceRules.ts` | `-` | `Factory smoke {change}` | `โรงงานปล่อยควัน {change}` |  |
 | `rules.power_output` | `src/provinceRules.ts` | `-` | `Power plants give {change}` | `โรงไฟฟ้าจ่ายไฟ {change}` |  |

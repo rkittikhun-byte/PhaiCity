@@ -12,7 +12,8 @@
 
 export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "rail", "wire", "park", "police", "fire",
   "coal", "nuclear", "stadium", "port", "airport", "bulldozer", "waterworks", "watertower", "gas", "hydro", "solar",
-  "wind"] as const;
+  "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
+  "oil_well"] as const;
 export type CostTool = typeof TOOL_COSTS[number];
 
 export const ZONES = ["residential", "commercial", "industrial"] as const;
@@ -257,6 +258,8 @@ export const BASE_PRICES: Record<CostTool, number> = {
   residential: 100, commercial: 100, industrial: 100, road: 10, rail: 20, wire: 5, park: 10, police: 500, fire: 500,
   coal: 3000, nuclear: 5000, stadium: 5000, port: 3000, airport: 10000, bulldozer: 1, waterworks: 1500, watertower: 300,
   gas: 4000, hydro: 6000, solar: 2500, wind: 3500,
+  limestone_mine: 1500, potash_mine: 2500, tin_mine: 2000, zinc_mine: 2500, gold_mine: 3000, gem_mine: 1500,
+  rare_earth_mine: 4000, lignite_mine: 2500, oil_well: 3500,
 };
 
 /** A tool's price under these rules, as its button shows it: whole baht, never below 1. */

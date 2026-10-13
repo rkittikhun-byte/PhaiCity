@@ -212,6 +212,19 @@ stands where, and the renderer only reads it.
 - Smoke only from lignite (heavy) and gas (light). A dam stands beside water, so its model faces the water side;
   wind turbines turn. Nuclear (816–826) is unchanged.
 
+## 6E. Mines and oil wells (added 13 Oct 2026)
+
+Mines are one 3×3 building on tiles 965–973 (`MINE_BASE` … `MINE_LAST`, centre 969 `MINE` with ZONEBIT;
+`docs/MINING.md`). The map records what each one digs, and the city map shows the poison they put into the ground;
+the renderer only reads both.
+
+| Field | Meaning |
+|---|---|
+| `gameMap.mineKinds` | An object from a mine's centre tile index (`x + y * width`, string key) to its kind: `"limestone"`, `"potash"`, `"tin"`, `"zinc"`, `"gold"`, `"gems"`, `"rareEarth"`, `"lignite"` or `"petroleum"` (an oil and gas well). No entry, or no object, is limestone. Never write it. |
+
+- Choose the model by the kind at the centre. A mine works only with power (POWERBIT); an idle one (no power, or its
+  ore used up) shows still machinery and no dust.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

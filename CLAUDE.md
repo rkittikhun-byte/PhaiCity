@@ -219,7 +219,11 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   card above the power button (`setToolChoices` in `src/toolLevels.ts`, the button's `data-active-tool`); the map
   records each plant's kind (`gameMap.powerKinds`, saved as `powerKinds`; renderers read it, RENDERER_SPEC 6D).
   Dams and wind farms need the province's resource, dams water beside them (`plantProblem` in `CityCommands`);
-  lignite and gas burn fuel paid at the year's end. The other resources have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  lignite and gas burn fuel paid at the year's end. **Mines and oil wells** (`docs/MINING.md`, `src/mining.ts`): one
+  3×3 building (tiles 965–973) per ore the province has, chosen above the mine button; with power it pays royalties
+  and gives work, raises dust, poisons the ground (`mining.ground`, the city map's toxic layer, spoiling water works)
+  and uses up the province's ore; `gameMap.mineKinds` (saved as `mineKinds`) says what each digs (RENDERER_SPEC 6E).
+  The other resources have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

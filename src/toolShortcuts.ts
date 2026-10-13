@@ -82,6 +82,16 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   hydro: "about.building.hydro",
   solar: "about.building.solar",
   wind: "about.building.wind",
+  mine: "about.building.mines",
+  limestone_mine: "about.building.mines",
+  potash_mine: "about.building.mines",
+  tin_mine: "about.building.mines",
+  zinc_mine: "about.building.mines",
+  gold_mine: "about.building.mines",
+  gem_mine: "about.building.mines",
+  rare_earth_mine: "about.building.mines",
+  lignite_mine: "about.building.mines",
+  oil_well: "about.building.mines",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */

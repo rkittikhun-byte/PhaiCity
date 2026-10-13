@@ -33,9 +33,23 @@ export interface ToolChoice {
 const choices = new Map<string, readonly ToolChoice[]>();
 let rerender: (() => void) | null = null;
 
-/** Gives a tool button (by its data-tool) choices in place of levels; the first is what it uses to begin with. */
-export function setToolChoices(group: string, list: readonly ToolChoice[]): void {
+/**
+ * Gives a tool button (by its data-tool) choices in place of levels. It keeps the one it uses while that may still be
+ * used, else takes the first that may; with none at all (a province with no ore for the mine button) it is disabled.
+ */
+export function setToolChoices(group: string, list: readonly ToolChoice[], doc: Document = document): void {
   choices.set(group, list);
+  const button = doc.querySelector<HTMLButtonElement>(`.toolButton[data-tool="${group}"]`);
+  if (button) {
+    const usable = list.filter((choice) => choice.available);
+    if (!usable.some((choice) => choice.tool === button.dataset.activeTool)) {
+      if (usable.length > 0) button.dataset.activeTool = usable[0].tool;
+      else delete button.dataset.activeTool;
+    }
+    button.disabled = usable.length === 0;
+    relabelTools();
+    if (button.disabled) button.title = t(`choice.none.${group}`);
+  }
   rerender?.();
 }
 

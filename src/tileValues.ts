@@ -321,6 +321,10 @@ export const WATER_WORKS_BASE = CHURCH1BASE;
 export const WATER_WORKS      = CHURCH1; // Centre of the water works (tiles 956--964)
 export const WATER_WORKS_LAST = CHURCH1BASE + 8;
 export const WATER_TOWER      = 1020;
+// PhaiCity: mines and oil wells (src/mining.ts) take the second 3x3 of the extended zones (CHURCH2)
+export const MINE_BASE        = CHURCH2BASE;
+export const MINE             = CHURCH2; // Centre of a mine (tiles 965--973)
+export const MINE_LAST        = CHURCH2BASE + 8;
 
 // tiles 1021-1023 unused
 

@@ -82,6 +82,15 @@ const TOOL_SOUNDS: Record<string, string> = {
   hydro: "tool.building",
   solar: "tool.building",
   wind: "tool.building",
+  limestone_mine: "tool.building",
+  potash_mine: "tool.building",
+  tin_mine: "tool.building",
+  zinc_mine: "tool.building",
+  gold_mine: "tool.building",
+  gem_mine: "tool.building",
+  rare_earth_mine: "tool.building",
+  lignite_mine: "tool.building",
+  oil_well: "tool.building",
 };
 
 // BaseTool.TOOLRESULT_* values
