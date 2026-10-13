@@ -22,8 +22,9 @@ import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
 
 // rules (PhaiCity): the province's rules, for the tools' prices (src/provinceRules.ts)
-var InputStatus = EventEmitter(function(map, tileWidth, rules) {
-  this.gameTools = new GameTools(map, rules);
+// tools (PhaiCity): the city's own tools (src/core/cityCore.ts), so the preview and the commands use the same ones
+var InputStatus = EventEmitter(function(map, tileWidth, rules, tools) {
+  this.gameTools = tools || new GameTools(map, rules);
 
   this.gameTools.addEventListener(Messages.QUERY_WINDOW_NEEDED, MiscUtils.reflectEvent.bind(this, Messages.QUERY_WINDOW_NEEDED));
 

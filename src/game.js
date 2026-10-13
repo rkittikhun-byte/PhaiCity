@@ -19,7 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
-import { CityObjects } from './objects/cityObjects.ts';
+import { CityCore } from './core/cityCore.ts';
 import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -150,62 +150,25 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   var savedMeta = this.cityId ? listCities().find(function(city) { return city.id === this.cityId; }, this) : null;
   this.lastSavedAt = savedMeta ? savedMeta.savedAt : null;
   this.worldId = source.worldId || null;
-  // A whole-province map: which tiles are the province's, the only ones that can be built on, and its town, where
-  // the camera starts (docs/geo/GEO_SPEC.md section 10). A new city brings them on its map, a saved one in its save.
-  if (savedGame) {
-    this.gameMap.insideProvince = savedGame.inside ?
-      decodePresetLayer(savedGame.inside, this.gameMap.width, this.gameMap.height) : null;
-    this.gameMap.town = savedGame.town || null;
-    // The roads and railways the map started with, which are the state's (src/gameMap.js isNationalTransport)
-    this.gameMap.nationalTransport = savedGame.national ?
-      decodePresetLayer(savedGame.national, this.gameMap.width, this.gameMap.height) : null;
-    // What kind of power plant stands where (src/powerPlants.ts); plants from before the kinds are lignite
-    this.gameMap.powerKinds = Object.assign({}, savedGame.powerKinds || {});
-    // ... and what each mine digs (src/mining.ts)
-    this.gameMap.mineKinds = Object.assign({}, savedGame.mineKinds || {});
-    // ... and each road's level (src/roadLevels.ts); roads from before the levels are laterite
-    this.gameMap.roadLevels = savedGame.roadLevels ?
-      decodePresetLayer(savedGame.roadLevels, this.gameMap.width, this.gameMap.height) : null;
-    // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
-    this.gameMap.heights = savedGame.heights || null;
-    this.gameMap.tileSizeM = savedGame.tileSizeM || null;
-    // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
-    // the game is not held back by it
-    this.gameMap.civicKinds = Object.assign({}, savedGame.civicKinds || {});
-    // ... and the rubbish and wastewater buildings (src/waste.ts)
-    this.gameMap.wasteKinds = Object.assign({}, savedGame.wasteKinds || {});
-    this.gameMap.rulerHouse = readHouse(savedGame.rulerHouse);
-    // ... and the ruler's policies (src/policies.ts)
-    this.gameMap.policies = readPolicies(savedGame.policies);
-    // ... and the stations (src/transit.ts)
-    this.gameMap.stationKinds = Object.assign({}, savedGame.stationKinds || {});
-    // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
-    this.gameMap.landBlocks = savedGame.land ?
-      decodePresetLayer(savedGame.land, blockColumns(this.gameMap), blockRows(this.gameMap)) : null;
-    this.gameMap.landBought = savedGame.landBought || 0;
-    this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
-  } else {
-    // A new city builds its ruler's house before anything else
-    this.gameMap.civicKinds = {};
-    this.gameMap.wasteKinds = {};
-    this.gameMap.policies = [];
-    this.gameMap.stationKinds = {};
-    // A new province city owns the land round its town, and buys the rest block by block (src/landBlocks.ts)
-    this.gameMap.landBlocks = this.gameMap.insideProvince && this.gameMap.town ?
-      startingBlocks(this.gameMap, this.gameMap.town) : null;
-    this.gameMap.landBought = 0;
-    this.gameMap.rulerHouse = null;
-    this.gameMap.needsRulerHouse = true;
-  }
-
-  // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
-  this.gameMap.paintedZones = isCityMap(this.gameMap) || (savedGame !== null && savedGame.paintedZones === true);
 
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
   this.defaultSpeed = Simulation.SPEED_MED;
-  this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame, rules || null,
-                                   resources || null);
+  // The city itself, built the same way as without a screen (src/core/, docs/CORE_DESIGN.md): the records beside its
+  // tiles (a province map's own land and town, the kinds of each building, road levels …), the simulation, its
+  // objects and the commands that change it
+  var coreGame = this;
+  this.core = new CityCore({
+    map: this.gameMap, saved: savedGame, level: difficulty, speed: this.defaultSpeed,
+    rules: rules || null, resources: resources || null,
+    hooks: {
+      // The ruler's house's next level needs the ruler's rank (src/rulerHouse.ts)
+      rank: function() { return Math.max(0, RANKS.indexOf(coreGame.rulerRank)); },
+      // The camera's start and ⌂ follow the house
+      houseBuilt: function(x, y) { setViewHome({x: x, y: y}); }
+    }
+  });
+  this.simulation = this.core.simulation;
 
   // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
   if (!savedGame && gameMap.startingFunds)
@@ -217,13 +180,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   if (savedGame)
     this.load(savedGame);
 
-  // Every building as an object of its own (src/objects/, docs/GAME_PLAN.md phase 0), found on the tiles again each
-  // month; the save keeps only when each went up
-  this.cityObjects = CityObjects.restore(this.gameMap, savedGame ? savedGame.objects : null);
-  var objectsGame = this;
-  this.simulation.addEventListener(Messages.DATE_UPDATED, function() {
-    objectsGame.cityObjects.scan(objectsGame.gameMap, objectsGame.simulation._cityTime);
-  });
+  // Every building as an object of its own (src/objects/), kept up by the core each month
+  this.cityObjects = this.core.objects;
 
   // The ruler's rank follows the city's size and is never lost (src/rulerRank.ts); older saves have none yet
   this.rulerRank = keepHigherRank(savedGame ? savedGame.rulerRank : null,
@@ -243,7 +201,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     onLanguageChange(this.cityView.relabelStreets.bind(this.cityView));
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
-  this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules);
+  this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules, this.core.tools);
   // The tool buttons show this province's prices
   this._planningFactor = 1;
   this.refreshPrices();
@@ -252,81 +210,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   if (landButton)
     landButton.hidden = !this.gameMap.landBlocks;
 
-  // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts)
+  // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts), which
+  // the core builds the same way for every city (src/core/cityLayers.ts commandTarget)
   var simulation = this.simulation;
-  // What kind of power plant stands where (src/powerPlants.ts); a new city has none yet
   var cityMap = this.gameMap;
-  cityMap.powerKinds = cityMap.powerKinds || {};
-  cityMap.mineKinds = cityMap.mineKinds || {};
-  cityMap.roadLevels = cityMap.roadLevels || newRoadLevels(cityMap.width, cityMap.height);
-  cityMap.civicKinds = cityMap.civicKinds || {};
-  cityMap.wasteKinds = cityMap.wasteKinds || {};
-  cityMap.policies = cityMap.policies || [];
-  cityMap.stationKinds = cityMap.stationKinds || {};
   var game = this;
-  this.commands = new CityCommands({
-    width: this.gameMap.width,
-    height: this.gameMap.height,
-    tools: this.inputStatus.gameTools,
-    get blockMaps() { return simulation.blockMaps; },
-    budget: simulation.budget,
-    disasters: simulation.disasterManager,
-    sprites: simulation.spriteManager,
-    setSpeed: simulation.setSpeed.bind(simulation),
-    setAutoBulldoze: BaseTool.setAutoBulldoze,
-    // For undo: the map to put back, and the time, as only recent building can be undone
-    map: this.gameMap,
-    cityTime: function() { return simulation._cityTime; },
-    canBuildAt: canBuildIn(this.gameMap),
-    ownsLand: function(x, y) { return ownsLand(cityMap, x, y); },
-    // The kinds of power plant the province can build, dams beside water, and what was built where
-    resources: simulation.resources,
-    isWaterAt: function(x, y) {
-      if (!cityMap.testBounds(x, y))
-        return false;
-      var value = cityMap.getTileValue(x, y);
-      return value >= WATER_LOW && value <= WATER_HIGH;
-    },
-    setPowerKind: function(x, y, kind) {
-      cityMap.powerKinds[y * cityMap.width + x] = kind;
-    },
-    setMineKind: function(x, y, kind) {
-      cityMap.mineKinds[y * cityMap.width + x] = kind;
-    },
-    setRoadLevel: function(x, y, level) {
-      cityMap.roadLevels[y * cityMap.width + x] = level;
-    },
-    // The ruler's house (src/rulerHouse.ts): a new city builds it first, and its next level needs the ruler's rank
-    houseMap: cityMap,
-    rank: function() {
-      return Math.max(0, RANKS.indexOf(game.rulerRank));
-    },
-    // ... and the schools and hospitals on the same civic tiles (src/services.ts)
-    setCivicKind: function(x, y, kind) {
-      cityMap.civicKinds[y * cityMap.width + x] = kind;
-    },
-    // ... and the rubbish and wastewater buildings (src/waste.ts)
-    setWasteKind: function(x, y, kind) {
-      cityMap.wasteKinds[y * cityMap.width + x] = kind;
-    },
-    // ... and the stations, which train and high-speed stations put beside a railway (src/transit.ts)
-    setStationKind: function(x, y, kind) {
-      cityMap.stationKinds[y * cityMap.width + x] = kind;
-    },
-    isRailAt: function(x, y) {
-      if (!cityMap.testBounds(x, y))
-        return false;
-      var value = cityMap.getTileValue(x, y);
-      return value >= RAILBASE && value <= LASTRAIL;
-    },
-    setRulerHouse: function(x, y) {
-      cityMap.civicKinds[y * cityMap.width + x] = HOUSE_KIND;
-      cityMap.rulerHouse = {x: x, y: y, level: 1, wings: []};
-      // The camera's start and ⌂ follow the house
-      cityMap.town = {x: x, y: y};
-      setViewHome(cityMap.town);
-    }
-  });
+  this.commands = this.core.commands;
 
   // The power button's places above the tools are its kinds of plant, and the nuclear plant; those the province
   // cannot build wait
@@ -663,36 +552,14 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
 // Saves this city in its own slot. Returns false when the browser's storage is full.
 Game.prototype.save = function() {
-  var saveData = {name: this.name, everClicked: this.everClicked,
-                  provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
-                  rulerRank: this.rulerRank,
-                  goals: this.rulerGoals.state(), news: this.newsLog.items(),
-                  // A whole-province map's own tiles and town (run-length encoded like the map)
-                  inside: this.gameMap.insideProvince ? encodePresetLayer(this.gameMap.insideProvince) : undefined,
-                  town: this.gameMap.town || undefined,
-                  national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined,
-                  powerKinds: plantsStanding(this.gameMap, 'powerKinds', POWERPLANT),
-                  mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE),
-                  // The ruler's house, its wings, and whether a new city still has to build it (src/rulerHouse.ts)
-                  civicKinds: plantsStanding(this.gameMap, 'civicKinds', CIVIC),
-                  // ... and the rubbish and wastewater buildings (src/waste.ts)
-                  wasteKinds: plantsStanding(this.gameMap, 'wasteKinds', WASTE),
-                  // ... and the ruler's policies (src/policies.ts)
-                  policies: (this.gameMap.policies || []).length ? this.gameMap.policies.slice() : undefined,
-                  // ... and the stations (src/transit.ts)
-                  stationKinds: plantsStanding(this.gameMap, 'stationKinds', STATION),
-                  // ... and the land the city owns (src/landBlocks.ts)
-                  land: this.gameMap.landBlocks ? encodePresetLayer(this.gameMap.landBlocks) : undefined,
-                  landBought: this.gameMap.landBlocks ? this.gameMap.landBought || 0 : undefined,
-                  rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
-                  needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
-                  roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined,
-                  // ... and whether its zones are painted tile by tile (src/plots.ts)
-                  paintedZones: this.gameMap.paintedZones ? true : undefined,
-                  // ... and when each building went up (src/objects/)
-                  objects: this.cityObjects.scan(this.gameMap, this.simulation._cityTime) && this.cityObjects.toJSON()};
-  BaseTool.save(saveData);
-  this.simulation.save(saveData);
+  // The city itself from the core (src/core/cityCore.ts save): its records, objects, tools and simulation; then what
+  // only the game keeps
+  var saveData = Object.assign(this.core.save(), {
+    name: this.name, everClicked: this.everClicked,
+    provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
+    rulerRank: this.rulerRank,
+    goals: this.rulerGoals.state(), news: this.newsLog.items()
+  });
 
   var date = this.simulation.getDate();
   try {
@@ -712,10 +579,9 @@ Game.prototype.save = function() {
 
 
 Game.prototype.load = function(saveData) {
+  // The core has loaded the city itself (src/core/cityCore.ts); the game keeps its name and whether it was clicked
   this.name = saveData.name;
   this.everClicked = saveData.everClicked;
-  BaseTool.load(saveData);
-  this.simulation.load(saveData);
 };
 
 
@@ -817,7 +683,8 @@ var createView3D = function(game, view3d) {
 
 // The one way the player changes the city (src/cityCommands.ts)
 Game.prototype.applyCommand = function(command) {
-  var outcome = this.commands.apply(command);
+  // Through the core, which keeps a log of the commands it accepts (src/core/cityCore.ts)
+  var outcome = this.core.apply(command);
   if (outcome.accepted)
     this._edits = (this._edits || 0) + 1;
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
@@ -1700,7 +1567,7 @@ var tick = function() {
 
   if (!this.simulation.isPaused() && !$('#tooSmall').is(':visible')) {
     // Run the sim
-    this.simulation.simTick();
+    this.core.tick();
   }
 
   // Run this even when paused: you can still build when paused

@@ -9,7 +9,7 @@
 
 import type { CommandTarget } from "../cityCommands.js";
 import { decodePresetLayer, encodePresetLayer } from "../geo/presetMap.js";
-import { blockColumns, blockRows, ownsLand, startingBlocks } from "../landBlocks.js";
+import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
 import { newRoadLevels } from "../roadLevels.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
@@ -71,6 +71,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.rulerHouse = null;
     map.needsRulerHouse = true;
   }
+  // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
+  map.paintedZones = isCityMap(map) || (saved !== null && saved.paintedZones === true);
 }
 
 /** The records every city has, whatever made it (a practice map has none of them yet) */
