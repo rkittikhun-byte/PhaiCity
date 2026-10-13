@@ -15,7 +15,7 @@ import { audio, music, renderSoundButton, soundWaiting, wireSoundControl } from 
 import { tuckable } from "./creditLine";
 import { THEME } from "./audio/music";
 import type { CityMeta } from "./cityStorage";
-import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince } from "./geo/nationalMap";
+import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince, projectPoint } from "./geo/nationalMap";
 import { drawPresetMap, PRESET_COLORS, PresetMap, TRANSPORT_COLORS } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
 import { hasTransport, provinceTransport, waterwayName } from "./geo/provinceTransport";
@@ -64,6 +64,29 @@ interface District {
   nameTh: string;
   nameEn: string;
   areaKm2: number;
+  /** The town its city map centres on */
+  town?: { lat: number; lon: number };
+  /** A light outline (GeoJSON Polygon or MultiPolygon, longitude/latitude) for the province's map */
+  outline?: { type: string; coordinates: unknown };
+}
+
+/** Chooses a district in the open card, from its outline on the map; null while no card offers districts. */
+let chooseDistrict: ((id: string) => void) | null = null;
+
+/** Marks the chosen district's outline on the province's map. */
+function markDistrict(id: string): void {
+  view?.svg?.querySelectorAll<SVGElement>(".ppDistrictShape").forEach((shape) => {
+    shape.classList.toggle("chosen", shape.dataset.id === id);
+  });
+}
+
+/** An SVG path of a GeoJSON Polygon or MultiPolygon, in the map's projection. */
+function outlinePath(outline: { type: string; coordinates: unknown }): string {
+  const polygons = (outline.type === "MultiPolygon" ? outline.coordinates : [outline.coordinates]) as number[][][][];
+  return polygons.flatMap((rings) => rings.map((ring) => `M${ring.map(([lon, lat]) => {
+    const [x, y] = projectPoint(lon, lat);
+    return `${x.toFixed(3)},${y.toFixed(3)}`;
+  }).join("L")}Z`)).join(" ");
 }
 
 interface Scene {
@@ -383,7 +406,7 @@ function buildShell(): View {
     }
     const target = event.target as Element;
     if (panel.hidden || panel.contains(target) ||
-        target.closest(".ppTile, .ppProvince, .ppTop, .ppRow, .ppCredits, .ppCreditToggle")) return;
+        target.closest(".ppTile, .ppProvince, .ppDistrictShape, .ppTop, .ppRow, .ppCredits, .ppCreditToggle")) return;
     closeCard();
   }, true);
   installZoomAndPan(stage);
@@ -1333,6 +1356,25 @@ function layTerrainInPlace(province: Province, map: PresetMap, shape: ProjectedP
     const ring = { cx: tx, cy: ty, r: (unit * 2).toFixed(3), "stroke-width": (unit * 0.6).toFixed(3) };
     layer.append(svgElement("circle", { class: "ppLandPulse", ...ring }), svgElement("circle", { class: "ppLandMarker", ...ring }));
   }
+  // Its districts, where they have city maps: a click on one chooses it in the card (owner 13 Oct 2026)
+  for (const district of data?.districts?.[province.id] ?? []) {
+    if (!district.outline) continue;
+    const shape = svgElement("path", { class: "ppDistrictShape", d: outlinePath(district.outline), "data-id": district.id });
+    const tip = svgElement("title", {});
+    tip.textContent = getLanguage() === "en" ? district.nameEn : district.nameTh;
+    shape.appendChild(tip);
+    shape.addEventListener("click", (event) => {
+      event.stopPropagation();
+      chooseDistrict?.(district.id);
+    });
+    layer.appendChild(shape);
+    if (district.town) {
+      const [dx, dy] = projectPoint(district.town.lon, district.town.lat);
+      layer.appendChild(svgElement("circle", { class: "ppDistrictTown", cx: dx.toFixed(3), cy: dy.toFixed(3),
+        r: (unit * 0.9).toFixed(3) }));
+    }
+  }
+  const chosen = view?.panel.querySelector<HTMLSelectElement>(".ppDistrict");
   // The map's data comes from OpenStreetMap, credited where it is shown
   const credit = svgElement("text", {
     class: "ppTerrainCredit",
@@ -1342,6 +1384,7 @@ function layTerrainInPlace(province: Province, map: PresetMap, shape: ProjectedP
   credit.textContent = t("picker.preview_credit");
   layer.appendChild(credit);
   svg.querySelector(".ppProvinceLabels")?.before(layer);
+  if (chosen) markDistrict(chosen.value);
 
   applyMapState({ focus: province.region, selected: province.id });
   flyTo(groupViewBox([{ id: "", path: "", centroid: [0, 0], area: 0, bounds: [px0, py0, px1, py1 + unit * 7] }], 0.08));
@@ -1518,7 +1561,13 @@ function openCard(provinceId: string, focusName = true): void {
   districtSelect.addEventListener("change", () => {
     const district = districts.find((d) => d.id === districtSelect.value);
     if (district && !named) nameInput.value = districtName(district).slice(0, MAX_CITY_NAME_LENGTH);
+    markDistrict(districtSelect.value);
   });
+  chooseDistrict = districts.length ? (id: string) => {
+    if (!districts.some((d) => d.id === id)) return;
+    districtSelect.value = id;
+    districtSelect.dispatchEvent(new Event("change"));
+  } : null;
   districtSelect.addEventListener("keydown", (event) => event.stopPropagation()); // arrows choose, not move the tiles
   districtLabel.append(element("span", undefined, t("picker.district")), districtSelect);
 
@@ -1560,7 +1609,10 @@ function openCard(provinceId: string, focusName = true): void {
     }));
   }
 
-  if (districts.length) card.append(districtLabel);
+  if (districts.length) {
+    card.append(districtLabel);
+    markDistrict(districtSelect.value);
+  }
   card.append(nameLabel, element("h4", undefined, t("start.label.difficulty")), levels, start,
     element("h4", undefined, t("picker.neighbors")), neighbors);
   view.panel.replaceChildren(card);

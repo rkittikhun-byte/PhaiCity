@@ -32,6 +32,9 @@ const PADDING = 20;
 
 const project = ([lon, lat]: number[]): [number, number] => [lon * LONGITUDE_SCALE, -lat * UNITS_PER_DEGREE];
 
+/** A longitude/latitude point in the map's SVG units (the same projection as the provinces). */
+export const projectPoint = (lon: number, lat: number): [number, number] => project([lon, lat]);
+
 // Shoelace area and centroid of one projected ring.
 function ringAreaAndCentroid(points: Array<[number, number]>): { area: number; centroid: [number, number] } {
   let twiceArea = 0;

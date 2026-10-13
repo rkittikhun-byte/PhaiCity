@@ -71,7 +71,10 @@ function writeDistrictIndex() {
     const file = path.join(GEO_DIR, 'districts', `${province.id}.json`);
     if (!fs.existsSync(file)) continue;
     const districts = readJson(file).districts.filter((d) => fs.existsSync(path.join(DISTRICT_DIR, `${d.id}.json`)));
-    if (districts.length) index[province.id] = districts.map(({ id, nameTh, nameEn, areaKm2 }) => ({ id, nameTh, nameEn, areaKm2 }));
+    if (districts.length) {
+      index[province.id] = districts.map(({ id, nameTh, nameEn, areaKm2, town, outline }) =>
+        ({ id, nameTh, nameEn, areaKm2, town: { lat: town.lat, lon: town.lon }, outline }));
+    }
   }
   writeJson(path.join(DISTRICT_DIR, 'index.json'), index);
 }

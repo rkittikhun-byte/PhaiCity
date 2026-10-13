@@ -1149,6 +1149,13 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 #provincePicker .ppSvg.terrain .ppProvinces, #provincePicker .ppSvg.terrain .ppProvince.selected { filter: none; }
 #provincePicker .ppSvg.terrain .ppProvince { transition: opacity 0.6s ease; }
 #provincePicker .ppTerrainLayer.shown { opacity: 1; }
+/* A province's districts on its land: a click chooses one in the card (src/provincePicker.ts) */
+#provincePicker .ppDistrictShape { fill: rgba(255, 255, 255, 0); stroke: rgba(255, 255, 255, 0.55); stroke-width: 0.8px;
+  vector-effect: non-scaling-stroke; pointer-events: all; cursor: pointer; transition: fill 0.2s ease, stroke 0.2s ease; }
+#provincePicker .ppDistrictShape:hover { fill: rgba(246, 215, 122, 0.14); }
+#provincePicker .ppDistrictShape.chosen { fill: rgba(246, 215, 122, 0.22); stroke: #f6d77a; stroke-width: 1.8px; }
+#provincePicker .ppDistrictTown { fill: #ffffff; stroke: rgba(0, 0, 0, 0.4); stroke-width: 0.5px; vector-effect: non-scaling-stroke;
+  pointer-events: none; }
 #provincePicker .ppTerrainLayer.leaving { opacity: 0; transition-duration: 0.4s; }
 #provincePicker .ppLensLeader { stroke: #f6d77a; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 2px; }
 #provincePicker .ppLensShadow { fill: #050807; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.7)); }
