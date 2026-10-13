@@ -8,6 +8,8 @@ import { TileSnapshot, prototypeKey } from './tileModels.js';
 import { decodePrototype, Prototype, PrototypeProvider } from './prototypes.js';
 import type { RegionId } from '../regional/types.js';
 import type { TileRect } from '../../cityView.js';
+import type { CityHeightField } from './heightfield.js';
+import { ProvinceSurface } from './province-surface.js';
 interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number }
 interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
 const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),rotation=new Matrix4(),color=new Color();
@@ -23,17 +25,20 @@ export class CityChunks {
   private lastUpdate:number;
   readonly columns:number;unknownTiles=0;rebuildMs=0;detailCalls=0;
   drawBudget=180;detailSwaps=0;dirtSwaps=0;
-  constructor(readonly snapshot:TileSnapshot,readonly region:RegionId,private provider:PrototypeProvider,private now:()=>number) {
+  readonly surfaces?:ProvinceSurface;
+  constructor(readonly snapshot:TileSnapshot,readonly region:RegionId,private provider:PrototypeProvider,private now:()=>number,readonly terrain?:CityHeightField) {
     const n=snapshot.width*snapshot.height;this.columns=Math.ceil(snapshot.width/CHUNK_TILES);
     this.lastUpdate=this.now();this.waterGeometry=this.geometry.clone();
     this.solidDetail=new InstancedBufferAttribute(new Float32Array(n),1).setUsage(DynamicDrawUsage);
     this.waterDetail=new InstancedBufferAttribute(new Float32Array(n),1).setUsage(DynamicDrawUsage);
     this.geometry.setAttribute('instanceDetail',this.solidDetail);this.waterGeometry.setAttribute('instanceDetail',this.waterDetail);
+    for(const geometry of[this.geometry,this.waterGeometry]){geometry.setAttribute('cityOutside',new InstancedBufferAttribute(new Float32Array(n),1));geometry.setAttribute('cityTerrain',new InstancedBufferAttribute(new Float32Array(n*4),4));geometry.setAttribute('cityBridgeDepth',new InstancedBufferAttribute(new Float32Array(n),1));}
     this.solidSlots=new Int32Array(n).fill(-1);this.waterSlots=new Int32Array(n).fill(-1);
     this.solid=new InstancedMesh(this.geometry,cityLODMaterial(getPreviewGround(),true),n);this.water=new InstancedMesh(this.waterGeometry,cityLODMaterial(getMaterial('water_river'),true),n);
     this.ground=new InstancedMesh(this.groundGeometry,cityWorldMaterial(getMaterial('dirt_laterite')),n);
     this.solid.count=0;this.water.count=0;
-    for(const mesh of [this.solid,this.water,this.ground]){mesh.instanceMatrix.setUsage(DynamicDrawUsage);mesh.frustumCulled=false;mesh.receiveShadow=true;this.root.add(mesh);}
+    for(const mesh of [this.solid,this.water,this.ground]){mesh.instanceMatrix.setUsage(DynamicDrawUsage);mesh.frustumCulled=false;mesh.receiveShadow=true;if(!terrain?.province)this.root.add(mesh);}
+    if(terrain?.province){this.surfaces=new ProvinceSurface(snapshot,terrain);this.root.add(this.surfaces.root);this.drawBudget=this.maxDrawBudget;}
     // Cheap complete ground is available before a single detailed model is built.
     for(let i=0;i<n;i++) {const x=i%snapshot.width,y=Math.floor(i/snapshot.width),water=snapshot.values[i]>=2&&snapshot.values[i]<=20;
       matrix.makeScale(10,.06,10).setPosition((x+.5)*10,water?-.63:.01,(y+.5)*10);
@@ -44,6 +49,7 @@ export class CityChunks {
       this.chunks.push({id:this.chunks.length,x,y,cursor:0,dirty:true,placements:[],batches:[],version:0});
   }
   dirty(indices:readonly number[]):void {
+    this.surfaces?.dirty(indices);
     const ids=new Set<number>();
     for(const i of indices){const x=i%this.snapshot.width,y=Math.floor(i/this.snapshot.width);
       // Neighbour masks and old/new building footprints can straddle chunk boundaries.
@@ -55,14 +61,15 @@ export class CityChunks {
   private coarseMatrix(p:Placement):Matrix4 {
     const zone=p.footprint[0]>1, height=zone?(this.prototypes.get(prototypeKey(p))?.height??p.height):p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
     return matrix.makeScale(p.footprint[0]*10-(zone?1:0),height,p.footprint[1]*10-(zone?1:0))
-      .setPosition(p.x,p.water?-.63:height/2,p.z);
+      .setPosition(p.x,(p.baseY??0)+(p.water?-.63:height/2),p.z);
   }
   private setCoarse(index:number,p:Placement|null):void {
+    this.surfaces?.set(index,p);
     if(this.coarse.get(index)?.kind==='debug')this.unknownTiles--;
     if(p?.kind==='debug')this.unknownTiles++;
     this.hidden.delete(index);this.coarse.delete(index);
     const active=p&&p.id!=='terrain.dirt';
-    const bridge=p?.id==='road.bridge'||p?.id==='road.drawbridge';
+    const bridge=p?.id?.endsWith('bridge');
     for(const [mesh,slots,free,needed]of [[this.solid,this.solidSlots,this.freeSolid,active&&!p?.water],[this.water,this.waterSlots,this.freeWater,active&&(p?.water||bridge)]] as const){
       if(!needed&&slots[index]>=0){mesh.setMatrixAt(slots[index],zero);free.push(slots[index]);slots[index]=-1;}
     }
@@ -74,7 +81,7 @@ export class CityChunks {
     this.coarseDirty=true;
   }
   private clear(chunk:Chunk):void {
-    for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}batch.group.traverse(n=>{if(n instanceof InstancedMesh)n.dispose();});this.root.remove(batch.group);}
+    for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
     chunk.batches=[];
   }
   private showCoarse(p:Placement,show:boolean):void {
@@ -84,6 +91,7 @@ export class CityChunks {
     if(show)this.hidden.delete(p.index);else this.hidden.add(p.index);this.coarseDirty=true;
   }
   private coarseFade(p:Placement,fade:number):void {
+    this.surfaces?.fade(p.index,fade);
     const slot=(p.water?this.waterSlots:this.solidSlots)[p.index];
     if(slot>=0){(p.water?this.waterDetail:this.solidDetail).setX(slot,fade);this.fadeDirty=true;}
   }
@@ -103,27 +111,40 @@ export class CityChunks {
     for(const chunk of this.chunks)if(chunk.dirty){while(chunk.cursor<256)this.cell(chunk,chunk.cursor++);this.finish(chunk);}
     this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;this.ground.instanceMatrix.needsUpdate=true;
     if(this.solid.instanceColor)this.solid.instanceColor.needsUpdate=true;
+    this.surfaces?.finish();
   }
   private instantiate(batch:Batch,prototype:Prototype):void {
     for(const part of prototype.parts){
       // Dirt uses the same continuous ground at every distance; only grass and stones change detail.
-      if(batch.placements[0].id==='terrain.dirt'&&part.ground)continue;
-      const mesh=new InstancedMesh(part.geometry,cityLODMaterial(part.material),batch.placements.length);mesh.customDepthMaterial=cityLODDepthMaterial(mesh.material as typeof part.material);
+      if((batch.placements[0].id==='terrain.dirt'||this.surfaces)&&part.ground)continue;
+      const geometry=part.geometry.clone(),count=batch.placements.length;
+      const province=new InstancedBufferAttribute(new Float32Array(count),1),slopes=new InstancedBufferAttribute(new Float32Array(count*4),4),bridgeDepth=new InstancedBufferAttribute(new Float32Array(count),1);
+      geometry.setAttribute('cityOutside',province);geometry.setAttribute('cityTerrain',slopes);geometry.setAttribute('cityBridgeDepth',bridgeDepth);
+      const mesh=new InstancedMesh(geometry,cityLODMaterial(part.material),count);mesh.customDepthMaterial=cityLODDepthMaterial(mesh.material as typeof part.material);
       mesh.instanceColor=new InstancedBufferAttribute(new Float32Array(batch.placements.length*3).fill(1),3).setUsage(DynamicDrawUsage);
       for(let i=0;i<batch.placements.length;i++)mesh.instanceColor.setX(i,batch.fade);
       mesh.castShadow=part.castShadow??true;mesh.receiveShadow=part.receiveShadow??true;
-      for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i];matrix.makeTranslation(p.x,0,p.z).multiply(rotation.makeRotationY(p.rotation)).scale(new Vector3(p.scale,p.scale,p.scale));mesh.setMatrixAt(i,matrix);}
-      mesh.computeBoundingSphere();batch.group.add(mesh);
+      for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i],base=p.baseY??0;matrix.makeTranslation(p.x,base,p.z).multiply(rotation.makeRotationY(p.rotation)).scale(new Vector3(p.scale,p.scale,p.scale));mesh.setMatrixAt(i,matrix);
+        province.setX(i,p.outside?1:0);
+        if(this.terrain?.enabled&&isBridge(p)&&Number.isFinite(this.terrain.water[p.index]))bridgeDepth.setX(i,Math.max(0,base-this.terrain.water[p.index]));
+        if(this.terrain?.enabled&&(p.kind==='road'||p.kind==='rail'||p.id==='terrain.dirt')&&!isBridge(p)){
+          const x=Math.floor(p.x/10),y=Math.floor(p.z/10);slopes.setXYZW(i,this.terrain.corner(x,y)-base,this.terrain.corner(x+1,y)-base,this.terrain.corner(x,y+1)-base,this.terrain.corner(x+1,y+1)-base);
+        }
+      }
+      mesh.computeBoundingSphere();if(mesh.boundingSphere){let extent=0;for(const value of slopes.array)extent=Math.max(extent,Math.abs(value));for(const value of bridgeDepth.array)extent=Math.max(extent,value);mesh.boundingSphere.radius+=extent;}
+      batch.group.add(mesh);
     }batch.calls=batch.group.children.length;
   }
   update(visible:TileRect|null,target:Vector3,distance:number):void {
     // Reserve one millisecond of the four-millisecond slice for batch selection / GPU buffer handoff.
-    const start=this.now(),deadline=start+3;
+    const start=this.now(),deadline=start+3,coarseDeadline=this.surfaces?start+1:deadline;
     const priority=(c:Chunk):number=>{const inView=visible&&c.x<=visible.x1&&c.x+16>visible.x0&&c.y<=visible.y1&&c.y+16>visible.y0;
       return Math.hypot(c.x*10+80-target.x,c.y*10+80-target.z)+(inView?0:100000);};
     const work=this.chunks.filter(c=>c.dirty).sort((a,b)=>priority(a)-priority(b));
-    for(const chunk of work){while(chunk.cursor<256&&this.now()<deadline)this.cell(chunk,chunk.cursor++);
-      if(chunk.cursor===256)this.finish(chunk);if(this.now()>=deadline)break;}
+    for(const chunk of work){while(chunk.cursor<256&&this.now()<coarseDeadline)this.cell(chunk,chunk.cursor++);
+      if(chunk.cursor===256)this.finish(chunk);if(this.now()>=coarseDeadline)break;}
+    // Province terrain and worker handoff each get a slice while distant chunks are still being built.
+    this.surfaces?.update(target,distance,this.now,start+2);
     // Decode small transferred buffers incrementally; heavy factories never run on the UI thread.
     this.pendingResults.push(...this.provider.take());
     while(this.pendingResults.length&&this.now()<deadline){const result=this.pendingResults.shift()!;
@@ -138,12 +159,13 @@ export class CityChunks {
     const radius=Math.min(230,Math.max(85,distance*.55)),margin=25;
     const nearby=this.chunks.filter(c=>Math.abs(c.x*10+80-target.x)<radius+margin+114&&Math.abs(c.y*10+80-target.z)<radius+margin+114);
     const candidates=nearby.flatMap(c=>c.batches).map(b=>{let range=Infinity;for(const p of b.placements)range=Math.min(range,Math.hypot(p.x-target.x,p.z-target.z));return{b,range};});
-    const rank=(p:Placement):number=>p.footprint[0]>1?-180:p.kind==='road'||p.kind==='rail'||p.kind==='power'?-95:p.id==='terrain.woods'?-40:0;
+    const rank=(p:Placement):number=>p.footprint[0]>1?-180:p.kind==='road'&&(p.id?.includes('crossing')||p.id?.includes('bridge'))?-150:p.kind==='road'||p.kind==='rail'||p.kind==='power'?-95:p.id==='terrain.woods'?-40:0;
     // An incumbent keeps its place until a challenger is at least 25 m closer (with the same model priority).
     candidates.sort((a,b)=>a.range+rank(a.b.placements[0])-(a.b.selected?margin:0)
       -b.range-rank(b.b.placements[0])+(b.b.selected?margin:0));
     const preferred=new Set<Batch>();let preferredCalls=0;
     for(const{b,range}of candidates){
+      if(this.surfaces&&(b.placements[0].id==='terrain.woods'||b.placements[0].id==='terrain.dirt'&&distance>(b.selected?145:120)||b.placements[0].kind==='shore'||b.placements[0].water||b.placements[0].outside&&b.placements[0].kind==='terrain'))continue;
       const detailRadius=b.placements[0].id==='terrain.dirt'?35:radius;
       if(distance<=(b.selected?1000:950)&&range<detailRadius+(b.selected?margin:0)){
         const proto=this.prototypes.get(b.key);
@@ -172,16 +194,21 @@ export class CityChunks {
   }
   private pendingResults:ReturnType<PrototypeProvider['take']>=[];
   tallestNear(target:Vector3):number {
-    let max=0;for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<194&&Math.abs(chunk.y*10+80-target.z)<194)
-      for(const p of chunk.placements)if(Math.abs(p.x-target.x)<80&&Math.abs(p.z-target.z)<80)max=Math.max(max,this.prototypes.get(prototypeKey(p))?.height??p.height);
+    if(!this.terrain?.enabled){let max=0;for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<194&&Math.abs(chunk.y*10+80-target.z)<194)
+      for(const p of chunk.placements)if(Math.abs(p.x-target.x)<80&&Math.abs(p.z-target.z)<80)max=Math.max(max,this.prototypes.get(prototypeKey(p))?.height??p.height);return max;}
+    const ground=this.terrain?.sample(target.x,target.z)??0;let max=ground;
+    for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<194&&Math.abs(chunk.y*10+80-target.z)<194)
+      for(const p of chunk.placements){const distance=Math.max(0,Math.abs(p.x-target.x)-p.footprint[0]*5,Math.abs(p.z-target.z)-p.footprint[1]*5);
+        if(distance<80){const t=1-distance/80,ease=t*t*(3-2*t),top=(p.baseY??0)+(this.prototypes.get(prototypeKey(p))?.height??p.height);max=Math.max(max,ground+(top-ground)*ease);}}
     return max;
   }
-  get pendingChunks():number{return this.chunks.filter(c=>c.dirty).length;}
+  get pendingChunks():number{return this.chunks.filter(c=>c.dirty).length+(this.surfaces?.pending??0);}
+  get maxDrawBudget():number{return this.surfaces?100:180;}
   get pendingModels():number{return this.requested.size-this.prototypes.size-this.failed.size;}
   roadsNear(target:Vector3):Placement[] {
     const roads:Placement[]=[];
     for(const c of this.chunks)if(Math.abs(c.x*10+80-target.x)<334&&Math.abs(c.y*10+80-target.z)<334)
-      for(const p of c.placements)if(p.kind==='road'&&p.id==='road.straight'&&Math.abs(p.x-target.x)<220&&Math.abs(p.z-target.z)<220)roads.push(p);
+      for(const p of c.placements)if(p.kind==='road'&&p.id?.endsWith('straight')&&Math.abs(p.x-target.x)<220&&Math.abs(p.z-target.z)<220)roads.push(p);
     return roads.sort((a,b)=>Math.hypot(a.x-target.x,a.z-target.z)-Math.hypot(b.x-target.x,b.z-target.z)).slice(0,64);
   }
   mapLOD(show:boolean):void {
@@ -189,5 +216,6 @@ export class CityChunks {
     this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;
     this.solidDetail.needsUpdate=true;this.waterDetail.needsUpdate=true;
   }
-  dispose():void {this.provider.dispose();this.chunks.forEach(c=>this.clear(c));for(const p of this.prototypes.values())p.parts.forEach(part=>part.geometry.dispose());this.prototypes.clear();this.solid.dispose();this.water.dispose();this.ground.dispose();this.geometry.dispose();this.waterGeometry.dispose();this.groundGeometry.dispose();this.root.clear();this.coarse.clear();this.hidden.clear();this.chunks.length=0;this.requested.clear();this.failed.clear();this.pendingResults.length=0;}
+  dispose():void {this.provider.dispose();this.chunks.forEach(c=>this.clear(c));this.surfaces?.dispose();for(const p of this.prototypes.values())p.parts.forEach(part=>part.geometry.dispose());this.prototypes.clear();this.solid.dispose();this.water.dispose();this.ground.dispose();this.geometry.dispose();this.waterGeometry.dispose();this.groundGeometry.dispose();this.root.clear();this.coarse.clear();this.hidden.clear();this.chunks.length=0;this.requested.clear();this.failed.clear();this.pendingResults.length=0;}
 }
+function isBridge(p:Placement):boolean {return !!p.id?.includes('bridge');}

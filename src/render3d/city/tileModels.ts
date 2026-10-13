@@ -51,6 +51,7 @@ export const isWaterNeighbor = (v:number):boolean => isWater(v)||v===64||v===65|
 export const isWoods = (v: number): boolean => v >= 21 && v <= 39;
 const SIDES = [[0,-1,1],[1,0,2],[0,1,4],[-1,0,8]] as const;
 export class TileSnapshot implements CityMapReader {
+  roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
   constructor(readonly width: number, readonly height: number) {
     this.values = new Uint16Array(width*height); this.flags = new Uint16Array(width*height);
@@ -95,6 +96,7 @@ export class TileSnapshot implements CityMapReader {
     const x=i%this.width,y=Math.floor(i/this.width),v=this.values[i],entry=TILE_TABLE[v]??debug(), hash=tileSeed(x,y);
     const zone=Boolean(this.flags[i]&ZONEBIT),[w,h]=zone?entry.footprint:[1,1];
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };
     if(isRoad(v)) {
       kind='road';
@@ -102,7 +104,8 @@ export class TileSnapshot implements CityMapReader {
       else if(v===77||v===78||v===239) { id='road.power_crossing'; special(v===77); }
       else if(v===237||v===238) {id='road.rail_crossing'; special(v===238);}
       else if(v>=828&&v<=832||v>=948&&v<=951) {id='road.drawbridge'; special(v<948);state='open';}
-      else {const pick=roadForMask(this.mask(x,y,isRoad));id=pick.id;rotation=pick.rotationY;}
+      else {const pick=roadForMask(this.mask(x,y,isRoad),roadLevel);id=pick.id;rotation=pick.rotationY;}
+      if(roadLevel===1&&id&&!id.includes('laterite_'))id=id.replace('road.','road.laterite_');
     } else if(isRail(v)) {
       kind='rail';
       if(v===224||v===225) {id='rail.bridge';special(v===224);}
@@ -119,14 +122,14 @@ export class TileSnapshot implements CityMapReader {
     // A constituent tile without a centre is damaged ground, not another copy of its zone.
     if(!zone&&(entry.footprint[0]>1||entry.footprint[1]>1)&&kind!=='debug') {id='terrain.dirt';kind='terrain';}
     const water=isWater(v)||v===208||v===209;
-    const height=id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
+    const height=id?.endsWith('zone_empty')?.12:id==='power.coal'?44:id==='power.nuclear'?55:id==='port.seaport'?21:id==='port.airport'?20.5:kind==='commercial'?Math.min(145,5+Math.max(0,entry.density)*24):kind==='residential'?4+Math.max(0,entry.density)*18:kind==='industrial'?5+Math.max(0,entry.density)*4:kind==='services'||kind==='transport'?12:kind==='debug'?4:0.1;
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;
     return {index:i,x:(x-(w>1?1:0)+w/2)*10,z:(y-(h>1?1:0)+h/2)*10,id,kind,
-      footprint:[w,h],height,color:colors[kind]??(isWoods(v)?0x719765:0xa99472),water,rotation,
+      footprint:[w,h],height,color:kind==='road'&&roadLevel===1?0xbc7043:colors[kind]??(isWoods(v)?0x719765:0xa99472),water,rotation,
       scale:kind==='debug'?1/3:1,powered:Boolean(this.flags[i]&POWERBIT),
-      options:{region,seed:hash%SEED_BUCKETS,variant,state,waterMask:this.mask(x,y,isWaterNeighbor),landMask:this.mask(x,y,n=>!isWaterNeighbor(n)),
+      options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant,state,waterMask:this.mask(x,y,isWaterNeighbor),landMask:this.mask(x,y,n=>!isWaterNeighbor(n)),
         ...(kind==='rail'?{sleeperOffset}:{}),worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
   }
 }

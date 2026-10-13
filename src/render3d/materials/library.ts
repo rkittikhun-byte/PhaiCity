@@ -4,8 +4,9 @@
 
 import {
   Color, ColorRepresentation, DoubleSide, Material, MeshPhysicalMaterial,
-  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBADepthPacking,
+  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBADepthPacking, MeshLambertMaterial,
 } from 'three';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { getWaterNormal, loadMaterialTextures, TextureSet } from './textures.js';
 export { SHOPHOUSE_PASTELS, shophousePastel } from './palette.js';
 
@@ -303,7 +304,7 @@ function configureCityWorldUV(material: MeshStandardMaterial): void {
   material.customProgramCacheKey = () => `phaicity-city-world:${program}`;
 }
 export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMaterial {
-  if (base.userData.vehicleMaterial) return base;
+  if (base.userData.vehicleMaterial || base.userData.provinceSurface) return base;
   const key = base.userData.materialKey as MaterialKey;
   if (!key || ['sign_thai', 'foliage_tropical'].includes(key) || base.userData.commercialLED || base.userData.pathCurb) return base;
   return finishedMaterial(`city-world-${base.name}`, key, base.color, material => {
@@ -322,8 +323,16 @@ function configureCityLOD(material: Material, coarse: boolean): void {
   const original = material.onBeforeCompile, program = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
     original.call(material, shader, renderer);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}varying float cityDetail;`)
-      .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'};`);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; varying float cityProvince; varying float cityDetail;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;
+        #ifdef USE_INSTANCING
+          vec2 terrainUV = clamp(((mat3(instanceMatrix) * transformed).xz / 10.0) + 0.5, 0.0, 1.0);
+          float u = terrainUV.x, v = terrainUV.y;
+          transformed.y += u+v<=1.0 ? cityTerrain.x + u*(cityTerrain.y-cityTerrain.x) + v*(cityTerrain.z-cityTerrain.x)
+            : cityTerrain.w + (1.0-v)*(cityTerrain.y-cityTerrain.w) + (1.0-u)*(cityTerrain.z-cityTerrain.w);
+        #endif
+        // Extend only the piers below the deck, leaving the deck, rails and animation pivots level.
+        transformed.y -= max(0.0,(-position.y-1.0)/2.0) * cityBridgeDepth;`);
     // Detailed instances carry fade in instanceColor.r, preserving their baked geometry colours.
     // This keeps prototype geometry shared instead of copying every vertex buffer for a fade attribute.
     if(!coarse)shader.vertexShader=shader.vertexShader.replace('#include <color_vertex>',`
@@ -331,7 +340,10 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       #undef USE_INSTANCING_COLOR
       #include <color_vertex>
       #define USE_INSTANCING_COLOR`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince;')
+      .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        float provinceLuma = dot(gl_FragColor.rgb, vec3(0.2126,0.7152,0.0722));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityProvince);`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         {
         // A fixed 4x4 Bayer pattern: coarse and detail cover opposite samples, including shadows.
@@ -345,6 +357,25 @@ function configureCityLOD(material: Material, coarse: boolean): void {
   material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${program}`;
   material.userData.cityLODWrapper=material.onBeforeCompile;material.userData.cityLODCoarse=coarse;
 }
+/** Untextured, vertex-coloured surface for merged provincial terrain and compacted earth. */
+export function citySurfaceMaterial():MeshStandardMaterial {
+  const token='city-surface';const cached=cache.get(token);if(cached)return cached;
+  const material=new MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:1});material.name=token;
+  material.userData={materialKey:'dirt_laterite',provinceSurface:true,keepColorMap:true};
+  owned.add(material);cache.set(token,material);return material;
+}
+let provinceSurface:MeshLambertMaterial|undefined;
+/** Matte far terrain needs diffuse light and shadows, without a per-pixel environment lookup. */
+export function cityCoarseSurfaceMaterial():MeshLambertMaterial {
+  if(!provinceSurface){provinceSurface=new MeshLambertMaterial({color:0xffffff,vertexColors:true});provinceSurface.name='city-province-surface';
+    configureCityLOD(provinceSurface,true);owned.add(provinceSurface);}
+  return provinceSurface;
+}
+let provinceEdge:LineMaterial|undefined;
+export function provinceEdgeMaterial():LineMaterial {
+  if(!provinceEdge){provinceEdge=new LineMaterial({color:0xffba62,linewidth:2.5,worldUnits:false,depthWrite:false,depthTest:false,transparent:true,opacity:.95});provinceEdge.name='city-province-edge';owned.add(provinceEdge);}
+  return provinceEdge;
+}
 export function cityLODMaterial(base: MeshStandardMaterial, coarse = false): MeshStandardMaterial {
   const token=`city-lod-${coarse}-${base.name}:${base.color.getHexString()}`,cached=cache.get(token);if(cached)return cached;
   const world=cityWorldMaterial(base),material=world.clone();material.name=token;
@@ -353,7 +384,7 @@ export function cityLODMaterial(base: MeshStandardMaterial, coarse = false): Mes
   material.onBeforeCompile=world.onBeforeCompile;material.customProgramCacheKey=world.customProgramCacheKey;configureCityLOD(material,coarse);
   owned.add(material);cache.set(token,material);
   const key=base.userData.materialKey as MaterialKey|undefined;
-  if(key&&!base.userData.vehicleMaterial)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
+  if(key&&!base.userData.vehicleMaterial&&!base.userData.provinceSurface)void whenMaterialReady(key).then(ready=>{if(ready)void loadMaterialTextures(key).then(maps=>{if(maps)applyTextures(material,key,maps);});});
   return material;
 }
 const cityDepthMaterials=new WeakMap<Material,MeshDepthMaterial>();

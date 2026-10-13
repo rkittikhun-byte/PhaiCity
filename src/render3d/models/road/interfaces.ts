@@ -11,12 +11,12 @@ export const BASIC_MASKS = Object.freeze({ straight: 5, corner: 3, t: 7, cross: 
 export type BasicRoadKind = keyof typeof BASIC_MASKS;
 
 /** Canonical models rotate clockwise in map space (negative rotation around Y). */
-export function roadForMask(value: number): { id: string; quarterTurns: number; rotationY: number } {
+export function roadForMask(value: number, level: 1 | 2 | 3 = 2): { id: string; quarterTurns: number; rotationY: number } {
   const mask = Number.isFinite(value) ? Math.trunc(value) & 15 : 0;
   for (const [kind, canonical] of Object.entries(BASIC_MASKS)) {
     for (let turn = 0; turn < 4; turn++) {
       const rotated = ((canonical << turn) | (canonical >> (4 - turn))) & 15;
-      if (rotated === mask) return { id: `road.${kind}`, quarterTurns: turn, rotationY: -turn * Math.PI / 2 };
+      if (rotated === mask) return { id: `road.${level===1?'laterite_':''}${kind}`, quarterTurns: turn, rotationY: -turn * Math.PI / 2 };
     }
   }
   throw new Error('Unreachable four-bit road mask');

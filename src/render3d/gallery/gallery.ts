@@ -31,6 +31,9 @@ import { animateCommercialModels } from '../models/commercial/landmarks.js';
 import { animateTransportModels } from '../models/transport/animation.js';
 import { CityView3D, createCityView3D } from '../city/index.js';
 import { TestCity, testCitySetup, testCitySprites, moveTestSprites } from '../city/test-city.js';
+import { ProvinceTestCity, realProvinceCity, ROAD_LEVELS_PREVIEW } from './province-city.js';
+import type { CityMapReader } from '../city/types.js';
+import { HILL_EXAGGERATION } from '../city/heightfield.js';
 import type { ToolHover } from '../../cityView.js';
 
 const modelNeighbors = (id: string, options: ModelOptions): Group => id.startsWith('road.')
@@ -115,12 +118,26 @@ function startGallery(): void {
   const requestedCategory = new URLSearchParams(location.search).get('category');
   const startTab = tabs.find(tab => tab === requestedTab) ?? 'models';
   let cityView: CityView3D | undefined;
-  const cityMap = new TestCity(), citySprites = testCitySprites();
+  let cityMap:CityMapReader=new ProvinceTestCity();const citySprites = testCitySprites();
+  const cityMapPicker=element<HTMLSelectElement>('city-map');let cityLoad=0,cityBenchmark=false;
+  const requestedMap=new URLSearchParams(location.search).get('city');if(requestedMap&&['province','legacy','TH-50'].includes(requestedMap))cityMapPicker.value=requestedMap;
   let cityHover: ToolHover | null = null, cityPaused = false, citySeconds = 0, cityLast = performance.now(), cityReadout = 0;
   let cityMotion: {start:number;last:number;started:boolean;swaps:number;dirt:number;ratios:number;cpu:number[];intervals:number[]} | undefined;
-  function buildCity(): void {
+  async function buildCity(): Promise<void> {
+    const version=++cityLoad;
     cityMotion=undefined;element<HTMLButtonElement>('city-motion').disabled=false;element('city-motion-metrics').textContent='';
-    cityView?.dispose();cityView=createCityView3D(testCitySetup(element('city-stage'),regionPicker.value as RegionId,cityMap));
+    cityView?.dispose();cityView=undefined;cityHover=null;
+    localText(element('province-status'),'กำลังเตรียมแผนที่…','Preparing map…');
+    try{
+      const nextMap=cityMapPicker.value==='TH-50'?await realProvinceCity():cityMapPicker.value==='legacy'?new TestCity():new ProvinceTestCity();
+      if(version!==cityLoad)return;
+      cityMap=nextMap;
+      const selectedRegion=cityMapPicker.value==='TH-50'?'north':regionPicker.value as RegionId;
+      const setup=testCitySetup(element('city-stage'),selectedRegion,cityMap);
+      cityView=cityBenchmark?new CityView3D(setup,{pixelRatioLimit:1}):createCityView3D(setup);
+      for(const name of['inside','outside','edge','crossing','hills'])element<HTMLButtonElement>(`province-${name}`).disabled=cityMapPicker.value==='legacy';
+      localText(element('province-status'),`${cityMap.width}×${cityMap.height} ช่อง · ลูกรังระดับ 1 · พื้นสูง ×${HILL_EXAGGERATION} · เส้นอุ่นคือขอบจังหวัด`,`${cityMap.width}×${cityMap.height} tiles · level-1 laterite · relief ×${HILL_EXAGGERATION} · warm line marks province edge`);
+    }catch(error){localText(element('province-status'),`เปิดแผนที่ไม่สำเร็จ: ${String(error)}`,`Map failed: ${String(error)}`);}
     cityLast=performance.now();
   }
   let environment: Texture | undefined;
@@ -216,7 +233,7 @@ function startGallery(): void {
       element('detail-id').textContent = view.id;
       element('detail-category').textContent = view.kind === 'assembly' ? view.id === CABLE_PREVIEW_ID
         ? words('สะพานขึง · 21 ช่อง · สายขึง 40 เส้น', 'Cable bridge · 21 tiles · 40 stays')
-        : words('ทางลาด 3 ช่อง + รางยกระดับ 1 ช่อง', '3 ramp tiles + 1 level viaduct tile')
+        : view.id==='preview.road_levels'?words('ลูกรังระดับ 1 (ด้านหลัง) · ลาดยางระดับ 2 (ด้านหน้า)','Level-1 laterite (back) · level-2 asphalt (front)'):words('ทางลาด 3 ช่อง + รางยกระดับ 1 ช่อง', '3 ramp tiles + 1 level viaduct tile')
         : view.kind === 'lineup' ? words('เหนือ · อีสาน · กลาง · ตะวันออก · ตะวันตก · ใต้', 'North · Northeast · Central · East · West · South')
           : view.kind === 'kit' ? words('ชิ้นส่วนชุดภาค', 'Regional kit component')
             : view.kind === 'model' ? `${view.entry.category} · ${view.entry.regionTier} · ${regionPicker.selectedOptions[0].textContent}` : view.kind === 'material' ? words('วัสดุ PBR · 1K', 'PBR material · 1K') : words('ป้ายภาษาไทย · Sarabun', 'Thai sign · Sarabun');
@@ -545,18 +562,34 @@ function startGallery(): void {
   element('city-tab').addEventListener('click', () => switchTab('city'));
   element('icons-tab').addEventListener('click', () => switchTab('icons'));
   element('city-default').addEventListener('click',()=>cityView?.navigation.reset());
+  cityMapPicker.addEventListener('change',()=>{void buildCity();});
+  for(const[id,x,y,distance,heading]of[['inside',155,165,240,0],['outside',276,165,240,0],['edge',259,165,380,0],['crossing',170,165,160,0],['hills',131,123,780,.65]]as const)
+    element(`province-${id}`).addEventListener('click',()=>{if(cityView){const n=cityView.navigation;let tx:number=x,ty:number=y;
+      if(cityMapPicker.value==='TH-50'){
+        const town=cityMap.town??{x:cityMap.width/2,y:cityMap.height/2};tx=town.x;ty=town.y;
+        let best=Infinity;
+        for(let yy=0;yy<cityMap.height;yy++)for(let xx=0;xx<cityMap.width;xx++){
+          const i=yy*cityMap.width+xx,inside=cityMap.insideProvince?.[i]!==0,v=cityMap.getTileValue(xx,yy);
+          const eligible=id==='outside'?!inside:id==='edge'?xx+1<cityMap.width&&inside!==(cityMap.insideProvince?.[i+1]!==0):id==='crossing'?v===237||v===238||v===64||v===65:id==='hills'?inside:false;
+          const score=id==='hills'?-(cityMap.heights?.[i]??0):(xx-town.x)**2+(yy-town.y)**2;
+          if(eligible&&score<best){best=score;tx=xx;ty=yy;}
+        }
+      }
+      n.centreOn(tx,ty);n.distance=distance;n.heading=heading;
+    }});
+  element('road-levels-preview').addEventListener('click',()=>{category.value='road';switchTab('models');showModel({id:'preview.road_levels',entry:ROAD_LEVELS_PREVIEW,kind:'assembly'});});
   element('city-motion').addEventListener('click',()=>{
     if(!cityView)return;cityView.navigation.reset();const time=performance.now(),m=cityView.metrics;
     cityMotion={start:time+500,last:time+500,started:false,swaps:m.detailSwaps,dirt:m.dirtSwaps,ratios:m.pixelRatioChanges,cpu:[],intervals:[]};
     localText(element('city-motion-metrics'),'กำลังเตรียมมุมเริ่มต้น…','Preparing the starting view…');
     element<HTMLButtonElement>('city-motion').disabled=true;
   });
-  element('city-benchmark').addEventListener('click',()=>{const stage=element('city-stage');stage.style.boxSizing='content-box';stage.style.width='1920px';stage.style.height='1080px';stage.style.maxHeight='none';});
+  element('city-benchmark').addEventListener('click',()=>{const stage=element('city-stage');stage.style.boxSizing='content-box';stage.style.width='1920px';stage.style.height='1080px';stage.style.maxHeight='none';cityBenchmark=true;void buildCity();});
   element('city-whole').addEventListener('click',()=>cityView?.navigation.wholeMap());
   element('city-towers').addEventListener('click',()=>cityView?.centreOn(135,105));
   element('city-pause').addEventListener('click',()=>{cityPaused=!cityPaused;localText(element('city-pause'),cityPaused?'เดินภาพเคลื่อนไหวต่อ':'หยุดภาพเคลื่อนไหว',cityPaused?'Resume animations':'Pause animations');});
   element('city-shot').addEventListener('click',()=>{if(cityView){const image=element<HTMLImageElement>('city-map-shot');image.src=cityView.screenshotMap();image.hidden=false;}});
-  element('city-stage').addEventListener('pointermove',event=>{if(!cityView)return;const r=cityView.canvas.getBoundingClientRect(),tile=cityView.tileAt(event.clientX-r.left,event.clientY-r.top);cityHover=tile?{tile,size:3,colour:'lime'}:null;});
+  element('city-stage').addEventListener('pointermove',event=>{if(!cityView)return;const r=cityView.canvas.getBoundingClientRect(),tile=cityView.tileAt(event.clientX-r.left,event.clientY-r.top);cityHover=tile?{tile,size:3,colour:cityView.terrain.inside(tile.x,tile.y)?'lime':'red'}:null;});
   element('city-stage').addEventListener('pointerleave',()=>{cityHover=null;});
   element('six-regions').addEventListener('click', () => {
     if (selected && selected.kind === 'model') showModel({ id: `preview.six_regions.${selected.id}`, entry: regionLineup(selected.entry), kind: 'lineup' });
@@ -612,7 +645,7 @@ function startGallery(): void {
         const scale=n.distance*2*Math.tan(19*Math.PI/180)/Math.max(1,cityView.height);
         n.pan(-40*dt*Math.cos(n.heading)/scale,-40*dt*Math.sin(n.heading)/scale,cityView.height);n.rotate(-20*dt,0);cityMotion.last=time;
       }
-      moveTestSprites(citySprites,citySeconds);cityView.paint(cityHover,citySprites,cityPaused);
+      moveTestSprites(citySprites,citySeconds);cityView.paint(cityHover,cityMapPicker.value==='legacy'?citySprites:[],cityPaused);
       if(cityMotion?.started){
         const run=cityMotion,m=cityView.metrics;run.cpu.push(performance.now()-time);run.intervals.push(frameInterval);
         const mean=(values:number[])=>values.reduce((a,b)=>a+b,0)/values.length;

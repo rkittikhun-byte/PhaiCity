@@ -44,7 +44,7 @@ export class TestCity implements CityMapReader {
   getTileValue(x:number,y:number):number{return this.values[y*200+x];}
   getTileFlags(x:number,y:number):number{return this.flags[y*200+x];}
 }
-export function testCitySetup(container:HTMLElement,region:RegionId,map=new TestCity()):CityViewSetup {
+export function testCitySetup(container:HTMLElement,region:RegionId,map:CityMapReader=new TestCity()):CityViewSetup {
   const overlay={blockSize:2,worldGet:(x:number,y:number)=>tileSeed(x,y)%180};
   return{container,map,region,overlays:{trafficDensityMap:overlay,pollutionDensityMap:overlay,landValueMap:overlay},date:()=>({month:6,year:2026})};
 }
