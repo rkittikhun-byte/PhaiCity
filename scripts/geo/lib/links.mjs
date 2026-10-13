@@ -10,7 +10,7 @@
 import { MinHeap } from './routing.mjs';
 
 /** Main roads are weighed by class, so the way between towns keeps to the bigger roads. */
-const CLASS_WEIGHT = [1, 1, 1.25]; // motorway, trunk, primary
+const CLASS_WEIGHT = [1, 1, 1.25, 1.5, 1.8, 2.2]; // motorway, trunk, primary; secondary, tertiary, unclassified (a district map)
 /** How near the town a road must pass to start from it; further away, the nearest road point is used anyway. */
 const TOWN_REACH_M = 5000;
 /**

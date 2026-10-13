@@ -18,7 +18,7 @@ test('a district id is its English name, plain', () => {
   assert.equal(districtSlug('Ban Haet'), 'ban-haet');
 });
 
-test('every listed district has a city map of the province it says, centred on its town', () => {
+test('every listed district has a map of the whole district, of the province it says, with its town on it', () => {
   const indexFile = path.join(MAPS_DIR, 'district', 'index.json');
   if (!fs.existsSync(indexFile)) return;
   const index = readJson(indexFile);
@@ -30,8 +30,12 @@ test('every listed district has a city map of the province it says, centred on i
       const map = readJson(path.join(MAPS_DIR, 'district', `${district.id}.json`));
       assert.equal(map.provinceId, provinceId);
       assert.equal(map.districtId, district.id);
-      assert.equal(map.scale, 'city');
-      assert.equal(map.tileSizeM, 16);
+      // The whole district (owner, 14 Oct 2026), its tiles 16 m or coarser to fit (scripts/geo/lib/wholeDistrict.mjs)
+      assert.equal(map.scale, 'district');
+      assert.ok(map.tileSizeM >= 16 && map.width <= 480 && map.height <= 480, `${district.id} fits`);
+      assert.equal(map.paintedZones, true);
+      assert.ok(Array.isArray(map.neighbours) && map.neighbours.length > 0, `${district.id} has neighbours`);
+      assert.ok(map.exits.some((exit) => exit.kind === 'road'), `${district.id} has a road out`);
       assert.ok(map.town && map.town.x >= 0 && map.town.x < map.width && map.town.y >= 0 && map.town.y < map.height,
         `${district.id} has its town on the map`);
     }

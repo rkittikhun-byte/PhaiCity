@@ -41,7 +41,7 @@ const ABROAD_CLEAR_M = 1500;
  * neighbouring provinces (data/thailand-provinces.json); foreign: the neighbouring countries' { rings, bbox }.
  */
 export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid, layers, town, towns, neighbors = [],
-  streets = null }) {
+  streets = null, roadRank = ROAD_RANK, smoothLinks = 0 }) {
   const { width, height, tileSizeM } = grid;
   const toTiles = (lon, lat) => {
     const { x, y } = grid.project(lat, lon);
@@ -66,7 +66,8 @@ export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid,
   // The town's tile, and one road to each neighbour from it
   const townTile = town ? nearestInsideLand(cells, inside, width, height, ...toTiles(town.lon, town.lat)) : null;
   const roadExits = townTile === null ? []
-    : layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad });
+    : layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad, roadRank,
+      smoothLinks });
 
   // A city map's real streets (cityStreets.mjs), after the railways so they cross them on straight track
   const streetMap = streets ? layStreets(net, streets, toTiles) : null;
@@ -192,8 +193,9 @@ function terrain(grid, layers) {
   }
 
   // A city map (16 m a tile) also has its canals, streams and smaller rivers, a tile wide (layers.waterways comes
-  // from the local database only: dbLayers.mjs); not where they run in a pipe or under a road
-  for (const element of layers.waterways ?? []) {
+  // from the local database only: dbLayers.mjs); not where they run in a pipe or under a road. On coarser tiles a
+  // canal a tile wide would be far too wide
+  for (const element of tileSizeM <= 40 ? layers.waterways ?? [] : []) {
     if (element.type !== 'way') continue;
     if (element.tags.tunnel && element.tags.tunnel !== 'no') continue;
     for (const segment of segmentsOf(element.points)) {
@@ -470,11 +472,12 @@ function boundaryExits(path, inside, width) {
 
 // ── Roads to the neighbours ────────────────────────────────────────────────────────────────────────────────────
 
-function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad }) {
+function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad,
+  roadRank = ROAD_RANK, smoothLinks = 0 }) {
   const { width, height, tileSizeM, widthM, heightM } = grid;
   const ways = [...layers.roads, ...(layers.links ?? [])]
-    .filter((element) => element.type === 'way' && ROAD_RANK[element.tags.highway] !== undefined)
-    .map((element) => ({ points: element.points, rank: ROAD_RANK[element.tags.highway], ref: element.tags.ref ?? '' }));
+    .filter((element) => element.type === 'way' && roadRank[element.tags.highway] !== undefined)
+    .map((element) => ({ points: element.points, rank: roadRank[element.tags.highway], ref: element.tags.ref ?? '' }));
   const nodes = roadGraph(ways, (lat, lon) => grid.project(lat, lon));
 
   const indexOf = (rings) => polygonIndex(rings.map((ring) => ring.map(([lon, lat]) => {
@@ -518,6 +521,9 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     const parts = clipLine(points, width, height);
     if (!parts.length) continue;
     const line = parts[0];
+    // A whole district's roads are straightened a little first (owner, 14 Oct 2026: straight or smooth curves as on the
+    // real map, not wiggles), within smoothLinks tiles of the real line
+    if (smoothLinks > 0) line.points = octilinear(simplifyLine(line.points, smoothLinks));
     const goalPoint = line.points[line.points.length - 1];
     const goal = anchorTile(net, 'road', ...tileOf(goalPoint, width, height));
     const path = route(net, 'road', [[(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5], ...line.points], townTile, goal);
@@ -531,6 +537,48 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     else problems.push(`road to ${link.neighbor} never leaves the province on the map`);
   }
   return exits;
+}
+
+/**
+ * A line as straight runs and 45° diagonals only, which the 3D view draws as straight roads and smooth diagonals with
+ * round bends (src/render3d/models/road/centreline.ts), rather than the uneven steps of other slants: each stretch
+ * runs straight for half its excess, diagonally, then straight again.
+ */
+function octilinear(points) {
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const [ax, ay] = points[i - 1], [bx, by] = points[i], dx = bx - ax, dy = by - ay;
+    const diagonal = Math.min(Math.abs(dx), Math.abs(dy));
+    const sx = Math.sign(dx), sy = Math.sign(dy);
+    // The straight part along the longer axis, split either side of the diagonal
+    const straightX = Math.abs(dx) > Math.abs(dy) ? (Math.abs(dx) - diagonal) * sx : 0;
+    const straightY = Math.abs(dy) > Math.abs(dx) ? (Math.abs(dy) - diagonal) * sy : 0;
+    const m1 = [ax + straightX / 2, ay + straightY / 2];
+    const m2 = [m1[0] + diagonal * sx, m1[1] + diagonal * sy];
+    if (Math.hypot(m1[0] - ax, m1[1] - ay) > 0.5) out.push(m1);
+    if (Math.hypot(m2[0] - m1[0], m2[1] - m1[1]) > 0.5) out.push(m2);
+    out.push([bx, by]);
+  }
+  return out;
+}
+
+/** Douglas–Peucker: the fewest points that keep a line within tolerance of where it was */
+function simplifyLine(points, tolerance) {
+  if (points.length < 3) return points;
+  const keep = new Uint8Array(points.length);
+  keep[0] = keep[points.length - 1] = 1;
+  const stack = [[0, points.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = points[a], [bx, by] = points[b], dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy) || 1;
+    let far = -1, farthest = tolerance;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((points[i][0] - ax) * dy - (points[i][1] - ay) * dx) / length;
+      if (d > farthest) { farthest = d; far = i; }
+    }
+    if (far >= 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+  }
+  return points.filter((_, i) => keep[i]);
 }
 
 // ── Numbers ────────────────────────────────────────────────────────────────────────────────────────────────────

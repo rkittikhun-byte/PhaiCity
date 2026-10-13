@@ -72,7 +72,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.needsRulerHouse = true;
   }
   // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
-  map.paintedZones = isCityMap(map) || (saved !== null && saved.paintedZones === true);
+  // ... and on a whole district's map, which says so whatever the size of its tiles (scripts/geo/cityMaps.mjs)
+  map.paintedZones = map.paintedZones === true || isCityMap(map) || (saved !== null && saved.paintedZones === true);
 }
 
 /** The records every city has, whatever made it (a practice map has none of them yet) */

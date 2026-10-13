@@ -13,12 +13,12 @@ import { createMask, fillPolygon, tileCoverage } from './raster.mjs';
 export const COVER = { NONE: 0, PADDY: 1, FIELD: 2, ORCHARD: 3, GRASS: 4, WETLAND: 5, VILLAGE: 6, URBAN: 7 };
 
 const FINE = 4;
-/** Open land this close to water (tiles of 16 m) is paddy whatever its height */
-const PADDY_NEAR_WATER = 12;
+/** Open land this close to water (metres) is paddy whatever its height */
+const PADDY_NEAR_WATER_M = 200;
 /** ... and land below this share of the map's land heights is low ground, paddy too */
 const LOW_SHARE = 0.6;
-/** Tiles round a village's point that are its houses' gardens and trees */
-const VILLAGE_RADIUS = 3;
+/** Metres round a village's point that are its houses' gardens and trees */
+const VILLAGE_RADIUS_M = 50;
 
 /** The cover an OpenStreetMap area draws, or NONE */
 export function coverOf(tags = {}) {
@@ -45,6 +45,8 @@ export function coverOf(tags = {}) {
 export function landCover({ grid, cells, transport, heights, areas, places }) {
   const { width, height, tileSizeM } = grid, size = width * height;
   const cover = new Uint8Array(size);
+  const PADDY_NEAR_WATER = Math.max(2, Math.round(PADDY_NEAR_WATER_M / tileSizeM));
+  const VILLAGE_RADIUS = Math.max(1, Math.round(VILLAGE_RADIUS_M / tileSizeM));
   const segmentsOf = (points) => {
     const segments = [];
     for (let i = 2; i < points.length; i += 2) {

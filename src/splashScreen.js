@@ -150,6 +150,8 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     map.provinceId = provinceId;
     map.districtId = preset.districtId || null;
     map.tileSizeM = preset.tileSizeM || null;
+    // A whole district's map is painted a tile at a time too (owner, 14 Oct 2026; docs/ZONE_PAINT.md)
+    map.paintedZones = preset.paintedZones === true;
     // A real-scale city map's real streets: their levels, and their names for the street labels (src/streetNames.ts)
     map.roadLevels = layer(preset.roadLevels);
     streetNamesFrom(map, preset);
@@ -255,6 +257,10 @@ var savedCityHeights = function(map) {
     return Promise.resolve();
   // A city saved on a real-scale city map takes them from that map (docs/CITY_SCALE.md)
   var heightsFrom = function(preset) {
+    // A city saved on a map since rebuilt at another size (a district's square of 13 Oct, now the whole district)
+    // keeps its own tiles and goes without the map's heights, names and land cover
+    if (preset.width !== map.width || preset.height !== map.height)
+      return Promise.resolve();
     map.tileSizeM = preset.tileSizeM || null;
     // ... and its streets' real names, which saves do not keep either
     streetNamesFrom(map, preset);

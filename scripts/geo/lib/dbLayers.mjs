@@ -59,8 +59,10 @@ function areaElements(rows) {
 }
 
 function lines(box, where) {
+  // Lines keep every vertex: a junction is a vertex two ways share, and simplifying each way on its own would lose it
+  // and cut the roads apart (the links between towns follow the joined network: links.mjs roadGraph)
   return lineElements(queryRows(`SELECT osm_id, ${LINE_TAGS},
-    ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_ClipByBox2D(way, ${envelope(box)}), ${SIMPLIFY_DEG}))
+    ST_AsGeoJSON(ST_ClipByBox2D(way, ${envelope(box)}))
     FROM planet_osm_line WHERE way && ${envelope(box)} AND (${where});`));
 }
 
@@ -84,10 +86,11 @@ function places(box) {
  * The layers of the box [west, south, east, north]: the province map builder's own (roads, links, rail, coast,
  * rivers, water, forest) and the streets of a city map.
  */
-export function loadDbLayers(box) {
+export function loadDbLayers(box, { roadClasses = ['motorway', 'trunk', 'primary'] } = {}) {
   return {
-    roads: lines(box, `highway IN ('motorway', 'trunk', 'primary')`),
-    links: lines(box, `highway IN ('motorway_link', 'trunk_link', 'primary_link')`),
+    // The roads the links between towns follow (a whole district's map takes the smaller classes too)
+    roads: lines(box, `highway IN (${list(roadClasses)})`),
+    links: lines(box, `highway IN (${list(roadClasses.map((c) => `${c}_link`))})`),
     rail: lines(box, `railway = 'rail'`),
     coast: lines(box, `"natural" = 'coastline'`),
     rivers: lines(box, `waterway = 'river'`),
