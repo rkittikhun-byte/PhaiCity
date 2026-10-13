@@ -38,6 +38,10 @@ export interface ToolChoice {
   size?: number;
   /** What its place says in place of its price, a string key (the road upgrade: "one level at a time") */
   note?: string;
+  /** Why it may not be used, a string key, in place of "Not in this province" (the house: "needs the rank ขุน") */
+  reason?: string;
+  /** What its place does instead of choosing a tool: the house's wings open the house's window */
+  action?: () => void;
 }
 
 const choices = new Map<string, readonly ToolChoice[]>();
@@ -78,13 +82,14 @@ export function setToolChoices(group: string, list: readonly ToolChoice[], doc: 
   choices.set(group, list);
   const button = doc.querySelector<HTMLButtonElement>(`.toolButton[data-tool="${group}"]`);
   if (button) {
-    const usable = list.filter((choice) => choice.available);
+    // A place that does something else (an action) is never the tool the button uses, but keeps the button usable
+    const usable = list.filter((choice) => choice.available && !choice.action);
     if (!usable.some((choice) => choice.tool === button.dataset.activeTool)) {
       if (usable.length > 0) button.dataset.activeTool = usable[0].tool;
       else delete button.dataset.activeTool;
     }
     wear(button, list.find((choice) => choice.tool === button.dataset.activeTool));
-    button.disabled = usable.length === 0;
+    button.disabled = !list.some((choice) => choice.available);
     relabelTools();
     if (button.disabled) button.title = t(`choice.none.${group}`);
   }
@@ -105,7 +110,8 @@ export function installToolLevels(doc: Document = document): void {
     return list.map((choice) => {
       const slot = doc.createElement("button");
       slot.type = "button";
-      slot.className = `levelSlot choice${choice.tool === active ? " current" : ""}${choice.available ? "" : " unavailable"}`;
+      slot.className = `levelSlot choice${choice.tool === active && !choice.action ? " current" : ""}` +
+        `${choice.available ? "" : " unavailable"}`;
       slot.disabled = !choice.available;
       slot.style.setProperty("--tool", choice.colour ?? selected.style.getPropertyValue("--tool"));
       const icon = doc.createElement("span");
@@ -125,11 +131,16 @@ export function installToolLevels(doc: Document = document): void {
       label.textContent = t(`choice.${choice.tool}`);
       const note = doc.createElement("span");
       note.className = "levelNote";
-      note.textContent = !choice.available ? t("choice.unavailable") : choice.note ? t(choice.note) : price;
-      slot.title = choice.available ? name : `${name}: ${t("choice.unavailable")}`;
+      const unavailable = t(choice.reason ?? "choice.unavailable");
+      note.textContent = !choice.available ? unavailable : choice.note ? t(choice.note) : price;
+      slot.title = choice.available ? name : `${name}: ${unavailable}`;
       slot.append(icon, label, note);
       slot.addEventListener("click", () => {
         if (!choice.available) return;
+        if (choice.action) {
+          choice.action();
+          return;
+        }
         selected.dataset.activeTool = choice.tool;
         wear(selected, choice);
         relabelTools();

@@ -34,6 +34,8 @@ export interface CityStats {
   darkZones: number;
   pollution: number;
   crime: number;
+  /** The ruler's house standing (src/rulerHouse.ts): 1 or 0 */
+  rulerHouse: number;
 }
 
 export interface Goal {
@@ -56,6 +58,8 @@ export const CHAPTERS: Chapter[] = [
     id: "first",
     title: "goals.title",
     goals: [
+      // A new city builds its ruler's house before anything else (src/rulerHouse.ts)
+      { id: "house", tool: "ruler_house", done: (s) => s.rulerHouse >= 1 },
       { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
       { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },
       // Power plants are zones with power themselves, so at least one other zone must have it
@@ -73,7 +77,8 @@ export const CHAPTERS: Chapter[] = [
     title: "goals.title.khun",
     goals: [
       { id: "police", tool: "police", done: (s) => s.policeStations >= 1 },
-      { id: "fire", tool: "fire", done: (s) => s.fireStations >= 1 },
+      // The fire station is chosen above the safety (police) button (src/toolLevels.ts)
+      { id: "fire", tool: "police", done: (s) => s.fireStations >= 1 },
       // Only counts once the city has enough zones for keeping them all lit to take some care
       { id: "lit", tool: "wire", done: (s) => s.litZones >= 20 && s.darkZones === 0 },
       { id: "rail", tool: "rail", done: (s) => s.rails >= 20 },
@@ -86,7 +91,8 @@ export const CHAPTERS: Chapter[] = [
     id: "luang",
     title: "goals.title.luang",
     goals: [
-      { id: "airport", tool: "airport", done: (s) => s.airports >= 1 },
+      // ... and the airport above the port's
+      { id: "airport", tool: "port", done: (s) => s.airports >= 1 },
       // The game warns of pollution above 60 and crime above 100 (src/simulation.js); these ask for better
       { id: "clean", tool: null, done: (s) => s.population > 10000 && s.pollution < 50 },
       { id: "safe", tool: "police", done: (s) => s.population > 10000 && s.crime < 50 },
@@ -138,6 +144,7 @@ interface SimulationLike {
     wateredZoneCount?: number;
     pollutionAverage: number;
     crimeAverage: number;
+    rulerHouseCount?: number;
   };
   evaluation: { cityPop: number };
   _map?: CityMapSource;
@@ -167,6 +174,7 @@ export function readStats(simulation: SimulationLike): CityStats {
     darkZones: power.unpowered,
     pollution: census.pollutionAverage,
     crime: census.crimeAverage,
+    rulerHouse: census.rulerHouseCount ?? 0,
   };
 }
 

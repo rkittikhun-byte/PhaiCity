@@ -332,6 +332,11 @@ export const FARM_LAST        = CHURCH3BASE + 8;
 export const HARBOUR_BASE     = CHURCH4BASE;
 export const HARBOUR          = CHURCH4; // Centre of a fishing harbour (tiles 983--991)
 export const HARBOUR_LAST     = CHURCH4BASE + 8;
+// PhaiCity: the ruler's house and, later, schools and hospitals (src/rulerHouse.ts) take the original church's 3x3
+// (CHURCH0, which the game never placed); the map records which building stands there (gameMap.civicKinds)
+export const CIVIC_BASE       = CHURCH0BASE;
+export const CIVIC            = CHURCH0; // Centre of a civic building (tiles 414--422)
+export const CIVIC_LAST       = CHURCH0BASE + 8;
 
 // tiles 1021-1023 unused
 

@@ -251,6 +251,27 @@ variants); the map records the level, and the renderer only reads it.
   reservation. Motorways have crash barriers and no kerbside access; tollways stand on piers (elevated) with a toll
   plaza where they meet a road of another level.
 
+## 6H. Civic buildings: the ruler's house (added 13 Oct 2026)
+
+The ruler's house (จวนเจ้าเมือง, `docs/RULER_HOUSE.md`) stands on the original church's 3×3, tiles 414–422 (centre
+418), which the game never placed. Schools and hospitals will share the same tiles later; the map says which
+building stands where.
+
+| Field | Meaning |
+|---|---|
+| `gameMap.civicKinds` | `{ [centreIndex]: kind }`, `centreIndex = x + y * width` of the centre tile; `"ruler_house"` for now. A missing entry: draw the generic civic building. |
+| `gameMap.rulerHouse` | `{ x, y, level, wings }` or null: the house's centre, its level 1–6 and its wings (`council_hall`, `treasury`, `planning_office`, `warning_tower`, `granary`, `culture_court`, `front_garden`, `trade_office`) |
+
+- Six levels, one for each rank, growing from a single raised house (เรือนเจ้าเมือง) to a residence with a hall and
+  a city garden. Each level is region-dressed (tier R1): a Lanna คุ้ม in the north, a central-plains เรือนหมู่ on stilts,
+  and so on, from the region kits.
+- Wings sit inside the same 3×3 around the main house: a small treasury building, a planning office, a warning tower
+  (a slim lookout tower with a siren, no flags of real agencies), a granary and a water tank, a culture court (an open
+  pavilion with a stage), a front garden, a council hall, a trade office.
+- No palace or temple ornaments (ช่อฟ้า, ใบระกา, หางหงส์), no royal symbols or Garuda, no real government emblems
+  or names. A plain Thai sign "จวนเจ้าเมือง" is fine.
+- Read `gameMap.rulerHouse` and `civicKinds` only; never write them.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

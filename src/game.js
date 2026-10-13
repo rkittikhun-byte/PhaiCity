@@ -43,7 +43,12 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { pageChoice, setToolChoices } from './toolLevels.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { CIVIC, MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { HouseWindow } from './houseWindow.ts';
+import {
+  hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
+  houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, PLANNING_DISCOUNT, readHouse
+} from './rulerHouse.ts';
 import { newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
@@ -55,7 +60,7 @@ import { QueryWindow } from './queryWindow.js';
 import { Random } from './random.ts';
 import { RCI } from './rci.js';
 import { installRulerGoals } from './rulerGoals.ts';
-import { keepHigherRank, rankForCityClass } from './rulerRank.ts';
+import { keepHigherRank, RANKS, rankForCityClass } from './rulerRank.ts';
 import { SaveWindow } from './saveWindow.js';
 import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
@@ -127,6 +132,16 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     this.gameMap.heights = savedGame.heights || null;
     this.gameMap.tileSizeM = savedGame.tileSizeM || null;
+    // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
+    // the game is not held back by it
+    this.gameMap.civicKinds = Object.assign({}, savedGame.civicKinds || {});
+    this.gameMap.rulerHouse = readHouse(savedGame.rulerHouse);
+    this.gameMap.needsRulerHouse = savedGame.needsRulerHouse === true;
+  } else {
+    // A new city builds its ruler's house before anything else
+    this.gameMap.civicKinds = {};
+    this.gameMap.rulerHouse = null;
+    this.gameMap.needsRulerHouse = true;
   }
 
   this.tileSet = tileSet;
@@ -170,6 +185,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   cityMap.powerKinds = cityMap.powerKinds || {};
   cityMap.mineKinds = cityMap.mineKinds || {};
   cityMap.roadLevels = cityMap.roadLevels || newRoadLevels(cityMap.width, cityMap.height);
+  cityMap.civicKinds = cityMap.civicKinds || {};
+  var game = this;
   this.commands = new CityCommands({
     width: this.gameMap.width,
     height: this.gameMap.height,
@@ -200,6 +217,18 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     },
     setRoadLevel: function(x, y, level) {
       cityMap.roadLevels[y * cityMap.width + x] = level;
+    },
+    // The ruler's house (src/rulerHouse.ts): a new city builds it first, and its next level needs the ruler's rank
+    houseMap: cityMap,
+    rank: function() {
+      return Math.max(0, RANKS.indexOf(game.rulerRank));
+    },
+    setRulerHouse: function(x, y) {
+      cityMap.civicKinds[y * cityMap.width + x] = HOUSE_KIND;
+      cityMap.rulerHouse = {x: x, y: y, level: 1, wings: []};
+      // The camera's start and ⌂ follow the house
+      cityMap.town = {x: x, y: y};
+      setViewHome(cityMap.town);
     }
   });
 
@@ -220,6 +249,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The mine button's places are the ores the province has; those it lacks are left out
   setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
     .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
+  // The ruler's house button's places, and the tools held back until a new city has its house (src/rulerHouse.ts)
+  this.refreshHouse();
 
   // Sound only listens to the game; it never changes the city
   this.gameAudio = attachGameAudio(this, audio, Text);
@@ -311,7 +342,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       fuelCost: this.simulation.budget.fuelCost,
       miningIncome: this.simulation.budget.miningIncome,
       farmIncome: this.simulation.budget.farmIncome,
-      tollIncome: this.simulation.budget.tollIncome
+      tollIncome: this.simulation.budget.tollIncome,
+      houseCost: this.simulation.budget.houseCost
     };
 
     return [budgetData];
@@ -424,6 +456,19 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.congratsWindow = new CongratsWindow(opacityLayerID, 'congratsWindow');
   this.congratsWindow.addEventListener(Messages.CONGRATS_WINDOW_CLOSED, this.genericDialogClosure);
 
+  // The ruler's house and its wings (src/houseWindow.ts): wings are built and taken off as commands
+  this.houseWindow = new HouseWindow(opacityLayerID, 'houseWindow');
+  this.houseWindow.source = {
+    house: function() { return houseStanding(self.gameMap) ? self.gameMap.rulerHouse : null; },
+    funds: function() { return self.simulation.budget.totalFunds; },
+    changeWing: function(wing, add) {
+      var outcome = self.applyCommand({type: 'wing', wing: wing, add: add});
+      self.refreshHouse();
+      return outcome.accepted;
+    }
+  };
+  this.houseWindow.addEventListener(Messages.HOUSE_WINDOW_CLOSED, this.genericDialogClosure);
+
   // Listen for touches, so we can warn tablet users
   this.touchListener = touchListener.bind(this);
   window.addEventListener('touchstart', this.touchListener, false);
@@ -485,6 +530,10 @@ Game.prototype.save = function() {
                   national: this.gameMap.nationalTransport ? encodePresetLayer(this.gameMap.nationalTransport) : undefined,
                   powerKinds: plantsStanding(this.gameMap, 'powerKinds', POWERPLANT),
                   mineKinds: plantsStanding(this.gameMap, 'mineKinds', MINE),
+                  // The ruler's house, its wings, and whether a new city still has to build it (src/rulerHouse.ts)
+                  civicKinds: plantsStanding(this.gameMap, 'civicKinds', CIVIC),
+                  rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
+                  needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
@@ -546,6 +595,8 @@ var genericDialogClosure = function() {
 Game.prototype.onDateChange = function(date) {
   // Building older than two months can no longer be undone
   this.refreshUndo();
+  // The ruler's house may have fallen, or a new city's house now holds (src/rulerHouse.ts)
+  this.refreshHouse();
 
   // Snow tiles exist only in the 2D view
   if (this.cityView.kind !== '2d')
@@ -606,9 +657,72 @@ Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
-  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER].indexOf(outcome.reason) === -1)
+  if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER].indexOf(outcome.reason) === -1 &&
+      HOUSE_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
+};
+
+
+// The ruler's house (src/rulerHouse.ts): its button's places (build it, raise it a level, its wings), the tools a new
+// city holds back until it stands, and the planning office's cheaper roads
+var HOUSE_COLOUR = '#c9a227';
+
+Game.prototype.refreshHouse = function() {
+  var map = this.gameMap;
+  var standing = houseStanding(map);
+  var rank = Math.max(0, RANKS.indexOf(this.rulerRank));
+  var level = standing ? map.rulerHouse.level : 0;
+  var next = Math.min(level + 1, MAX_HOUSE_LEVEL);
+  var game = this;
+  setToolChoices(HOUSE_TOOL, [
+    {tool: HOUSE_TOOL, available: !standing, colour: HOUSE_COLOUR, reason: 'house.reason.built'},
+    {tool: HOUSE_UPGRADE_TOOL, available: standing && level < MAX_HOUSE_LEVEL && houseSpec(next).rank <= rank,
+     colour: HOUSE_COLOUR, note: 'house.next.' + next,
+     reason: !standing ? 'house.reason.none' : level >= MAX_HOUSE_LEVEL ? 'house.reason.top' :
+             'house.reason.rank.' + houseSpec(next).rank},
+    {tool: 'ruler_house_wings', available: standing, colour: HOUSE_COLOUR, note: 'house.wings_note',
+     reason: 'house.reason.none', action: function() { game.openHouseWindow(); }}
+  ]);
+  // A new city's other tools wait for the house (the commands refuse them too)
+  document.body.classList.toggle('houseFirst', houseFirst(map));
+  // The planning office takes a tenth off the roads and their upgrades
+  this.applyPlanningDiscount(hasWing(map, 'planning_office') ? PLANNING_DISCOUNT : 1);
+};
+
+
+Game.prototype.applyPlanningDiscount = function(factor) {
+  if (this._planningFactor === factor)
+    return;
+  this._planningFactor = factor;
+  var rules = this.simulation.rules;
+  var tools = this.inputStatus.gameTools;
+  var prices = toolPrices(rules);
+  ROAD_TOOLS.concat([UPGRADE_TOOL]).forEach(function(name) {
+    tools[name].costFactor = rules.cost[name] * factor;
+    prices[name] = Math.max(1, Math.round(prices[name] * factor));
+  });
+  showToolPrices(prices);
+};
+
+
+Game.prototype.openHouseWindow = function() {
+  if (this.dialogOpen)
+    return;
+  this.dialogOpen = true;
+  this._openWindow = 'houseWindow';
+  this.houseWindow.open();
+};
+
+
+// What a refused house tool says where the player looks
+var houseNote = function(reason, map) {
+  if (reason === NEEDS_RANK) {
+    var next = Math.min((map.rulerHouse ? map.rulerHouse.level : 0) + 1, MAX_HOUSE_LEVEL);
+    return t('house.note.needs_rank', {rank: t('rank.' + RANKS[houseSpec(next).rank])});
+  }
+  return t(reason === HOUSE_FIRST ? 'house.note.first' : reason === HOUSE_STANDS ? 'house.note.stands' :
+           reason === HOUSE_AT_TOP ? 'house.note.top' : 'house.note.none');
 };
 
 
@@ -813,11 +927,19 @@ Game.prototype.handleTool = function(data) {
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
+    // The ruler's house first, only one, and its next level for a higher rank (src/rulerHouse.ts)
+    if (HOUSE_REASONS.indexOf(outcome.reason) !== -1) {
+      showCornerNote(houseNote(outcome.reason, this.gameMap), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
   }
 
   this.showToolResult(tool, result);
   this.gameAudio.toolUsed(toolName, result, x);
   this.refreshUndo();
+  if (toolName === HOUSE_TOOL || toolName === HOUSE_UPGRADE_TOOL || toolName === 'bulldozer')
+    this.refreshHouse();
 };
 
 
@@ -888,6 +1010,8 @@ Game.prototype.processFrontEndMessage = function(message) {
       promoted = rank !== this.rulerRank;
       this.rulerRank = rank;
       this.showRulerRank();
+      // A higher rank may let the ruler's house rise a level
+      this.refreshHouse();
     }
 
     if (this.lastBadMessageTime === null || d - this.lastBadMessageTime > disasterTimeout) {
@@ -1016,6 +1140,7 @@ Game.prototype.handleUndo = function() {
   else
     showCornerNote(t('undo.nothing'), 3000);
   this.refreshUndo();
+  this.refreshHouse();
 };
 
 

@@ -28,7 +28,11 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { COALBASE, FARM, HARBOUR, MINE } from './tileValues.ts';
+import { CIVIC, COALBASE, FARM, HARBOUR, MINE } from './tileValues.ts';
+import {
+  CULTURE_VISITORS, cultureNoise, GRANARY_DROUGHT_FACTOR, hasWing, HOUSE_KIND, houseLandValue, houseStanding,
+  houseUpkeep, TREASURY_TAX_BONUS, WARNING_RISK_FACTOR
+} from './rulerHouse.ts';
 import { Mining } from './mining.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
@@ -59,8 +63,12 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._extraPollution = function(x, y, tileValue) {
     // ... and the dust or noise of a road by its level (src/roadLevels.ts)
     var road = isRoadTile(tileValue) ? roadSpec(roadLevelAt(map, x, y)).noise : 0;
-    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road;
+    // ... and a festival at the ruler's house's culture court (src/rulerHouse.ts)
+    var festival = this._festivalHouse ? cultureNoise(this._festivalHouse, x, y) : 0;
+    return this._mining.pollutionAt(map, x, y, tileValue) + this._farming.hazeAt(x, y) + road + festival;
   }.bind(this);
+  // The ruler's house, while a festival's month makes noise at its culture court (set before each pollution scan)
+  this._festivalHouse = null;
   this._plantPollution = function(x, y, tileValue) {
     var index = tileValue - COALBASE;
     var centreX = x - (index % 4) + 1;
@@ -110,6 +118,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._monthsSinceHazeWarning = 12;
   this._monthsSinceDirtyWarning = 12;
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
+  // ... and the ruler's house (src/rulerHouse.ts): whether one stood at the last month's end
+  this._houseStood = houseStanding(this._map);
 
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
@@ -373,6 +383,8 @@ Simulation.prototype.init = function() {
   this._mapScanner.addAction(HARBOUR, this._farming.harbourFound.bind(this._farming));
   this._repairManager.addAction(FARM, 15, 3);
   this._repairManager.addAction(HARBOUR, 15, 3);
+  this._mapScanner.addAction(CIVIC, this._civicFound.bind(this));
+  this._repairManager.addAction(CIVIC, 15, 3);
   Road.registerHandlers(this._mapScanner, this._repairManager);
   Residential.registerHandlers(this._mapScanner, this._repairManager);
   Stadia.registerHandlers(this._mapScanner, this._repairManager);
@@ -388,13 +400,12 @@ Simulation.prototype.init = function() {
   this._mapScanner.mapScan(0, this._map.width, simData);
   this._powerManager.doPowerScan(this._census);
   this._waterManager.doWaterScan(month, false);
-  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                              shopRubbish(this._tourism), this._plantPollution, this._extraPollution);
+  this._pollutionTerrainLandValueScan();
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
-  BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
+  BlockMapUtils.populationDensityScan(this._map, this.blockMaps, this._house());
   BlockMapUtils.fireAnalysis(this.blockMaps);
   // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
-  this._setTourism(tourismMonth(this._tourismLevel(), this._census, month, this._inProvince()));
+  this._setTourism(this._visitors(month));
 };
 
 
@@ -440,6 +451,7 @@ var simulate = function(simData) {
     case 9:
       // PhaiCity: a month's visitors, before the year's taxes take in what they spent
       if ((this._cityTime & 3) === 0) {
+        this._houseMonth();
         this._tourismMonth();
         this._miningMonth();
         this._farmingMonth();
@@ -454,6 +466,8 @@ var simulate = function(simData) {
         this._census.take120Census(this.budget);
 
       if (this._cityTime % TAX_FREQUENCY === 0)  {
+        // The ruler's house's treasury takes in a little more (src/rulerHouse.ts)
+        this.budget.taxBonus = hasWing(this._map, 'treasury') ? TREASURY_TAX_BONUS : 0;
         this.budget.collectTax(this._gameLevel, this._census);
         this.evaluation.cityEvaluation(simData);
       }
@@ -471,15 +485,15 @@ var simulate = function(simData) {
     case 11:
       if ((this._simCycle % speedPowerScan[speedIndex]) === 0)
         this._powerManager.doPowerScan(this._census);
-      // PhaiCity: the water every cycle (it only follows the roads), and the ground on a month's first cycle
+      // PhaiCity: the water every cycle (it only follows the roads), and the ground on a month's first cycle; the ruler's
+      // house's granary and city tank keep half of what the dry season takes (src/rulerHouse.ts)
+      this._waterManager.drought = this._drought();
       this._waterManager.doWaterScan(this.getDate().month, (this._cityTime & 3) === 0);
       break;
 
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
-        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
-                                                    shopRubbish(this._tourism), this._plantPollution,
-                                                    this._extraPollution);
+        this._pollutionTerrainLandValueScan();
       break;
 
     case 13:
@@ -488,15 +502,16 @@ var simulate = function(simData) {
       break;
 
     case 14:
+      // The ruler's house is the city's centre while it stands (src/rulerHouse.ts)
       if ((this._simCycle % speedPopulationDensityScan[speedIndex]) === 0)
-        BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
+        BlockMapUtils.populationDensityScan(this._map, this.blockMaps, this._house());
       break;
 
     case 15:
       if ((this._simCycle % speedFireAnalysis[speedIndex]) === 0)
         BlockMapUtils.fireAnalysis(this.blockMaps);
 
-      this.disasterManager.doDisasters(this._census, seasonalRisks(this.rules, this.getDate().month));
+      this.disasterManager.doDisasters(this._census, this._seasonalRisks(this.getDate().month));
       break;
   }
 
@@ -528,6 +543,91 @@ Simulation.prototype._inProvince = function() {
 };
 
 
+// PhaiCity: the ruler's house while it stands (src/rulerHouse.ts), or null
+Simulation.prototype._house = function() {
+  return houseStanding(this._map) ? this._map.rulerHouse : null;
+};
+
+
+// The pollution, terrain and land value scan, with what the ruler's house adds to the land near it and the noise of a
+// festival at its culture court
+Simulation.prototype._pollutionTerrainLandValueScan = function() {
+  var house = this._house();
+  this._festivalHouse = house && this._tourism.festival ? house : null;
+  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+                                              shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
+                                              house ? function(x, y) { return houseLandValue(house, x, y); } : null);
+};
+
+
+// The province's dry season, of which the ruler's house's granary and city tank keep half from the water works
+Simulation.prototype._drought = function() {
+  var drought = this.rules.drought || NO_DROUGHT;
+  if (!hasWing(this._map, 'granary'))
+    return drought;
+  return {months: drought.months, share: drought.share * GRANARY_DROUGHT_FACTOR};
+};
+
+
+// The seasons' disasters this month (src/provinceRules.ts), rarer with the ruler's house's warning tower
+Simulation.prototype._seasonalRisks = function(month) {
+  var risks = seasonalRisks(this.rules, month);
+  if (!hasWing(this._map, 'warning_tower'))
+    return risks;
+  return risks.map(function(risk) { return {disaster: risk.disaster, chance: risk.chance * WARNING_RISK_FACTOR}; });
+};
+
+
+// A civic building's centre (tile 418): the ruler's house is counted and pays its upkeep with its wings'
+Simulation.prototype._civicFound = function(map, x, y, simData) {
+  var house = map.rulerHouse;
+  if (!house || house.x !== x || house.y !== y || !map.civicKinds || map.civicKinds[y * map.width + x] !== HOUSE_KIND)
+    return;
+  simData.census.rulerHouseCount += 1;
+  simData.census.rulerHouseUpkeep += houseUpkeep(house);
+};
+
+
+// A month of the ruler's house: a new city that has built it is no longer held back; the news hears when it falls,
+// and it is forgotten with its wings; its warning tower tells of a season of disasters a month ahead
+var SEASON_WARNINGS = {fire: Messages.FIRE_SEASON_AHEAD, flood: Messages.FLOOD_SEASON_AHEAD,
+                       tornado: Messages.STORM_SEASON_AHEAD};
+
+Simulation.prototype._houseMonth = function() {
+  var map = this._map;
+  var standing = houseStanding(map);
+  if (standing && map.needsRulerHouse)
+    map.needsRulerHouse = false;
+  if (!standing && map.rulerHouse) {
+    if (this._houseStood)
+      this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.RULER_HOUSE_LOST,
+                                                   data: {x: map.rulerHouse.x, y: map.rulerHouse.y}});
+    map.rulerHouse = null;
+  }
+  this._houseStood = standing;
+
+  if (!standing || !this.disasterManager.disastersEnabled || !hasWing(map, 'warning_tower'))
+    return;
+  var month = this.getDate().month;
+  var now = seasonalRisks(this.rules, month).map(function(risk) { return risk.disaster; });
+  seasonalRisks(this.rules, (month + 1) % 12).forEach(function(risk) {
+    if (now.indexOf(risk.disaster) === -1 && SEASON_WARNINGS[risk.disaster])
+      this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: SEASON_WARNINGS[risk.disaster]});
+  }, this);
+};
+
+
+// A month's visitors (src/tourism.ts), more with the ruler's house's culture court
+Simulation.prototype._visitors = function(month) {
+  var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
+  if (visit.level === 0 || !hasWing(this._map, 'culture_court'))
+    return visit;
+  return Object.assign({}, visit, {visitors: Math.round(visit.visitors * CULTURE_VISITORS),
+                                   income: visit.income * CULTURE_VISITORS,
+                                   shopsWanted: visit.shopsWanted * CULTURE_VISITORS});
+};
+
+
 Simulation.prototype._setTourism = function(month) {
   this._tourism = month;
   this._waterManager.festivalUse = festivalWaterUse(month);
@@ -541,7 +641,7 @@ Simulation.prototype._setTourism = function(month) {
 // the high season begins and, at most once a year, when pollution or crime keeps them away
 Simulation.prototype._tourismMonth = function() {
   var month = this.getDate().month;
-  var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
+  var visit = this._visitors(month);
   this._setTourism(visit);
   this.budget.tourismFund += visit.income;
   if (visit.festival === 'songkran')

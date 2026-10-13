@@ -114,6 +114,10 @@ badMessages[Messages.TOXIC_GROUND] = true;
 badMessages[Messages.HAZE] = true;
 badMessages[Messages.FEW_FISH] = true;
 badMessages[Messages.DIRTY_HARBOUR] = true;
+badMessages[Messages.RULER_HOUSE_LOST] = true;
+badMessages[Messages.FIRE_SEASON_AHEAD] = true;
+badMessages[Messages.FLOOD_SEASON_AHEAD] = true;
+badMessages[Messages.STORM_SEASON_AHEAD] = true;
 
 var goodMessages = {};
 goodMessages[Messages.REACHED_CAPITAL] = true;
@@ -179,6 +183,10 @@ messageKeys[Messages.TOXIC_GROUND] = 'msg.bad.toxic_ground';
 messageKeys[Messages.HAZE] = 'msg.bad.haze';
 messageKeys[Messages.FEW_FISH] = 'msg.bad.few_fish';
 messageKeys[Messages.DIRTY_HARBOUR] = 'msg.bad.dirty_harbour';
+messageKeys[Messages.RULER_HOUSE_LOST] = 'msg.bad.ruler_house_lost';
+messageKeys[Messages.FIRE_SEASON_AHEAD] = 'msg.bad.fire_season_ahead';
+messageKeys[Messages.FLOOD_SEASON_AHEAD] = 'msg.bad.flood_season_ahead';
+messageKeys[Messages.STORM_SEASON_AHEAD] = 'msg.bad.storm_season_ahead';
 
 
 var translateList = function(keys) {

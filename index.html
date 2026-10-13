@@ -136,6 +136,8 @@
           </div>
           <!-- The buttons' words and prices are written by src/toolShortcuts.ts, in the province's prices -->
           <div id="buttons">
+            <!-- The ruler's house, a new city's first building (src/rulerHouse.ts) -->
+            <button id="rulerHouseButton" data-size="3" data-tool="ruler_house" data-colour="#c9a227" class="toolButton unselected">Ruler's house</button>
             <button id="residentialButton" data-size="3" data-tool="residential" data-colour="lime" class="toolButton unselected">Residential $100</button>
             <button id="commercialButton" data-size="3" data-tool="commercial" data-colour="blue" class="toolButton unselected">Commercial $100</button>
             <button id="coalButton" data-size="4" data-tool="coal" data-colour="gray" class="toolButton unselected">Coal $3000</button>
@@ -241,6 +243,7 @@
             <div id="farmInfo" class="elided budgetData" hidden><span data-i18n="budget.farming">Farms and fishing:</span> <span id="farmIncome"></span></div>
             <div id="miningInfo" class="elided budgetData" hidden><span data-i18n="budget.mining">Mine royalties:</span> <span id="miningIncome"></span></div>
             <div id="fuelInfo" class="elided budgetData" hidden><span data-i18n="budget.fuel">Power plant fuel:</span> <span id="fuelCost"></span></div>
+            <div id="houseInfo" class="elided budgetData" hidden><span data-i18n="budget.house">Ruler's house:</span> <span id="houseCost"></span></div>
             <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
             <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>
@@ -452,6 +455,17 @@
           <div id="congratsMessage" class="alignCenter">Congratulations!</div>
           <form id="congratsForm" class="alignCenter margin10">
             <input type="submit" id="congratsOK" data-i18n-value="congrats.btn.ok" class="dialogOK" value="OK">
+          </form>
+        </div>
+      </div>
+      <!-- The ruler's house and its wings (src/houseWindow.ts); the game writes its lines -->
+      <div class="hidden modal shadow" id="houseWindow" data-anchor="controls">
+        <header data-i18n="house.window.title" class="padding10 chunk alignCenter">Ruler's house</header>
+        <div id="houseContainer" class="padding10 open">
+          <div id="houseSummary" class="alignCenter"></div>
+          <ul id="houseWings"></ul>
+          <form id="houseForm" class="alignCenter margin10">
+            <input type="submit" id="houseOK" data-i18n-value="house.window.ok" class="dialogOK" value="OK">
           </form>
         </div>
       </div>

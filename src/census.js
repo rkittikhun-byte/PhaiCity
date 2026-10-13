@@ -92,6 +92,9 @@ Census.prototype.clearCensus = function() {
   // ... and the farms and fishing harbours (src/farming.ts)
   this.farmCount = 0;
   this.harbourCount = 0;
+  // ... and the ruler's house, and its upkeep a year with its wings (src/rulerHouse.ts)
+  this.rulerHouseCount = 0;
+  this.rulerHouseUpkeep = 0;
   this.seaportPop = 0;
   this.airportPop = 0;
   // PhaiCity: the water supply (src/waterManager.ts)

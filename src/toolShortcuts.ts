@@ -102,6 +102,9 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   tollway: "about.infra.road_levels",
   road_upgrade: "about.infra.road_levels",
   fishing: "about.building.fishing",
+  ruler_house: "about.building.ruler_house",
+  ruler_house_upgrade: "about.building.ruler_house",
+  ruler_house_wings: "about.building.ruler_house_wings",
 };
 
 /** "ที่อยู่อาศัย ฿100 (ปุ่มลัด 1)" on the first line, what the tool does on the second. */

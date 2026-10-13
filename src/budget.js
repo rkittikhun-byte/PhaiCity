@@ -55,6 +55,10 @@ var Budget = EventEmitter(function() {
   // ... and the tollways' tolls (src/roadLevels.ts)
   this.tollFund = 0;
   this.tollIncome = 0;
+  // ... and what the ruler's house and its wings cost last year (src/rulerHouse.ts), and the treasury wing's share of
+  // the taxes (0, or 0.05 while the house has it; the simulation sets it)
+  this.houseCost = 0;
+  this.taxBonus = 0;
 
   // These values denote how much money is required to fully maintain the relevant services
   this.roadMaintenanceBudget = 0;
@@ -80,7 +84,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'policeSpend', 'fireSpend', 'roadMaintenanceBudget', 'policeMaintenanceBudget',
                  'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
-                 'farmFund', 'farmIncome', 'tollFund', 'tollIncome'];
+                 'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -101,6 +105,7 @@ Budget.prototype.load = function(saveData) {
   this.farmIncome = this.farmIncome || 0;
   this.tollFund = this.tollFund || 0;
   this.tollIncome = this.tollIncome || 0;
+  this.houseCost = this.houseCost || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -269,7 +274,8 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   var railCost = (census.railTotal - (census.nationalRailTotal || 0)) * railMaintenanceCost;
   this.roadMaintenanceBudget = Math.floor((roadCost + railCost) * RLevels[gameLevel]);
 
-  this.taxFund = Math.floor(Math.floor(census.totalPop * census.landValueAverage / 120) * this.cityTax * FLevels[gameLevel]);
+  this.taxFund = Math.floor(Math.floor(census.totalPop * census.landValueAverage / 120) * this.cityTax * FLevels[gameLevel] *
+                            (1 + (this.taxBonus || 0)));
   this.tourismIncome = Math.floor(this.tourismFund);
   this.tourismFund = 0;
   this.taxFund += this.tourismIncome;
@@ -284,6 +290,8 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.taxFund += this.tollIncome;
   this.fuelCost = Math.round(census.plantFuel || 0);
   this.taxFund -= this.fuelCost;
+  this.houseCost = Math.round(census.rulerHouseUpkeep || 0);
+  this.taxFund -= this.houseCost;
 
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);

@@ -2012,7 +2012,9 @@ body #buttons .toolKey {
 }
 body #buttons .toolName { display: none; }
 body #buttons .toolPrice { font-size: 8px; line-height: 1; }
-/* In one row the tools go zones first, then ways, then buildings; grouped buttons hold the rest (src/toolLevels.ts) */
+/* In one row the tools go zones first, then ways, then buildings; grouped buttons hold the rest (src/toolLevels.ts).
+   The ruler's house comes before them all, as a new city builds it first (src/rulerHouse.ts) */
+body #buttons [data-tool="ruler_house"] { order: 0; }
 body #buttons [data-tool="residential"] { order: 1; }
 body #buttons [data-tool="commercial"] { order: 2; }
 body #buttons [data-tool="industrial"] { order: 3; }
@@ -2031,6 +2033,27 @@ body #buttons [data-tool="port"] { order: 15; }
 body #buttons [data-tool="stadium"] { order: 16; }
 /* A tool with no choice here, such as the mine in a province with no ore */
 body #buttons .toolButton:disabled { opacity: 0.4; cursor: not-allowed; }
+/* A new city's tools wait until its ruler's house stands; only the house and the bulldozer may be used (the commands
+   refuse the rest too) */
+body.houseFirst #buttons .toolButton:not([data-tool="ruler_house"]):not([data-tool="bulldozer"]):not([data-tool="query"]) {
+  opacity: 0.35; pointer-events: none;
+}
+body.houseFirst #buttons .toolButton[data-tool="ruler_house"] { box-shadow: 0 0 0 2px #c9a227; }
+/* The ruler's house window: its wings, each with what it brings and costs (src/houseWindow.ts) */
+body #houseWindow { max-width: 360px; }
+body #houseSummary { margin-bottom: 6px; }
+body #houseWings { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow: auto; }
+body #houseWings .houseWing {
+  display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 5px 0;
+  border-top: 1px solid rgba(29, 41, 37, 0.12); font-weight: 400;
+}
+body #houseWings .houseWing > span { grid-column: 1; }
+body #houseWings .houseWing .name { font-weight: 400; }
+body #houseWings .houseWing .wingGain { color: #2e7d4f; }
+body #houseWings .houseWing .wingCost { color: #b3261e; }
+body #houseWings .houseWing .wingMoney { opacity: 0.75; }
+body #houseWings .houseWing button { grid-column: 2; grid-row: 1 / span 4; align-self: center; font: inherit; }
+body #houseWings .houseWing.owned .name::after { content: " ✓"; }
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }
 

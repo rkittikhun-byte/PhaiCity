@@ -25,6 +25,7 @@ import { RoadTool } from './roadTool.js';
 import { QueryTool } from './queryTool.js';
 import { WaterTowerTool } from './waterTowerTool.ts';
 import { RoadUpgradeTool } from './roadLevels.ts';
+import { RulerHouseUpgradeTool } from './rulerHouse.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -73,6 +74,9 @@ function GameTools(map, rules) {
     motorway: new RoadTool(map, 200, 7),
     tollway: new RoadTool(map, 250, 8),
     road_upgrade: new RoadUpgradeTool(map),
+    // PhaiCity: the ruler's house, a new city's first building, and its upgrade (src/rulerHouse.ts)
+    ruler_house: new BuildingTool(500, TileValues.CIVIC, map, 3, false),
+    ruler_house_upgrade: new RulerHouseUpgradeTool(map),
     query: new QueryTool(map),
     stadium: new BuildingTool(5000, TileValues.STADIUM, map, 4, false),
     // PhaiCity: the water supply (src/waterManager.ts)
@@ -93,6 +97,8 @@ function GameTools(map, rules) {
   MINE_KINDS.forEach(function(kind) {
     tools[MINE_TOOLS[kind]].mineKind = kind;
   });
+  // The map records where the ruler's house stands (src/cityCommands.ts)
+  tools.ruler_house.rulerHouse = true;
 
   tools.query.addEventListener(QUERY_WINDOW_NEEDED, MiscUtils.reflectEvent.bind(tools, QUERY_WINDOW_NEEDED));
 

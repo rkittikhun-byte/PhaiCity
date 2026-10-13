@@ -237,7 +237,15 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   chosen above the road button, with an upgrade tool that raises a road one level for the difference. The map keeps
   each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads
   fill with traffic more slowly but cost more upkeep (`census.roadUpkeep`); motorways and tollways give zones no way
-  in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`). **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`).
+- **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
+  building: until it stands only the house and the bulldozer work (`houseProblem` in `CityCommands`, the dock greys the
+  rest with `body.houseFirst`); cities saved before it are not held back. One house, on the civic 3×3 (tiles 414–422,
+  `gameMap.civicKinds`, `gameMap.rulerHouse` {x, y, level, wings}, saved), six levels by rank raised for the difference,
+  wings chosen in its window (`src/houseWindow.ts`, a `wing` command): treasury, planning office, warning tower,
+  granary, culture court, front garden (council hall and trade office wait). It is the city's centre, raises land
+  value near it, and ⌂ returns to it; its upkeep is a budget line. Renderers read it (RENDERER_SPEC 6H).
+- **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

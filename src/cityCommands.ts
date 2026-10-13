@@ -13,11 +13,14 @@
 // footprint touches a tile outside it is refused, the bulldozer included. The roads and railways the map starts
 // with are the state's (owner, 12 Oct 2026): the state pays for them and they never wear out (src/road.js), but the
 // player may build over them and widen them like any road.
+// A new city builds its ruler's house before anything else (src/rulerHouse.ts, owner 13 Oct 2026): until it stands
+// only the house and the bulldozer are allowed; there is one house, and its next level needs the ruler's rank.
 
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
+import { changeWing, type HouseMap, houseProblem, WINGS, wingProblem } from "./rulerHouse";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
 
@@ -26,7 +29,7 @@ export const TOOL_NAMES = [
   "police", "fire", "coal", "nuclear", "stadium", "port", "airport", "waterworks", "watertower", "gas", "hydro", "solar",
   "wind", "limestone_mine", "potash_mine", "tin_mine", "zinc_mine", "gold_mine", "gem_mine", "rare_earth_mine", "lignite_mine",
   "oil_well", "farm", "fishing", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8",
-  "motorway", "tollway", "road_upgrade",
+  "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -57,6 +60,8 @@ export type Command =
   | { type: "disaster"; disaster: DisasterName }
   | { type: "setting"; setting: SettingName; on: boolean }
   | { type: "speed"; speed: number }
+  /** A wing of the ruler's house built (add) or taken off (src/rulerHouse.ts) */
+  | { type: "wing"; wing: typeof WINGS[number]; add: boolean }
   | { type: "debugFunds" };
 
 export interface CommandOutcome {
@@ -85,6 +90,8 @@ interface CommandTool {
   roadLevel?: number;
   /** It changes what undo cannot put back (the road upgrade tool) */
   noUndo?: boolean;
+  /** It builds the ruler's house (src/rulerHouse.ts) */
+  rulerHouse?: boolean;
 }
 
 /** The map, for undo: reading tiles before and after a tool, and putting them back. */
@@ -136,6 +143,12 @@ export interface CommandTarget {
   setMineKind?(x: number, y: number, kind: string): void;
   /** Records the level of a road just laid at (x, y) (src/roadLevels.ts). */
   setRoadLevel?(x: number, y: number, level: number): void;
+  /** The map's ruler's house and whether the city is new (src/rulerHouse.ts). Without it, no house is asked for. */
+  readonly houseMap?: HouseMap;
+  /** The ruler's rank, 0 (หมื่น) to 5 (เจ้าพระยา) (src/rulerRank.ts) */
+  rank?(): number;
+  /** Records the ruler's house just built at (x, y), its centre. */
+  setRulerHouse?(x: number, y: number): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -213,6 +226,9 @@ export function commandProblem(command: unknown, width: number, height: number):
       return typeof c.on === "boolean" ? null : "setting value missing";
     case "speed":
       return isInteger(c.speed, 0, MAX_SPEED) ? null : "speed out of range";
+    case "wing":
+      if (!isOneOf(WINGS, c.wing)) return `unknown wing ${String(c.wing)}`;
+      return typeof c.add === "boolean" ? null : "add missing";
     case "debugFunds":
       return null;
     default:
@@ -239,7 +255,8 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
-        const refused = placeProblem(city, command.x, command.y, tool.size ?? 1) ??
+        const refused = houseProblem(city.houseMap, command.tool, city.rank?.() ?? 0) ??
+          placeProblem(city, command.x, command.y, tool.size ?? 1) ??
           plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
           farmProblem(city, command.tool, command.x, command.y);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
@@ -252,6 +269,7 @@ export class CityCommands {
         const applied = tool.modifyIfEnoughFunding(city.budget);
         if (applied && tool.powerKind) city.setPowerKind?.(command.x, command.y, tool.powerKind);
         if (applied && tool.mineKind) city.setMineKind?.(command.x, command.y, tool.mineKind);
+        if (applied && tool.rulerHouse) city.setRulerHouse?.(command.x, command.y);
         // Roads laid where there were none take the tool's level; roads already there keep theirs
         if (applied && map && tool.roadLevel) {
           for (const c of before) {
@@ -302,6 +320,12 @@ export class CityCommands {
       case "speed":
         city.setSpeed(command.speed);
         break;
+      case "wing": {
+        const refused = wingProblem(city.houseMap, command.wing, command.add, city.budget.totalFunds);
+        if (refused || !city.houseMap) return { accepted: false, reason: refused ?? "no house" };
+        changeWing(city.houseMap, command.wing, command.add, city.budget);
+        break;
+      }
       case "debugFunds":
         city.budget.spend(-DEBUG_FUNDS);
         break;

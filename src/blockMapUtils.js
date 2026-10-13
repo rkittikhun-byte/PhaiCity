@@ -191,8 +191,9 @@ var getCityCentreDistance = function(map, x, y) {
 //
 // Pollution is completely determined by the tile types in the block
 // extraPollution(x, y, tileValue) (PhaiCity, src/mining.ts): a mine's dust and the poison in the ground
+// extraLandValue(x, y) (PhaiCity, src/rulerHouse.ts): what the ruler's house adds to the land near it
 var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish, plantPollution,
-                                             extraPollution) {
+                                             extraPollution, extraLandValue) {
   if (industryPollution === undefined)
     industryPollution = 1;
 
@@ -268,6 +269,10 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
         // ... getting mugged won't help either
         if (crimeRateMap.get(x, y) > 190)
           landValue -= 20;
+
+        // ... and living near the ruler's house (PhaiCity) helps
+        if (extraLandValue)
+          landValue += extraLandValue(worldX, worldY);
 
         // Clamp in range 1-250 (0 represents undeveloped land)
         landValue = MiscUtils.clamp(landValue, 1, 250);
@@ -424,7 +429,8 @@ var getPopulationDensity = function(map, x, y, tile) {
 // map, which is used when deciding to grow residential zones. At the same time, we also note the most populous area
 // (in terms of zones) to calculate our city centre. Finally, we score each area of the map on its distance from the
 // city centre.
-var populationDensityScan = function(map, blockMaps) {
+// centre (PhaiCity, src/rulerHouse.ts): the ruler's house, which is the city's centre while it stands
+var populationDensityScan = function(map, blockMaps, centre) {
   // We will build the initial unsmoothed map in tempMap1, and smooth it in to tempMap2
   var tempMap1 = blockMaps.tempMap1;
   var tempMap2 = blockMaps.tempMap2;
@@ -469,7 +475,10 @@ var populationDensityScan = function(map, blockMaps) {
   fillCityCentreDistScoreMap(map, blockMaps);
 
   // Compute new city centre
-  if (zoneTotal > 0) {
+  if (centre) {
+    map.cityCentreX = centre.x;
+    map.cityCentreY = centre.y;
+  } else if (zoneTotal > 0) {
     map.cityCentreX = Math.floor(xTot / zoneTotal);
     map.cityCentreY = Math.floor(yTot / zoneTotal);
   } else {

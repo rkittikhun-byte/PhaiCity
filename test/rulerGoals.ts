@@ -2,6 +2,8 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
@@ -11,13 +13,18 @@ import { Simulation } from "../src/simulation.js";
 const empty: CityStats = {
   resZones: 0, comZones: 0, indZones: 0, powerPlants: 0, poweredZones: 0, roads: 0, population: 0, rails: 0,
   policeStations: 0, fireStations: 0, stadiums: 0, airports: 0, waterWorks: 0, wateredZones: 0, litZones: 0, darkZones: 0,
-  pollution: 0, crime: 0,
+  pollution: 0, crime: 0, rulerHouse: 1,
 };
 
 const firstDone = new Set(CHAPTERS[0].goals.map((goal) => goal.id));
 
 describe("ruler's tasks", () => {
-  test("start with homes, and tick off as the city grows", () => {
+  test("start with the ruler's house, which a new city builds first (src/rulerHouse.ts)", () => {
+    const start = tickGoals(new Set(), { ...empty, rulerHouse: 0 });
+    expect(currentGoal(start)).toMatchObject({ id: "house", tool: "ruler_house" });
+  });
+
+  test("then homes, and tick off as the city grows", () => {
     expect(currentGoal(tickGoals(new Set(), empty))?.id).toBe("homes");
     const homes = tickGoals(new Set(), { ...empty, resZones: 2 });
     expect(currentGoal(homes)?.id).toBe("power");
@@ -82,7 +89,7 @@ describe("ruler's tasks", () => {
     expect(readStats({ _census: census, evaluation: { cityPop: 840 } })).toEqual({
       resZones: 3, comZones: 1, indZones: 0, powerPlants: 2, poweredZones: 5, roads: 12, population: 840, rails: 4,
       policeStations: 1, fireStations: 2, stadiums: 0, airports: 1, waterWorks: 0, wateredZones: 0, litZones: 0, darkZones: 0,
-      pollution: 44, crime: 17,
+      pollution: 44, crime: 17, rulerHouse: 0,
     });
 
     // A zone by a coal plant has power, one far away does not
@@ -97,9 +104,10 @@ describe("ruler's tasks", () => {
     expect(readStats(sim)).toEqual(expect.objectContaining({ litZones: 1, darkZones: 1, powerPlants: 1 }));
   });
 
-  test("have a title, names and hints in both languages, and point at tools that exist", () => {
-    const tools = ["residential", "coal", "wire", "road", "commercial", "waterworks", "police", "fire", "rail", "stadium",
-      "airport"];
+  test("have a title, names and hints in both languages, and point at tool buttons that exist", () => {
+    // A task points at a button of the tools dock; a tool chosen above another button points at that button
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const tools = [...html.matchAll(/<button [^>]*data-tool="(\w+)"/g)].map((m) => m[1]);
     const ids = new Set<string>();
     for (const chapter of CHAPTERS) {
       expect(hasKey(chapter.title)).toBe(true);

@@ -153,8 +153,12 @@ BudgetWindow.prototype.open = function(budgetData) {
   var farmIncome = budgetData.farmIncome || 0;
   // ... and the tollways' tolls (src/roadLevels.ts)
   var tollIncome = budgetData.tollIncome || 0;
+  // ... and what the ruler's house and its wings cost is taken from them (src/rulerHouse.ts)
+  var houseCost = budgetData.houseCost || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome +
-                                        fuelCost));
+                                        fuelCost + houseCost));
+  $('#houseCost').text(formatMoney(houseCost));
+  $('#houseInfo').prop('hidden', houseCost <= 0);
   $('#tollIncome').text(formatMoney(tollIncome));
   $('#tollInfo').prop('hidden', tollIncome <= 0);
   $('#farmIncome').text(formatMoney(farmIncome));
