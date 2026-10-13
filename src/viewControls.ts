@@ -192,7 +192,8 @@ export function dragMode(dx: number, dy: number, shift: boolean, canTurn: boolea
  * drag with Shift held. The view's own controls stay as they are: dragging with the right button turns it, with the
  * middle button slides it, and the wheel zooms toward the mouse.
  */
-export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document): void {
+export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document,
+  onClick?: (x: number, y: number) => void): void {
   const pan = panOf(view);
   const turn = dragTurnOf(view);
   const canvas = doc.getElementById("MicropolisCanvas");
@@ -228,8 +229,14 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   });
   const end = (event: PointerEvent): void => {
     if (!drag || event.pointerId !== drag.id) return;
+    // A press that never became a drag is a click: what is there (src/inspect.ts), in pixels over the canvas
+    const clicked = !drag.moved && event.type === "pointerup";
     drag = null;
     canvas.classList.remove("panning");
+    if (clicked && onClick) {
+      const rect = canvas.getBoundingClientRect();
+      onClick(event.clientX - rect.left, event.clientY - rect.top);
+    }
   };
   canvas.addEventListener("pointerup", end);
   canvas.addEventListener("pointercancel", end);

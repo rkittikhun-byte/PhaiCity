@@ -64,6 +64,8 @@ import {
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
+import { inspectAt } from './inspect.ts';
+import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -527,7 +529,16 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   setViewHome(town);
   if (town !== null)
     this.cityView.centreOn(town.x, town.y);
-  installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; });
+  // ... and a click with no tool in hand shows what is there (src/inspect.ts, src/inspectCard.ts)
+  var inspectElement = document.getElementById('inspectCard');
+  this.inspectCard = inspectElement ? new InspectCard(inspectElement) : null;
+  installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
+                  function(x, y) { self.inspectAtPixel(x, y); });
+  onLanguageChange(function() { if (self.inspectCard) self.inspectCard.render(); });
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && self.inspectCard && self.inspectCard.isOpen)
+      self.inspectCard.close();
+  });
   if (panOf(this.cityView) !== null)
     showCornerNoteOnce('phaicity.mouseHint', t('view.mouse_hint'), 10000);
 
@@ -548,6 +559,30 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.animate = (debug ? debugAnimate : this.commonAnimate).bind(this);
   this.animate();
 }
+
+
+// What a click on the map shows (src/inspect.ts): the object on the tile, or the road, water or land there
+Game.prototype.inspectTile = function(x, y) {
+  if (!this.inspectCard)
+    return;
+  // A building put up since the month's look over the map is found now
+  this.core.objects.scan(this.gameMap, this.simulation._cityTime);
+  var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
+                         cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
+                         language: getLanguage()}, x, y);
+  if (found)
+    this.inspectCard.open(found);
+  else
+    this.inspectCard.close();
+};
+
+
+// ... from a click at (x, y) pixels over the city
+Game.prototype.inspectAtPixel = function(x, y) {
+  var tile = this.cityView.tileAt(x, y);
+  if (tile)
+    this.inspectTile(tile.x, tile.y);
+};
 
 
 // Saves this city in its own slot. Returns false when the browser's storage is full.
@@ -1014,9 +1049,9 @@ Game.prototype.handleTool = function(data) {
   }
 
   if (toolName === 'query') {
-    // Looking at a tile changes nothing, so it is not a command
-    tool.doTool(tileCoords.x, tileCoords.y, this.simulation.blockMaps);
-    result = tool.result;
+    // Looking at a tile changes nothing, so it is not a command; the inspector's card shows it (src/inspect.ts)
+    this.inspectTile(tileCoords.x, tileCoords.y);
+    result = tool.TOOLRESULT_OK;
   } else {
     var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
                                      stroke: data.stroke});

@@ -26,8 +26,8 @@ export interface CityReader {
   readonly mineKinds?: Readonly<Record<string, string>> | null;
   readonly stationKinds?: Readonly<Record<string, string>> | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number } | null;
-  /** Where the water reaches (src/waterManager.ts): 1 for a tile with water */
-  readonly water?: ArrayLike<number> | null;
+  /** Where the water reaches (src/waterManager.ts WaterView): each zone's mark as last scanned */
+  readonly water?: { zoneWater(x: number, y: number): number } | null;
 }
 
 /** One line of an object's card: an i18n key (`object.fact.*`) and what fills it */
@@ -91,14 +91,9 @@ export abstract class Building extends CityObject {
   powered(city: CityReader): boolean {
     return (city.getTileFlags(this.x, this.y) & POWERBIT) !== 0;
   }
-  /** Whether water reaches it: any of its tiles in the water supply */
+  /** Whether water reaches it, as the water supply last marked its zone (src/waterManager.ts ZONE_WATERED) */
   watered(city: CityReader): boolean {
-    const water = city.water;
-    if (!water) return false;
-    for (let y = this.top; y < this.top + this.size; y++) for (let x = this.left; x < this.left + this.size; x++) {
-      if (x >= 0 && y >= 0 && x < city.width && y < city.height && water[y * city.width + x]) return true;
-    }
-    return false;
+    return city.water?.zoneWater(this.x, this.y) === 1;
   }
   /** Whose it is: the community's or the ruler's (see Sector) */
   abstract readonly sector: Sector;

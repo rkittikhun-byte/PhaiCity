@@ -23,6 +23,8 @@ export abstract class ZoneBuilding extends CommunityBuilding {
     const facts = super.facts(city);
     facts.unshift({ key: "object.fact.level", params: { level: this.level(city) } },
       { key: "object.fact.land_class", params: { land: `object.land.${this.landClass(city)}` } });
+    // Homes, shops and factories take water from the roads beside them (src/waterManager.ts)
+    if (city.water) facts.push({ key: this.watered(city) ? "object.fact.watered" : "object.fact.dry" });
     return facts;
   }
 }

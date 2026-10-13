@@ -1338,6 +1338,50 @@
 | `goals.capital.hint` | `src/rulerGoals.ts` | — | `Past 50,000 people the city becomes a province centre.` | `ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด` | |
 | `street.road` | `src/streetNames.ts` | — | `{name} Road` | `ถนน{name}` | ชื่อถนนบนแผนที่ 3D (Claude Code, 13 ต.ค. 2026) |
 | `street.real` | `src/streetNames.ts` | — | `{name}` | `{name}` | ชื่อจริงจาก OpenStreetMap เขียนตามป้ายจริง |
+| `object.kind.home` | `src/inspect.ts` | — | `Home` | `บ้าน` | การ์ดคลิกดู (ตัวตรวจดู, GAME_PLAN เฟส 7 ข้อ 1; Claude Code 14 ต.ค. 2026) |
+| `object.kind.shop` | `src/inspect.ts` | — | `Shop` | `ร้านค้า` |  |
+| `object.kind.factory` | `src/inspect.ts` | — | `Factory` | `โรงงาน` |  |
+| `object.kind.road` | `src/inspect.ts` | — | `Road` | `ถนน` |  |
+| `object.kind.rail` | `src/inspect.ts` | — | `Railway` | `ทางรถไฟ` |  |
+| `object.kind.water` | `src/inspect.ts` | — | `Water` | `แหล่งน้ำ` |  |
+| `object.kind.woods` | `src/inspect.ts` | — | `Woods` | `ป่าไม้` |  |
+| `object.kind.land` | `src/inspect.ts` | — | `Open land` | `ที่ว่าง` |  |
+| `object.cover.1` | `src/inspect.ts` | — | `Rice paddy` | `นาข้าว` | พื้นที่ปกคลุม (scripts/geo/lib/landCover.mjs) |
+| `object.cover.2` | `src/inspect.ts` | — | `Upland field` | `ไร่` |  |
+| `object.cover.3` | `src/inspect.ts` | — | `Orchard` | `สวนผลไม้` |  |
+| `object.cover.4` | `src/inspect.ts` | — | `Grassland` | `ทุ่งหญ้า` |  |
+| `object.cover.5` | `src/inspect.ts` | — | `Wetland` | `พื้นที่ชุ่มน้ำ` |  |
+| `object.cover.6` | `src/inspect.ts` | — | `Village gardens` | `สวนในหมู่บ้าน` |  |
+| `object.cover.7` | `src/inspect.ts` | — | `Neighbourhood` | `ย่านชุมชน` | ย่านที่อยู่อาศัยตามแผนที่จริง |
+| `object.sector.community` | `src/inspect.ts` | — | `Community` | `ชุมชน` | ฝั่งของวัตถุ (GAME_PLAN ข้อ 12) |
+| `object.sector.central` | `src/inspect.ts` | — | `Central service` | `บริการส่วนกลาง` |  |
+| `object.fact.sort` | `src/inspect.ts` | — | `{sort}` | `{sort}` |  |
+| `object.fact.level` | `src/inspect.ts` | — | `Level {level}` | `ระดับ {level}` |  |
+| `object.fact.land_class` | `src/inspect.ts` | — | `Land: {land}` | `ที่ดิน: {land}` |  |
+| `object.land.0` | `src/inspect.ts` | — | `cheap` | `ราคาถูก` |  |
+| `object.land.1` | `src/inspect.ts` | — | `fair` | `ปานกลาง` |  |
+| `object.land.2` | `src/inspect.ts` | — | `good` | `ดี` |  |
+| `object.land.3` | `src/inspect.ts` | — | `prime` | `ทำเลทอง` |  |
+| `object.fact.powered` | `src/inspect.ts` | — | `Has power` | `มีไฟฟ้า` |  |
+| `object.fact.unpowered` | `src/inspect.ts` | — | `No power` | `ไม่มีไฟฟ้า` |  |
+| `object.fact.watered` | `src/inspect.ts` | — | `Has water` | `มีน้ำประปา` |  |
+| `object.fact.dry` | `src/inspect.ts` | — | `No water` | `ไม่มีน้ำประปา` |  |
+| `object.fact.people` | `src/inspect.ts` | — | `About {people} people live here` | `มีคนอยู่ราว {people} คน` | ตัวเลขประมาณจากสูตรเดิมของเกม จนกว่าจะมีครัวเรือน (เฟส 7) |
+| `object.fact.built` | `src/inspect.ts` | — | `Built in {year}` | `สร้างเมื่อ {year}` | ปี พ.ศ. ในภาษาไทย (formatYear) |
+| `object.fact.built_before` | `src/inspect.ts` | — | `Here before records began` | `มีมาก่อนเริ่มบันทึก` |  |
+| `object.fact.land_value` | `src/inspect.ts` | — | `Land value: {grade}` | `ราคาที่ดิน: {grade}` |  |
+| `object.fact.pollution` | `src/inspect.ts` | — | `Pollution: {grade}` | `มลพิษ: {grade}` |  |
+| `object.fact.crime` | `src/inspect.ts` | — | `Crime: {grade}` | `อาชญากรรม: {grade}` |  |
+| `object.grade.0` | `src/inspect.ts` | — | `low` | `ต่ำ` |  |
+| `object.grade.1` | `src/inspect.ts` | — | `medium` | `ปานกลาง` |  |
+| `object.grade.2` | `src/inspect.ts` | — | `high` | `สูง` |  |
+| `object.grade.3` | `src/inspect.ts` | — | `very high` | `สูงมาก` |  |
+| `object.fact.road_level` | `src/inspect.ts` | — | `{road}` | `{road}` | ชื่อชนิดถนนจากเครื่องมือ |
+| `object.fact.state_road` | `src/inspect.ts` | — | `The state's road: no upkeep` | `ถนนของรัฐ ไม่มีค่าบำรุง` |  |
+| `object.fact.outside` | `src/inspect.ts` | — | `Outside the province: nothing can be built` | `นอกเขตจังหวัด สร้างไม่ได้` |  |
+| `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |
+| `object.card.close` | `src/inspect.ts` | — | `Close` | `ปิด` |  |
+| `object.card.label` | `src/inspect.ts` | — | `Inspect` | `ตรวจดู` | ชื่อการ์ดสำหรับโปรแกรมอ่านจอ |
 | `street.soi` | `src/streetNames.ts` | — | `Soi {name} {number}` | `ซอย{name} {number}` | ซอยเลขคี่ฝั่งหนึ่ง เลขคู่อีกฝั่ง |
 | `street.soi_highway` | `src/streetNames.ts` | — | `Highway {name} Soi {number}` | `ทางหลวง {name} ซอย {number}` | ซอยที่แยกจากทางหลวง |
 | `street.lane` | `src/streetNames.ts` | — | `Soi {name} {number} Yaek {sub}` | `ซอย{name} {number} แยก {sub}` | ซอยที่แยกจากซอย |
