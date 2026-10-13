@@ -124,7 +124,7 @@ export function thaiSign(
   const token = JSON.stringify([text, bg.getHexString(), fg.getHexString(), size, layout, lit]);
   return signMaterial(token, material => {
     material.color.copy(bg);
-    material.userData.sign = { text, size: [...size], layout, lit };
+    material.userData.sign = { text, size: [...size], layout, lit, background: bg.getHex(), foreground: fg.getHex() };
     material.userData.litSign = lit;
     if (lit) material.emissive.copy(bg);
     if (typeof document === 'undefined') return;

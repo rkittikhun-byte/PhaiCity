@@ -2,191 +2,152 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { BoxGeometry, Group, Mesh } from 'three';
-import { getMaterial, tint } from '../../materials/library.js';
+import { Group, PlaneGeometry, Shape } from 'three';
+import { car_paint, vehicleMaterial } from '../../materials/library.js';
+import { thaiSign } from '../../materials/signs.js';
 import { seededRng } from '../../rng.js';
-import { applyWorldUV } from '../../util/geometry.js';
+import { mergeByMaterial } from '../../util/geometry.js';
 import type { ModelOptions } from '../registry.js';
-import { point, VehicleBuilder } from './builder.js';
+import { point } from './builder.js';
+import { VehicleKit } from './kit.js';
+import { finishVehicle, latheZ, loft, wing } from './forms.js';
 
 const HELI_PALETTES = [
-  { body: 0x1d4ed8, accent: 0xf5eccf }, // Traffic blue & cream
-  { body: 0xca8a04, accent: 0x1f2937 }, // News yellow & dark grey
-  { body: 0x059669, accent: 0xffffff }, // News emerald & white
+  { body: 0x1d4ed8, accent: 0xf5eccf },
+  { body: 0xca8a04, accent: 0x1f2937 },
+  { body: 0x059669, accent: 0xffffff },
 ] as const;
 
 export function createHelicopter(options: ModelOptions = {}): Group {
-  const id = 'veh.helicopter';
-  const b = new VehicleBuilder();
-  const rng = seededRng(options.seed ?? 1);
-  const palette = HELI_PALETTES[Math.floor(rng() * HELI_PALETTES.length)];
-
-  const bodyMat = tint('metal_painted', palette.body);
-  const accentMat = tint('plaster_white', palette.accent);
-  const steel = getMaterial('metal_steel');
-  const glass = getMaterial('glass_tinted');
-  const lightMat = getMaterial('emissive_window');
-
-  // Landing skids resting on y = 0 (Y from 0 to 0.55, X = ±0.9)
-  for (const sign of [-1, 1]) {
-    const x = sign * 0.9;
-    // Main skid tube along Z (-2.5 to 2.2)
-    b.cylinder(point(x, 0.05, -0.15), 0.05, 4.7, steel, 8, 'z');
-    // Curved front upturn
-    b.box(point(x, 0.15, 2.3), point(0.08, 0.22, 0.25), steel, 0, -0.4, 0);
-    // Support struts connecting to cabin belly (at Y = 0.6)
-    b.cylinder(point(sign * 0.55, 0.32, 0.8), 0.04, 0.65, steel, 6, 'z');
-    b.cylinder(point(sign * 0.55, 0.32, -1.0), 0.04, 0.65, steel, 6, 'z');
-  }
-
-  // Fuselage cabin (Y from 0.55 to 2.8, Z from -2.2 to 2.2)
-  b.box(point(0, 1.6, 0.1), point(1.9, 1.8, 3.8), bodyMat);
-  // Aerodynamic nose taper
-  b.box(point(0, 1.5, 2.2), point(1.6, 1.5, 0.8), bodyMat);
-  // Colored side trim stripe
-  b.box(point(0, 1.45, 0.1), point(1.92, 0.35, 4.0), accentMat);
-
-  // Large cockpit bubble windshield & side windows
-  b.box(point(0, 1.85, 2.05), point(1.7, 1.1, 1.1), glass);
-  b.box(point(-0.96, 1.75, 0.4), point(0.04, 0.8, 1.6), glass);
-  b.box(point(0.96, 1.75, 0.4), point(0.04, 0.8, 1.6), glass);
-
-  // Under-nose traffic news camera gimbal
-  b.cylinder(point(0, 0.72, 2.1), 0.2, 0.25, steel, 8, 'y');
-  b.box(point(0, 0.58, 2.15), point(0.28, 0.25, 0.28), steel);
-  b.box(point(0, 0.58, 2.3), point(0.12, 0.12, 0.04), lightMat); // Camera lens / spotlight
-
-  // Engine cowling / transmission roof doghouse (Y up to 3.05)
-  b.box(point(0, 2.75, 0.2), point(1.2, 0.55, 2.6), bodyMat);
-  b.cylinder(point(0, 3.08, 0.4), 0.14, 0.22, steel, 8, 'y'); // Rotor mast
-
-  // Tail boom extending back to -Z (Z from -1.8 to -5.0)
-  b.taperedCylinder(point(0, 1.95, -3.4), 0.28, 0.45, 3.4, bodyMat, 8, 'z');
-  // Horizontal stabilizer fins at Z = -4.2
-  b.box(point(0, 2.1, -4.2), point(2.0, 0.06, 0.45), bodyMat);
-  // Vertical tail fin at Z = -5.0 (Y up to 2.85)
-  b.box(point(0, 2.45, -5.0), point(0.1, 1.1, 0.8), bodyMat);
-  b.box(point(0, 2.45, -5.02), point(0.12, 0.3, 0.82), accentMat);
-
-  // Rotating main rotor under anim_rotor_main
-  const mainHubY = 3.2;
-  const mainHubZ = 0.4;
-  const animMain = new Group();
-  animMain.name = 'anim_rotor_main';
-  animMain.position.set(0, mainHubY, mainHubZ);
-
-  // Rotor hub and 2 long blades (span 8.2 m)
-  const mainBladeMat = tint('metal_painted', 0x181818);
-  const mainRotorGeom = new BoxGeometry(8.2, 0.04, 0.32);
-  applyWorldUV(mainRotorGeom, 1);
-  const mainRotorMesh = new Mesh(mainRotorGeom, mainBladeMat);
-  mainRotorMesh.name = `${id}/rotor_main`;
-  mainRotorMesh.castShadow = true;
-  animMain.add(mainRotorMesh);
-  b.addAnimNode(animMain);
-
-  // Rotating tail rotor under anim_rotor_tail
-  const tailHubX = -0.16;
-  const tailHubY = 2.5;
-  const tailHubZ = -5.0;
-  const animTail = new Group();
-  animTail.name = 'anim_rotor_tail';
-  animTail.position.set(tailHubX, tailHubY, tailHubZ);
-
-  const tailBladeMat = tint('metal_painted', 0x2e2e2e);
-  const tailRotorGeom = new BoxGeometry(0.04, 1.3, 0.14);
-  applyWorldUV(tailRotorGeom, 1);
-  const tailRotorMesh = new Mesh(tailRotorGeom, tailBladeMat);
-  tailRotorMesh.name = `${id}/rotor_tail`;
-  tailRotorMesh.castShadow = true;
-  animTail.add(tailRotorMesh);
-  b.addAnimNode(animTail);
-
-  return b.finish(id, [1, 1], options, 'R3');
+  const palette = HELI_PALETTES[Math.floor(seededRng(options.seed ?? 1)() * HELI_PALETTES.length)];
+  const b = new VehicleKit(palette.body), accent = car_paint(palette.accent);
+  // Teardrop stations: rounded broad cockpit, gently narrowing rear cabin. Cockpit replaces the shell cells.
+  b.feature('teardrop-cabin-and-inset-cockpit', () => {
+    const stations = [[-2.15, 0.13, 1.76, 0.24], [-1.8, 0.65, 1.65, 0.78], [-1.1, 0.96, 1.62, 0.99],
+      [-0.3, 1.02, 1.64, 1.03], [0.35, 1, 1.65, 1.01], [0.9, 0.94, 1.63, 0.95],
+      [1.45, 0.8, 1.59, 0.82], [1.9, 0.59, 1.53, 0.62], [2.25, 0.32, 1.46, 0.35], [2.48, 0.02, 1.43, 0.03]];
+    const rings = stations.map(([z, rx, y, ry]) => Array.from({ length: 32 }, (_, j) => {
+      const a = j * Math.PI / 16; return point(rx * Math.sin(a), y + ry * Math.cos(a), z);
+    }));
+    loft(b, rings, (_c, i, j) => {
+      // Angular boundaries follow the curved surface continuously; world-Y tests create jagged glazing.
+      const front = i >= 5 && i <= 7 && (j >= 1 && j <= 9 || j >= 22 && j <= 30);
+      const side = i >= 1 && i < 5 && (j >= 4 && j <= 9 || j >= 22 && j <= 27);
+      if (front || side) return b.glass;
+      return i >= 1 && i <= 7 && j >= 12 && j <= 19 ? accent : b.paint;
+    }, true, true);
+    for (const side of [-1, 1]) {
+      b.tube(point(side * 1.003, 1.73, -0.5), point(side * 0.95, 2.27, -0.5), 0.028, b.trim, 6);
+      b.roundedBox(point(side * 1.01, 1.51, -0.45), point(0.035, 0.055, 0.26), b.chrome, 0.012);
+    }
+    b.ellipsoid(point(0, 2.61, -0.25), point(0.6, 0.44, 1.12), b.paint, 28, 14);
+    for (const side of [-1, 1]) {
+      b.cylinder(point(side * 0.48, 2.83, -0.95), 0.13, 0.36, b.chrome, 16, 'z');
+      b.cylinder(point(side * 0.48, 2.83, -1.14), 0.1, 0.02, b.trim, 16, 'z');
+    }
+  });
+  b.feature('curved-skids-and-camera-gimbal', () => {
+    for (const side of [-1, 1]) {
+      const path = [point(side * 0.9, 0.05, -2.5), point(side * 0.9, 0.05, 1.9),
+        point(side * 0.9, 0.1, 2.16), point(side * 0.9, 0.25, 2.34)];
+      for (let i = 0; i < path.length - 1; i++) b.tube(path[i], path[i + 1], 0.05, b.chrome, 12);
+      for (const z of [-1.05, 0.85]) b.tube(point(side * 0.9, 0.1, z), point(side * 0.48, 0.9, z), 0.055, b.chrome, 10);
+    }
+    b.ellipsoid(point(0, 0.69, 1.98), point(0.24, 0.21, 0.24), b.trim, 20, 10);
+    b.cylinder(point(0, 0.69, 2.2), 0.13, 0.035, b.glass, 20, 'z');
+    b.cylinder(point(0, 0.49, 2.01), 0.07, 0.04, b.lamp, 12, 'y');
+  });
+  b.feature('tail-boom-and-stabilizers', () => {
+    const rings = Array.from({ length: 12 }, (_, i) => {
+      const t = i / 11, z = -5.08 + 3.35 * t, r = 0.105 + 0.28 * t;
+      return Array.from({ length: 20 }, (_, j) => { const a = j * Math.PI / 10; return point(r * Math.sin(a), 2.48 - 0.66 * t + r * Math.cos(a), z); });
+    }); loft(b, rings, () => b.paint, true, true);
+    for (const side of [-1, 1]) wing(b, [[0, 2.2, -3.91, -4.6, 0.065], [side * 1.03, 2.24, -4.17, -4.53, 0.025]], accent);
+    const fin = new Shape(); fin.moveTo(-5.28, 2.22); fin.lineTo(-4.44, 2.24); fin.lineTo(-4.83, 3.02);
+    fin.quadraticCurveTo(-5.12, 3.18, -5.22, 2.94); fin.closePath();
+    b.profileBody({ shape: fin, width: 0.13, beltY: 2.3, roofY: 3.16, roofRatio: 1 }, 'full', accent);
+    b.cylinder(point(0, 3.08, 0.4), 0.14, 0.24, b.chrome, 16);
+  });
+  // Dedicated finishes keep each moving rotor in one batch and preserve both original pivots.
+  const main = new VehicleKit(0x181818), mainMat = vehicleMaterial('plastic_trim_black', 0x181818);
+  main.ellipsoid(point(0, 0, 0), point(0.26, 0.07, 0.26), mainMat, 16, 8);
+  for (const side of [-1, 1]) wing(main, [[side * 0.2, 0, 0.2, -0.16, 0.025], [side * 2.8, 0, 0.12, -0.2, 0.018],
+    [side * 4.1, 0, -0.04, -0.26, 0.01]], mainMat);
+  const animMain = mergeByMaterial('veh.helicopter/rotor_main', main.parts); main.parts.forEach(p => p.geometry.dispose());
+  animMain.name = 'anim_rotor_main'; animMain.position.set(0, 3.2, 0.4); b.addAnimNode(animMain);
+  const tail = new VehicleKit(0x2e2e2e), tailMat = vehicleMaterial('plastic_trim_black', 0x2e2e2e);
+  tail.cylinder(point(0, 0, 0), 0.1, 0.1, tailMat, 12, 'x');
+  tail.roundedBox(point(0, 0, 0), point(0.04, 1.3, 0.14), tailMat, 0.014);
+  tail.roundedBox(point(0, 0, 0), point(0.04, 0.14, 1.3), tailMat, 0.014);
+  const animTail = mergeByMaterial('veh.helicopter/rotor_tail', tail.parts); tail.parts.forEach(p => p.geometry.dispose());
+  animTail.name = 'anim_rotor_tail'; animTail.position.set(-0.16, 2.5, -5); b.addAnimNode(animTail);
+  return finishVehicle(b, 'veh.helicopter', [1, 1], options, { palette, rotorAxes: ['Y', 'X'] });
 }
 
 export function createAirplane(options: ModelOptions = {}): Group {
-  const id = 'veh.airplane';
-  const b = new VehicleBuilder();
-
-  // Fictional airline: "ไผ่แอร์" (Phai Air) in bamboo green and white.
-  // Strictly no purple and gold.
-  const bambooGreen = tint('metal_painted', 0x237346); // Fresh bamboo green
-  const whiteMat = getMaterial('plaster_white');
-  const steel = getMaterial('metal_steel');
-  const glass = getMaterial('glass_tinted');
-  const tireMat = getMaterial('asphalt');
-
-  // Landing gear wheels resting on y = 0
-  // Nose gear at Z = +9.2, wheel radius = 0.35, Y = 0 to 0.7
-  b.cylinder(point(0, 0.85, 9.2), 0.08, 1.2, steel, 6, 'y');
-  b.wheel(point(-0.2, 0.35, 9.2), 0.35, 0.14, tireMat, steel, 8);
-  b.wheel(point(0.2, 0.35, 9.2), 0.35, 0.14, tireMat, steel, 8);
-
-  // Main gears under wings at Z = -1.2, X = ±3.2
-  for (const sign of [-1, 1]) {
-    const x = sign * 3.2;
-    b.cylinder(point(x, 0.95, -1.2), 0.1, 1.4, steel, 6, 'y');
-    b.wheel(point(x - 0.2, 0.45, -1.2), 0.45, 0.18, tireMat, steel, 8);
-    b.wheel(point(x + 0.2, 0.45, -1.2), 0.45, 0.18, tireMat, steel, 8);
-  }
-
-  // Fuselage (Length = 28 m: Z from -14 to +14, centerline height Y = 2.5)
-  // Main passenger cabin tube: upper white, lower bamboo green
-  b.cylinder(point(0, 2.5, 0), 1.6, 20.0, whiteMat, 12, 'z');
-  // Lower belly cheatline
-  b.box(point(0, 1.35, 0), point(3.0, 0.8, 20.0), bambooGreen);
-
-  // Streamlined nose cone (Z from +10.0 to +14.0)
-  b.taperedCylinder(point(0, 2.4, 12.0), 0.3, 1.6, 4.0, whiteMat, 10, 'z');
-  b.box(point(0, 1.4, 11.9), point(2.4, 0.7, 3.8), bambooGreen);
-  // Cockpit windshield
-  b.box(point(0, 2.85, 11.8), point(1.5, 0.6, 1.2), glass, 0, -0.3, 0);
-
-  // Passenger window rows along both sides (X = ±1.61)
-  for (let z = -8.0; z <= 8.0; z += 1.3) {
-    b.box(point(-1.61, 2.6, z), point(0.04, 0.32, 0.55), glass);
-    b.box(point(1.61, 2.6, z), point(0.04, 0.32, 0.55), glass);
-  }
-
-  // Tapered tail cone (Z from -10.0 to -14.0)
-  b.taperedCylinder(point(0, 2.6, -12.0), 1.6, 0.3, 4.0, whiteMat, 10, 'z');
-
-  // Main swept wings (wingspan = 24.0 m, root Z = 0.5, tip Z = -3.5)
-  // Center wing root fairing
-  b.box(point(0, 1.7, -0.5), point(4.2, 0.65, 6.0), bambooGreen);
-  // Left & right swept wing slabs
-  for (const sign of [-1, 1]) {
-    const angleY = sign * -0.28; // Swept back
-    const angleZ = sign * 0.07;  // Slight dihedral
-    const midX = sign * 6.5;
-    const midZ = -1.0;
-    b.box(point(midX, 1.85, midZ), point(9.5, 0.26, 3.2), whiteMat, angleY, 0, angleZ);
-    // Bamboo green winglet tips at ±12 m
-    b.box(point(sign * 11.8, 2.5, -2.6), point(0.12, 1.2, 0.8), bambooGreen);
-  }
-
-  // Turbofan jet engines under wings at X = ±4.2, Y = 1.35, Z = 0.2
-  for (const sign of [-1, 1]) {
-    const ex = sign * 4.2;
-    // Pylon strut from wing
-    b.box(point(ex, 1.8, 0.2), point(0.16, 0.65, 1.8), steel);
-    // Engine nacelle cylinder in bamboo green
-    b.cylinder(point(ex, 1.35, 0.2), 0.72, 2.8, bambooGreen, 10, 'z');
-    // Front engine intake spinner and rear exhaust cone
-    b.cylinder(point(ex, 1.35, 1.62), 0.6, 0.15, steel, 10, 'z');
-    b.cylinder(point(ex, 1.35, -1.25), 0.45, 0.3, steel, 10, 'z');
-  }
-
-  // Horizontal tailplanes at Z = -12.2 (span 8.5 m)
-  for (const sign of [-1, 1]) {
-    b.box(point(sign * 2.4, 3.2, -12.2), point(3.6, 0.16, 1.5), whiteMat, sign * -0.28, 0, 0);
-  }
-
-  // Vertical tail fin in bamboo green (Y up to 7.0 m, Z from -10.5 to -13.5)
-  b.box(point(0, 5.2, -11.8), point(0.26, 3.6, 2.4), bambooGreen, 0, 0.3, 0);
-  // Decorative white tip cap on tail
-  b.box(point(0, 6.9, -12.6), point(0.28, 0.4, 1.0), whiteMat);
-
-  return b.finish(id, [3, 3], options, 'R3');
+  const b = new VehicleKit(0x237346), white = car_paint(0xf4f3ef);
+  b.feature('round-lathe-fuselage-and-cockpit-band', () => {
+    const samples: [number, number][] = [[-14, 0], [-13.75, 0.12], [-13.2, 0.36], [-12.4, 0.65], [-11.5, 1.05], [-10.5, 1.4], [-9.2, 1.6]];
+    for (let z = -8.5; z < 9; z += 1.3) samples.push([z, 1.6], [z + 0.62, 1.6]);
+    samples.push([9.5, 1.57], [10.2, 1.47], [10.85, 1.33], [11.5, 1.13], [12.1, 0.88], [12.75, 0.6], [13.3, 0.36], [13.72, 0.16], [14, 0]);
+    latheZ(b, samples, point(0, 2.5, 0), c => {
+      const cockpit = c.z > 10.2 && c.z < 12.75 && c.y > 2.79 && c.y < 3.42;
+      const passenger = Math.abs(c.x) > 1.45 && c.y > 2.51 && c.y < 2.99 && c.z > -8.5 && c.z < 8.5 && ((c.z + 8.5) % 1.3) < 0.62;
+      return cockpit || passenger ? b.glass : c.y < 1.94 ? b.paint : white;
+    }, 32);
+    for (const side of [-1, 1]) for (const z of [-9.1, 9.05]) {
+      // Recessed door outlines sit above the stripe, with simple molded handles.
+      b.tube(point(side * 1.54, 2.27, z - 0.42), point(side * 1.47, 3.11, z - 0.42), 0.018, b.trim, 6);
+      b.tube(point(side * 1.54, 2.27, z + 0.42), point(side * 1.47, 3.11, z + 0.42), 0.018, b.trim, 6);
+      b.tube(point(side * 1.47, 3.11, z - 0.42), point(side * 1.47, 3.11, z + 0.42), 0.018, b.trim, 6);
+      b.box(point(side * 1.604, 2.37, z + 0.22), point(0.03, 0.045, 0.17), b.chrome);
+    }
+  });
+  b.feature('swept-airfoil-wings-and-tail', () => {
+    for (const side of [-1, 1]) {
+      wing(b, [[side * 1.05, 1.87, 3.4, -3.3, 0.26], [side * 4.5, 2.03, 1.25, -4.6, 0.19],
+        [side * 8.5, 2.28, -1.7, -5.7, 0.12], [side * 11.8, 2.58, -4.15, -6.15, 0.055]], white);
+      b.tube(point(side * 2, 1.91, -2.7), point(side * 10.7, 2.55, -5.84), 0.017, b.trim, 6);
+      const tip = new Shape(); tip.moveTo(-6.15, 2.57); tip.lineTo(-4.15, 2.57); tip.lineTo(-5.12, 3.69); tip.lineTo(-6.13, 3.68); tip.closePath();
+      const first = b.parts.length; b.profileBody({ shape: tip, width: 0.12, beltY: 2.6, roofY: 3.7, roofRatio: 1 });
+      for (const part of b.parts.slice(first)) part.geometry.translate(side * 11.8, 0, 0);
+      wing(b, [[side * 0.36, 3.17, -9.48, -12.9, 0.12], [side * 2.5, 3.28, -11, -13.25, 0.075],
+        [side * 4.5, 3.4, -12, -13.65, 0.025]], white);
+    }
+    const fin = new Shape(); fin.moveTo(-13.5, 2.77); fin.lineTo(-9.8, 3.21); fin.lineTo(-11.8, 6.92);
+    fin.quadraticCurveTo(-12, 7.12, -12.26, 7); fin.lineTo(-13.12, 6.96); fin.closePath();
+    b.profileBody({ shape: fin, width: 0.24, beltY: 3, roofY: 7, roofRatio: 0.58 });
+    for (const side of [-1, 1]) b.tube(point(side * 0.12, 3.7, -12.74), point(side * 0.07, 6.6, -12.84), 0.017, b.trim, 6);
+  });
+  b.feature('open-nacelles-fan-blades-and-landing-gear', () => {
+    for (const side of [-1, 1]) {
+      const x = side * 4.2;
+      b.box(point(x, 1.85, 0.2), point(0.2, 0.65, 1.75), white);
+      // Hollow rolled intake lip and tapered exhaust: engine interior is visible from +Z.
+      latheZ(b, [[-1.28, 0.42], [-1.13, 0.57], [-0.75, 0.72], [0.6, 0.74], [1.23, 0.71], [1.43, 0.66],
+        [1.45, 0.6], [1.33, 0.565], [0.97, 0.54], [0.62, 0.5]], point(x, 1.29, 0.2), c => c.z > 1.46 ? b.chrome : b.paint, 24);
+      b.cylinder(point(x, 1.29, 1.05), 0.52, 0.035, b.trim, 32, 'z');
+      latheZ(b, [[0.96, 0.17], [1.09, 0.16], [1.25, 0.11], [1.38, 0]], point(x, 1.29, 0), b.chrome, 20);
+      for (let j = 0; j < 12; j++) {
+        const a = j * Math.PI / 6, r = 0.33;
+        b.box(point(x + Math.sin(a) * r, 1.29 + Math.cos(a) * r, 1.08), point(0.06, 0.34, 0.025), b.chrome, 0, 0, -a + 0.25);
+      }
+      b.cylinder(point(x, 1.29, -1.11), 0.33, 0.18, b.trim, 24, 'z');
+    }
+    for (const [x, z, r] of [[0, 9.2, 0.35], [-3.2, -1.2, 0.45], [3.2, -1.2, 0.45]]) {
+      b.tube(point(x, r, z), point(x, 1.5, z - 0.12), 0.085, b.chrome, 12);
+      b.tube(point(x, 0.6, z), point(x, 1.58, z - 0.55), 0.04, b.chrome, 8);
+      for (const dx of [-0.2, 0.2]) b.wheelAt(point(x + dx, r, z), r, r === 0.35 ? 0.14 : 0.18, { rim: 'dish', faces: [dx < 0 ? -1 : 1], segments: 12 });
+    }
+  });
+  b.feature('fictional-phai-air-livery', () => {
+    const sign = thaiSign('ไผ่แอร์', 0xf4f3ef, 0x237346, [4.6, 0.55]);
+    for (const side of [-1, 1]) {
+      const geometry = new PlaneGeometry(4.6, 0.55).rotateY(side * Math.PI / 2).translate(side * 1.59, 2.15, 5.6);
+      b.add(geometry, sign);
+      // Abstract bamboo leaves, not a real airline logo.
+      b.face([point(side * 0.111, 5.05, -12.35), point(side * 0.105, 5.9, -12.75), point(side * 0.09, 6.46, -12.12)], white);
+    }
+  });
+  return finishVehicle(b, 'veh.airplane', [3, 3], options, { airline: 'ไผ่แอร์', livery: [0x237346, 0xf4f3ef], length: 28 });
 }
