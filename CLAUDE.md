@@ -314,6 +314,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 ## 3D work
 
 - Read `docs/3d/MODEL_SPEC.md` before creating or changing any model.
+- Every model has the parts its kind should have (`docs/3d/DETAIL_CHECKLIST.md`, owner 13 Oct 2026): detailed near the
+  camera, simple far away, and smooth on a notebook with integrated graphics.
 - Prompts for building every model are in `docs/3d/CODEX_PROMPTS.md`.
 - Each of the 6 regions has its own architecture. Models take `opts.region` and belong to a tier:
   - R1: regional form
