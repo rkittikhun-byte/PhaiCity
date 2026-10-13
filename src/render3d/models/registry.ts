@@ -18,6 +18,8 @@ import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
 import { createRulerHouse, RULER_HOUSE_ID, RULER_HOUSE_LEVELS } from './civic/ruler-house.js';
 import { createSchool, SCHOOL_BUDGETS, SCHOOL_KINDS, schoolId } from './civic/schools.js';
+import { createHospitalCivic, HOSPITAL_BUDGETS, HOSPITAL_KINDS, hospitalId } from './civic/hospitals.js';
+import { createWaste, WASTE_BUDGETS, WASTE_KINDS, wasteId } from './waste/waste.js';
 import { createWaterWorks, WATER_WORKS_ID, WATER_WORKS_TILES } from './water/water-works.js';
 import { createWaterTower, WATER_TOWER_ID, WATER_TOWER_TILES } from './water/water-tower.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
@@ -107,11 +109,21 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     factory: (options?: ModelOptions) => createSchool(kind, options), category: 'services', footprint: [3, 3], tiles: [],
     budget: SCHOOL_BUDGETS[kind], regionTier: 'R2',
   } as ModelRegistration])),
+  // Hospitals share the civic 3×3 too (RENDERER_SPEC 6H): a health centre up to a regional hospital, from gameMap.civicKinds.
+  ...Object.fromEntries(HOSPITAL_KINDS.map(kind => [hospitalId(kind), {
+    factory: (options?: ModelOptions) => createHospitalCivic(kind, options), category: 'services', footprint: [3, 3], tiles: [],
+    budget: HOSPITAL_BUDGETS[kind], regionTier: 'R2',
+  } as ModelRegistration])),
   // The water supply (RENDERER_SPEC 6C): the water works' 3×3 and the one-tile water tower, by tile value.
   [WATER_WORKS_ID]: { factory: createWaterWorks, category: 'services', footprint: [3, 3], tiles: WATER_WORKS_TILES,
     budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R3' },
   [WATER_TOWER_ID]: { factory: createWaterTower, category: 'services', footprint: [1, 1], tiles: WATER_TOWER_TILES,
     budget: TRIANGLE_BUDGETS.prop, regionTier: 'R3' },
+  // Rubbish and wastewater plants (RENDERER_SPEC 6I): the five kinds on tiles 992–1000, picked from gameMap.wasteKinds.
+  ...Object.fromEntries(WASTE_KINDS.map(kind => [wasteId(kind), {
+    factory: (options?: ModelOptions) => createWaste(kind, options), category: 'services', footprint: [3, 3], tiles: [],
+    budget: WASTE_BUDGETS[kind], regionTier: 'R3',
+  } as ModelRegistration])),
   'svc.stadium': { factory: createStadium, category: 'services', footprint: [4, 4],
     tiles: STADIUM_TILES, budget: TRIANGLE_BUDGETS.special, regionTier: 'R3', states: ['empty', 'game'] },
   'power.coal': { factory: createCoal, category: 'services', footprint: [4, 4],

@@ -8,7 +8,9 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
-import { CIVIC } from '../../tileValues.js';
+import { CIVIC, WASTE } from '../../tileValues.js';
+import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
+import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
 import type { CityMapReader, Placement } from './types.js';
 import { SEED_BUCKETS } from './types.js';
@@ -66,13 +68,13 @@ const PLOT_HEIGHTS: Readonly<Record<PlotKind, readonly number[]>> = {
 const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 'res', commercial: 'com', industrial: 'ind' };
 /** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
 const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
-/** Far-view heights of the schools on the civic 3 × 3 (their models are 8–18 m at the highest point) */
+/** Far-view heights of the schools and hospitals on the civic 3 × 3 (their models are 6–34 m at the highest point) */
 const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, primary_school: 7, secondary_school: 10,
-  vocational_college: 8, university: 10 };
+  vocational_college: 8, university: 10, ...HOSPITAL_HEIGHTS };
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
@@ -141,13 +143,24 @@ export class TileSnapshot implements CityMapReader {
     let side=2;for(const candidate of [1,3,0])if(scores[candidate]>scores[side])side=candidate;
     return side;
   }
-  /** A school on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its gate
-   * toward its road. The ruler's house keeps its own placement; other kinds (hospitals for now) stay generic. */
+  /** A school or hospital on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its
+   * gate toward its road. The ruler's house keeps its own placement; a kind without a model stays generic. */
   private civicPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
     const kind=this.source?.civicKinds?.[i];
     if(this.values[i]!==CIVIC||!kind||kind==='ruler_house'||!registry[`civic.${kind}`])return null;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
     return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:`civic.${kind}`,kind:'services',footprint:[3,3],height:SCHOOL_HEIGHTS[kind]??12,color:0xb8ad94,
+      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+  }
+  /** A rubbish or wastewater plant on tiles 992–1000 (RENDERER_SPEC 6I): `waste.<kind>` from wasteKinds (no record is a landfill) once
+   * that model is registered, its gate toward its road. */
+  private wastePlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
+    if(this.values[i]!==WASTE)return null;
+    const kind=this.source?.wasteKinds?.[i]??'landfill';
+    if(!registry[`waste.${kind}`])return null;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
+    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:`waste.${kind}`,kind:'services',footprint:[3,3],height:WASTE_HEIGHTS[kind as keyof typeof WASTE_HEIGHTS]??12,color:0xa8a291,
       water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
         variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
   }
@@ -187,6 +200,8 @@ export class TileSnapshot implements CityMapReader {
     if(house)return house;
     const school=zone?this.civicPlacement(i,x,y,region,hash):null;
     if(school)return school;
+    const waste=zone?this.wastePlacement(i,x,y,region,hash):null;
+    if(waste)return waste;
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };

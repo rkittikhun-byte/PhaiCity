@@ -81,11 +81,12 @@ export class SchoolBuilder extends CivicBuilder {
    * to keep its water within eight draw calls. */
   steel: Material = this.metal;
 
-  constructor(options: ModelOptions) {
+  /** accents: the colours the seed picks from; a hospital (models/civic/hospital-builder.ts) brings its greens and blues */
+  constructor(options: ModelOptions, accents: readonly number[] = SCHOOL_ACCENTS) {
     super(options, schoolForm(getRegionKit(options.region)));
     this.pick = seededRng((Math.imul(this.seed, 0x2c1b3c6d) ^ 0x51ed270b) >>> 0);
     this.wall = new Color(this.kit.palette.pick(this.seed, 'plaster').wall).lerp(new Color(0xf5edd3), 0.6).getHex();
-    this.accent = SCHOOL_ACCENTS[Math.floor(this.pick() * SCHOOL_ACCENTS.length)];
+    this.accent = accents[Math.floor(this.pick() * accents.length)];
   }
 
   /** One of the given names, by seed. */
