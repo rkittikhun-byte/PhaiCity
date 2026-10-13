@@ -18,7 +18,7 @@ export interface CarProfile {
   /** Narrow an open three-wheeler's apron towards +Z without narrowing its passenger bench. */
   noseTaper?: { start: number; end: number; ratio: number };
 }
-export interface WheelOptions { faces?: readonly (-1 | 1)[]; rim?: 'spokes' | 'dish' | 'none'; rimMaterial?: Material }
+export interface WheelOptions { faces?: readonly (-1 | 1)[]; rim?: 'spokes' | 'dish' | 'none'; rimMaterial?: Material; segments?: number }
 
 /** Reusable 16B kit: Z-Y silhouette -> beveled X extrusion, carved arches, tapered glass, rounded tires.
  * 16C can reuse profileBody, sideWindow, wheelSet and fittings with its own silhouettes and axle count.
@@ -143,13 +143,13 @@ export class VehicleKit extends VehicleBuilder {
     this.wheels.push({ center: center.toArray(), radius, width });
     const tire = new LatheGeometry([new Vector2(radius * 0.64, -width / 2), new Vector2(radius * 0.9, -width / 2),
       new Vector2(radius, -width * 0.23), new Vector2(radius, width * 0.23), new Vector2(radius * 0.9, width / 2),
-      new Vector2(radius * 0.64, width / 2)], 16).rotateZ(-Math.PI / 2).translate(center.x, center.y, center.z);
+      new Vector2(radius * 0.64, width / 2)], options.segments ?? 16).rotateZ(-Math.PI / 2).translate(center.x, center.y, center.z);
     this.add(applyWorldUV(tire, 1), this.tire); tire.dispose();
     if (options.rim === 'none') return;
     const material = options.rimMaterial ?? this.chrome;
     for (const side of options.faces ?? [center.x < 0 ? -1 : 1]) {
       const rim = new LatheGeometry([new Vector2(radius * 0.61, 0), new Vector2(radius * 0.61, 0.023),
-        new Vector2(radius * 0.5, 0.033), new Vector2(radius * 0.47, 0.012)], 16)
+        new Vector2(radius * 0.5, 0.033), new Vector2(radius * 0.47, 0.012)], options.segments ?? 16)
         .rotateZ(-side * Math.PI / 2).translate(center.x + side * (width / 2 - 0.018), center.y, center.z);
       this.add(applyWorldUV(rim, 1), material); rim.dispose();
       this.cylinder(point(center.x + side * (width / 2 - 0.004), center.y, center.z), radius * (options.rim === 'dish' ? 0.48 : 0.2), 0.02, material, 8, 'x');

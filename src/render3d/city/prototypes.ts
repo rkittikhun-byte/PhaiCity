@@ -22,7 +22,7 @@ function material(d:MaterialDescription):MeshStandardMaterial {
   if(u.vehicleMaterial)return vehicleMaterial(u.vehicleMaterial,d.color);
   if(u.hospitalAtlas)return hospitalAtlas();
   if(u.signAtlas)return thaiSignAtlas(u.signAtlas).material;
-  if(u.sign)return thaiSign(u.sign.text,d.color,0x173f35,u.sign.size,{layout:u.sign.layout,lit:u.sign.lit});
+  if(u.sign)return thaiSign(u.sign.text,u.sign.background??d.color,u.sign.foreground??0x173f35,u.sign.size,{layout:u.sign.layout,lit:u.sign.lit});
   if(u.stadiumCrowd)return stadiumCrowdMaterial();if(u.stadiumFloodlight)return stadiumFloodlightMaterial();
   if(u.serviceConcrete)return serviceConcreteMaterial();
   if(u.powerDomeGlow)return powerDomeGlowMaterial();
