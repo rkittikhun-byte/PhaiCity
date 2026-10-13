@@ -174,6 +174,20 @@
 | `choice.road_upgrade` | `src/toolLevels.ts` | — | `Upgrade` | `อัปเกรด` |  |
 | `choice.upgrade_note` | `src/toolLevels.ts` | — | `one level up` | `ขึ้นทีละขั้น` | แทนราคาในช่องอัปเกรด |
 | `choice.unavailable` | `src/toolLevels.ts` | — | `Not in this province` | `ไม่มีในจังหวัดนี้` | ช่องที่จังหวัดสร้างไม่ได้ |
+| `choice.nuclear` | `src/toolLevels.ts` | — | `Nuclear` | `นิวเคลียร์` | ในปุ่มโรงไฟฟ้า (Claude Code 13 ต.ค. 2026) |
+| `choice.title.police` | `src/toolLevels.ts` | — | `Safety: police or fire` | `ความปลอดภัย: ตำรวจหรือดับเพลิง` | ปุ่มรวมเครื่องมือ (docs/TOOLS_PLAN.md) |
+| `choice.police` | `src/toolLevels.ts` | — | `Police` | `ตำรวจ` |  |
+| `choice.fire` | `src/toolLevels.ts` | — | `Fire` | `ดับเพลิง` |  |
+| `choice.title.waterworks` | `src/toolLevels.ts` | — | `Water: works or tower` | `ประปา: โรงผลิตน้ำหรือหอถังสูง` |  |
+| `choice.waterworks` | `src/toolLevels.ts` | — | `Water works` | `โรงผลิตน้ำ` |  |
+| `choice.watertower` | `src/toolLevels.ts` | — | `Water tower` | `หอถังสูง` |  |
+| `choice.title.farm` | `src/toolLevels.ts` | — | `Farms and fishing` | `เกษตรและประมง` |  |
+| `choice.farm` | `src/toolLevels.ts` | — | `Farm` | `ไร่นา` |  |
+| `choice.fishing` | `src/toolLevels.ts` | — | `Harbour` | `ท่าเรือประมง` |  |
+| `choice.none.farm` | `src/toolLevels.ts` | — | `This province has no farmland or fishing` | `จังหวัดนี้ไม่มีที่ดินเกษตรหรือแหล่งประมง` | ปุ่มเกษตรจาง |
+| `choice.title.port` | `src/toolLevels.ts` | — | `Long-distance transport: port or airport` | `การเดินทางไกล: ท่าเรือหรือสนามบิน` |  |
+| `choice.port` | `src/toolLevels.ts` | — | `Port` | `ท่าเรือ` |  |
+| `choice.airport` | `src/toolLevels.ts` | — | `Airport` | `สนามบิน` |  |
 | `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
 | `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |

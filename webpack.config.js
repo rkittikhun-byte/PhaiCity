@@ -4,6 +4,7 @@ import { GitRevisionPlugin } from 'git-revision-webpack-plugin';
 import HtmlWebpackPlugin  from 'html-webpack-plugin';
 import path from 'path';
 import { addAdminRoutes } from './scripts/admin/adminServer.mjs';
+import { addArtRoutes } from './scripts/art/artServer.mjs';
 
 // Workaround now this is a module...
 import { fileURLToPath } from 'url';
@@ -22,6 +23,14 @@ const SUPPORT_FULLY_QUALIFIED_TS_ESM_IMPORTS = {
 const HANDLE_TYPESCRIPT_WITH_TS_LOADER = { test: /\.([cm]?ts|tsx)$/, loader: "ts-loader" };
 
 const OUTPUT_DIRECTORY = 'dist';
+
+// TypeScript compiled as ES modules, so that its three.js imports reach the same module build as the 3D code's (the
+// CommonJS build would be a second copy of three.js, and it reads Node's process): the 3D code, and the art export
+// page that builds its models
+const ES_MODULE_TYPESCRIPT = [
+  path.resolve(__dirname, 'src/render3d'),
+  path.resolve(__dirname, 'src/admin/artExport.ts'),
+];
 
 function recursivelyCopy(dir) {
   return {from: dir, to: dir, toType: 'dir'};
@@ -111,16 +120,31 @@ function injectAdminBundle() {
   });
 }
 
+// The art export page (every 3D model as glTF files in the art archive outside the project, docs/3d/ART_ARCHIVE.md):
+// built only for the dev server, whose endpoint writes the files; never part of a release
+function injectArtExportBundle() {
+  return new HtmlWebpackPlugin({
+    template: './art-export.html',
+    filename: 'art-export.html',
+    chunks: ['art-export'],
+    inject: true,
+    hash: true,
+  });
+}
+
 function addDevelopmentConfigTo(options) {
   options.devServer = {
     static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY) },
     setupMiddlewares: (middlewares, devServer) => {
       addAdminRoutes(devServer.app, __dirname);
+      addArtRoutes(devServer.app, __dirname);
       return middlewares;
     },
   };
   options.entry.admin = './src/admin/adminPage.ts';
   options.plugins.push(injectAdminBundle());
+  options.entry['art-export'] = './src/admin/artExport.ts';
+  options.plugins.push(injectArtExportBundle());
 
   options.devtool = 'source-map';
   options.mode = 'development';
@@ -166,10 +190,10 @@ function commonOptions() {
     },
     module: {
       rules: [
-        { ...HANDLE_TYPESCRIPT_WITH_TS_LOADER, exclude: path.resolve(__dirname, 'src/render3d') },
+        { ...HANDLE_TYPESCRIPT_WITH_TS_LOADER, exclude: ES_MODULE_TYPESCRIPT },
         {
           ...HANDLE_TYPESCRIPT_WITH_TS_LOADER,
-          include: path.resolve(__dirname, 'src/render3d'),
+          include: ES_MODULE_TYPESCRIPT,
           options: { compilerOptions: { module: 'esnext', moduleResolution: 'node' } },
         },
       ],

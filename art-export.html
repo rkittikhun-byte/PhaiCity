@@ -1,0 +1,41 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity — ส่งออกโมเดล 3D</title>
+    <style>
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+      :root { --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 Sarabun, system-ui, sans-serif; }
+      main { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+      h1 { margin: 0 0 4px; font-size: 20px; font-weight: 400; }
+      p { margin: 4px 0; color: var(--muted); }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-top: 16px; }
+      code { font-size: 13px; overflow-wrap: anywhere; }
+      label { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+      button { font: inherit; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: white;
+               padding: 6px 16px; cursor: pointer; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      progress { width: 100%; height: 10px; margin-top: 12px; }
+      #log { margin: 12px 0 0; padding-left: 18px; max-height: 50vh; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <main id="artExport">
+      <h1>ส่งออกโมเดล 3D ไปคลัง Blender</h1>
+      <p>สร้างโมเดลทุกตัวของเกมเป็นไฟล์ glTF เก็บเป็นรอบ ๆ ในคลังนอกโปรเจกต์ แล้วรวมเป็นไฟล์ Blender ด้วย <code>npm run art:blend</code></p>
+      <p>คลังอยู่ที่ <code id="archive">…</code></p>
+      <section class="card">
+        <label><input type="checkbox" id="regional" checked> ทุกภาค (โมเดลที่หน้าตาต่างกันตามภาค)</label>
+        <p id="count"></p>
+        <button type="button" id="start">เริ่มส่งออก</button>
+        <progress id="progress" value="0" max="1"></progress>
+        <ol id="log"></ol>
+      </section>
+    </main>
+  </body>
+</html>

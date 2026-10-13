@@ -77,6 +77,9 @@ var InputStatus = EventEmitter(function(map, tileWidth, rules) {
       return;
     this.toolName = e.detail;
     this.currentTool = this.gameTools[this.toolName];
+    // The button now wears the chosen tool's size and colour: a water tower is one tile, an airport six
+    this.toolWidth = button.attr('data-size');
+    this.toolColour = button.attr('data-colour');
   }.bind(this));
   $('#budgetRequest').click(budgetHandler.bind(this));
   $('#evalRequest').click(evalHandler.bind(this));

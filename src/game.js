@@ -40,7 +40,8 @@ import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
-import { setToolChoices } from './toolLevels.ts';
+import { pageChoice, setToolChoices } from './toolLevels.ts';
+import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
 import { MINE, POWERPLANT, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
@@ -202,10 +203,17 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     }
   });
 
-  // The power button's places above the tools are its kinds of plant; those the province cannot build wait
+  // The power button's places above the tools are its kinds of plant, and the nuclear plant; those the province
+  // cannot build wait
   setToolChoices('coal', POWER_KINDS.map(function(kind) {
     return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
-  }));
+  }).concat([pageChoice('nuclear')]));
+  // Buttons that group tools (docs/TOOLS_PLAN.md): safety, water, farms and harbours, long-distance transport
+  setToolChoices('police', [pageChoice('police'), pageChoice('fire')]);
+  setToolChoices('waterworks', [pageChoice('waterworks'), pageChoice('watertower')]);
+  setToolChoices('farm', [pageChoice('farm', farmLevel(simulation.resources) >= 1),
+    pageChoice('fishing', fisheryLevel(simulation.resources) >= 1)]);
+  setToolChoices('port', [pageChoice('port'), pageChoice('airport')]);
   // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
   setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
     .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));

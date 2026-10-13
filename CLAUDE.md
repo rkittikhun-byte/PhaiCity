@@ -62,6 +62,8 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 | `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |
+| `npm run art:export` | Dev server and `art-export.html`: every registered 3D model, in every region, as glTF files in a new run of the art archive outside the project (`../phaicity-art/exports/`, `docs/3d/ART_ARCHIVE.md`) |
+| `npm run art:blend [-- <run>]` | Build `phaicity-models.blend` (an asset library) from the newest export run, with Blender in the background (`BLENDER`, the PATH or Program Files) |
 
 **Test status:**
 - Jest runs using the CommonJS `jest.config.cjs` in this ES module project.
@@ -132,6 +134,10 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
     shows under the bar for a few seconds, then fades (`src/notification.js`).
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
+    Sixteen buttons (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card (safety:
+    police or fire; power: every kind and nuclear; water: works or tower; farms or harbours; port or airport), and a
+    button wears the chosen tool's size and colour. Tools without a button of their own keep theirs in
+    `index.html`'s `<template id="toolChoices">` (`pageChoice`).
   - `index.html?city=<id>` opens a saved city straight away.
   - The footer is hidden but stays in the page, because the start screen copies its required credits from it. In a
     city the small `#mapAttribution` line keeps the OpenStreetMap credit and "modified from micropolisJS" on screen

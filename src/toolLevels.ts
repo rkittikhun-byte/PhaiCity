@@ -10,6 +10,12 @@
 // A tool can have choices instead (setToolChoices): the power button's places are its kinds of plant (owner,
 // 13 Oct 2026; src/powerPlants.ts). Clicking one makes it the tool the button uses (its data-active-tool) and tells
 // the game (the "phaicity:toolchoice" event, src/inputStatus.js); a kind the province cannot have waits, greyed.
+// The button takes the chosen tool's size and colour too (data-size, data-colour), for the outline under the mouse.
+//
+// Buttons that group tools (docs/TOOLS_PLAN.md, owner 13 Oct 2026) work the same way: safety (police, fire), water
+// (water works, water tower), farms and harbours, and long-distance transport (port, airport); the power button
+// holds the nuclear plant too. The tools that lost their own button keep their size and colour in the page's
+// #toolChoices template (pageChoice).
 
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, isShown, show } from "./motion";
@@ -26,14 +32,43 @@ export interface ToolChoice {
   tool: string;
   /** Whether it may be used here: a kind of plant the province lacks may not */
   available: boolean;
-  /** Its colour, for the square shown until its icon is drawn */
+  /** Its colour, for the square shown until its icon is drawn and the outline under the mouse */
   colour?: string;
+  /** Its width in tiles, for the outline under the mouse; the button's own when left out */
+  size?: number;
   /** What its place says in place of its price, a string key (the road upgrade: "one level at a time") */
   note?: string;
 }
 
 const choices = new Map<string, readonly ToolChoice[]>();
 let rerender: (() => void) | null = null;
+
+/** A button's own size and colour, kept the first time a choice changes them. */
+function own(button: HTMLElement): { size: string; colour: string } {
+  if (button.dataset.ownSize === undefined) button.dataset.ownSize = button.dataset.size ?? "1";
+  if (button.dataset.ownColour === undefined) button.dataset.ownColour = button.dataset.colour ?? "";
+  return { size: button.dataset.ownSize, colour: button.dataset.ownColour };
+}
+
+/** Gives the button the size and colour of the tool it now uses. */
+function wear(button: HTMLElement, choice: ToolChoice | undefined): void {
+  const mine = own(button);
+  button.dataset.size = choice?.size !== undefined ? String(choice.size) : mine.size;
+  button.dataset.colour = choice?.colour ?? mine.colour;
+}
+
+/**
+ * A choice for a tool the page lists: a tool button, or a tool kept in the #toolChoices template because it sits in
+ * another button's choices. Its size and colour come from there.
+ */
+export function pageChoice(tool: string, available = true, doc: Document = document): ToolChoice {
+  const button = doc.querySelector<HTMLElement>(`.toolButton[data-tool="${tool}"]`);
+  const template = doc.getElementById("toolChoices") as HTMLTemplateElement | null;
+  const kept = template?.content?.querySelector<HTMLElement>(`[data-tool="${tool}"]`) ?? null;
+  const source = button ? own(button) : { size: kept?.dataset.size ?? "", colour: kept?.dataset.colour ?? "" };
+  const size = Number(source.size);
+  return { tool, available, colour: source.colour || undefined, size: size > 0 ? size : undefined };
+}
 
 /**
  * Gives a tool button (by its data-tool) choices in place of levels. It keeps the one it uses while that may still be
@@ -48,6 +83,7 @@ export function setToolChoices(group: string, list: readonly ToolChoice[], doc: 
       if (usable.length > 0) button.dataset.activeTool = usable[0].tool;
       else delete button.dataset.activeTool;
     }
+    wear(button, list.find((choice) => choice.tool === button.dataset.activeTool));
     button.disabled = usable.length === 0;
     relabelTools();
     if (button.disabled) button.title = t(`choice.none.${group}`);
@@ -95,6 +131,7 @@ export function installToolLevels(doc: Document = document): void {
       slot.addEventListener("click", () => {
         if (!choice.available) return;
         selected.dataset.activeTool = choice.tool;
+        wear(selected, choice);
         relabelTools();
         doc.dispatchEvent(new CustomEvent(TOOL_CHOICE_EVENT, { detail: choice.tool }));
         render(true);

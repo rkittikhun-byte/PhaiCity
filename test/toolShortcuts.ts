@@ -24,6 +24,24 @@ describe("tool icons", () => {
       expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
     }
   });
+
+  test("sixteen buttons; the tools grouped into another button's choices keep their size and colour in the page", () => {
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const buttons = [...html.matchAll(/<button [^>]*data-tool="(\w+)"/g)].map((m) => m[1]);
+    const template = html.match(/<template id="toolChoices">([\s\S]*?)<\/template>/)?.[1] ?? "";
+    const kept = [...template.matchAll(/data-size="(\d)" data-tool="(\w+)" data-colour="([^"]+)"/g)].map((m) => m[2]);
+    expect(buttons).toHaveLength(16);
+    expect([...kept].sort()).toEqual(["airport", "fire", "fishing", "nuclear", "watertower"]);
+    for (const tool of kept) {
+      expect(buttons).not.toContain(tool);
+      expect([tool, hasKey(`tool.${tool}`), hasKey(`choice.${tool}`)]).toEqual([tool, true, true]);
+    }
+    for (const group of ["police", "waterworks", "farm", "port", "coal"]) {
+      expect(buttons).toContain(group);
+      expect([group, hasKey(`choice.title.${group}`), hasKey(`choice.${group}`)]).toEqual([group, true, true]);
+    }
+    expect(hasKey("choice.none.farm")).toBe(true);
+  });
 });
 
 describe("tool shortcuts", () => {

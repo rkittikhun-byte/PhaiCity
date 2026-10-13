@@ -2012,7 +2012,7 @@ body #buttons .toolKey {
 }
 body #buttons .toolName { display: none; }
 body #buttons .toolPrice { font-size: 8px; line-height: 1; }
-/* In one row the tools go zones first, then ways, then buildings */
+/* In one row the tools go zones first, then ways, then buildings; grouped buttons hold the rest (src/toolLevels.ts) */
 body #buttons [data-tool="residential"] { order: 1; }
 body #buttons [data-tool="commercial"] { order: 2; }
 body #buttons [data-tool="industrial"] { order: 3; }
@@ -2023,17 +2023,12 @@ body #buttons [data-tool="park"] { order: 7; }
 body #buttons [data-tool="bulldozer"] { order: 8; }
 body #buttons [data-tool="query"] { order: 9; }
 body #buttons [data-tool="police"] { order: 10; }
-body #buttons [data-tool="fire"] { order: 11; }
-body #buttons [data-tool="coal"] { order: 12; }
-body #buttons [data-tool="nuclear"] { order: 13; }
-body #buttons [data-tool="waterworks"] { order: 14; }
-body #buttons [data-tool="watertower"] { order: 15; }
-body #buttons [data-tool="mine"] { order: 16; }
-body #buttons [data-tool="farm"] { order: 17; }
-body #buttons [data-tool="fishing"] { order: 18; }
-body #buttons [data-tool="port"] { order: 19; }
-body #buttons [data-tool="stadium"] { order: 20; }
-body #buttons [data-tool="airport"] { order: 21; }
+body #buttons [data-tool="coal"] { order: 11; }
+body #buttons [data-tool="waterworks"] { order: 12; }
+body #buttons [data-tool="mine"] { order: 13; }
+body #buttons [data-tool="farm"] { order: 14; }
+body #buttons [data-tool="port"] { order: 15; }
+body #buttons [data-tool="stadium"] { order: 16; }
 /* A tool with no choice here, such as the mine in a province with no ore */
 body #buttons .toolButton:disabled { opacity: 0.4; cursor: not-allowed; }
 /* The ruler's tasks take the tools' old place on the right */
