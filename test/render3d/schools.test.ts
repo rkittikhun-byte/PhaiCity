@@ -207,7 +207,7 @@ describe('schools in the city view', () => {
     expect(house).toMatchObject({ id: 'civic.ruler_house', rotation: 0, footprint: [3, 3] });
     expect(house.options).toMatchObject({ variant: 3, state: 'treasury' });
     expect(city('ruler_house').snapshot.placement(10 * W + 10, 'south')).toMatchObject({ id: null, kind: 'services', footprint: [3, 3] });
-    expect(city('health_centre').snapshot.placement(10 * W + 10, 'south')).toMatchObject({ id: null, kind: 'services', footprint: [3, 3] });
+    expect(city('some_future_kind').snapshot.placement(10 * W + 10, 'south')).toMatchObject({ id: null, kind: 'services', footprint: [3, 3] });
     expect(city(null).snapshot.placement(10 * W + 10, 'south')).toMatchObject({ id: null, kind: 'services' });
   });
 
