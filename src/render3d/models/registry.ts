@@ -17,6 +17,9 @@ import { createNuclear } from './services/nuclear.js';
 import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
 import { createRulerHouse, RULER_HOUSE_ID, RULER_HOUSE_LEVELS } from './civic/ruler-house.js';
+import { createSchool, SCHOOL_BUDGETS, SCHOOL_KINDS, schoolId } from './civic/schools.js';
+import { createWaterWorks, WATER_WORKS_ID, WATER_WORKS_TILES } from './water/water-works.js';
+import { createWaterTower, WATER_TOWER_ID, WATER_TOWER_TILES } from './water/water-tower.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
 import { createPlot, PLOT_SPECS } from './plot/index.js';
@@ -99,6 +102,16 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   // The city view picks it from gameMap.civicKinds, not by tile; variant = level 1–6, state = its wings.
   [RULER_HOUSE_ID]: { factory: createRulerHouse, category: 'services', footprint: [3, 3], tiles: [],
     budget: TRIANGLE_BUDGETS.special, regionTier: 'R1', variants: RULER_HOUSE_LEVELS },
+  // Schools share the civic 3×3 and are placed the same way, from gameMap.civicKinds (RENDERER_SPEC 6H).
+  ...Object.fromEntries(SCHOOL_KINDS.map(kind => [schoolId(kind), {
+    factory: (options?: ModelOptions) => createSchool(kind, options), category: 'services', footprint: [3, 3], tiles: [],
+    budget: SCHOOL_BUDGETS[kind], regionTier: 'R2',
+  } as ModelRegistration])),
+  // The water supply (RENDERER_SPEC 6C): the water works' 3×3 and the one-tile water tower, by tile value.
+  [WATER_WORKS_ID]: { factory: createWaterWorks, category: 'services', footprint: [3, 3], tiles: WATER_WORKS_TILES,
+    budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R3' },
+  [WATER_TOWER_ID]: { factory: createWaterTower, category: 'services', footprint: [1, 1], tiles: WATER_TOWER_TILES,
+    budget: TRIANGLE_BUDGETS.prop, regionTier: 'R3' },
   'svc.stadium': { factory: createStadium, category: 'services', footprint: [4, 4],
     tiles: STADIUM_TILES, budget: TRIANGLE_BUDGETS.special, regionTier: 'R3', states: ['empty', 'game'] },
   'power.coal': { factory: createCoal, category: 'services', footprint: [4, 4],
