@@ -19,6 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { CityObjects } from './objects/cityObjects.ts';
 import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -215,6 +216,14 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   if (savedGame)
     this.load(savedGame);
+
+  // Every building as an object of its own (src/objects/, docs/GAME_PLAN.md phase 0), found on the tiles again each
+  // month; the save keeps only when each went up
+  this.cityObjects = CityObjects.restore(this.gameMap, savedGame ? savedGame.objects : null);
+  var objectsGame = this;
+  this.simulation.addEventListener(Messages.DATE_UPDATED, function() {
+    objectsGame.cityObjects.scan(objectsGame.gameMap, objectsGame.simulation._cityTime);
+  });
 
   // The ruler's rank follows the city's size and is never lost (src/rulerRank.ts); older saves have none yet
   this.rulerRank = keepHigherRank(savedGame ? savedGame.rulerRank : null,
@@ -679,7 +688,9 @@ Game.prototype.save = function() {
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
                   roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined,
                   // ... and whether its zones are painted tile by tile (src/plots.ts)
-                  paintedZones: this.gameMap.paintedZones ? true : undefined};
+                  paintedZones: this.gameMap.paintedZones ? true : undefined,
+                  // ... and when each building went up (src/objects/)
+                  objects: this.cityObjects.scan(this.gameMap, this.simulation._cityTime) && this.cityObjects.toJSON()};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 

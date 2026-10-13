@@ -97,6 +97,7 @@ describe("city objects", () => {
     objects.scan(c, 3);
     c.put(20, 10, HOUSE); objects.scan(c, 11);
     const saved = JSON.parse(JSON.stringify(objects));
+    expect(saved).toHaveLength(6);
     const again = CityObjects.restore(c, saved);
     expect(again.all().map(o => [o.kind, o.built]).sort()).toEqual([["home", 11], ["home", 3], ["power_plant", 3]]);
   });

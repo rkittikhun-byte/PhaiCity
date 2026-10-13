@@ -7,7 +7,7 @@
 // Each tile knows which building covers it, for a click. Plain code: no DOM, nothing random.
 
 import { buildingAt } from "./buildings.js";
-import type { Building, CityReader, SavedObject } from "./cityObject.js";
+import type { Building, CityReader } from "./cityObject.js";
 
 export class CityObjects {
   private byId = new Map<number, Building>();
@@ -48,15 +48,20 @@ export class CityObjects {
     }
     return { added, removed };
   }
-  /** What a save keeps */
-  toJSON(): SavedObject[] { return this.all().map(b => b.toJSON()); }
+  /** What a save keeps, flat to stay small (a big painted city has tens of thousands of buildings): id, built, … for
+   * each building whose time of building is known */
+  toJSON(): number[] {
+    const flat: number[] = [];
+    for (const record of this.all().map(b => b.toJSON())) if (record.built > 0) flat.push(record.id, record.built);
+    return flat;
+  }
   /** A saved city's objects: scan its map, then give back what each remembered */
-  static restore(city: CityReader, saved: readonly SavedObject[] | null | undefined): CityObjects {
+  static restore(city: CityReader, saved: readonly number[] | null | undefined): CityObjects {
     const objects = new CityObjects(city.width, city.height);
     objects.scan(city, 0);
-    for (const record of saved ?? []) {
-      const building = objects.byId.get(record.id);
-      if (building && Number.isFinite(record.built)) building.built = record.built;
+    for (let i = 0; saved && i + 1 < saved.length; i += 2) {
+      const building = objects.byId.get(saved[i]), built = saved[i + 1];
+      if (building && Number.isFinite(built)) building.built = built;
     }
     return objects;
   }
