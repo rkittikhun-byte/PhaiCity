@@ -50,6 +50,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 | `npm run geo:dem` | Copernicus DEM GLO-90 elevation for the squares the province maps reach into → `data/geo/cache/dem/` (gitignored, 360 MB; `geo:maps` turns it into each map's `heights`) |
 | `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
 | `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
+| `npm run geo:city [-- --only TH-40] [-- --size 400]` | Real-scale city map, 16 m a tile round the town (`docs/CITY_SCALE.md`) → `data/maps/city/TH-xx.json`; the game opens it with `index.html?province=TH-40&scale=city` |
 | `npm run geo:indicators` | Measure every province from the local Thailand database (OpenStreetMap in PostGIS, `docs/geo/THAILAND_DB.md`; psql on the PATH, password in pgpass) and its map → `data/geo/province-indicators.json`; `-- --maps-only` refreshes only what comes from `data/maps` |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
