@@ -19,10 +19,13 @@ const empty: CityStats = {
 const firstDone = new Set(CHAPTERS[0].goals.map((goal) => goal.id));
 
 describe("ruler's tasks", () => {
-  test("start with the ruler's house, which a new city builds first (src/rulerHouse.ts)", () => {
-    const start = tickGoals(new Set(), { ...empty, rulerHouse: 0 });
-    expect(currentGoal(start)).toMatchObject({ id: "house", tool: "ruler_house" });
-  });
+  test("start with the first road, then the ruler's house beside it, which a new city builds first (src/rulerHouse.ts)",
+    () => {
+      const start = tickGoals(new Set(), { ...empty, rulerHouse: 0 });
+      expect(currentGoal(start)).toMatchObject({ id: "street", tool: "road" });
+      const street = tickGoals(start, { ...empty, rulerHouse: 0, roads: 3 });
+      expect(currentGoal(street)).toMatchObject({ id: "house", tool: "ruler_house" });
+    });
 
   test("then homes, and tick off as the city grows", () => {
     expect(currentGoal(tickGoals(new Set(), empty))?.id).toBe("homes");

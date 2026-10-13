@@ -14,7 +14,7 @@ import { CityChunks } from './chunks.js';
 import { TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import { CitySprites } from './sprites.js';
-import { ToolOutline } from './overlay.js';
+import { ToolOutline, ZoneGrid } from './overlay.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
@@ -33,7 +33,7 @@ export class CityView3D implements CityView {
   readonly canvas:HTMLCanvasElement;readonly renderer:WebGLRenderer;
   readonly terrain:CityHeightField;
   readonly pixelRatioLimit:number;
-  private snapshot:TileSnapshot;private sprites=new CitySprites();private outline:ToolOutline;
+  private snapshot:TileSnapshot;private sprites=new CitySprites();private outline:ToolOutline;private zones:ZoneGrid;
   private sun=new DirectionalLight(0xffe4bc,3.3);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
@@ -52,15 +52,16 @@ export class CityView3D implements CityView {
     this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:true,preserveDrawingBuffer:true});
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
-    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.sync(setup.map);this.snapshot.coverZones();
+    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=setup.map;this.snapshot.sync(setup.map);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
+    this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
     const bedGeometry=new PlaneGeometry(setup.map.width*10,setup.map.height*10).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-3.015,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
-    this.scene.add(this.chunks.root,this.sprites.root,this.outline.root);
+    this.scene.add(this.chunks.root,this.sprites.root,this.outline.root,this.zones.root);
     this.scene.background=new Color(0xc8dde2);this.scene.fog=new Fog(0xc8dde2,2400,7000);
     this.scene.add(new HemisphereLight(0xd7edff,0xb5a385,1.2),this.sun,this.sun.target);
     this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.bias=-.00025;this.sun.shadow.normalBias=.15;
@@ -93,6 +94,8 @@ export class CityView3D implements CityView {
     listen('wheel',e=>{const w=e as WheelEvent;w.preventDefault();const rect=this.canvas.getBoundingClientRect();
       this.navigation.zoom(w.deltaY*(w.deltaMode===1?16:w.deltaMode===2?this.height:1),w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);});
   }
+  /** Shows the tiles that can take painted zones along the roads (src/plots.ts), while a brush or a road tool is in hand. */
+  zoneGrid(on:boolean):void {this.zones.show(on);}
   /** The city bought land (src/landBlocks.ts): shade what it still has not. */
   landChanged():void {this.chunks.surfaces?.updateMask();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
@@ -104,7 +107,7 @@ export class CityView3D implements CityView {
     if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
     this.chunks.update(this.visibleTiles(),this.navigation.target,this.navigation.distance);
-    this.outline.update(hover);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
+    this.outline.update(hover);this.zones.update(changed.length>0);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.chunks.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.render();this.frameTimes.push(this.now()-start);this.intervals.push(interval);if(this.frameTimes.length>120)this.frameTimes.shift();if(this.intervals.length>120)this.intervals.shift();
@@ -149,19 +152,19 @@ export class CityView3D implements CityView {
     this.chunks.dirty(this.snapshot.sync(this.setup.map));this.chunks.finishMapLOD();
     const w=this.setup.map.width*10,h=this.setup.map.height*10,scale=Math.min(4096/Math.max(w,h),.8),width=Math.ceil(w*scale),height=Math.ceil(h*scale);
     const camera=new OrthographicCamera(-w/2,w/2,h/2,-h/2,1,10000);camera.position.set(w/2,4000,h/2);camera.up.set(0,0,-1);camera.lookAt(w/2,0,h/2);
-    const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible;
+    const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible;
     target.texture.colorSpace=SRGBColorSpace;
     try {
-      this.outline.root.visible=false;this.scene.fog=null;
+      this.outline.root.visible=false;this.zones.root.visible=false;this.scene.fog=null;
       // Map snapshots use the complete low-detail province, not only the nearby detailed chunks.
       this.chunks.mapLOD(true);this.renderer.setRenderTarget(target);this.renderer.render(this.scene,camera);this.renderer.readRenderTargetPixels(target,0,0,width,height,pixels);
       const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return this.screenshotVisible();
       const image=context.createImageData(width,height);for(let y=0;y<height;y++)image.data.set(pixels.subarray((height-y-1)*width*4,(height-y)*width*4),y*width*4);context.putImageData(image,0,0);return canvas.toDataURL('image/png');
-    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.scene.fog=new Fog(0xc8dde2,2400,7000);}
+    }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;this.scene.fog=new Fog(0xc8dde2,2400,7000);}
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

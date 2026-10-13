@@ -7,6 +7,7 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
+import { type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
 import type { CityMapReader, Placement } from './types.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
@@ -55,8 +56,19 @@ export const isWater = (v: number): boolean => v >= 2 && v <= 20;
 export const isWaterNeighbor = (v:number):boolean => isWater(v)||v===64||v===65||v===208||v===209||v===224||v===225||v>=828&&v<=832||v>=948&&v<=951;
 export const isWoods = (v: number): boolean => v >= 21 && v <= 39;
 const SIDES = [[0,-1,1],[1,0,2],[0,1,4],[-1,0,8]] as const;
+/** Heights of the painted plots' buildings by level (src/plots.ts), for the far view's boxes and the camera */
+const PLOT_HEIGHTS: Readonly<Record<PlotKind, readonly number[]>> = {
+  residential: [0, 6, 8, 14, 26, 66], commercial: [0, 6, 11, 17, 36, 92], industrial: [0, 7, 9, 12, 16],
+};
+const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 'res', commercial: 'com', industrial: 'ind' };
+/** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
+const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
+  /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
+  source: { readonly paintedZones?: boolean; readonly roadLevels?: Uint8Array | null } | null = null;
+  get paintedZones(): boolean { return this.source?.paintedZones === true; }
+  get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
   constructor(readonly width: number, readonly height: number) {
     this.values = new Uint16Array(width*height); this.flags = new Uint16Array(width*height);
@@ -103,10 +115,24 @@ export class TileSnapshot implements CityMapReader {
     let side=2;for(const candidate of [0,1,3])if(scores[candidate]>scores[side])side=candidate;
     return [Math.PI,Math.PI/2,0,-Math.PI/2][side];
   }
+  /** A painted plot's building, facing its road, or null for an empty plot, whose painted ground is enough. */
+  private plotPlacement(i:number,x:number,y:number,plot:Plot,region:RegionId,hash:number):Placement|null {
+    if(plot.level<=0)return null;
+    const named=`plot.${PLOT_MODEL_PREFIX[plot.kind]}_${plot.level}`;
+    const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[this.values[i]]?.id??null:registry[named]?named:null;
+    const rotation=FACING_ROTATION[plotFacing(this,x,y)];
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
+      color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation,scale:1,
+      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state:'closed',
+        waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+  }
   placement(i:number,region:RegionId):Placement|null {
     if(this.coverage[i]!==-1&&this.coverage[i]!==i) return null;
     const x=i%this.width,y=Math.floor(i/this.width),v=this.values[i],entry=TILE_TABLE[v]??debug(), hash=tileSeed(x,y);
     const zone=Boolean(this.flags[i]&ZONEBIT),[w,h]=zone?entry.footprint:[1,1];
+    const plot=this.paintedZones&&!zone?plotOf(this,x,y):null;
+    if(plot)return this.plotPlacement(i,x,y,plot,region,hash);
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };

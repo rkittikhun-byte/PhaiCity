@@ -459,6 +459,32 @@ export function cityToolMaterial(color: ColorRepresentation, fill = false): Mesh
   });
 }
 
+/**
+ * The grid of tiles that can take painted zones (src/plots.ts, src/render3d/city/overlay.ts ZoneGrid): pale cells
+ * over the ground, see-through, the gaps between them the grid's lines, as Cities: Skylines draws its zone cells.
+ */
+export function cityZoneGridMaterial(color: ColorRepresentation = 0xe9eef2): MeshStandardMaterial {
+  return finishedMaterial('city-zone-grid', 'sign_thai', color, material => {
+    material.userData.keepColorMap = true; material.map = null;
+    material.transparent = true; material.opacity = 0.42;
+    material.depthWrite = false; material.roughness = 1;
+    material.polygonOffset = true; material.polygonOffsetFactor = -2;
+    material.polygonOffsetUnits = -2;
+  });
+}
+
+/** A line being drawn (src/drawModes.ts): a see-through band over the ground, as Cities: Skylines previews a road. */
+export function cityDrawMaterial(color: ColorRepresentation): MeshStandardMaterial {
+  return finishedMaterial('city-draw', 'sign_thai', color, material => {
+    material.userData.keepColorMap = true; material.map = null;
+    material.transparent = true; material.opacity = 0.42;
+    material.depthWrite = false; material.roughness = 1;
+    material.emissive.set(color); material.emissiveIntensity = 0.35;
+    material.polygonOffset = true; material.polygonOffsetFactor = -3;
+    material.polygonOffsetUnits = -3;
+  });
+}
+
 const commercialDisplayClock = { value: 0 };
 /** Fictional moving color bands and visible LED pixels; no external image or brand. */
 export function commercialLEDMaterial(): MeshStandardMaterial {

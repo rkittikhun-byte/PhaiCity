@@ -17,6 +17,7 @@
 // holds the nuclear plant too. The tools that lost their own button keep their size and colour in the page's
 // #toolChoices template (pageChoice).
 
+import { renderModes } from "./drawModes";
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, isShown, show } from "./motion";
 import { relabelTools, toolIconUrl, toolLabel } from "./toolShortcuts";
@@ -96,11 +97,26 @@ export function setToolChoices(group: string, list: readonly ToolChoice[], doc: 
   rerender?.();
 }
 
+/** Takes a button's choices away again: it shows its levels and uses its own tool (a city without painted zones). */
+export function clearToolChoices(group: string, doc: Document = document): void {
+  if (!choices.delete(group)) return;
+  const button = doc.querySelector<HTMLButtonElement>(`.toolButton[data-tool="${group}"]`);
+  if (button) {
+    delete button.dataset.activeTool;
+    wear(button, undefined);
+    button.disabled = false;
+    relabelTools();
+  }
+  rerender?.();
+}
+
 export function installToolLevels(doc: Document = document): void {
   const card = doc.getElementById("toolLevels");
   const buttons = doc.getElementById("buttons");
   const title = card?.querySelector(".levelsTitle");
   const slots = card?.querySelector(".levelsSlots");
+  // How the tool draws, for the tools that have modes (src/drawModes.ts)
+  const modes = card?.querySelector<HTMLElement>(".levelsModes") ?? null;
   if (!card || !buttons || !title || !slots) return;
   let shownTool: string | null = null;
 
@@ -187,6 +203,7 @@ export function installToolLevels(doc: Document = document): void {
     const { name, price } = toolLabel(selected.dataset.activeTool ?? tool);
     title.textContent = list ? t(`choice.title.${tool}`) : name;
     slots.replaceChildren(...(list ? choiceSlots(selected, list) : levelSlots(selected, price)));
+    if (modes) renderModes(modes, selected.dataset.activeTool ?? tool, doc);
     show(card);
   };
   rerender = () => {

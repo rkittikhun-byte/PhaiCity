@@ -198,7 +198,11 @@
         <div id="toolLevels" hidden>
           <div class="levelsTitle"></div>
           <div class="levelsSlots"></div>
+          <!-- How the tool draws: lines and curves for roads, brushes and fills for painted zones (src/drawModes.ts) -->
+          <div class="levelsModes" hidden></div>
         </div>
+        <!-- Beside the mouse while drawing: what to click next, and the tiles and price of what will be built -->
+        <div id="drawTip" hidden></div>
         <!-- City news appears at the top for a few seconds, then fades (src/notification.js) -->
         <div id="notifications" class="initialHidden neutral z1 rightedge alignCenter elided padding10 controlShadow"></div>
         <!-- Recent city news (src/newsLog.ts): its button is in the corner buttons, the list opens under them -->

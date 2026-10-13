@@ -34,6 +34,8 @@ function city() {
     },
     setCivicKind: (x: number, y: number, kind: string) => { map.civicKinds[y * map.width + x] = kind; },
   } as any);
+  // The house stands beside a road (src/rulerHouse.ts): a road west of the place the tests build it
+  for (let y = 7; y < 14; y++) commands.apply({ type: "tool", tool: "road", x: 8, y });
   const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
   return { map, sim, tool };
 }

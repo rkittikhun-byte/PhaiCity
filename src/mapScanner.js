@@ -11,8 +11,9 @@
  *
  */
 
+import { plotFound } from "./plots.ts";
 import { Tile } from "./tile.ts";
-import { FLOOD } from "./tileValues.ts";
+import { FLOOD, PORTBASE, RESBASE } from "./tileValues.ts";
 
 // Tile to be filled to avoid creating lots of GC-able objects
 var tile = new Tile();
@@ -35,6 +36,10 @@ MapScanner.prototype.addAction = function(criterion, action) {
 
 
 MapScanner.prototype.mapScan = function(startX, maxX, simData) {
+  // PhaiCity: on a map with painted zones, each home, shop and factory tile is a plot that grows by itself
+  // (src/plots.ts); a tile of an old 3x3 zone goes on as before
+  var painted = this._map.paintedZones === true;
+
   for (var y = 0; y < this._map.height; y++) {
     for (var x = startX; x < maxX; x++) {
       this._map.getTile(x, y, tile);
@@ -42,6 +47,13 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
 
       if (tileValue < FLOOD)
         continue;
+
+      if (painted && tileValue >= RESBASE && tileValue < PORTBASE && !tile.isZone()) {
+        if (tile.isConductive())
+          simData.powerManager.setTilePower(x, y);
+        if (plotFound(this._map, x, y, simData))
+          continue;
+      }
 
       if (tile.isConductive()) {
         simData.powerManager.setTilePower(x, y);

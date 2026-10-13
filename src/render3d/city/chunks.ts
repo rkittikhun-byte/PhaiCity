@@ -59,7 +59,7 @@ export class CityChunks {
     for(const id of ids){const chunk=this.chunks[id];chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);}
   }
   private coarseMatrix(p:Placement):Matrix4 {
-    const zone=p.footprint[0]>1, height=zone?(this.prototypes.get(prototypeKey(p))?.height??p.height):p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
+    const zone=p.footprint[0]>1, height=zone?(this.prototypes.get(prototypeKey(p))?.height??p.height):p.id?.startsWith('plot.')?p.height:p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
     return matrix.makeScale(p.footprint[0]*10-(zone?1:0),height,p.footprint[1]*10-(zone?1:0))
       .setPosition(p.x,(p.baseY??0)+(p.water?-.63:height/2),p.z);
   }

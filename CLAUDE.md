@@ -50,7 +50,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 | `npm run geo:dem` | Copernicus DEM GLO-90 elevation for the squares the province maps reach into → `data/geo/cache/dem/` (gitignored, 360 MB; `geo:maps` turns it into each map's `heights`) |
 | `npm run geo:extract` | The same squares as `geo:download`, read from the Geofabrik extract of Thailand in `data/geo/cache/pbf/` (seconds instead of hours; keeps squares already there unless `-- --force`) |
 | `npm run geo:maps` | Whole-province maps → `data/maps/TH-xx.json` (run `geo:download` and `geo:centers` first); `-- --preview` also draws `data/geo/cache/preview/TH-xx.png`, `-- --only TH-40,TH-50` builds some |
-| `npm run geo:city [-- --only TH-40] [-- --size 400]` | Real-scale city map, 16 m a tile round the town (`docs/CITY_SCALE.md`) → `data/maps/city/TH-xx.json`; the game opens it with `index.html?province=TH-40&scale=city` |
+| `npm run geo:city [-- --only TH-40] [-- --size 400]` | Real-scale city map, 16 m a tile round the town (`docs/CITY_SCALE.md`) → `data/maps/city/TH-xx.json`; a province listed in `CITY_MAPS` (`src/splashScreen.js`, Khon Kaen for now) starts there, `index.html?scale=province` starts its old whole-province map |
 | `npm run geo:indicators` | Measure every province from the local Thailand database (OpenStreetMap in PostGIS, `docs/geo/THAILAND_DB.md`; psql on the PATH, password in pgpass) and its map → `data/geo/province-indicators.json`; `-- --maps-only` refreshes only what comes from `data/maps` |
 | `npm run geo:edges` | Map edge facing each neighbor → `data/geo/neighbor-edges.json` (run `geo:centers` first) |
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
@@ -237,12 +237,22 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`).
   A slanted road (a staircase of corner tiles) is drawn as diagonals and curves (`src/render3d/models/road/centreline.ts`).
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
-  building: until it stands only the house and the bulldozer work (`houseProblem` in `CityCommands`, the dock greys the
-  rest with `body.houseFirst`); cities saved before it are not held back. One house, on the civic 3×3 (tiles 414–422,
+  building, beside a road: until it stands only the roads, the house and the bulldozer work (`houseProblem` and
+  `houseRoadProblem` in `CityCommands`, the dock greys the rest with `body.houseFirst`); cities saved before it are not
+  held back. One house, on the civic 3×3 (tiles 414–422,
   `gameMap.civicKinds`, `gameMap.rulerHouse` {x, y, level, wings}, saved), six levels by rank raised for the difference,
   wings chosen in its window (`src/houseWindow.ts`, a `wing` command): treasury, planning office, warning tower,
   granary, culture court, front garden (council hall and trade office wait). It is the city's centre, raises land
   value near it, and ⌂ returns to it; its upkeep is a budget line. Renderers read it (RENDERER_SPEC 6H).
+- **Painted zones and drawing (owner 13 Oct 2026):** `docs/ZONE_PAINT.md`. On a real-scale city map
+  (`gameMap.paintedZones`) homes, shops and factories are painted a 16 m tile at a time within three tiles of a road
+  (`src/plots.ts`, the `zone_*` brushes and the eraser of `src/plotTool.ts`); each plot grows its own building,
+  levels 1–5 (factories 1–4), and counts as an eighth of a zone. A plot is just its tile value (a home, shop or factory
+  tile without the zone bit), so undo, saves and the bulldozer need nothing new; `plotFound` grows it from the map
+  scanner. Roads, railways and power lines draw by modes (`src/drawModes.ts`, `src/drawPaths.ts`): straight, curve,
+  S-curve, free and grid, with a tip beside the mouse (next click, metres, tiles, price); the brushes paint, fill a
+  rectangle or fill a stretch along a road. The 3D view shows 8 m cells, 2 × 2 a tile, and the grid of paintable land
+  while a brush or a road tool is in hand (RENDERER_SPEC 6L).
 - **Schools and hospitals (owner, 13 Oct 2026):** `docs/SERVICES.md`, `src/services.ts`. Nine kinds on the same civic
   tiles as the ruler's house (`civicKinds`), chosen above the education and health buttons; the higher ones need a
   higher house (`serviceProblem`). With power they give places; the month's levels (children's seats, the young's,

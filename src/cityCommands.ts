@@ -20,7 +20,7 @@ import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
-import { changeWing, type HouseMap, houseProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
+import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
@@ -36,6 +36,7 @@ export const TOOL_NAMES = [
   "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
+  "zone_residential", "zone_commercial", "zone_industrial", "zone_erase",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -312,7 +313,9 @@ export class CityCommands {
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
           plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
-          farmProblem(city, command.tool, command.x, command.y);
+          farmProblem(city, command.tool, command.x, command.y) ??
+          (tool.rulerHouse && city.map ? houseRoadProblem({ width: city.width, height: city.height,
+            getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;

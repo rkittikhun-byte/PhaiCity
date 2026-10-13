@@ -5,6 +5,7 @@ import { Box3, Ray, Vector3 } from 'three';
 import type { CityMapReader } from './types.js';
 import { isWaterNeighbor, TileSnapshot, TILE_TABLE } from './tileModels.js';
 import { ZONEBIT } from '../../tileFlags.js';
+import { plotOf } from '../../plots.js';
 
 /** Shared scale for DEM, ground, models, camera and picking (RENDERER_SPEC 6B). */
 export const HILL_EXAGGERATION = 4;
@@ -49,8 +50,14 @@ export class CityHeightField {
     this.rebuild();
   }
   inside(x: number, y: number): boolean { return !this.mask || this.mask[y * this.snapshot.width + x] !== 0; }
+  /** A one-tile building, whose ground is levelled: a house, or a painted plot's building (src/plots.ts). */
+  private isSingle(i:number):boolean {
+    if(singleBuilding(this.snapshot.values[i]))return true;
+    if(!this.snapshot.paintedZones)return false;
+    const w=this.snapshot.width,plot=plotOf(this.snapshot,i%w,Math.floor(i/w));return !!plot&&plot.level>0;
+  }
   update(indices:readonly number[]):number[] {
-    if(!this.enabled||!indices.some(i=>this.wet[i]!==Number(isWaterNeighbor(this.snapshot.values[i]))||this.zones[i]!==this.snapshot.coverage[i]||this.single[i]!==Number(singleBuilding(this.snapshot.values[i]))))return [];
+    if(!this.enabled||!indices.some(i=>this.wet[i]!==Number(isWaterNeighbor(this.snapshot.values[i]))||this.zones[i]!==this.snapshot.coverage[i]||this.single[i]!==Number(this.isSingle(i))))return [];
     const before=this.corners.slice(),water=this.water.slice(),pads=this.pads.slice();this.rebuild();const changed:number[]=[],w=this.snapshot.width;
     for(let i=0;i<this.tileHeights.length;i++){
       const x=i%w,y=Math.floor(i/w),a=y*(w+1)+x;
@@ -62,7 +69,7 @@ export class CityHeightField {
   rebuild(): void {
     const { width: w, height: h, values, coverage, flags } = this.snapshot;
     this.pads.fill(NaN);
-    for(let i=0;i<values.length;i++){this.wet[i]=Number(isWaterNeighbor(values[i]));this.zones[i]=coverage[i];this.single[i]=Number(singleBuilding(values[i]));}
+    for(let i=0;i<values.length;i++){this.wet[i]=Number(isWaterNeighbor(values[i]));this.zones[i]=coverage[i];this.single[i]=Number(this.isSingle(i));}
     this.water.fill(NaN);
     const queue = new Int32Array(w * h), visited = new Uint8Array(w * h);
     for (let i = 0; i < values.length; i++) if (!visited[i] && isWaterNeighbor(values[i])) {

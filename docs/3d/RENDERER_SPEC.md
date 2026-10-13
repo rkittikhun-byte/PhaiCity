@@ -327,6 +327,27 @@ buys the rest. The renderer only reads:
 - Shade the province's land the city does not own a little (about 0.78 brightness, a third desaturated), lighter
   than outside the province. The game calls the view's optional `landChanged()` after a purchase.
 
+## 6L. Painted zones and drawing (added 13 Oct 2026)
+
+On a real-scale city map (16 m a tile, `docs/CITY_SCALE.md`) homes, shops and factories are painted a tile at a time
+(`docs/ZONE_PAINT.md`, `src/plots.ts`). The renderer only reads:
+
+| Field | Meaning |
+|---|---|
+| `gameMap.paintedZones` | `true` on such a map. Then every home, shop or factory tile that is not part of a 3 × 3 zone is a plot: `plotOf(map, x, y)` gives its kind, level (homes and shops 0–5, factories 0–4; 0 is an empty painted lot) and land class. |
+| `gameMap.roadLevels` | Read live: `plotFacing(map, x, y)` turns a plot's building to face the road it reaches. |
+
+- A painted tile shows as 2 × 2 cells of 8 m in its zone's colour (green homes, blue shops, yellow factories), the
+  gaps between them the grid's lines, as Cities: Skylines draws its zone cells (`ZONE_GRID_CELLS`).
+- A plot of level 1 home is the one-tile house of its tile value; the other levels are the one-tile models
+  `plot.res_2`–`plot.res_5`, `plot.com_1`–`plot.com_5`, `plot.ind_1`–`plot.ind_4`, `variant` its land class, front
+  to its road. An empty plot has no model. The ground under a plot's building is levelled like a house's.
+- `zoneGrid(on)`: the game calls it while a zone brush or a road tool is in hand; the view shows every tile of bare
+  land a road reaches (three tiles straight along a row or column, `PLOT_REACH`) as 2 × 2 pale cells.
+- `ToolHover.path`: while a line is drawn by clicks, a grid or rectangle dragged or a fill pointed at
+  (`src/drawModes.ts`), the tiles it would build on. Draw each one (a faint square and a small mark), not the box
+  round them.
+
 ## 7. Moving things
 
 - **Game sprites** come in `paint()` as objects from `src/spriteManager.js`: `type`

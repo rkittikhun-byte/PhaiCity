@@ -253,6 +253,49 @@
 | `land.note.needs_rank` | `src/game.js` | — | `More land needs the rank {rank}` | `ซื้อที่ดินเพิ่มต้องได้ยศ{rank}ก่อน` |  |
 | `land.note.no_money` | `src/game.js` | — | `This block costs {price}` | `บล็อกนี้ราคา {price} เงินไม่พอ` |  |
 | `land.note.all_open` | `src/game.js` | — | `All this map's land is the city's` | `ที่ดินทั้งแผนที่เป็นของเมืองอยู่แล้ว` |  |
+| `tool.zone_residential` | `src/toolLevels.ts` | — | `Paint Homes {price}` | `ระบายเขตที่อยู่อาศัย {price}` | ระบายเขตทีละแปลง 16 ม. บนแผนที่เมือง (Claude Code 13 ต.ค. 2026, docs/ZONE_PAINT.md) |
+| `tool.zone_commercial` | `src/toolLevels.ts` | — | `Paint Shops {price}` | `ระบายเขตพาณิชย์ {price}` |  |
+| `tool.zone_industrial` | `src/toolLevels.ts` | — | `Paint Industry {price}` | `ระบายเขตอุตสาหกรรม {price}` |  |
+| `tool.zone_erase` | `src/toolLevels.ts` | — | `Erase Zoning {price}` | `ลบเขต {price}` | ลบสีเขตในแปลงที่ยังว่าง |
+| `choice.zone_residential` | `src/toolLevels.ts` | — | `Homes` | `บ้าน` |  |
+| `choice.zone_commercial` | `src/toolLevels.ts` | — | `Shops` | `ร้านค้า` |  |
+| `choice.zone_industrial` | `src/toolLevels.ts` | — | `Industry` | `โรงงาน` |  |
+| `choice.zone_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบเขต` |  |
+| `choice.erase_note` | `src/toolLevels.ts` | — | `free` | `ฟรี` | แทนราคาในช่องลบเขต |
+| `choice.title.residential` | `src/toolLevels.ts` | — | `Homes: paint the zone` | `ที่อยู่อาศัย: ระบายเขต` |  |
+| `choice.title.commercial` | `src/toolLevels.ts` | — | `Shops: paint the zone` | `พาณิชย์: ระบายเขต` |  |
+| `choice.title.industrial` | `src/toolLevels.ts` | — | `Industry: paint the zone` | `อุตสาหกรรม: ระบายเขต` |  |
+| `draw.mode` | `src/drawModes.ts` | — | `Mode` | `วิธีวาด` | แถวโหมดในการ์ดเครื่องมือ (Claude Code 13 ต.ค. 2026) |
+| `draw.mode.straight` | `src/drawModes.ts` | — | `Straight` | `ตรง` |  |
+| `draw.mode.straight.hint` | `src/drawModes.ts` | — | `Click the start, then the end; the next line starts where it ended` | `คลิกจุดเริ่ม แล้วคลิกจุดปลาย เส้นต่อไปเริ่มจากปลายเดิม` |  |
+| `draw.mode.curve` | `src/drawModes.ts` | — | `Curve` | `โค้ง` |  |
+| `draw.mode.curve.hint` | `src/drawModes.ts` | — | `Click the start, a point to bend towards, then the end` | `คลิกจุดเริ่ม จุดดัดโค้ง แล้วจุดปลาย` |  |
+| `draw.mode.curve2` | `src/drawModes.ts` | — | `S-curve` | `โค้งสองจุด` |  |
+| `draw.mode.curve2.hint` | `src/drawModes.ts` | — | `Click the start, two points to bend towards, then the end` | `คลิกจุดเริ่ม จุดดัดสองจุด แล้วจุดปลาย` |  |
+| `draw.mode.free` | `src/drawModes.ts` | — | `Free` | `อิสระ` |  |
+| `draw.mode.free.hint` | `src/drawModes.ts` | — | `Drag: it follows the mouse` | `ลากเมาส์ วางตามทางที่ลาก` |  |
+| `draw.mode.grid` | `src/drawModes.ts` | — | `Grid` | `ตาราง` |  |
+| `draw.mode.grid.hint` | `src/drawModes.ts` | — | `Drag a rectangle: roads round it and every 7 tiles across it` | `ลากเป็นสี่เหลี่ยม ได้ถนนรอบกรอบและทุก 7 ช่องในกรอบ` |  |
+| `draw.mode.brush` | `src/drawModes.ts` | — | `Brush` | `ระบาย` |  |
+| `draw.mode.brush.hint` | `src/drawModes.ts` | — | `Drag over the cells to paint` | `ลากผ่านช่องที่จะระบาย` |  |
+| `draw.mode.rectangle` | `src/drawModes.ts` | — | `Rectangle` | `สี่เหลี่ยม` |  |
+| `draw.mode.rectangle.hint` | `src/drawModes.ts` | — | `Drag a rectangle to paint every cell in it` | `ลากเป็นสี่เหลี่ยม ระบายทุกช่องในกรอบ` |  |
+| `draw.mode.fill` | `src/drawModes.ts` | — | `Fill` | `เติม` |  |
+| `draw.mode.fill.hint` | `src/drawModes.ts` | — | `Click to paint the whole stretch of empty cells along the road` | `คลิกเพื่อระบายช่องว่างทั้งแนวที่ติดกัน` |  |
+| `draw.step.straight.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` | ป้ายข้างเมาส์ระหว่างวาด |
+| `draw.step.straight.1` | `src/game.js` | — | `Click the end` | `คลิกจุดปลาย` |  |
+| `draw.step.curve.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` |  |
+| `draw.step.curve.1` | `src/game.js` | — | `Click where it bends` | `คลิกจุดดัดโค้ง` |  |
+| `draw.step.curve.2` | `src/game.js` | — | `Click the end` | `คลิกจุดปลาย` |  |
+| `draw.step.curve2.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` |  |
+| `draw.step.curve2.1` | `src/game.js` | — | `Click the first bend` | `คลิกจุดดัดที่หนึ่ง` |  |
+| `draw.step.curve2.2` | `src/game.js` | — | `Click the second bend` | `คลิกจุดดัดที่สอง` |  |
+| `draw.step.curve2.3` | `src/game.js` | — | `Click the end` | `คลิกจุดปลาย` |  |
+| `draw.step.fill` | `src/game.js` | — | `Click empty cells along a road to fill them` | `คลิกช่องว่างริมถนนเพื่อเติมทั้งแนว` |  |
+| `draw.cost` | `src/game.js` | — | `{count} tiles · {price}` | `{count} ช่อง · {price}` |  |
+| `draw.length` | `src/game.js` | — | `{metres} m` | `{metres} ม.` | ความยาวเส้นที่วาด บนพื้นจริง |
+| `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
+| `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |
 | `house.level.1` | `src/houseWindow.ts` | — | `Ruler's house` | `เรือนเจ้าเมือง` | ชื่อขั้นของจวน แก้ได้ |
 | `house.level.2` | `src/houseWindow.ts` | — | `House with halls` | `เรือนหมู่เจ้าเมือง` |  |
@@ -274,7 +317,8 @@
 | `house.reason.rank.3` | `src/toolLevels.ts` | — | `Needs the rank Phra` | `ต้องได้ยศพระ` |  |
 | `house.reason.rank.4` | `src/toolLevels.ts` | — | `Needs the rank Phraya` | `ต้องได้ยศพระยา` |  |
 | `house.reason.rank.5` | `src/toolLevels.ts` | — | `Needs the rank Chao Phraya` | `ต้องได้ยศเจ้าพระยา` |  |
-| `house.note.first` | `src/game.js` | — | `Build the ruler's house first: every other tool waits for it` | `สร้างจวนเจ้าเมืองก่อน เครื่องมืออื่นใช้ได้เมื่อมีจวนแล้ว` |  |
+| `house.note.first` | `src/game.js` | — | `Lay a road, then build the ruler's house beside it: the other tools wait for the house` | `วาดถนนก่อน แล้วสร้างจวนเจ้าเมืองติดถนน เครื่องมืออื่นใช้ได้เมื่อมีจวนแล้ว` |  |
+| `house.note.needs_road` | `src/game.js` | — | `The ruler's house must stand beside a road: lay one first` | `จวนเจ้าเมืองต้องตั้งติดถนน วาดถนนก่อน` | (Claude Code 13 ต.ค. 2026) |
 | `house.note.stands` | `src/game.js` | — | `The city has its ruler's house; it can be raised a level` | `เมืองมีจวนเจ้าเมืองแล้ว ยกระดับได้อย่างเดียว` |  |
 | `house.note.none` | `src/game.js` | — | `There is no ruler's house to raise` | `ยังไม่มีจวนให้ยกระดับ` |  |
 | `house.note.top` | `src/game.js` | — | `The house is at its highest level` | `จวนอยู่ขั้นสูงสุดแล้ว` |  |
@@ -1254,8 +1298,10 @@
 | `goals.jobs.hint` | `src/rulerGoals.ts` | — | `Shops and factories give people work. The bars on the left show what the city wants next.` | `ร้านค้าและโรงงานให้งานกับราษฎร แถบความต้องการทางซ้ายบอกว่าเมืองอยากได้อะไรเพิ่ม` | |
 | `goals.water` | `src/rulerGoals.ts` | — | `Bring running water` | `ทำน้ำประปา` | (Claude Code 13 ต.ค. 2026) |
 | `goals.water.hint` | `src/rulerGoals.ts` | — | `Build a Water Works beside a road and give it power: water runs along every road joined to it. Near a river it gives the most; see Groundwater on the City map (M).` | `สร้าง “โรงผลิตน้ำประปา” ติดถนนแล้วต่อไฟฟ้าให้ น้ำจะไหลไปตามถนนทุกสายที่ต่อถึง ตั้งใกล้แม่น้ำได้น้ำมากที่สุด ดูชั้น “น้ำใต้ดิน” ในแผนที่เมือง (M)` | ชื่อเครื่องมือตรงกับ `tool.waterworks` ชื่อชั้นตรงกับ `map.layer.groundwater` |
+| `goals.street` | `src/rulerGoals.ts` | — | `Lay the first road` | `วาดถนนสายแรก` | ภารกิจแรก: ถนนมาก่อนจวน (Claude Code 13 ต.ค. 2026) |
+| `goals.street.hint` | `src/rulerGoals.ts` | — | `Pick Road, click where it starts, then where it ends. The ruler's house will stand beside it.` | `เลือก “ถนน” คลิกจุดเริ่ม แล้วคลิกจุดปลาย จวนเจ้าเมืองจะตั้งติดถนนสายนี้` |  |
 | `goals.house` | `src/rulerGoals.ts` | — | `Build the ruler's house` | `สร้างจวนเจ้าเมือง` | ภารกิจแรก (Claude Code 13 ต.ค. 2026) |
-| `goals.house.hint` | `src/rulerGoals.ts` | — | `Pick Ruler's House and click on open land near where the town should grow. Every other tool waits until it stands.` | `เลือก “จวนเจ้าเมือง” แล้วคลิกบนพื้นที่ว่างตรงที่อยากให้เป็นใจกลางเมือง เครื่องมืออื่นจะใช้ได้เมื่อมีจวนแล้ว` | ชื่อเครื่องมือตรงกับ `tool.ruler_house` |
+| `goals.house.hint` | `src/rulerGoals.ts` | — | `Pick Ruler's House and click on open land beside your road, where the town should grow. The other tools wait until it stands.` | `เลือก “จวนเจ้าเมือง” แล้วคลิกบนพื้นที่ว่างติดถนน ตรงที่อยากให้เป็นใจกลางเมือง เครื่องมืออื่นจะใช้ได้เมื่อมีจวนแล้ว` | ชื่อเครื่องมือตรงกับ `tool.ruler_house` |
 | `goals.town` | `src/rulerGoals.ts` | — | `Grow into a town and become Khun` | `ขยายเมืองเป็นตำบล และเลื่อนยศเป็นขุน` | |
 | `goals.town.hint` | `src/rulerGoals.ts` | — | `Past 2,000 people the city becomes a town. Keep homes, jobs and power in balance.` | `ประชากรเกิน 2,000 คน เมืองจะเป็นตำบล รักษาสมดุลระหว่างบ้าน งาน และไฟฟ้า` | |
 | `goals.done_chapter` | `src/rulerGoals.ts` | — | `Well done! These tasks are complete. Your next ones are on their way.` | `ยอดเยี่ยม! ทำภารกิจชุดนี้ครบแล้ว ภารกิจชุดต่อไปกำลังมา` | ภารกิจเป็นชุดตามยศ (Claude Code 12 ต.ค. 2026) |

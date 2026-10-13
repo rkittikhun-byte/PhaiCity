@@ -36,6 +36,10 @@ function city(resources: Record<string, number> | null = null) {
       map.rulerHouse = { x, y, level: 1, wings: [] };
     },
   } as any);
+  // The house stands beside a road (src/rulerHouse.ts): roads under the places the tests build it
+  for (const [x0, y] of [[7, 12], [27, 12], [37, 32]]) {
+    for (let x = x0; x < x0 + 7; x++) commands.apply({ type: "tool", tool: "road", x, y });
+  }
   const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
   const policy = (name: string, on = true) => commands.apply({ type: "policy", policy: name as any, on });
   return { map, sim, commands, tool, policy };

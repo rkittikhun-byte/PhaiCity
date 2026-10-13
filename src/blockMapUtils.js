@@ -15,6 +15,7 @@ import { BlockMap } from './blockMap.ts';
 import { Commercial } from './commercial.js';
 import { Industrial } from './industrial.js';
 import { MiscUtils } from './miscUtils.js';
+import { plotDensity } from './plots.ts';
 import { Random } from './random.ts';
 import { Residential } from './residential.js';
 import * as TileValues from "./tileValues.ts";
@@ -441,7 +442,9 @@ var populationDensityScan = function(map, blockMaps, centre) {
   var xTot = 0;
   var yTot = 0;
   var zoneTotal = 0;
-    
+  // PhaiCity: on a map with painted zones the plots add up within each block (src/plots.ts)
+  var painted = map.paintedZones === true;
+
   tempMap1.clear();
 
   for (var x = 0, width = map.width; x < width; x++) {
@@ -460,6 +463,14 @@ var populationDensityScan = function(map, blockMaps, centre) {
         xTot += x;
         yTot += y;
         zoneTotal++;
+      } else if (painted) {
+        var density = plotDensity(map, x, y);
+        if (density > 0) {
+          tempMap1.worldSet(x, y, Math.min(254, tempMap1.worldGet(x, y) + density));
+          xTot += x;
+          yTot += y;
+          zoneTotal++;
+        }
       }
     }
   }

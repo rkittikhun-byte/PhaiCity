@@ -2041,7 +2041,7 @@ body #buttons .toolButton[hidden] { display: none; }
 body #buttons .toolButton:disabled { opacity: 0.4; cursor: not-allowed; }
 /* A new city's tools wait until its ruler's house stands; only the house and the bulldozer may be used (the commands
    refuse the rest too) */
-body.houseFirst #buttons .toolButton:not([data-tool="ruler_house"]):not([data-tool="bulldozer"]):not([data-tool="query"]) {
+body.houseFirst #buttons .toolButton:not([data-tool="ruler_house"]):not([data-tool="bulldozer"]):not([data-tool="query"]):not([data-tool="road"]) {
   opacity: 0.35; pointer-events: none;
 }
 body.houseFirst #buttons .toolButton[data-tool="ruler_house"] { box-shadow: 0 0 0 2px #c9a227; }
@@ -2101,6 +2101,32 @@ body #toolLevels button.levelSlot.current { background: rgba(255, 255, 255, 0.92
 body #toolLevels button.levelSlot.unavailable { opacity: 0.45; cursor: not-allowed; border-style: dashed;
   border-color: rgba(29, 41, 37, 0.3); }
 body #toolLevels .levelNote { font-size: 7.5px; color: var(--hud-dim); }
+/* How the tool draws, under its places: lines and curves for roads, brushes and fills for painted zones
+   (src/drawModes.ts, owner 13 Oct 2026) */
+body #toolLevels { flex-wrap: wrap; }
+body #toolLevels .levelsModes { display: flex; flex-basis: 100%; align-items: center; gap: 3px; }
+body #toolLevels .levelsModes[hidden] { display: none; }
+body #toolLevels .modesTitle { padding-right: 4px; color: var(--hud-dim); white-space: nowrap; }
+body #toolLevels .modeButton {
+  display: flex; flex: none; align-items: center; gap: 3px; width: auto; height: 20px; padding: 0 6px;
+  border: 1px solid transparent; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: 8.5px;
+  white-space: nowrap; cursor: pointer;
+}
+body #toolLevels .modeButton svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round;
+  stroke-linejoin: round; }
+body #toolLevels .modeButton svg circle { fill: currentColor; stroke: none; }
+body #toolLevels .modeButton:hover { background: rgba(255, 255, 255, 0.6); }
+body #toolLevels .modeButton.current { background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1.5px var(--tool, #226b57); }
+/* Beside the mouse while drawing: what to click next, the tiles and the price (src/game.js showDrawTip) */
+body #drawTip {
+  position: fixed; z-index: 30; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  font: 400 9px/1.3 'Sarabun Thai', 'Open Sans', sans-serif; white-space: nowrap; pointer-events: none;
+}
+body #drawTip > span {
+  padding: 2px 7px; border: 1px solid var(--hud-edge); border-radius: 6px; background: var(--hud-glass); color: var(--hud-text);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--hud-shadow);
+}
+body #drawTip[hidden] { display: none; }
 body #newsLog .newsGo { min-width: 0; height: 18px; padding: 0 8px; border-radius: 999px; font-size: 9px; }
 
 /* The map's credit: out when a city opens, then behind the © button at the bottom left (src/creditLine.ts) */

@@ -112,6 +112,10 @@ export const SPRITE_MOVED = "Sprite move";
 export const TAX_TOO_HIGH = "Tax too high";
 export const TOOL_AREA = "Tool area dragged";
 export const TOOL_CLICKED = "Tool clicked";
+/** A click that places a point of a drawn line, or fills (src/drawModes.ts) */
+export const TOOL_POINT = "Tool point clicked";
+/** A right click on the map, which drops a line half drawn */
+export const TOOL_CANCEL = "Tool drawing cancelled";
 export const TOURISM_UPDATED = "Tourism updated";
 export const TOURIST_SEASON = "Tourist season begins";
 export const TOURISTS_AVOID_CRIME = "Tourists avoid crime";

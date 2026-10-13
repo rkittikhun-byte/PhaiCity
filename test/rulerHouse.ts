@@ -14,7 +14,7 @@ import * as Messages from "../src/messages";
 import { BASE_PRICES } from "../src/provinceRules";
 import {
   cultureNoise, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_SPECS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL,
-  houseLandValue, houseUpgradeCost, houseUpkeep, MAX_HOUSE_LEVEL, NEEDS_RANK, NO_HOUSE, NO_WING_SLOT, readHouse,
+  houseLandValue, houseUpgradeCost, houseUpkeep, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, NO_HOUSE, NO_WING_SLOT, readHouse,
   WING_SPECS, WING_WAITS, wingRows, WINGS,
 } from "../src/rulerHouse";
 import { Simulation } from "../src/simulation.js";
@@ -39,16 +39,22 @@ function city(options: { fresh?: boolean } = {}) {
       map.rulerHouse = { x, y, level: 1, wings: [] };
     },
   } as any);
+  // The house stands beside a road (src/rulerHouse.ts): roads under the places the tests build it
+  for (const [x0, y] of [[7, 12], [27, 12], [37, 32]]) {
+    for (let x = x0; x < x0 + 7; x++) commands.apply({ type: "tool", tool: "road", x, y });
+  }
   const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
   return { map, sim, commands, tool, setRank: (r: number) => { rank = r; } };
 }
 
 describe("the ruler's house", () => {
-  test("comes first in a new city: every other tool but the bulldozer waits for it", () => {
+  test("comes first in a new city, beside a road: every other tool but the roads and the bulldozer waits for it", () => {
     const { map, tool } = city();
     expect(tool("residential", 20, 20)).toMatchObject({ accepted: false, reason: HOUSE_FIRST });
-    expect(tool("road", 5, 5)).toMatchObject({ accepted: false, reason: HOUSE_FIRST });
+    expect(tool("road", 5, 5)).toMatchObject({ accepted: true, toolResult: 0 });
+    expect(tool("road_asphalt", 5, 6)).toMatchObject({ accepted: true, toolResult: 0 });
     expect(tool("bulldozer", 5, 5).accepted).toBe(true);
+    expect(tool(HOUSE_TOOL, 20, 25)).toMatchObject({ accepted: false, reason: NEEDS_ROAD });
     expect(tool(HOUSE_TOOL, 10, 10)).toMatchObject({ accepted: true, toolResult: 0 });
     expect(map.rulerHouse).toEqual({ x: 10, y: 10, level: 1, wings: [] });
     expect(tool("residential", 20, 20)).toMatchObject({ accepted: true, toolResult: 0 });

@@ -13,6 +13,7 @@
 
 import $ from "jquery";
 
+import { drawModeOf, isAreaMode, isClickMode } from './drawModes.ts';
 import { EventEmitter } from './eventEmitter.js';
 import { GameCanvas } from './gameCanvas.js';
 import { GameTools } from './gameTools.js';
@@ -63,6 +64,12 @@ var InputStatus = EventEmitter(function(map, tileWidth, rules) {
   this.getRelativeCoordinates = getRelativeCoordinates.bind(this);
   $(this.canvasID).on('mouseenter', mouseEnterHandler.bind(this));
   $(this.canvasID).on('mouseleave', mouseLeaveHandler.bind(this));
+  // PhaiCity: a right click drops a line half drawn (src/drawModes.ts); a right drag still turns the 3D camera
+  $(this.canvasID).on('contextmenu', contextMenuHandler.bind(this));
+  this._rightPress = null;
+  var canvas = document.querySelector(this.canvasID);
+  if (canvas)
+    canvas.addEventListener('mousedown', rightPressHandler.bind(this));
 
   this.mouseDownHandler = mouseDownHandler.bind(this);
   this.mouseMoveHandler = mouseMoveHandler.bind(this);
@@ -183,14 +190,25 @@ var mouseEnterHandler = function(e) {
 var AREA_TOOLS = ['residential', 'commercial', 'industrial'];
 
 
+// ... and so do the tools whose mode drags a rectangle: a grid of roads, a rectangle of painted zones
+// (src/drawModes.ts)
 InputStatus.prototype.isAreaTool = function() {
-  return this.currentTool !== null && AREA_TOOLS.indexOf(this.toolName) !== -1;
+  if (this.currentTool === null)
+    return false;
+  var mode = drawModeOf(this.toolName);
+  return mode !== null ? isAreaMode(mode) : AREA_TOOLS.indexOf(this.toolName) !== -1;
+};
+
+
+// PhaiCity: tools whose mode works by clicks: the points of a line or a curve, and a fill
+InputStatus.prototype.isClickTool = function() {
+  return this.currentTool !== null && isClickMode(drawModeOf(this.toolName));
 };
 
 
 var mouseDownHandler = function(e) {
   var area = this.isAreaTool();
-  if (this.currentTool === null || !(this.currentTool.isDraggable || area) ||
+  if (this.currentTool === null || this.isClickTool() || !(this.currentTool.isDraggable || area) ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
     return;
 
@@ -278,14 +296,35 @@ var mouseMoveHandler = function(e) {
 
 
 var canvasClickHandler = function(e) {
-  if (this.currentTool === null || this.currentTool.isDraggable || this.isAreaTool() ||
+  var clicks = this.isClickTool();
+  if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
       this.mouseY === -1 || this._dragging)
     return;
 
   this.stroke += 1;
-  this._emitEvent(Messages.TOOL_CLICKED, {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
+  this._emitEvent(clicks ? Messages.TOOL_POINT : Messages.TOOL_CLICKED,
+                  {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
   e.preventDefault();
+};
+
+
+var contextMenuHandler = function(e) {
+  if (this.currentTool === null)
+    return;
+  e.preventDefault();
+  // A right drag that turned the camera is not a click
+  var press = this._rightPress;
+  this._rightPress = null;
+  if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 6)
+    return;
+  this._emitEvent(Messages.TOOL_CANCEL);
+};
+
+
+var rightPressHandler = function(e) {
+  if (e.button === 2)
+    this._rightPress = {x: e.clientX, y: e.clientY};
 };
 
 

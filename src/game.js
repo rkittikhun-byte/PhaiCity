@@ -40,7 +40,10 @@ import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
-import { pageChoice, setToolChoices } from './toolLevels.ts';
+import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
+import { drawModeOf, isAreaMode, POINTS_NEEDED, showsZoneGrid } from './drawModes.ts';
+import { curvePath, gridPath, linePath, rectanglePath } from './drawPaths.ts';
+import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
@@ -50,12 +53,12 @@ import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
 import { readPolicies } from './policies.ts';
 import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, LAND_ALL_OPEN, LAND_LOCKED,
-         LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, ownsLand,
+         LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
          startingBlocks } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
-  houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, PLANNING_DISCOUNT, readHouse
+  houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
 import { newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
@@ -83,6 +86,8 @@ var disasterTimeout = 20 * 1000;
 // A tool outside the province: its outline turns this colour, and a click says why nothing happens
 var OUTSIDE_COLOUR = '#e0453a';
 var OUTSIDE_NOTE_MS = 2500;
+// A road, railway or power line being drawn (src/drawModes.ts)
+var DRAW_COLOUR = '#3d9be9';
 // The kinds of power plant's colours, for their squares until their icons are drawn (src/toolLevels.ts)
 var PLANT_COLOURS = {lignite: 'gray', gas: '#6f9fc4', hydro: '#2a7fd4', solar: '#e8b100', wind: '#7fc8b5'};
 var MINE_COLOUR = '#b07848';
@@ -181,6 +186,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     this.gameMap.rulerHouse = null;
     this.gameMap.needsRulerHouse = true;
   }
+
+  // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
+  this.gameMap.paintedZones = isCityMap(this.gameMap) || (savedGame !== null && savedGame.paintedZones === true);
 
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
@@ -317,6 +325,17 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
   setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
     .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
+  // On a map with painted zones the home, shop and factory buttons are brushes, with the eraser beside them
+  PLOT_KINDS.forEach(function(kind) {
+    if (!cityMap.paintedZones) {
+      clearToolChoices(kind);
+      return;
+    }
+    var button = document.querySelector('.toolButton[data-tool="' + kind + '"]');
+    setToolChoices(kind, [
+      {tool: PAINT_TOOLS[kind], available: true, colour: button ? button.getAttribute('data-colour') : undefined, size: 1},
+      {tool: ERASE_TOOL, available: true, colour: '#8c8c8c', size: 1, note: 'choice.erase_note'}]);
+  });
   // The mine button's places are the ores the province has; those it lacks are left out
   setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
     .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
@@ -505,6 +524,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // Listen for tool clicks
   this.inputStatus.addEventListener(Messages.TOOL_CLICKED, this.handleTool.bind(this));
   this.inputStatus.addEventListener(Messages.TOOL_AREA, this.handleToolArea.bind(this));
+  // Lines, curves and fills drawn by clicks, and a right click that drops a line half drawn (src/drawModes.ts)
+  this.lineDraft = null;
+  this._edits = 0;
+  this._preview = null;
+  this.inputStatus.addEventListener(Messages.TOOL_POINT, this.handleToolPoint.bind(this));
+  this.inputStatus.addEventListener(Messages.TOOL_CANCEL, this.cancelDraft.bind(this));
   // Undo: the ↶ button in the tool panel, and Ctrl+Z (src/toolShortcuts.ts presses the button)
   $('#undoButton').on('click', this.handleUndo.bind(this));
   this.refreshUndo();
@@ -639,7 +664,9 @@ Game.prototype.save = function() {
                   landBought: this.gameMap.landBlocks ? this.gameMap.landBought || 0 : undefined,
                   rulerHouse: houseStanding(this.gameMap) ? this.gameMap.rulerHouse : undefined,
                   needsRulerHouse: this.gameMap.needsRulerHouse ? true : undefined,
-                  roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined};
+                  roadLevels: this.gameMap.roadLevels ? encodePresetLayer(this.gameMap.roadLevels) : undefined,
+                  // ... and whether its zones are painted tile by tile (src/plots.ts)
+                  paintedZones: this.gameMap.paintedZones ? true : undefined};
   BaseTool.save(saveData);
   this.simulation.save(saveData);
 
@@ -760,6 +787,8 @@ var createView3D = function(game, view3d) {
 // The one way the player changes the city (src/cityCommands.ts)
 Game.prototype.applyCommand = function(command) {
   var outcome = this.commands.apply(command);
+  if (outcome.accepted)
+    this._edits = (this._edits || 0) + 1;
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
   if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL, NEEDS_RAIL, ONE_HSR,
@@ -837,6 +866,10 @@ Game.prototype.refreshPrices = function() {
   });
   if (this.gameMap.landBlocks)
     prices.land = blockPrice(this.gameMap);
+  // A painted tile costs a ninth of its zone (src/plots.ts)
+  PLOT_KINDS.forEach(function(kind) {
+    prices[PAINT_TOOLS[kind]] = Math.max(1, Math.round(prices[kind] * PAINT_PRICE_SHARE));
+  });
   showToolPrices(prices);
 };
 
@@ -866,7 +899,8 @@ var houseNote = function(reason, map) {
     return t('house.note.needs_rank', {rank: t('rank.' + RANKS[houseSpec(next).rank])});
   }
   return t(reason === HOUSE_FIRST ? 'house.note.first' : reason === HOUSE_STANDS ? 'house.note.stands' :
-           reason === HOUSE_AT_TOP ? 'house.note.top' : 'house.note.none');
+           reason === HOUSE_AT_TOP ? 'house.note.top' : reason === NEEDS_ROAD ? 'house.note.needs_road' :
+           'house.note.none');
 };
 
 
@@ -1049,6 +1083,16 @@ Game.prototype.handleTool = function(data) {
   var toolName = this.inputStatus.toolName;
   var result;
 
+  // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
+  var last = this._strokeTile;
+  this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y};
+  if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
+      Math.abs(last.x - tileCoords.x) + Math.abs(last.y - tileCoords.y) > 1) {
+    linePath(last, tileCoords).slice(1, -1).forEach(function(tile) {
+      this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
+    }, this);
+  }
+
   if (toolName === 'land') {
     // Buying a block of land is a command of its own (src/landBlocks.ts)
     var bought = this.applyCommand({type: 'land', x: tileCoords.x, y: tileCoords.y});
@@ -1169,6 +1213,10 @@ Game.prototype.handleInput = function() {
       this.dialogOpen = false;
       this[this._openWindow].close();
       this._openWindow = null;
+    } else if (this.lineDraft !== null && this.lineDraft.points.length > 0) {
+      // A line half drawn goes first; the tool stays in hand
+      this.lineDraft = null;
+      this.inputStatus.escape = false;
     } else
       this.inputStatus.clearTool();
   }
@@ -1246,6 +1294,8 @@ Game.prototype.processFrontEndMessage = function(message) {
 
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
+  // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
+  this.showDrawTip(null);
   if (this.inputStatus.mouseX === -1 || !(this.inputStatus.toolWidth > 0))
     return null;
 
@@ -1269,6 +1319,20 @@ Game.prototype.calculateMouseForPaint = function() {
                    tile.x, tile.y, hover.size) !== null)
     hover.colour = OUTSIDE_COLOUR;
 
+  // Drawing by modes (src/drawModes.ts): the line, curve, grid, rectangle or fill it would build, and beside the
+  // mouse what to click next and what it would cost
+  var preview = this.drawPreview(tile);
+  if (preview !== null && preview.tiles.length > 0) {
+    hover.path = preview.tiles;
+    // A road, railway or power line being drawn shows blue with a dashed middle, as in Cities: Skylines
+    hover.line = preview.mode !== 'fill' && preview.mode !== 'rectangle';
+    if (hover.line && hover.colour !== OUTSIDE_COLOUR)
+      hover.colour = DRAW_COLOUR;
+  }
+  this.showDrawTip(preview);
+  if (preview !== null)
+    return hover;
+
   // While a zone tool drags an area, show every zone it will lay
   var drag = this.inputStatus.areaDrag;
   var centres = drag ? this.areaCentresFor(drag, hover.size) : null;
@@ -1288,12 +1352,193 @@ Game.prototype.areaCentresFor = function(drag, size) {
 };
 
 
+// A click of a tool that draws by clicks (src/drawModes.ts): a point of a line or a curve, which draws once it has all
+// its points and then goes on from its end, or a fill of painted zones
+Game.prototype.handleToolPoint = function(data) {
+  var tile = this.cityView.tileAt(data.x, data.y);
+  var toolName = this.inputStatus.toolName;
+  var tool = this.inputStatus.currentTool;
+  if (tile === null || tool === null)
+    return;
+  var mode = drawModeOf(toolName);
+  if (mode === 'fill') {
+    this.applyTiles(fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
+    return;
+  }
+  var needed = POINTS_NEEDED[mode];
+  if (!needed)
+    return;
+  var draft = this.lineDraft;
+  if (draft === null || draft.tool !== toolName || draft.mode !== mode)
+    draft = this.lineDraft = {tool: toolName, mode: mode, points: []};
+  draft.points.push(tile);
+  if (draft.points.length < needed)
+    return;
+  this.applyTiles(curvePath(draft.points), data.stroke, data.x);
+  // The next line starts where this one ended
+  draft.points = [tile];
+};
+
+
+Game.prototype.cancelDraft = function() {
+  this.lineDraft = null;
+};
+
+
+// Builds along a drawn line or over a painted area: a command a tile, all one stroke so they undo together, with one
+// sound and one note for the lot
+Game.prototype.applyTiles = function(tiles, stroke, soundX) {
+  var toolName = this.inputStatus.toolName;
+  var tool = this.inputStatus.currentTool;
+  if (tool === null || tiles.length === 0)
+    return;
+
+  var best = null;
+  var refusal = null;
+  var broke = false;
+  tiles.forEach(function(tile) {
+    if (!this.gameMap.testBounds(tile.x, tile.y))
+      return;
+    var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: stroke});
+    if (!outcome.accepted && refusal === null)
+      refusal = outcome.reason;
+    var result = outcome.toolResult;
+    if (result === tool.TOOLRESULT_NO_MONEY)
+      broke = true;
+    if (result !== null && result !== undefined && (best === null || result === tool.TOOLRESULT_OK))
+      best = result;
+  }, this);
+
+  if (best !== tool.TOOLRESULT_OK && refusal !== null) {
+    var note = refusal === OUTSIDE_PROVINCE ? t('tool.outside_province') : refusal === LAND_LOCKED ?
+               t('land.note.locked') : HOUSE_REASONS.indexOf(refusal) !== -1 ? houseNote(refusal, this.gameMap) : null;
+    if (note !== null)
+      showCornerNote(note, OUTSIDE_NOTE_MS);
+  }
+  this.showToolResult(tool, broke ? tool.TOOLRESULT_NO_MONEY : best);
+  this.gameAudio.toolUsed(toolName, best === null ? tool.TOOLRESULT_FAILED : best, soundX);
+  this.refreshUndo();
+};
+
+
+// What the tool in hand would build if clicked or released now, by its mode, and what that would cost: {tiles, cost},
+// or null for a tool without modes. Kept until the mouse, the clicks or the city change, as it is asked for often.
+Game.prototype.drawPreview = function(tile) {
+  var toolName = this.inputStatus.toolName;
+  var mode = drawModeOf(toolName);
+  if (mode === null)
+    return null;
+  var draft = this.lineDraft;
+  if (draft !== null && (draft.tool !== toolName || draft.mode !== mode))
+    draft = this.lineDraft = null;
+  var drag = this.inputStatus.areaDrag;
+  var key = [toolName, mode, tile.x, tile.y, this._edits, draft ? JSON.stringify(draft.points) : '',
+             drag ? [drag.from.x, drag.from.y, drag.to.x, drag.to.y].join(',') : ''].join('|');
+  if (this._preview !== null && this._preview.key === key)
+    return this._preview;
+
+  var tiles = [];
+  if (isAreaMode(mode)) {
+    var from = drag ? this.cityView.tileAt(drag.from.x, drag.from.y) : null;
+    if (from !== null) {
+      var to = this.cityView.tileAt(drag.to.x, drag.to.y) || from;
+      tiles = mode === 'grid' ? gridPath(from, to) : rectanglePath(from, to);
+    }
+  } else if (mode === 'fill') {
+    tiles = fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
+  } else if (POINTS_NEEDED[mode] && draft !== null && draft.points.length > 0) {
+    tiles = curvePath(draft.points.concat([tile]));
+  }
+  var step = POINTS_NEEDED[mode] ? (draft !== null ? draft.points.length : 0) : -1;
+  // A drawn line's length on the ground, as the 3D view smooths its steps: along every fourth tile
+  var metres = 0;
+  if (POINTS_NEEDED[mode] && tiles.length > 1) {
+    for (var i = 4; i < tiles.length + 3; i += 4) {
+      var a = tiles[i - 4], b = tiles[Math.min(i, tiles.length - 1)];
+      metres += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    metres *= this.gameMap.tileSizeM || 10;
+  }
+  this._preview = {key: key, tiles: tiles, cost: tiles.length > 0 ? this.estimateCost(tiles) : 0, mode: mode, step: step,
+                   metres: metres};
+  return this._preview;
+};
+
+
+// What the tool in hand would cost over these tiles, each tried on its own and put back (an estimate: tiles that
+// would join up may cost a little less)
+Game.prototype.estimateCost = function(tiles) {
+  var tool = this.inputStatus.currentTool;
+  var blockMaps = this.simulation.blockMaps;
+  var total = 0;
+  tiles.forEach(function(tile) {
+    if (!this.gameMap.testBounds(tile.x, tile.y))
+      return;
+    tool.doTool(tile.x, tile.y, blockMaps);
+    if (tool.result === tool.TOOLRESULT_OK)
+      total += tool.totalCost();
+    tool.clear();
+  }, this);
+  return total;
+};
+
+
+// Beside the mouse while drawing: what to click next, and how many tiles and how much the drawing would take
+Game.prototype.showDrawTip = function(preview) {
+  var tip = document.getElementById('drawTip');
+  if (!tip)
+    return;
+  // A chip each, as Cities: Skylines shows them: the length, the price, the next click, how to stop
+  var parts = [];
+  if (preview !== null) {
+    if (preview.metres > 0)
+      parts.push('↔ ' + (preview.metres >= 1000 ? t('draw.length_km', {km: (preview.metres / 1000).toFixed(1)}) :
+                         t('draw.length', {metres: Math.round(preview.metres)})));
+    if (preview.tiles.length > 0)
+      parts.push(t('draw.cost', {count: preview.tiles.length, price: formatMoney(preview.cost)}));
+    if (preview.step >= 0)
+      parts.push(t('draw.step.' + preview.mode + '.' + preview.step));
+    else if (preview.mode === 'fill' && preview.tiles.length === 0)
+      parts.push(t('draw.step.fill'));
+    if (preview.step > 0)
+      parts.push(t('draw.cancel'));
+  }
+  var text = parts.join('\n');
+  tip.hidden = text === '';
+  if (text === '')
+    return;
+  if (tip.dataset.text !== text) {
+    tip.dataset.text = text;
+    tip.replaceChildren.apply(tip, parts.map(function(part) {
+      var chip = document.createElement('span');
+      chip.textContent = part;
+      return chip;
+    }));
+  }
+  var canvas = document.getElementById('MicropolisCanvas');
+  var rect = canvas ? canvas.getBoundingClientRect() : {left: 0, top: 0};
+  tip.style.left = Math.round(rect.left + this.inputStatus.mouseX + 18) + 'px';
+  tip.style.top = Math.round(rect.top + this.inputStatus.mouseY + 20) + 'px';
+};
+
+
 // A zone tool's dragged area, released: a zone at each centre, all one stroke so they undo together
 Game.prototype.handleToolArea = function(data) {
   var toolName = this.inputStatus.toolName;
   var tool = this.inputStatus.currentTool;
   if (tool === null)
     return;
+
+  // A grid of roads, or a rectangle of painted zones (src/drawModes.ts)
+  var mode = drawModeOf(toolName);
+  if (isAreaMode(mode)) {
+    var from = this.cityView.tileAt(data.from.x, data.from.y);
+    if (from === null)
+      return;
+    var to = this.cityView.tileAt(data.to.x, data.to.y) || from;
+    this.applyTiles(mode === 'grid' ? gridPath(from, to) : rectanglePath(from, to), data.stroke, data.to.x);
+    return;
+  }
 
   var centres = this.areaCentresFor(data, this.inputStatus.toolWidth - 0);
   if (centres === null)
@@ -1388,6 +1633,13 @@ var commonAnimate = function() {
 
   if (!this.isPaused)
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
+
+  // The tiles that can take painted zones show along the roads while a brush or a road tool is in hand (src/plots.ts)
+  var zoneGrid = this.gameMap.paintedZones === true && showsZoneGrid(this.inputStatus.toolName);
+  if (zoneGrid !== this._zoneGrid && this.cityView.zoneGrid) {
+    this._zoneGrid = zoneGrid;
+    this.cityView.zoneGrid(zoneGrid);
+  }
 
   this.cityView.paint(this.mouse, this.spritesIn(this.cityView.visibleTiles()), this.isPaused);
 

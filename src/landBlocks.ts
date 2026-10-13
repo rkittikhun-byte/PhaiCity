@@ -46,7 +46,12 @@ export interface LandMap {
 
 /** Tiles a side of this map's blocks. */
 export const blockSizeOf = (map: { tileSizeM?: number | null }): number =>
-  map.tileSizeM && map.tileSizeM <= CITY_TILE_MAX_M ? CITY_BLOCK_SIZE : BLOCK_SIZE;
+  isCityMap(map) ? CITY_BLOCK_SIZE : BLOCK_SIZE;
+
+/** Whether a map is a real-scale city map (docs/CITY_SCALE.md), by the size of its tiles. */
+export function isCityMap(map: { tileSizeM?: number | null }): boolean {
+  return Boolean(map.tileSizeM && map.tileSizeM <= CITY_TILE_MAX_M);
+}
 
 export const blockColumns = (map: { readonly width: number; tileSizeM?: number | null }): number =>
   Math.ceil(map.width / blockSizeOf(map));

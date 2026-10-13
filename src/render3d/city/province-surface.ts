@@ -14,6 +14,7 @@ import { COMBASE, HOSPITALBASE, INDBASE, PORTBASE, RESBASE } from '../../tileVal
 import { type LandMap, ownsLand } from '../../landBlocks.js';
 import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
+import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 type RoadPoint=readonly [number,number,number];
@@ -147,8 +148,10 @@ export class ProvinceSurface {
     // Zones are painted cell by cell, as in Cities: Skylines (docs/CITY_SCALE.md): green homes, blue shops, yellow
     // factories, each tile a square a little inside its edges so the grid shows between them
     const zone=v>=RESBASE&&v<HOSPITALBASE?ZONE_PAINT.residential:v>=COMBASE&&v<INDBASE?ZONE_PAINT.commercial:v>=INDBASE&&v<PORTBASE?ZONE_PAINT.industrial:null;
-    if(zone&&!wet){const paint=this.tileShade(x,y,new Color()).lerp(zone,ZONE_PAINT_SHARE),x0=x*10+ZONE_GAP,z0=y*10+ZONE_GAP,x1=(x+1)*10-ZONE_GAP,z1=(y+1)*10-ZONE_GAP;
-      for(const[px,pz]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){c.positions.push(px,this.terrain.sampleTile(x,y,px,pz)+.015,pz);c.colors.push(paint.r,paint.g,paint.b);c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}}
+    // A city map's painted zones show 8 m cells, 2 × 2 a tile, as its zone grid does (overlay.ts ZONE_GRID_CELLS)
+    if(zone&&!wet){const paint=this.tileShade(x,y,new Color()).lerp(zone,ZONE_PAINT_SHARE),cells=this.snapshot.paintedZones?ZONE_GRID_CELLS:1,size=10/cells,gap=cells>1?.32:ZONE_GAP;
+      for(let cy=0;cy<cells;cy++)for(let cx=0;cx<cells;cx++){const x0=x*10+cx*size+gap,z0=y*10+cy*size+gap,x1=x*10+(cx+1)*size-gap,z1=y*10+(cy+1)*size-gap;
+        for(const[px,pz]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){c.positions.push(px,this.terrain.sampleTile(x,y,px,pz)+.015,pz);c.colors.push(paint.r,paint.g,paint.b);c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}}}
     for(const[x0,z0,top0,bottom0,x1,z1,top1,bottom1]of this.terrain.walls(x,y)){
       const vertices=[[x0,top0,z0],[x0,bottom0,z0],[x1,bottom1,z1],[x1,top1,z1]];
       for(const n of[0,2,1,0,3,2]){c.positions.push(...vertices[n]);c.colors.push(...new Color(0x9c927e).toArray());c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}

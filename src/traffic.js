@@ -37,18 +37,31 @@ Traffic.prototype.makeTraffic = function(x, y, blockMaps, destFn) {
   var pos = new Position(x, y);
 
   if (this.findPerimeterRoad(pos)) {
-    if (this.tryDrive(pos, destFn)) {
-      this.addToTrafficDensityMap(blockMaps, this.transit ? 1 - this.transit.ridersAt(x, y) : 1);
-      return Traffic.ROUTE_FOUND;
-    }
-
-    if (this.transit && this.transit.railAt(x, y))
-      return Traffic.ROUTE_FOUND;
-
-    return Traffic.NO_ROUTE_FOUND;
+    return this.driveFrom(pos, x, y, blockMaps, destFn);
   } else {
     return Traffic.NO_ROAD_FOUND;
   }
+};
+
+
+// PhaiCity: a trip from a painted plot (src/plots.ts), which has found its own road at (roadX, roadY)
+Traffic.prototype.makeTrafficFrom = function(roadX, roadY, x, y, blockMaps, destFn) {
+  this._stack = [];
+  return this.driveFrom(new Position(roadX, roadY), x, y, blockMaps, destFn);
+};
+
+
+// A trip from the road at pos for the zone or plot at (x, y)
+Traffic.prototype.driveFrom = function(pos, x, y, blockMaps, destFn) {
+  if (this.tryDrive(pos, destFn)) {
+    this.addToTrafficDensityMap(blockMaps, this.transit ? 1 - this.transit.ridersAt(x, y) : 1);
+    return Traffic.ROUTE_FOUND;
+  }
+
+  if (this.transit && this.transit.railAt(x, y))
+    return Traffic.ROUTE_FOUND;
+
+  return Traffic.NO_ROUTE_FOUND;
 };
 
 

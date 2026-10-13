@@ -28,6 +28,13 @@ export interface ToolHover {
   colour: string;
   /** While a zone tool drags an area: every tile the zones will cover. toolFootprint returns it. */
   area?: TileRect;
+  /**
+   * While a road is drawn by clicks, a grid or a rectangle is dragged or a fill is pointed at (src/drawModes.ts): each
+   * tile it would build on. A view that cannot draw them one by one may draw toolFootprint's box round them.
+   */
+  path?: readonly TilePoint[];
+  /** Whether path is a line being drawn (a road, railway or power line), shown with a dashed middle. */
+  line?: boolean;
 }
 
 export interface CityView {
@@ -68,6 +75,11 @@ export interface CityView {
    * stays under it. A left-button drag with no tool in hand uses it (src/viewControls.ts).
    */
   pan?(dx: number, dy: number): void;
+  /**
+   * 3D only, optional: shows or hides the grid of tiles that can take painted zones (src/plots.ts), drawn along the
+   * roads while a zone brush or a road tool is in hand, as Cities: Skylines shows its zone cells.
+   */
+  zoneGrid?(on: boolean): void;
 }
 
 /** The functions every view has; tests of each view check them (test/cityView.ts, and the 3D view's own test). */
@@ -88,6 +100,11 @@ export function missingViewFunctions(view: object): string[] {
  */
 export function toolFootprint(hover: ToolHover): TileRect {
   if (hover.area) return { ...hover.area };
+  if (hover.path && hover.path.length > 0) {
+    const xs = hover.path.map((t) => t.x);
+    const ys = hover.path.map((t) => t.y);
+    return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  }
   const offset = hover.size > 2 ? 1 : 0;
   const x0 = hover.tile.x - offset;
   const y0 = hover.tile.y - offset;

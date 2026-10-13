@@ -9,6 +9,9 @@ export interface CityMapReader {
   readonly town?: { readonly x: number; readonly y: number } | null;
   readonly heights?: Float32Array | null;
   readonly tileSizeM?: number | null;
+  /** Homes, shops and factories painted tile by tile (src/plots.ts), and each road tile's level (src/roadLevels.ts) */
+  readonly paintedZones?: boolean;
+  readonly roadLevels?: Uint8Array | null;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
 }

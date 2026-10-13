@@ -133,10 +133,16 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 let iconFiles: Record<string, unknown> = {};
 const ICON_FILE = /^[\w-]+\.(png|svg|webp)$/;
 
+// Tools that wear another's icon: the zone brushes their zone's, the eraser the bulldozer's (src/plots.ts)
+const ICON_OF: Readonly<Record<string, string>> = {
+  zone_residential: "residential", zone_commercial: "commercial", zone_industrial: "industrial", zone_erase: "bulldozer",
+};
+
 /** Where a tool's icon is (assets/icons/tools/, copied into the build as it is). */
 export function toolIconUrl(tool: string): string {
-  const file = iconFiles[tool];
-  return `assets/icons/tools/${typeof file === "string" && ICON_FILE.test(file) ? file : `${tool}.svg`}`;
+  const name = ICON_OF[tool] ?? tool;
+  const file = iconFiles[name];
+  return `assets/icons/tools/${typeof file === "string" && ICON_FILE.test(file) ? file : `${name}.svg`}`;
 }
 
 /** Reads the icon manifest, if there is one yet, and shows the icons it names. */

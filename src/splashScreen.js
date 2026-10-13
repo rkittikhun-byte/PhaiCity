@@ -51,10 +51,13 @@ var getRequestedProvince = function() {
 };
 
 
-// index.html?province=TH-40&scale=city starts the province's real-scale city map, 16 m a tile round its town
-// (docs/CITY_SCALE.md, the Khon Kaen prototype); otherwise the whole province scaled down
-var cityScale = function() {
-  return new URLSearchParams(window.location.search).get('scale') === 'city';
+// A province with a real-scale city map (16 m a tile round its town, docs/CITY_SCALE.md) starts there: Khon Kaen first,
+// then one province at a time (owner 13 Oct 2026, "เอาขอนแก่นก่อน แล้วค่อยๆ ขยาย"). index.html?scale=province starts the
+// whole province scaled down instead, and ?scale=city asks for a city map that is not listed yet
+var CITY_MAPS = ['TH-40'];
+var cityScale = function(provinceId) {
+  var scale = new URLSearchParams(window.location.search).get('scale');
+  return scale === 'city' || (scale !== 'province' && CITY_MAPS.indexOf(provinceId) !== -1);
 };
 var mapUrl = function(provinceId, city) {
   return 'data/maps/' + (city ? 'city/' : '') + provinceId + '.json';
@@ -129,7 +132,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 var startProvince = function(provinceId, cityName, difficulty) {
   var self = this;
 
-  fetchJson(mapUrl(provinceId, cityScale())).then(function(preset) {
+  fetchJson(mapUrl(provinceId, cityScale(provinceId))).then(function(preset) {
     var layer = function(encoded) {
       return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
     };

@@ -18,6 +18,7 @@ import {
   computeGroundwater, drawGroundwater, fullStores, GROUNDWATER_FULL, pumpFactor, rechargeGroundwater,
 } from "./groundwater";
 import { GROUNDWATER_LOW, NOT_ENOUGH_WATER } from "./messages";
+import { PLOT_SHARE } from "./plots";
 import { POWERBIT } from "./tileFlags";
 import {
   HBRDG0, HBRDG3, HRAILROAD, POWERBASE, ROADBASE, VBRDG0, VBRDG3, VRAILROAD, WATER_TOWER, WATER_WORKS,
@@ -336,6 +337,27 @@ export class WaterManager {
     if (census) {
       if (watered) census.wateredZoneCount += 1;
       else census.dryZoneCount += 1;
+    }
+    return watered;
+  }
+
+  /**
+   * The same for a one-tile plot of painted zones (src/plots.ts): the water comes along the road it reaches, at
+   * (roadX, roadY) (-1 with none), and it takes an eighth of a zone's share.
+   */
+  supplyPlot(x: number, y: number, roadX: number, roadY: number, census: CensusLike | null = null,
+             needsWater = true): boolean {
+    const piped = roadX >= 0 && this.view.hasWater(roadX, roadY);
+    const watered = piped && this.used < this.supply;
+    if (watered) this.used += PLOT_SHARE;
+    if (piped && !watered && !this.short) {
+      this.short = true;
+      this.emit(NOT_ENOUGH_WATER);
+    }
+    if (this.inBounds(x, y)) this.zonesNext.worldSet(x, y, watered ? ZONE_WATERED : needsWater ? ZONE_THIRSTY : ZONE_DRY);
+    if (census) {
+      if (watered) census.wateredZoneCount += PLOT_SHARE;
+      else census.dryZoneCount += PLOT_SHARE;
     }
     return watered;
   }

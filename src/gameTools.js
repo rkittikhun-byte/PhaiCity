@@ -31,6 +31,8 @@ import { WASTE_KINDS, WASTE_SPECS } from './waste.ts';
 import { STATION_KINDS, TRANSIT_SPECS } from './transit.ts';
 import { BusStopTool } from './busStopTool.ts';
 import { LandTool } from './landTool.ts';
+import { ERASE_TOOL, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
+import { PlotTool } from './plotTool.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 
@@ -110,9 +112,20 @@ function GameTools(map, rules) {
     tools[kind].transitKind = kind;
   });
 
+  // ... and the zone brushes and the eraser of a map with painted zones (src/plots.ts)
+  PLOT_KINDS.forEach(function(kind) {
+    tools[PAINT_TOOLS[kind]] = new PlotTool(map, kind);
+  });
+  tools[ERASE_TOOL] = new PlotTool(map, null);
+
   TOOL_COSTS.forEach(function(name) {
     tools[name].costFactor = rules.cost[name];
     tools[name].clearWoodsCost = rules.clearWoodsCost;
+  });
+  // A brush costs what its zone does, a tile at a time
+  PLOT_KINDS.forEach(function(kind) {
+    tools[PAINT_TOOLS[kind]].costFactor = tools[kind].costFactor;
+    tools[PAINT_TOOLS[kind]].clearWoodsCost = rules.clearWoodsCost;
   });
 
   // What kind of plant each power tool builds; the map records it where it stands (src/cityCommands.ts)

@@ -59,6 +59,8 @@ export const CHAPTERS: Chapter[] = [
     title: "goals.title",
     goals: [
       // A new city builds its ruler's house before anything else (src/rulerHouse.ts)
+      // The first road, as the house stands beside one (src/rulerHouse.ts); a city with its house has done it
+      { id: "street", tool: "road", done: (s) => s.roads >= 1 || s.rulerHouse >= 1 },
       { id: "house", tool: "ruler_house", done: (s) => s.rulerHouse >= 1 },
       { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
       { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },

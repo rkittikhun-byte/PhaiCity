@@ -16,6 +16,7 @@
 // No DOM, nothing random.
 
 import { BaseTool } from "./baseTool.js";
+import { isRoadTile, ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 import { CIVIC } from "./tileValues";
 
 export const HOUSE_TOOL = "ruler_house";
@@ -56,10 +57,26 @@ export const NO_HOUSE = "no ruler's house to raise";
 export const NEEDS_RANK = "the house's next level needs a higher rank";
 /** ... the house is at its highest level */
 export const HOUSE_AT_TOP = "the house is at its highest level";
-export const HOUSE_REASONS: readonly string[] = [HOUSE_FIRST, HOUSE_STANDS, NO_HOUSE, NEEDS_RANK, HOUSE_AT_TOP];
+/** ... no road touches the side of its 3 × 3 */
+export const NEEDS_ROAD = "the ruler's house must stand beside a road";
+export const HOUSE_REASONS: readonly string[] = [HOUSE_FIRST, HOUSE_STANDS, NO_HOUSE, NEEDS_RANK, HOUSE_AT_TOP, NEEDS_ROAD];
 
-/** The tools a new city may use before its house stands */
-export const BEFORE_HOUSE: readonly string[] = [HOUSE_TOOL, "bulldozer"];
+/**
+ * The tools a new city may use before its house stands: the roads come first, as the house must stand beside one
+ * (owner 13 Oct 2026: "เราต้องวาดถนนก่อนเพื่อนเลย ถ้าไม่มีถนน จวนผู้ว่า จะวางได้อย่างไร")
+ */
+export const BEFORE_HOUSE: readonly string[] = [HOUSE_TOOL, "bulldozer", ...ROAD_TOOLS, UPGRADE_TOOL];
+
+/** NEEDS_ROAD when no road touches the side of the 3 × 3 house centred on (x, y), else null. */
+export function houseRoadProblem(map: { width: number; height: number; getTileValue(x: number, y: number): number },
+                                 x: number, y: number): string | null {
+  for (let k = -1; k <= 1; k++) {
+    for (const [rx, ry] of [[x + k, y - 2], [x + k, y + 2], [x - 2, y + k], [x + 2, y + k]]) {
+      if (rx >= 0 && ry >= 0 && rx < map.width && ry < map.height && isRoadTile(map.getTileValue(rx, ry))) return null;
+    }
+  }
+  return NEEDS_ROAD;
+}
 
 /**
  * The wings (ส่วนต่อเติม, owner 13 Oct 2026): a house of level n may have n − 1 of them, chosen in its window. Each costs
