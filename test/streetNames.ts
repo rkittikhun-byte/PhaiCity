@@ -114,6 +114,22 @@ describe("street names", () => {
     expect(labelSpots(stub, 10)).toEqual([]);
   });
 
+  test("a real map's streets carry their real names, and their sois are named after them", () => {
+    const map: any = grid(40, 30, set => {
+      for (let x = 0; x < 40; x++) set(x, 10);
+      for (let y = 4; y < 10; y++) set(5, y);
+    });
+    map.roadNames = new Uint16Array(40 * 30);
+    for (let x = 0; x < 40; x++) map.roadNames[10 * 40 + x] = 1;
+    map.streetNameList = [{ th: "ถนนศรีจันทร์", en: "Si Chan Road" }];
+    const streets = findStreets(map);
+    const road = streets.find(s => s.kind === "road")!, soi = streets.find(s => s.kind === "soi")!;
+    expect(label(road)).toBe("ถนนศรีจันทร์");
+    expect(streetLabel(road, "en").params.name).toBe("Si Chan Road");
+    expect(label(soi)).toBe(`ซอยศรีจันทร์ ${soi.number}`);
+    expect(streetLabel(soi, "en")).toEqual({ key: "street.soi", params: { name: "Si Chan", number: soi.number } });
+  });
+
   test("the same roads always read the same, and every label key is translated", () => {
     const draw = (set: (x: number, y: number) => void) => {
       for (let x = 0; x < ROAD_MIN_TILES + 5; x++) set(x, 3);
@@ -121,7 +137,7 @@ describe("street names", () => {
     };
     const a = findStreets(grid(30, 12, draw)), b = findStreets(grid(30, 12, draw));
     expect(a.map(s => label(s))).toEqual(b.map(s => label(s)));
-    for (const key of ["street.road", "street.soi", "street.soi_highway", "street.lane", "street.lane_highway",
+    for (const key of ["street.road", "street.real", "street.soi", "street.soi_highway", "street.lane", "street.lane_highway",
       "street.highway", "street.motorway", "street.tollway"]) expect(hasKey(key)).toBe(true);
     expect(new Set(STREET_NAMES.map(n => n.th)).size).toBe(STREET_NAMES.length);
   });

@@ -21,6 +21,9 @@ import { loadForeignShapes, loadProvinceShapes, ringsAreaM2, ringsBbox, ringsOf 
 import { buildProvinceMap } from './lib/provinceMap.mjs';
 import { encodeRle } from './lib/rle.mjs';
 import { LAYER_NAMES, loadLayer } from './provinceData.mjs';
+import { loadDbLayers } from './lib/dbLayers.mjs';
+import { encodePng } from './lib/png.mjs';
+import { ROAD, RAIL } from './lib/routing.mjs';
 
 /** Metres a tile: a two-lane road and its pavements, as in Cities: Skylines (docs/CITY_SCALE.md) */
 export const CITY_TILE_M = 16;
@@ -31,11 +34,14 @@ const CITY_DIR = path.join(MAPS_DIR, 'city');
 const DISTRICT_DIR = path.join(MAPS_DIR, 'district');
 
 function parseArgs(argv) {
-  const options = { only: new Set(['TH-40']), size: DEFAULT_SIZE, districts: false, district: null };
+  const options = { only: new Set(['TH-40']), size: DEFAULT_SIZE, districts: false, district: null, db: true, preview: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--only') options.only = new Set(argv[++i].split(',').map((s) => s.trim()));
     else if (argv[i] === '--size') options.size = Math.max(64, Math.min(1024, Number(argv[++i]) || DEFAULT_SIZE));
     else if (argv[i] === '--districts') options.districts = true;
+    // The downloaded Overpass squares instead of the local database (the old way: no streets)
+    else if (argv[i] === '--cache') options.db = false;
+    else if (argv[i] === '--preview') options.preview = true;
     else if (argv[i] === '--district') {
       options.district = argv[++i];
       options.districts = true;
@@ -79,6 +85,23 @@ function writeDistrictIndex() {
   writeJson(path.join(DISTRICT_DIR, 'index.json'), index);
 }
 
+/** A picture of the map for checking it by eye: data/geo/cache/preview/city-<id>.png (gitignored) */
+function writePreview(id, grid, result) {
+  const { width, height } = grid, rgb = new Uint8Array(width * height * 3);
+  const shades = [[214, 205, 168], [70, 130, 190], [74, 122, 70]];
+  for (let i = 0; i < width * height; i++) {
+    let colour = shades[result.cells[i]] ?? shades[0];
+    const transport = result.transport[i], level = result.streets?.levels[i] ?? 0;
+    if (transport & RAIL) colour = [40, 40, 40];
+    else if (transport & ROAD) colour = level >= 4 ? [200, 60, 40] : level === 3 ? [235, 150, 60] : [120, 110, 100];
+    if (!result.inside[i]) colour = colour.map((c) => Math.round(c * 0.75));
+    rgb.set(colour, i * 3);
+  }
+  const dir = path.join(GEO_DIR, 'cache', 'preview');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `city-${id}.png`), encodePng(width, height, rgb));
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const shapes = loadProvinceShapes();
@@ -97,11 +120,15 @@ async function main() {
     const dLat = half / METERS_PER_DEGREE_LAT;
     const dLon = half / (Math.cos(town.lat * Math.PI / 180) * METERS_PER_DEGREE_LON_AT_EQUATOR);
     const fetchBox = [town.lon - dLon, town.lat - dLat, town.lon + dLon, town.lat + dLat];
-    const layers = {};
-    for (const layer of LAYER_NAMES) layers[layer] = loadLayer(layer, fetchBox, {});
+    // The local database by default (docs/GAME_PLAN.md decision 16): its streets too, with their names and lanes
+    let layers = {};
+    if (options.db) layers = loadDbLayers(fetchBox);
+    else for (const layer of LAYER_NAMES) layers[layer] = loadLayer(layer, fetchBox, {});
     const result = buildProvinceMap({
       id: province.id, shape: shape ?? shapes.get(province.id), shapes, foreign, grid, layers, town, towns: new Map(), neighbors: [],
+      streets: options.db ? layers.streets : null,
     });
+    const streets = result.streets;
     const heights = tileHeights(grid);
     writeJson(district ? path.join(DISTRICT_DIR, `${district.id}.json`) : path.join(CITY_DIR, `${province.id}.json`), {
       format: 2,
@@ -120,12 +147,17 @@ async function main() {
       exits: result.exits,
       waterways: result.waterways,
       heights: packHeights(heights),
+      // Each road tile's level (src/roadLevels.ts) and the name of its street, an index into streetNames (0: none)
+      ...(streets ? { roadLevels: encodeRle(streets.levels), roadNames: encodeRle(streets.nameAt),
+        streetNames: streets.names.slice(1) } : {}),
       stats: result.stats,
       sources: ['OpenStreetMap contributors (ODbL 1.0)', 'Natural Earth (public domain)',
         'produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 ' +
         'provided under COPERNICUS by the European Union and ESA; all rights reserved'],
       generatedAt: new Date().toISOString(),
     });
+    if (options.preview) writePreview(district ? district.id : province.id, grid, result);
+    if (streets) console.log(`  streets laid ${streets.laid}, not laid ${streets.failed}, names ${streets.names.length - 1}`);
     console.log(`${district ? district.id : province.id} city ${grid.width}×${grid.height} at ${CITY_TILE_M} m  rail ${result.stats.railTiles}  ` +
       `${((Date.now() - started) / 1000).toFixed(1)} s`);
   }

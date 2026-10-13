@@ -61,7 +61,7 @@ import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
-import { isRoadTile, newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
+import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
@@ -659,6 +659,12 @@ var createView3D = function(game, view3d) {
       container: document.getElementById('canvasContainer'),
       map: game.gameMap,
       region: view3d.region,
+      // Each road's look from its level (src/roadLevels.ts): laterite, asphalt, or concrete for the wider ones; the
+      // view has three looks until it draws every level (docs/3d/CODEX_PROMPTS.md RD1)
+      roadLevel: function(x, y) {
+        var level = roadLevelAt(game.gameMap, x, y);
+        return level <= 1 ? 1 : level === 2 ? 2 : 3;
+      },
       // How hard the season's wind blows here, for the trees (src/wind.ts)
       windLevel: simulation.resources && typeof simulation.resources.wind === 'number' ? simulation.resources.wind : 2,
       overlays: {

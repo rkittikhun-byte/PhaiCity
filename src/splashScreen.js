@@ -18,7 +18,7 @@ import { chooseViewKind } from './cityViewChoice.ts';
 import { loadCityView3D } from './cityView3dLoader.ts';
 import { showCornerNote } from './cornerNote.ts';
 import { Game } from './game.js';
-import { decodePresetCells, decodePresetHeights, decodePresetLayer } from './geo/presetMap.ts';
+import { decodePresetCells, decodePresetHeights, decodePresetLayer, decodePresetLayerWide } from './geo/presetMap.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
@@ -150,6 +150,9 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     map.provinceId = provinceId;
     map.districtId = preset.districtId || null;
     map.tileSizeM = preset.tileSizeM || null;
+    // A real-scale city map's real streets: their levels, and their names for the street labels (src/streetNames.ts)
+    map.roadLevels = layer(preset.roadLevels);
+    streetNamesFrom(map, preset);
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);
     return decodePresetHeights(preset).then(function(heights) {
@@ -234,6 +237,14 @@ var loadResources = function(provinceId) {
 };
 
 
+// The real names of a city map's streets (docs/GAME_PLAN.md decision 17): each road tile's street, and the names
+var streetNamesFrom = function(map, preset) {
+  map.roadNames = preset.roadNames && preset.streetNames ?
+    decodePresetLayerWide(preset.roadNames, preset.width, preset.height) : null;
+  map.streetNameList = map.roadNames ? preset.streetNames : null;
+};
+
+
 // A saved city of a province takes its ground's heights from the province's map, as saves do not keep them; for the
 // 3D view's hills (docs/3d/RENDERER_SPEC.md section 6B). Nothing comes back for a practice map, a new city (whose
 // map already has them) or a map that cannot be read.
@@ -243,6 +254,8 @@ var savedCityHeights = function(map) {
   // A city saved on a real-scale city map takes them from that map (docs/CITY_SCALE.md)
   var heightsFrom = function(preset) {
     map.tileSizeM = preset.tileSizeM || null;
+    // ... and its streets' real names, which saves do not keep either
+    streetNamesFrom(map, preset);
     return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
   };
   // ... and a district's city from its district's map

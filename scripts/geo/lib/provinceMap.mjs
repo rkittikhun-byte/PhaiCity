@@ -9,6 +9,7 @@
 import { createMask, fillPolygon, labelRegions, orMask, seaFromCoastline, tileCoverage, traceSegmentCells } from './raster.mjs';
 import { anchorTile, buildChains, clipLine, createNetwork, layPath, NONE, RAIL, ROAD, route, thinBlocks } from './routing.mjs';
 import { polygonIndex, provinceAt, provinceLinks, roadGraph } from './links.mjs';
+import { layStreets } from './cityStreets.mjs';
 
 export const LAND = 0;
 export const WATER = 1;
@@ -39,7 +40,8 @@ const ABROAD_CLEAR_M = 1500;
  * town and towns: { lat, lon } of this province's town and of every province's (by id); neighbors: the ids of the
  * neighbouring provinces (data/thailand-provinces.json); foreign: the neighbouring countries' { rings, bbox }.
  */
-export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid, layers, town, towns, neighbors = [] }) {
+export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid, layers, town, towns, neighbors = [],
+  streets = null }) {
   const { width, height, tileSizeM } = grid;
   const toTiles = (lon, lat) => {
     const { x, y } = grid.project(lat, lon);
@@ -66,6 +68,9 @@ export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid,
   const roadExits = townTile === null ? []
     : layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townTile, neighbors, problems, abroad });
 
+  // A city map's real streets (cityStreets.mjs), after the railways so they cross them on straight track
+  const streetMap = streets ? layStreets(net, streets, toTiles) : null;
+
   thinBlocks(net, 'rail');
   thinBlocks(net, 'road');
 
@@ -85,6 +90,7 @@ export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid,
     waterways,
     stats,
     problems,
+    streets: streetMap,
   };
 }
 

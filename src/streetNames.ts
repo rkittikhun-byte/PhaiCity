@@ -31,6 +31,10 @@ export interface Street {
   tiles: number[];
   /** Whether the street comes back to where it began */
   closed: boolean;
+  /** Its real name, from a real-scale city map (docs/GAME_PLAN.md decision 17): the name most of its tiles carry */
+  real?: { th: string; en: string };
+  /** A soi's or lane's road's real name, which it is named after instead of a made-up one */
+  base?: { th: string; en: string };
 }
 
 export interface StreetMap {
@@ -38,6 +42,9 @@ export interface StreetMap {
   readonly height: number;
   readonly roadLevels?: Uint8Array | null;
   readonly nationalTransport?: ArrayLike<number> | null;
+  /** A real-scale city map's street names: each tile's name, an index into streetNameList counted from 1 (0: none) */
+  readonly roadNames?: ArrayLike<number> | null;
+  readonly streetNameList?: ReadonlyArray<{ th: string; en: string }> | null;
   getTileValue(x: number, y: number): number;
 }
 
@@ -173,14 +180,17 @@ function name(streets: Street[], map: StreetMap): void {
   const used = new Set<number>(), numbers = new Set<number>();
   const numbered = (street: Street, low: number, span: number): void => {
     let n = low + hash(street.id) % span;
-    while (numbers.has(n)) n = low + (n - low + 1) % span;
+    // The next free number; when every one is taken, two streets share one rather than looking for ever
+    for (let tries = 0; numbers.has(n) && tries < span; tries++) n = low + (n - low + 1) % span;
     numbers.add(n); street.number = n;
   };
+  // On a real map every street came with the map and has its real name instead (docs/GAME_PLAN.md decision 17)
+  const realMap = !!(map.roadNames && map.streetNameList);
   for (const street of streets) {
     const level = levelOf(street);
     if (level >= TOLLWAY_LEVEL) { street.kind = "tollway"; numbered(street, 1, 9); }
     else if (level >= MOTORWAY_LEVEL) { street.kind = "motorway"; numbered(street, 1, 9); }
-    else if (isNational(street)) { street.kind = "highway"; numbered(street, 201, 2200); }
+    else if (!realMap && isNational(street)) { street.kind = "highway"; numbered(street, 201, 2200); }
     else if (street.tiles.length >= ROAD_MIN_TILES || level >= ROAD_MIN_LEVEL) street.kind = "road";
     else street.kind = "soi";
   }
@@ -220,10 +230,23 @@ function name(streets: Street[], map: StreetMap): void {
     const list = lanes.get(from) ?? [];
     list.push({ street, ...side(from, link.tile, link.next) }); lanes.set(from, list);
   }
+  // Streets of a real map take the name most of their tiles carry; a soi of a road with a real name is named after it
+  const realNames = map.roadNames, list = map.streetNameList;
+  if (realNames && list) {
+    for (const street of streets) {
+      const counts = new Map<number, number>();
+      for (const t of street.tiles) { const k = realNames[t]; if (k > 0) counts.set(k, (counts.get(k) ?? 0) + 1); }
+      let best = 0, most = 0;
+      for (const [k, n] of counts) if (n > most) { best = k; most = n; }
+      if (best && list[best - 1] && most * 3 >= street.tiles.length) street.real = list[best - 1];
+    }
+    for (const [road, list2] of sois) if (road.real) for (const item of list2) item.street.base = road.real;
+    for (const [soi, list2] of lanes) if (soi.base) for (const item of list2) item.street.base = soi.base;
+  }
   // Roads take a name each, the first free one from where their tile points; highways' roads read by number
   const names = STREET_NAMES.length;
   for (const street of streets) {
-    if (street.kind !== "road") continue;
+    if (street.kind !== "road" || street.real) continue;
     let n = hash(street.id) % names;
     for (let tries = 0; used.has(n) && tries < names; tries++) n = (n + 1) % names;
     used.add(n); street.name = n;
@@ -240,15 +263,24 @@ function name(streets: Street[], map: StreetMap): void {
 
 /** How a street reads: the i18n key and its placeholders (src/i18n `street.*`), so the caller translates it. */
 export function streetLabel(street: Street, language: "th" | "en"): { key: string; params: Record<string, string | number> } {
-  const words = STREET_NAMES[Math.abs(street.name) % STREET_NAMES.length];
+  // A real street reads as its sign does
+  if (street.real) return { key: "street.real", params: { name: language === "en" && street.real.en ? street.real.en : street.real.th } };
+  const words = street.base ? realBase(street.base) : STREET_NAMES[Math.abs(street.name) % STREET_NAMES.length];
   // A soi off a highway reads by the highway's number
-  const base = street.name < 0 ? String(-street.name) : words[language];
+  const base = street.name < 0 && !street.base ? String(-street.name) : words[language];
   switch (street.kind) {
     case "tollway": case "motorway": case "highway": return { key: `street.${street.kind}`, params: { number: street.number } };
-    case "soi": return { key: street.name < 0 ? "street.soi_highway" : "street.soi", params: { name: base, number: street.number } };
-    case "lane": return { key: street.name < 0 ? "street.lane_highway" : "street.lane", params: { name: base, number: street.number, sub: street.sub } };
+    case "soi": return { key: street.name < 0 && !street.base ? "street.soi_highway" : "street.soi", params: { name: base, number: street.number } };
+    case "lane": return { key: street.name < 0 && !street.base ? "street.lane_highway" : "street.lane", params: { name: base, number: street.number, sub: street.sub } };
     default: return { key: "street.road", params: { name: base } };
   }
+}
+
+/** A real road's name as a soi carries it: "ถนนศรีจันทร์" → "ศรีจันทร์", "Si Chan Road" → "Si Chan" */
+function realBase(real: { th: string; en: string }): { th: string; en: string } {
+  const th = real.th.replace(/^ถนน\s*/u, "");
+  const en = (real.en || real.th).replace(/\s+(Road|Rd\.?|Street|St\.?)$/i, "");
+  return { th, en };
 }
 
 export interface LabelSpot {

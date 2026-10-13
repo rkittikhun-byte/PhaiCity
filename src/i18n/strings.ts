@@ -1162,6 +1162,7 @@ export const STRINGS: Record<string, Translation> = {
   "goals.capital": { en: "Grow into a province centre and become Phra", th: "ขยายเป็นจังหวัด และเลื่อนยศเป็นพระ" },
   "goals.capital.hint": { en: "Past 50,000 people the city becomes a province centre.", th: "ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด" },
   "street.road": { en: "{name} Road", th: "ถนน{name}" },
+  "street.real": { en: "{name}", th: "{name}" },
   "street.soi": { en: "Soi {name} {number}", th: "ซอย{name} {number}" },
   "street.soi_highway": { en: "Highway {name} Soi {number}", th: "ทางหลวง {name} ซอย {number}" },
   "street.lane": { en: "Soi {name} {number} Yaek {sub}", th: "ซอย{name} {number} แยก {sub}" },

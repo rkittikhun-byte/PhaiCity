@@ -63,6 +63,11 @@ export interface PresetMap {
   unlinked?: string[];
   /** Each tile's ground height: min + level × step metres, the levels deflated and in base64 (decodePresetHeights) */
   heights?: { min: number; step: number; data: string };
+  /** A real-scale city map's real streets (scripts/geo/lib/cityStreets.mjs): each road tile's level (src/roadLevels.ts)
+   * and the name of its street, an index into streetNames counted from 1 (0: none) */
+  roadLevels?: string;
+  roadNames?: string;
+  streetNames?: Array<{ th: string; en: string }>;
   stats: {
     land: number; water: number; woods: number; insideTiles?: number; roadTiles?: number; railTiles?: number;
     /** The lowest and highest tile in the province, in metres */
@@ -124,8 +129,16 @@ export function decodePresetCells(map: Pick<PresetMap, "cells" | "width" | "heig
 
 /** Decodes any of a preset's run-length encoded layers (cells, transport, inside) into one code per tile. */
 export function decodePresetLayer(encoded: string, width: number, height: number): Uint8Array {
-  const expected = width * height;
-  const codes = new Uint8Array(expected);
+  return decodeInto(new Uint8Array(width * height), encoded);
+}
+
+/** ... for a layer whose codes may pass 255: a city map's street names, an index into its streetNames */
+export function decodePresetLayerWide(encoded: string, width: number, height: number): Uint16Array {
+  return decodeInto(new Uint16Array(width * height), encoded);
+}
+
+function decodeInto<T extends Uint8Array | Uint16Array>(codes: T, encoded: string): T {
+  const expected = codes.length;
   let offset = 0;
 
   if (encoded.length > 0) {

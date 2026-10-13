@@ -1337,6 +1337,7 @@
 | `goals.capital` | `src/rulerGoals.ts` | — | `Grow into a province centre and become Phra` | `ขยายเป็นจังหวัด และเลื่อนยศเป็นพระ` | ชื่อตรงกับ `city.capital` |
 | `goals.capital.hint` | `src/rulerGoals.ts` | — | `Past 50,000 people the city becomes a province centre.` | `ประชากรเกิน 50,000 คน อำเภอจะเป็นจังหวัด` | |
 | `street.road` | `src/streetNames.ts` | — | `{name} Road` | `ถนน{name}` | ชื่อถนนบนแผนที่ 3D (Claude Code, 13 ต.ค. 2026) |
+| `street.real` | `src/streetNames.ts` | — | `{name}` | `{name}` | ชื่อจริงจาก OpenStreetMap เขียนตามป้ายจริง |
 | `street.soi` | `src/streetNames.ts` | — | `Soi {name} {number}` | `ซอย{name} {number}` | ซอยเลขคี่ฝั่งหนึ่ง เลขคู่อีกฝั่ง |
 | `street.soi_highway` | `src/streetNames.ts` | — | `Highway {name} Soi {number}` | `ทางหลวง {name} ซอย {number}` | ซอยที่แยกจากทางหลวง |
 | `street.lane` | `src/streetNames.ts` | — | `Soi {name} {number} Yaek {sub}` | `ซอย{name} {number} แยก {sub}` | ซอยที่แยกจากซอย |
