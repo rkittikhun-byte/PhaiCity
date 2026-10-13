@@ -5,14 +5,16 @@ This file is for Codex and other AI agents.
 **The main project guide is `CLAUDE.md`. Read it in full before every task and follow every rule in it.**
 It is the same file Claude Code uses, so there is only one set of rules.
 
-## Your role: graphics only
+## Your role: only what the owner asks
 
-**Codex owns graphics. Claude Code owns everything else.** The full table is in "Work split" in `CLAUDE.md`.
+**Since 13 Oct 2026 Claude Code owns the whole project, graphics included** (the owner's decision after Codex
+finished Prompt R5; "Work split" in `CLAUDE.md`). Codex takes no standing work and no queued prompt.
 
-- **You may edit:** `src/render3d/**`, `assets/textures/**`, `assets/hdri/**`, `assets/icons/**`, `model-gallery.html`, `test/render3d/**`, `docs/3d/MODEL_STATUS.md`
+- **Only when the owner asks you for a specific task:** edit only the files that task names, on a branch of its own
+  (never `main` directly), and list every file you changed in your report so Claude Code can review and merge it.
 - **Shared files:** in `package.json`, `webpack.config.js`, `tsconfig.json`, `jest.config.cjs`, `.gitignore`, `CLAUDE.md` and `AGENTS.md`, make additive changes only, and list them in your report.
-- **Everything else is off-limits:** game logic, simulation, game UI and text, sound, `data/`, `scripts/`, `docs/` (except `MODEL_STATUS.md`).
-  If your task seems to need a change there, stop and describe the needed change in your report instead.
+- If your task seems to need a change outside the files it names, stop and describe the needed change in your
+  report instead.
 
 The most important rules, summarized from `CLAUDE.md`:
 

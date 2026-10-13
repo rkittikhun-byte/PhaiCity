@@ -5,15 +5,15 @@ import { BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Group, Octa
   InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
-import { cityCoarseSurfaceMaterial, provinceEdgeMaterial } from '../materials/library.js';
+import { cityCoarseSurfaceMaterial, provinceEdgeMaterial, setProvinceMask } from '../materials/library.js';
 import { mergeGeometry } from '../util/geometry.js';
 import { lateriteColour, lateriteDistance } from '../models/road/laterite.js';
 import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import type { Placement } from './types.js';
-const SIZE=32, matrix=new Matrix4(), color=new Color();
+const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
-  positions:number[];colors:number[];outside:number[];fade:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,number>;buildingSlots:Map<number,number>;
+  positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,number>;buildingSlots:Map<number,number>;
   publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,number>;publishedBuildings:Map<number,number>;
   foliageFade:number;
   treeCount:number;buildingCount:number;treeMatrices:Float32Array;buildingMatrices:Float32Array;treeOutside:Float32Array;buildingOutside:Float32Array;buildingColors:Float32Array }
@@ -21,6 +21,7 @@ function attributes(geometry:BufferGeometry,count:number,instanced=false):void {
   const attribute=instanced?InstancedBufferAttribute:Float32BufferAttribute;
   geometry.setAttribute('instanceDetail',new attribute(new Float32Array(count),1));
   geometry.setAttribute('cityOutside',new attribute(new Float32Array(count),1));
+  geometry.setAttribute('cityGround',new attribute(new Float32Array(count),1));
   geometry.setAttribute('cityTerrain',new attribute(new Float32Array(count*4),4));
   geometry.setAttribute('cityBridgeDepth',new attribute(new Float32Array(count),1));
 }
@@ -42,6 +43,12 @@ export class ProvinceSurface {
   constructor(readonly snapshot:TileSnapshot,readonly terrain:CityHeightField) {
     this.boxSource.setAttribute('color',new Float32BufferAttribute(new Float32Array(this.boxSource.getAttribute('position').count*3).fill(1),3));
     this.columns=Math.ceil(snapshot.width/SIZE);
+    // The shade outside the province and the edges of the water follow smooth curves drawn from these masks
+    // (materials/library.ts)
+    const outside=new Uint8Array(snapshot.width*snapshot.height),water=new Uint8Array(snapshot.width*snapshot.height);
+    for(let y=0;y<snapshot.height;y++)for(let x=0;x<snapshot.width;x++){const i=y*snapshot.width+x;
+      if(!terrain.inside(x,y))outside[i]=255;if(isWaterNeighbor(snapshot.values[i]))water[i]=255;}
+    setProvinceMask(outside,snapshot.width,snapshot.height,water);
     const boundary=terrain.boundary(),edgeGeometry=new LineSegmentsGeometry();if(boundary.length)edgeGeometry.setPositions(boundary);
     this.edge=new LineSegments2(edgeGeometry,provinceEdgeMaterial());this.edge.visible=boundary.length>0;this.edge.renderOrder=20;this.edge.frustumCulled=false;this.root.add(this.edge);
     for(let y=0;y<snapshot.height;y+=SIZE)for(let x=0;x<snapshot.width;x+=SIZE){
@@ -50,7 +57,7 @@ export class ProvinceSurface {
       const buildings=new InstancedMesh(this.boxSource.clone(),cityCoarseSurfaceMaterial(),SIZE*SIZE);
       for(const mesh of[trees,buildings]){attributes(mesh.geometry,SIZE*SIZE,true);mesh.count=0;mesh.receiveShadow=true;mesh.castShadow=false;}
       group.add(land,trees,buildings);this.root.add(group);
-      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,positions:[],colors:[],outside:[],fade:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
+      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
         publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(SIZE*SIZE*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(SIZE*SIZE),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
@@ -58,24 +65,51 @@ export class ProvinceSurface {
       this.publish(chunk);this.resetBuffers(chunk);
     }
   }
-  private resetBuffers(c:SurfaceChunk):void {c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
+  private resetBuffers(c:SurfaceChunk):void {c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
   private quad(c:SurfaceChunk,x0:number,z0:number,x1:number,z1:number,shade:(x:number,z:number)=>Color,height:(x:number,z:number)=>number,index:number,overlay:boolean):void {
     for(const[x,z]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){
       c.positions.push(x,height(x,z)+(overlay?.025:0),z);c.colors.push(...shade(x,z).toArray());
       const tx=Math.min(this.snapshot.width-1,Math.floor((x0+x1)/20)),ty=Math.min(this.snapshot.height-1,Math.floor((z0+z1)/20));
-      c.outside.push(this.terrain.inside(tx,ty)?0:1);c.fade.push(overlay?this.detail.get(index)??0:0);
+      c.outside.push(this.terrain.inside(tx,ty)?0:1);c.fade.push(overlay?this.detail.get(index)??0:0);c.ground.push(0);
     }
+  }
+  /** A tile's own ground colour: water, woods or open land, the land a little lighter or darker in 3-tile patches. */
+  private tileShade(x:number,y:number,out:Color):Color {
+    const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v);
+    out.setHex(wet?0x487c89:isWoods(v)?0x88966b:0xb49b71);
+    if(!wet)out.offsetHSL(0,0,(tileSeed(Math.floor(x/3),Math.floor(y/3))%9-4)*.006);
+    return out;
+  }
+  /**
+   * A corner shared by up to four tiles: their colours blended (only tiles as wet as this one, so shores stay clean) and
+   * how much of it lies outside the province, 0–1. Blended corners turn the steps between woods, fields and the
+   * province's edge into soft slopes (owner, 13 Oct 2026: "ยังมีเหลี่ยมๆ อยู่").
+   */
+  private corner(cx:number,cy:number,wet:boolean,out:Color):number {
+    const {width:w,height:h,values}=this.snapshot;let r=0,g=0,b=0,n=0,outside=0,tiles=0;
+    for(let y=cy-1;y<=cy;y++)for(let x=cx-1;x<=cx;x++){
+      if(x<0||y<0||x>=w||y>=h)continue;tiles++;if(!this.terrain.inside(x,y))outside++;
+      if(isWaterNeighbor(values[y*w+x])!==wet)continue;this.tileShade(x,y,scratch);r+=scratch.r;g+=scratch.g;b+=scratch.b;n++;
+    }
+    if(n)out.setRGB(r/n,g/n,b/n);return tiles?outside/tiles:0;
+  }
+  /** A tile's ground: four triangles round its centre, the centre in the tile's own colour, the corners blended. */
+  private ground(c:SurfaceChunk,x:number,y:number,wet:boolean,height:(x:number,z:number)=>number):void {
+    const own=this.tileShade(x,y,new Color()),ownOutside=this.terrain.inside(x,y)?0:1,cx=(x+.5)*10,cz=(y+.5)*10;
+    const corners=[[x,y],[x+1,y],[x+1,y+1],[x,y+1]].map(([px,py])=>{
+      const shade=own.clone(),outside=this.corner(px,py,wet,shade);return{x:px*10,z:py*10,shade,outside};});
+    for(let k=0;k<4;k++){const a=corners[k],b=corners[(k+1)%4];
+      for(const p of[{x:cx,z:cz,shade:own,outside:ownOutside},b,a]){
+        c.positions.push(p.x,height(p.x,p.z),p.z);c.colors.push(p.shade.r,p.shade.g,p.shade.b);c.outside.push(p.outside);c.fade.push(0);c.ground.push(1);}}
   }
   private cell(c:SurfaceChunk,n:number):void {
     const x=c.x+n%SIZE,y=c.y+Math.floor(n/SIZE),{width:w,height:h,values}=this.snapshot;if(x>=w||y>=h)return;
     const i=y*w+x,v=values[i],outside=!this.terrain.inside(x,y),wet=isWaterNeighbor(v),woods=isWoods(v);
     const ground=wet?this.terrain.water[i]:undefined;
-    const shade=new Color(wet?0x487c89:woods?0x88966b:0xb49b71);
-    if(!wet){const variation=(tileSeed(Math.floor(x/3),Math.floor(y/3))%9-4)*.006;shade.offsetHSL(0,0,variation);}
-    this.quad(c,x*10,y*10,(x+1)*10,(y+1)*10,()=>shade,(xx,zz)=>wet?ground!:this.terrain.sampleTile(x,y,xx,zz),i,false);
+    this.ground(c,x,y,wet,(xx,zz)=>wet?ground!:this.terrain.sampleTile(x,y,xx,zz));
     for(const[x0,z0,top0,bottom0,x1,z1,top1,bottom1]of this.terrain.walls(x,y)){
       const vertices=[[x0,top0,z0],[x0,bottom0,z0],[x1,bottom1,z1],[x1,top1,z1]];
-      for(const n of[0,2,1,0,3,2]){c.positions.push(...vertices[n]);c.colors.push(...new Color(0x9c927e).toArray());c.outside.push(outside?1:0);c.fade.push(0);}
+      for(const n of[0,2,1,0,3,2]){c.positions.push(...vertices[n]);c.colors.push(...new Color(0x9c927e).toArray());c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}
     }
     const p=this.placements.get(i)??this.snapshot.placement(i,'central');
     if(p){p.baseY=this.terrain.base(i);p.outside=outside;}
@@ -97,8 +131,9 @@ export class ProvinceSurface {
       c.ranges.set(i,[start,c.fade.length]);
     }
     if(woods&&(!outside||tileSeed(x,y)%2===0)){
-      const slot=c.treeCount++;c.treeSlots.set(i,slot);const seed=tileSeed(x,y),scale=.8+seed%5*.08;
-      const tx=(x+.5)*10+((seed>>>8)%101/100-.5)*3,tz=(y+.5)*10+((seed>>>16)%101/100-.5)*3;
+      // Trees wander over most of their tile, so the woods' edge does not line up with the tiles
+      const slot=c.treeCount++;c.treeSlots.set(i,slot);const seed=tileSeed(x,y),scale=.75+seed%7*.07;
+      const tx=(x+.5)*10+((seed>>>8)%101/100-.5)*7,tz=(y+.5)*10+((seed>>>16)%101/100-.5)*7;
       matrix.makeScale(scale,scale,scale).setPosition(tx,this.terrain.sample(tx,tz),tz);c.treeMatrices.set(matrix.elements,slot*16);
       c.treeOutside[slot]=outside?1:0;
     }else if(p&&p.id&&p.id!=='terrain.dirt'&&!woods&&!wet&&!isRoad(v)&&!isRail(v)&&p.kind!=='power'&&p.kind!=='shore'){
@@ -110,7 +145,7 @@ export class ProvinceSurface {
   private publish(c:SurfaceChunk):void {
     for(const[i,[start,end]]of c.ranges)for(let n=start;n<end;n++)c.fade[n]=this.detail.get(i)??0;
     const geometry=new BufferGeometry().setAttribute('position',new Float32BufferAttribute(c.positions,3)).setAttribute('color',new Float32BufferAttribute(c.colors,3));
-    attributes(geometry,c.outside.length);geometry.setAttribute('cityOutside',new Float32BufferAttribute(c.outside,1));geometry.setAttribute('instanceDetail',new Float32BufferAttribute(c.fade,1));
+    attributes(geometry,c.outside.length);geometry.setAttribute('cityOutside',new Float32BufferAttribute(c.outside,1));geometry.setAttribute('instanceDetail',new Float32BufferAttribute(c.fade,1));geometry.setAttribute('cityGround',new Float32BufferAttribute(c.ground,1));
     geometry.computeVertexNormals();geometry.computeBoundingSphere();c.land.geometry.dispose();c.land.geometry=geometry;
     c.trees.count=c.treeCount;c.buildings.count=c.buildingCount;
     (c.trees.instanceMatrix.array as Float32Array).set(c.treeMatrices);(c.buildings.instanceMatrix.array as Float32Array).set(c.buildingMatrices);

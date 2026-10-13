@@ -13,28 +13,23 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
 
 **Talk to the project owner in Thai.** Code, comments and identifiers stay in English, matching the existing code.
 
-## Work split (strict)
+## Work split
 
-Two AI agents work on this repo at the same time. **Never edit files owned by the other agent.**
+**Since 13 Oct 2026 Claude Code owns the whole project, graphics included** (owner: after Codex finished Prompt R5,
+"ไม่ต้องใช้ Codex อีกแล้ว สร้าง sub agent จัดการได้เองเลย"). Until then Codex owned the graphics (`src/render3d/**`,
+`assets/textures/**`, `assets/hdri/**`, `assets/icons/**`, `model-gallery.html`, `test/render3d/**`,
+`docs/3d/MODEL_STATUS.md`); its prompts in `docs/3d/CODEX_PROMPTS.md` that were never sent (W1, P1, M1, F1, RD1 and
+the icons) are now Claude Code's own to-do list, built to the same specs.
 
-| Owner | Scope | Paths |
-|---|---|---|
-| **Codex: graphics** | Everything that draws pixels: 3D models, materials, textures, region kits, effects, the 3D renderer, the model gallery, toolbar/UI icons | `src/render3d/**`, `assets/textures/**`, `assets/hdri/**`, `assets/icons/**`, `model-gallery.html`, `test/render3d/**`, `docs/3d/MODEL_STATUS.md` |
-| **Claude Code: everything else** | Game logic and simulation, game UI (HTML/CSS/jQuery), bilingual text (i18n), sound and music, real-geography data pipeline, saves, online/server, build tooling, specs, prompts and docs | `src/*.js`, `src/*.ts`, `src/i18n/**`, `src/audio/**`, `index.html`, `about.html`, `name_license.html`, `css/**`, `assets/audio/**`, `scripts/**`, `data/**`, `server/**`, `test/*.ts`, `test/geo/**`, `docs/**` (except `docs/3d/MODEL_STATUS.md`), `README.md` |
-
-**Shared files** (`package.json`, `package-lock.json`, `webpack.config.js`, `tsconfig.json`, `jest.config.cjs`, `.gitignore`, `CLAUDE.md`, `AGENTS.md`):
-- Claude Code owns them.
-- Codex may make **additive** changes only: its own dependencies, npm scripts, webpack entries and copy patterns, and rows in the "Commands" table or lines in the "3D work" section of this file.
-- Never reformat or reorder these files, and list every change to them in the report.
-
-**Where each agent works:**
-- Codex works on `main` in the main folder.
-- Claude Code works on its own branches in a separate git worktree and merges into `main` only after the owner approves, and never while Codex is in the middle of a prompt.
-
-**Interfaces between the two sides:**
-- The renderer reads city state and never writes it (see "Online plan").
-- Claude Code writes the specs and prompts in `docs/3d/` and `docs/geo/`; Codex implements the graphics parts.
-- Graphics needs from game code, and game needs from graphics, go through the owner as a written request. Never edit across the line.
+- **Codex only works when the owner asks it for a specific task** (`AGENTS.md`): on a branch of its own, touching only
+  the files that task names. Claude Code reviews and merges that branch.
+- **Where Claude Code works:** its own branches in a separate git worktree; it merges into `main` only after the owner
+  approves. Sub-agents may build graphics in parallel, each in a worktree of its own, and are reviewed (tests in
+  `test/render3d/`, the model gallery) before their work is merged.
+- **Shared files** (`package.json`, `package-lock.json`, `webpack.config.js`, `tsconfig.json`, `jest.config.cjs`,
+  `.gitignore`, `CLAUDE.md`, `AGENTS.md`): never reformat or reorder them; a Codex task may only add to them and lists
+  every change in its report.
+- **The renderer reads city state and never writes it** (see "Online plan"), whoever writes it.
 
 ## Commands
 

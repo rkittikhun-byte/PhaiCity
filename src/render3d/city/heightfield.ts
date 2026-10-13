@@ -178,15 +178,64 @@ export class CityHeightField {
     }
     return null;
   }
+  /**
+   * The province's edge as line segments a little above the ground. The tile edges between inside and outside are
+   * walked into lines and their corners cut twice (Chaikin), so the edge curves like a real border instead of stepping
+   * from tile to tile (owner, 13 Oct 2026).
+   */
   boundary(): number[] {
     if (!this.mask) return [];
-    const { width: w, height: h } = this.snapshot, vertices: number[] = [];
-    const edge = (x: number, y: number, xx: number, yy: number): void => { vertices.push(x * 10, this.corner(x, y) + .2, y * 10, xx * 10, this.corner(xx, yy) + .2, yy * 10); };
+    const { width: w, height: h } = this.snapshot, stride = w + 1;
+    const links = new Map<number, number[]>();
+    const link = (a: number, b: number): void => {
+      for (const [from, to] of [[a, b], [b, a]]) { const list = links.get(from); if (list) list.push(to); else links.set(from, [to]); }
+    };
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (x + 1 < w && this.inside(x, y) !== this.inside(x + 1, y)) edge(x + 1, y, x + 1, y + 1);
-      if (y + 1 < h && this.inside(x, y) !== this.inside(x, y + 1)) edge(x, y + 1, x + 1, y + 1);
+      if (x + 1 < w && this.inside(x, y) !== this.inside(x + 1, y)) link(y * stride + x + 1, (y + 1) * stride + x + 1);
+      if (y + 1 < h && this.inside(x, y) !== this.inside(x, y + 1)) link((y + 1) * stride + x, (y + 1) * stride + x + 1);
+    }
+    const used = new Set<string>(), pair = (a: number, b: number): string => a < b ? `${a}:${b}` : `${b}:${a}`;
+    const lines: number[][] = [];
+    const walk = (start: number, next: number): void => {
+      const line = [start, next]; used.add(pair(start, next));
+      for (let at = next; at !== start;) {
+        const ends = links.get(at) ?? [];
+        // A line stops where it meets others (a crossing of four edges) or ends
+        if (ends.length !== 2) break;
+        const onward = ends.find((end) => !used.has(pair(at, end)));
+        if (onward === undefined) break;
+        used.add(pair(at, onward)); line.push(onward); at = onward;
+      }
+      lines.push(line);
+    };
+    // Lines with ends first, then the closed rings that are left
+    for (const [start, ends] of links) if (ends.length !== 2) for (const end of ends) if (!used.has(pair(start, end))) walk(start, end);
+    for (const [start, ends] of links) for (const end of ends) if (!used.has(pair(start, end))) walk(start, end);
+    const vertices: number[] = [];
+    for (const line of lines) {
+      const closed = line.length > 3 && line[0] === line[line.length - 1];
+      let points = line.map((k) => [(k % stride) * 10, Math.floor(k / stride) * 10]);
+      if (closed) points.pop();
+      for (let pass = 0; pass < 2; pass++) points = chaikin(points, closed);
+      const count = closed ? points.length : points.length - 1;
+      for (let k = 0; k < count; k++) {
+        const [x0, z0] = points[k], [x1, z1] = points[(k + 1) % points.length];
+        vertices.push(x0, this.sample(x0, z0) + .2, z0, x1, this.sample(x1, z1) + .2, z1);
+      }
     }
     return vertices;
   }
+}
+/** One pass of Chaikin's corner cutting: each segment keeps its middle half; an open line keeps its ends. */
+function chaikin(points: number[][], closed: boolean): number[][] {
+  if (points.length < 3) return points;
+  const result: number[][] = closed ? [] : [points[0]];
+  const count = closed ? points.length : points.length - 1;
+  for (let k = 0; k < count; k++) {
+    const [x0, z0] = points[k], [x1, z1] = points[(k + 1) % points.length];
+    result.push([x0 * .75 + x1 * .25, z0 * .75 + z1 * .25], [x0 * .25 + x1 * .75, z0 * .25 + z1 * .75]);
+  }
+  if (!closed) result.push(points[points.length - 1]);
+  return result;
 }
 function singleBuilding(value:number):boolean {const entry=TILE_TABLE[value];return !!entry?.id&&entry.footprint[0]===1&&BUILDING_KINDS.has(entry.kind);}

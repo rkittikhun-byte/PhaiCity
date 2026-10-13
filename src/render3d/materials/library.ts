@@ -3,8 +3,9 @@
  */
 
 import {
-  Color, ColorRepresentation, DoubleSide, Material, MeshPhysicalMaterial,
-  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGBADepthPacking, MeshLambertMaterial,
+  ClampToEdgeWrapping, Color, ColorRepresentation, DataTexture, DoubleSide, LinearFilter, Material, MeshPhysicalMaterial,
+  MeshStandardMaterial, MeshStandardMaterialParameters, MeshDepthMaterial, RGFormat, RGBADepthPacking, MeshLambertMaterial,
+  UnsignedByteType, Vector2,
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { getWaterNormal, loadMaterialTextures, TextureSet } from './textures.js';
@@ -317,13 +318,34 @@ export function cityWorldMaterial(base: MeshStandardMaterial): MeshStandardMater
     configureCityWorldUV(material);
   });
 }
+/**
+ * The city's tiles as a texture, one texel a tile, shared by every city material: red 255 outside the province, green
+ * 255 for water. Sampled with linear filtering and a smoothstep, the shade outside the province and the edges of rivers,
+ * lakes and the sea follow curves instead of the tiles' steps (owner, 13 Oct 2026: "ยังมีเหลี่ยมๆ อยู่"); on the
+ * ground, a land fragment inside the curve takes the water's colour and a water fragment outside it the bank's. Off
+ * until a province surface sets it.
+ */
+const provinceMask = { cityMask: { value: null as DataTexture | null }, cityMaskSize: { value: new Vector2(1, 1) },
+  cityMaskOn: { value: 0 }, cityWaterColour: { value: new Color(0x487c89) }, cityBankColour: { value: new Color(0xb49b71) } };
+/** outside and water: one byte a tile each (255 or 0); null outside means none of it is set. */
+export function setProvinceMask(outside: Uint8Array | null, width: number, height: number, water?: Uint8Array): void {
+  provinceMask.cityMask.value?.dispose();
+  if (!outside) { provinceMask.cityMask.value = null; provinceMask.cityMaskOn.value = 0; return; }
+  const data = new Uint8Array(width * height * 2);
+  for (let i = 0; i < width * height; i++) { data[i * 2] = outside[i]; data[i * 2 + 1] = water ? water[i] : 0; }
+  const texture = new DataTexture(data, width, height, RGFormat, UnsignedByteType);
+  texture.magFilter = LinearFilter; texture.minFilter = LinearFilter; texture.generateMipmaps = false;
+  texture.wrapS = texture.wrapT = ClampToEdgeWrapping; texture.needsUpdate = true;
+  provinceMask.cityMask.value = texture; provinceMask.cityMaskSize.value.set(width, height); provinceMask.cityMaskOn.value = 1;
+}
 /** Complementary screen-door coverage keeps depth writes and avoids alpha-sorting LOD flashes. */
 function configureCityLOD(material: Material, coarse: boolean): void {
   if (material.onBeforeCompile === material.userData.cityLODWrapper) return;
   const original = material.onBeforeCompile, program = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
     original.call(material, shader, renderer);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; varying float cityProvince; varying float cityDetail;`)
+    Object.assign(shader.uniforms, provinceMask);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;
         #ifdef USE_INSTANCING
           vec2 terrainUV = clamp(((mat3(instanceMatrix) * transformed).xz / 10.0) + 0.5, 0.0, 1.0);
@@ -332,7 +354,15 @@ function configureCityLOD(material: Material, coarse: boolean): void {
             : cityTerrain.w + (1.0-v)*(cityTerrain.y-cityTerrain.w) + (1.0-u)*(cityTerrain.z-cityTerrain.w);
         #endif
         // Extend only the piers below the deck, leaving the deck, rails and animation pivots level.
-        transformed.y -= max(0.0,(-position.y-1.0)/2.0) * cityBridgeDepth;`);
+        transformed.y -= max(0.0,(-position.y-1.0)/2.0) * cityBridgeDepth;
+        {
+          vec4 cityWorld = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            cityWorld = instanceMatrix * cityWorld;
+          #endif
+          cityWorldXZ = (modelMatrix * cityWorld).xz;
+          cityIsGround = cityGround;
+        }`);
     // Detailed instances carry fade in instanceColor.r, preserving their baked geometry colours.
     // This keeps prototype geometry shared instead of copying every vertex buffer for a fade attribute.
     if(!coarse)shader.vertexShader=shader.vertexShader.replace('#include <color_vertex>',`
@@ -340,10 +370,22 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       #undef USE_INSTANCING_COLOR
       #include <color_vertex>
       #define USE_INSTANCING_COLOR`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // Rivers, lakes and the sea meet the land along curves: the ground takes the colour of the side of the curve it
+        // lies on, while its tile keeps its height (roads, rails and bridges are not ground and keep their colours)
+        if (cityMaskOn > 0.5 && cityIsGround > 0.5) {
+          vec2 cityCell = cityWorldXZ / 10.0;
+          float cityTileWet = texelFetch(cityMask, ivec2(clamp(floor(cityCell), vec2(0.0), cityMaskSize - 1.0)), 0).g;
+          float cityShapeWet = smoothstep(0.42, 0.58, texture2D(cityMask, cityCell / cityMaskSize).g);
+          if (cityTileWet < 0.5) diffuseColor.rgb = mix(diffuseColor.rgb, cityWaterColour, cityShapeWet);
+          else diffuseColor.rgb = mix(cityBankColour, diffuseColor.rgb, cityShapeWet);
+        }`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         float provinceLuma = dot(gl_FragColor.rgb, vec3(0.2126,0.7152,0.0722));
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityProvince);`)
+        float cityOutsideShade = cityProvince;
+        if (cityMaskOn > 0.5) cityOutsideShade = smoothstep(0.35, 0.65, texture2D(cityMask, cityWorldXZ / 10.0 / cityMaskSize).r);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityOutsideShade);`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         {
         // A fixed 4x4 Bayer pattern: coarse and detail cover opposite samples, including shadows.

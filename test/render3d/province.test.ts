@@ -31,10 +31,16 @@ describe('Province ground and appearance',()=>{
     cityLODMaterial(citySurfaceMaterial(),true).onBeforeCompile(shader as never,{} as never);
     expect(shader.fragmentShader).toContain('*0.45');expect(shader.vertexShader).toContain('cityProvince = cityOutside');
   });
-  it('emits exactly one segment per mask transition, no map perimeter',()=>{
+  it('follows the mask transitions as one smoothed, continuous line, with no map perimeter',()=>{
+    // Inside: (0,0), (1,0), (0,1). The edge steps from (2,0) down to (2,1), across to (1,1) and down to (1,2)
     const f=fixture(3,2);f.map.insideProvince.set([1,1,0,1,0,0]);const t=f.build();
-    expect(t.boundary()).toHaveLength(3*6);
-    const segments=t.boundary();expect(segments[0]).toBe(20);expect(segments[2]).toBe(0);
+    const segments=t.boundary();expect(segments.length%6).toBe(0);
+    expect(segments.length/6).toBeGreaterThan(3); // the three tile edges, their corners cut
+    const n=segments.length;
+    expect([segments[0],segments[2]]).toEqual([20,0]);expect([segments[n-3],segments[n-1]]).toEqual([10,20]);
+    for(let k=6;k<n;k+=6)expect([segments[k],segments[k+2]]).toEqual([segments[k-3],segments[k-1]]);
+    const points:string[]=[];for(let k=0;k<n;k+=3)points.push(`${segments[k]},${segments[k+2]}`);
+    expect(points).not.toContain('20,10');expect(points).not.toContain('10,10'); // no square corners left
     expect(f.build({...f.map,insideProvince:null}).boundary()).toEqual([]);
     f.map.insideProvince.fill(1);expect(f.build().boundary()).toEqual([]);
   });
