@@ -540,9 +540,14 @@ var fromPresetCells = function(width, height, cells, transport) {
     }
   }
 
+  // PhaiCity: a real map comes out the same every time, so a city replays the same (src/core/cityCore.ts): its
+  // riverbanks are smoothed with a seed of its own, and the game's Random is left as it was
+  var randomState = Random.getState();
+  Random.seed((Math.imul(width, 73856093) ^ Math.imul(height, 19349663)) >>> 0);
   smoothRiver(map);
   smoothTrees(map);
   smoothTrees(map);
+  Random.setState(randomState);
 
   if (transport)
     layPresetTransport(map, cells, transport);
