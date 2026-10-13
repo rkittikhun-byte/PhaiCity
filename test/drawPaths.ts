@@ -5,7 +5,9 @@
 // Drawn lines (src/drawPaths.ts): straight lines, curves and grids of tiles, each tile beside the last, as roads need.
 
 import type { TilePoint } from "../src/cityView";
-import { curvePath, GRID_SPACING, gridPath, linePath, MAX_PATH, rectanglePath } from "../src/drawPaths";
+import {
+  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAngle, snapPoint,
+} from "../src/drawPaths";
 
 /** Every step of a chain goes to a tile beside the last: never a diagonal, never a jump. */
 function joined(tiles: readonly TilePoint[]): boolean {
@@ -50,6 +52,33 @@ describe("drawn lines", () => {
     for (const x of [0, GRID_SPACING, 2 * GRID_SPACING]) expect(keys.has(`${x},3`)).toBe(true);
     for (const y of [0, 7]) expect(keys.has(`5,${y}`)).toBe(true);
     expect(keys.has("3,3")).toBe(false);
+  });
+
+  test("a line's end snaps onto straight and 45° lines when it is nearly on one", () => {
+    expect(snapAngle({ x: 0, y: 0 }, { x: 20, y: 1 })).toEqual({ x: 20, y: 0 });
+    expect(snapAngle({ x: 0, y: 0 }, { x: -1, y: -15 })).toEqual({ x: 0, y: -15 });
+    expect(snapAngle({ x: 5, y: 5 }, { x: 15, y: 16 })).toEqual({ x: 16, y: 16 });
+    // Far from any of them it stays where it is
+    expect(snapAngle({ x: 0, y: 0 }, { x: 10, y: 4 })).toEqual({ x: 10, y: 4 });
+  });
+
+  test("a click snaps onto a road it nearly touches, or onto the guideline a block of plots from a road", () => {
+    const roads = new Set(["5,10", "6,10", "7,10", "8,10", "9,10"]);
+    const isRoad = (x: number, y: number): boolean => roads.has(`${x},${y}`);
+    expect(snapPoint({ x: 7, y: 11 }, isRoad)).toEqual({ point: { x: 7, y: 10 }, guide: "road" });
+    // Six tiles below the road: onto the guideline seven below, three plots deep on both sides of the gap
+    expect(snapPoint({ x: 7, y: 16 }, isRoad)).toEqual({ point: { x: 7, y: 17 }, guide: "spacing" });
+    expect(snapPoint({ x: 7, y: 2 }, isRoad)).toEqual({ point: { x: 7, y: 3 }, guide: "spacing" });
+    expect(snapPoint({ x: 7, y: 17 }, isRoad)).toEqual({ point: { x: 7, y: 17 }, guide: null });
+    expect(snapPoint({ x: 30, y: 30 }, isRoad).guide).toBeNull();
+  });
+
+  test("a new line's angle: with the line before it, or with the road it leaves", () => {
+    expect(joinAngle({ x: 5, y: 0 }, { x: 3, y: 0 }, null)).toBe(180);
+    expect(joinAngle({ x: 0, y: 5 }, { x: 3, y: 0 }, null)).toBe(90);
+    expect(joinAngle({ x: 5, y: 5 }, null, { x: 1, y: 0 })).toBe(45);
+    expect(joinAngle({ x: 0, y: -4 }, null, { x: 1, y: 0 })).toBe(90);
+    expect(joinAngle({ x: 4, y: 0 }, null, null)).toBeNull();
   });
 
   test("a rectangle is every tile in it, and nothing is ever longer than the limit", () => {

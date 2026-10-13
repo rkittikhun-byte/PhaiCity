@@ -41,12 +41,12 @@ import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
-import { drawModeOf, isAreaMode, POINTS_NEEDED, showsZoneGrid } from './drawModes.ts';
-import { curvePath, gridPath, linePath, rectanglePath } from './drawPaths.ts';
+import { drawModeOf, isAreaMode, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { showToolPrices } from './toolShortcuts.ts';
-import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
+import { CIVIC, LASTPOWER, LASTRAIL, MINE, POWERBASE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { NEEDS_RAIL, ONE_HSR, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS } from './transit.ts';
 import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
@@ -60,7 +60,7 @@ import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
-import { newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
+import { isRoadTile, newRoadLevels, ROAD_TOOLS, UPGRADE_TOOL } from './roadLevels.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -1370,13 +1370,50 @@ Game.prototype.handleToolPoint = function(data) {
     return;
   var draft = this.lineDraft;
   if (draft === null || draft.tool !== toolName || draft.mode !== mode)
-    draft = this.lineDraft = {tool: toolName, mode: mode, points: []};
+    draft = this.lineDraft = {tool: toolName, mode: mode, points: [], from: null};
+  tile = this.snapTile(tile, toolName, draft).tile;
   draft.points.push(tile);
   if (draft.points.length < needed)
     return;
-  this.applyTiles(curvePath(draft.points), data.stroke, data.x);
-  // The next line starts where this one ended
+  var path = curvePath(draft.points);
+  this.applyTiles(path, data.stroke, data.x);
+  // The next line starts where this one ended, and its angle is told from the way this one went
+  var back = path[Math.max(0, path.length - 4)];
+  draft.from = {x: tile.x - back.x, y: tile.y - back.y};
   draft.points = [tile];
+};
+
+
+// Where a click of a line tool lands with snapping on (src/drawPaths.ts): onto a road, railway or power line of its
+// kind within a tile, else along a straight or 45° line from the last point, else (a line's first point) onto the
+// guideline a block of plots from a straight road beside it. guide says which.
+Game.prototype.snapTile = function(tile, toolName, draft) {
+  if (!snapOn())
+    return {tile: tile, guide: null};
+  var map = this.gameMap;
+  var kind = toolName === 'rail' ? function(v) { return v >= RAILBASE && v <= LASTRAIL; } :
+             toolName === 'wire' ? function(v) { return v >= POWERBASE && v <= LASTPOWER; } : isRoadTile;
+  var snapped = snapPoint(tile, function(x, y) { return map.testBounds(x, y) && kind(map.getTileValue(x, y)); });
+  if (snapped.guide === 'road')
+    return {tile: snapped.point, guide: 'road'};
+  var points = draft ? draft.points : [];
+  if (points.length > 0) {
+    var angled = snapAngle(points[points.length - 1], tile);
+    return {tile: angled, guide: null};
+  }
+  return {tile: snapped.point, guide: snapped.guide};
+};
+
+
+// The way the road at a tile runs, for the angle a new line makes with it: across or down, or null
+Game.prototype.roadWayAt = function(tile) {
+  var map = this.gameMap;
+  var road = function(x, y) { return map.testBounds(x, y) && isRoadTile(map.getTileValue(x, y)); };
+  if (!road(tile.x, tile.y))
+    return null;
+  var across = road(tile.x - 1, tile.y) || road(tile.x + 1, tile.y);
+  var down = road(tile.x, tile.y - 1) || road(tile.x, tile.y + 1);
+  return across === down ? null : across ? {x: 1, y: 0} : {x: 0, y: 1};
 };
 
 
@@ -1433,7 +1470,7 @@ Game.prototype.drawPreview = function(tile) {
     draft = this.lineDraft = null;
   var drag = this.inputStatus.areaDrag;
   var key = [toolName, mode, tile.x, tile.y, this._edits, draft ? JSON.stringify(draft.points) : '',
-             drag ? [drag.from.x, drag.from.y, drag.to.x, drag.to.y].join(',') : ''].join('|');
+             drag ? [drag.from.x, drag.from.y, drag.to.x, drag.to.y].join(',') : '', snapOn()].join('|');
   if (this._preview !== null && this._preview.key === key)
     return this._preview;
 
@@ -1446,8 +1483,21 @@ Game.prototype.drawPreview = function(tile) {
     }
   } else if (mode === 'fill') {
     tiles = fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
-  } else if (POINTS_NEEDED[mode] && draft !== null && draft.points.length > 0) {
-    tiles = curvePath(draft.points.concat([tile]));
+  }
+  var guide = null;
+  var angle = null;
+  if (POINTS_NEEDED[mode]) {
+    var snap = this.snapTile(tile, toolName, draft);
+    guide = snap.guide;
+    if (draft !== null && draft.points.length > 0) {
+      var points = draft.points.concat([snap.tile]);
+      tiles = curvePath(points);
+      var start = points[0], leaving = points[1];
+      angle = joinAngle({x: leaving.x - start.x, y: leaving.y - start.y}, draft.from, this.roadWayAt(start));
+    } else if (snap.tile.x !== tile.x || snap.tile.y !== tile.y) {
+      // Where the first click would land
+      tiles = [snap.tile];
+    }
   }
   var step = POINTS_NEEDED[mode] ? (draft !== null ? draft.points.length : 0) : -1;
   // A drawn line's length on the ground, as the 3D view smooths its steps: along every fourth tile
@@ -1460,7 +1510,7 @@ Game.prototype.drawPreview = function(tile) {
     metres *= this.gameMap.tileSizeM || 10;
   }
   this._preview = {key: key, tiles: tiles, cost: tiles.length > 0 ? this.estimateCost(tiles) : 0, mode: mode, step: step,
-                   metres: metres};
+                   metres: metres, angle: angle, guide: guide};
   return this._preview;
 };
 
@@ -1491,6 +1541,10 @@ Game.prototype.showDrawTip = function(preview) {
   // A chip each, as Cities: Skylines shows them: the length, the price, the next click, how to stop
   var parts = [];
   if (preview !== null) {
+    if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
+      parts.push('∠ ' + preview.angle + '°');
+    if (preview.guide)
+      parts.push(t('draw.snap.' + preview.guide));
     if (preview.metres > 0)
       parts.push('↔ ' + (preview.metres >= 1000 ? t('draw.length_km', {km: (preview.metres / 1000).toFixed(1)}) :
                          t('draw.length', {metres: Math.round(preview.metres)})));

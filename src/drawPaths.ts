@@ -89,6 +89,73 @@ export function gridPath(a: TilePoint, b: TilePoint, spacing = GRID_SPACING): Ti
   return tiles;
 }
 
+// Snapping (จัดแนว, owner 13 Oct 2026), as Cities: Skylines guides a road: onto a road it nearly touches, along a
+// straight or 45° line, and onto the guideline a block of plots away from a road beside it
+
+/** How near a straight or 45° line, in degrees, a line's end snaps onto it */
+export const SNAP_DEGREES = 7;
+/** How far, in tiles, a point moves to reach a road or a guideline */
+export const SNAP_REACH = 2;
+
+/** The end of a line from a moved onto the nearest multiple of 45° when the line is within SNAP_DEGREES of it. */
+export function snapAngle(a: TilePoint, b: TilePoint, degrees = SNAP_DEGREES): TilePoint {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  if (dx === 0 && dy === 0) return b;
+  const angle = Math.atan2(dy, dx), step = Math.PI / 4;
+  const nearest = Math.round(angle / step) * step;
+  if (Math.abs(angle - nearest) > degrees * Math.PI / 180) return b;
+  const ux = Math.round(Math.cos(nearest)), uy = Math.round(Math.sin(nearest));
+  // Along an axis keep the long side; along a diagonal, the steps both ways
+  const length = ux !== 0 && uy !== 0 ? Math.round((Math.abs(dx) + Math.abs(dy)) / 2) : Math.max(Math.abs(dx), Math.abs(dy));
+  return { x: a.x + ux * length, y: a.y + uy * length };
+}
+
+export type SnapGuide = "road" | "spacing" | null;
+
+/**
+ * A clicked point moved onto a road within one tile, so the new line joins it; failing that, onto the guideline
+ * GRID_SPACING tiles from a straight road running beside it (a road and three plots deep on each side between them),
+ * when that is within SNAP_REACH tiles. isRoad answers for tiles on the map only.
+ */
+export function snapPoint(p: TilePoint, isRoad: (x: number, y: number) => boolean,
+                          spacing = GRID_SPACING): { point: TilePoint; guide: SnapGuide } {
+  if (isRoad(p.x, p.y)) return { point: p, guide: "road" };
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    if (isRoad(p.x + dx, p.y + dy)) return { point: { x: p.x + dx, y: p.y + dy }, guide: "road" };
+  }
+  // A straight road three tiles long, level with the point, spacing ± SNAP_REACH tiles away
+  let best: { point: TilePoint; shift: number } | null = null;
+  for (let d = spacing - SNAP_REACH; d <= spacing + SNAP_REACH; d++) {
+    for (const sign of [-1, 1]) {
+      const shift = (d - spacing) * sign;
+      if (shift === 0 || (best && Math.abs(shift) >= best.shift)) continue;
+      const row = p.y + sign * d, column = p.x + sign * d;
+      if ([-1, 0, 1].every((k) => isRoad(p.x + k, row))) best = { point: { x: p.x, y: p.y + shift }, shift: Math.abs(shift) };
+      if ([-1, 0, 1].every((k) => isRoad(column, p.y + k)) && (!best || Math.abs(shift) < best.shift)) {
+        best = { point: { x: p.x + shift, y: p.y }, shift: Math.abs(shift) };
+      }
+    }
+  }
+  return best ? { point: best.point, guide: "spacing" } : { point: p, guide: null };
+}
+
+/**
+ * The angle a new line makes, in whole degrees: with the line it goes on from (180 straight on, 90 a right angle),
+ * or, from a road (which has no way along it), the smaller angle with it (0–90). null without either.
+ */
+export function joinAngle(next: TilePoint, from: TilePoint | null, road: TilePoint | null): number | null {
+  const length = Math.hypot(next.x, next.y);
+  if (length === 0) return null;
+  const turn = (d: TilePoint): number =>
+    Math.acos(Math.max(-1, Math.min(1, (d.x * next.x + d.y * next.y) / (Math.hypot(d.x, d.y) * length)))) * 180 / Math.PI;
+  if (from && (from.x || from.y)) return Math.round(180 - turn(from));
+  if (road && (road.x || road.y)) {
+    const angle = turn(road);
+    return Math.round(Math.min(angle, 180 - angle));
+  }
+  return null;
+}
+
 /** The tiles of a rectangle from a to b, row by row, at most MAX_PATH of them. */
 export function rectanglePath(a: TilePoint, b: TilePoint): TilePoint[] {
   const tiles: TilePoint[] = [];

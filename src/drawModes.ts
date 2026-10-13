@@ -83,6 +83,27 @@ export function setDrawMode(tool: string, mode: DrawMode): void {
   }
 }
 
+const SNAP_KEY = "phaicity.drawSnap";
+let snapping = (() => {
+  try {
+    return globalThis.localStorage?.getItem(SNAP_KEY) !== "off";
+  } catch {
+    return true;
+  }
+})();
+
+/** Whether lines snap onto roads, straight and 45° lines and the guidelines beside roads (src/drawPaths.ts); on by default. */
+export const snapOn = (): boolean => snapping;
+
+export function setSnap(on: boolean): void {
+  snapping = on;
+  try {
+    globalThis.localStorage?.setItem(SNAP_KEY, on ? "on" : "off");
+  } catch {
+    // Not remembered, but set
+  }
+}
+
 /** Modes a click works in: a point of a line, or a fill. */
 export const isClickMode = (mode: DrawMode | null): boolean =>
   mode === "straight" || mode === "curve" || mode === "curve2" || mode === "fill";
@@ -129,5 +150,23 @@ export function renderModes(row: HTMLElement, tool: string | null, doc: Document
     });
     return button;
   });
+  // Lines may snap; a switch after their modes
+  if (modeGroupOf(tool) === "line") {
+    const snap = doc.createElement("button");
+    snap.type = "button";
+    snap.className = `modeButton snapButton${snapping ? " current" : ""}`;
+    snap.title = t("draw.snap.hint");
+    snap.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${SNAP_ICON}</svg>`;
+    const name = doc.createElement("span");
+    name.textContent = t("draw.snap");
+    snap.appendChild(name);
+    snap.addEventListener("click", () => {
+      setSnap(!snapping);
+      renderModes(row, tool, doc);
+    });
+    buttons.push(snap);
+  }
   row.replaceChildren(title, ...buttons);
 }
+
+const SNAP_ICON = '<path d="M3 3v4a5 5 0 0 0 10 0V3"/><path d="M3 3h3M10 3h3"/>';
