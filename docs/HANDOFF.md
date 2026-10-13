@@ -36,8 +36,7 @@
     `lot.com_4`, `lot.com_5`, `lot.ind_3`, `lot.ind_4` ฝั่งเมืองต่อไว้แล้ว (`src/render3d/city/tileModels.ts`
     เรียกตามชื่อถ้ามีใน registry)
   - ตัวที่สอง: จวนเจ้าเมือง `civic.ruler_house` (`variant` = ระดับ 1–6, `state` = ส่วนต่อเติมคั่นด้วยจุลภาค)
-    **ยังไม่ได้ต่อฝั่งเมือง:** ใน `TileSnapshot.placement` ช่องศูนย์กลางของไทล์ civic 414–422 ที่
-    `gameMap.civicKinds[i] === 'ruler_house'` ให้ใช้โมเดลนี้ อ่าน `gameMap.rulerHouse` ตาม RENDERER_SPEC 6H
+    ฝั่งเมืองต่อไว้แล้ว (`housePlacement` ใน `src/render3d/city/tileModels.ts`: ระดับ ส่วนต่อเติม และวาดใหม่เมื่อเปลี่ยน) ขึ้นเองเมื่อ registry มีโมเดลนี้
   - วิธีรวม: merge แต่ละ branch เข้า `main` แก้ไฟล์ชนถ้ามี (มักเป็น `registry.ts`) รัน `npx jest test/render3d`
     แล้วดูแกลเลอรีกับในเกม จากนั้นลบ worktree ด้วย `git worktree remove`
 - **worktree เก่า `claude-work`:** หลัง merge ครั้งสุดท้ายแล้วลบได้ (`git worktree remove .claude/worktrees/claude-work`)

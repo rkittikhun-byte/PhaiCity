@@ -7,6 +7,7 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
+import { CIVIC } from '../../tileValues.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
 import type { CityMapReader, Placement } from './types.js';
 import { SEED_BUCKETS } from './types.js';
@@ -66,7 +67,7 @@ const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: { readonly paintedZones?: boolean; readonly roadLevels?: Uint8Array | null } | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
@@ -115,6 +116,15 @@ export class TileSnapshot implements CityMapReader {
     let side=2;for(const candidate of [0,1,3])if(scores[candidate]>scores[side])side=candidate;
     return [Math.PI,Math.PI/2,0,-Math.PI/2][side];
   }
+  /** The ruler's house on its civic 3 × 3 (RENDERER_SPEC 6H): its level and wings, once its model is registered. */
+  private housePlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
+    const house=this.source?.rulerHouse;
+    if(this.values[i]!==CIVIC||this.source?.civicKinds?.[i]!=='ruler_house'||!house||house.x!==x||house.y!==y||!registry['civic.ruler_house'])return null;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:'civic.ruler_house',kind:'services',footprint:[3,3],height:14+house.level*3,color:0xa2b8b4,
+      water:false,rotation:0,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
+        variant:house.level,state:[...(house.wings??[])].sort().join(','),waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:0}};
+  }
   /** A lot's one building over its four plots (src/plots.ts lotOf), from its top-left tile; null on its other tiles. */
   private lotPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null|undefined {
     const lot=lotOf(this,x,y);if(!lot)return undefined;if(lot.x!==x||lot.y!==y)return null;
@@ -147,6 +157,8 @@ export class TileSnapshot implements CityMapReader {
     const zone=Boolean(this.flags[i]&ZONEBIT),[w,h]=zone?entry.footprint:[1,1];
     const plot=this.paintedZones&&!zone?plotOf(this,x,y):null;
     if(plot)return this.plotPlacement(i,x,y,plot,region,hash);
+    const house=zone?this.housePlacement(i,x,y,region,hash):null;
+    if(house)return house;
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };
