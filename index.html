@@ -41,6 +41,7 @@
           <div class="stat statZone" data-zone="residential"><span class="statTopic"><span data-i18n="status.residential">Homes</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="commercial"><span class="statTopic"><span data-i18n="status.commercial">Shops</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
           <div class="stat statZone" data-zone="industrial"><span class="statTopic"><span data-i18n="status.industrial">Factories</span> <span class="statPercent"></span></span><span class="statValue"></span></div>
+          <div class="stat" id="statusTourism" hidden><span class="statTopic" data-i18n="status.tourists">Visitors</span><span class="statValue"></span></div>
         </div>
       </nav>
       <nav class="hudButtons hudRight">
@@ -228,6 +229,7 @@
         <div id="budgetFormContainer" class="padding10 open">
           <form id="budgetForm">
             <div id="taxInfo" class="elided budgetData"><span data-i18n="budget.tax_collected">Tax Collected:</span> <span id="taxesCollected"></span></div>
+            <div id="tourismInfo" class="elided budgetData" hidden><span data-i18n="budget.tourism">Visitors spent:</span> <span id="tourismIncome"></span></div>
             <div id="cashInfo" class="elided budgetRight budgetData"><span data-i18n="budget.cashflow">Cashflow:</span> <span id="cashFlow"></span></div>
             <div id="previousInfo" class="elided budgetData"><span data-i18n="budget.previous_funds">Previous funds:</span> <span id="previousFunds"></span></div>
             <div id="currentInfo" class="elided budgetRight budgetData"><span data-i18n="budget.current_funds">Current funds:</span> <span id="currentFunds"></span></div>

@@ -41,6 +41,9 @@ var Budget = EventEmitter(function() {
   this.cityTax = 7;
   this.cashFlow = 0;
   this.taxFund = 0;
+  // PhaiCity (src/tourism.ts): what visitors spend through the year, paid in with the taxes, and last year's
+  this.tourismFund = 0;
+  this.tourismIncome = 0;
 
   // These values denote how much money is required to fully maintain the relevant services
   this.roadMaintenanceBudget = 0;
@@ -64,7 +67,8 @@ var Budget = EventEmitter(function() {
 
 var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'firePercent', 'roadSpend',
                  'policeSpend', 'fireSpend', 'roadMaintenanceBudget', 'policeMaintenanceBudget',
-                 'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect'];
+                 'fireMaintenanceBudget', 'cityTax', 'roadEffect', 'policeEffect', 'fireEffect', 'tourismFund',
+                 'tourismIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -75,6 +79,9 @@ Budget.prototype.save = function(saveData) {
 Budget.prototype.load = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
     this[saveProps[i]] = saveData[saveProps[i]];
+  // Saves from before tourism have none
+  this.tourismFund = this.tourismFund || 0;
+  this.tourismIncome = this.tourismIncome || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -242,6 +249,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.roadMaintenanceBudget = Math.floor((roadCost + railCost) * RLevels[gameLevel]);
 
   this.taxFund = Math.floor(Math.floor(census.totalPop * census.landValueAverage / 120) * this.cityTax * FLevels[gameLevel]);
+  this.tourismIncome = Math.floor(this.tourismFund);
+  this.tourismFund = 0;
+  this.taxFund += this.tourismIncome;
 
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);

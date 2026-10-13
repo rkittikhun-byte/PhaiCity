@@ -33,15 +33,22 @@ import { Residential } from './residential.js';
 import { Road } from './road.js';
 import { SpriteManager } from './spriteManager.js';
 import { Stadia } from './stadia.js';
+import { livingCostFactor, NO_TOURISM, shopRubbish, tourismMonth, touristTrips } from './tourism.ts';
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
 import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 
-// rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own
-var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, rules) {
+// rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
+// resources (PhaiCity): the province's resource levels, 0–5 by id (src/geo/provinceResources.ts); none for a
+// practice map
+var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, rules, resources) {
   this._map = gameMap;
   this.rules = rules || DEFAULT_RULES;
+  this.resources = resources || {};
+  // This month's visitors (src/tourism.ts) and the months since the news last heard of them staying away
+  this._tourism = NO_TOURISM;
+  this._monthsSinceTouristWarning = 12;
   this.setLevel(gameLevel);
   this.setSpeed(speed);
 
@@ -263,6 +270,7 @@ Simulation.prototype._constructSimData = function() {
     powerManager: this._powerManager,
     waterManager: this._waterManager,
     simulator: this,
+    touristTrips: touristTrips(this._tourism),
     spriteManager: this.spriteManager,
     trafficManager: this._traffic,
     valves: this._valves
@@ -336,10 +344,13 @@ Simulation.prototype.init = function() {
   this._mapScanner.mapScan(0, this._map.width, simData);
   this._powerManager.doPowerScan(this._census);
   this._waterManager.doWaterScan(month, false);
-  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
+  BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+                                              shopRubbish(this._tourism));
   BlockMapUtils.crimeScan(this._census, this.blockMaps);
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps);
   BlockMapUtils.fireAnalysis(this.blockMaps);
+  // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
+  this._setTourism(tourismMonth(this._tourismLevel(), this._census, month));
 };
 
 
@@ -383,6 +394,10 @@ var simulate = function(simData) {
       break;
 
     case 9:
+      // PhaiCity: a month's visitors, before the year's taxes take in what they spent
+      if ((this._cityTime & 3) === 0)
+        this._tourismMonth();
+
       if (this._cityTime % CENSUS_FREQUENCY_10 === 0)
         this._census.take10Census(this.budget);
 
@@ -413,7 +428,8 @@ var simulate = function(simData) {
 
     case 12:
       if ((this._simCycle % speedPollutionTerrainLandValueScan[speedIndex]) === 0)
-        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution);
+        BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, this.rules.industryPollution,
+                                                    shopRubbish(this._tourism));
       break;
 
     case 13:
@@ -446,6 +462,44 @@ Simulation.prototype._simulate = function(simData) {
   this.evaluation.cityEvaluation(simData);
   this._simulate = simulate;
   this._simulate(simData);
+};
+
+
+// PhaiCity: the province's tourism level, 0–5
+Simulation.prototype._tourismLevel = function() {
+  var level = this.resources.tourism;
+  return typeof level === 'number' ? level : 0;
+};
+
+
+Simulation.prototype._setTourism = function(month) {
+  this._tourism = month;
+  this._valves.touristShops = month.shopsWanted;
+  this._valves.livingCost = livingCostFactor(month);
+  this._emitEvent(Messages.TOURISM_UPDATED, month);
+};
+
+
+// A month of visitors (src/tourism.ts): what they spend goes to the year's taxes; the news hears when the high season
+// begins and, at most once a year, when pollution or crime keeps them away
+Simulation.prototype._tourismMonth = function() {
+  var month = this.getDate().month;
+  var visit = tourismMonth(this._tourismLevel(), this._census, month);
+  this._setTourism(visit);
+  if (visit.level === 0)
+    return;
+
+  this.budget.tourismFund += visit.income;
+  this._monthsSinceTouristWarning++;
+  if (month === 10 && visit.level >= 2 && visit.visitors > 0)
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.TOURIST_SEASON});
+
+  var worst = Math.max(visit.pollutionPenalty, visit.crimePenalty);
+  if (worst >= 0.25 && this._monthsSinceTouristWarning >= 12) {
+    this._monthsSinceTouristWarning = 0;
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: visit.pollutionPenalty >= visit.crimePenalty ?
+                    Messages.TOURISTS_AVOID_POLLUTION : Messages.TOURISTS_AVOID_CRIME});
+  }
 };
 
 

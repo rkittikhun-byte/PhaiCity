@@ -25,6 +25,7 @@ import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
 import { showTitleGate } from './titleGate.ts';
 import { checkRulesData, resolveRules } from './provinceRules.ts';
+import { checkProfilesData, measuredLevels, provinceLevels } from './geo/provinceResources.ts';
 import { requestedCity } from './viewControls.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
@@ -193,6 +194,27 @@ var loadRules = function(provinceId) {
 };
 
 
+// The province's resource levels, 0–5 by id (src/geo/provinceResources.ts): the owner's, the game's inference or
+// the measurements. Tourism counts in the game so far (src/tourism.ts). None for a practice map, or files that
+// cannot be read.
+var loadResources = function(provinceId) {
+  if (!provinceId)
+    return Promise.resolve(null);
+
+  return Promise.all([fetchJson('data/geo/province-indicators.json'), fetchJson('data/province-profiles.json')])
+    .then(function(results) {
+      var measured = measuredLevels(results[0].provinces);
+      var entry = checkProfilesData(results[1]).data.provinces[provinceId];
+      var levels = {};
+      provinceLevels(measured[provinceId], entry).forEach(function(resource) { levels[resource.id] = resource.level; });
+      return levels;
+    }).catch(function(error) {
+      console.warn('Could not load the province resources: ' + error.message);
+      return null;
+    });
+};
+
+
 // A saved city of a province takes its ground's heights from the province's map, as saves do not keep them; for the
 // 3D view's hills (docs/3d/RENDERER_SPEC.md section 6B). Nothing comes back for a practice map, a new city (whose
 // map already has them) or a map that cannot be read.
@@ -218,8 +240,10 @@ var launch = function(map, difficulty, name) {
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
   var provinceId = map.provinceId || null;
-  Promise.all([prepareView(provinceId), loadRules(provinceId), savedCityHeights(map)]).then(function(results) {
-    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1]);
+  Promise.all([prepareView(provinceId), loadRules(provinceId), savedCityHeights(map), loadResources(provinceId)])
+      .then(function(results) {
+    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1],
+                     results[3]);
   });
 };
 

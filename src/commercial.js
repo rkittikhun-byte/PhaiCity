@@ -93,7 +93,9 @@ var commercialFound = function(map, x, y, simData) {
   // increases as the population increases). Growth naturally stalls if consumers cannot reach the shops.
   // Note in particular, we will never take this branch if the zone is empty.
   var trafficOK = Traffic.ROUTE_FOUND;
-  if (population > Random.getRandom(5)) {
+  // PhaiCity: visitors' trips make busy shops send out traffic more often (src/tourism.ts)
+  var trips = population > 0 ? population + (simData.touristTrips || 0) : 0;
+  if (trips > Random.getRandom(5)) {
     // Try to find a route from here to an industrial zone
     trafficOK = simData.trafficManager.makeTraffic(x, y, simData.blockMaps, TileUtils.isIndustrial);
 

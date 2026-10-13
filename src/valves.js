@@ -24,6 +24,10 @@ var Valves = EventEmitter(function () {
   this.indCap = false;
   // PhaiCity: how much more or less each kind of zone is wanted in this province (src/provinceRules.ts)
   this.demand = {residential: 1, commercial: 1, industrial: 1};
+  // PhaiCity (src/tourism.ts): the shops the visitors would like, as commercial population, and how much dearer
+  // they make living, 0.9–1
+  this.touristShops = 0;
+  this.livingCost = 1;
 });
 
 
@@ -95,7 +99,7 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   // Project future industry and commercial needs, taking into account available labour, and competition from
   // other global cities
   var internalMarket = (normalizedResPop + census.comPop + census.indPop) / internalMarketDenom;
-  var projectedComPop = internalMarket * labourBase;
+  var projectedComPop = internalMarket * labourBase + this.touristShops;
   var projectedIndPop = census.indPop * labourBase * extMarketParamTable[gameLevel];
   projectedIndPop = Math.max(projectedIndPop, projectedIndPopMin);
 
@@ -118,7 +122,8 @@ Valves.prototype.setValves = function(gameLevel, census, budget) {
   else
     indRatio = projectedIndPop;
 
-  // The province's own appetite for each kind of zone
+  // The province's own appetite for each kind of zone; visitors make living dearer, a little
+  resRatio -= (1 - this.livingCost) * 0.3;
   resRatio *= this.demand.residential;
   comRatio *= this.demand.commercial;
   indRatio *= this.demand.industrial;

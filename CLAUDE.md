@@ -210,8 +210,11 @@ Two AI agents work on this repo at the same time. **Never edit files owned by th
   (tourism, water, forest, farmland, fishing, solar, hydro, wind, lignite, oil and gas, limestone, potash, tin, zinc,
   gold, gems, rare earths) at levels 0–5, each with what it brings and what it costs (`src/geo/provinceResources.ts`):
   the owner's own level (`data/province-profiles.json` `levels`), else the game's inference (`inferred`; rare
-  earths are made up and say so), else ranked from `data/geo/province-indicators.json`. The province card shows them;
-  they have no effect in the game yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
+  earths are made up and say so), else ranked from `data/geo/province-indicators.json`. The province card shows them.
+  **Tourism counts in the game** (`docs/TOURISM.md`, `src/tourism.ts`): each month visitors come by the province's
+  level, the season, the city's appeal and its shops; they pay into the year's taxes and want shops, and cost
+  traffic, rubbish and dearer living. The province's levels reach the simulation as its `resources`
+  (`loadResources` in `src/splashScreen.js`); the others have no effect yet. **Admin page (หน้าหลังบ้าน):** `admin.html` (`src/admin/adminPage.ts`) under
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.

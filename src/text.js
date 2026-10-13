@@ -106,6 +106,8 @@ badMessages[Messages.TAX_TOO_HIGH] = true;
 badMessages[Messages.TORNADO_SIGHTED] = true;
 badMessages[Messages.TRAFFIC_JAMS] = true;
 badMessages[Messages.TRAIN_CRASHED] = true;
+badMessages[Messages.TOURISTS_AVOID_CRIME] = true;
+badMessages[Messages.TOURISTS_AVOID_POLLUTION] = true;
 
 var goodMessages = {};
 goodMessages[Messages.REACHED_CAPITAL] = true;
@@ -113,6 +115,7 @@ goodMessages[Messages.REACHED_CITY] = true;
 goodMessages[Messages.REACHED_MEGALOPOLIS] = true;
 goodMessages[Messages.REACHED_METROPOLIS] = true;
 goodMessages[Messages.REACHED_TOWN] = true;
+goodMessages[Messages.TOURIST_SEASON] = true;
 
 var messageKeys = {};
 messageKeys[Messages.FIRE_STATION_NEEDS_FUNDING] = 'msg.fund.fire';
@@ -157,6 +160,9 @@ messageKeys[Messages.REACHED_CITY] = 'msg.good.reach_city';
 messageKeys[Messages.REACHED_MEGALOPOLIS] = 'msg.good.reach_megalopolis';
 messageKeys[Messages.REACHED_METROPOLIS] = 'msg.good.reach_metro';
 messageKeys[Messages.REACHED_TOWN] = 'msg.good.reach_town';
+messageKeys[Messages.TOURIST_SEASON] = 'msg.good.tourist_season';
+messageKeys[Messages.TOURISTS_AVOID_CRIME] = 'msg.bad.tourists_crime';
+messageKeys[Messages.TOURISTS_AVOID_POLLUTION] = 'msg.bad.tourists_pollution';
 
 
 var translateList = function(keys) {

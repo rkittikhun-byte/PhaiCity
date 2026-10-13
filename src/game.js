@@ -19,7 +19,7 @@ import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
 import { CityCommands, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
-import { showDemandAndPeople } from './cityStatus.ts';
+import { showDemandAndPeople, showTourism } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -76,7 +76,8 @@ MILESTONES[Messages.REACHED_MEGALOPOLIS] = {name: 'megalopolis', cityClass: 'MEG
 
 // view3d: null for the original 2D view, or {create, region} for the three.js view (src/splashScreen.js prepareView)
 // rules: the province's rules (src/provinceRules.ts), or null for the game's own
-function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view3d, rules) {
+// resources (PhaiCity): the province's resource levels (src/splashScreen.js loadResources), or null
+function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view3d, rules, resources) {
   difficulty = difficulty || 0;
   var savedGame;
 
@@ -115,7 +116,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.tileSet = tileSet;
   this.snowTileSet = snowTileSet;
   this.defaultSpeed = Simulation.SPEED_MED;
-  this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame, rules || null);
+  this.simulation = new Simulation(this.gameMap, difficulty, this.defaultSpeed, savedGame, rules || null,
+                                   resources || null);
 
   // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
   if (!savedGame && gameMap.startingFunds)
@@ -134,6 +136,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.rci = new RCI('RCIContainer', this.simulation);
   // The same demand, as percentages with the people in homes, shops and factories, in the status (src/cityStatus.ts)
   showDemandAndPeople(this.simulation);
+  showTourism(this.simulation);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
@@ -247,7 +250,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       policeRate: Math.floor(this.simulation.budget.policePercent * 100),
       taxRate: this.simulation.budget.cityTax,
       totalFunds: this.simulation.budget.totalFunds,
-      taxesCollected: this.simulation.budget.taxFund
+      taxesCollected: this.simulation.budget.taxFund,
+      tourismIncome: this.simulation.budget.tourismIncome
     };
 
     return [budgetData];
