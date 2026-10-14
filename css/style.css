@@ -1999,6 +1999,10 @@ body #controls {
   animation: dockIn 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 body #controls:hover, body #controls:has(:focus-visible) { transform: translate(-50%, 0); transition-delay: 0s; }
+/* With a tool in hand the dock stays up while the player builds, and the tool's card sits above it (owner, 14 Oct
+   2026: "menu tool นะ ถ้าคลิกจะสร้าง แล้วไม่ต้องหายไป") */
+body #controls:has(.toolButton.selected) { transform: translate(-50%, 0); transition-delay: 0s; }
+body:has(#controls .toolButton.selected) #toolLevels { bottom: 84px; }
 @keyframes dockIn { from { transform: translate(-50%, 100%); } }
 /* While a task points at a tool, the tucked dock glows a little so the player looks there */
 body #controls:has(.goalHint) { box-shadow: 0 0 0 2px rgba(210, 154, 44, 0.75), var(--hud-shadow); }
