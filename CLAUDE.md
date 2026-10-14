@@ -108,6 +108,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   - The 3D view's optional `rotate(degrees)`, `resetView()` and `pan(dx, dy)` drive the ⟲ ⟳ ⌂ corner buttons, the
     Q and E keys and a left-button drag with no tool in hand (`src/viewControls.ts`; until Codex adds them it uses the
     view's public `navigation` camera). The view's own mouse: right drag turns, middle drag slides, the wheel zooms.
+  - The camera bar at the bottom right (`src/cameraModes.ts`, owner 14 Oct 2026) sets what a left drag does (free, move,
+    rotate, zoom, tilt) and has 2D, straight down and whole city. Its 2D is the 3D view's flat camera from straight
+    above (`CityCamera.setFlat`), not the old 2D view, so it does not break the rule against a 2D/3D switch.
 - **Tools:**
   - `gameTools.js` defines each tool's cost and size.
   - `baseTool.js` only edits tile values through `WorldEffects`; tools never draw anything.
