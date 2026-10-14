@@ -37,11 +37,9 @@ export function modeGroupOf(tool: string | null | undefined): ModeGroup | null {
 /** Whether a tool is one of the zone brushes or the eraser. */
 export const isPaintTool = (tool: string | null | undefined): boolean => modeGroupOf(tool) === "paint";
 
-const ROAD_TOOL_NAMES = new Set<string>(ROAD_TOOLS);
-
-/** Whether the grid of tiles that can take painted zones shows with this tool in hand: brushes, and roads, which make it. */
-export const showsZoneGrid = (tool: string | null | undefined): boolean =>
-  isPaintTool(tool) || (tool !== null && tool !== undefined && ROAD_TOOL_NAMES.has(tool));
+/** Whether the grid of tiles that can take painted zones shows with this tool in hand: the brushes only, so a road is
+ * drawn over open land as in Cities: Skylines (owner, 14 Oct 2026: "การวาดถนน ทำไมมันเป็นช่องแบบนี้นะ") */
+export const showsZoneGrid = (tool: string | null | undefined): boolean => isPaintTool(tool);
 
 function loadModes(): Record<ModeGroup, DrawMode> {
   const modes = { ...DEFAULTS };

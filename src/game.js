@@ -1424,8 +1424,11 @@ Game.prototype.roadWayAt = function(tile) {
 };
 
 
+// A right click puts the tool in hand down at once, with any line half drawn (owner, 14 Oct 2026: "คลิกขวา แล้ว ให้
+// tool นั้นหาย ไปเลยได้ไหม"); a right drag still turns the camera, and Esc still takes a half-drawn line first
 Game.prototype.cancelDraft = function() {
   this.lineDraft = null;
+  this.inputStatus.clearTool();
 };
 
 

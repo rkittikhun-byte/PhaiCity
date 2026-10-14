@@ -203,7 +203,15 @@ export class TileSnapshot implements CityMapReader {
    * only the far view's ground, so nothing covers the curve */
   curves=false;
   placement(i:number,region:RegionId):Placement|null {
-    return this.curves&&isCurved(this.values[i])?null:this.placementOf(i,region,this.values[i]);
+    if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
+    return this.placementOf(i,region,this.values[i]);
+  }
+  /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
+  private besideCurve(i:number):boolean {
+    const x=i%this.width,y=Math.floor(i/this.width);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;
+      if((dx||dy)&&nx>=0&&ny>=0&&nx<this.width&&ny<this.height&&isCurved(this.values[ny*this.width+nx]))return true;}
+    return false;
   }
   private placementOf(i:number,region:RegionId,v:number):Placement|null {
     if(this.coverage[i]!==-1&&this.coverage[i]!==i) return null;

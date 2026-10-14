@@ -44,7 +44,7 @@ export const STRINGS: Record<string, Translation> = {
   "undo.button": { en: "Undo the last building (Ctrl+Z)", th: "ย้อนกลับสิ่งที่สร้างล่าสุด (Ctrl+Z)" },
   "undo.done": { en: "Undone: {refund} back", th: "ย้อนกลับแล้ว ได้เงินคืน {refund}" },
   "undo.nothing": { en: "Nothing recent to undo (only the last two months)", th: "ไม่มีอะไรให้ย้อนกลับ (ย้อนได้เฉพาะ 2 เดือนล่าสุด)" },
-  "tool.put_down": { en: "Press the tool again or Esc to put it down", th: "กดปุ่มเดิมอีกครั้งหรือ Esc เพื่อเลิกใช้" },
+  "tool.put_down": { en: "Right click, Esc or the tool again to put it down", th: "คลิกขวา กด Esc หรือกดปุ่มเดิมอีกครั้งเพื่อเลิกใช้" },
   "tool.residential": { en: "Residential {price}", th: "ที่อยู่อาศัย {price}" },
   "tool.commercial": { en: "Commercial {price}", th: "พาณิชย์ {price}" },
   "tool.industrial": { en: "Industrial {price}", th: "อุตสาหกรรม {price}" },

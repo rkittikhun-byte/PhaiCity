@@ -191,7 +191,7 @@ describe("painted zones", () => {
     expect(drawModeOf("rail")).not.toBeNull();
     expect(isClickMode("straight") && isClickMode("fill") && !isClickMode("free")).toBe(true);
     expect(isAreaMode("grid") && isAreaMode("rectangle") && !isAreaMode("brush")).toBe(true);
-    expect(showsZoneGrid("road_asphalt") && showsZoneGrid(ERASE_TOOL) && !showsZoneGrid("rail")).toBe(true);
+    expect(!showsZoneGrid("road_asphalt") && showsZoneGrid(ERASE_TOOL) && !showsZoneGrid("rail")).toBe(true);
     const keys = ["draw.mode", "draw.cost", "draw.cancel", "draw.step.fill", "choice.erase_note"];
     for (const mode of [...modesFor("road"), ...modesFor("zone_erase")]) keys.push(`draw.mode.${mode}`, `draw.mode.${mode}.hint`);
     for (const [mode, steps] of [["straight", 2], ["curve", 3], ["curve2", 4]] as const) {

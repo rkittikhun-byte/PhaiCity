@@ -103,7 +103,7 @@
 | `undo.button` | `index.html` | — | `Undo the last building (Ctrl+Z)` | `ย้อนกลับสิ่งที่สร้างล่าสุด (Ctrl+Z)` | ปุ่ม ↶ ในแถบเครื่องมือ (Claude Code 12 ต.ค. 2026) |
 | `undo.done` | `src/game.js` | — | `Undone: {refund} back` | `ย้อนกลับแล้ว ได้เงินคืน {refund}` | {refund} เช่น ฿60 |
 | `undo.nothing` | `src/game.js` | — | `Nothing recent to undo (only the last two months)` | `ไม่มีอะไรให้ย้อนกลับ (ย้อนได้เฉพาะ 2 เดือนล่าสุด)` |  |
-| `tool.put_down` | `src/inputStatus.js` | — | `Press the tool again or Esc to put it down` | `กดปุ่มเดิมอีกครั้งหรือ Esc เพื่อเลิกใช้` | หัวแถบเครื่องมือตอนถือเครื่องมืออยู่ (Claude Code 12 ต.ค. 2026) |
+| `tool.put_down` | `src/inputStatus.js` | — | `Right click, Esc or the tool again to put it down` | `คลิกขวา กด Esc หรือกดปุ่มเดิมอีกครั้งเพื่อเลิกใช้` | หัวแถบเครื่องมือตอนถือเครื่องมืออยู่ (Claude Code 12 ต.ค. 2026) |
 | `tool.residential` | `index.html` | `Residential $100` | `Residential {price}` | `ที่อยู่อาศัย {price}` | โซน 3x3 |
 | `tool.commercial` | `index.html` | `Commercial $100` | `Commercial {price}` | `พาณิชยกรรม {price}` | โซน 3x3 |
 | `tool.industrial` | `index.html` | `Industrial $100` | `Industrial {price}` | `อุตสาหกรรม {price}` | โซน 3x3 |

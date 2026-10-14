@@ -8,6 +8,7 @@ import { isOpenLand, PLOT_REACH } from '../../plots.js';
 import { isRoadTile, roadLevelAt, servesZones } from '../../roadLevels.js';
 import { cityDrawMaterial, cityToolMaterial, cityZoneGridMaterial } from '../materials/library.js';
 import type { CityHeightField } from './heightfield.js';
+import { smoothLine, type Point } from './roadCurves.js';
 import type { CityMapReader } from './types.js';
 
 /**
@@ -55,6 +56,43 @@ function centreDashes(tiles: readonly TilePoint[], lift: number, terrain?: CityH
   return geometry;
 }
 
+/**
+ * A line being drawn as the road it will be (owner, 14 Oct 2026: "การวาดถนน ทำไมมันเป็นช่องแบบนี้นะ"): a see-through
+ * band along the same smooth curve the finished road takes (roadCurves.ts), with dashes down its middle, as Cities:
+ * Skylines shows a road before it is built. The tiles it builds on are still the path's.
+ */
+function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField): { band: BufferGeometry; dashes: BufferGeometry } {
+  const line = smoothLine(tiles.map((t): Point => [(t.x + .5) * 10, (t.y + .5) * 10]));
+  const height = (x: number, z: number): number => (terrain?.enabled ? terrain.sample(x, z) : 0) + lift;
+  const band: number[] = [], dashes: number[] = [];
+  const side = (i: number): [number, number] => {
+    const [ax, az] = line[Math.max(0, i - 1)], [bx, bz] = line[Math.min(line.length - 1, i + 1)], length = Math.hypot(bx - ax, bz - az) || 1;
+    return [-(bz - az) / length, (bx - ax) / length];
+  };
+  const quad = (out: number[], a: number[], b: number[], c: number[], d: number[]): void => { out.push(...a, ...b, ...c, ...b, ...d, ...c); };
+  let along = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1], [bx, bz] = line[i], [nax, naz] = side(i - 1), [nbx, nbz] = side(i), w = 3.6;
+    quad(band, [ax + nax * w, height(ax + nax * w, az + naz * w), az + naz * w], [ax - nax * w, height(ax - nax * w, az - naz * w), az - naz * w],
+      [bx + nbx * w, height(bx + nbx * w, bz + nbz * w), bz + nbz * w], [bx - nbx * w, height(bx - nbx * w, bz - nbz * w), bz - nbz * w]);
+    // A dash on every other 5 units of its length
+    const length = Math.hypot(bx - ax, bz - az);
+    if (Math.floor(along / 5) % 2 === 0) {
+      const d = .3;
+      quad(dashes, [ax + nax * d, height(ax, az) + .06, az + naz * d], [ax - nax * d, height(ax, az) + .06, az - naz * d],
+        [bx + nbx * d, height(bx, bz) + .06, bz + nbz * d], [bx - nbx * d, height(bx, bz) + .06, bz - nbz * d]);
+    }
+    along += length;
+  }
+  const geometry = (positions: number[]): BufferGeometry => {
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(positions, 3));
+    g.computeVertexNormals();
+    return g;
+  };
+  return { band: geometry(band), dashes: geometry(dashes) };
+}
+
 export class ToolOutline {
   readonly root=new Group();private signature='';
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=10;}
@@ -67,6 +105,11 @@ export class ToolOutline {
     if(hover.path&&hover.path.length>0){
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
+      // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a grid, a rectangle or a fill as
+      // its tiles
+      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain);
+        const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=10;
+        const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(band,dashes);return;}
       const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.56,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=10;
       this.root.add(band);
       if(hover.line){const dashes=new Mesh(centreDashes(tiles,.62,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(dashes);}

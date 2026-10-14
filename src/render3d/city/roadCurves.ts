@@ -15,7 +15,7 @@ import type { CityHeightField } from './heightfield.js';
 import { isCurveRail, isPlainRoad as isCurveRoad, isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import type { Placement } from './types.js';
 
-type Point = [number, number];
+export type Point = [number, number];
 interface Stretch { points: Point[]; level: number; rail: boolean }
 
 /** How far the simplified line may stray from the smoothed one (world units, 10 a tile), and how high it lies */
@@ -91,6 +91,11 @@ function densify(points: Point[], step: number): Point[] {
   return out;
 }
 
+/** The smooth line a stretch of tiles' middles is drawn along (world units): its steps averaged away, bends rounded */
+export function smoothLine(points: Point[]): Point[] {
+  return densify(round(simplify(average(points, REACH, 2), STRAY), 2), 2.5);
+}
+
 export class RoadCurves {
   readonly root = new Group();
   private covered = new Uint8Array(0);
@@ -148,15 +153,14 @@ export class RoadCurves {
     for (const rail of [false, true]) {
       const { stretches, plates } = this.stretches(rail);
       for (const stretch of stretches) {
-        const line = densify(round(simplify(average(stretch.points, REACH, 2), STRAY), 2), 2.5);
+        const line = smoothLine(stretch.points);
         this.lines.push({ points: line, rail });
         if (rail) this.rail(line, positions, colors, railPositions, sleepers);
         else this.road(line, stretch.level, positions, colors);
       }
       for (const [i, level] of plates) {
         const x = i % width, y = (i - x) / width;
-        this.plate((x + 0.5) * 10, (y + 0.5) * 10, rail ? RAIL_INTERFACE.ballastWidth / 2 : this.halfWidth(level) + (level > 1 ? SHOULDER : 0),
-          rail ? new Color(0x8b8379) : level > 1 ? new Color(level > 2 ? 0x8f8d86 : 0x555959) : lateriteColour(0), positions, colors);
+        this.plate((x + 0.5) * 10, (y + 0.5) * 10, rail ? null : level, positions, colors);
       }
     }
     if (positions.length) {
@@ -314,14 +318,35 @@ export class RoadCurves {
     }
   }
 
-  /** A round plate at a junction or a road's end */
-  private plate(cx: number, cz: number, radius: number, colour: Color, positions: number[], colors: number[]): void {
-    const n = 16, centre: [number, number, number] = [cx, this.height(cx, cz) + PLATE_LIFT, cz], shaded = this.shade(colour, cx, cz);
-    for (let k = 0; k < n; k++) {
-      const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2;
-      const x0 = cx + Math.cos(a0) * radius, z0 = cz + Math.sin(a0) * radius, x1 = cx + Math.cos(a1) * radius, z1 = cz + Math.sin(a1) * radius;
-      for (const [x, y, z] of [centre, [x1, this.height(x1, z1) + PLATE_LIFT, z1], [x0, this.height(x0, z0) + PLATE_LIFT, z0]]) {
-        positions.push(x, y, z); colors.push(shaded.r, shaded.g, shaded.b);
+  /**
+   * A round plate at a junction or a road's end, shaded across as the road is (its rings the road's colours from its
+   * middle to its edge), so the roads meeting there run into it rather than ending at a disc; level null for a railway
+   */
+  private plate(cx: number, cz: number, level: number | null, positions: number[], colors: number[]): void {
+    let rings: Array<[number, Color]>;
+    if (level === null) {
+      const half = RAIL_INTERFACE.ballastWidth / 2;
+      rings = [[0, new Color(0x8b8379)], [1.2, new Color(0x8b8379)], [half, new Color(0x77705f)]];
+    } else if (level <= 1) {
+      const e = LATERITE_EDGE;
+      rings = [0, 0.35, 0.7, 1].map((share) => [e * share, lateriteColour(e * share)]);
+    } else {
+      const half = this.halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
+      rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + SHOULDER, new Color(0xa39c8f)]];
+    }
+    const n = 20, at = (radius: number, angle: number): [number, number, number] => {
+      const x = cx + Math.cos(angle) * radius, z = cz + Math.sin(angle) * radius;
+      return [x, this.height(x, z) + PLATE_LIFT, z];
+    };
+    for (let ring = 1; ring < rings.length; ring++) {
+      const [r0, c0] = rings[ring - 1], [r1, c1] = rings[ring];
+      const inner = this.shade(c0, cx, cz), outer = this.shade(c1, cx, cz);
+      for (let k = 0; k < n; k++) {
+        const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2;
+        const p = at(r0, a0), q = at(r0, a1), s = at(r1, a0), t = at(r1, a1);
+        for (const [v, c] of [[p, inner], [q, inner], [s, outer], [q, inner], [t, outer], [s, outer]] as const) {
+          positions.push(v[0], v[1], v[2]); colors.push(c.r, c.g, c.b);
+        }
       }
     }
   }
