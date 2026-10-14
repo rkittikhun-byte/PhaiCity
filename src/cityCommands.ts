@@ -25,6 +25,8 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
+import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
+import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
 
@@ -37,6 +39,7 @@ export const TOOL_NAMES = [
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
   "zone_residential", "zone_commercial", "zone_industrial", "zone_erase",
+  "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -115,6 +118,8 @@ interface CommandTool {
   civicKind?: string;
   /** The rubbish or wastewater building it builds (src/waste.ts) */
   wasteKind?: string;
+  /** The level of a building it builds (src/buildingLevels.ts) */
+  buildingLevel?: { group: string; level: number } | null;
   /** The stop or station it builds (src/transit.ts) */
   transitKind?: string;
 }
@@ -184,6 +189,7 @@ export interface CommandTarget {
   setCivicKind?(x: number, y: number, kind: string): void;
   /** Records the rubbish or wastewater building just built at (x, y), its centre (src/waste.ts). */
   setWasteKind?(x: number, y: number, kind: string): void;
+  setBuildingLevel?(x: number, y: number, level: number): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
   setStationKind?(x: number, y: number, kind: string): void;
 }
@@ -308,7 +314,9 @@ export class CityCommands {
         const houseMap = city.houseMap;
         const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
         const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
-          serviceProblem(command.tool, houseLevel) ??
+          serviceProblem(command.tool, houseLevel) ?? levelProblem(command.tool, houseLevel) ??
+          (command.tool === BUILDING_UPGRADE_TOOL && city.map ? upgradeProblem(city.map as unknown as Parameters<typeof upgradeProblem>[0],
+            command.x, command.y, houseLevel) : null) ??
           transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
@@ -329,6 +337,7 @@ export class CityCommands {
         if (applied && tool.rulerHouse) city.setRulerHouse?.(command.x, command.y);
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
+        if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }

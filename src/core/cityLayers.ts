@@ -12,6 +12,7 @@ import { decodePresetLayer, encodePresetLayer } from "../geo/presetMap.js";
 import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
 import { newRoadLevels } from "../roadLevels.js";
+import { levelsStanding } from "../buildingLevels.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
@@ -55,6 +56,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.policies = readPolicies(saved.policies);
     // ... and the stations (src/transit.ts)
     map.stationKinds = Object.assign({}, saved.stationKinds || {});
+    // ... and the levels of the ruler's buildings (src/buildingLevels.ts); those from before the levels are at their base
+    map.buildingLevels = Object.assign({}, saved.buildingLevels || {});
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
     map.landBlocks = saved.land ? decodePresetLayer(saved.land, blockColumns(map), blockRows(map)) : null;
     map.landBought = saved.landBought || 0;
@@ -65,6 +68,7 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.wasteKinds = {};
     map.policies = [];
     map.stationKinds = {};
+    map.buildingLevels = {};
     // A new province city owns the land round its town, and buys the rest block by block (src/landBlocks.ts)
     map.landBlocks = map.insideProvince && map.town ? startingBlocks(map, map.town) : null;
     map.landBought = 0;
@@ -85,6 +89,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.wasteKinds = map.wasteKinds || {};
   map.policies = map.policies || [];
   map.stationKinds = map.stationKinds || {};
+  map.buildingLevels = map.buildingLevels || {};
 }
 
 /** A kind record (powerKinds …) kept only where its building still stands */
@@ -115,6 +120,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     policies: (map.policies || []).length ? map.policies.slice() : undefined,
     // ... and the stations (src/transit.ts)
     stationKinds: plantsStanding(map, "stationKinds", STATION),
+    // ... and the levels of the ruler's buildings (src/buildingLevels.ts)
+    buildingLevels: levelsStanding(map),
     // ... and the land the city owns (src/landBlocks.ts)
     land: map.landBlocks ? encodePresetLayer(map.landBlocks) : undefined,
     landBought: map.landBlocks ? map.landBought || 0 : undefined,
@@ -172,6 +179,8 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setWasteKind: (x: number, y: number, kind: string) => { map.wasteKinds[y * map.width + x] = kind; },
     // ... and the stations, which train and high-speed stations put beside a railway (src/transit.ts)
     setStationKind: (x: number, y: number, kind: string) => { map.stationKinds[y * map.width + x] = kind; },
+    // ... and the level of a building that has levels (src/buildingLevels.ts)
+    setBuildingLevel: (x: number, y: number, level: number) => { map.buildingLevels[y * map.width + x] = level; },
     isRailAt: (x: number, y: number) => {
       if (!map.testBounds(x, y)) return false;
       const value = map.getTileValue(x, y);

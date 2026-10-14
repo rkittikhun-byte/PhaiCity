@@ -111,6 +111,12 @@
 | `tool.nuclear` | `index.html` | `Nuclear $5000` | `Nuclear Plant {price}` | `โรงไฟฟ้านิวเคลียร์ {price}` | โรงไฟฟ้า 4x4 |
 | `tool.police` | `index.html` | `Police $500` | `Police {price}` | `สถานีตำรวจ {price}` | อาคาร 3x3 |
 | `tool.fire` | `index.html` | `Fire $500` | `Fire Dept {price}` | `สถานีดับเพลิง {price}` | อาคาร 3x3 |
+| `tool.police_box` | `src/buildingLevels.ts` | — | `Police Box {price}` | `ป้อมตำรวจ {price}` | ระดับ 1 ของตำรวจ: ครึ่งหนึ่งของสถานี ค่าบำรุงครึ่งเดียว |
+| `tool.police_large` | `src/buildingLevels.ts` | — | `Large Police Station {price}` | `สภ.ใหญ่ {price}` | ระดับ 3 |
+| `tool.police_hq` | `src/buildingLevels.ts` | — | `Police Headquarters {price}` | `กองบังคับการ {price}` | ระดับ 4 |
+| `tool.fire_post` | `src/buildingLevels.ts` | — | `Fire Post {price}` | `จุดดับเพลิง {price}` | ระดับ 1 ของดับเพลิง |
+| `tool.fire_centre` | `src/buildingLevels.ts` | — | `Disaster Relief Centre {price}` | `ศูนย์บรรเทาสาธารณภัย {price}` | ระดับ 3 |
+| `tool.building_upgrade` | `src/buildingUpgradeTool.ts` | — | `Upgrade Building {price}` | `อัปเกรดอาคาร {price}` | คลิกที่อาคาร ขึ้นทีละขั้น จ่ายส่วนต่าง |
 | `tool.road` | `index.html` | `Road $10` | `Road {price}` | `ถนน {price}` | 1 ช่อง |
 | `tool.rail` | `index.html` | `Rail $20` | `Rail {price}` | `ทางรถไฟ {price}` | 1 ช่อง |
 | `tool.wire` | `index.html` | `Wire $5` | `Power Line {price}` | `สายไฟฟ้า {price}` | 1 ช่อง |
@@ -1115,6 +1121,12 @@
 | `rules.cost.park` | `src/provinceRules.ts` | `-` | `Parks cost {change}` | `ราคาสวนสาธารณะ {change}` |  |
 | `rules.cost.police` | `src/provinceRules.ts` | `-` | `Police stations cost {change}` | `ราคาสถานีตำรวจ {change}` |  |
 | `rules.cost.fire` | `src/provinceRules.ts` | `-` | `Fire stations cost {change}` | `ราคาสถานีดับเพลิง {change}` |  |
+| `rules.cost.police_box` | `src/provinceRules.ts` | — | `Police boxes cost {change}` | `ราคาป้อมตำรวจ {change}` |  |
+| `rules.cost.police_large` | `src/provinceRules.ts` | — | `Large police stations cost {change}` | `ราคา สภ.ใหญ่ {change}` |  |
+| `rules.cost.police_hq` | `src/provinceRules.ts` | — | `Police headquarters cost {change}` | `ราคากองบังคับการ {change}` |  |
+| `rules.cost.fire_post` | `src/provinceRules.ts` | — | `Fire posts cost {change}` | `ราคาจุดดับเพลิง {change}` |  |
+| `rules.cost.fire_centre` | `src/provinceRules.ts` | — | `Disaster relief centres cost {change}` | `ราคาศูนย์บรรเทาสาธารณภัย {change}` |  |
+| `rules.cost.building_upgrade` | `src/provinceRules.ts` | — | `Building upgrades cost {change}` | `ค่าอัปเกรดอาคาร {change}` |  |
 | `rules.cost.coal` | `src/provinceRules.ts` | `-` | `Coal plants cost {change}` | `ราคาโรงไฟฟ้าถ่านหิน {change}` |  |
 | `rules.cost.nuclear` | `src/provinceRules.ts` | `-` | `Nuclear plants cost {change}` | `ราคาโรงไฟฟ้านิวเคลียร์ {change}` |  |
 | `rules.cost.stadium` | `src/provinceRules.ts` | `-` | `Stadiums cost {change}` | `ราคาสนามกีฬา {change}` |  |

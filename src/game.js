@@ -57,6 +57,8 @@ import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, BLO
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
          startingBlocks } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
+import { BUILDING_UPGRADE_TOOL, LEVEL_GROUPS, levelOfTool, levelSpec } from './buildingLevels.ts';
+import { upgradeAt } from './buildingUpgradeTool.ts';
 import {
   hasWing, HOUSE_AT_TOP, HOUSE_FIRST, HOUSE_KIND, HOUSE_REASONS, HOUSE_STANDS, HOUSE_TOOL, HOUSE_UPGRADE_TOOL, houseFirst,
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
@@ -225,7 +227,6 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
   }).concat([pageChoice('nuclear')]));
   // Buttons that group tools (docs/TOOLS_PLAN.md): safety, water, farms and harbours, long-distance transport
-  setToolChoices('police', [pageChoice('police'), pageChoice('fire')]);
   setToolChoices('waterworks', [pageChoice('waterworks'), pageChoice('watertower')]);
   setToolChoices('farm', [pageChoice('farm', farmLevel(simulation.resources) >= 1),
     pageChoice('fishing', fisheryLevel(simulation.resources) >= 1)]);
@@ -726,6 +727,19 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 };
 
 
+// The ruler's house level a school, a hospital, a building's level or its upgrade needs (src/services.ts,
+// src/buildingLevels.ts)
+var houseNeeded = function(map, toolName, x, y) {
+  if (SERVICE_SPECS[toolName])
+    return SERVICE_SPECS[toolName].house;
+  var found = levelOfTool(toolName);
+  if (found)
+    return levelSpec(found.group, found.level).house;
+  var next = toolName === BUILDING_UPGRADE_TOOL ? upgradeAt(map, x, y) : null;
+  return next ? levelSpec(next.group, next.level).house : 0;
+};
+
+
 // The three.js view (docs/3d/RENDERER_SPEC.md section 3) on the live city, which it only reads.
 // null when it fails to start (e.g. no WebGL): the game then uses the 2D view and says why.
 var createView3D = function(game, view3d) {
@@ -814,6 +828,16 @@ Game.prototype.refreshHouse = function() {
   };
   setToolChoices('primary_school', EDUCATION_TOOLS.map(serviceChoice));
   setToolChoices('health_centre', HEALTH_TOOLS.map(serviceChoice));
+  // Police and fire by level, the higher ones for a higher house, and the upgrade that raises a building a level
+  // (src/buildingLevels.ts)
+  var levelChoices = function(group, colour) {
+    return LEVEL_GROUPS[group].levels.map(function(spec) {
+      return {tool: spec.tool, available: spec.house <= level, colour: colour, reason: 'service.reason.house.' + spec.house};
+    });
+  };
+  setToolChoices('police', levelChoices('police', pageChoice('police').colour)
+    .concat(levelChoices('fire', pageChoice('fire').colour))
+    .concat([{tool: BUILDING_UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
   // Public transport, the metro and the high-speed rail station for a higher rank (src/transit.ts)
   setToolChoices('bus_stop', TRANSIT_KINDS.map(function(kind) {
     var spec = TRANSIT_SPECS[kind];
@@ -1137,7 +1161,7 @@ Game.prototype.handleTool = function(data) {
     }
     // A higher school or hospital waits for a higher ruler's house (src/services.ts)
     if (outcome.reason === NEEDS_HOUSE_LEVEL) {
-      showCornerNote(t('service.note.needs_house', {level: SERVICE_SPECS[toolName].house}), OUTSIDE_NOTE_MS);
+      showCornerNote(t('service.note.needs_house', {level: houseNeeded(this.gameMap, toolName, tileCoords.x, tileCoords.y)}), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }

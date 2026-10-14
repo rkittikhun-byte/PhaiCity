@@ -7,6 +7,7 @@
 // of its card as i18n keys and their values. The card (src/inspectCard.ts) translates and draws them. It only reads
 // the city. Plain code: no DOM.
 
+import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { ownsLand } from "./landBlocks.js";
 import type { Fact } from "./objects/cityObject.js";
 import type { CityObjects } from "./objects/cityObjects.js";
@@ -122,7 +123,11 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     facts.push(...areaFacts(city.blockMaps, building.x, building.y));
     const street = streetBeside(map, rect);
     const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
-    return { title: { key: titleOf(building.kind, building.sort(map)), params: { price: "" } }, sector: building.sector,
+    // A police or fire station is named by its level (src/buildingLevels.ts)
+    const group = groupOfCentre(map.getTileValue(building.x, building.y));
+    const title = group ? `tool.${levelSpec(group, buildingLevelAt(map, building.x, building.y, group)).tool}`
+      : titleOf(building.kind, building.sort(map));
+    return { title: { key: title, params: { price: "" } }, sector: building.sector,
       street: street ? streetLabel(street, city.language) : undefined, satisfaction, facts, rect };
   }
   const rect = { x, y, width: 1, height: 1 };

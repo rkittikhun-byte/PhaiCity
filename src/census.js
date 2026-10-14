@@ -81,6 +81,9 @@ Census.prototype.clearCensus = function() {
   this.churchPop = 0;
   this.policeStationPop = 0;
   this.fireStationPop = 0;
+  // PhaiCity: the stations' upkeep by their levels, an original station counting 1 (src/buildingLevels.ts)
+  this.policeUpkeepUnits = 0;
+  this.fireUpkeepUnits = 0;
   this.stadiumPop = 0;
   this.coalPowerPop = 0;
   this.nuclearPowerPop = 0;

@@ -30,6 +30,8 @@ import { SERVICE_KINDS, SERVICE_SPECS } from './services.ts';
 import { WASTE_KINDS, WASTE_SPECS } from './waste.ts';
 import { STATION_KINDS, TRANSIT_SPECS } from './transit.ts';
 import { BusStopTool } from './busStopTool.ts';
+import { LEVEL_GROUP_NAMES, LEVEL_GROUPS, levelOfTool } from './buildingLevels.ts';
+import { BuildingUpgradeTool } from './buildingUpgradeTool.ts';
 import { LandTool } from './landTool.ts';
 import { ERASE_TOOL, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { PlotTool } from './plotTool.ts';
@@ -102,6 +104,17 @@ function GameTools(map, rules) {
     tools[kind] = new BuildingTool(WASTE_SPECS[kind].price, TileValues.WASTE, map, 3, false);
     tools[kind].wasteKind = kind;
   });
+  // ... and the levels of the ruler's buildings, each a tool on the building's own tiles, and the upgrade that raises
+  // one a level (src/buildingLevels.ts); the map records each one's level
+  LEVEL_GROUP_NAMES.forEach(function(group) {
+    var spec = LEVEL_GROUPS[group];
+    spec.levels.forEach(function(level) {
+      if (!tools[level.tool])
+        tools[level.tool] = new BuildingTool(level.price, spec.centre, map, spec.size, false);
+      tools[level.tool].buildingLevel = levelOfTool(level.tool);
+    });
+  });
+  tools.building_upgrade = new BuildingUpgradeTool(map);
   // ... and the land tool, which buys blocks of land as a command of its own (src/landBlocks.ts)
   tools.land = new LandTool(map);
   // ... and public transport (src/transit.ts): a stop is one tile, the stations share one 3x3 of tiles

@@ -305,8 +305,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.cashFlow = 0;
 
   // How much would it cost to fully fund every service?
-  this.policeMaintenanceBudget = census.policeStationPop * policeMaintenanceCost;
-  this.fireMaintenanceBudget = census.fireStationPop * fireMaintenanceCost;
+  // PhaiCity: by the stations' levels (src/buildingLevels.ts); an original station costs what it always did
+  this.policeMaintenanceBudget = Math.round((census.policeUpkeepUnits ?? census.policeStationPop) * policeMaintenanceCost);
+  this.fireMaintenanceBudget = Math.round((census.fireUpkeepUnits ?? census.fireStationPop) * fireMaintenanceCost);
 
   // PhaiCity: the state pays for its own roads and railways (src/road.js, src/transport.js)
   // ... and the city's roads cost by their levels (src/roadLevels.ts)

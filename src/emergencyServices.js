@@ -12,13 +12,16 @@
  */
 
 import { Position } from './position.ts';
+import { levelEffect, levelUpkeep } from './buildingLevels.ts';
 import { FIRESTATION, POLICESTATION } from "./tileValues.ts";
 
-var handleService = function(censusStat, budgetEffect, blockMap) {
+// PhaiCity: group is the station's levels (src/buildingLevels.ts): a higher one does more and costs more to keep
+var handleService = function(censusStat, budgetEffect, blockMap, group, upkeepStat) {
   return function(map, x, y, simData) {
     simData.census[censusStat] += 1;
+    simData.census[upkeepStat] += levelUpkeep(map, x, y, group);
 
-    var effect = simData.budget[budgetEffect];
+    var effect = Math.floor(simData.budget[budgetEffect] * levelEffect(map, x, y, group));
     var isPowered = map.getTile(x, y).isPowered();
     // Unpowered buildings are half as effective
     if (!isPowered)
@@ -36,8 +39,9 @@ var handleService = function(censusStat, budgetEffect, blockMap) {
 };
 
 
-var policeStationFound = handleService('policeStationPop', 'policeEffect', 'policeStationMap');
-var fireStationFound = handleService('fireStationPop', 'fireEffect', 'fireStationMap');
+var policeStationFound = handleService('policeStationPop', 'policeEffect', 'policeStationMap', 'police',
+                                       'policeUpkeepUnits');
+var fireStationFound = handleService('fireStationPop', 'fireEffect', 'fireStationMap', 'fire', 'fireUpkeepUnits');
 
 
 var EmergencyServices = {
