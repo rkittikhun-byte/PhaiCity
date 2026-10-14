@@ -79,7 +79,7 @@ export class CityView3D implements CityView {
     const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.bedDrop=wide?.4:3.015;const spread=wide&&!setup.province?9:1;
     const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
-    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
+    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);this.outline.snap=this.snapshot.roadSnap;
     this.scene.add(this.chunks.root,this.curves.root,this.sprites.root,this.outline.root,this.zones.root);
     // Street names along the roads (src/streetNames.ts), when the game says how to write them
     if(setup.streetName){this.streets=new StreetLabels(setup.map,setup.streetName,this.terrain,this.now);this.scene.add(this.streets.root);}

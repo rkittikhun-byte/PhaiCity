@@ -9,6 +9,7 @@ import { isRoadTile, roadLevelAt, servesZones } from '../../roadLevels.js';
 import { cityDrawMaterial, cityToolMaterial, cityZoneGridMaterial } from '../materials/library.js';
 import type { CityHeightField } from './heightfield.js';
 import { smoothLine, type Point } from './roadCurves.js';
+import { BUILDING_SCALE, poseAgainstRoad, type RoadNear } from './tileModels.js';
 import type { CityMapReader } from './types.js';
 
 /**
@@ -101,6 +102,8 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
 
 export class ToolOutline {
   readonly root=new Group();private signature='';
+  /** The nearest road (roadCurves.ts nearest), so a building's outline stands against it as the building will */
+  snap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=10;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
@@ -129,11 +132,25 @@ export class ToolOutline {
       return;
     }
     const w=(r.x1-r.x0+1)*10,d=(r.y1-r.y0+1)*10,x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5;
+    // A building of 3 x 3 and up beside a road: turned to face it and stood against its edge, at the size it is drawn
+    // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
+    const size=hover.size,near=size>=3&&!hover.cellPoint&&this.snap?this.snap(x,z,size*5+14):null;
+    if(near){
+      const pose=poseAgainstRoad(x,z,size,near),side=size*10*BUILDING_SCALE,ground=this.terrain?.enabled?this.terrain.sample(pose.x,pose.z):0;
+      const frame=new Group();frame.position.set(pose.x,ground+.6,pose.z);frame.rotation.y=pose.rotation;
+      const fill=new Mesh(new PlaneGeometry(side,side).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
+      // A bold white edge, which shows on any ground (owner: "เส้นมันจาง มองไม่เห็น")
+      const edge=cityToolMaterial('#ffffff'),t=.4;
+      for(const[sw,sd,sx,sz]of[[side+t,t,0,-side/2],[side+t,t,0,side/2],[t,side+t,-side/2,0],[t,side+t,side/2,0]]){
+        const line=new Mesh(new BoxGeometry(sw,.06,sd),edge);line.position.set(sx,.04,sz);line.renderOrder=11;frame.add(line);}
+      this.root.add(frame);
+      return;
+    }
     const elevation=(sx:number,sz:number):number=>this.terrain?.sample(Math.max(r.x0*10+.0001,Math.min((r.x1+1)*10-.0001,sx)),Math.max(r.y0*10+.0001,Math.min((r.y1+1)*10-.0001,sz)))??0;
     const material=cityToolMaterial(hover.colour),fill=new Mesh(new PlaneGeometry(w,d).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));
     if(this.terrain?.enabled){const p=fill.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,elevation(x+p.getX(i),z+p.getZ(i)));fill.geometry.computeVertexNormals();}
     fill.position.set(x,.56,z);fill.renderOrder=10;this.root.add(fill);
-    for(const[sw,sd,sx,sz]of[[w,.10,x,z-d/2],[w,.10,x,z+d/2],[.10,d,x-w/2,z],[.10,d,x+w/2,z]]){
+    for(const[sw,sd,sx,sz]of[[w,.35,x,z-d/2],[w,.35,x,z+d/2],[.35,d,x-w/2,z],[.35,d,x+w/2,z]]){
       const line=new Mesh(new BoxGeometry(sw,.025,sd),material);
       if(this.terrain?.enabled){const p=line.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+elevation(sx+p.getX(i),sz+p.getZ(i)));line.geometry.computeVertexNormals();}
       line.position.set(sx,.58,sz);line.renderOrder=11;this.root.add(line);

@@ -73,7 +73,20 @@ const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 're
 const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 /** How big the ruler's buildings beside a curved road are drawn, as a share of their tiles (owner, 14 Oct 2026: "scale
  * ของแต่ละ tool ใหญ่ไป") */
-const BUILDING_SCALE = 0.6;
+export const BUILDING_SCALE = 0.6;
+
+/** The nearest point of a road's middle line, the way it runs there and how far the road reaches either side */
+export type RoadNear = { x: number; z: number; tx: number; tz: number; reach: number };
+
+/** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at BUILDING_SCALE:
+ * its middle and its turn, its front to the road */
+export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNear): { x: number; z: number; rotation: number } {
+  const half = size * 5 * BUILDING_SCALE;
+  let nx = -near.tz, nz = near.tx;
+  if (nx * (x - near.x) + nz * (z - near.z) < 0) { nx = -nx; nz = -nz; }
+  const gap = near.reach + .6 + half;
+  return { x: near.x + nx * gap, z: near.z + nz * gap, rotation: Math.atan2(-nx, -nz) };
+}
 /** Far-view heights of the schools and hospitals on the civic 3 × 3 (their models are 6–34 m at the highest point) */
 const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, primary_school: 7, secondary_school: 10,
   vocational_college: 8, university: 10, ...HOSPITAL_HEIGHTS };
@@ -207,7 +220,7 @@ export class TileSnapshot implements CityMapReader {
   curves=false;
   /** The nearest point of a road's middle line within reach (world units), the way it runs and how far the road reaches
    * either side (roadCurves.ts nearest), so the ruler's buildings stand against the curved roads */
-  roadSnap:((x:number,z:number,reach:number)=>{x:number;z:number;tx:number;tz:number;reach:number}|null)|null=null;
+  roadSnap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
     const p=this.placementOf(i,region,this.values[i]);
@@ -224,11 +237,8 @@ export class TileSnapshot implements CityMapReader {
     const near=this.roadSnap!(p.x,p.z,size*5+14);
     if(!near)return p;
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
-    const scale=p.scale*BUILDING_SCALE,half=size*5*BUILDING_SCALE;
-    // Away from the road, towards where the building stands
-    let nx=-near.tz,nz=near.tx;if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
-    const gap=near.reach+.6+half,x=near.x+nx*gap,z=near.z+nz*gap,rotation=Math.atan2(-nx,-nz);
-    return {...p,x,z,rotation,scale,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
+    const {x,z,rotation}=poseAgainstRoad(p.x,p.z,size,near);
+    return {...p,x,z,rotation,scale:p.scale*BUILDING_SCALE,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
   }
   /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
   private besideCurve(i:number):boolean {
