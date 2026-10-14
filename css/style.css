@@ -2002,14 +2002,16 @@ body #controls:hover, body #controls:has(:focus-visible) { transform: translate(
 /* With a tool in hand the dock stays up while the player builds, and the tool's card sits above it (owner, 14 Oct
    2026: "menu tool นะ ถ้าคลิกจะสร้าง แล้วไม่ต้องหายไป") */
 body #controls:has(.toolButton.selected) { transform: translate(-50%, 0); transition-delay: 0s; }
-/* The camera's buttons, a glass strip against the right edge (src/cameraModes.ts) */
+/* The camera's buttons, a glass strip against the right edge below the ruler's tasks (src/cameraModes.ts) */
 #cameraBar {
-  position: absolute; right: 10px; top: 50%; z-index: 13; display: flex; flex-direction: column; align-items: center;
-  gap: 4px; padding: 6px 5px; transform: translateY(-50%); border: 1px solid var(--hud-edge); border-radius: 14px;
+  position: absolute; right: 10px; bottom: 46px; z-index: 13; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 6px 5px; border: 1px solid var(--hud-edge); border-radius: 14px;
   background: var(--hud-glass); box-shadow: var(--hud-shadow);
   -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3);
-  animation: windowIn 0.4s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: motionFromRight 0.45s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
+/* ... and the tasks stop short of it, scrolling if the window is low */
+body:has(#cameraBar) #rulerGoals { max-height: calc(100% - 380px); }
 #cameraBar .cameraButton {
   width: 32px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 9px; background: transparent;
   color: var(--hud-text); font: 400 17px/1 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;

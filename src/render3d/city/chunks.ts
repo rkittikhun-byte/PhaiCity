@@ -193,13 +193,13 @@ export class CityChunks {
     this.detailCalls=calls;this.rebuildMs=this.now()-start;
   }
   private pendingResults:ReturnType<PrototypeProvider['take']>=[];
-  tallestNear(target:Vector3):number {
-    if(!this.terrain?.enabled){let max=0;for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<194&&Math.abs(chunk.y*10+80-target.z)<194)
-      for(const p of chunk.placements)if(Math.abs(p.x-target.x)<80&&Math.abs(p.z-target.z)<80)max=Math.max(max,this.prototypes.get(prototypeKey(p))?.height??p.height);return max;}
-    const ground=this.terrain?.sample(target.x,target.z)??0;let max=ground;
-    for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<194&&Math.abs(chunk.y*10+80-target.z)<194)
+  /** The top of what stands within reach of a point, easing out to the ground at that reach: how high the camera over
+   * it must stay so it never looks from inside a building */
+  tallestNear(target:Vector3,reach=80):number {
+    const ground=this.terrain?.enabled?this.terrain.sample(target.x,target.z):0;let max=ground;
+    for(const chunk of this.chunks)if(Math.abs(chunk.x*10+80-target.x)<114+reach&&Math.abs(chunk.y*10+80-target.z)<114+reach)
       for(const p of chunk.placements){const distance=Math.max(0,Math.abs(p.x-target.x)-p.footprint[0]*5,Math.abs(p.z-target.z)-p.footprint[1]*5);
-        if(distance<80){const t=1-distance/80,ease=t*t*(3-2*t),top=(p.baseY??0)+(this.prototypes.get(prototypeKey(p))?.height??p.height);max=Math.max(max,ground+(top-ground)*ease);}}
+        if(distance<reach){const t=1-distance/reach,ease=t*t*(3-2*t),top=(p.baseY??0)+(this.prototypes.get(prototypeKey(p))?.height??p.height);max=Math.max(max,ground+(top-ground)*ease);}}
     return max;
   }
   get pendingChunks():number{return this.chunks.filter(c=>c.dirty).length+(this.surfaces?.pending??0);}

@@ -67,7 +67,7 @@ export class CityView3D implements CityView {
     this.terrain=new CityHeightField(this.snapshot,setup.map);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
     // On a real-scale city map the camera comes down to the street
-    if((setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40){this.navigation.minDistance=10;this.navigation.clearance=1.5;}
+    if((setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40){this.navigation.minDistance=5;this.navigation.clearance=1.1;}
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
@@ -139,7 +139,9 @@ export class CityView3D implements CityView {
     if(changed.length||raised.length)this.curves.update(raised.length?[...changed,...raised]:changed);
     if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
-    this.navigation.update(start,Math.max(this.chunks.tallestNear(this.navigation.target),this.terrain.enabled?this.chunks.tallestNear(this.navigation.camera.position):0));
+    // The camera stays over what stands under it, not over what it looks at, so it can come down and look across the
+    // city to the horizon (owner, 14 Oct 2026: "มุมเงยหน้า สุดแค่ตรงนี้เอง")
+    this.navigation.update(start,this.chunks.tallestNear(this.navigation.camera.position,24));
     const pose=this.navigation.camera.matrixWorld.elements;
     if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();

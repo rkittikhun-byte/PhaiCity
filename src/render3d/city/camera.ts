@@ -4,8 +4,8 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { groundAt } from './picking.js';
 import type { CityHeightField } from './heightfield.js';
-/** How low the camera may look: near the horizon, so the sky and the land beyond show (owner 13 Oct 2026) */
-const MIN_PITCH=12*Math.PI/180;
+/** How low the camera may look: near the horizon, so the sky and the land beyond show (owner 13 and 14 Oct 2026) */
+const MIN_PITCH=4*Math.PI/180;
 export class CityCamera {
   readonly camera=new PerspectiveCamera(38,1,1,12000); readonly target:Vector3;
   heading=0; pitch=55*Math.PI/180; distance=240;
@@ -35,7 +35,8 @@ export class CityCamera {
     if(age>=0&&age<550&&!this.reducedMotion){const amplitude=(1-age/550)*1.4;this.camera.position.x+=Math.sin(age*.08)*amplitude;this.camera.position.y+=Math.sin(age*.13)*amplitude;}
     // Zoomed far out over a province (provinceBackdrop.ts), the near and far planes move out with the camera so the
     // depth buffer still tells the district's ground from the province's just under it
-    const near=Math.max(1,this.distance/400),far=Math.max(12000,this.distance*4);
+    // ... and down at the street the near plane comes in, so a building beside the camera is not cut open
+    const near=Math.max(Math.min(1,this.distance/20),this.distance/400),far=Math.max(12000,this.distance*4);
     if(near!==this.camera.near||far!==this.camera.far){this.camera.near=near;this.camera.far=far;this.camera.updateProjectionMatrix();}
     this.camera.lookAt(this.target);this.camera.updateMatrixWorld();
   }
@@ -60,9 +61,17 @@ export class CityCamera {
   }
   zoom(delta:number,x:number,y:number,width:number,height:number):void {
     if(delta)this.interaction=this.now();
-    const before=groundAt(this.camera,x,y,width,height,this.terrain);this.distance=Math.max(this.minDistance,Math.min(this.maxDistance, this.distance*Math.exp(Math.max(-300,Math.min(300,delta))*.0015)));
+    const before=groundAt(this.camera,x,y,width,height,this.terrain),want=this.distance*Math.exp(Math.max(-300,Math.min(300,delta))*.0015);
+    this.distance=Math.max(this.minDistance,Math.min(this.maxDistance,want));
     this.fly=undefined;this.update(this.now());const after=groundAt(this.camera,x,y,width,height,this.terrain);
-    if(before&&after){this.target.add(before.sub(after));this.clamp();this.update(this.now());}
+    if(before&&after){this.target.add(before.clone().sub(after));this.clamp();this.update(this.now());}
+    // At the closest the zoom goes on as a walk toward what the pointer is on, so it never just stops (owner, 14 Oct
+    // 2026: "zoom อีกไม่ได้แล้ว ... มันต้องทำได้สุดๆ")
+    if(want<this.minDistance){
+      const towards=before??new Vector3(this.target.x-Math.sin(this.heading),0,this.target.z-Math.cos(this.heading));
+      const dx=towards.x-this.camera.position.x,dz=towards.z-this.camera.position.z,length=Math.hypot(dx,dz);
+      if(length>1e-6){const step=Math.min((this.minDistance-want)*3,length);this.target.x+=dx/length*step;this.target.z+=dz/length*step;this.clamp();this.update(this.now());}
+    }
   }
   shake():void {this.interaction=this.now();this.shaking=this.now();}
   wholeMap():void {this.interaction=this.now();this.distance=Math.max(this.mapWidth*10/(this.camera.aspect||1),this.mapHeight*10)*1.85;this.target.set(this.mapWidth*5,0,this.mapHeight*5);this.pitch=75*Math.PI/180;this.fly=undefined;this.update(this.now());}
