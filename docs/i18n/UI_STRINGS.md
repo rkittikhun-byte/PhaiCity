@@ -403,6 +403,13 @@
 | `house.wing.trade_office.cost` | `src/houseWindow.ts` | — | `Works only in network mode` | `มีผลเฉพาะโหมดเครือข่าย` |  |
 | `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
 | `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
+| `camera.free` | `src/cameraModes.ts` | — | `Free: click to build and look, drag to move` | `อิสระ: คลิกสร้างหรือดู ลากเพื่อเลื่อน` | ปุ่มกล้องขวามือ |
+| `camera.pan` | `src/cameraModes.ts` | — | `Move: drag to slide the view` | `เลื่อน: ลากเพื่อเลื่อนกล้อง` |  |
+| `camera.rotate` | `src/cameraModes.ts` | — | `Rotate: drag left or right to turn` | `หมุน: ลากซ้ายขวาเพื่อหมุน` |  |
+| `camera.zoom` | `src/cameraModes.ts` | — | `Zoom: drag up to come closer, down to draw back` | `ซูม: ลากขึ้นเข้าใกล้ ลากลงถอยออก` |  |
+| `camera.tilt` | `src/cameraModes.ts` | — | `Tilt: drag up or down to look lower or higher` | `เอียง: ลากขึ้นลงเพื่อก้มเงยกล้อง` |  |
+| `camera.top` | `src/cameraModes.ts` | — | `Look straight down, north up` | `มองตรงจากบน หันทิศเหนือขึ้น` |  |
+| `camera.whole` | `src/cameraModes.ts` | — | `See the whole city` | `ดูทั้งเมือง` |  |
 | `tool.needs_road` | `src/game.js` | — | `Buildings stand beside a road: put it next to one` | `อาคารต้องตั้งติดถนน วางให้ชิดถนน` | แผนที่ที่ทาเขตทีละช่อง (src/cityCommands.ts roadBesideProblem) |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |

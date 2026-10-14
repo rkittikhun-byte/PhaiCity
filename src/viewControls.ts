@@ -192,6 +192,8 @@ export function dragMode(dx: number, dy: number, shift: boolean, canTurn: boolea
  * drag with Shift held. The view's own controls stay as they are: dragging with the right button turns it, with the
  * middle button slides it, and the wheel zooms toward the mouse.
  */
+import { cameraMode } from "./cameraModes.js";
+
 export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc: Document = document,
   onClick?: (x: number, y: number) => void): void {
   const pan = panOf(view);
@@ -222,7 +224,15 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     if (!drag.moved) drag.turning = dragMode(dx, dy, drag.shift, turn !== null) === "turn";
     drag.moved = true;
     canvas.classList.add("panning");
-    if (drag.turning) turn?.(dx, dy);
+    // The camera buttons' mode (src/cameraModes.ts): pan, rotate, zoom or tilt; free as always
+    const camera = cameraMode(), navigation = (view as { navigation?: { zoom?(d: number, x: number, y: number, w: number, h: number): void } }).navigation;
+    if (camera === "pan") pan(dx, dy);
+    else if (camera === "rotate") turn?.(dx, 0);
+    else if (camera === "tilt") turn?.(0, dy);
+    else if (camera === "zoom") {
+      const rect = canvas.getBoundingClientRect();
+      navigation?.zoom?.(dy * 4, rect.width / 2, rect.height / 2, rect.width, rect.height);
+    } else if (drag.turning) turn?.(dx, dy);
     else pan(dx, dy);
     drag.x = event.clientX;
     drag.y = event.clientY;
@@ -230,7 +240,7 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   const end = (event: PointerEvent): void => {
     if (!drag || event.pointerId !== drag.id) return;
     // A press that never became a drag is a click: what is there (src/inspect.ts), in pixels over the canvas
-    const clicked = !drag.moved && event.type === "pointerup";
+    const clicked = !drag.moved && event.type === "pointerup" && cameraMode() === "free";
     drag = null;
     canvas.classList.remove("panning");
     if (clicked && onClick) {

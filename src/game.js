@@ -69,6 +69,7 @@ import {
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
+import { installCameraBar } from './cameraModes.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
@@ -538,6 +539,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.inspectCard = inspectElement ? new InspectCard(inspectElement) : null;
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
                   function(x, y) { self.inspectAtPixel(x, y); });
+  // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
+  installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
   onLanguageChange(function() { if (self.inspectCard) self.inspectCard.render(); });
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && self.inspectCard && self.inspectCard.isOpen)
