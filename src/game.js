@@ -1452,8 +1452,9 @@ Game.prototype.calculateMouseForPaint = function() {
       hover.colour = level === 1 ? '#d9824a' : level === 2 ? '#4a4f52' : level > 2 ? '#9a978f' :
                      this.inputStatus.toolName === 'rail' ? '#7a6f63' : DRAW_COLOUR;
     }
-    // A straight line is drawn straight from its start to its end
+    // Every mode's preview is the very line it builds: the straight line or the curve through its points
     hover.straight = preview.mode === 'straight';
+    hover.controls = preview.controls || null;
   }
   this.showDrawTip(preview);
   if (preview !== null)
@@ -1651,12 +1652,14 @@ Game.prototype.drawPreview = function(tile) {
   }
   var guide = null;
   var angle = null;
+  var controls = null;
   if (POINTS_NEEDED[mode]) {
     var snap = this.snapTile(tile, toolName, draft);
     guide = snap.guide;
     if (draft !== null && draft.points.length > 0) {
       var points = draft.points.concat([snap.tile]);
       tiles = curvePath(points);
+      controls = points;
       var start = points[0], leaving = points[1];
       angle = joinAngle({x: leaving.x - start.x, y: leaving.y - start.y}, draft.from, this.roadWayAt(start));
     } else if (snap.tile.x !== tile.x || snap.tile.y !== tile.y) {
@@ -1675,7 +1678,7 @@ Game.prototype.drawPreview = function(tile) {
     metres *= this.gameMap.tileSizeM || 10;
   }
   this._preview = {key: key, tiles: tiles, cost: tiles.length > 0 ? this.estimateCost(tiles) : 0, mode: mode, step: step,
-                   metres: metres, angle: angle, guide: guide};
+                   metres: metres, angle: angle, guide: guide, controls: controls};
   return this._preview;
 };
 

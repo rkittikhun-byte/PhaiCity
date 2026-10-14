@@ -44,6 +44,8 @@ export interface ToolHover {
   lineStart?: { x: number; y: number } | null;
   /** The line is drawn in the straight mode: shown as one straight line from its start to its end */
   straight?: boolean;
+  /** The points a line drawn by clicks bends through (straight, curve, S-curve), in tiles: its preview is that curve */
+  controls?: readonly TilePoint[] | null;
 }
 
 export interface CityView {
