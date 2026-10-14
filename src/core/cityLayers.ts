@@ -47,6 +47,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     map.heights = saved.heights || null;
     map.tileSizeM = saved.tileSizeM || null;
+    // ... and the frame of its district it plays (src/cityFrame.ts), null on a map that is not a frame
+    map.frame = saved.frame || null;
     // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
     // the game is not held back by it
     map.civicKinds = Object.assign({}, saved.civicKinds || {});
@@ -65,7 +67,7 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.cellZones = saved.cellZones === true;
     map.zoneCells = readZoneCells(saved.zoneCells);
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
-    map.landBlocks = saved.land ? decodePresetLayer(saved.land, blockColumns(map), blockRows(map)) : null;
+    map.landBlocks = saved.land ? savedLand(map, saved.land) : null;
     map.landBought = saved.landBought || 0;
     map.needsRulerHouse = saved.needsRulerHouse === true;
   } else {
@@ -84,6 +86,20 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
   // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
   // ... and on a whole district's map, which says so whatever the size of its tiles (scripts/geo/cityMaps.mjs)
   map.paintedZones = map.paintedZones === true || isCityMap(map) || (saved !== null && saved.paintedZones === true);
+}
+
+/** A saved city's land blocks. Saves before 15 Oct 2026 did not keep the size of a city map's tiles, so their 32-tile
+ * blocks read as a province map's 24: such a save's land that only reads as 32-tile blocks is a city map's */
+function savedLand(map: Legacy, land: string): Uint8Array {
+  try {
+    return decodePresetLayer(land, blockColumns(map), blockRows(map));
+  } catch (error) {
+    if (map.tileSizeM) throw error;
+    const city = { width: map.width, height: map.height, tileSizeM: 16 };
+    const blocks = decodePresetLayer(land, blockColumns(city), blockRows(city));
+    map.tileSizeM = 16;
+    return blocks;
+  }
 }
 
 /** The records every city has, whatever made it (a practice map has none of them yet) */
@@ -152,6 +168,10 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     roadLevels: map.roadLevels ? encodePresetLayer(map.roadLevels) : undefined,
     // ... and whether its zones are painted tile by tile (src/plots.ts)
     paintedZones: map.paintedZones ? true : undefined,
+    // ... and the size of its tiles, which sets the size of its land blocks (src/landBlocks.ts)
+    tileSizeM: map.tileSizeM || undefined,
+    // ... and the frame of its district it plays (src/cityFrame.ts)
+    frame: map.frame || undefined,
   };
 }
 
