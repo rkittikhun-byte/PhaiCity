@@ -150,6 +150,8 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     map.provinceId = provinceId;
     map.districtId = preset.districtId || null;
     map.tileSizeM = preset.tileSizeM || null;
+    // Where the map lies on the earth, to lay the province round a district's map (loadProvinceBackdrop)
+    map.mapCenter = preset.center || null;
     // A whole district's map is painted a tile at a time too (owner, 14 Oct 2026; docs/ZONE_PAINT.md)
     map.paintedZones = preset.paintedZones === true;
     // A real-scale city map's real streets: their levels, and their names for the street labels (src/streetNames.ts)
@@ -262,6 +264,7 @@ var savedCityHeights = function(map) {
     if (preset.width !== map.width || preset.height !== map.height)
       return Promise.resolve();
     map.tileSizeM = preset.tileSizeM || null;
+    map.mapCenter = preset.center || null;
     // ... and its streets' real names, which saves do not keep either
     streetNamesFrom(map, preset);
     return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
@@ -285,6 +288,39 @@ var savedCityHeights = function(map) {
 };
 
 
+// The whole province round a district's city, so the player can zoom out over all of it (owner, 14 Oct 2026:
+// "ในตอนเลือก อ. เมืองแล้ว และอยากดู view ทั้งขอนแก่นอีกที แบบ zoom ออก มา ก็สามารถทำได้ด้วยนะ"): the province's own
+// map and its districts' outlines, for the 3D view only (src/render3d/city/provinceBackdrop.ts). Nothing for a city
+// that is not on a district's map, or when they cannot be read.
+var loadProvinceBackdrop = function(map) {
+  if (!map.districtId || !map.provinceId || !map.mapCenter || !map.tileSizeM)
+    return Promise.resolve();
+  return Promise.all([fetchJson(mapUrl(map.provinceId, false)), fetchJson('data/maps/district/index.json')])
+      .then(function(results) {
+    var province = results[0];
+    var districts = (results[1][map.provinceId] || []).map(function(district) {
+      var outline = district.outline || {};
+      var polygons = outline.type === 'MultiPolygon' ? outline.coordinates :
+        outline.type === 'Polygon' ? [outline.coordinates] : [];
+      return {id: district.id, rings: [].concat.apply([], polygons)};
+    });
+    return decodePresetHeights(province).then(function(heights) {
+      map.provinceBackdrop = {
+        backdrop: {
+          width: province.width, height: province.height, tileSizeM: province.tileSizeM, center: province.center,
+          cells: decodePresetCells(province),
+          inside: province.inside ? decodePresetLayer(province.inside, province.width, province.height) : null,
+          heights: heights, districts: districts, districtId: map.districtId
+        },
+        district: {center: map.mapCenter, width: map.width, height: map.height, tileSizeM: map.tileSizeM}
+      };
+    });
+  }).catch(function(error) {
+    console.warn('No province round ' + map.districtId + ': ' + error.message);
+  });
+};
+
+
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
   var self = this;
@@ -293,7 +329,8 @@ var launch = function(map, difficulty, name) {
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
   var provinceId = map.provinceId || null;
-  Promise.all([prepareView(provinceId), loadRules(provinceId), savedCityHeights(map), loadResources(provinceId)])
+  Promise.all([prepareView(provinceId), loadRules(provinceId),
+               savedCityHeights(map).then(function() { return loadProvinceBackdrop(map); }), loadResources(provinceId)])
       .then(function(results) {
     var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1],
                      results[3]);

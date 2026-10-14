@@ -1,6 +1,7 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
+import type { DistrictPlace, ProvinceBackdrop } from './provinceBackdrop.js';
 import type { RegionId } from '../regional/types.js';
 import type { ModelOptions } from '../models/registry.js';
 import type { Street } from '../../streetNames.js';
@@ -34,6 +35,8 @@ export interface CityViewSetup {
   windLevel?: number;
   /** A street's name in the player's language (src/streetNames.ts); without it the view writes no names */
   streetName?: (street: Street) => string;
+  /** The whole province round a district's map, for zooming out over all of it (provinceBackdrop.ts) */
+  province?: { backdrop: ProvinceBackdrop; district: DistrictPlace } | null;
 }
 export interface Placement {
   index: number; x: number; z: number; id: string | null; options: ModelOptions; rotation: number;

@@ -229,6 +229,10 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
 
       for (var mapX = worldX; mapX <= worldX + 1; mapX++) {
         for (var mapY = worldY; mapY <= worldY + 1; mapY++) {
+          // A map an odd number of tiles across (a whole district's) ends halfway through its last blocks
+          if (mapX >= map.width || mapY >= map.height)
+            continue;
+
           var tileValue = map.getTileValue(mapX, mapY);
 
           if (tileValue === TileValues.DIRT)

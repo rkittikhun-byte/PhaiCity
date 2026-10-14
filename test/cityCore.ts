@@ -137,4 +137,11 @@ describe("the game's core", () => {
     again.run(STEPS_PER_YEAR / 4);
     expect(again.simulation.getDate().year).toBeGreaterThanOrEqual(core.simulation.getDate().year);
   });
+
+  test("a map an odd number of tiles across, as most whole districts are, starts and runs", () => {
+    const map = (MapGenerator as any).fromPresetCells(41, 33, new Uint8Array(41 * 33));
+    const core = new CityCore({ map, seed: 5 });
+    townOrders(4, 4).forEach(order => core.apply(order));
+    expect(() => core.run(STEPS_PER_YEAR / 4)).not.toThrow();
+  });
 });

@@ -754,7 +754,9 @@ var createView3D = function(game, view3d) {
       streetName: function(street) {
         var label = streetLabel(street, getLanguage());
         return t(label.key, label.params);
-      }
+      },
+      // The whole province round a district's city, for zooming out over it (src/splashScreen.js)
+      province: game.gameMap.provinceBackdrop || null
     });
   } catch (e) {
     console.warn('The 3D city view could not start:', e);

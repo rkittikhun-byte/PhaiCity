@@ -25,6 +25,10 @@ export class CityHeightField {
   readonly corners: Float32Array;
   readonly water: Float32Array;
   readonly enabled: boolean;
+  /** The ground height (metres) the map's lowest land stands at, and world units a metre of height: for laying
+   * other ground (the province round a district, provinceBackdrop.ts) at the same scale */
+  baseMetres = 0;
+  unitsPerMetre = 0;
   readonly province: boolean;
   readonly mask: Uint8Array | null;
   readonly town: { readonly x: number; readonly y: number } | null;
@@ -45,6 +49,8 @@ export class CityHeightField {
       let lowest = Infinity;
       for (let i = 0; i < n; i++) if (!isWaterNeighbor(snapshot.values[i])) lowest = Math.min(lowest, Math.max(0, map.heights![i]));
       if (!Number.isFinite(lowest)) lowest = 0;
+      this.baseMetres = lowest;
+      this.unitsPerMetre = 10 / map.tileSizeM! * (map.tileSizeM! <= CITY_TILE_MAX_M ? CITY_HILL_EXAGGERATION : HILL_EXAGGERATION);
       for (let i = 0; i < n; i++) this.tileHeights[i] = (Math.max(0, map.heights![i]) - lowest) * 10 / map.tileSizeM! * (map.tileSizeM! <= CITY_TILE_MAX_M ? CITY_HILL_EXAGGERATION : HILL_EXAGGERATION);
     }
     this.rebuild();

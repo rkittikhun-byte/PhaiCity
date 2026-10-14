@@ -482,8 +482,9 @@ var simulate = function(simData) {
     case 6:
     case 7:
     case 8:
-      this._mapScanner.mapScan((this._phaseCycle - 1) * this._map.width / 8,
-                                this._phaseCycle * this._map.width / 8, simData);
+      // PhaiCity: whole columns, for a map whose width is not a multiple of 8 (a whole district's)
+      this._mapScanner.mapScan(Math.floor((this._phaseCycle - 1) * this._map.width / 8),
+                                Math.floor(this._phaseCycle * this._map.width / 8), simData);
       break;
 
     case 9:
