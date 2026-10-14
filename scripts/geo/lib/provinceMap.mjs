@@ -10,6 +10,7 @@ import { createMask, fillPolygon, labelRegions, orMask, seaFromCoastline, tileCo
 import { anchorTile, buildChains, clipLine, createNetwork, layPath, NONE, RAIL, ROAD, route, thinBlocks } from './routing.mjs';
 import { polygonIndex, provinceAt, provinceLinks, roadGraph } from './links.mjs';
 import { layStreets } from './cityStreets.mjs';
+import { tidyJunctions } from './linkJunctions.mjs';
 
 export const LAND = 0;
 export const WATER = 1;
@@ -603,6 +604,10 @@ function layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoot
     for (const point of parts[0].points) if (key(point) !== key(line[line.length - 1])) line.push(point);
     if (line.length > 1) lines.push({ link, points: line });
   }
+  // Its junctions tidied: two close together made one, a road leaving at a sharp angle squared (linkJunctions.mjs)
+  const tidied = tidyJunctions(lines.map((line) => line.points), town, tileSizeM);
+  lines.forEach((line, i) => { line.points = tidied[i]; });
+  for (let i = lines.length - 1; i >= 0; i--) if (lines[i].points.length < 2) lines.splice(i, 1);
   // The network: its points, which are next to which, and where lines end
   const at = new Map(), next = new Map(), ends = new Set();
   const join = (a, b) => {
