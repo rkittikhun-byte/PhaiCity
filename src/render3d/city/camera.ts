@@ -4,8 +4,12 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { groundAt } from './picking.js';
 import type { CityHeightField } from './heightfield.js';
-/** How low the camera may look: near the horizon, so the sky and the land beyond show (owner 13 and 14 Oct 2026) */
-const MIN_PITCH=4*Math.PI/180;
+/** How low the camera may come round what it looks at: near the horizon, so the sky and the land beyond show (owner 13
+ * and 14 Oct 2026) */
+const ORBIT_PITCH=4*Math.PI/180;
+/** ... and past that the camera stays put and raises its eyes, up into the sky (owner, 14 Oct 2026: "3d ไม่ใช่เหรอ มุมเงย
+ * สุดๆ ได้แค่นี้เหรอ?"): pitch below ORBIT_PITCH is how far it looks up */
+const MIN_PITCH=-60*Math.PI/180;
 export class CityCamera {
   readonly camera=new PerspectiveCamera(38,1,1,12000); readonly target:Vector3;
   heading=0; pitch=55*Math.PI/180; distance=240;
@@ -28,8 +32,9 @@ export class CityCamera {
     if(this.fly){const t=Math.min(1,Math.max(0,(time-this.fly.start)/550)),ease=t*t*(3-2*t);this.target.lerpVectors(this.fly.from,this.fly.to,ease);if(t===1)this.fly=undefined;}
     this.clamp();
     this.target.y=this.terrain?.sample(this.target.x,this.target.z)??0;
-    this.camera.position.set(this.target.x+Math.sin(this.heading)*Math.cos(this.pitch)*this.distance,
-      Math.max(this.target.y+this.distance*Math.sin(this.pitch),tallest+this.clearance),this.target.z+Math.cos(this.heading)*Math.cos(this.pitch)*this.distance);
+    const orbit=Math.max(ORBIT_PITCH,this.pitch);
+    this.camera.position.set(this.target.x+Math.sin(this.heading)*Math.cos(orbit)*this.distance,
+      Math.max(this.target.y+this.distance*Math.sin(orbit),tallest+this.clearance),this.target.z+Math.cos(this.heading)*Math.cos(orbit)*this.distance);
     if(this.terrain?.enabled)this.camera.position.y=Math.max(this.camera.position.y,this.terrain.sample(this.camera.position.x,this.camera.position.z)+this.clearance);
     const age=time-this.shaking;
     if(age>=0&&age<550&&!this.reducedMotion){const amplitude=(1-age/550)*1.4;this.camera.position.x+=Math.sin(age*.08)*amplitude;this.camera.position.y+=Math.sin(age*.13)*amplitude;}
@@ -38,7 +43,10 @@ export class CityCamera {
     // ... and down at the street the near plane comes in, so a building beside the camera is not cut open
     const near=Math.max(Math.min(1,this.distance/20),this.distance/400),far=Math.max(12000,this.distance*4);
     if(near!==this.camera.near||far!==this.camera.far){this.camera.near=near;this.camera.far=far;this.camera.updateProjectionMatrix();}
-    this.camera.lookAt(this.target);this.camera.updateMatrixWorld();
+    this.camera.lookAt(this.target);
+    // Looking up: the eyes rise from the ground they looked at, by how far the pitch went below the orbit's
+    if(this.pitch<ORBIT_PITCH)this.camera.rotateX(Math.atan2(this.camera.position.y-this.target.y,Math.hypot(this.camera.position.x-this.target.x,this.camera.position.z-this.target.z))-this.pitch);
+    this.camera.updateMatrixWorld();
   }
   centreOn(x:number,y:number):void {
     this.interaction=this.now();

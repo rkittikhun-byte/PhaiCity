@@ -98,7 +98,9 @@ describe('Province ground and appearance',()=>{
     const n=new CityCamera(40,40,()=>0,true);n.minDistance=5;n.distance=5;n.camera.aspect=1;n.update(0);
     const z=n.target.z;n.zoom(-200,400,400,800,800);
     expect(n.distance).toBe(5);expect(n.target.z).toBeLessThan(z-1);
-    n.rotate(0,-1000);expect(n.pitch).toBeCloseTo(4*Math.PI/180);
+    // Past the horizon the camera stays and looks up into the sky
+    n.rotate(0,-1000);expect(n.pitch).toBeCloseTo(-60*Math.PI/180);
+    const look=new Vector3();n.camera.getWorldDirection(look);expect(Math.asin(look.y)).toBeCloseTo(60*Math.PI/180,2);
   });
   it('camera clearance uses the absolute top of buildings on raised ground',()=>{
     const f=fixture(),t=f.build(),n=new CityCamera(7,7,()=>0,true,t);n.distance=60;
