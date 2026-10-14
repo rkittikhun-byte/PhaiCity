@@ -42,6 +42,8 @@ export interface ToolHover {
    * shown as a small marker rather than a tile; and where the line being drawn started */
   linePoint?: { x: number; y: number } | null;
   lineStart?: { x: number; y: number } | null;
+  /** The line is drawn in the straight mode: shown as one straight line from its start to its end */
+  straight?: boolean;
 }
 
 export interface CityView {

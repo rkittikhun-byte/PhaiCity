@@ -63,12 +63,13 @@ function centreDashes(tiles: readonly TilePoint[], lift: number, terrain?: CityH
  * Skylines shows a road before it is built. The tiles it builds on are still the path's.
  */
 function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField,
-  start?: { x: number; y: number } | null, end?: { x: number; y: number } | null): { band: BufferGeometry; dashes: BufferGeometry } {
+  start?: { x: number; y: number } | null, end?: { x: number; y: number } | null, straight = false): { band: BufferGeometry; dashes: BufferGeometry } {
   // From the marked start to the marked end (on the middle of the roads they join), through the tiles between
   const middles = tiles.map((t): Point => [(t.x + .5) * 10, (t.y + .5) * 10]);
   if (start && middles.length) middles[0] = [start.x * 10, start.y * 10];
   if (end && middles.length > 1) middles[middles.length - 1] = [end.x * 10, end.y * 10];
-  const line = smoothLine(middles);
+  // The straight mode is one straight line from its start to its end; the others follow their tiles, smoothed
+  const line = straight && middles.length > 1 ? smoothLine([middles[0], middles[middles.length - 1]]) : smoothLine(middles);
   const height = (x: number, z: number): number => (terrain?.enabled ? terrain.sample(x, z) : 0) + lift;
   const band: number[] = [], dashes: number[] = [];
   const side = (i: number): [number, number] => {
@@ -112,7 +113,7 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.straight??false,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
     if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
@@ -125,7 +126,7 @@ export class ToolOutline {
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
       // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a grid, a rectangle or a fill as
       // its tiles
-      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint);
+      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true);
         const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=10;
         const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(band,dashes);return;}
       const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.56,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=10;

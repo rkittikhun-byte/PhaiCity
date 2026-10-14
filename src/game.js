@@ -1446,8 +1446,14 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.path = preview.tiles;
     // A road, railway or power line being drawn shows blue with a dashed middle, as in Cities: Skylines
     hover.line = preview.mode !== 'fill' && preview.mode !== 'rectangle';
-    if (hover.line && hover.colour !== OUTSIDE_COLOUR)
-      hover.colour = DRAW_COLOUR;
+    // ... in the colour of what it builds: laterite, asphalt, concrete, railway (owner, 14 Oct 2026)
+    if (hover.line && hover.colour !== OUTSIDE_COLOUR) {
+      var level = ROAD_TOOLS.indexOf(this.inputStatus.toolName) + 1;
+      hover.colour = level === 1 ? '#d9824a' : level === 2 ? '#4a4f52' : level > 2 ? '#9a978f' :
+                     this.inputStatus.toolName === 'rail' ? '#7a6f63' : DRAW_COLOUR;
+    }
+    // A straight line is drawn straight from its start to its end
+    hover.straight = preview.mode === 'straight';
   }
   this.showDrawTip(preview);
   if (preview !== null)
