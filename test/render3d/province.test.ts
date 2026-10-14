@@ -1,11 +1,12 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
-import { Mesh, PerspectiveCamera, Ray, Vector3, WebGLRenderer } from 'three';
+import { Euler, Matrix4, Mesh, PerspectiveCamera, Quaternion, Ray, Vector3, WebGLRenderer } from 'three';
 import { CityHeightField, HILL_EXAGGERATION, provinceColor } from '../../src/render3d/city/heightfield.js';
 import { CityCamera } from '../../src/render3d/city/camera.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { ProvinceSurface } from '../../src/render3d/city/province-surface.js';
+import { Placement, RoadsidePlacement } from '../../src/render3d/city/placement.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
 import { pickTile } from '../../src/render3d/city/picking.js';
 import { registry } from '../../src/render3d/models/registry.js';
@@ -123,6 +124,24 @@ describe('Province ground and appearance',()=>{
       expect([...c.land.geometry.getAttribute('cityOutside').array].every(v=>v===1)).toBe(true);
       expect(c.land.geometry.getAttribute('position').count).toBeGreaterThan(4*4*6);
     }}finally{surface.dispose();}
+  });
+  it('a building stood against its road keeps its smaller size and its turn in the far box',()=>{
+    const f=fixture(),t=f.build(),surface=new ProvinceSurface(t.snapshot,t);
+    try{const turn=Math.PI/5;
+      const house=new Placement({index:24,x:35,z:35,id:'civic.ruler_house',options:{} as never,rotation:0,footprint:[3,3],height:10,color:0xffffff,
+        kind:'civic',water:false,scale:1,powered:true});
+      // The plain placement's box fills its tiles; stood against a road, the same building's box is as small and turned
+      expect(house.farBox(new Matrix4(),10,.8).elements[0]).toBeCloseTo(29.2);
+      const posed=house.againstRoad(35,35,turn,.6);expect(posed).toBeInstanceOf(RoadsidePlacement);expect(posed.posed).toBe(true);
+      surface.set(24,posed);
+      // A tool's outline stands as the building it puts down will
+      expect(Placement.ofTool(3,35,35).againstRoad(40,30,turn,.6).ground()).toMatchObject({x:40,z:30,rotation:turn,width:18,depth:18});
+      surface.dirty([24]);surface.finish();
+      const c=surface.chunks[0],m=new Matrix4(),position=new Vector3(),rotation=new Quaternion(),size=new Vector3();
+      c.buildings.getMatrixAt(c.buildings.count-1,m);m.decompose(position,rotation,size);
+      expect(size.x).toBeCloseTo((30-.8)*.6);expect(size.y).toBeCloseTo(6);
+      expect(new Euler().setFromQuaternion(rotation).y).toBeCloseTo(turn);
+    }finally{surface.dispose();}
   });
   it('keeps the complete previous ground and forest visible during a sliced rebuild',()=>{
     const f=fixture(4,4);f.map.values[0]=37;const t=f.build(),surface=new ProvinceSurface(t.snapshot,t);

@@ -12,7 +12,7 @@ import type { CityHeightField } from './heightfield.js';
 import { ProvinceSurface } from './province-surface.js';
 interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number }
 interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
-const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),rotation=new Matrix4(),color=new Color();
+const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),color=new Color();
 export class CityChunks {
   readonly root=new Group();readonly solid:InstancedMesh;readonly water:InstancedMesh;readonly ground:InstancedMesh;
   readonly chunks:Chunk[]=[];readonly prototypes=new Map<string,Prototype>();
@@ -60,8 +60,8 @@ export class CityChunks {
   }
   private coarseMatrix(p:Placement):Matrix4 {
     const zone=p.footprint[0]>1, height=zone?(this.prototypes.get(prototypeKey(p))?.height??p.height):p.id?.startsWith('plot.')?p.height:p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
-    return matrix.makeScale(p.footprint[0]*10-(zone?1:0),height,p.footprint[1]*10-(zone?1:0))
-      .setPosition(p.x,(p.baseY??0)+(p.water?-.63:height/2),p.z);
+    // Water lies a little under the ground; everything else is the placement's own box (placement.ts)
+    return p.water?matrix.makeScale(p.footprint[0]*10,height,p.footprint[1]*10).setPosition(p.x,(p.baseY??0)-.63,p.z):p.farBox(matrix,height,zone?1:0);
   }
   private setCoarse(index:number,p:Placement|null):void {
     this.surfaces?.set(index,p);
@@ -124,7 +124,7 @@ export class CityChunks {
       mesh.instanceColor=new InstancedBufferAttribute(new Float32Array(batch.placements.length*3).fill(1),3).setUsage(DynamicDrawUsage);
       for(let i=0;i<batch.placements.length;i++)mesh.instanceColor.setX(i,batch.fade);
       mesh.castShadow=part.castShadow??true;mesh.receiveShadow=part.receiveShadow??true;
-      for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i],base=p.baseY??0;matrix.makeTranslation(p.x,base,p.z).multiply(rotation.makeRotationY(p.rotation)).scale(new Vector3(p.scale,p.scale,p.scale));mesh.setMatrixAt(i,matrix);
+      for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i],base=p.baseY??0;p.modelMatrix(matrix);mesh.setMatrixAt(i,matrix);
         province.setX(i,p.outside?1:0);
         if(this.terrain?.enabled&&isBridge(p)&&Number.isFinite(this.terrain.water[p.index]))bridgeDepth.setX(i,Math.max(0,base-this.terrain.water[p.index]));
         if(this.terrain?.enabled&&(p.kind==='road'||p.kind==='rail'||p.id==='terrain.dirt')&&!isBridge(p)){

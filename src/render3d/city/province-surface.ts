@@ -216,8 +216,10 @@ export class ProvinceSurface {
       matrix.makeScale(scale,scale,scale).setPosition(tx,this.terrain.sample(tx,tz),tz);c.treeMatrices.set(matrix.elements,slot*16);
       c.treeOutside[slot]=outside?1:0;
     }else if(p&&p.id&&p.id!=='terrain.dirt'&&!woods&&!wet&&!isRoad(v)&&!isRail(v)&&p.kind!=='power'&&p.kind!=='shore'){
-      const slot=c.buildingCount++;c.buildingSlots.set(i,slot);const height=Math.max(.2,p.height);
-      matrix.makeScale(p.footprint[0]*10-.8,height,p.footprint[1]*10-.8).setPosition(p.x,(p.baseY??0)+height/2,p.z);c.buildingMatrices.set(matrix.elements,slot*16);color.setHex(p.color).toArray(c.buildingColors,slot*3);
+      // Its box as the placement itself draws it (placement.ts): a building stood against its road is as small and as
+      // turned as its model
+      const slot=c.buildingCount++;c.buildingSlots.set(i,slot);
+      p.farBox(matrix,Math.max(.2,p.height),.8);c.buildingMatrices.set(matrix.elements,slot*16);color.setHex(p.color).toArray(c.buildingColors,slot*3);
       c.buildingOutside[slot]=outside?1:0;
     }
   }

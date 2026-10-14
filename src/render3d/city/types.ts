@@ -3,7 +3,6 @@
  */
 import type { DistrictPlace, ProvinceBackdrop } from './provinceBackdrop.js';
 import type { RegionId } from '../regional/types.js';
-import type { ModelOptions } from '../models/registry.js';
 import type { Street } from '../../streetNames.js';
 export interface CityMapReader {
   readonly width: number; readonly height: number;
@@ -38,11 +37,8 @@ export interface CityViewSetup {
   /** The whole province round a district's map, for zooming out over all of it (provinceBackdrop.ts) */
   province?: { backdrop: ProvinceBackdrop; district: DistrictPlace } | null;
 }
-export interface Placement {
-  index: number; x: number; z: number; id: string | null; options: ModelOptions; rotation: number;
-  footprint: readonly [number, number]; height: number; color: number; kind: string; water: boolean;
-  scale: number; powered: boolean;
-  baseY?: number; outside?: boolean;
-}
+/** Everything the city view stands on the map: one class, and a class below it for each way of standing (placement.ts) */
+export { Placement, RoadsidePlacement } from './placement.js';
+export type { PlacementFields } from './placement.js';
 export const CHUNK_TILES = 16;
 export const SEED_BUCKETS = 4;

@@ -10,6 +10,7 @@ import { cityDrawMaterial, cityToolMaterial, cityZoneGridMaterial } from '../mat
 import type { CityHeightField } from './heightfield.js';
 import { smoothLine, type Point } from './roadCurves.js';
 import { BUILDING_SCALE, poseAgainstRoad, type RoadNear } from './tileModels.js';
+import { Placement } from './placement.js';
 import type { CityMapReader } from './types.js';
 
 /**
@@ -153,13 +154,15 @@ export class ToolOutline {
     // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
     const size=hover.size,near=size>=3&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
     if(near||hover.pose){
-      const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!),side=size*10*BUILDING_SCALE,ground=this.terrain?.enabled?this.terrain.sample(pose.x,pose.z):0;
-      const frame=new Group();frame.position.set(pose.x,ground+.6,pose.z);frame.rotation.y=pose.rotation;
-      const fill=new Mesh(new PlaneGeometry(side,side).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
+      // The building the tool would put down, stood against its road as the city view will draw it (placement.ts)
+      const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!);
+      const g=Placement.ofTool(size,x,z).againstRoad(pose.x,pose.z,pose.rotation,BUILDING_SCALE).ground(),ground=this.terrain?.enabled?this.terrain.sample(g.x,g.z):0;
+      const frame=new Group();frame.position.set(g.x,ground+.6,g.z);frame.rotation.y=g.rotation;
+      const fill=new Mesh(new PlaneGeometry(g.width,g.depth).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
       // A bold white edge, which shows on any ground (owner: "เส้นมันจาง มองไม่เห็น")
-      const edge=cityToolMaterial('#ffffff'),t=.4;
-      for(const[sw,sd,sx,sz]of[[side+t,t,0,-side/2],[side+t,t,0,side/2],[t,side+t,-side/2,0],[t,side+t,side/2,0]]){
-        const line=new Mesh(new BoxGeometry(sw,.06,sd),edge);line.position.set(sx,.04,sz);line.renderOrder=11;frame.add(line);}
+      const edge=cityToolMaterial('#ffffff'),t=.4,sw=g.width,sd=g.depth;
+      for(const[lw,ld,sx,sz]of[[sw+t,t,0,-sd/2],[sw+t,t,0,sd/2],[t,sd+t,-sw/2,0],[t,sd+t,sw/2,0]]){
+        const line=new Mesh(new BoxGeometry(lw,.06,ld),edge);line.position.set(sx,.04,sz);line.renderOrder=11;frame.add(line);}
       this.root.add(frame);
       return;
     }

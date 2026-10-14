@@ -14,7 +14,8 @@ import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
 import { halfWidth, networkOf, roadReach, SHOULDER, smoothLine, type Point } from '../../roadGeometry.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
-import type { Placement } from './types.js';
+import { Placement } from './placement.js';
+import type { ModelOptions } from '../models/registry.js';
 
 export { smoothLine, type Point };
 
@@ -66,8 +67,8 @@ export class RoadCurves {
       for (let i = 1; i < points.length; i++) {
         const [ax, az] = points[i - 1], [bx, bz] = points[i];
         if (Math.abs(ax - target.x) > 220 || Math.abs(az - target.z) > 220) continue;
-        near.push({ index: -1, x: ax, z: az, id: 'road.curve_straight', kind: 'road', rotation: Math.atan2(bx - ax, bz - az),
-          footprint: [1, 1], height: 0, color: 0, water: false, scale: 1, powered: false, options: {} } as Placement);
+        near.push(new Placement({ index: -1, x: ax, z: az, id: 'road.curve_straight', kind: 'road', rotation: Math.atan2(bx - ax, bz - az),
+          footprint: [1, 1], height: 0, color: 0, water: false, scale: 1, powered: false, options: {} as ModelOptions }));
       }
     }
     return near.sort((a, b) => Math.hypot(a.x - target.x, a.z - target.z) - Math.hypot(b.x - target.x, b.z - target.z)).slice(0, 64);

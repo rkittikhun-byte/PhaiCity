@@ -5,6 +5,7 @@ import { BoxGeometry, Group, InstancedMesh, Vector3, WebGLRenderer } from 'three
 import { CityChunks } from '../../src/render3d/city/chunks.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { Placement } from '../../src/render3d/city/placement.js';
 import { cityLODDepthMaterial, cityLODMaterial, getMaterial, getPreviewGround, isLibraryMaterial } from '../../src/render3d/materials/library.js';
 import type { CityViewSetup } from '../../src/render3d/city/types.js';
 
@@ -18,7 +19,7 @@ function detailFixture(kind:'radius'|'budget'|'dirt') {
   for(const chunk of chunks.chunks){chunk.batches.forEach(b=>chunks.root.remove(b.group));chunk.batches=[];}
   const positions=kind==='budget'?[101,301]:kind==='dirt'?[235]:[285];
   const batches=positions.map((x,i)=>({key:`fixture-${i}`,group:new Group(),calls:0,selected:false,fade:0,
-    placements:[{...p,index:i,x,z:80,id:kind==='dirt'?'terrain.dirt':'road.straight',kind:kind==='dirt'?'terrain':'road',footprint:[1,1] as const}]}));
+    placements:[new Placement({...p,index:i,x,z:80,id:kind==='dirt'?'terrain.dirt':'road.straight',kind:kind==='dirt'?'terrain':'road',footprint:[1,1] as const})]}));
   for(const b of batches){chunks.root.add(b.group);chunks.prototypes.set(b.key,{height:1,parts:[{geometry,material:getMaterial('plaster_white')}]});}
   chunks.chunks[0].batches=batches;if(kind==='budget')chunks.drawBudget=1;
   const target=new Vector3(200,0,80),distance=kind==='budget'?400:154;

@@ -12,7 +12,8 @@ import { CIVIC, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
-import type { CityMapReader, Placement } from './types.js';
+import type { CityMapReader } from './types.js';
+import { Placement, type PlacementFields } from './placement.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 
@@ -153,9 +154,9 @@ export class TileSnapshot implements CityMapReader {
     const house=this.source?.rulerHouse;
     if(this.values[i]!==CIVIC||this.source?.civicKinds?.[i]!=='ruler_house'||!house||house.x!==x||house.y!==y||!registry['civic.ruler_house'])return null;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
-    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:'civic.ruler_house',kind:'services',footprint:[3,3],height:14+house.level*3,color:0xa2b8b4,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id:'civic.ruler_house',kind:'services',footprint:[3,3],height:14+house.level*3,color:0xa2b8b4,
       water:false,rotation:0,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
-        variant:house.level,state:[...(house.wings??[])].sort().join(','),waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:0}};
+        variant:house.level,state:[...(house.wings??[])].sort().join(','),waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:0}});
   }
   /** The side of a building centred at x, y (size 1 or 3 tiles) with the most road beside it: 0 north, 1 east, 2 south,
    * 3 west; south when it has none or a tie with the south. */
@@ -174,9 +175,9 @@ export class TileSnapshot implements CityMapReader {
     const kind=this.source?.civicKinds?.[i];
     if(this.values[i]!==CIVIC||!kind||kind==='ruler_house'||!registry[`civic.${kind}`])return null;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
-    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:`civic.${kind}`,kind:'services',footprint:[3,3],height:SCHOOL_HEIGHTS[kind]??12,color:0xb8ad94,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id:`civic.${kind}`,kind:'services',footprint:[3,3],height:SCHOOL_HEIGHTS[kind]??12,color:0xb8ad94,
       water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
-        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
   /** A rubbish or wastewater plant on tiles 992–1000 (RENDERER_SPEC 6I): `waste.<kind>` from wasteKinds (no record is a landfill) once
    * that model is registered, its gate toward its road. */
@@ -185,9 +186,9 @@ export class TileSnapshot implements CityMapReader {
     const kind=this.source?.wasteKinds?.[i]??'landfill';
     if(!registry[`waste.${kind}`])return null;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
-    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id:`waste.${kind}`,kind:'services',footprint:[3,3],height:WASTE_HEIGHTS[kind as keyof typeof WASTE_HEIGHTS]??12,color:0xa8a291,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id:`waste.${kind}`,kind:'services',footprint:[3,3],height:WASTE_HEIGHTS[kind as keyof typeof WASTE_HEIGHTS]??12,color:0xa8a291,
       water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
-        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
   /** A lot's one building over its four plots (src/plots.ts lotOf), from its top-left tile; null on its other tiles. */
   private lotPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null|undefined {
@@ -197,10 +198,10 @@ export class TileSnapshot implements CityMapReader {
     const id=registry[named]?named:registry[single]?single:null,scale=registry[named]?1:1.6;
     const rotation=FACING_ROTATION[lotFacing(this,lot)],cx=(x+LOT_SIZE/2)*10,cz=(y+LOT_SIZE/2)*10;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
-    return {index:i,x:cx,z:cz,id,kind:lot.kind,footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
+    return new Placement({index:i,x:cx,z:cz,id,kind:lot.kind,footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[lot.kind],water:false,rotation,scale,
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state:'closed',
-        waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}};
+        waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
   }
   /** A painted plot's building, facing its road, or null for an empty plot, whose painted ground is enough. */
   private plotPlacement(i:number,x:number,y:number,plot:Plot,region:RegionId,hash:number):Placement|null {
@@ -210,10 +211,10 @@ export class TileSnapshot implements CityMapReader {
     const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[this.values[i]]?.id??null:registry[named]?named:null;
     const rotation=FACING_ROTATION[plotFacing(this,x,y)];
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
-    return {index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation,scale:1,
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state:'closed',
-        waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+        waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
   /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
    * only the far view's ground, so nothing covers the curve */
@@ -236,12 +237,12 @@ export class TileSnapshot implements CityMapReader {
     if(size<3||['residential','commercial','industrial','terrain','road','rail','power','shore','debug'].includes(p.kind))return p;
     // Where the player slid it along its road, kept with the city (src/game.js buildingPose)
     const kept=(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
-    if(kept)return {...p,x:kept[0],z:kept[1],rotation:kept[2],scale:p.scale*BUILDING_SCALE,options:{...p.options,worldOrigin:[kept[0],kept[1]],worldRotationY:kept[2]}};
+    if(kept)return p.againstRoad(kept[0],kept[1],kept[2],BUILDING_SCALE);
     const near=this.roadSnap!(p.x,p.z,size*5+14);
     if(!near)return p;
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
     const {x,z,rotation}=poseAgainstRoad(p.x,p.z,size,near);
-    return {...p,x,z,rotation,scale:p.scale*BUILDING_SCALE,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
+    return p.againstRoad(x,z,rotation,BUILDING_SCALE);
   }
   /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
   private besideCurve(i:number):boolean {
@@ -298,14 +299,14 @@ export class TileSnapshot implements CityMapReader {
     const colors:Record<string,number>={residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473,services:0xa2b8b4,transport:0x9aa8aa,road:0x4a5255,rail:0x9b998b,power:0xa29280,shore:0xb09972,debug:0xbf6f93};
     const turn=Math.round(-rotation/(Math.PI/2))&3,station=[y*10,-(x+1)*10,-(y+1)*10,x*10][turn];
     const sleeperOffset=Math.round(((station%.6+.6)%.6)*1e6)/1e6;
-    return {index:i,x:(x-(w>1?1:0)+w/2)*10,z:(y-(h>1?1:0)+h/2)*10,id,kind,
+    return new Placement({index:i,x:(x-(w>1?1:0)+w/2)*10,z:(y-(h>1?1:0)+h/2)*10,id,kind,
       footprint:[w,h],height,color:kind==='road'&&roadLevel===1?0xbc7043:colors[kind]??(isWoods(v)?0x719765:0xa99472),water,rotation,
       scale:kind==='debug'?1/3:1,powered:Boolean(this.flags[i]&POWERBIT),
       options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant,state,waterMask:this.mask(x,y,isWaterNeighbor),landMask:this.mask(x,y,n=>!isWaterNeighbor(n)),
-        ...(kind==='rail'?{sleeperOffset}:{}),worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
+        ...(kind==='rail'?{sleeperOffset}:{}),worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
 }
-export function prototypeKey(p:Placement):string {
+export function prototypeKey(p:PlacementFields):string {
   const o=p.options; return [p.id,o.seed,o.region,o.variant,o.state,p.id==='terrain.woods'?o.waterMask??0:0,
     p.id==='terrain.water'?o.landMask??0:0,p.kind==='rail'?o.sleeperOffset??0:0].join('|');
 }
