@@ -69,7 +69,8 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
     const [ax, az] = line[Math.max(0, i - 1)], [bx, bz] = line[Math.min(line.length - 1, i + 1)], length = Math.hypot(bx - ax, bz - az) || 1;
     return [-(bz - az) / length, (bx - ax) / length];
   };
-  const quad = (out: number[], a: number[], b: number[], c: number[], d: number[]): void => { out.push(...a, ...b, ...c, ...b, ...d, ...c); };
+  // Faces up: a and b at one end, c and d at the other
+  const quad = (out: number[], a: number[], b: number[], c: number[], d: number[]): void => { out.push(...a, ...c, ...b, ...b, ...c, ...d); };
   let along = 0;
   for (let i = 1; i < line.length; i++) {
     const [ax, az] = line[i - 1], [bx, bz] = line[i], [nax, naz] = side(i - 1), [nbx, nbz] = side(i), w = 3.6;
