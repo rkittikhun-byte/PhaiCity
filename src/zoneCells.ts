@@ -53,6 +53,8 @@ export interface Cell {
   angle: number;
   /** Its row from the road, 0 next to it */
   row: number;
+  /** The stretch of road it faces (src/objects/roadSegment.ts segmentId: its lowest tile) */
+  road: number;
 }
 
 export interface CellLayout {
@@ -106,6 +108,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const candidates: Array<Cell & { distance: number }> = [];
   for (const { stretch, line } of lines) {
     if (stretch.rail || !servesZones(stretch.level) || line.length < 2) continue;
+    const road = Math.min(...stretch.tiles);
     const along = [0];
     for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
     const length = along[along.length - 1], count = Math.floor(length / cellUnits);
@@ -122,7 +125,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
         const nx = -tz * side, nz = tx * side;
         for (let row = 0; row < CELL_DEPTH; row++) {
           const distance = edge + (row + 0.5) * cellUnits;
-          candidates.push({ key: -1, x: px + nx * distance, z: pz + nz * distance, angle, row, distance });
+          candidates.push({ key: -1, x: px + nx * distance, z: pz + nz * distance, angle, row, road, distance });
         }
       }
     }
@@ -152,7 +155,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     if (!clear) continue;
     for (const spot of spots) taken[spot] = 1;
     const index = cells.length, tile = Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
-    cells.push({ key, x: cell.x, z: cell.z, angle: cell.angle, row: cell.row });
+    cells.push({ key, x: cell.x, z: cell.z, angle: cell.angle, row: cell.row, road: cell.road });
     byKey.set(key, index);
     if (!byTile.has(tile)) byTile.set(tile, []);
     byTile.get(tile)!.push(index);

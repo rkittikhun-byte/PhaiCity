@@ -1392,6 +1392,9 @@
 | `object.grade.3` | `src/inspect.ts` | — | `very high` | `สูงมาก` |  |
 | `object.fact.road_level` | `src/inspect.ts` | — | `{road}` | `{road}` | ชื่อชนิดถนนจากเครื่องมือ |
 | `object.fact.state_road` | `src/inspect.ts` | — | `The state's road: no upkeep` | `ถนนของรัฐ ไม่มีค่าบำรุง` |  |
+| `object.fact.length` | `src/inspect.ts` | — | `{metres} m long, junction to junction` | `ยาว {metres} ม. จากทางแยกถึงทางแยก` | ช่วงถนนเป็น object (src/objects/roadSegment.ts) |
+| `object.fact.traffic` | `src/inspect.ts` | — | `Traffic: {grade}` | `การจราจร: {grade}` |  |
+| `object.fact.cells` | `src/inspect.ts` | — | `Zone cells facing it: {painted} of {cells} painted` | `ช่องเขตริมถนนนี้: ทาแล้ว {painted} จาก {cells} ช่อง` | อำเภอที่ทาทีละช่อง (src/zoneCells.ts) |
 | `object.fact.outside` | `src/inspect.ts` | — | `Outside the province: nothing can be built` | `นอกเขตจังหวัด สร้างไม่ได้` |  |
 | `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |
 | `object.card.close` | `src/inspect.ts` | — | `Close` | `ปิด` |  |

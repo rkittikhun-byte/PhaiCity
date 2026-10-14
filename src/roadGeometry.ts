@@ -121,8 +121,8 @@ export interface LineMap {
   level(i: number): number;
 }
 
-/** A stretch between junctions, ends and other tiles: its tiles' middles, and its smooth line */
-export interface Stretch { points: Point[]; level: number; rail: boolean }
+/** A stretch between junctions, ends and other tiles: its tiles' middles, and its tiles */
+export interface Stretch { points: Point[]; tiles: number[]; level: number; rail: boolean }
 
 export interface Network {
   stretches: Stretch[];
@@ -203,7 +203,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
       const point = centre(tile), last = points[points.length - 1];
       if (!last || last[0] !== point[0] || last[1] !== point[1]) points.push(point);
     }
-    if (points.length > 1) stretches.push({ points, level: levelOf(tiles[1]), rail });
+    if (points.length > 1) stretches.push({ points, tiles, level: levelOf(tiles[1]), rail });
   };
   const plated = new Set<number>(), junctions: Point[] = [];
   for (let i = 0; i < count; i++) {
@@ -223,7 +223,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
       if (!plain(map.value(j))) {
         // Up to the edge of a bridge or a crossing, which keeps its own model
         const [cx, cz] = tileMiddle(i), [jx, jz] = tileMiddle(j);
-        stretches.push({ points: [centre(i), [cx, cz], [(cx + jx) / 2, (cz + jz) / 2]], level: levelOf(i), rail });
+        stretches.push({ points: [centre(i), [cx, cz], [(cx + jx) / 2, (cz + jz) / 2]], tiles: [i], level: levelOf(i), rail });
       } else if (sameKnot(i, j)) {
         // Inside a knot, which is one junction
         done.add(`${i}>${j}`); done.add(`${j}>${i}`);

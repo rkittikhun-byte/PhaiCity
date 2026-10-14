@@ -587,8 +587,14 @@ Game.prototype.selectionOutline = function() {
   if (!shown || this.inputStatus.currentTool !== null)
     return null;
   var rect = shown.rect;
-  return {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
-          colour: '#8fdcff'};
+  var outline = {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
+                 colour: '#8fdcff'};
+  // A stretch of road is outlined along its whole length (src/objects/roadSegment.ts)
+  if (shown.path && shown.path.length > 1) {
+    outline.path = shown.path;
+    outline.line = true;
+  }
+  return outline;
 };
 
 

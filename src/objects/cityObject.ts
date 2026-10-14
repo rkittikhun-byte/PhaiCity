@@ -44,7 +44,7 @@ export type ObjectKind =
   | "civic" | "police" | "fire"
   | "mine" | "farm" | "harbour"
   | "station" | "bus_stop" | "port" | "airport"
-  | "stadium";
+  | "stadium" | "road";
 
 /**
  * The two sides of the city (owner, 13 Oct 2026: "แบ่งแยก ในส่วนของ ชุมชนกับ service ของส่วนกลาง"): the community's

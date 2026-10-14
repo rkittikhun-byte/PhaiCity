@@ -15,6 +15,8 @@ import { DENSITY_GRADES, gradeAt, LAND_GRADES, type Satisfaction, type Satisfact
 import { MINE_TOOLS } from "./mining.js";
 import { PLANT_TOOLS } from "./powerPlants.js";
 import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
+import { roadSegmentAt } from "./objects/roadSegment.js";
+import { cellsOf } from "./zoneCells.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
@@ -30,6 +32,8 @@ export interface Inspection {
   facts: Fact[];
   /** The tiles it covers, for the outline in the view */
   rect: { x: number; y: number; width: number; height: number };
+  /** A stretch of road: its tiles in order, outlined along it rather than as a square */
+  path?: Array<{ x: number; y: number }>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -136,8 +140,26 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     const street = streetAt(map, i), level = roadLevelAt(map, x, y);
     const facts: Fact[] = [{ key: "object.fact.road_level", params: { road: `tool.${ROAD_TOOLS[level - 1] ?? "road"}` } }];
     if (map.isNationalTransport?.(x, y)) facts.push({ key: "object.fact.state_road" });
+    // The whole stretch it is on, as an object (src/objects/roadSegment.ts): how long, how busy, the cells facing it
+    const segment = roadSegmentAt(map, x, y);
+    let path: Inspection["path"];
+    if (segment) {
+      facts.push({ key: "object.fact.length", params: { metres: segment.lengthM } });
+      const traffic = city.blockMaps?.trafficDensityMap;
+      if (traffic) {
+        const grade = Math.max(...segment.points.map((p) => gradeAt(traffic, p.x, p.y, DENSITY_GRADES)));
+        facts.push({ key: "object.fact.traffic", params: { grade: `object.grade.${grade}` } });
+      }
+      if (map.cellZones) {
+        const layout = cellsOf(map);
+        const own = layout.cells.filter((cell) => cell.road === segment.id);
+        const painted = own.filter((cell) => map.zoneCells?.has(cell.key)).length;
+        facts.push({ key: "object.fact.cells", params: { painted, cells: own.length } });
+      }
+      path = segment.points;
+    }
     return { title: { key: "object.kind.road" }, street: street ? streetLabel(street, city.language) : undefined,
-      facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect };
+      sector: "central", facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect, path };
   }
   if (value >= RAILBASE && value <= LASTRAIL) return { title: { key: "object.kind.rail" }, facts: outside, rect };
   if (value >= RIVER && value <= LASTRIVEDGE) return { title: { key: "object.kind.water" }, facts: outside, rect };
