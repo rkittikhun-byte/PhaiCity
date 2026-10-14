@@ -152,6 +152,8 @@ export class CityView3D implements CityView {
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.sky.update(this.navigation.camera.position,this.seconds);
+    // The 2D view looks from far above, past the sky and the haze: a clear map
+    this.sky.mesh.visible=!this.navigation.flat;this.scene.fog=this.navigation.flat?null:this.fog;
     // The haze keeps its distance from the camera, so the whole map seen from high up stays clear, and further over a
     // whole province, so its far side still shows
     const hazeOut=this.province?2:1;this.fog.near=this.fogNear+this.navigation.distance*.9*hazeOut;this.fog.far=this.fogFar+this.navigation.distance*1.5*hazeOut;

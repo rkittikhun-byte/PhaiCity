@@ -227,7 +227,8 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     // The camera buttons' mode (src/cameraModes.ts): pan, rotate, zoom or tilt; free as always
     const camera = cameraMode(), navigation = (view as { navigation?: { zoom?(d: number, x: number, y: number, w: number, h: number): void } }).navigation;
     if (camera === "pan") pan(dx, dy);
-    else if (camera === "rotate") turn?.(dx, 0);
+    // Rotate turns both ways, left and right and up and down (owner, 14 Oct 2026: "ปุ่มหมุน ซ้าย - ขวา และ ขึ้นลงด้วย")
+    else if (camera === "rotate") turn?.(dx, dy);
     else if (camera === "tilt") turn?.(0, dy);
     else if (camera === "zoom") {
       const rect = canvas.getBoundingClientRect();

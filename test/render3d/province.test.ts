@@ -102,6 +102,15 @@ describe('Province ground and appearance',()=>{
     n.rotate(0,-1000);expect(n.pitch).toBeCloseTo(-60*Math.PI/180);
     const look=new Vector3();n.camera.getWorldDirection(look);expect(Math.asin(look.y)).toBeCloseTo(60*Math.PI/180,2);
   });
+  it('the 2D view looks straight down from far, showing the same width of ground, and tilting leaves it flat',()=>{
+    const n=new CityCamera(40,40,()=>0,true);n.camera.aspect=1;n.distance=300;n.update(0);
+    n.setFlat(true);const look=new Vector3();n.camera.getWorldDirection(look);
+    expect(look.y).toBeLessThan(-0.999);expect(n.camera.fov).toBe(2);
+    const width=2*(n.camera.position.y-n.target.y)*Math.tan(n.camera.fov/2*Math.PI/180);
+    expect(width).toBeCloseTo(2*300*Math.tan(19*Math.PI/180),0);
+    const pitch=n.pitch;n.rotate(0,200);expect(n.pitch).toBe(pitch);
+    n.setFlat(false);expect(n.camera.fov).toBe(38);
+  });
   it('camera clearance uses the absolute top of buildings on raised ground',()=>{
     const f=fixture(),t=f.build(),n=new CityCamera(7,7,()=>0,true,t);n.distance=60;
     const top=t.sample(n.target.x,n.target.z)+100;n.update(0,top);

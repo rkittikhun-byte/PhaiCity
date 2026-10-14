@@ -10,8 +10,13 @@ const ORBIT_PITCH=4*Math.PI/180;
 /** ... and past that the camera stays put and raises its eyes, up into the sky (owner, 14 Oct 2026: "3d ไม่ใช่เหรอ มุมเงย
  * สุดๆ ได้แค่นี้เหรอ?"): pitch below ORBIT_PITCH is how far it looks up */
 const MIN_PITCH=-60*Math.PI/180;
+/** The lens, and the 2D view's: a long lens from far straight above, so the city lies flat like a map (owner, 14 Oct
+ * 2026: "ขอ 2D อีกปุ่ม 1 ด้วย"); the same distance shows the same width of ground either way */
+const FOV=38,FLAT_FOV=2,FLAT_REACH=Math.tan(FOV/2*Math.PI/180)/Math.tan(FLAT_FOV/2*Math.PI/180),FLAT_PITCH=89.9*Math.PI/180;
 export class CityCamera {
-  readonly camera=new PerspectiveCamera(38,1,1,12000); readonly target:Vector3;
+  readonly camera=new PerspectiveCamera(FOV,1,1,12000); readonly target:Vector3;
+  /** The 2D view: straight down, nearly without perspective; turning still works, tilting does not */
+  flat=false;
   heading=0; pitch=55*Math.PI/180; distance=240;
   /** How far out the wheel may zoom: the map, or the whole province round a district (provinceBackdrop.ts) */
   maxDistance=0;
@@ -32,20 +37,20 @@ export class CityCamera {
     if(this.fly){const t=Math.min(1,Math.max(0,(time-this.fly.start)/550)),ease=t*t*(3-2*t);this.target.lerpVectors(this.fly.from,this.fly.to,ease);if(t===1)this.fly=undefined;}
     this.clamp();
     this.target.y=this.terrain?.sample(this.target.x,this.target.z)??0;
-    const orbit=Math.max(ORBIT_PITCH,this.pitch);
-    this.camera.position.set(this.target.x+Math.sin(this.heading)*Math.cos(orbit)*this.distance,
-      Math.max(this.target.y+this.distance*Math.sin(orbit),tallest+this.clearance),this.target.z+Math.cos(this.heading)*Math.cos(orbit)*this.distance);
+    const pitch=this.flat?FLAT_PITCH:this.pitch,reach=this.flat?this.distance*FLAT_REACH:this.distance,orbit=Math.max(ORBIT_PITCH,pitch);
+    this.camera.position.set(this.target.x+Math.sin(this.heading)*Math.cos(orbit)*reach,
+      Math.max(this.target.y+reach*Math.sin(orbit),tallest+this.clearance),this.target.z+Math.cos(this.heading)*Math.cos(orbit)*reach);
     if(this.terrain?.enabled)this.camera.position.y=Math.max(this.camera.position.y,this.terrain.sample(this.camera.position.x,this.camera.position.z)+this.clearance);
     const age=time-this.shaking;
     if(age>=0&&age<550&&!this.reducedMotion){const amplitude=(1-age/550)*1.4;this.camera.position.x+=Math.sin(age*.08)*amplitude;this.camera.position.y+=Math.sin(age*.13)*amplitude;}
     // Zoomed far out over a province (provinceBackdrop.ts), the near and far planes move out with the camera so the
     // depth buffer still tells the district's ground from the province's just under it
     // ... and down at the street the near plane comes in, so a building beside the camera is not cut open
-    const near=Math.max(Math.min(1,this.distance/20),this.distance/400),far=Math.max(12000,this.distance*4);
+    const near=Math.max(Math.min(1,reach/20),reach/400),far=Math.max(12000,reach*4);
     if(near!==this.camera.near||far!==this.camera.far){this.camera.near=near;this.camera.far=far;this.camera.updateProjectionMatrix();}
     this.camera.lookAt(this.target);
     // Looking up: the eyes rise from the ground they looked at, by how far the pitch went below the orbit's
-    if(this.pitch<ORBIT_PITCH)this.camera.rotateX(Math.atan2(this.camera.position.y-this.target.y,Math.hypot(this.camera.position.x-this.target.x,this.camera.position.z-this.target.z))-this.pitch);
+    if(pitch<ORBIT_PITCH)this.camera.rotateX(Math.atan2(this.camera.position.y-this.target.y,Math.hypot(this.camera.position.x-this.target.x,this.camera.position.z-this.target.z))-pitch);
     this.camera.updateMatrixWorld();
   }
   centreOn(x:number,y:number):void {
@@ -60,7 +65,12 @@ export class CityCamera {
     const angle=this.heading+({north:Math.PI,east:Math.PI/2,south:0,west:-Math.PI/2})[direction];
     this.target.x+=Math.sin(angle)*step;this.target.z+=Math.cos(angle)*step;this.fly=undefined;this.clamp();this.update(time);
   }
-  rotate(dx:number,dy:number):void {if(dx||dy)this.interaction=this.now();this.fly=undefined;this.heading-=dx*.006;this.pitch=Math.max(MIN_PITCH,Math.min(Math.PI*85/180,this.pitch+dy*.004));this.update(this.now());}
+  rotate(dx:number,dy:number):void {if(dx||dy)this.interaction=this.now();this.fly=undefined;this.heading-=dx*.006;if(!this.flat)this.pitch=Math.max(MIN_PITCH,Math.min(Math.PI*85/180,this.pitch+dy*.004));this.update(this.now());}
+  /** Into the 2D view or back to 3D, keeping the place and the zoom */
+  setFlat(on:boolean):void {
+    if(on===this.flat)return;this.interaction=this.now();this.flat=on;this.fly=undefined;
+    this.camera.fov=on?FLAT_FOV:FOV;this.camera.updateProjectionMatrix();this.update(this.now());
+  }
   pan(dx:number,dy:number,height:number):void {
     if(dx||dy)this.interaction=this.now();
     this.fly=undefined;const scale=this.distance*2*Math.tan(19*Math.PI/180)/Math.max(1,height);

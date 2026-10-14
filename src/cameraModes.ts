@@ -28,13 +28,15 @@ export function setCameraMode(next: CameraMode): void {
 interface Navigation {
   heading: number;
   pitch: number;
+  flat?: boolean;
+  setFlat?(on: boolean): void;
   update(time: number): void;
   wholeMap?(): void;
   zoom?(delta: number, x: number, y: number, width: number, height: number): void;
 }
 
 const ICONS: Record<string, string> = {
-  free: "↖", pan: "✥", rotate: "⟳", zoom: "⊕", tilt: "⦣", top: "⊤", whole: "⤢",
+  free: "↖", pan: "✥", rotate: "⟳", zoom: "⊕", tilt: "⦣", flat: "2D", top: "⊤", whole: "⤢",
 };
 
 /** The strip of buttons on the right edge of a city with a 3D view. putDown: put the tool in hand down. */
@@ -66,7 +68,14 @@ export function installCameraBar(view: { navigation?: Navigation; width?: number
   const gap = doc.createElement("span");
   gap.className = "cameraGap";
   bar.append(gap);
+  // 2D (owner, 14 Oct 2026: "ขอ 2D อีกปุ่ม 1 ด้วย"): the city flat from straight above, and back to 3D
+  add("flat", () => {
+    navigation.setFlat?.(!navigation.flat);
+    if (navigation.flat && mode === "tilt") setCameraMode("free");
+    mark();
+  });
   add("top", () => {
+    navigation.setFlat?.(false);
     navigation.heading = 0;
     navigation.pitch = 85 * Math.PI / 180;
     navigation.update(performance.now());
@@ -79,7 +88,10 @@ export function installCameraBar(view: { navigation?: Navigation; width?: number
     }
   };
   const mark = (): void => {
-    for (const [name, button] of buttons) button.classList.toggle("selected", name === mode);
+    for (const [name, button] of buttons) {
+      button.classList.toggle("selected", name === mode || (name === "flat" && navigation.flat === true));
+      if (name === "tilt") button.disabled = navigation.flat === true;
+    }
   };
   label();
   mark();
