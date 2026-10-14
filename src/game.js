@@ -735,6 +735,31 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 };
 
 
+// On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts besideRoad): the tile a
+// building of size tiles at the mouse's tile goes to, the nearest whose tiles touch a road without covering one, so
+// it lands where its outline (turned against the road in the 3D view) showed; the tile itself elsewhere
+Game.prototype.buildingTile = function(tile, size) {
+  var map = this.gameMap;
+  if (!map.cellZones || !(size >= 3) || tile === null)
+    return tile;
+  var isRoad = function(x, y) { return isRoadTile(map.getTileValue(x, y)); };
+  var best = null, bestDistance = Infinity;
+  for (var dy = -3; dy <= 3; dy++) {
+    for (var dx = -3; dx <= 3; dx++) {
+      var x = tile.x + dx, y = tile.y + dy, clear = true;
+      for (var ty = y - 1; ty <= y + size - 2 && clear; ty++)
+        for (var tx = x - 1; tx <= x + size - 2 && clear; tx++)
+          clear = map.testBounds(tx, ty) && !isRoad(tx, ty);
+      if (!clear || !besideRoad(map.width, map.height, isRoad, x, y, size))
+        continue;
+      var distance = dx * dx + dy * dy;
+      if (distance < bestDistance) { bestDistance = distance; best = {x: x, y: y}; }
+    }
+  }
+  return best || tile;
+};
+
+
 // On a map whose zones go a cell at a time (owner, 14 Oct 2026; src/zoneCells.ts), the zone brushes and the eraser
 // paint the 4 m cells along the roads rather than whole tiles
 Game.prototype.isCellBrush = function(toolName) {
@@ -1147,6 +1172,9 @@ Game.prototype.handleTool = function(data) {
   var toolName = this.inputStatus.toolName;
   var result;
 
+  // A building on a map painted a cell at a time goes where its outline showed: the nearest spot beside a road
+  tileCoords = this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
+
   // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
   var last = this._strokeTile;
   this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y};
@@ -1374,6 +1402,7 @@ Game.prototype.calculateMouseForPaint = function() {
     return null;
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
+  tile = this.buildingTile(tile, this.inputStatus.toolWidth - 0);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
   // Buying land shows the whole block under the mouse (src/landBlocks.ts)
   var cityMap = this.gameMap;

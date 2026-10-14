@@ -104,6 +104,8 @@ export class ToolOutline {
   readonly root=new Group();private signature='';
   /** The nearest road (roadCurves.ts nearest), so a building's outline stands against it as the building will */
   snap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
+  /** Whether buildings are drawn at BUILDING_SCALE (a map painted a cell at a time), so the outline is that size too */
+  scaledBuildings=false;
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=10;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
@@ -131,7 +133,8 @@ export class ToolOutline {
       if(hover.line){const dashes=new Mesh(centreDashes(tiles,.62,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(dashes);}
       return;
     }
-    const w=(r.x1-r.x0+1)*10,d=(r.y1-r.y0+1)*10,x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5;
+    const x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5,shrink=this.scaledBuildings&&hover.size>=3?BUILDING_SCALE:1;
+    const w=(r.x1-r.x0+1)*10*shrink,d=(r.y1-r.y0+1)*10*shrink;
     // A building of 3 x 3 and up beside a road: turned to face it and stood against its edge, at the size it is drawn
     // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
     const size=hover.size,near=size>=3&&!hover.cellPoint&&this.snap?this.snap(x,z,size*5+14):null;
