@@ -12,7 +12,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Ma
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
-import { halfWidth, networkOf, roadReach, SHOULDER, smoothLine, type Point } from '../../roadGeometry.js';
+import { halfWidth, networkOf, REAL_WIDTH_M, roadReach, shoulderOf, smoothLine, type Point } from '../../roadGeometry.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import type { ModelOptions } from '../models/registry.js';
@@ -31,6 +31,15 @@ export class RoadCurves {
   private readonly railMaterial = new MeshStandardMaterial({ color: 0x9aa3a0, roughness: 0.4, metalness: 0.6 });
   private readonly sleeperMaterial = new MeshStandardMaterial({ color: 0x8d877c, roughness: 0.9 });
   private readonly sleeperGeometry = new BoxGeometry(1.8, 0.08, 0.22);
+
+  /** World units a metre of a road's or a railway's cross-section: 1 on a map of 10 m tiles, less on a real-scale
+   * city map's (owner, 15 Oct 2026: roads their real width, src/roadGeometry.ts) */
+  private get metre(): number { return Math.min(1, this.snapshot.realUnits ?? 1); }
+  /** How much narrower a laterite road is drawn than its tile model's profile (models/road/laterite.ts) */
+  private get lateriteShare(): number {
+    const units = this.snapshot.realUnits;
+    return units ? REAL_WIDTH_M[1] / 2 * units / LATERITE_EDGE : 1;
+  }
 
   constructor(private readonly snapshot: TileSnapshot, private readonly terrain: CityHeightField) {
     this.root.name = 'road_curves';
@@ -53,7 +62,7 @@ export class RoadCurves {
         const [ax, az] = points[i - 1], [bx, bz] = points[i], dx = bx - ax, dz = bz - az, length = Math.hypot(dx, dz) || 1;
         const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (length * length)));
         const px = ax + dx * t, pz = az + dz * t, distance = Math.hypot(px - x, pz - z);
-        if (distance < bestDistance) { bestDistance = distance; best = { x: px, z: pz, tx: dx / length, tz: dz / length, reach: roadReach(level) }; }
+        if (distance < bestDistance) { bestDistance = distance; best = { x: px, z: pz, tx: dx / length, tz: dz / length, reach: roadReach(level, this.snapshot.realUnits) }; }
       }
     }
     return best;
@@ -102,7 +111,7 @@ export class RoadCurves {
       for (const stretch of stretches) {
         const line = smoothLine(stretch.points);
         if (line.length > 1) {
-          const reach = rail ? 1.6 : halfWidth(stretch.level);
+          const reach = rail ? 1.6 * this.metre : halfWidth(stretch.level, this.snapshot.realUnits);
           for (const [end, before] of [[0, 1], [line.length - 1, line.length - 2]] as const) {
             if (!atJunction(line[end])) continue;
             const [ex, ez] = line[end], [bx, bz] = line[before], length = Math.hypot(ex - bx, ez - bz) || 1;
@@ -188,42 +197,44 @@ export class RoadCurves {
 
   private road(line: Point[], level: number, positions: number[], colors: number[]): void {
     if (level <= 1) {
-      const e = LATERITE_EDGE, offsets = [-e, -e * 0.7, -e * 0.35, 0, e * 0.35, e * 0.7, e];
-      this.band(line, offsets, (d) => lateriteColour(Math.abs(d)), LIFT, positions, colors);
+      const k = this.lateriteShare, e = LATERITE_EDGE * k, offsets = [-e, -e * 0.7, -e * 0.35, 0, e * 0.35, e * 0.7, e];
+      this.band(line, offsets, (d) => lateriteColour(Math.abs(d) / k), LIFT, positions, colors);
       return;
     }
-    const half = halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959), shoulder = new Color(0xa39c8f);
-    this.band(line, [-half - SHOULDER, -half, half, half + SHOULDER], (d) => (Math.abs(d) > half + 0.01 ? shoulder : surface),
+    const units = this.snapshot.realUnits, half = halfWidth(level, units), side = shoulderOf(units);
+    const surface = new Color(level > 2 ? 0x8f8d86 : 0x555959), shoulder = new Color(0xa39c8f);
+    this.band(line, [-half - side, -half, half, half + side], (d) => (Math.abs(d) > half + 0.01 ? shoulder : surface),
       LIFT, positions, colors);
     // Its centre line
-    const paint = new Color(0xd9d2b0);
-    this.band(line, [-0.08, 0.08], () => paint, LIFT + 0.01, positions, colors);
+    const paint = new Color(0xd9d2b0), stripe = 0.08 * this.metre;
+    this.band(line, [-stripe, stripe], () => paint, LIFT + 0.01, positions, colors);
   }
 
   private rail(line: Point[], positions: number[], colors: number[], railPositions: number[], sleepers: Matrix4[]): void {
-    const ballast = new Color(0x8b8379), edge = new Color(0x77705f), half = RAIL_INTERFACE.ballastWidth / 2;
-    this.band(line, [-half, -1.2, 1.2, half], (d) => (Math.abs(d) > 1.21 ? edge : ballast), LIFT, positions, colors);
+    const m = this.metre, ballast = new Color(0x8b8379), edge = new Color(0x77705f), half = RAIL_INTERFACE.ballastWidth / 2 * m;
+    this.band(line, [-half, -1.2 * m, 1.2 * m, half], (d) => (Math.abs(d) > 1.21 * m ? edge : ballast), LIFT, positions, colors);
     // The two rails, low boxes along the line
-    const gauge = (RAIL_INTERFACE.gauge + RAIL_INTERFACE.railWidth) / 2, rail = 0.05;
+    const gauge = (RAIL_INTERFACE.gauge + RAIL_INTERFACE.railWidth) / 2 * m, rail = 0.05 * m;
     for (const side of [-1, 1]) {
       const scratch: number[] = [], none: number[] = [];
-      this.band(line, [side * gauge - rail, side * gauge + rail], () => ballast, 0.42, scratch, none);
+      this.band(line, [side * gauge - rail, side * gauge + rail], () => ballast, 0.42 * m, scratch, none);
       railPositions.push(...scratch);
     }
     // Sleepers every RAIL_INTERFACE.sleeperSpacing along it
-    const up = new Vector3(0, 1, 0), turn = new Quaternion(), place = new Vector3(), size = new Vector3(1, 1, 1);
+    const up = new Vector3(0, 1, 0), turn = new Quaternion(), place = new Vector3(), size = new Vector3(m, m, m);
+    const spacing = RAIL_INTERFACE.sleeperSpacing * m;
     let carry = 0;
     for (let i = 1; i < line.length; i++) {
       const [ax, az] = line[i - 1], [bx, bz] = line[i], length = Math.hypot(bx - ax, bz - az);
       if (!length) continue;
       turn.setFromAxisAngle(up, -Math.atan2(bz - az, bx - ax) + Math.PI / 2);
-      for (let s = carry; s < length; s += RAIL_INTERFACE.sleeperSpacing) {
+      for (let s = carry; s < length; s += spacing) {
         const x = ax + (bx - ax) * s / length, z = az + (bz - az) * s / length;
-        place.set(x, this.height(x, z) + 0.3, z);
+        place.set(x, this.height(x, z) + 0.3 * m, z);
         sleepers.push(new Matrix4().compose(place, turn, size));
       }
-      carry = (carry - length) % RAIL_INTERFACE.sleeperSpacing;
-      if (carry < 0) carry += RAIL_INTERFACE.sleeperSpacing;
+      carry = (carry - length) % spacing;
+      if (carry < 0) carry += spacing;
     }
   }
 
@@ -234,14 +245,14 @@ export class RoadCurves {
   private plate(cx: number, cz: number, level: number | null, positions: number[], colors: number[]): void {
     let rings: Array<[number, Color]>;
     if (level === null) {
-      const half = RAIL_INTERFACE.ballastWidth / 2;
-      rings = [[0, new Color(0x8b8379)], [1.2, new Color(0x8b8379)], [half, new Color(0x77705f)]];
+      const m = this.metre, half = RAIL_INTERFACE.ballastWidth / 2 * m;
+      rings = [[0, new Color(0x8b8379)], [1.2 * m, new Color(0x8b8379)], [half, new Color(0x77705f)]];
     } else if (level <= 1) {
-      const e = LATERITE_EDGE;
-      rings = [0, 0.35, 0.7, 1].map((share) => [e * share, lateriteColour(e * share)]);
+      const k = this.lateriteShare, e = LATERITE_EDGE * k;
+      rings = [0, 0.35, 0.7, 1].map((share) => [e * share, lateriteColour(LATERITE_EDGE * share)]);
     } else {
-      const half = halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
-      rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + SHOULDER, new Color(0xa39c8f)]];
+      const units = this.snapshot.realUnits, half = halfWidth(level, units), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
+      rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + shoulderOf(units), new Color(0xa39c8f)]];
     }
     const n = 20, at = (radius: number, angle: number): [number, number, number] => {
       const x = cx + Math.cos(angle) * radius, z = cz + Math.sin(angle) * radius;

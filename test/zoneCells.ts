@@ -41,8 +41,8 @@ describe("zone cells", () => {
     expect(new Set(beside.map(c => c.row)).size).toBe(CELL_DEPTH);
     for (const cell of beside) {
       expect(Math.abs(Math.sin(cell.angle))).toBeGreaterThan(0.99);
-      // Clear of the laterite road and its edge
-      expect(Math.abs(cell.z - 105)).toBeGreaterThan(3.5);
+      // Clear of the laterite road, 5 m wide on a 16 m map (src/roadGeometry.ts), and its edge
+      expect(Math.abs(cell.z - 105)).toBeGreaterThan(2.5 * 10 / 16);
     }
     // Along the slanted one they turn with it (two along, one down)
     const slanted = layout.cells.filter(c => c.z > 220 && c.z < 290 && c.x > 150 && c.x < 400);

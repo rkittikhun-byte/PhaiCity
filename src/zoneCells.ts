@@ -13,7 +13,7 @@
 // come next (docs/ZONE_CELLS.md). Plain code: no DOM, nothing random.
 
 import { isOpenLand } from "./plots";
-import { isLineRoad, networkOf, roadReach, smoothLine, type Point } from "./roadGeometry";
+import { isLineRoad, networkOf, realUnits, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
@@ -80,6 +80,8 @@ export function rasterKey(map: CellMap, x: number, z: number): number {
 /** The cells along the map's roads. owns: whether the city may build on a tile (its land and its district) */
 export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
   const units = unitsPerMetre(map), cellUnits = CELL_M * units, rasterUnits = RASTER_M * units;
+  // The roads at their real width on a real-scale city map (src/roadGeometry.ts), so the first row lies at its edge
+  const real = realUnits(map.tileSizeM || 16);
   const rasterWidth = Math.ceil(map.width * 10 / rasterUnits), rasterHeight = Math.ceil(map.height * 10 / rasterUnits);
   // One bit a raster square: a 7.7 km map is 59 million of them
   const bits = new Uint8Array(Math.ceil(rasterWidth * rasterHeight / 8));
@@ -96,7 +98,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const lines = [...roads.stretches, ...rails.stretches].map((stretch) => ({ stretch, line: smoothLine(stretch.points) }));
   for (const { stretch, line } of lines) {
     // Raster squares whose middles lie on the road or its shoulders, so the first row of cells fits beside it
-    const reach = (stretch.rail ? 1.9 : roadReach(stretch.level)) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
+    const reach = (stretch.rail ? 1.9 * Math.min(1, real ?? 1) : roadReach(stretch.level, real)) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
     for (const [px, pz] of line) {
       const cx = Math.floor(px / rasterUnits), cz = Math.floor(pz / rasterUnits);
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
@@ -115,7 +117,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
     const length = along[along.length - 1], count = Math.floor(length / cellUnits);
     if (count < 1) continue;
-    const start = (length - count * cellUnits) / 2, edge = roadReach(stretch.level) + EDGE_GAP;
+    const start = (length - count * cellUnits) / 2, edge = roadReach(stretch.level, real) + EDGE_GAP;
     let segment = 1;
     for (let k = 0; k < count; k++) {
       const s = start + (k + 0.5) * cellUnits;

@@ -4,7 +4,8 @@
 import { Euler, Matrix4, Mesh, PerspectiveCamera, Quaternion, Ray, Vector3, WebGLRenderer } from 'three';
 import { CityHeightField, HILL_EXAGGERATION, provinceColor } from '../../src/render3d/city/heightfield.js';
 import { CityCamera } from '../../src/render3d/city/camera.js';
-import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { BUILDING_SCALE, TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { halfWidth, realUnits, roadReach } from '../../src/roadGeometry.js';
 import { ProvinceSurface } from '../../src/render3d/city/province-surface.js';
 import { Placement, RoadsidePlacement } from '../../src/render3d/city/placement.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
@@ -142,6 +143,19 @@ describe('Province ground and appearance',()=>{
       expect(size.x).toBeCloseTo((30-.8)*.6);expect(size.y).toBeCloseTo(6);
       expect(new Euler().setFromQuaternion(rotation).y).toBeCloseTo(turn);
     }finally{surface.dispose();}
+  });
+  it('on a real-scale city map things are drawn at their real size, and roads and the ground still fill their tiles',()=>{
+    // A 16 m tile is drawn 10 units: a water tower's model at 10/16, a laterite road 5 m wide (owner, 15 Oct 2026)
+    const s=new TileSnapshot(5,5);s.values[12]=1020;s.values[6]=66;s.realUnits=realUnits(16);
+    const tower=s.placement(12,'central')!,road=s.placement(6,'central')!;
+    expect(tower.scale).toBeCloseTo(.625);expect(tower.fill).toBeCloseTo(.625);
+    expect(tower.farBox(new Matrix4(),9,0).elements[0]).toBeCloseTo(6.25);expect(tower.ground().width).toBeCloseTo(6.25);
+    expect(road.scale).toBe(1);expect(road.fill).toBeUndefined();
+    // Stood against its road it is not made smaller twice
+    const posed=tower.againstRoad(25,25,0,BUILDING_SCALE);expect(posed.scale).toBeCloseTo(.625);expect(posed.fill).toBeCloseTo(.625);
+    expect(halfWidth(1,realUnits(16))*2).toBeCloseTo(5*.625);expect(roadReach(2,realUnits(16))).toBeCloseTo((3+1)*.625);
+    // Other maps keep their old widths and sizes
+    expect(realUnits(null)).toBeNull();expect(realUnits(600)).toBeNull();expect(halfWidth(1,realUnits(600))).toBe(3.5);
   });
   it('keeps the complete previous ground and forest visible during a sliced rebuild',()=>{
     const f=fixture(4,4);f.map.values[0]=37;const t=f.build(),surface=new ProvinceSurface(t.snapshot,t);

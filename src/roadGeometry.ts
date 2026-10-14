@@ -22,9 +22,27 @@ export const isAnyRail = (v: number): boolean => v >= 224 && v <= 238 || v === 2
 /** Half the width of each road level's carriageway (1 laterite … 8 tollway), and its shoulders, in world units */
 export const HALF_WIDTH = [3.5, 3.5, 3.5, 3.6, 4.2, 4.6, 4.9, 4.9, 4.9];
 export const SHOULDER = 0.6;
-export const halfWidth = (level: number): number => HALF_WIDTH[Math.max(1, Math.min(8, level))];
+/**
+ * On a real-scale city map every road is its real width (owner, 15 Oct 2026, docs/CITY_SCALE.md): each level's whole
+ * carriageway in metres, laterite 5 m, asphalt 6 m, concrete two lanes 7 m and four lanes 13 m; the wider levels as
+ * wide as one 16 m tile holds with their shoulders, until big roads take two tiles. Shoulders 1 m a side.
+ */
+export const REAL_WIDTH_M = [5, 5, 6, 7, 13, 14, 14, 14, 14];
+export const REAL_SHOULDER_M = 1;
+/** The tiles of a real-scale city map are 40 m or less (src/landBlocks.ts isCityMap) */
+const CITY_TILE_MAX_M = 40;
+/** World units a metre on a real-scale city map (10 a tile: 0.625 at 16 m a tile), or null on any other map, whose
+ * roads and buildings are drawn as for 10 m tiles */
+export const realUnits = (tileSizeM?: number | null): number | null =>
+  tileSizeM && tileSizeM > 0 && tileSizeM <= CITY_TILE_MAX_M ? 10 / tileSizeM : null;
+const levelOf = (level: number): number => Math.max(1, Math.min(8, level));
+/** Half a road's carriageway (world units); units: realUnits of its map */
+export const halfWidth = (level: number, units?: number | null): number =>
+  units ? REAL_WIDTH_M[levelOf(level)] / 2 * units : HALF_WIDTH[levelOf(level)];
+/** A road's shoulder either side (world units) */
+export const shoulderOf = (units?: number | null): number => units ? REAL_SHOULDER_M * units : SHOULDER;
 /** How far a road reaches either side of its line, shoulders and all */
-export const roadReach = (level: number): number => halfWidth(level) + (level > 1 ? SHOULDER : 0);
+export const roadReach = (level: number, units?: number | null): number => halfWidth(level, units) + (level > 1 ? shoulderOf(units) : 0);
 
 /** How far the simplified line may stray from the smoothed one, and how many tiles either side a point is averaged */
 const STRAY = 1.5, REACH = 4;

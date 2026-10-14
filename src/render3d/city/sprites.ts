@@ -20,6 +20,8 @@ export class CitySprites {
   private unknown:InstancedMesh;
   private positions=new Map<unknown,Vector3>();private last=new Map<unknown,Vector3>();
   private angles=new Map<unknown,number>();
+  /** How big the cars, trains and the rest are drawn: their real size on a real-scale city map (tileModels.ts atRealSize) */
+  size=1;
   constructor(){this.mesh=new InstancedMesh(this.geometry,getPreviewGround(),128);this.mesh.count=0;this.mesh.castShadow=true;this.mesh.frustumCulled=false;this.root.add(this.mesh);
     const debug=registry['debug.box_3x3'].factory({seed:0}),source=visibleMeshes(debug)[0];
     this.unknown=new InstancedMesh(source.geometry.clone().scale(1/3,1/3,1/3),source.material,128);this.unknown.count=0;this.unknown.frustumCulled=false;this.root.add(this.unknown);disposeModel(debug);
@@ -33,16 +35,16 @@ export class CitySprites {
       const angle=paused?(this.angles.get(value)??facing):facing;this.angles.set(value,angle);
       if(!paused)this.last.set(value,goal);
       if(!Number.isInteger(s.type)||s.type<1||s.type>7){matrix.makeRotationY(angle).setPosition(p);this.unknown.setMatrixAt(unknownCount++,matrix);continue;}
-      const size=s.type===1?[2.8,2.2,10]:s.type===2?[7,2,3]:s.type===3?[14,2.5,10]:s.type===4?[5,3,15]:s.type===5?[5,7,9]:[4,6,4];
+      const k=this.size,size=(s.type===1?[2.8,2.2,10]:s.type===2?[7,2,3]:s.type===3?[14,2.5,10]:s.type===4?[5,3,15]:s.type===5?[5,7,9]:[4,6,4]).map(n=>n*k);
       matrix.makeRotationY(angle).scale(new Vector3(...size as [number,number,number])).setPosition(p.x,p.y+size[1]/2,p.z);
       this.mesh.setMatrixAt(n,matrix);this.mesh.setColorAt(n,color.setHex([0xb76cb0,0xbc7147,0xf4dc71,0xebecdb,0x637e86,0x67aa78,0x9dafa6,0xe8904d][s.type]??0xb76cb0));n++;
     }
     for(const key of this.positions.keys())if(!active.has(key)){this.positions.delete(key);this.last.delete(key);this.angles.delete(key);}
     for(const p of roads){if(n+unknownCount>=128)break;const x=Math.floor(p.x/10),y=Math.floor(p.z/10),random=seededRng(tileSeed(x,y));
       if(random()*255>Math.max(0,traffic?.worldGet(x,y)??0))continue;
-      const direction=random()<.5?1:-1,t=((seconds*4+random()*10)%10)-5,offset=direction*1.6;
+      const k=this.size,direction=random()<.5?1:-1,t=((seconds*4+random()*10)%10)-5,offset=direction*1.6*k;
       const px=p.x+Math.sin(p.rotation)*t+Math.cos(p.rotation)*offset,pz=p.z+Math.cos(p.rotation)*t-Math.sin(p.rotation)*offset;
-      matrix.makeRotationY(p.rotation+(direction<0?Math.PI:0)).scale(new Vector3(1.65,1.25,3.4)).setPosition(px,ground(px,pz)+.73,pz);
+      matrix.makeRotationY(p.rotation+(direction<0?Math.PI:0)).scale(new Vector3(1.65*k,1.25*k,3.4*k)).setPosition(px,ground(px,pz)+.73*k,pz);
       this.mesh.setMatrixAt(n,matrix);this.mesh.setColorAt(n,color.setHex([0xdfc89b,0xbdcfcd,0x95b2a2,0xd8a088][Math.floor(random()*4)]));n++;
     }
     this.mesh.count=n;this.mesh.instanceMatrix.needsUpdate=true;if(this.mesh.instanceColor)this.mesh.instanceColor.needsUpdate=true;

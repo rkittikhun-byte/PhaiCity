@@ -44,7 +44,7 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { cellsAlong, cellsOf } from './zoneCells.ts';
-import { nearestOnLines, networkOf, roadReach, smoothLine } from './roadGeometry.ts';
+import { nearestOnLines, networkOf, realUnits, roadReach, smoothLine } from './roadGeometry.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
@@ -1584,7 +1584,7 @@ Game.prototype.buildingPose = function(size, x, y) {
       var t = Math.max(0, Math.min(1, (want - along) / length)), rx = ax + dx * t, rz = az + dz * t, tx = dx / length, tz = dz / length;
       var nx = -tz, nz = tx;
       if (nx * (px - rx) + nz * (pz - rz) < 0) { nx = -nx; nz = -nz; }
-      var gap = roadReach(best.level) + 0.6 + size * 5 * BUILDING_SCALE;
+      var gap = roadReach(best.level, realUnits(map.tileSizeM)) + 0.6 + size * 5 * BUILDING_SCALE;
       return [Math.round((rx + nx * gap) * 100) / 100, Math.round((rz + nz * gap) * 100) / 100,
               Math.round(Math.atan2(-nx, -nz) * 1000) / 1000];
     }

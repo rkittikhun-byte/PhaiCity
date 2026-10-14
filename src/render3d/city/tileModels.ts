@@ -73,8 +73,11 @@ const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 're
 /** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
 const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 /** How big the ruler's buildings beside a curved road are drawn, as a share of their tiles (owner, 14 Oct 2026: "scale
- * ของแต่ละ tool ใหญ่ไป") */
-export const BUILDING_SCALE = 0.6;
+ * ของแต่ละ tool ใหญ่ไป"): their real size on a city map's 16 m tiles (TileSnapshot.atRealSize), the same share on
+ * other maps */
+export const BUILDING_SCALE = 10 / 16;
+/** Tiling pieces fill their tiles at any scale; everything else is drawn at its real size on a real-scale city map */
+const TILING_KINDS: ReadonlySet<string> = new Set(['terrain', 'road', 'rail', 'power', 'shore', 'debug']);
 
 /** The nearest point of a road's middle line, the way it runs there and how far the road reaches either side */
 export type RoadNear = { x: number; z: number; tx: number; tz: number; reach: number };
@@ -93,6 +96,8 @@ const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, prim
   vocational_college: 8, university: 10, ...HOSPITAL_HEIGHTS };
 export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
+  /** World units a metre on a real-scale city map (src/roadGeometry.ts realUnits), null on any other map */
+  realUnits: number | null = null;
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
   source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
@@ -224,8 +229,18 @@ export class TileSnapshot implements CityMapReader {
   roadSnap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
-    const p=this.placementOf(i,region,this.values[i]);
+    const p=this.atRealSize(this.placementOf(i,region,this.values[i]));
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
+  }
+  /**
+   * On a real-scale city map a model's metres are the map's (owner, 15 Oct 2026: "ย่อของในภาพ 3D ให้เท่าของจริง"): a
+   * 16 m tile is drawn 10 units, so a building, a park or a stop is drawn at 10/16 of its model and covers that share of
+   * its tiles. Roads, railways, power lines and the ground still fill their tiles.
+   */
+  private atRealSize(p:Placement|null):Placement|null {
+    const units=this.realUnits;
+    if(!p||!units||units>=1||TILING_KINDS.has(p.kind))return p;
+    p.scale*=units;p.fill=units;return p;
   }
   /**
    * A building of the ruler's (3 × 3 and up) beside a road, as Cities: Skylines sets one: turned to face the road and

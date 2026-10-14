@@ -22,6 +22,7 @@ import { ProvinceBackdropView } from './provinceBackdrop.js';
 import { RoadCurves } from './roadCurves.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import type { CellMap } from '../../zoneCells.js';
+import { realUnits } from '../../roadGeometry.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
@@ -62,6 +63,8 @@ export class CityView3D implements CityView {
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
     this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=setup.map;this.snapshot.sync(setup.map);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;
+    // A real-scale city map's things at their real size (tileModels.ts atRealSize, roadGeometry.ts realUnits)
+    this.snapshot.realUnits=realUnits(setup.map.tileSizeM);this.sprites.size=Math.min(1,this.snapshot.realUnits??1);
     // Plain roads and railways as smooth curves rather than tile by tile (roadCurves.ts; owner, 14 Oct 2026)
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
