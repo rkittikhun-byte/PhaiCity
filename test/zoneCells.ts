@@ -5,6 +5,7 @@
 // Zone cells along the roads (src/zoneCells.ts): 4 m cells in rows beside each road, along its line whatever its
 // slant, never on the road; painted a cell at a time by the zoneCells command, paid for, and kept with the city.
 
+import { NEEDS_ROAD_BESIDE } from "../src/cityCommands";
 import { CityCore } from "../src/core/cityCore";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
@@ -75,6 +76,12 @@ describe("zone cells", () => {
     expect(again.apply({ type: "zoneCells", zone: null, cells: keys.slice(0, 5) }).accepted).toBe(true);
     expect(again.map.zoneCells.size).toBe(keys.length - 5);
     expect(again.simulation.budget.totalFunds).toBe(before);
+  });
+
+  test("every building stands beside a road", () => {
+    const core = city();
+    expect(core.apply({ type: "tool", tool: "police", x: 40, y: 30 })).toMatchObject({ accepted: false, reason: NEEDS_ROAD_BESIDE });
+    expect(core.apply({ type: "tool", tool: "police", x: 40, y: 8 }).accepted).toBe(true);
   });
 
   test("a map painted a tile at a time refuses cells", () => {

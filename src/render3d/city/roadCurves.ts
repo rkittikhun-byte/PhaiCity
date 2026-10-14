@@ -12,7 +12,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Ma
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
-import { halfWidth, networkOf, SHOULDER, smoothLine, type Point } from '../../roadGeometry.js';
+import { halfWidth, networkOf, roadReach, SHOULDER, smoothLine, type Point } from '../../roadGeometry.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import type { Placement } from './types.js';
 
@@ -24,7 +24,7 @@ const LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
 export class RoadCurves {
   readonly root = new Group();
   private covered = new Uint8Array(0);
-  private lines: Array<{ points: Point[]; rail: boolean }> = [];
+  private lines: Array<{ points: Point[]; rail: boolean; level: number }> = [];
   private readonly roadMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   private readonly railMaterial = new MeshStandardMaterial({ color: 0x9aa3a0, roughness: 0.4, metalness: 0.6 });
@@ -40,6 +40,22 @@ export class RoadCurves {
   update(changed: readonly number[]): void {
     const values = this.snapshot.values;
     if (changed.some((i) => this.covered[i] || isRoad(values[i]) || isRail(values[i]))) this.rebuild();
+  }
+
+  /** The point of a road's middle line nearest (x, z) within reach, the way the road runs there and how far it reaches
+   * either side, for a building to stand against it (TileSnapshot.roadSnap) */
+  nearest(x: number, z: number, reach: number): { x: number; z: number; tx: number; tz: number; reach: number } | null {
+    let best: { x: number; z: number; tx: number; tz: number; reach: number } | null = null, bestDistance = reach;
+    for (const { points, rail, level } of this.lines) {
+      if (rail) continue;
+      for (let i = 1; i < points.length; i++) {
+        const [ax, az] = points[i - 1], [bx, bz] = points[i], dx = bx - ax, dz = bz - az, length = Math.hypot(dx, dz) || 1;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (length * length)));
+        const px = ax + dx * t, pz = az + dz * t, distance = Math.hypot(px - x, pz - z);
+        if (distance < bestDistance) { bestDistance = distance; best = { x: px, z: pz, tx: dx / length, tz: dz / length, reach: roadReach(level) }; }
+      }
+    }
+    return best;
   }
 
   /** Places along the roads near the target for the ambient cars (src/render3d/city/sprites.ts), as tiles would be */
@@ -93,7 +109,7 @@ export class RoadCurves {
             if (end === 0) line.unshift(past); else line.push(past);
           }
         }
-        this.lines.push({ points: line, rail });
+        this.lines.push({ points: line, rail, level: stretch.level });
         if (rail) this.rail(line, positions, colors, railPositions, sleepers);
         else this.road(line, stretch.level, positions, colors);
       }

@@ -18,7 +18,7 @@ import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
-import { CityCommands, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
 import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
@@ -1181,6 +1181,12 @@ Game.prototype.handleTool = function(data) {
     var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
                                      stroke: data.stroke});
     result = outcome.toolResult;
+    // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
+    if (outcome.reason === NEEDS_ROAD_BESIDE) {
+      showCornerNote(t('tool.needs_road'), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
     if (outcome.reason === NO_RESOURCE || outcome.reason === NEEDS_WATER) {
       var kind = kindOfTool(toolName);
       var ore = mineKindOfTool(toolName);

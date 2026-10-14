@@ -344,6 +344,7 @@ export const STRINGS: Record<string, Translation> = {
   "house.wing.trade_office.cost": { en: "Works only in network mode", th: "มีผลเฉพาะโหมดเครือข่าย" },
   "tool.no_resource": { en: "This province has no {resource} for a {plant}", th: "จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้" },
   "tool.needs_water": { en: "A dam must stand beside a river or a lake", th: "เขื่อนต้องตั้งติดแม่น้ำหรือบึง" },
+  "tool.needs_road": { en: "Buildings stand beside a road: put it next to one", th: "อาคารต้องตั้งติดถนน วางให้ชิดถนน" },
   "tool.bulldozer": { en: "Bulldoze {price}", th: "รื้อถอน {price}" },
   "tool.query": { en: "Inspect", th: "ส่องดูพื้นที่" },
   "tool.msg.no_money": { en: "Not enough funds to build that", th: "เงินในคลังไม่พอสำหรับก่อสร้าง" },

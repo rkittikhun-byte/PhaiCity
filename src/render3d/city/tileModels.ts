@@ -202,9 +202,28 @@ export class TileSnapshot implements CityMapReader {
   /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
    * only the far view's ground, so nothing covers the curve */
   curves=false;
+  /** The nearest point of a road's middle line within reach (world units), the way it runs and how far the road reaches
+   * either side (roadCurves.ts nearest), so the ruler's buildings stand against the curved roads */
+  roadSnap:((x:number,z:number,reach:number)=>{x:number;z:number;tx:number;tz:number;reach:number}|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
-    return this.placementOf(i,region,this.values[i]);
+    const p=this.placementOf(i,region,this.values[i]);
+    return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
+  }
+  /**
+   * A building of the ruler's (3 × 3 and up) beside a road, as Cities: Skylines sets one: turned to face the road and
+   * stood against its edge, along its curve (owner, 14 Oct 2026: "ทำไมที่ว่าการอำเภอ ไม่ snap กับถนน"). Its tiles are
+   * the game's as before; only where it is drawn moves.
+   */
+  private againstRoad(p:Placement):Placement {
+    const size=Math.max(p.footprint[0],p.footprint[1]);
+    if(size<3||['residential','commercial','industrial','terrain','road','rail','power','shore','debug'].includes(p.kind))return p;
+    const half=size*5,near=this.roadSnap!(p.x,p.z,half+14);
+    if(!near)return p;
+    // Away from the road, towards where the building stands
+    let nx=-near.tz,nz=near.tx;if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
+    const gap=near.reach+.6+half,x=near.x+nx*gap,z=near.z+nz*gap,rotation=Math.atan2(-nx,-nz);
+    return {...p,x,z,rotation,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
   }
   /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
   private besideCurve(i:number):boolean {

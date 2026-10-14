@@ -403,6 +403,7 @@
 | `house.wing.trade_office.cost` | `src/houseWindow.ts` | — | `Works only in network mode` | `มีผลเฉพาะโหมดเครือข่าย` |  |
 | `tool.no_resource` | `src/game.js` | — | `This province has no {resource} for a {plant}` | `จังหวัดนี้ไม่มี{resource} จึงสร้าง{plant}ไม่ได้` |  |
 | `tool.needs_water` | `src/game.js` | — | `A dam must stand beside a river or a lake` | `เขื่อนต้องตั้งติดแม่น้ำหรือบึง` |  |
+| `tool.needs_road` | `src/game.js` | — | `Buildings stand beside a road: put it next to one` | `อาคารต้องตั้งติดถนน วางให้ชิดถนน` | แผนที่ที่ทาเขตทีละช่อง (src/cityCommands.ts roadBesideProblem) |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |

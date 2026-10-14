@@ -69,6 +69,8 @@ export const NEEDS_WATER = "needs water beside it";
 export const NO_CELL_ZONES = "zones are painted a tile at a time here";
 export const NOTHING_TO_PAINT = "nothing to paint";
 export const NO_MONEY_FOR_CELLS = "not enough money";
+/** Why a building was refused on a map painted a cell at a time: every building there stands beside a road */
+export const NEEDS_ROAD_BESIDE = "needs a road beside it";
 /** The most cells one command paints */
 export const MAX_CELLS = 4000;
 
@@ -262,6 +264,24 @@ const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is
   typeof value === "string" && (list as readonly string[]).includes(value);
 
 /** Why a command cannot be applied to a map of this size, or null when it can. Commands may come from anywhere. */
+/**
+ * On a map painted a cell at a time (src/zoneCells.ts), every building of 3 × 3 tiles and up stands beside a road, as in
+ * Cities: Skylines, and the 3D view sets it against the road's edge (owner, 14 Oct 2026: "ตั้งให้ แต่ละ object ต้อง snap
+ * กับถนน เท่านั้น"); the ruler's house has its own check (houseRoadProblem)
+ */
+function roadBesideProblem(city: CommandTarget, toolName: string, size: number, x: number, y: number): string | null {
+  const map = city.map as unknown as { cellZones?: boolean } | undefined;
+  if (!map?.cellZones || size < 3 || toolName === "ruler_house" || isOneOf(["residential", "commercial", "industrial"], toolName)) {
+    return null;
+  }
+  const left = x - 1, top = y - 1, right = left + size - 1, bottom = top + size - 1;
+  const road = (rx: number, ry: number): boolean => rx >= 0 && ry >= 0 && rx < city.width && ry < city.height &&
+    isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK);
+  for (let k = left; k <= right; k++) if (road(k, top - 1) || road(k, bottom + 1)) return null;
+  for (let k = top; k <= bottom; k++) if (road(left - 1, k) || road(right + 1, k)) return null;
+  return NEEDS_ROAD_BESIDE;
+}
+
 export function commandProblem(command: unknown, width: number, height: number): string | null {
   if (typeof command !== "object" || command === null) return "not a command";
   const c = command as Record<string, unknown>;
@@ -340,7 +360,7 @@ export class CityCommands {
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
           plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
-          farmProblem(city, command.tool, command.x, command.y) ??
+          farmProblem(city, command.tool, command.x, command.y) ?? roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y) ??
           (tool.rulerHouse && city.map ? houseRoadProblem({ width: city.width, height: city.height,
             getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
