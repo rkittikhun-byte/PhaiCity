@@ -526,7 +526,10 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     if (smoothLinks > 0) line.points = octilinear(simplifyLine(line.points, smoothLinks));
     const goalPoint = line.points[line.points.length - 1];
     const goal = anchorTile(net, 'road', ...tileOf(goalPoint, width, height));
-    const path = route(net, 'road', [[(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5], ...line.points], townTile, goal);
+    const guide = [[(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5], ...line.points];
+    // A whole district's road is drawn tile by tile along its straight runs and even 45° steps, which the 3D view draws
+    // smooth; routing (which takes uneven steps) only where that would cross water or a railway on a step
+    const path = (smoothLinks > 0 ? evenPath(net, guide, townTile, goal) : null) ?? route(net, 'road', guide, townTile, goal);
     if (!path) {
       problems.push(`road to ${link.neighbor} could not be laid`);
       continue;
@@ -544,7 +547,14 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
  * round bends (src/render3d/models/road/centreline.ts), rather than the uneven steps of other slants: each stretch
  * runs straight for half its excess, diagonally, then straight again.
  */
-function octilinear(points) {
+function octilinear(source) {
+  // A stretch that strays only a tile or two sideways runs straight, the next one taking up the difference (no jogs)
+  const points = source.map((point) => [...point]);
+  for (let i = 1; i < points.length - 1; i++) {
+    const [ax, ay] = points[i - 1], b = points[i], dx = b[0] - ax, dy = b[1] - ay;
+    if (Math.abs(dy) <= 2.5 && Math.abs(dx) > Math.abs(dy)) b[1] = ay;
+    else if (Math.abs(dx) <= 2.5 && Math.abs(dy) > Math.abs(dx)) b[0] = ax;
+  }
   const out = [points[0]];
   for (let i = 1; i < points.length; i++) {
     const [ax, ay] = points[i - 1], [bx, by] = points[i], dx = bx - ax, dy = by - ay;
@@ -560,6 +570,40 @@ function octilinear(points) {
     out.push([bx, by]);
   }
   return out;
+}
+
+/**
+ * The tiles of an octilinear line from start to goal: straight runs, and diagonals as even steps (one across, one
+ * along), with no tile twice. Null when it would cross water or a railway anywhere but on a straight run.
+ */
+function evenPath(net, points, start, goal) {
+  const { width, height, transport, water } = net;
+  const tiles = [];
+  const add = (x, y) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const i = y * width + x;
+    if (tiles[tiles.length - 1] !== i) tiles.push(i);
+  };
+  let x = start % width, y = Math.floor(start / width);
+  add(x, y);
+  const targets = points.slice(1).map(([px, py]) => [Math.floor(px), Math.floor(py)]);
+  targets.push([goal % width, Math.floor(goal / width)]);
+  for (const [tx, ty] of targets) {
+    while (x !== tx || y !== ty) {
+      const dx = Math.sign(tx - x), dy = Math.sign(ty - y);
+      // On a diagonal, one step across then one along; else straight
+      if (dx && dy) { x += dx; add(x, y); y += dy; add(x, y); } else { x += dx; y += dy; add(x, y); }
+    }
+  }
+  if (new Set(tiles).size !== tiles.length) return null;
+  for (let k = 1; k + 1 < tiles.length; k++) {
+    const i = tiles[k];
+    if (!water(i) && !(transport[i] & RAIL)) continue;
+    // Water and railways only on a straight run: the tiles either side on the same axis
+    const before = tiles[k - 1] - i, after = tiles[k + 1] - i;
+    if (before !== -after) return null;
+  }
+  return tiles;
 }
 
 /** Douglas–Peucker: the fewest points that keep a line within tolerance of where it was */
