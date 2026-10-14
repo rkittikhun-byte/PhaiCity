@@ -56,6 +56,9 @@ export const isRoad = (v: number): boolean => v >= 64 && v <= 206 || v === 237 |
 /** A road tile drawn from its neighbours alone: not a bridge, a crossing or a drawbridge. */
 export const isPlainRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 77 && v !== 78;
 export const isRail = (v: number): boolean => v >= 224 && v <= 238 || v === 221 || v === 222;
+/** A plain railway tile; with the plain roads, drawn as part of a smooth curve when the view asks (roadCurves.ts) */
+export const isCurveRail = (v: number): boolean => v >= 226 && v <= 236;
+export const isCurved = (v: number): boolean => isPlainRoad(v) || isCurveRail(v);
 export const isPower = (v: number): boolean => v >= 208 && v <= 222 || v === 77 || v === 78 || v === 239;
 export const isWater = (v: number): boolean => v >= 2 && v <= 20;
 export const isWaterNeighbor = (v:number):boolean => isWater(v)||v===64||v===65||v===208||v===209||v===224||v===225||v>=828&&v<=832||v>=948&&v<=951;
@@ -196,9 +199,15 @@ export class TileSnapshot implements CityMapReader {
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state:'closed',
         waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}};
   }
+  /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
+   * only the far view's ground, so nothing covers the curve */
+  curves=false;
   placement(i:number,region:RegionId):Placement|null {
+    return this.curves&&isCurved(this.values[i])?null:this.placementOf(i,region,this.values[i]);
+  }
+  private placementOf(i:number,region:RegionId,v:number):Placement|null {
     if(this.coverage[i]!==-1&&this.coverage[i]!==i) return null;
-    const x=i%this.width,y=Math.floor(i/this.width),v=this.values[i],entry=TILE_TABLE[v]??debug(), hash=tileSeed(x,y);
+    const x=i%this.width,y=Math.floor(i/this.width),entry=TILE_TABLE[v]??debug(), hash=tileSeed(x,y);
     const zone=Boolean(this.flags[i]&ZONEBIT),[w,h]=zone?entry.footprint:[1,1];
     const plot=this.paintedZones&&!zone?plotOf(this,x,y):null;
     if(plot)return this.plotPlacement(i,x,y,plot,region,hash);

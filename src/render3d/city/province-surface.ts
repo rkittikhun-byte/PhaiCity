@@ -12,7 +12,7 @@ import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../mode
 import { ROAD_SECTION } from '../models/road/interfaces.js';
 import { COMBASE, HOSPITALBASE, INDBASE, PORTBASE, RESBASE } from '../../tileValues.js';
 import { type LandMap, ownsLand } from '../../landBlocks.js';
-import { isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
+import { isCurved, isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
@@ -107,9 +107,18 @@ export class ProvinceSurface {
   /** A tile's own ground colour: water, woods or open land, the land a little lighter or darker in 3-tile patches. */
   /** Open land: laterite on a province map; grass on a real-scale city map, as the land round a town looks close up */
   private landColour():number {return this.snapshot.paintedZones?0x7a9150:0xb49b71;}
+  private neighbourCover(x:number,y:number):number {
+    const {width:w,height:h,values}=this.snapshot,counts=new Map<number,number>();
+    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h||isCurved(values[ny*w+nx]))continue;
+      const cover=this.snapshot.source?.landCover?.[ny*w+nx]??0;if(cover)counts.set(cover,(counts.get(cover)??0)+1);}
+    let best=0,most=0;for(const[cover,n]of counts)if(n>most){best=cover;most=n;}
+    return best;
+  }
   private tileShade(x:number,y:number,out:Color):Color {
     const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v),city=this.snapshot.paintedZones;
-    const cover=this.snapshot.source?.landCover?.[y*this.snapshot.width+x]??0;
+    let cover=this.snapshot.source?.landCover?.[y*this.snapshot.width+x]??0;
+    // Under a curved road the land is its neighbours', so no staircase of bare ground shows beside it
+    if(!cover&&this.snapshot.curves&&isCurved(v))cover=this.neighbourCover(x,y);
     out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):cover?COVER_COLOURS[cover]??this.landColour():this.landColour());
     if(!wet){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(city?(patch%7-3)*.006:0,0,(patch%9-4)*.006);}
     return out;
@@ -176,7 +185,8 @@ export class ProvinceSurface {
     }
     const p=this.placements.get(i)??this.snapshot.placement(i,'central');
     if(p){p.baseY=this.terrain.base(i);p.outside=outside;}
-    if(isRoad(v)||isRail(v)){
+    // Plain roads and railways are smooth curves of their own (roadCurves.ts)
+    if((isRoad(v)||isRail(v))&&!(this.snapshot.curves&&isCurved(v))){
       const start=c.fade.length,mask=this.snapshot.mask(x,y,isRoad(v)?isRoad:isRail),bridge=wet;
       const height=(xx:number,zz:number)=>bridge?this.terrain.base(i):this.terrain.sampleTile(x,y,xx,zz);
       if(isRoad(v)){

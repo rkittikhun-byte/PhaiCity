@@ -185,7 +185,8 @@ function pathTo(via, node) {
  * For each neighbour the search keeps to the province, that neighbour and land in neither (a bridge, a strait), so
  * the road found leads straight from one to the other; its last crossing of the border is where it leaves.
  */
-export function provinceLinks({ nodes, inside, provinceOf, neighbors, town, townOf, onMap }) {
+// townReachM: how far from the town a road may start; a district's map, which is small, starts them in the town
+export function provinceLinks({ nodes, inside, provinceOf, neighbors, town, townOf, onMap, townReachM = TOWN_REACH_M }) {
   // Start from every main road near the town, as the town's own streets lead to all of them; with none near it,
   // from the nearest
   let nearest = null;
@@ -195,7 +196,7 @@ export function provinceLinks({ nodes, inside, provinceOf, neighbors, town, town
     if (!inside(node)) continue;
     const distance = Math.hypot(node.x - town.x, node.y - town.y);
     if (distance < startDistance) { nearest = node; startDistance = distance; }
-    if (distance <= TOWN_REACH_M) starts.set(node, distance * TOWN_WEIGHT);
+    if (distance <= townReachM) starts.set(node, distance * TOWN_WEIGHT);
   }
   if (!nearest) return { links: [], townRoadM: null };
   if (!starts.size) starts.set(nearest, 0);
@@ -250,5 +251,5 @@ export function provinceLinks({ nodes, inside, provinceOf, neighbors, town, town
     links.push({ neighbor, ref: crossing.way.ref ?? '', rank: crossing.way.rank, points, exitIndex: exit });
   }
   links.sort((a, b) => a.neighbor.localeCompare(b.neighbor));
-  return { links, townRoadM: startDistance > TOWN_REACH_M ? startDistance : 0 };
+  return { links, townRoadM: startDistance > townReachM ? startDistance : 0 };
 }

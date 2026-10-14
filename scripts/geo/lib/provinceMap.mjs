@@ -33,10 +33,10 @@ const OUTSIDE_TILES = 20;
 const OUTSIDE_CUT_TILES = 6;
 // Land in a neighbouring country's outline counts as abroad only this far from every Thai province's outline
 const ABROAD_CLEAR_M = 1500;
-/** How far a straightened road or railway on a district's map may stray from the real one (metres) */
-const STRAIGHT_STRAY_M = 100;
 /** Two railways this close (metres) along most of their way are one double track */
 const DOUBLE_TRACK_M = 60;
+/** How far from a district's town its roads to the neighbours may start (metres) */
+const DISTRICT_TOWN_REACH_M = 1500;
 
 /**
  * Builds the map. shape: the province's { rings, bbox }; shapes: every province's; grid: makeGrid(…);
@@ -291,10 +291,8 @@ function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad, 
       };
       const start = anchorOf(kept.points[0], kept.startCut || part.startCut ? null : chain.from);
       const goal = anchorOf(kept.points[kept.points.length - 1], kept.endCut || part.endCut ? null : chain.to);
-      // Straightened on a district's map like its roads (owner, 14 Oct 2026: "ทางรถไฟก็เหมือนกัน เป็นยึกยือ"), as straight
-      // runs and 45° diagonals drawn in even steps
-      const guide = smoothLinks > 0
-        ? octilinear(straighten(simplifyLine(kept.points, smoothLinks), STRAIGHT_STRAY_M / tileSizeM)) : null;
+      // Drawn in even steps on a district's map like its roads (owner, 14 Oct 2026: "ทางรถไฟก็เหมือนกัน เป็นยึกยือ")
+      const guide = smoothLinks > 0 ? simplifyLine(kept.points, smoothLinks) : null;
       const path = (guide ? evenPath(net, guide, start, goal) : null) ?? route(net, 'rail', kept.points, start, goal);
       if (!path) {
         problems.push(`rail ${chain.refs.join('/') || '?'} could not be laid`);
@@ -550,6 +548,8 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     town: project(town),
     townOf: (neighbor) => (towns.get(neighbor) ? project(towns.get(neighbor)) : null),
     onMap: (node) => node.x >= 0 && node.y >= 0 && node.x <= widthM && node.y <= heightM,
+    // On a district's map the roads leave from the town itself, not a main road some kilometres off the map
+    ...(smoothLinks > 0 ? { townReachM: DISTRICT_TOWN_REACH_M } : {}),
   });
   if (townRoadM) problems.push(`the nearest main road is ${(townRoadM / 1000).toFixed(1)} km from the town`);
 
@@ -584,9 +584,9 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
 /**
  * A district's roads to its neighbours (owner, 14 Oct 2026: one road each, straight or smooth curves as on the real
  * map, not wiggles, "ถนน ให้มีเส้นเดียว"): the links as one network, so where two follow the same real road they share
- * its points and that stretch is laid once. Each stretch between junctions is straightened within smoothLinks tiles of
- * the real road, as straight runs and 45° diagonals (octilinear), and drawn tile by tile in even steps, which the 3D
- * view draws smooth; routing (which takes uneven steps) only where that would cross water or a railway on a step.
+ * its points and that stretch is laid once. Each stretch between junctions follows the real road within smoothLinks
+ * tiles, drawn tile by tile in even steps at its own slant, which the 3D view draws as smooth curves (owner: "ทำให้มัน
+ * โค้งๆ สวยๆ", src/render3d/city/roadCurves.ts); routing (which takes uneven steps) only where it cannot.
  */
 function layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoothLinks, problems }) {
   const { width, height } = net;
@@ -642,10 +642,9 @@ function layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoot
     if (!anchors.has(k)) anchors.set(k, anchorTile(net, 'road', ...tileOf(at.get(k), width, height)));
     return anchors.get(k);
   };
-  const limit = STRAIGHT_STRAY_M / tileSizeM;
   for (const stretch of stretches) {
     const points = stretch.keys.map((k) => at.get(k));
-    const guide = octilinear(straighten(simplifyLine(points, smoothLinks), limit));
+    const guide = simplifyLine(points, smoothLinks);
     const start = anchorOf(stretch.keys[0]), goal = anchorOf(stretch.keys[stretch.keys.length - 1]);
     stretch.tiles = evenPath(net, guide, start, goal) ?? route(net, 'road', guide, start, goal);
     if (stretch.tiles) layPath(net, 'road', stretch.tiles);
@@ -674,58 +673,8 @@ function layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoot
 }
 
 /**
- * A line with its long slanted stretches cut in two, and again, until straight runs and a 45° diagonal between them
- * (octilinear) stay within limit tiles of it: a stretch dx across and dy along (dx ≥ dy) strays dy (dx − dy) / 2dx.
- */
-function straighten(points, limit) {
-  const out = [points[0]];
-  const cut = (a, b) => {
-    const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), long = Math.max(dx, dy), short = Math.min(dx, dy);
-    if (long < 4 || short * (long - short) / (2 * long) <= limit) {
-      out.push(b);
-      return;
-    }
-    const middle = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    cut(a, middle);
-    cut(middle, b);
-  };
-  for (let i = 1; i < points.length; i++) cut(points[i - 1], points[i]);
-  return out;
-}
-
-/**
- * A line as straight runs and 45° diagonals only, which the 3D view draws as straight roads and smooth diagonals with
- * round bends (src/render3d/models/road/centreline.ts), rather than the uneven steps of other slants: each stretch
- * runs straight for half its excess, diagonally, then straight again.
- */
-function octilinear(source) {
-  // A stretch that strays only a tile or two sideways runs straight, the next one taking up the difference (no jogs)
-  const points = source.map((point) => [...point]);
-  for (let i = 1; i < points.length - 1; i++) {
-    const [ax, ay] = points[i - 1], b = points[i], dx = b[0] - ax, dy = b[1] - ay;
-    if (Math.abs(dy) <= 2.5 && Math.abs(dx) > Math.abs(dy)) b[1] = ay;
-    else if (Math.abs(dx) <= 2.5 && Math.abs(dy) > Math.abs(dx)) b[0] = ax;
-  }
-  const out = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const [ax, ay] = points[i - 1], [bx, by] = points[i], dx = bx - ax, dy = by - ay;
-    const diagonal = Math.min(Math.abs(dx), Math.abs(dy));
-    const sx = Math.sign(dx), sy = Math.sign(dy);
-    // The straight part along the longer axis, split either side of the diagonal
-    const straightX = Math.abs(dx) > Math.abs(dy) ? (Math.abs(dx) - diagonal) * sx : 0;
-    const straightY = Math.abs(dy) > Math.abs(dx) ? (Math.abs(dy) - diagonal) * sy : 0;
-    const m1 = [ax + straightX / 2, ay + straightY / 2];
-    const m2 = [m1[0] + diagonal * sx, m1[1] + diagonal * sy];
-    if (Math.hypot(m1[0] - ax, m1[1] - ay) > 0.5) out.push(m1);
-    if (Math.hypot(m2[0] - m1[0], m2[1] - m1[1]) > 0.5) out.push(m2);
-    out.push([bx, by]);
-  }
-  return out;
-}
-
-/**
- * The tiles of an octilinear line from start to goal: straight runs, and diagonals as even steps (one across, one
- * along), crossing water and railways square on, with no tile twice. Null when it cannot.
+ * The tiles of a line from start to goal through its points, in even steps at each stretch's own slant (each step the
+ * one that keeps nearer the stretch), crossing water and railways square on, with no tile twice. Null when it cannot.
  */
 function evenPath(net, points, start, goal) {
   const { width, height, transport, water } = net;
@@ -758,13 +707,14 @@ function evenPath(net, points, start, goal) {
     .filter(([tx, ty]) => tx >= 0 && ty >= 0 && tx < width && ty < height && !blocked(tx, ty));
   targets.push([goal % width, Math.floor(goal / width)]);
   for (const [tx, ty] of targets) {
+    const ax = x, ay = y;
+    // How far a tile's centre lies from the stretch (twice the triangle's area, which is enough to compare)
+    const off = (px, py) => Math.abs((px - ax) * (ty - ay) - (py - ay) * (tx - ax));
     while (x !== tx || y !== ty) {
       if (budget-- <= 0) return null;
       const dx = Math.sign(tx - x), dy = Math.sign(ty - y);
-      // On a diagonal, one step across then one along; else straight
       if (dx && dy) {
-        if (!step(dx, 0)) return null;
-        if (y !== ty && !step(0, Math.sign(ty - y))) return null;
+        if (!(off(x + dx, y) <= off(x, y + dy) ? step(dx, 0) : step(0, dy))) return null;
       } else if (!step(dx, dy)) return null;
     }
   }

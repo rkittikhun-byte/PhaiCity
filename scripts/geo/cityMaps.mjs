@@ -168,7 +168,7 @@ async function main() {
     const result = buildProvinceMap({
       id: province.id, shape: shape ?? shapes.get(province.id), shapes: linkShapes, foreign, grid, layers, town, towns, neighbors,
       streets: options.db && !whole ? layers.streets : null,
-      ...(whole ? { roadRank: DISTRICT_ROAD_RANK, smoothLinks: 2.5 } : {}),
+      ...(whole ? { roadRank: DISTRICT_ROAD_RANK, smoothLinks: 1.5 } : {}),
     });
     const streets = result.streets;
     const heights = tileHeights(grid);
