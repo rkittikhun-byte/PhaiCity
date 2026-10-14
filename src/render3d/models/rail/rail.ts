@@ -89,12 +89,14 @@ function bridgeStructure(builder: RailBuilder): void {
 export function createRail(kind: RailKind, options: ModelOptions = {}): Group {
   const builder = new RailBuilder(options), bridge = kind === 'bridge';
   const trackKind: TrackKind = kind === 'bridge' || kind === 'power_crossing' ? 'straight' : kind;
-  if (bridge) bridgeStructure(builder); else railGround(builder, trackKind);
-  tracks(builder, trackKind); props(builder, bridge);
+  // A corner that is a step of a slanted line (track.ts stairPath)
+  const variant = kind === 'corner' ? (options.variant ?? 0) & 3 : 0;
+  if (bridge) bridgeStructure(builder); else railGround(builder, trackKind, variant);
+  tracks(builder, trackKind, variant); props(builder, bridge);
   if (kind === 'end') bufferStop(builder);
   if (kind === 'power_crossing') builder.anchors.push(...crossingPowerLines(builder, 'rail.power_crossing', 0));
   const root = builder.finishRail(`rail.${kind}`, RAIL_TILES[kind], RAIL_MASKS[trackKind]);
-  if (kind === 'corner' || kind === 't') root.userData.curveRadius = 5;
+  if ((kind === 'corner' && !variant) || kind === 't') root.userData.curveRadius = 5;
   if (bridge) root.userData.riverbedY = -3;
   if (kind === 'power_crossing') root.userData.power = { ...POWER_INTERFACE, offsets: [...POWER_INTERFACE.offsets] };
   return root;

@@ -66,7 +66,8 @@ export class RailBuilder extends RoadBuilder {
 }
 
 /** Ordered perimeter of the union bed. Inner and outer perimeters have matching vertices. */
-export function bedOutline(kind: TrackKind, w: number): Point2[] {
+export function bedOutline(kind: TrackKind, w: number, variant = 0): Point2[] {
+  if (kind === 'corner' && variant & 3) return stairBed(variant, w);
   if (kind === 'cross') return [[-w, -5], [-w, -w], [-5, -w], [-5, w], [-w, w], [-w, 5],
     [w, 5], [w, w], [5, w], [5, -w], [w, -w], [w, -5]];
   if (kind === 'straight' || kind === 'end') {
@@ -87,8 +88,8 @@ export function bedOutline(kind: TrackKind, w: number): Point2[] {
   return ring;
 }
 
-export function ballast(builder: RailBuilder, kind: TrackKind): void {
-  const outer = bedOutline(kind, RAIL_INTERFACE.ballastWidth / 2), inner = bedOutline(kind, 1.2);
+export function ballast(builder: RailBuilder, kind: TrackKind, variant = 0): void {
+  const outer = bedOutline(kind, RAIL_INTERFACE.ballastWidth / 2, variant), inner = bedOutline(kind, 1.2, variant);
   builder.polygon(inner, getMaterial('gravel_ballast'), () => RAIL_INTERFACE.ballastY);
   const vertices: number[] = [];
   for (let i = 0; i < outer.length; i++) {
@@ -106,7 +107,65 @@ export interface TrackPath {
   at: (s: number) => { x: number; z: number; nx: number; nz: number };
 }
 
-export function trackPaths(kind: TrackKind): TrackPath[] {
+/**
+ * A corner on a slanted line, which the game lays as a staircase of corners (models/road/centreline.ts): variant bit 1
+ * when its north side is a step, 2 its east side. The track crosses a step side at 45°, so a staircase's corners join
+ * into one straight diagonal (owner, 14 Oct 2026: "ทางรถไฟก็เหมือนกัน เป็นยึกยือ"), and eases into straight track where
+ * the staircase ends. A cubic curve from the north edge's middle to the east edge's, measured along its length.
+ */
+function stairPath(variant: number): TrackPath {
+  const half = Math.SQRT1_2, pull = 2.6;
+  const d0: Point2 = variant & 1 ? [half, half] : [0, 1], d1: Point2 = variant & 2 ? [half, half] : [1, 0];
+  const p0: Point2 = [0, -5], p3: Point2 = [5, 0];
+  const p1: Point2 = [p0[0] + d0[0] * pull, p0[1] + d0[1] * pull], p2: Point2 = [p3[0] - d1[0] * pull, p3[1] - d1[1] * pull];
+  const curve = (t: number): Point2 => {
+    const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+    return [a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]];
+  };
+  const slope = (t: number): Point2 => {
+    const u = 1 - t, a = 3 * u * u, b = 6 * u * t, c = 3 * t * t;
+    const x = a * (p1[0] - p0[0]) + b * (p2[0] - p1[0]) + c * (p3[0] - p2[0]);
+    const z = a * (p1[1] - p0[1]) + b * (p2[1] - p1[1]) + c * (p3[1] - p2[1]), length = Math.hypot(x, z) || 1;
+    return [x / length, z / length];
+  };
+  const steps = 64, lengths = [0];
+  for (let i = 1; i <= steps; i++) {
+    const [ax, az] = curve((i - 1) / steps), [bx, bz] = curve(i / steps);
+    lengths.push(lengths[i - 1] + Math.hypot(bx - ax, bz - az));
+  }
+  const length = lengths[steps];
+  return { name: 'NE', length, at: s => {
+    const target = Math.max(0, Math.min(length, s));
+    let i = 1;
+    while (i < steps && lengths[i] < target) i++;
+    const t = (i - 1 + (target - lengths[i - 1]) / ((lengths[i] - lengths[i - 1]) || 1)) / steps;
+    const [x, z] = curve(t), [tx, tz] = slope(t);
+    // Beyond the ends (a sleeper's half past an edge) it runs on straight
+    const over = s < 0 ? s : s > length ? s - length : 0;
+    return { x: x + tx * over, z: z + tz * over, nx: tz, nz: -tx };
+  } };
+}
+
+/** The bed of a staircase corner: either side of its track, its ends on the tile's edges, kept within the tile */
+function stairBed(variant: number, w: number): Point2[] {
+  const path = stairPath(variant), left: Point2[] = [], right: Point2[] = [];
+  for (let i = 0; i <= CURVE_SEGMENTS; i++) {
+    const p = path.at(path.length * i / CURVE_SEGMENTS);
+    // A step side is crossed at 45°: slide the ends along the track onto the edge
+    const tx = -p.nz, tz = p.nx;
+    const onEdge = (x: number, z: number): Point2 => {
+      if (i === 0 && variant & 1) { const k = (-5 - z) / tz; return [x + tx * k, -5]; }
+      if (i === CURVE_SEGMENTS && variant & 2) { const k = (5 - x) / tx; return [5, z + tz * k]; }
+      return [Math.max(-5, Math.min(5, x)), Math.max(-5, Math.min(5, z))];
+    };
+    left.push(onEdge(p.x - p.nx * w, p.z - p.nz * w));
+    right.push(onEdge(p.x + p.nx * w, p.z + p.nz * w));
+  }
+  return [...left, ...right.reverse()];
+}
+
+export function trackPaths(kind: TrackKind, variant = 0): TrackPath[] {
+  if (kind === 'corner' && variant & 3) return [stairPath(variant)];
   const straight: TrackPath = { name: 'NS', length: kind === 'end' ? 6.4 : 10,
     at: s => ({ x: 0, z: s - 5, nx: 1, nz: 0 }) };
   const corner: TrackPath = { name: 'NE', length: CURVE_RADIUS * Math.PI / 2,
@@ -137,10 +196,10 @@ function railProfile(builder: RailBuilder, path: TrackPath, offset: number, widt
   geometry.computeVertexNormals(); builder.world(geometry, getMaterial('metal_steel'));
 }
 
-export function tracks(builder: RailBuilder, kind: TrackKind): void {
+export function tracks(builder: RailBuilder, kind: TrackKind, variant = 0): void {
   const prototype = new BoxGeometry(1.8, 0.08, 0.22);
   try {
-    for (const path of trackPaths(kind)) {
+    for (const path of trackPaths(kind, variant)) {
       for (const side of [-1, 1]) {
         const offset = side * (RAIL_INTERFACE.gauge + RAIL_INTERFACE.railWidth) / 2;
         railProfile(builder, path, offset, 0.08, 0.38, 0.42);
@@ -164,14 +223,16 @@ export function tracks(builder: RailBuilder, kind: TrackKind): void {
   } finally { prototype.dispose(); }
 }
 
-export function railGround(builder: RailBuilder, kind: TrackKind): void {
+export function railGround(builder: RailBuilder, kind: TrackKind, variant = 0): void {
   builder.world(new PlaneGeometry(10, 10).rotateX(-Math.PI / 2), getMaterial('dirt_laterite'));
-  // Corner patches stay clear of every canonical track and all four tile edges.
+  // Corner patches stay clear of every canonical track and all four tile edges; a staircase's track cuts across the
+  // north-east one
   for (const [x, z] of [[-3.7, -3.5], [-3.5, 3.6], [3.7, 3.5], [3.8, -3.6]]) {
+    if (variant & 3 && x > 0 && z < 0) continue;
     const patch: Point2[] = [[-0.73, -0.26], [-0.35, -0.72], [0.45, -0.78], [0.72, -0.12], [0.63, 0.59], [-0.37, 0.78]];
     builder.polygon(patch.map(([dx, dz]) => [x + dx, z + dz]), getMaterial('grass'), () => 0.002);
     builder.grass(x, z, 0.26, getMaterial('grass'));
   }
-  ballast(builder, kind);
+  ballast(builder, kind, variant);
 }
 

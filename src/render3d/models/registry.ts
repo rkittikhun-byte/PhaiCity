@@ -169,6 +169,8 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     factory: (options?: ModelOptions) => createRail(kind, options), category: 'rail', footprint: [1, 1],
     tiles: RAIL_TILES[kind], budget: TRIANGLE_BUDGETS.tile, regionTier: 'R3', tiling: true,
     ...(kind === 'bridge' ? { ground: 'bridge' } : {}),
+    // Corner variants: which sides are steps of a staircase, so a slanted line runs straight (rail/track.ts).
+    ...(kind === 'corner' ? { variants: [0, 1, 2, 3] } : {}),
   } as ModelRegistration])),
   ...Object.fromEntries(ROAD_KINDS.map(kind => [`road.${kind}`, {
     factory: (options?: ModelOptions) => createRoad(kind, options),

@@ -2,20 +2,18 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// A district's map as the whole district (owner, 14 Oct 2026: "ฉันอยากได้แต่ละแผนที่ เป็นแผนที่ของอำเภอนั้นจริงๆ ไม่ใช่ 4
-// เหลี่ยมแบบนี้"): its real outline on a grid sized to hold all of it (at most WHOLE_MAX_TILES a side, so a tile is
-// 45–110 m in Khon Kaen), and one laterite road from its town to each neighbouring district, or neighbouring province
-// at the province's edge, along the real roads between them ("จะมีถนนเชื่อมแต่ละอำเภอเข้ากับอำเภออื่นๆ เพียงเส้นเดียว ...
-// ถนนด้านในแผนที่ไม่ต้องมีถนนอื่นๆ อีก"). Which districts are neighbours, and how big the grid and its tiles are.
+// A district's map (owner, 14 Oct 2026): the land of its real outline ("ฉันอยากได้แต่ละแผนที่ เป็นแผนที่ของอำเภอนั้นจริงๆ
+// ไม่ใช่ 4 เหลี่ยมแบบนี้") in the proportions of Cities: Skylines, a two-lane road a 16 m tile ("16 ม. แบบ CS"), on a
+// square of DISTRICT_SIZE tiles round its town (7.7 km; the rest of the district and the province show round it when
+// zooming out, src/render3d/city/provinceBackdrop.ts), and one laterite road from its town towards each neighbouring
+// district, or neighbouring province at the province's edge, along the real roads ("จะมีถนนเชื่อมแต่ละอำเภอเข้ากับ
+// อำเภออื่นๆ เพียงเส้นเดียว ... ถนนด้านในแผนที่ไม่ต้องมีถนนอื่นๆ อีก"). Which districts are neighbours, and the grid.
 
 import { makeGrid } from './projection.mjs';
 
-/** A whole district fits in this many tiles a side */
-export const WHOLE_MAX_TILES = 480;
-/** ... with this share of its size round it, so its edge and the roads leaving it show */
-const MARGIN = 0.06;
-/** Tiles are a whole number of 5 m, and never finer than a real-scale city map's */
-const MIN_TILE_M = 16;
+/** Metres a tile, and tiles a side, of a district's map */
+export const DISTRICT_TILE_M = 16;
+export const DISTRICT_SIZE = 480;
 /** Two outlines this close (metres) touch: districts share a boundary, the simplified outlines a little apart */
 const TOUCH_M = 400;
 /** ... a district and a neighbouring province, whose outline (Natural Earth) is much coarser */
@@ -24,15 +22,14 @@ const TOUCH_PROVINCE_M = 2500;
 const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320;
 
-/** The grid of a whole district: centred on its outline's box, its tiles as small as WHOLE_MAX_TILES allows */
-export function wholeDistrictGrid(bbox) {
+/** The grid of a district's map: centred on its town, moved in as far as needed to stay within the district's box */
+export function districtGrid(bbox, town) {
   const [west, south, east, north] = bbox;
-  const lat = (south + north) / 2, lon = (west + east) / 2;
-  const widthM = (east - west) * M_PER_DEG_LON * Math.cos(lat * Math.PI / 180), heightM = (north - south) * M_PER_DEG_LAT;
-  const spanM = Math.max(widthM, heightM) * (1 + 2 * MARGIN);
-  const tileSizeM = Math.max(MIN_TILE_M, Math.ceil(spanM / WHOLE_MAX_TILES / 5) * 5);
-  const width = Math.ceil(widthM * (1 + 2 * MARGIN) / tileSizeM), height = Math.ceil(heightM * (1 + 2 * MARGIN) / tileSizeM);
-  return makeGrid({ center: { lat, lon }, width, height, tileSizeM });
+  const halfM = DISTRICT_SIZE * DISTRICT_TILE_M / 2;
+  const halfLat = halfM / M_PER_DEG_LAT, halfLon = halfM / (M_PER_DEG_LON * Math.cos(town.lat * Math.PI / 180));
+  const within = (value, low, high) => (low > high ? (low + high) / 2 : Math.max(low, Math.min(high, value)));
+  const center = { lat: within(town.lat, south + halfLat, north - halfLat), lon: within(town.lon, west + halfLon, east - halfLon) };
+  return makeGrid({ center, width: DISTRICT_SIZE, height: DISTRICT_SIZE, tileSizeM: DISTRICT_TILE_M });
 }
 
 /** The nearest two vertices of two sets of rings are closer than limitM (a cheap test of touching outlines) */

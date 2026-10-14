@@ -33,6 +33,10 @@ const OUTSIDE_TILES = 20;
 const OUTSIDE_CUT_TILES = 6;
 // Land in a neighbouring country's outline counts as abroad only this far from every Thai province's outline
 const ABROAD_CLEAR_M = 1500;
+/** How far a straightened road or railway on a district's map may stray from the real one (metres) */
+const STRAIGHT_STRAY_M = 100;
+/** Two railways this close (metres) along most of their way are one double track */
+const DOUBLE_TRACK_M = 60;
 
 /**
  * Builds the map. shape: the province's { rings, bbox }; shapes: every province's; grid: makeGrid(…);
@@ -61,7 +65,7 @@ export function buildProvinceMap({ id, shape, shapes, foreign = new Map(), grid,
   const abroad = landAbroad(cells, width, height, abroadMask(grid, shapes, foreign));
 
   // Railways first: roads must cross them on straight track
-  const railExits = layRails(net, layers.rail, toTiles, inside, problems, provinceOfTile, abroad);
+  const railExits = layRails(net, layers.rail, toTiles, inside, problems, provinceOfTile, abroad, smoothLinks, tileSizeM);
 
   // The town's tile, and one road to each neighbour from it
   const townTile = town ? nearestInsideLand(cells, inside, width, height, ...toTiles(town.lon, town.lat)) : null;
@@ -255,7 +259,7 @@ function replaceSmallRegions(cells, width, height, include, replacement) {
  * Every main line that runs through the province (not sidings, yards or spurs), cut OUTSIDE_CUT_TILES beyond the
  * province where it would run on outside it for more than OUTSIDE_TILES. Returns where they leave the province.
  */
-function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad) {
+function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad, smoothLinks = 0, tileSizeM = 0) {
   const { width, height } = net;
   const ways = rail
     .filter((element) => element.type === 'way' && !element.tags.service && element.points.length >= 4)
@@ -268,8 +272,13 @@ function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad) 
     return tx >= 0 && ty >= 0 && tx < width && ty < height && inside[ty * width + tx] === 1;
   };
 
-  for (const chain of buildChains(ways)) {
-    const points = chain.points.map(([lon, lat]) => toTiles(lon, lat));
+  // On a district's map, longest first, so a second track beside the first (a double track drawn as two lines) is
+  // seen to be one and laid once
+  const chains = buildChains(ways).map((chain) => ({ ...chain, tiles: chain.points.map(([lon, lat]) => toTiles(lon, lat)) }));
+  if (smoothLinks > 0) chains.sort((a, b) => lineLength(b.tiles) - lineLength(a.tiles));
+  for (const chain of chains) {
+    const points = chain.tiles;
+    if (smoothLinks > 0 && besideRail(net, points, DOUBLE_TRACK_M / tileSizeM)) continue;
     for (const part of clipLine(points, width, height)) {
       const near = nearProvince(part.points, isInside);
       if (!near) continue;
@@ -282,7 +291,11 @@ function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad) 
       };
       const start = anchorOf(kept.points[0], kept.startCut || part.startCut ? null : chain.from);
       const goal = anchorOf(kept.points[kept.points.length - 1], kept.endCut || part.endCut ? null : chain.to);
-      const path = route(net, 'rail', kept.points, start, goal);
+      // Straightened on a district's map like its roads (owner, 14 Oct 2026: "ทางรถไฟก็เหมือนกัน เป็นยึกยือ"), as straight
+      // runs and 45° diagonals drawn in even steps
+      const guide = smoothLinks > 0
+        ? octilinear(straighten(simplifyLine(kept.points, smoothLinks), STRAIGHT_STRAY_M / tileSizeM)) : null;
+      const path = (guide ? evenPath(net, guide, start, goal) : null) ?? route(net, 'rail', kept.points, start, goal);
       if (!path) {
         problems.push(`rail ${chain.refs.join('/') || '?'} could not be laid`);
         continue;
@@ -297,6 +310,36 @@ function layRails(net, rail, toTiles, inside, problems, provinceOfTile, abroad) 
     }
   }
   return [...exits.values()];
+}
+
+/** A line's length, in its own units */
+function lineLength(points) {
+  let length = 0;
+  for (let i = 1; i < points.length; i++) length += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  return length;
+}
+
+/** Whether most of a line (points in tiles) on the map runs within reach tiles of a railway already laid */
+function besideRail(net, points, reach) {
+  const { width, height, transport } = net;
+  const r = Math.ceil(reach);
+  let on = 0, near = 0;
+  for (let i = 1; i < points.length; i++) {
+    const [ax, ay] = points[i - 1], [bx, by] = points[i], steps = Math.ceil(Math.hypot(bx - ax, by - ay));
+    for (let k = 0; k < steps; k++) {
+      const x = Math.floor(ax + (bx - ax) * k / steps), y = Math.floor(ay + (by - ay) * k / steps);
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      on++;
+      search: for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < width && ny < height && transport[ny * width + nx] & RAIL) {
+          near++;
+          break search;
+        }
+      }
+    }
+  }
+  return on > 0 && near / on >= 0.7;
 }
 
 /**
@@ -510,9 +553,10 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
   });
   if (townRoadM) problems.push(`the nearest main road is ${(townRoadM / 1000).toFixed(1)} km from the town`);
 
-  const exits = [];
   // The most important roads are laid first, so the others join them
   links.sort((a, b) => a.rank - b.rank);
+  if (smoothLinks > 0) return layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoothLinks, problems });
+  const exits = [];
   for (const link of links) {
     // The road leaves from the town and runs as far as the map's edge, or is cut a little beyond where it leaves
     // the province for the last time
@@ -521,15 +565,10 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     const parts = clipLine(points, width, height);
     if (!parts.length) continue;
     const line = parts[0];
-    // A whole district's roads are straightened a little first (owner, 14 Oct 2026: straight or smooth curves as on the
-    // real map, not wiggles), within smoothLinks tiles of the real line
-    if (smoothLinks > 0) line.points = octilinear(simplifyLine(line.points, smoothLinks));
     const goalPoint = line.points[line.points.length - 1];
     const goal = anchorTile(net, 'road', ...tileOf(goalPoint, width, height));
     const guide = [[(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5], ...line.points];
-    // A whole district's road is drawn tile by tile along its straight runs and even 45° steps, which the 3D view draws
-    // smooth; routing (which takes uneven steps) only where that would cross water or a railway on a step
-    const path = (smoothLinks > 0 ? evenPath(net, guide, townTile, goal) : null) ?? route(net, 'road', guide, townTile, goal);
+    const path = route(net, 'road', guide, townTile, goal);
     if (!path) {
       problems.push(`road to ${link.neighbor} could not be laid`);
       continue;
@@ -540,6 +579,118 @@ function layLinks({ shape, shapes, grid, layers, net, inside, town, towns, townT
     else problems.push(`road to ${link.neighbor} never leaves the province on the map`);
   }
   return exits;
+}
+
+/**
+ * A district's roads to its neighbours (owner, 14 Oct 2026: one road each, straight or smooth curves as on the real
+ * map, not wiggles, "ถนน ให้มีเส้นเดียว"): the links as one network, so where two follow the same real road they share
+ * its points and that stretch is laid once. Each stretch between junctions is straightened within smoothLinks tiles of
+ * the real road, as straight runs and 45° diagonals (octilinear), and drawn tile by tile in even steps, which the 3D
+ * view draws smooth; routing (which takes uneven steps) only where that would cross water or a railway on a step.
+ */
+function layLinkNetwork({ links, net, inside, townTile, tileSizeM, abroad, smoothLinks, problems }) {
+  const { width, height } = net;
+  const key = ([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`;
+  const town = [(townTile % width) + 0.5, Math.floor(townTile / width) + 0.5];
+  // Each link's line in tiles, from the town to the map's edge or a little beyond where it leaves the district
+  const lines = [];
+  for (const link of links) {
+    const points = abroad.cutTail(cutAfterExit(link.points.map(([x, y]) => [x / tileSizeM, y / tileSizeM]),
+      link.exitIndex), link.exitIndex);
+    const parts = clipLine(points, width, height);
+    if (!parts.length) continue;
+    const line = [town];
+    for (const point of parts[0].points) if (key(point) !== key(line[line.length - 1])) line.push(point);
+    if (line.length > 1) lines.push({ link, points: line });
+  }
+  // The network: its points, which are next to which, and where lines end
+  const at = new Map(), next = new Map(), ends = new Set();
+  const join = (a, b) => {
+    if (!next.has(a)) next.set(a, new Set());
+    next.get(a).add(b);
+  };
+  for (const { points } of lines) {
+    for (const point of points) at.set(key(point), point);
+    ends.add(key(points[0]));
+    ends.add(key(points[points.length - 1]));
+    for (let i = 1; i < points.length; i++) {
+      join(key(points[i - 1]), key(points[i]));
+      join(key(points[i]), key(points[i - 1]));
+    }
+  }
+  // Its stretches, from junction to junction (or a line's end), each laid once
+  const junction = (k) => ends.has(k) || next.get(k).size !== 2;
+  const stretches = [], stretchOf = new Map();
+  for (const [start, others] of next) {
+    if (!junction(start)) continue;
+    for (const second of others) {
+      if (stretchOf.has(`${start}|${second}`)) continue;
+      const keys = [start, second];
+      while (!junction(keys[keys.length - 1])) {
+        const last = keys[keys.length - 1], before = keys[keys.length - 2];
+        keys.push([...next.get(last)].find((k) => k !== before));
+      }
+      for (let i = 1; i < keys.length; i++) {
+        stretchOf.set(`${keys[i - 1]}|${keys[i]}`, [stretches.length, true]);
+        stretchOf.set(`${keys[i]}|${keys[i - 1]}`, [stretches.length, false]);
+      }
+      stretches.push({ keys, tiles: null });
+    }
+  }
+  const anchors = new Map();
+  const anchorOf = (k) => {
+    if (!anchors.has(k)) anchors.set(k, anchorTile(net, 'road', ...tileOf(at.get(k), width, height)));
+    return anchors.get(k);
+  };
+  const limit = STRAIGHT_STRAY_M / tileSizeM;
+  for (const stretch of stretches) {
+    const points = stretch.keys.map((k) => at.get(k));
+    const guide = octilinear(straighten(simplifyLine(points, smoothLinks), limit));
+    const start = anchorOf(stretch.keys[0]), goal = anchorOf(stretch.keys[stretch.keys.length - 1]);
+    stretch.tiles = evenPath(net, guide, start, goal) ?? route(net, 'road', guide, start, goal);
+    if (stretch.tiles) layPath(net, 'road', stretch.tiles);
+    else problems.push(`a stretch of road from ${stretch.keys[0]} could not be laid`);
+  }
+  // Each link's tiles, stretch by stretch, for where it leaves the district or the map
+  const exits = [];
+  for (const { link, points } of lines) {
+    const path = [];
+    for (let i = 0; i + 1 < points.length;) {
+      const [index, forward] = stretchOf.get(`${key(points[i])}|${key(points[i + 1])}`);
+      const { keys, tiles } = stretches[index];
+      for (const tile of tiles ? (forward ? tiles : [...tiles].reverse()) : []) if (path[path.length - 1] !== tile) path.push(tile);
+      i += keys.length - 1;
+    }
+    if (!path.length) continue;
+    const crossing = boundaryExits(path, inside, width).filter((exit) => exit.leaving).at(-1);
+    const last = path[path.length - 1], x = last % width, y = Math.floor(last / width);
+    if (crossing) exits.push({ neighbor: link.neighbor, kind: 'road', ref: link.ref, x: crossing.x, y: crossing.y });
+    // A district bigger than its map: where the road leaves the map towards that neighbour
+    else if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+      exits.push({ neighbor: link.neighbor, kind: 'road', ref: link.ref, x, y, edge: true });
+    } else problems.push(`road to ${link.neighbor} never leaves the district on the map`);
+  }
+  return exits;
+}
+
+/**
+ * A line with its long slanted stretches cut in two, and again, until straight runs and a 45° diagonal between them
+ * (octilinear) stay within limit tiles of it: a stretch dx across and dy along (dx ≥ dy) strays dy (dx − dy) / 2dx.
+ */
+function straighten(points, limit) {
+  const out = [points[0]];
+  const cut = (a, b) => {
+    const dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), long = Math.max(dx, dy), short = Math.min(dx, dy);
+    if (long < 4 || short * (long - short) / (2 * long) <= limit) {
+      out.push(b);
+      return;
+    }
+    const middle = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    cut(a, middle);
+    cut(middle, b);
+  };
+  for (let i = 1; i < points.length; i++) cut(points[i - 1], points[i]);
+  return out;
 }
 
 /**
@@ -574,7 +725,7 @@ function octilinear(source) {
 
 /**
  * The tiles of an octilinear line from start to goal: straight runs, and diagonals as even steps (one across, one
- * along), with no tile twice. Null when it would cross water or a railway anywhere but on a straight run.
+ * along), crossing water and railways square on, with no tile twice. Null when it cannot.
  */
 function evenPath(net, points, start, goal) {
   const { width, height, transport, water } = net;
@@ -584,15 +735,37 @@ function evenPath(net, points, start, goal) {
     const i = y * width + x;
     if (tiles[tiles.length - 1] !== i) tiles.push(i);
   };
-  let x = start % width, y = Math.floor(start / width);
+  const blocked = (cx, cy) => {
+    const i = cy * width + cx;
+    return water(i) || (transport[i] & RAIL) !== 0;
+  };
+  let x = start % width, y = Math.floor(start / width), budget = 8 * (width + height);
+  // One step, and on in the same direction through water or a railway, so it is crossed square on
+  const step = (sx, sy) => {
+    x += sx; y += sy;
+    if (x < 0 || y < 0 || x >= width || y >= height) return false;
+    add(x, y);
+    while (blocked(x, y)) {
+      x += sx; y += sy;
+      if (x < 0 || y < 0 || x >= width || y >= height || budget-- <= 0) return false;
+      add(x, y);
+    }
+    return true;
+  };
   add(x, y);
-  const targets = points.slice(1).map(([px, py]) => [Math.floor(px), Math.floor(py)]);
+  // Its corners, but none in water or on a railway, which the line crosses instead
+  const targets = points.slice(1).map(([px, py]) => [Math.floor(px), Math.floor(py)])
+    .filter(([tx, ty]) => tx >= 0 && ty >= 0 && tx < width && ty < height && !blocked(tx, ty));
   targets.push([goal % width, Math.floor(goal / width)]);
   for (const [tx, ty] of targets) {
     while (x !== tx || y !== ty) {
+      if (budget-- <= 0) return null;
       const dx = Math.sign(tx - x), dy = Math.sign(ty - y);
       // On a diagonal, one step across then one along; else straight
-      if (dx && dy) { x += dx; add(x, y); y += dy; add(x, y); } else { x += dx; y += dy; add(x, y); }
+      if (dx && dy) {
+        if (!step(dx, 0)) return null;
+        if (y !== ty && !step(0, Math.sign(ty - y))) return null;
+      } else if (!step(dx, dy)) return null;
     }
   }
   if (new Set(tiles).size !== tiles.length) return null;

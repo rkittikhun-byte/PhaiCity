@@ -3,6 +3,7 @@
  */
 
 import { Group, MeshStandardMaterial, Raycaster, Vector3 } from 'three';
+import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { railNeighbors } from '../../src/render3d/gallery/rail-neighbors.js';
 import { roadConcrete } from '../../src/render3d/materials/library.js';
 import { registry } from '../../src/render3d/models/registry.js';
@@ -240,5 +241,27 @@ describe('Prompt 5: special structures, seeded props and budgets', () => {
       expect(rail.userData.power).toEqual({ ...POWER_INTERFACE, offsets: [...POWER_INTERFACE.offsets] });
       expect(countTriangles(road)).toBe(870); expect(countDrawCalls(road)).toBe(7);
     } finally { disposeModel(rail); disposeModel(road); }
+  });
+});
+
+describe('Slanted railways: a staircase of corners runs straight', () => {
+  it('lays a corner whose sides are both steps as one straight 45° track, and eases where straight track meets it', () => {
+    const [straight] = trackPaths('corner', 3), mid = straight.at(straight.length / 2), end = straight.at(straight.length);
+    expect(straight.length).toBeCloseTo(5 * Math.SQRT2, 3);
+    expect(mid.x).toBeCloseTo(2.5, 3); expect(mid.z).toBeCloseTo(-2.5, 3);
+    expect(end.nx).toBeCloseTo(Math.SQRT1_2, 3); expect(end.nz).toBeCloseTo(-Math.SQRT1_2, 3);
+    // North a step, east straight: in at 45°, out square to the east edge
+    const [eased] = trackPaths('corner', 1), start = eased.at(0), out = eased.at(eased.length);
+    expect(start.nx).toBeCloseTo(Math.SQRT1_2, 3); expect(out.nx).toBeCloseTo(0, 3); expect(out.nz).toBeCloseTo(-1, 3);
+  });
+
+  it('picks the staircase variant for the corners of a slanted railway on the map', () => {
+    const W = 10, s = new TileSnapshot(W, 10);
+    for (const [x, y] of [[1, 2], [2, 2], [3, 2], [3, 3], [4, 3], [4, 4], [5, 4], [5, 5], [5, 6]]) s.values[y * W + x] = 226;
+    const variant = (x: number, y: number) => s.placement(y * W + x, 'central')!.options.variant;
+    for (const [x, y] of [[3, 3], [4, 3], [4, 4]]) expect(variant(x, y)).toBe(3);
+    for (const [x, y] of [[3, 2], [5, 4]]) expect([1, 2]).toContain(variant(x, y));
+    const ends = [variant(3, 2), variant(5, 4)].map(v => v === 1 ? 'north' : 'east');
+    expect(new Set(ends).size).toBe(2);
   });
 });

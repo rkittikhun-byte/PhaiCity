@@ -113,6 +113,12 @@ export class TileSnapshot implements CityMapReader {
     return staircaseOf(this.mask(x,y,isRoad),(side,far)=>{let[nx,ny]=step(x,y,side);if(far)[nx,ny]=step(nx,ny,far);
       return nx>=0&&ny>=0&&nx<this.width&&ny<this.height&&isPlainRoad(this.getTileValue(nx,ny))?this.mask(nx,ny,isRoad):null;});
   }
+  /** A rail corner's staircase, as staircase() for roads. */
+  railStaircase(x:number,y:number):number {
+    const step=(px:number,py:number,side:number):[number,number]=>{const[dx,dy]=SIDES.find(s=>s[2]===side)!;return[px+dx,py+dy];};
+    return staircaseOf(this.mask(x,y,isRail),(side,far)=>{let[nx,ny]=step(x,y,side);if(far)[nx,ny]=step(nx,ny,far);
+      return nx>=0&&ny>=0&&nx<this.width&&ny<this.height&&isRail(this.getTileValue(nx,ny))?this.mask(nx,ny,isRail):null;});
+  }
   private portRotation(x:number,y:number,size:number):number {
     const left=x-1,top=y-1,scores=[0,0,0,0];
     for(let n=0;n<size;n++) {
@@ -218,7 +224,9 @@ export class TileSnapshot implements CityMapReader {
       kind='rail';
       if(v===224||v===225) {id='rail.bridge';special(v===224);}
       else if(v===221||v===222) {id='rail.power_crossing';special(v===221);}
-      else {const pick=railForMask(this.mask(x,y,isRail))??{id:'rail.end',rotationY:0};id=pick.id;rotation=pick.rotationY;}
+      else {const pick=railForMask(this.mask(x,y,isRail))??{id:'rail.end',rotationY:0,quarterTurns:0};id=pick.id;rotation=pick.rotationY;
+        // A slanted line's corners run straight across (models/rail/track.ts stairPath)
+        if(id==='rail.corner')variant=staircaseVariant(this.railStaircase(x,y),pick.quarterTurns)&3;}
     } else if(isPower(v)) {
       kind='power'; if(v===208||v===209){id='power.water';special(v===208);}
       else {const pick=powerForMask(this.mask(x,y,isPower))??{id:'power.end',rotationY:0};id=pick.id;rotation=pick.rotationY;}

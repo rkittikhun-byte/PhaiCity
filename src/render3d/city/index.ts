@@ -66,8 +66,9 @@ export class CityView3D implements CityView {
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
     // Under the map, the bed; a real-scale city map's runs far past its edges in the land's colour, into the haze, so
     // the land seems to go on (docs/CITY_SCALE.md)
-    const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.bedDrop=wide?.4:3.015;
-    const bedGeometry=new PlaneGeometry(setup.map.width*10*(wide?9:1),setup.map.height*10*(wide?9:1)).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
+    // ... unless the province itself lies round it (provinceBackdrop.ts)
+    const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.bedDrop=wide?.4:3.015;const spread=wide&&!setup.province?9:1;
+    const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
     this.scene.add(this.chunks.root,this.sprites.root,this.outline.root,this.zones.root);
     // Street names along the roads (src/streetNames.ts), when the game says how to write them

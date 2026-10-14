@@ -24,7 +24,7 @@ import { LAYER_NAMES, loadLayer } from './provinceData.mjs';
 import { loadDbLayers } from './lib/dbLayers.mjs';
 import { COVER, landCover } from './lib/landCover.mjs';
 import { encodePng } from './lib/png.mjs';
-import { DISTRICT_ROAD_RANK, districtNeighbours, wholeDistrictGrid } from './lib/wholeDistrict.mjs';
+import { DISTRICT_ROAD_RANK, districtGrid, districtNeighbours } from './lib/wholeDistrict.mjs';
 import { ROAD, RAIL } from './lib/routing.mjs';
 
 /** Metres a tile: a two-lane road and its pavements, as in Cities: Skylines (docs/CITY_SCALE.md) */
@@ -45,8 +45,8 @@ function parseArgs(argv) {
     // The downloaded Overpass squares instead of the local database (the old way: no streets)
     else if (argv[i] === '--cache') options.db = false;
     else if (argv[i] === '--preview') options.preview = true;
-    // A district's map as a square of 16 m tiles round its town, every street in it (13 Oct 2026), instead of the whole
-    // district with one road to each neighbour (owner, 14 Oct 2026)
+    // A district's map with every street in it (13 Oct 2026), instead of only one road towards each neighbour (owner,
+    // 14 Oct 2026)
     else if (argv[i] === '--square') options.whole = false;
     else if (argv[i] === '--district') {
       options.district = argv[++i];
@@ -138,9 +138,10 @@ async function main() {
       console.log(`${province.id}: no town centre (run geo:centers)`);
       continue;
     }
-    // A whole district (owner, 14 Oct 2026): its outline on a grid that holds all of it, one road to each neighbour
+    // A district (owner, 14 Oct 2026): its outline on 16 m tiles round its town, one road towards each neighbour; the
+    // road graph reaches well beyond, to find the way to each neighbour's town
     const whole = Boolean(district && options.whole && options.db);
-    const grid = whole ? wholeDistrictGrid(shape.bbox)
+    const grid = whole ? districtGrid(shape.bbox, town)
       : makeGrid({ center: { lat: town.lat, lon: town.lon }, width: options.size, height: options.size, tileSizeM: CITY_TILE_M });
     const fetchBox = whole ? grownBox(shape.bbox, 0.25) : (() => {
       const half = options.size * CITY_TILE_M / 2 + 500;

@@ -91,6 +91,19 @@ export class ProvinceSurface {
       c.outside.push(this.terrain.inside(tx,ty)?0:1);c.fade.push(overlay?this.detail.get(index)??0:0);c.ground.push(0);
     }
   }
+  /** A straight band of half-width w from a to b over the ground, its faces up. */
+  private band(c:SurfaceChunk,a:readonly [number,number],b:readonly [number,number],w:number,colour:Color,height:(x:number,z:number)=>number,index:number):void {
+    const length=Math.hypot(b[0]-a[0],b[1]-a[1])||1,nx=-(b[1]-a[1])/length*w,nz=(b[0]-a[0])/length*w;
+    const corners=[[a[0]+nx,a[1]+nz],[a[0]-nx,a[1]-nz],[b[0]+nx,b[1]+nz],[b[0]-nx,b[1]-nz]];
+    for(const[p,q,r]of[[0,1,2],[2,1,3]].map(t=>t.map(n=>corners[n]))){
+      const up=(q[1]-p[1])*(r[0]-p[0])-(q[0]-p[0])*(r[1]-p[1])>=0;
+      for(const[x,z]of up?[p,q,r]:[p,r,q]){
+        c.positions.push(x,height(x,z)+.025,z);c.colors.push(colour.r,colour.g,colour.b);
+        const tx=Math.min(this.snapshot.width-1,Math.max(0,Math.floor(x/10))),ty=Math.min(this.snapshot.height-1,Math.max(0,Math.floor(z/10)));
+        c.outside.push(this.terrain.inside(tx,ty)?0:1);c.fade.push(this.detail.get(index)??0);c.ground.push(0);
+      }
+    }
+  }
   /** A tile's own ground colour: water, woods or open land, the land a little lighter or darker in 3-tile patches. */
   /** Open land: laterite on a province map; grass on a real-scale city map, as the land round a town looks close up */
   private landColour():number {return this.snapshot.paintedZones?0x7a9150:0xb49b71;}
@@ -169,6 +182,13 @@ export class ProvinceSurface {
       if(isRoad(v)){
         const level=typeof this.snapshot.roadLevel==='function'?this.snapshot.roadLevel(x,y):this.snapshot.roadLevel;
         this.road(c,x,y,i,mask,level,bridge,height);
+      }else if(this.snapshot.railStaircase(x,y)&15){
+        // A corner of a slanted line: straight across from one side's middle to the other's, so the line reads as one
+        // diagonal from afar as well as close up (models/rail/track.ts stairPath)
+        const cx=(x+.5)*10,cz=(y+.5)*10,ends=([[1,0,-5],[2,5,0],[4,0,5],[8,-5,0]] as const).filter(([bit])=>mask&bit).map(([,dx,dz])=>[cx+dx,cz+dz] as const);
+        const length=Math.hypot(ends[1][0]-ends[0][0],ends[1][1]-ends[0][1]),ox=-(ends[1][1]-ends[0][1])/length,oz=(ends[1][0]-ends[0][0])/length;
+        this.band(c,ends[0],ends[1],1.6,new Color(0x8f472a),height,i);
+        for(const side of[-.5,.5])this.band(c,[ends[0][0]+ox*side,ends[0][1]+oz*side],[ends[1][0]+ox*side,ends[1][1]+oz*side],.055,new Color(0x969f99),(xx,zz)=>height(xx,zz)+.15,i);
       }else{
         const cx=(x+.5)*10,cz=(y+.5)*10;
         for(const[bit,dx,dz]of[[1,0,-1],[2,1,0],[4,0,1],[8,-1,0]])if(mask&bit||mask===0&&bit===1){
