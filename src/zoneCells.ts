@@ -3,12 +3,12 @@
  */
 
 // Zone cells along the roads, as in Cities: Skylines (owner, 14 Oct 2026: "ลดขนาดช่องลงอีก เหลือ 4x4 และ วาดสีทีละช่อง
-// และ ให้ snap กันถนน", Mueang Khon Kaen first). Beside every road that zones may face, on both sides, rows of 4 m
-// cells (a Thai shophouse's frontage) lie along the road's smooth line (src/roadGeometry.ts), straight, slanted or
-// curved, CELL_DEPTH deep; the player paints homes, shops or factories a cell at a time (the zoneCells command,
+// และ ให้ snap กันถนน", then "จาก 4x4 เหลือ 2x2", Mueang Khon Kaen first). Beside every road that zones may face, on
+// both sides, rows of 2 m cells (half a Thai shophouse's frontage) lie along the road's smooth line
+// (src/roadGeometry.ts), straight, slanted or curved, CELL_DEPTH deep (32 m); the player paints homes, shops or factories a cell at a time (the zoneCells command,
 // src/cityCommands.ts). Where two roads' cells would overlap, the nearer road's win; no cell lies on a road, a railway,
 // water, a building, outside the district or on land the city has not bought.
-// A painted cell is kept by where its middle lies, on a 2 m raster of the map (its key), so the paint stays when the
+// A painted cell is kept by where its middle lies, on a 1 m raster of the map (its key), so the paint stays when the
 // road is straightened or upgraded in place. Step 1: painting and keeping; the buildings that grow on painted cells
 // come next (docs/ZONE_CELLS.md). Plain code: no DOM, nothing random.
 
@@ -17,9 +17,9 @@ import { isLineRoad, networkOf, roadReach, smoothLine, type Point } from "./road
 import { servesZones } from "./roadLevels";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
-export const CELL_M = 4;
-export const RASTER_M = 2;
-export const CELL_DEPTH = 8;
+export const CELL_M = 2;
+export const RASTER_M = 1;
+export const CELL_DEPTH = 16;
 /** The gap between a road's edge and its first row (world units) */
 const EDGE_GAP = 0.25;
 
@@ -81,7 +81,9 @@ export function rasterKey(map: CellMap, x: number, z: number): number {
 export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
   const units = unitsPerMetre(map), cellUnits = CELL_M * units, rasterUnits = RASTER_M * units;
   const rasterWidth = Math.ceil(map.width * 10 / rasterUnits), rasterHeight = Math.ceil(map.height * 10 / rasterUnits);
-  const taken = new Uint8Array(rasterWidth * rasterHeight);
+  // One bit a raster square: a 7.7 km map is 59 million of them
+  const bits = new Uint8Array(Math.ceil(rasterWidth * rasterHeight / 8));
+  const taken = { get: (k: number): boolean => (bits[k >> 3] & (1 << (k & 7))) !== 0, set: (k: number): void => { bits[k >> 3] |= 1 << (k & 7); } };
   const keyOf = (x: number, z: number): number => {
     const rx = Math.floor(x / rasterUnits), rz = Math.floor(z / rasterUnits);
     return rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight ? -1 : rz * rasterWidth + rx;
@@ -100,7 +102,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
         const rx = cx + dx, rz = cz + dz;
         if (rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight) continue;
-        if (Math.hypot((rx + 0.5) * rasterUnits - px, (rz + 0.5) * rasterUnits - pz) <= reach) taken[rz * rasterWidth + rx] = 1;
+        if (Math.hypot((rx + 0.5) * rasterUnits - px, (rz + 0.5) * rasterUnits - pz) <= reach) taken.set(rz * rasterWidth + rx);
       }
     }
   }
@@ -135,7 +137,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const half = cellUnits / 2 - 0.15;
   for (const cell of candidates) {
     const key = keyOf(cell.x, cell.z);
-    if (key < 0 || taken[key]) continue;
+    if (key < 0 || taken.get(key)) continue;
     // Its corners, edges and middle: on open land the city may build on, and clear of every cell before it
     const sin = Math.sin(cell.angle), cos = Math.cos(cell.angle), spots: number[] = [];
     let clear = true;
@@ -144,7 +146,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       const x = cell.x + cos * u + sin * v, z = cell.z - sin * u + cos * v, spot = keyOf(x, z);
       const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
       // A road's tile is wider than the road drawn on it (taken above), so a cell may reach over its margin
-      if (spot < 0 || taken[spot] || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
+      if (spot < 0 || taken.get(spot) || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
           !(isOpenLand(map.getTileValue(tx, ty)) || isLineRoad(map.getTileValue(tx, ty))) || !owns(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) {
         clear = false;
@@ -153,7 +155,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       spots.push(spot);
     }
     if (!clear) continue;
-    for (const spot of spots) taken[spot] = 1;
+    for (const spot of spots) taken.set(spot);
     const index = cells.length, tile = Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
     cells.push({ key, x: cell.x, z: cell.z, angle: cell.angle, row: cell.row, road: cell.road });
     byKey.set(key, index);

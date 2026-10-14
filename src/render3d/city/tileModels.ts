@@ -71,6 +71,9 @@ const PLOT_HEIGHTS: Readonly<Record<PlotKind, readonly number[]>> = {
 const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 'res', commercial: 'com', industrial: 'ind' };
 /** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
 const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
+/** How big the ruler's buildings beside a curved road are drawn, as a share of their tiles (owner, 14 Oct 2026: "scale
+ * ของแต่ละ tool ใหญ่ไป") */
+const BUILDING_SCALE = 0.6;
 /** Far-view heights of the schools and hospitals on the civic 3 × 3 (their models are 6–34 m at the highest point) */
 const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, primary_school: 7, secondary_school: 10,
   vocational_college: 8, university: 10, ...HOSPITAL_HEIGHTS };
@@ -218,12 +221,14 @@ export class TileSnapshot implements CityMapReader {
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
     if(size<3||['residential','commercial','industrial','terrain','road','rail','power','shore','debug'].includes(p.kind))return p;
-    const half=size*5,near=this.roadSnap!(p.x,p.z,half+14);
+    const near=this.roadSnap!(p.x,p.z,size*5+14);
     if(!near)return p;
+    // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
+    const scale=p.scale*BUILDING_SCALE,half=size*5*BUILDING_SCALE;
     // Away from the road, towards where the building stands
     let nx=-near.tz,nz=near.tx;if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
     const gap=near.reach+.6+half,x=near.x+nx*gap,z=near.z+nz*gap,rotation=Math.atan2(-nx,-nz);
-    return {...p,x,z,rotation,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
+    return {...p,x,z,rotation,scale,options:{...p.options,worldOrigin:[x,z],worldRotationY:rotation}};
   }
   /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
   private besideCurve(i:number):boolean {

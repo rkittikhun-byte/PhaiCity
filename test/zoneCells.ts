@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// Zone cells along the roads (src/zoneCells.ts): 4 m cells in rows beside each road, along its line whatever its
+// Zone cells along the roads (src/zoneCells.ts): 2 m cells in rows beside each road, along its line whatever its
 // slant, never on the road; painted a cell at a time by the zoneCells command, paid for, and kept with the city.
 
 import { NEEDS_ROAD_BESIDE } from "../src/cityCommands";
@@ -32,9 +32,9 @@ function city() {
 }
 
 describe("zone cells", () => {
-  test("rows of 4 m cells lie beside the roads, along them, and never on them", () => {
+  test("rows of 2 m cells lie beside the roads, along them, and never on them", () => {
     const core = city(), layout = cellLayout(core.map);
-    expect(layout.cellUnits).toBeCloseTo(2.5);
+    expect(layout.cellUnits).toBeCloseTo(1.25);
     expect(layout.cells.length).toBeGreaterThan(500);
     // Along the straight road (its middle at z = 105) the cells face it, in rows from 0 to CELL_DEPTH - 1
     const beside = layout.cells.filter(c => c.x > 100 && c.x < 500 && Math.abs(c.z - 105) < 30);

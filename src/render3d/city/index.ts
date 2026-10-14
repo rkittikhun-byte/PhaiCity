@@ -66,6 +66,8 @@ export class CityView3D implements CityView {
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
+    // On a real-scale city map the camera comes down to the street
+    if((setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40){this.navigation.minDistance=10;this.navigation.clearance=1.5;}
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
