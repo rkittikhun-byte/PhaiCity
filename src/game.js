@@ -42,7 +42,9 @@ import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
-import { drawModeOf, isAreaMode, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { cellsAlong, cellsOf } from './zoneCells.ts';
+import { nearestOnLines, networkOf, smoothLine } from './roadGeometry.ts';
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
@@ -727,6 +729,49 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 };
 
 
+// On a map whose zones go a cell at a time (owner, 14 Oct 2026; src/zoneCells.ts), the zone brushes and the eraser
+// paint the 4 m cells along the roads rather than whole tiles
+Game.prototype.isCellBrush = function(toolName) {
+  return this.gameMap.cellZones === true && isPaintTool(toolName) && typeof this.cityView.pointAt === 'function';
+};
+
+
+// The cells along the roads, on land the city may build on: the same layout the commands check against
+Game.prototype.cellLayout = function() {
+  var map = this.gameMap;
+  var inside = canBuildIn(map);
+  return cellsOf(map, function(x, y) { return ownsLand(map, x, y) && inside(x, y); });
+};
+
+
+// Paints the cells (their keys) with the brush in hand, or clears them with the eraser, as one command
+Game.prototype.paintCells = function(cells, screenX) {
+  var toolName = this.inputStatus.toolName;
+  var tool = this.inputStatus.currentTool;
+  if (tool === null || cells.length === 0)
+    return;
+  var zone = null;
+  PLOT_KINDS.forEach(function(kind) {
+    if (PAINT_TOOLS[kind] === toolName)
+      zone = kind;
+  });
+  var outcome = this.applyCommand({type: 'zoneCells', zone: zone, cells: cells});
+  this.gameAudio.toolUsed(toolName, outcome.accepted ? tool.TOOLRESULT_OK : tool.TOOLRESULT_FAILED, screenX);
+};
+
+
+// A press or a drag of the brush: the cells from where it last was in this stroke to where it is now
+Game.prototype.paintCellStroke = function(data) {
+  var point = this.cityView.pointAt(data.x, data.y);
+  if (point === null)
+    return;
+  var world = [point.x * 10, point.y * 10];
+  var last = this._cellStroke && this._cellStroke.stroke === data.stroke ? this._cellStroke.point : null;
+  this._cellStroke = {stroke: data.stroke, point: world};
+  this.paintCells(cellsAlong(this.cellLayout(), this.gameMap.width, last, world), data.x);
+};
+
+
 // The ruler's house level a school, a hospital, a building's level or its upgrade needs (src/services.ts,
 // src/buildingLevels.ts)
 var houseNeeded = function(map, toolName, x, y) {
@@ -1086,6 +1131,12 @@ Game.prototype.handleTool = function(data) {
   if (tileCoords === null)
     return;
 
+  // On a map painted a cell at a time, the zone brushes paint the cells along the roads (src/zoneCells.ts)
+  if (this.isCellBrush(this.inputStatus.toolName)) {
+    this.paintCellStroke(data);
+    return;
+  }
+
   var tool = this.inputStatus.currentTool;
   var toolName = this.inputStatus.toolName;
   var result;
@@ -1326,6 +1377,21 @@ Game.prototype.calculateMouseForPaint = function() {
                    tile.x, tile.y, hover.size) !== null)
     hover.colour = OUTSIDE_COLOUR;
 
+  // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
+  if (this.isCellBrush(this.inputStatus.toolName)) {
+    hover.cellPoint = this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
+    return hover;
+  }
+
+  // A road or railway tool shows a small marker where it would start or end, on an existing line's middle when near
+  // one (owner, 14 Oct 2026: "ช่อง tool ให้เล็กลงอีก ที่จะวาด และให้ snap กับ เส้นกลาง ของถนน")
+  var linePoint = this.linePoint(this.inputStatus.toolName, this.inputStatus.mouseX, this.inputStatus.mouseY);
+  if (linePoint !== null) {
+    hover.linePoint = linePoint;
+    var started = this.lineDraft && this.lineDraft.tool === this.inputStatus.toolName ? this.lineDraft.startPoint : null;
+    hover.lineStart = started || null;
+  }
+
   // Drawing by modes (src/drawModes.ts): the line, curve, grid, rectangle or fill it would build, and beside the
   // mouse what to click next and what it would cost
   var preview = this.drawPreview(tile);
@@ -1367,6 +1433,10 @@ Game.prototype.handleToolPoint = function(data) {
   var tool = this.inputStatus.currentTool;
   if (tile === null || tool === null)
     return;
+  if (this.isCellBrush(toolName)) {
+    this.paintCellStroke(data);
+    return;
+  }
   var mode = drawModeOf(toolName);
   if (mode === 'fill') {
     this.applyTiles(fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
@@ -1379,6 +1449,9 @@ Game.prototype.handleToolPoint = function(data) {
   if (draft === null || draft.tool !== toolName || draft.mode !== mode)
     draft = this.lineDraft = {tool: toolName, mode: mode, points: [], from: null};
   tile = this.snapTile(tile, toolName, draft).tile;
+  // Where the line starts, on the middle of the road it leaves from, for its preview
+  if (draft.points.length === 0)
+    draft.startPoint = this.linePoint(toolName, data.x, data.y);
   draft.points.push(tile);
   if (draft.points.length < needed)
     return;
@@ -1388,6 +1461,35 @@ Game.prototype.handleToolPoint = function(data) {
   var back = path[Math.max(0, path.length - 4)];
   draft.from = {x: tile.x - back.x, y: tile.y - back.y};
   draft.points = [tile];
+  draft.startPoint = this.linePoint(toolName, data.x, data.y);
+};
+
+
+// The smooth middle lines of the roads, or the railways, kept until the city is next changed (src/roadGeometry.ts)
+Game.prototype.networkLines = function(rail) {
+  var cache = rail ? '_railLines' : '_roadLines';
+  if (!this[cache] || this[cache].edits !== this._edits) {
+    var map = this.gameMap;
+    var levels = map.roadLevels;
+    var network = networkOf({width: map.width, height: map.height,
+      value: function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); },
+      level: function(i) { return levels ? levels[i] || 1 : 1; }}, rail);
+    this[cache] = {edits: this._edits, lines: network.stretches.map(function(stretch) { return smoothLine(stretch.points); })};
+  }
+  return this[cache].lines;
+};
+
+
+// Where a road or railway tool would start or end at the pointer (x, y on the view), in tiles: on the middle line of
+// one of its kind within a tile when there is one, else the ground under the pointer; null for other tools
+Game.prototype.linePoint = function(toolName, x, y) {
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || typeof this.cityView.pointAt !== 'function')
+    return null;
+  var point = this.cityView.pointAt(x, y);
+  if (point === null)
+    return null;
+  var near = snapOn() ? nearestOnLines(this.networkLines(toolName === 'rail'), point.x * 10, point.y * 10, 14) : null;
+  return near ? {x: near[0] / 10, y: near[1] / 10} : point;
 };
 
 
@@ -1593,6 +1695,19 @@ Game.prototype.handleToolArea = function(data) {
   if (tool === null)
     return;
 
+  // A rectangle dragged with a zone brush on a map painted a cell at a time: every cell inside it
+  if (this.isCellBrush(toolName)) {
+    var a = this.cityView.pointAt(data.from.x, data.from.y);
+    var b = this.cityView.pointAt(data.to.x, data.to.y) || a;
+    if (a === null)
+      return;
+    var x0 = Math.min(a.x, b.x) * 10, x1 = Math.max(a.x, b.x) * 10, z0 = Math.min(a.y, b.y) * 10, z1 = Math.max(a.y, b.y) * 10;
+    this.paintCells(this.cellLayout().cells.filter(function(cell) {
+      return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1;
+    }).map(function(cell) { return cell.key; }), data.to.x);
+    return;
+  }
+
   // A grid of roads, or a rectangle of painted zones (src/drawModes.ts)
   var mode = drawModeOf(toolName);
   if (isAreaMode(mode)) {
@@ -1699,7 +1814,11 @@ var commonAnimate = function() {
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
 
   // The tiles that can take painted zones show along the roads while a brush or a road tool is in hand (src/plots.ts)
-  var zoneGrid = this.gameMap.paintedZones === true && showsZoneGrid(this.inputStatus.toolName);
+  // On a map painted a cell at a time its cells along the roads show with a road tool too, as Cities: Skylines shows
+  // its zoning while roads are drawn (owner, 14 Oct 2026: "แต่ละช่อง เป็นไปตามแนวถนน")
+  var toolName = this.inputStatus.toolName;
+  var zoneGrid = this.gameMap.paintedZones === true && (showsZoneGrid(toolName) ||
+    this.gameMap.cellZones === true && modeGroupOf(toolName) === 'line' && toolName !== 'rail' && toolName !== 'wire');
   if (zoneGrid !== this._zoneGrid && this.cityView.zoneGrid) {
     this._zoneGrid = zoneGrid;
     this.cityView.zoneGrid(zoneGrid);

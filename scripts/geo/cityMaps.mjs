@@ -33,6 +33,9 @@ const DEFAULT_SIZE = 400;
 const METERS_PER_DEGREE_LAT = 110574;
 const METERS_PER_DEGREE_LON_AT_EQUATOR = 111320;
 const CITY_DIR = path.join(MAPS_DIR, 'city');
+/** The districts whose zones are painted a 4 m cell at a time along the roads (src/zoneCells.ts; owner, 14 Oct 2026:
+ * "ทำแค่อำเภอเมือง") */
+const CELL_ZONE_DISTRICTS = new Set(['TH-40-mueang-khon-kaen']);
 const DISTRICT_DIR = path.join(MAPS_DIR, 'district');
 
 function parseArgs(argv) {
@@ -183,6 +186,7 @@ async function main() {
       scale: whole ? 'district' : 'city',
       // Homes, shops and factories are painted a tile at a time on it, whatever its tiles' size (docs/ZONE_PAINT.md)
       paintedZones: true,
+      ...(district && CELL_ZONE_DISTRICTS.has(district.id) ? { cellZones: true } : {}),
       ...(whole ? { neighbours: neighbors } : {}),
       width: grid.width,
       height: grid.height,

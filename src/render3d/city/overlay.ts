@@ -1,7 +1,7 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
-import { BoxGeometry, BufferGeometry, Float32BufferAttribute, Group, Mesh, PlaneGeometry } from 'three';
+import { BoxGeometry, BufferGeometry, CircleGeometry, Float32BufferAttribute, Group, Mesh, PlaneGeometry, RingGeometry } from 'three';
 import { clipToMap, toolFootprint, ToolHover } from '../../cityView.js';
 import type { TilePoint } from '../../cityView.js';
 import { isOpenLand, PLOT_REACH } from '../../plots.js';
@@ -61,8 +61,13 @@ function centreDashes(tiles: readonly TilePoint[], lift: number, terrain?: CityH
  * band along the same smooth curve the finished road takes (roadCurves.ts), with dashes down its middle, as Cities:
  * Skylines shows a road before it is built. The tiles it builds on are still the path's.
  */
-function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField): { band: BufferGeometry; dashes: BufferGeometry } {
-  const line = smoothLine(tiles.map((t): Point => [(t.x + .5) * 10, (t.y + .5) * 10]));
+function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField,
+  start?: { x: number; y: number } | null, end?: { x: number; y: number } | null): { band: BufferGeometry; dashes: BufferGeometry } {
+  // From the marked start to the marked end (on the middle of the roads they join), through the tiles between
+  const middles = tiles.map((t): Point => [(t.x + .5) * 10, (t.y + .5) * 10]);
+  if (start && middles.length) middles[0] = [start.x * 10, start.y * 10];
+  if (end && middles.length > 1) middles[middles.length - 1] = [end.x * 10, end.y * 10];
+  const line = smoothLine(middles);
   const height = (x: number, z: number): number => (terrain?.enabled ? terrain.sample(x, z) : 0) + lift;
   const band: number[] = [], dashes: number[] = [];
   const side = (i: number): [number, number] => {
@@ -101,14 +106,21 @@ export class ToolOutline {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
-    const signature=JSON.stringify([r,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
+    const signature=JSON.stringify([r,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
+    // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
+    if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
+      const dot=new Mesh(new CircleGeometry(1.4,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=12;
+      const ring=new Mesh(new RingGeometry(1.7,2.1,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=12;
+      this.root.add(dot,ring);
+      if(!hover.path||hover.path.length<2)return;}
     if(hover.path&&hover.path.length>0){
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
       // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a grid, a rectangle or a fill as
       // its tiles
-      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain);
+      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint);
         const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=10;
         const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(band,dashes);return;}
       const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.56,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=10;

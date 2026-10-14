@@ -10,7 +10,7 @@ import { cityBedMaterial, getMaterial, setCityWind, tint, updateRoadSignals, upd
 import { seasonWind } from '../../wind.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
-import { pickTile, visibleTileRect } from './picking.js';
+import { groundAt, pickTile, visibleTileRect } from './picking.js';
 import { CityChunks } from './chunks.js';
 import { TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
@@ -20,6 +20,8 @@ import { SkyDome } from './sky.js';
 import { StreetLabels } from './streetLabels.js';
 import { ProvinceBackdropView } from './provinceBackdrop.js';
 import { RoadCurves } from './roadCurves.js';
+import { ZoneCellsView } from './zoneCellsView.js';
+import type { CellMap } from '../../zoneCells.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
@@ -45,7 +47,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
-  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;
+  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;
   private bed:Mesh;private bedDrop:number;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
@@ -67,6 +69,8 @@ export class CityView3D implements CityView {
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
     this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
+    // On a map painted a cell at a time, its zone cells along the roads (zoneCellsView.ts) take the zone grid's place
+    if((setup.map as unknown as CellMap).cellZones){this.cells=new ZoneCellsView(setup.map as unknown as CellMap,this.terrain);this.scene.add(this.cells.root);}
     // Under the map, the bed; a real-scale city map's runs far past its edges in the land's colour, into the haze, so
     // the land seems to go on (docs/CITY_SCALE.md)
     // ... unless the province itself lies round it (provinceBackdrop.ts)
@@ -116,11 +120,13 @@ export class CityView3D implements CityView {
       this.navigation.zoom(w.deltaY*(w.deltaMode===1?16:w.deltaMode===2?this.height:1),w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);});
   }
   /** Shows the tiles that can take painted zones along the roads (src/plots.ts), while a brush or a road tool is in hand. */
-  zoneGrid(on:boolean):void {this.zones.show(on);}
+  zoneGrid(on:boolean):void {if(this.cells)this.cells.show(on);else this.zones.show(on);}
+  pointAt(x:number,y:number):{x:number;y:number}|null{const p=groundAt(this.navigation.camera,x,y,this.width,this.height,this.terrain);
+    return p&&p.x>=0&&p.z>=0&&p.x<this.setup.map.width*10&&p.z<this.setup.map.height*10?{x:p.x/10,y:p.z/10}:null;}
   /** The player's language changed: write the street names again. */
   relabelStreets():void {this.streets?.relabel();}
   /** The city bought land (src/landBlocks.ts): shade what it still has not. */
-  landChanged():void {this.chunks.surfaces?.updateMask();}
+  landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     this.resize();const changed=this.snapshot.sync(this.setup.map);
@@ -129,6 +135,7 @@ export class CityView3D implements CityView {
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
     if(changed.length||raised.length)this.curves.update(raised.length?[...changed,...raised]:changed);
+    if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     this.navigation.update(start,Math.max(this.chunks.tallestNear(this.navigation.target),this.terrain.enabled?this.chunks.tallestNear(this.navigation.camera.position):0));
     const pose=this.navigation.camera.matrixWorld.elements;
@@ -136,7 +143,8 @@ export class CityView3D implements CityView {
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
     const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
-    this.outline.update(hover);this.zones.update(changed.length>0);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
+    this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
+    this.cells?.update(hover?.cellPoint??null,hover?.colour??null);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.sky.update(this.navigation.camera.position,this.seconds);
@@ -201,7 +209,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

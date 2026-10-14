@@ -25,6 +25,8 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
+import { type CellMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, zoneCode } from "./zoneCells";
+import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
@@ -63,6 +65,12 @@ export const OUTSIDE_PROVINCE = "outside the province";
 export const NO_RESOURCE = "not in this province";
 /** Why a dam was refused: no river or lake beside it. */
 export const NEEDS_WATER = "needs water beside it";
+/** Why zone cells were refused: the map's zones go a tile at a time, every cell was already so, or too little money */
+export const NO_CELL_ZONES = "zones are painted a tile at a time here";
+export const NOTHING_TO_PAINT = "nothing to paint";
+export const NO_MONEY_FOR_CELLS = "not enough money";
+/** The most cells one command paints */
+export const MAX_CELLS = 4000;
 
 export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
@@ -84,6 +92,8 @@ export type Command =
   | { type: "policy"; policy: typeof POLICIES[number]; on: boolean }
   /** The block of land at (x, y) bought (src/landBlocks.ts) */
   | { type: "land"; x: number; y: number }
+  /** Zone cells painted (zone) or cleared (zone null) on a map whose zones go a cell at a time (src/zoneCells.ts) */
+  | { type: "zoneCells"; zone: CellZone | null; cells: number[] }
   | { type: "debugFunds" };
 
 export interface CommandOutcome {
@@ -118,6 +128,9 @@ interface CommandTool {
   civicKind?: string;
   /** The rubbish or wastewater building it builds (src/waste.ts) */
   wasteKind?: string;
+  /** Its price before the province's factor, and that factor (src/baseTool.js) */
+  toolCost?: number;
+  costFactor?: number;
   /** The level of a building it builds (src/buildingLevels.ts) */
   buildingLevel?: { group: string; level: number } | null;
   /** The stop or station it builds (src/transit.ts) */
@@ -285,6 +298,12 @@ export function commandProblem(command: unknown, width: number, height: number):
     case "policy":
       if (!isOneOf(POLICIES, c.policy)) return `unknown policy ${String(c.policy)}`;
       return typeof c.on === "boolean" ? null : "on missing";
+    case "zoneCells":
+      if (c.zone !== null && !isOneOf(CELL_ZONES, c.zone)) return `unknown zone ${String(c.zone)}`;
+      if (!Array.isArray(c.cells) || c.cells.length > MAX_CELLS || !c.cells.every((k) => isInteger(k, 0, Number.MAX_SAFE_INTEGER))) {
+        return "bad cells";
+      }
+      return null;
     case "debugFunds":
       return null;
     default:
@@ -407,6 +426,26 @@ export class CityCommands {
         if (refused || !land) return { accepted: false, reason: refused ?? LAND_ALL_OPEN };
         buyBlock(land, command.x, command.y, city.budget);
         break;
+      }
+      case "zoneCells": {
+        const map = city.map as unknown as CellMap | undefined;
+        if (!map || !map.cellZones) return { accepted: false, reason: NO_CELL_ZONES };
+        // A new city builds the ruler's house first, as with every other zone tool (src/rulerHouse.ts)
+        const houseFirst = houseProblem(city.houseMap, "zone_residential", city.rank?.() ?? 0);
+        if (houseFirst) return { accepted: false, reason: houseFirst };
+        const layout = cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
+        const code = command.zone ? zoneCode(command.zone) : 0, painted = map.zoneCells ?? (map.zoneCells = new Map());
+        const cells = [...new Set(command.cells)].filter((key) => layout.byKey.has(key) && (painted.get(key) ?? 0) !== code);
+        if (!cells.length) return { accepted: false, reason: NOTHING_TO_PAINT };
+        // Paint costs a share of its zone's price, by the cell (src/plots.ts PAINT_PRICE_SHARE); clearing is free
+        const tool = command.zone ? city.tools[command.zone] : null;
+        const each = tool ? cellPrice(tool.toolCost ?? 100, PAINT_PRICE_SHARE, (map.tileSizeM || 16)) * (tool.costFactor ?? 1) : 0;
+        const cost = Math.ceil(cells.length * each);
+        if (city.budget.totalFunds < cost) return { accepted: false, reason: NO_MONEY_FOR_CELLS };
+        for (const key of cells) if (code) painted.set(key, code); else painted.delete(key);
+        if (cost) city.budget.spend(cost);
+        map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
+        return { accepted: true };
       }
       case "policy": {
         const map = city.houseMap as PolicyMap | undefined;

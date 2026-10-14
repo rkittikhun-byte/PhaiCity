@@ -152,8 +152,10 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     map.tileSizeM = preset.tileSizeM || null;
     // Where the map lies on the earth, to lay the province round a district's map (loadProvinceBackdrop)
     map.mapCenter = preset.center || null;
-    // A whole district's map is painted a tile at a time too (owner, 14 Oct 2026; docs/ZONE_PAINT.md)
+    // A whole district's map is painted a tile at a time too (owner, 14 Oct 2026; docs/ZONE_PAINT.md), or a cell at a
+    // time along its roads (src/zoneCells.ts; Mueang Khon Kaen first)
     map.paintedZones = preset.paintedZones === true;
+    map.cellZones = preset.cellZones === true;
     // A real-scale city map's real streets: their levels, and their names for the street labels (src/streetNames.ts)
     map.roadLevels = layer(preset.roadLevels);
     streetNamesFrom(map, preset);

@@ -6,6 +6,7 @@
   "districtNameEn": "Mueang Khon Kaen",
   "scale": "district",
   "paintedZones": true,
+  "cellZones": true,
   "neighbours": [
     "TH-40-sam-sung",
     "TH-40-nam-phong",
@@ -97,5 +98,5 @@
     "Natural Earth (public domain)",
     "produced using Copernicus WorldDEM-90 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved"
   ],
-  "generatedAt": "2026-10-14T11:15:32.302Z"
+  "generatedAt": "2026-10-14T11:53:11.905Z"
 }

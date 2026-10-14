@@ -13,6 +13,7 @@ import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "..
 import { readPolicies } from "../policies.js";
 import { newRoadLevels } from "../roadLevels.js";
 import { levelsStanding } from "../buildingLevels.js";
+import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
@@ -58,6 +59,9 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.stationKinds = Object.assign({}, saved.stationKinds || {});
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts); those from before the levels are at their base
     map.buildingLevels = Object.assign({}, saved.buildingLevels || {});
+    // ... and, on a map whose zones go a cell at a time, its painted cells (src/zoneCells.ts)
+    map.cellZones = saved.cellZones === true;
+    map.zoneCells = readZoneCells(saved.zoneCells);
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
     map.landBlocks = saved.land ? decodePresetLayer(saved.land, blockColumns(map), blockRows(map)) : null;
     map.landBought = saved.landBought || 0;
@@ -90,6 +94,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.policies = map.policies || [];
   map.stationKinds = map.stationKinds || {};
   map.buildingLevels = map.buildingLevels || {};
+  map.zoneCells = map.zoneCells || new Map();
 }
 
 /** A kind record (powerKinds …) kept only where its building still stands */
@@ -122,6 +127,9 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     stationKinds: plantsStanding(map, "stationKinds", STATION),
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts)
     buildingLevels: levelsStanding(map),
+    // ... and its zone cells (src/zoneCells.ts)
+    cellZones: map.cellZones ? true : undefined,
+    zoneCells: map.cellZones ? writeZoneCells(map.zoneCells) : undefined,
     // ... and the land the city owns (src/landBlocks.ts)
     land: map.landBlocks ? encodePresetLayer(map.landBlocks) : undefined,
     landBought: map.landBlocks ? map.landBought || 0 : undefined,

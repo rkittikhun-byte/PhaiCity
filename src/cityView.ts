@@ -35,6 +35,13 @@ export interface ToolHover {
   path?: readonly TilePoint[];
   /** Whether path is a line being drawn (a road, railway or power line), shown with a dashed middle. */
   line?: boolean;
+  /** A zone brush on a map painted a cell at a time (src/zoneCells.ts): where the mouse is, in tiles, to show the cell
+   * under it instead of a tile */
+  cellPoint?: { x: number; y: number } | null;
+  /** A road or railway tool: where it would start or end, on an existing road's middle line when near one (in tiles),
+   * shown as a small marker rather than a tile; and where the line being drawn started */
+  linePoint?: { x: number; y: number } | null;
+  lineStart?: { x: number; y: number } | null;
 }
 
 export interface CityView {
@@ -49,6 +56,8 @@ export interface CityView {
   paint(hover: ToolHover | null, sprites: unknown[] | null, isPaused: boolean): void;
   /** The map tile under a point of the view (CSS pixels from its top-left), or null when it is not on the map. */
   tileAt(x: number, y: number): TilePoint | null;
+  /** The point of the ground at (x, y) on the view, in tiles with their fractions, or null off the map (optional) */
+  pointAt?(x: number, y: number): { x: number; y: number } | null;
   /** The map tiles on screen, clipped to the map, or null when none are. Sound and sprites use it. */
   visibleTiles(): TileRect | null;
   /** Keyboard panning: called on every game tick while the key is held. */

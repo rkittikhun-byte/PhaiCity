@@ -12,89 +12,14 @@ import { BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Ma
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
-import { isCurveRail, isPlainRoad as isCurveRoad, isRail, isRoad, type TileSnapshot } from './tileModels.js';
+import { halfWidth, networkOf, SHOULDER, smoothLine, type Point } from '../../roadGeometry.js';
+import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import type { Placement } from './types.js';
 
-export type Point = [number, number];
-interface Stretch { points: Point[]; level: number; rail: boolean }
+export { smoothLine, type Point };
 
-/** How far the simplified line may stray from the smoothed one (world units, 10 a tile), and how high it lies */
-const STRAY = 1.5, LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
-/** How many tiles either side each point is averaged with */
-const REACH = 4;
-/** Half the width of each road level's carriageway (1 laterite … 8 tollway), and its shoulders */
-const HALF_WIDTH = [3.5, 3.5, 3.5, 3.6, 4.2, 4.6, 4.9, 4.9, 4.9];
-const SHOULDER = 0.6;
-const SIDES: ReadonlyArray<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
-/** Douglas–Peucker: the fewest points that keep the line within tolerance of where it was */
-function simplify(points: Point[], tolerance: number): Point[] {
-  if (points.length < 3) return points;
-  const keep = new Uint8Array(points.length);
-  keep[0] = keep[points.length - 1] = 1;
-  const stack: Array<[number, number]> = [[0, points.length - 1]];
-  while (stack.length) {
-    const [a, b] = stack.pop()!, [ax, az] = points[a], [bx, bz] = points[b], dx = bx - ax, dz = bz - az;
-    const length = Math.hypot(dx, dz) || 1;
-    let far = -1, farthest = tolerance;
-    for (let i = a + 1; i < b; i++) {
-      const d = Math.abs((points[i][0] - ax) * dz - (points[i][1] - az) * dx) / length;
-      if (d > farthest) { farthest = d; far = i; }
-    }
-    if (far >= 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
-  }
-  return points.filter((_, i) => keep[i]);
-}
-
-/**
- * Each point moved to the average of its neighbours along the line, up to reach points either side (fewer near the
- * ends, which stay put), passes times: the stairsteps of a slanted road go, its real bends stay as wide curves.
- */
-function average(points: Point[], reach: number, passes: number): Point[] {
-  let line = points;
-  for (let pass = 0; pass < passes; pass++) {
-    const next: Point[] = [];
-    for (let i = 0; i < line.length; i++) {
-      const r = Math.min(reach, i, line.length - 1 - i);
-      let x = 0, z = 0;
-      for (let k = i - r; k <= i + r; k++) { x += line[k][0]; z += line[k][1]; }
-      next.push([x / (2 * r + 1), z / (2 * r + 1)]);
-    }
-    line = next;
-  }
-  return line;
-}
-
-/** Chaikin's corner cutting, its ends kept: each bend becomes a curve, long straights stay straight */
-function round(points: Point[], passes = 3): Point[] {
-  let line = points;
-  for (let pass = 0; pass < passes && line.length > 2; pass++) {
-    const next: Point[] = [line[0]];
-    for (let i = 0; i + 1 < line.length; i++) {
-      const [ax, az] = line[i], [bx, bz] = line[i + 1];
-      if (i > 0) next.push([ax * 0.75 + bx * 0.25, az * 0.75 + bz * 0.25]);
-      if (i + 2 < line.length) next.push([ax * 0.25 + bx * 0.75, az * 0.25 + bz * 0.75]);
-    }
-    next.push(line[line.length - 1]);
-    line = next;
-  }
-  return line;
-}
-
-/** Points no further apart than step, so the ribbon follows the ground */
-function densify(points: Point[], step: number): Point[] {
-  const out: Point[] = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const [ax, az] = points[i - 1], [bx, bz] = points[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / step));
-    for (let k = 1; k <= n; k++) out.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]);
-  }
-  return out;
-}
-
-/** The smooth line a stretch of tiles' middles is drawn along (world units): its steps averaged away, bends rounded */
-export function smoothLine(points: Point[]): Point[] {
-  return densify(round(simplify(average(points, REACH, 2), STRAY), 2), 2.5);
-}
+const LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
 
 export class RoadCurves {
   readonly root = new Group();
@@ -151,17 +76,28 @@ export class RoadCurves {
     this.lines = [];
     const positions: number[] = [], colors: number[] = [], railPositions: number[] = [], sleepers: Matrix4[] = [];
     for (const rail of [false, true]) {
-      const { stretches, plates } = this.stretches(rail);
+      const levels = this.snapshot.roadLevels, values = this.snapshot.values;
+      const { stretches, plates, junctions, covered } = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
+        level: (i) => levels?.[i] ?? 1 }, rail);
+      for (let i = 0; i < covered.length; i++) if (covered[i]) this.covered[i] = 1;
+      // A road that ends at a junction runs on into it a little, so the roads meeting there overlap and fill it
+      const atJunction = (point: Point): boolean => junctions.some(([x, z]) => Math.abs(x - point[0]) < 0.01 && Math.abs(z - point[1]) < 0.01);
       for (const stretch of stretches) {
         const line = smoothLine(stretch.points);
+        if (line.length > 1) {
+          const reach = rail ? 1.6 : halfWidth(stretch.level);
+          for (const [end, before] of [[0, 1], [line.length - 1, line.length - 2]] as const) {
+            if (!atJunction(line[end])) continue;
+            const [ex, ez] = line[end], [bx, bz] = line[before], length = Math.hypot(ex - bx, ez - bz) || 1;
+            const past: Point = [ex + (ex - bx) / length * reach * 0.6, ez + (ez - bz) / length * reach * 0.6];
+            if (end === 0) line.unshift(past); else line.push(past);
+          }
+        }
         this.lines.push({ points: line, rail });
         if (rail) this.rail(line, positions, colors, railPositions, sleepers);
         else this.road(line, stretch.level, positions, colors);
       }
-      for (const [i, level] of plates) {
-        const x = i % width, y = (i - x) / width;
-        this.plate((x + 0.5) * 10, (y + 0.5) * 10, rail ? null : level, positions, colors);
-      }
+      for (const [x, z, level] of plates) this.plate(x, z, rail ? null : level, positions, colors);
     }
     if (positions.length) {
       const geometry = new BufferGeometry();
@@ -188,69 +124,25 @@ export class RoadCurves {
     }
   }
 
-  private halfWidth(level: number): number { return HALF_WIDTH[Math.max(1, Math.min(8, level))]; }
-
-  /** The stretches of one network between its junctions, ends and other tiles (bridges, crossings), and its plates */
-  private stretches(rail: boolean): { stretches: Stretch[]; plates: Array<[number, number]> } {
-    const { width, height, values } = this.snapshot;
-    const plain = rail ? isCurveRail : isCurveRoad, joins = rail ? isRail : isRoad;
-    const levels = this.snapshot.roadLevels;
-    const levelOf = (i: number): number => (rail ? 0 : Math.max(1, levels?.[i] ?? 1));
-    const near = (i: number): number[] => {
-      const x = i % width, y = (i - x) / width, out: number[] = [];
-      for (const [dx, dy] of SIDES) {
-        const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < width && ny < height && joins(values[ny * width + nx])) out.push(ny * width + nx);
-      }
-      return out;
-    };
-    const stop = (i: number): boolean => {
-      const n = near(i);
-      return n.length !== 2 || n.some((j) => !plain(values[j]) || levelOf(j) !== levelOf(i));
-    };
-    const centre = (i: number): Point => [((i % width) + 0.5) * 10, (Math.floor(i / width) + 0.5) * 10];
-    const done = new Set<string>(), stretches: Stretch[] = [], plates: Array<[number, number]> = [];
-    const walk = (from: number, to: number): void => {
-      const tiles = [from, to];
-      done.add(`${from}>${to}`); done.add(`${to}>${from}`);
-      while (!stop(tiles[tiles.length - 1])) {
-        const last = tiles[tiles.length - 1], before = tiles[tiles.length - 2];
-        const next = near(last).find((j) => j !== before && !done.has(`${last}>${j}`));
-        if (next === undefined) break;
-        done.add(`${last}>${next}`); done.add(`${next}>${last}`);
-        tiles.push(next);
-        if (next === tiles[0]) break;
-      }
-      stretches.push({ points: tiles.map(centre), level: levelOf(tiles[1]), rail });
-    };
-    for (let i = 0; i < values.length; i++) {
-      if (!plain(values[i])) continue;
-      this.covered[i] = 1;
-      if (!stop(i)) continue;
-      const n = near(i);
-      // Junctions and dead ends get a round plate; a lone tile is one
-      if (n.length !== 2 || n.filter((j) => plain(values[j])).length !== n.length) plates.push([i, levelOf(i)]);
-      for (const j of n) {
-        if (!plain(values[j])) {
-          // Up to the edge of a bridge or a crossing, which keeps its own model
-          const [cx, cz] = centre(i), [jx, jz] = centre(j);
-          stretches.push({ points: [[cx, cz], [(cx + jx) / 2, (cz + jz) / 2]], level: levelOf(i), rail });
-        } else if (!done.has(`${i}>${j}`)) walk(i, j);
-      }
-    }
-    // Rings with no junction at all
-    for (let i = 0; i < values.length; i++) {
-      if (!plain(values[i]) || stop(i)) continue;
-      for (const j of near(i)) if (!done.has(`${i}>${j}`)) walk(i, j);
-    }
-    return { stretches, plates };
-  }
-
-  /** The ground's height there, as the ground's own tile draws it */
+  /**
+   * The ground's height there, as the far ground draws its tile (province-surface.ts ground): four triangles round
+   * the tile's middle, so a twisted tile's ground does not rise through the road
+   */
   private height(x: number, z: number): number {
     const tx = Math.max(0, Math.min(this.snapshot.width - 1, Math.floor(x / 10)));
     const tz = Math.max(0, Math.min(this.snapshot.height - 1, Math.floor(z / 10)));
-    return this.terrain.sampleTile(tx, tz, x, z);
+    const at = (px: number, pz: number): number => this.terrain.sampleTile(tx, tz, px, pz);
+    const u = Math.max(0, Math.min(1, x / 10 - tx)), v = Math.max(0, Math.min(1, z / 10 - tz));
+    const x0 = tx * 10, z0 = tz * 10, middle = at(x0 + 5, z0 + 5);
+    // The triangle's two corners: the edge the point faces from the middle
+    const [[ax, az], [bx, bz]] = v <= u && v <= 1 - u ? [[0, 0], [1, 0]] : u >= v && u >= 1 - v ? [[1, 0], [1, 1]]
+      : v >= u && v >= 1 - u ? [[1, 1], [0, 1]] : [[0, 1], [0, 0]];
+    const ha = at(x0 + ax * 10, z0 + az * 10), hb = at(x0 + bx * 10, z0 + bz * 10);
+    // Barycentric weights of the point in the triangle (middle, a, b)
+    const d = (az - 0.5) * (bx - 0.5) - (ax - 0.5) * (bz - 0.5) || 1;
+    const wa = ((v - 0.5) * (bx - 0.5) - (u - 0.5) * (bz - 0.5)) / d;
+    const wb = ((u - 0.5) * (az - 0.5) - (v - 0.5) * (ax - 0.5)) / d;
+    return middle + wa * (ha - middle) + wb * (hb - middle);
   }
 
   private shade(colour: Color, x: number, z: number): Color {
@@ -283,7 +175,7 @@ export class RoadCurves {
       this.band(line, offsets, (d) => lateriteColour(Math.abs(d)), LIFT, positions, colors);
       return;
     }
-    const half = this.halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959), shoulder = new Color(0xa39c8f);
+    const half = halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959), shoulder = new Color(0xa39c8f);
     this.band(line, [-half - SHOULDER, -half, half, half + SHOULDER], (d) => (Math.abs(d) > half + 0.01 ? shoulder : surface),
       LIFT, positions, colors);
     // Its centre line
@@ -331,7 +223,7 @@ export class RoadCurves {
       const e = LATERITE_EDGE;
       rings = [0, 0.35, 0.7, 1].map((share) => [e * share, lateriteColour(e * share)]);
     } else {
-      const half = this.halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
+      const half = halfWidth(level), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
       rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + SHOULDER, new Color(0xa39c8f)]];
     }
     const n = 20, at = (radius: number, angle: number): [number, number, number] => {
