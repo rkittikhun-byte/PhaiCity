@@ -44,7 +44,8 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { cellsAlong, cellsOf } from './zoneCells.ts';
-import { nearestOnLines, networkOf, smoothLine } from './roadGeometry.ts';
+import { nearestOnLines, networkOf, roadReach, smoothLine } from './roadGeometry.ts';
+import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
@@ -1172,7 +1173,11 @@ Game.prototype.handleTool = function(data) {
   var toolName = this.inputStatus.toolName;
   var result;
 
-  // A building on a map painted a cell at a time goes where its outline showed: the nearest spot beside a road
+  // A building on a map painted a cell at a time goes where its outline showed: slid along the road a cell at a time,
+  // its tiles the nearest beside the road
+  var pose = this.buildingPose(this.inputStatus.toolWidth - 0, x, y);
+  if (pose !== null)
+    tileCoords = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
   tileCoords = this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
 
   // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
@@ -1206,8 +1211,10 @@ Game.prototype.handleTool = function(data) {
     this.inspectTile(tileCoords.x, tileCoords.y);
     result = tool.TOOLRESULT_OK;
   } else {
-    var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y,
-                                     stroke: data.stroke});
+    var command = {type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y, stroke: data.stroke};
+    if (pose !== null)
+      command.pose = pose;
+    var outcome = this.applyCommand(command);
     result = outcome.toolResult;
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
     if (outcome.reason === NEEDS_ROAD_BESIDE) {
@@ -1402,8 +1409,13 @@ Game.prototype.calculateMouseForPaint = function() {
     return null;
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
+  var pose = this.buildingPose(this.inputStatus.toolWidth - 0, this.inputStatus.mouseX, this.inputStatus.mouseY);
+  if (pose !== null)
+    tile = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
   tile = this.buildingTile(tile, this.inputStatus.toolWidth - 0);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+  if (pose !== null)
+    hover.pose = pose;
   // Buying land shows the whole block under the mouse (src/landBlocks.ts)
   var cityMap = this.gameMap;
   if (this.inputStatus.toolName === 'land') {
@@ -1528,9 +1540,54 @@ Game.prototype.networkLines = function(rail) {
     var network = networkOf({width: map.width, height: map.height,
       value: function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); },
       level: function(i) { return levels ? levels[i] || 1 : 1; }}, rail);
-    this[cache] = {edits: this._edits, lines: network.stretches.map(function(stretch) { return smoothLine(stretch.points); })};
+    this[cache] = {edits: this._edits, lines: network.stretches.map(function(stretch) { return smoothLine(stretch.points); }),
+                   levels: network.stretches.map(function(stretch) { return stretch.level; })};
   }
   return this[cache].lines;
+};
+
+
+// Where a building of size tiles goes at the pointer (x, y on the view) on a map painted a cell at a time: against the
+// nearest road, slid along it a zone cell (2 m) at a time, turned to face it (owner, 14 Oct 2026: "จะขยับซ้ายหรือขวา
+// ให้ขยับได้ ทีละช่อง ทุก object"): [x, z, rotation] in world units, or null
+Game.prototype.buildingPose = function(size, x, y) {
+  var map = this.gameMap;
+  if (!map.cellZones || !(size >= 3) || typeof this.cityView.pointAt !== 'function')
+    return null;
+  var point = this.cityView.pointAt(x, y);
+  if (point === null)
+    return null;
+  var px = point.x * 10, pz = point.y * 10;
+  var lines = this.networkLines(false), levels = this._roadLines.levels;
+  var best = null, bestDistance = size * 5 + 20;
+  lines.forEach(function(line, n) {
+    var along = 0;
+    for (var i = 1; i < line.length; i++) {
+      var ax = line[i - 1][0], az = line[i - 1][1], dx = line[i][0] - ax, dz = line[i][1] - az;
+      var length = Math.hypot(dx, dz) || 1, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (length * length)));
+      var distance = Math.hypot(ax + dx * t - px, az + dz * t - pz);
+      if (distance < bestDistance) { bestDistance = distance; best = {line: line, level: levels[n], along: along + t * length}; }
+      along += length;
+    }
+  });
+  if (best === null)
+    return null;
+  // A zone cell's step along the road, from the road's start
+  var step = 2 * 10 / (map.tileSizeM || 16), want = Math.round(best.along / step) * step, along = 0;
+  for (var i = 1; i < best.line.length; i++) {
+    var ax = best.line[i - 1][0], az = best.line[i - 1][1], dx = best.line[i][0] - ax, dz = best.line[i][1] - az;
+    var length = Math.hypot(dx, dz) || 1;
+    if (along + length >= want || i === best.line.length - 1) {
+      var t = Math.max(0, Math.min(1, (want - along) / length)), rx = ax + dx * t, rz = az + dz * t, tx = dx / length, tz = dz / length;
+      var nx = -tz, nz = tx;
+      if (nx * (px - rx) + nz * (pz - rz) < 0) { nx = -nx; nz = -nz; }
+      var gap = roadReach(best.level) + 0.6 + size * 5 * BUILDING_SCALE;
+      return [Math.round((rx + nx * gap) * 100) / 100, Math.round((rz + nz * gap) * 100) / 100,
+              Math.round(Math.atan2(-nx, -nz) * 1000) / 1000];
+    }
+    along += length;
+  }
+  return null;
 };
 
 

@@ -59,6 +59,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.stationKinds = Object.assign({}, saved.stationKinds || {});
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts); those from before the levels are at their base
     map.buildingLevels = Object.assign({}, saved.buildingLevels || {});
+    // ... and where buildings beside a road are drawn, slid along it (src/game.js buildingPose)
+    map.buildingPoses = Object.assign({}, saved.buildingPoses || {});
     // ... and, on a map whose zones go a cell at a time, its painted cells (src/zoneCells.ts)
     map.cellZones = saved.cellZones === true;
     map.zoneCells = readZoneCells(saved.zoneCells);
@@ -94,6 +96,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.policies = map.policies || [];
   map.stationKinds = map.stationKinds || {};
   map.buildingLevels = map.buildingLevels || {};
+  map.buildingPoses = map.buildingPoses || {};
   map.zoneCells = map.zoneCells || new Map();
 }
 
@@ -106,6 +109,16 @@ export function plantsStanding(map: Legacy, field: string, centre: number): Reco
     if (map.testBounds(x, y) && map.getTileValue(x, y) === centre) kinds[index] = record[index];
   }
   return kinds;
+}
+
+/** Where buildings are drawn, kept only where a building's centre still stands */
+function posesStanding(map: Legacy): Record<string, [number, number, number]> | undefined {
+  const kept: Record<string, [number, number, number]> = {};
+  for (const [index, pose] of Object.entries(map.buildingPoses || {})) {
+    const i = Number(index), x = i % map.width, y = (i - x) / map.width;
+    if (map.testBounds(x, y) && map.getTile(x, y).isZone()) kept[index] = pose as [number, number, number];
+  }
+  return Object.keys(kept).length ? kept : undefined;
 }
 
 /** The records kept beside the tiles, as a save keeps them (run-length encoded like the map) */
@@ -127,6 +140,7 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     stationKinds: plantsStanding(map, "stationKinds", STATION),
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts)
     buildingLevels: levelsStanding(map),
+    buildingPoses: posesStanding(map),
     // ... and its zone cells (src/zoneCells.ts)
     cellZones: map.cellZones ? true : undefined,
     zoneCells: map.cellZones ? writeZoneCells(map.zoneCells) : undefined,
@@ -189,6 +203,7 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setStationKind: (x: number, y: number, kind: string) => { map.stationKinds[y * map.width + x] = kind; },
     // ... and the level of a building that has levels (src/buildingLevels.ts)
     setBuildingLevel: (x: number, y: number, level: number) => { map.buildingLevels[y * map.width + x] = level; },
+    setBuildingPose: (x: number, y: number, pose: [number, number, number]) => { map.buildingPoses[y * map.width + x] = pose; },
     isRailAt: (x: number, y: number) => {
       if (!map.testBounds(x, y)) return false;
       const value = map.getTileValue(x, y);

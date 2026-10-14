@@ -46,6 +46,8 @@ export interface ToolHover {
   straight?: boolean;
   /** The points a line drawn by clicks bends through (straight, curve, S-curve), in tiles: its preview is that curve */
   controls?: readonly TilePoint[] | null;
+  /** A building slid along its road (src/game.js buildingPose): where it would stand, x and z in world units, and its turn */
+  pose?: readonly [number, number, number] | null;
 }
 
 export interface CityView {

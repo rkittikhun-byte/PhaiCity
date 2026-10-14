@@ -76,7 +76,9 @@ export const MAX_CELLS = 4000;
 
 export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
-  | { type: "tool"; tool: ToolName; x: number; y: number; stroke?: number }
+  | { type: "tool"; tool: ToolName; x: number; y: number; stroke?: number;
+      /** Where a building beside a road is drawn, slid along it a cell at a time: x, z (world units), turn (radians) */
+      pose?: [number, number, number] }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -205,6 +207,7 @@ export interface CommandTarget {
   /** Records the rubbish or wastewater building just built at (x, y), its centre (src/waste.ts). */
   setWasteKind?(x: number, y: number, kind: string): void;
   setBuildingLevel?(x: number, y: number, level: number): void;
+  setBuildingPose?(x: number, y: number, pose: [number, number, number]): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
   setStationKind?(x: number, y: number, kind: string): void;
 }
@@ -296,6 +299,9 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (!isOneOf(TOOL_NAMES, c.tool)) return `unknown tool ${String(c.tool)}`;
       if (!isInteger(c.x, 0, width - 1) || !isInteger(c.y, 0, height - 1)) return "outside the map";
       if (c.stroke !== undefined && !isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
+      if (c.pose !== undefined && !(Array.isArray(c.pose) && c.pose.length === 3 && c.pose.every((n) => Number.isFinite(n)))) {
+        return "bad pose";
+      }
       return null;
     case "undo":
       return null;
@@ -383,6 +389,7 @@ export class CityCommands {
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
+        if (applied && command.pose && (tool.size ?? 1) >= 3) city.setBuildingPose?.(command.x, command.y, command.pose);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }

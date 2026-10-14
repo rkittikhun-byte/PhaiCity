@@ -126,7 +126,7 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
     if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
@@ -151,9 +151,9 @@ export class ToolOutline {
     const w=(r.x1-r.x0+1)*10*shrink,d=(r.y1-r.y0+1)*10*shrink;
     // A building of 3 x 3 and up beside a road: turned to face it and stood against its edge, at the size it is drawn
     // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
-    const size=hover.size,near=size>=3&&!hover.cellPoint&&this.snap?this.snap(x,z,size*5+14):null;
-    if(near){
-      const pose=poseAgainstRoad(x,z,size,near),side=size*10*BUILDING_SCALE,ground=this.terrain?.enabled?this.terrain.sample(pose.x,pose.z):0;
+    const size=hover.size,near=size>=3&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
+    if(near||hover.pose){
+      const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!),side=size*10*BUILDING_SCALE,ground=this.terrain?.enabled?this.terrain.sample(pose.x,pose.z):0;
       const frame=new Group();frame.position.set(pose.x,ground+.6,pose.z);frame.rotation.y=pose.rotation;
       const fill=new Mesh(new PlaneGeometry(side,side).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
       // A bold white edge, which shows on any ground (owner: "เส้นมันจาง มองไม่เห็น")

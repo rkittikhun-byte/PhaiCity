@@ -234,6 +234,9 @@ export class TileSnapshot implements CityMapReader {
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
     if(size<3||['residential','commercial','industrial','terrain','road','rail','power','shore','debug'].includes(p.kind))return p;
+    // Where the player slid it along its road, kept with the city (src/game.js buildingPose)
+    const kept=(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
+    if(kept)return {...p,x:kept[0],z:kept[1],rotation:kept[2],scale:p.scale*BUILDING_SCALE,options:{...p.options,worldOrigin:[kept[0],kept[1]],worldRotationY:kept[2]}};
     const near=this.roadSnap!(p.x,p.z,size*5+14);
     if(!near)return p;
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
