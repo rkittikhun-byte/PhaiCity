@@ -274,12 +274,18 @@ function roadBesideProblem(city: CommandTarget, toolName: string, size: number, 
   if (!map?.cellZones || size < 3 || toolName === "ruler_house" || isOneOf(["residential", "commercial", "industrial"], toolName)) {
     return null;
   }
+  return besideRoad(city.width, city.height, (rx, ry) => isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK), x, y, size)
+    ? null : NEEDS_ROAD_BESIDE;
+}
+
+/** Whether a building of size tiles centred at (x, y) has a road tile along one of its sides (isRoad(x, y)) */
+export function besideRoad(width: number, height: number, isRoad: (x: number, y: number) => boolean,
+  x: number, y: number, size: number): boolean {
   const left = x - 1, top = y - 1, right = left + size - 1, bottom = top + size - 1;
-  const road = (rx: number, ry: number): boolean => rx >= 0 && ry >= 0 && rx < city.width && ry < city.height &&
-    isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK);
-  for (let k = left; k <= right; k++) if (road(k, top - 1) || road(k, bottom + 1)) return null;
-  for (let k = top; k <= bottom; k++) if (road(left - 1, k) || road(right + 1, k)) return null;
-  return NEEDS_ROAD_BESIDE;
+  const road = (rx: number, ry: number): boolean => rx >= 0 && ry >= 0 && rx < width && ry < height && isRoad(rx, ry);
+  for (let k = left; k <= right; k++) if (road(k, top - 1) || road(k, bottom + 1)) return true;
+  for (let k = top; k <= bottom; k++) if (road(left - 1, k) || road(right + 1, k)) return true;
+  return false;
 }
 
 export function commandProblem(command: unknown, width: number, height: number): string | null {

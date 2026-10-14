@@ -18,7 +18,7 @@ import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
 import { BudgetWindow } from './budgetWindow.js';
-import { CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
 import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
@@ -1387,6 +1387,12 @@ Game.prototype.calculateMouseForPaint = function() {
   // Red where the tool would reach outside the province, or land the city has not bought, which cannot be built on
   if (placeProblem({canBuildAt: canBuildIn(cityMap), ownsLand: function(x, y) { return ownsLand(cityMap, x, y); }},
                    tile.x, tile.y, hover.size) !== null)
+    hover.colour = OUTSIDE_COLOUR;
+  // ... and, on a map painted a cell at a time, a building not beside a road, which may not stand there
+  // (src/cityCommands.ts besideRoad)
+  if (cityMap.cellZones && hover.size >= 3 && !besideRoad(cityMap.width, cityMap.height, function(x, y) {
+    return isRoadTile(cityMap.getTileValue(x, y));
+  }, tile.x, tile.y, hover.size))
     hover.colour = OUTSIDE_COLOUR;
 
   // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
