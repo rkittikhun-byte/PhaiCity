@@ -12,7 +12,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Ma
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
-import { halfWidth, networkOf, REAL_WIDTH_M, roadReach, shoulderOf, smoothLine, type Point } from '../../roadGeometry.js';
+import { halfWidth, networkOf, REAL_WIDTH_M, roadLines, roadReach, shoulderOf, smoothLine, type JunctionShape, type Point } from '../../roadGeometry.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import type { ModelOptions } from '../models/registry.js';
@@ -21,6 +21,31 @@ export { smoothLine, type Point };
 
 
 const LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
+/** A road's end under the road it meets, the corners between roads at a junction (their shoulders, then their
+ * carriageways), and a junction's middle where no road runs through it: lifted so each lies over what it should */
+const UNDER_LIFT = 0.13, CORNER_LIFT = 0.145, CORNER_TOP_LIFT = 0.154, MIDDLE_LIFT = 0.152;
+/** A corner's curve, as a share of the wider road's reach either side of its middle */
+const CORNER_RADIUS = 1.2;
+
+/** A line cut a distance from each end (world units along it): its start, its middle and its finish, each cut point
+ * in both of the parts it joins */
+function splitEnds(line: Point[], fromStart: number, fromEnd: number): [Point[], Point[], Point[]] {
+  const lengths = [0];
+  for (let i = 1; i < line.length; i++) lengths.push(lengths[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
+  const total = lengths[lengths.length - 1];
+  if (fromStart + fromEnd >= total) return fromStart >= fromEnd ? [line, [], []] : [[], [], line];
+  const cut = (d: number): { i: number; p: Point } => {
+    let i = 1;
+    while (i < line.length - 1 && lengths[i] < d) i++;
+    const t = (d - lengths[i - 1]) / ((lengths[i] - lengths[i - 1]) || 1);
+    return { i, p: [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * t, line[i - 1][1] + (line[i][1] - line[i - 1][1]) * t] };
+  };
+  const a = fromStart > 0 ? cut(fromStart) : null, b = fromEnd > 0 ? cut(total - fromEnd) : null;
+  const start = a ? [...line.slice(0, a.i), a.p] : [];
+  const middle = [...(a ? [a.p] : []), ...line.slice(a ? a.i : 0, b ? b.i : line.length), ...(b ? [b.p] : [])];
+  const finish = b ? [b.p, ...line.slice(b.i)] : [];
+  return [start, middle, finish];
+}
 
 export class RoadCurves {
   readonly root = new Group();
@@ -106,22 +131,39 @@ export class RoadCurves {
       const { stretches, plates, junctions, covered } = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
         level: (i) => levels?.[i] ?? 1 }, rail);
       for (let i = 0; i < covered.length; i++) if (covered[i]) this.covered[i] = 1;
-      // A road that ends at a junction runs on into it a little, so the roads meeting there overlap and fill it
-      const atJunction = (point: Point): boolean => junctions.some(([x, z]) => Math.abs(x - point[0]) < 0.01 && Math.abs(z - point[1]) < 0.01);
-      for (const stretch of stretches) {
-        const line = smoothLine(stretch.points);
-        if (line.length > 1) {
-          const reach = rail ? 1.6 * this.metre : halfWidth(stretch.level, this.snapshot.realUnits);
-          for (const [end, before] of [[0, 1], [line.length - 1, line.length - 2]] as const) {
-            if (!atJunction(line[end])) continue;
-            const [ex, ez] = line[end], [bx, bz] = line[before], length = Math.hypot(ex - bx, ez - bz) || 1;
+      // One road where it runs on through a junction, the others ending at it (src/roadGeometry.ts roadLines)
+      const drawn = roadLines({ stretches, plates, junctions, covered });
+      if (rail) {
+        // A railway that ends at a junction runs on into it a little, so the tracks meeting there overlap and fill it
+        for (const { points: line, level } of drawn.lines) {
+          if (line.length > 1) for (const [end, before] of [[0, 1], [line.length - 1, line.length - 2]] as const) {
+            if (!junctions.some(([x, z]) => Math.hypot(x - line[end][0], z - line[end][1]) < 2)) continue;
+            const [ex, ez] = line[end], [bx, bz] = line[before], length = Math.hypot(ex - bx, ez - bz) || 1, reach = 1.6 * this.metre;
             const past: Point = [ex + (ex - bx) / length * reach * 0.6, ez + (ez - bz) / length * reach * 0.6];
             if (end === 0) line.unshift(past); else line.push(past);
           }
+          this.lines.push({ points: line, rail, level });
+          this.rail(line, positions, colors, railPositions, sleepers);
         }
-        this.lines.push({ points: line, rail, level: stretch.level });
-        if (rail) this.rail(line, positions, colors, railPositions, sleepers);
-        else this.road(line, stretch.level, positions, colors);
+      } else {
+        // Where a road ends at a junction with a road running through it, its end lies under that road
+        const under = new Map<string, number>();
+        for (const junction of drawn.junctions) {
+          if (junction.through === null) continue;
+          const reach = roadReach(drawn.lines[junction.through].level, this.snapshot.realUnits);
+          const along = junction.arms.find((arm) => arm.end === null)!.way;
+          for (const arm of junction.arms) if (arm.end !== null) {
+            const sine = Math.abs(along[0] * arm.way[1] - along[1] * arm.way[0]);
+            under.set(`${arm.line}:${arm.end}`, reach / Math.max(0.35, sine) + 0.3);
+          }
+        }
+        drawn.lines.forEach(({ points: line, level }, n) => {
+          this.lines.push({ points: line, rail, level });
+          const [start, main, finish] = splitEnds(line, under.get(`${n}:0`) ?? 0, under.get(`${n}:1`) ?? 0);
+          for (const part of [start, finish]) if (part.length > 1) this.road(part, level, positions, colors, UNDER_LIFT, false);
+          if (main.length > 1) this.road(main, level, positions, colors);
+        });
+        for (const junction of drawn.junctions) this.junction(junction, drawn.lines, positions, colors);
       }
       for (const [x, z, level] of plates) this.plate(x, z, rail ? null : level, positions, colors);
     }
@@ -195,19 +237,20 @@ export class RoadCurves {
     }
   }
 
-  private road(line: Point[], level: number, positions: number[], colors: number[]): void {
+  private road(line: Point[], level: number, positions: number[], colors: number[], lift = LIFT, stripe = true): void {
     if (level <= 1) {
       const k = this.lateriteShare, e = LATERITE_EDGE * k, offsets = [-e, -e * 0.7, -e * 0.35, 0, e * 0.35, e * 0.7, e];
-      this.band(line, offsets, (d) => lateriteColour(Math.abs(d) / k), LIFT, positions, colors);
+      this.band(line, offsets, (d) => lateriteColour(Math.abs(d) / k), lift, positions, colors);
       return;
     }
     const units = this.snapshot.realUnits, half = halfWidth(level, units), side = shoulderOf(units);
     const surface = new Color(level > 2 ? 0x8f8d86 : 0x555959), shoulder = new Color(0xa39c8f);
     this.band(line, [-half - side, -half, half, half + side], (d) => (Math.abs(d) > half + 0.01 ? shoulder : surface),
-      LIFT, positions, colors);
-    // Its centre line
-    const paint = new Color(0xd9d2b0), stripe = 0.08 * this.metre;
-    this.band(line, [-stripe, stripe], () => paint, LIFT + 0.01, positions, colors);
+      lift, positions, colors);
+    // Its centre line, not under the road it meets
+    if (!stripe) return;
+    const paint = new Color(0xd9d2b0), width = 0.08 * this.metre;
+    this.band(line, [-width, width], () => paint, lift + 0.01, positions, colors);
   }
 
   private rail(line: Point[], positions: number[], colors: number[], railPositions: number[], sleepers: Matrix4[]): void {
@@ -235,6 +278,81 @@ export class RoadCurves {
       }
       carry = (carry - length) % spacing;
       if (carry < 0) carry += spacing;
+    }
+  }
+
+  /**
+   * A junction's corners, as Cities: Skylines rounds them: between each two roads next to each other round it (not the
+   * two halves of a road running through), the ground between their edges is filled up to a curve that meets both
+   * edges, first out to their shoulders and then their carriageways; where no road runs through, its middle is filled
+   * too. A laterite road has no shoulders and fills to its edge colour.
+   */
+  private junction(junction: JunctionShape, lines: ReadonlyArray<{ level: number }>, positions: number[], colors: number[]): void {
+    const { at, arms } = junction, units = this.snapshot.realUnits, corners: Point[] = [];
+    const surfaceOf = (level: number): Color => (level <= 1 ? lateriteColour(LATERITE_EDGE * 0.3) : new Color(level > 2 ? 0x8f8d86 : 0x555959));
+    for (let k = 0; k < arms.length; k++) {
+      const a = arms[k], b = arms[(k + 1) % arms.length];
+      if (arms.length < 2 || (a.end === null && b.end === null && a.line === b.line)) continue;
+      let turn = Math.atan2(b.way[1], b.way[0]) - Math.atan2(a.way[1], a.way[0]);
+      while (turn <= 0) turn += Math.PI * 2;
+      if (turn >= Math.PI - 0.05) continue;
+      const levelA = lines[a.line].level, levelB = lines[b.line].level;
+      const layers: Array<[number, number, Color, number]> = levelA <= 1 && levelB <= 1
+        ? [[roadReach(levelA, units), roadReach(levelB, units), lateriteColour(LATERITE_EDGE * 0.8), CORNER_LIFT]]
+        : [[roadReach(levelA, units), roadReach(levelB, units), new Color(0xa39c8f), CORNER_LIFT],
+          [halfWidth(levelA, units), halfWidth(levelB, units), surfaceOf(Math.max(levelA, levelB)), CORNER_TOP_LIFT]];
+      for (const [ha, hb, colour, lift] of layers) {
+        const corner = this.corner(at, a.way, b.way, ha, hb, turn, CORNER_RADIUS * Math.max(ha, hb), colour, lift, positions, colors);
+        if (corner && lift === CORNER_LIFT) corners.push(corner);
+      }
+    }
+    // A junction no road runs through: its middle, out to the corners
+    if (junction.through === null && corners.length >= 2) {
+      const colour = surfaceOf(Math.max(...arms.map((arm) => lines[arm.line].level)));
+      for (let k = 0; k < corners.length; k++) this.flat([at, corners[k], corners[(k + 1) % corners.length]], colour, MIDDLE_LIFT, positions, colors);
+    }
+  }
+
+  /**
+   * One rounded corner between two roads leaving a junction at `at` (ways a then b, b turned from a by turn, less than
+   * half a circle) whose edges on that side lie ha and hb from their middles: the ground between the edges filled up to
+   * an arc of the given radius that meets both. Returns where the edges meet, or null when they do not.
+   */
+  private corner(at: Point, a: Point, b: Point, ha: number, hb: number, turn: number, radius: number, colour: Color,
+    lift: number, positions: number[], colors: number[]): Point | null {
+    // The edges: a's on b's side (a turned a quarter towards b), b's on a's side
+    const na: Point = [-a[1], a[0]], nb: Point = [b[1], -b[0]];
+    const pa: Point = [at[0] + na[0] * ha, at[1] + na[1] * ha], pb: Point = [at[0] + nb[0] * hb, at[1] + nb[1] * hb];
+    // Where they meet: pa + a s = pb + b u
+    const det = -a[0] * b[1] + a[1] * b[0];
+    if (Math.abs(det) < 1e-6) return null;
+    const rx = pb[0] - pa[0], rz = pb[1] - pa[1], s = (-rx * b[1] + rz * b[0]) / det;
+    const c: Point = [pa[0] + a[0] * s, pa[1] + a[1] * s];
+    // The arc touching both edges, as far along each from where they meet as the radius and the angle allow
+    const half = turn / 2;
+    let tangent = radius / Math.tan(half), r = radius;
+    const most = 4 * Math.max(ha, hb);
+    if (tangent > most) { tangent = most; r = tangent * Math.tan(half); }
+    const t1: Point = [c[0] + a[0] * tangent, c[1] + a[1] * tangent], t2: Point = [c[0] + b[0] * tangent, c[1] + b[1] * tangent];
+    const bx = a[0] + b[0], bz = a[1] + b[1], bl = Math.hypot(bx, bz) || 1, out = r / Math.sin(half);
+    const o: Point = [c[0] + bx / bl * out, c[1] + bz / bl * out];
+    const a1 = Math.atan2(t1[1] - o[1], t1[0] - o[0]);
+    let a2 = Math.atan2(t2[1] - o[1], t2[0] - o[0]);
+    while (a2 - a1 > Math.PI) a2 -= Math.PI * 2;
+    while (a1 - a2 > Math.PI) a2 += Math.PI * 2;
+    const steps = 8, arc: Point[] = [];
+    for (let k = 0; k <= steps; k++) { const angle = a1 + (a2 - a1) * k / steps; arc.push([o[0] + Math.cos(angle) * r, o[1] + Math.sin(angle) * r]); }
+    for (let k = 1; k <= steps; k++) this.flat([c, arc[k - 1], arc[k]], colour, lift, positions, colors);
+    return c;
+  }
+
+  /** A triangle lying on the ground, lifted, facing up whichever way round its corners come */
+  private flat(corners: [Point, Point, Point], colour: Color, lift: number, positions: number[], colors: number[]): void {
+    const [a, b, c] = corners;
+    const up = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
+    for (const [x, z] of up >= 0 ? [a, b, c] : [a, c, b]) {
+      positions.push(x, this.height(x, z) + lift, z);
+      const shaded = this.shade(colour, x, z); colors.push(shaded.r, shaded.g, shaded.b);
     }
   }
 

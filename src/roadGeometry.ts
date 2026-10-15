@@ -70,17 +70,24 @@ function simplify(points: Point[], tolerance: number): Point[] {
 }
 
 /**
- * Each point moved to the average of its neighbours along the line, up to reach points either side (fewer near the
- * ends, which stay put), passes times: the stairsteps of a slanted road go, its real bends stay as wide curves.
+ * Each point moved to the average of its neighbours along the line, up to reach points either side, passes times:
+ * the stairsteps of a slanted road go, its real bends stay as wide curves. Past each end the line goes on as its own
+ * mirror image through the end, so the ends stay put and the road runs into them along its own way, not along the
+ * last tiles' steps (owner, 15 Oct 2026, of a road hooking into its junction: "จุดต่อมันควรจะเนียนกว่านี้")
  */
 function average(points: Point[], reach: number, passes: number): Point[] {
   let line = points;
   for (let pass = 0; pass < passes; pass++) {
-    const next: Point[] = [];
-    for (let i = 0; i < line.length; i++) {
-      const r = Math.min(reach, i, line.length - 1 - i);
+    const n = line.length, last = n - 1, next: Point[] = [];
+    const at = (k: number): Point => {
+      if (k < 0) { const p = line[Math.min(last, -k)]; return [2 * line[0][0] - p[0], 2 * line[0][1] - p[1]]; }
+      if (k > last) { const p = line[Math.max(0, 2 * last - k)]; return [2 * line[last][0] - p[0], 2 * line[last][1] - p[1]]; }
+      return line[k];
+    };
+    for (let i = 0; i < n; i++) {
+      const r = Math.min(reach, last);
       let x = 0, z = 0;
-      for (let k = i - r; k <= i + r; k++) { x += line[k][0]; z += line[k][1]; }
+      for (let k = i - r; k <= i + r; k++) { const [px, pz] = at(k); x += px; z += pz; }
       next.push([x / (2 * r + 1), z / (2 * r + 1)]);
     }
     line = next;
@@ -254,4 +261,151 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     for (const j of near(i)) if (!done.has(`${i}>${j}`)) walk(i, j);
   }
   return { stretches, plates, junctions, covered };
+}
+
+/** Two arms of a junction at least this far apart (degrees) are one road running on through it */
+const THROUGH_DEG = 125;
+/** How far along a road (world units) its way out of a junction is taken */
+const ARM_REACH = 25;
+
+/** A road as drawn: one or more stretches joined where it runs on through a junction, as one smooth line */
+export interface RoadLine { points: Point[]; level: number; rail: boolean; stretches: number[] }
+/** A road at a junction: its line, the end of it that is there (null where the line runs on through), the way it
+ * leaves the junction and its level */
+export interface JunctionArm { line: number; end: 0 | 1 | null; way: Point; level: number }
+/** A junction as drawn: where its roads meet (on the through road, when one runs through) and its roads, round it */
+export interface JunctionShape { at: Point; arms: JunctionArm[]; through: number | null }
+
+const keyOf = (p: Point): string => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
+const unit = (x: number, z: number): Point => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+
+/** The point of a line nearest p: its segment, how far along it, and the point */
+function nearestOnLine(line: Point[], p: Point): { i: number; t: number; at: Point } {
+  let best = { i: 1, t: 0, at: line[0] }, bestD = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1], dx = line[i][0] - ax, dz = line[i][1] - az;
+    const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / (dx * dx + dz * dz || 1)));
+    const at: Point = [ax + dx * t, az + dz * t], d = Math.hypot(at[0] - p[0], at[1] - p[1]);
+    if (d < bestD) { bestD = d; best = { i, t, at }; }
+  }
+  return best;
+}
+
+/** The way along a line from a point on segment i, `reach` units forward (or back), as a unit vector */
+function wayAlong(line: Point[], i: number, from: Point, reach: number, forward: boolean): Point {
+  let left = reach, [px, pz] = from;
+  for (let k = forward ? i : i - 1; forward ? k < line.length : k >= 0; k += forward ? 1 : -1) {
+    const [qx, qz] = line[k], d = Math.hypot(qx - px, qz - pz);
+    if (d >= left) { const s = left / d; return unit(px + (qx - px) * s - from[0], pz + (qz - pz) * s - from[1]); }
+    left -= d; px = qx; pz = qz;
+  }
+  return unit(px - from[0], pz - from[1]);
+}
+
+/**
+ * The roads of a network as drawn (owner, 15 Oct 2026: "1 กับ 2 มันควรจะเป็นถนนเดียวกัน และ 3 มาเชื่อม ทำแยกจุดต่อใหม่ ไม่ใช่
+ * เอากลมๆ ไปวางเฉยๆ"): at each junction the two roads that run on most nearly straight, of one level, are one road
+ * through it, drawn as one smooth line; the others end at it. And each junction's shape: where its roads meet and
+ * the way each leaves, round it, for drawing its corners.
+ */
+export function roadLines(network: Network): { lines: RoadLine[]; junctions: JunctionShape[] } {
+  const { stretches } = network;
+  const junctionAt = new Map(network.junctions.map((p, j) => [keyOf(p), j]));
+  // Each junction's roads: the stretches' ends there, and the way each leaves along its own smooth line (its tiles'
+  // steps would turn it by up to 45 degrees)
+  const armsAt: Array<Array<{ s: number; end: 0 | 1; way: Point }>> = network.junctions.map(() => []);
+  stretches.forEach((stretch, s) => {
+    const smooth = stretch.points.length > 1 ? smoothLine(stretch.points) : stretch.points;
+    for (const end of [0, 1] as const) {
+      const points = end === 0 ? stretch.points : [...stretch.points].reverse();
+      const j = junctionAt.get(keyOf(points[0]));
+      if (j === undefined || points.length < 2) continue;
+      const way = end === 0 ? wayAlong(smooth, 1, smooth[0], ARM_REACH, true)
+        : wayAlong(smooth, smooth.length - 1, smooth[smooth.length - 1], ARM_REACH, false);
+      armsAt[j].push({ s, end, way });
+    }
+  });
+  // The roads running on through each junction, the straightest first
+  const partner = new Map<string, string>();
+  for (const arms of armsAt) {
+    const pairs: Array<[number, number, number]> = [];
+    for (let a = 0; a < arms.length; a++) for (let b = a + 1; b < arms.length; b++) {
+      if (arms[a].s === arms[b].s || stretches[arms[a].s].level !== stretches[arms[b].s].level) continue;
+      const angle = Math.acos(Math.max(-1, Math.min(1, arms[a].way[0] * arms[b].way[0] + arms[a].way[1] * arms[b].way[1]))) * 180 / Math.PI;
+      if (angle >= THROUGH_DEG) pairs.push([angle, a, b]);
+    }
+    pairs.sort((p, q) => q[0] - p[0]);
+    const used = new Set<number>();
+    for (const [, a, b] of pairs) {
+      if (used.has(a) || used.has(b)) continue;
+      used.add(a); used.add(b);
+      partner.set(`${arms[a].s}:${arms[a].end}`, `${arms[b].s}:${arms[b].end}`);
+      partner.set(`${arms[b].s}:${arms[b].end}`, `${arms[a].s}:${arms[a].end}`);
+    }
+  }
+  // The stretches joined end to end through their junctions, each road once
+  const lineOf = new Map<number, number>(), lines: RoadLine[] = [], raw: Point[][] = [];
+  const chain = (start: number, enter: 0 | 1): void => {
+    const points: Point[] = [], ids: number[] = [];
+    for (let s = start, e = enter; ;) {
+      lineOf.set(s, lines.length); ids.push(s);
+      const own = e === 0 ? stretches[s].points : [...stretches[s].points].reverse();
+      for (const p of own) { const last = points[points.length - 1]; if (!last || last[0] !== p[0] || last[1] !== p[1]) points.push(p); }
+      const next = partner.get(`${s}:${e === 0 ? 1 : 0}`);
+      if (!next) break;
+      const [t, te] = next.split(":").map(Number);
+      if (lineOf.has(t)) break;
+      s = t; e = te as 0 | 1;
+    }
+    raw.push(points);
+    lines.push({ points: smoothLine(points), level: stretches[start].level, rail: stretches[start].rail, stretches: ids });
+  };
+  stretches.forEach((_, s) => {
+    if (lineOf.has(s)) return;
+    if (!partner.has(`${s}:0`)) chain(s, 0);
+    else if (!partner.has(`${s}:1`)) chain(s, 1);
+  });
+  stretches.forEach((_, s) => { if (!lineOf.has(s)) chain(s, 0); });
+  // Each junction as drawn: on its through road where one runs through (whose smooth line passes a little off the
+  // junction tile's middle), and the roads ending there end on that road's middle line, smoothed again so they curve
+  // into it rather than kink
+  const reach = 12;
+  const centres = network.junctions.map((p, j) => {
+    const throughArm = armsAt[j].find((arm) => partner.has(`${arm.s}:${arm.end}`));
+    const through = throughArm ? lineOf.get(throughArm.s)! : null;
+    return { through, at: through === null ? p : nearestOnLine(lines[through].points, p).at };
+  });
+  const endsAt = (n: number, p: Point): 0 | 1 => {
+    const line = raw[n];
+    return Math.hypot(line[0][0] - p[0], line[0][1] - p[1]) <= Math.hypot(line[line.length - 1][0] - p[0], line[line.length - 1][1] - p[1]) ? 0 : 1;
+  };
+  const moved = new Set<number>();
+  network.junctions.forEach((p, j) => {
+    const { through, at } = centres[j];
+    if (through === null) return;
+    for (const arm of armsAt[j]) {
+      if (partner.has(`${arm.s}:${arm.end}`)) continue;
+      const n = lineOf.get(arm.s)!, line = raw[n];
+      line[endsAt(n, p) === 0 ? 0 : line.length - 1] = at;
+      moved.add(n);
+    }
+  });
+  for (const n of moved) lines[n].points = smoothLine(raw[n]);
+  const junctions: JunctionShape[] = network.junctions.map((_, j) => {
+    const { through, at } = centres[j], out: JunctionArm[] = [];
+    if (through !== null) {
+      const line = lines[through].points, near = nearestOnLine(line, at);
+      out.push({ line: through, end: null, way: wayAlong(line, near.i, at, reach, true), level: lines[through].level },
+        { line: through, end: null, way: wayAlong(line, near.i, at, reach, false), level: lines[through].level });
+    }
+    for (const arm of armsAt[j]) {
+      if (partner.has(`${arm.s}:${arm.end}`)) continue;
+      const n = lineOf.get(arm.s)!, line = lines[n].points, end = endsAt(n, at);
+      const way = end === 0 ? wayAlong(line, 1, line[0], reach, true) : wayAlong(line, line.length - 1, line[line.length - 1], reach, false);
+      out.push({ line: n, end, way, level: lines[n].level });
+    }
+    out.sort((a, b) => Math.atan2(a.way[1], a.way[0]) - Math.atan2(b.way[1], b.way[0]));
+    return { at, arms: out, through };
+  });
+  return { lines, junctions };
 }
