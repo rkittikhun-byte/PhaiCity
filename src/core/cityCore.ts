@@ -16,7 +16,9 @@ import { CityObjects } from "../objects/cityObjects.js";
 import type { Building } from "../objects/cityObject.js";
 import { Random } from "../random.js";
 import { Simulation } from "../simulation.js";
-import { type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
+import { canBuildIn, type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
+import { cellsOf, syncCellPlots } from "../zoneCells.js";
+import { ownsLand } from "../landBlocks.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -94,6 +96,11 @@ export class CityCore {
       this.simulation.load(saved);
     }
     ensureCityLayers(this.map);
+    // A city painted a cell at a time before its cells made plots (15 Oct 2026) gets its plots now, so it grows
+    if (saved && this.map.cellZones && this.map.zoneCells?.size) {
+      const owns = canBuildIn(this.map);
+      syncCellPlots(this.map, cellsOf(this.map, (x, y) => ownsLand(this.map, x, y) && owns(x, y)));
+    }
     this.tools = setup.tools ?? new (GameTools as unknown as new (map: Legacy, rules: Legacy) => Legacy)(this.map,
       this.simulation.rules ?? null);
     this.commands = new CityCommands(commandTarget(this.map, this.simulation, this.tools,

@@ -9,6 +9,9 @@ import { NEEDS_ROAD_BESIDE } from "../src/cityCommands";
 import { CityCore } from "../src/core/cityCore";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
+import { Random } from "../src/random";
+import { plotOf } from "../src/plots";
+import { STEPS_PER_YEAR } from "../src/core/cityCore";
 import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf } from "../src/zoneCells";
 
 /** A bare 16 m map whose zones go a cell at a time, with a straight road and a slanted one */
@@ -66,6 +69,38 @@ describe("zone cells", () => {
       expect(xs.length).toBeGreaterThan(300);
       for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeCloseTo(layout.cellUnits);
     }
+  });
+
+  test("painted cells make plots that grow buildings, and clearing them takes the plot and its building back", () => {
+    // Owner, 15 Oct 2026: "ทำให้อาคารงอกบนช่องที่ทาในอำเภอเมืองก่อน เมืองจะได้โตได้"
+    Random.seed(4);
+    const core = city();
+    // A power plant beside the road: power runs along it to the plots (src/powerManager.js)
+    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 7 }).accepted).toBe(true);
+    // Homes along the road's south side, tiles 10..30 (x 100..310), rows 11..13 (z 110..140)
+    const layout = cellsOf(core.map);
+    const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: "residential", cells: keys }).accepted).toBe(true);
+    expect(plotOf(core.map, 15, 11)).toMatchObject({ kind: "residential", level: 0 });
+    expect(plotOf(core.map, 15, 12)).toMatchObject({ kind: "residential" });
+    // ... and the jobs homes need: shops and factories across the road (z 70..104), as a player paints them
+    const across = (x0: number, x1: number) => layout.cells.filter(c => c.x > x0 && c.x < x1 && c.z > 70 && c.z < 104).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: across(100, 220) }).accepted).toBe(true);
+    expect(core.apply({ type: "zoneCells", zone: "industrial", cells: across(230, 420) }).accepted).toBe(true);
+    // The cells on a plot stay, to be painted over or cleared
+    expect(cellsOf(core.map).cells.filter(c => Math.floor(c.x / 10) === 15 && Math.floor(c.z / 10) === 11).length).toBeGreaterThan(20);
+    core.run(2 * STEPS_PER_YEAR);
+    const grown = [];
+    for (let y = 11; y <= 13; y++) for (let x = 10; x <= 30; x++) { const plot = plotOf(core.map, x, y); if (plot && plot.level > 0) grown.push(plot); }
+    expect(grown.length).toBeGreaterThan(5);
+    expect(core.simulation.evaluation.cityPop).toBeGreaterThan(0);
+    // Clearing a tile's cells takes its plot back, building and all
+    const built = (() => { for (let x = 10; x <= 30; x++) { const p = plotOf(core.map, x, 11); if (p && p.level > 0) return x; } return -1; })();
+    expect(built).toBeGreaterThan(0);
+    const there = cellsOf(core.map).cells.filter(c => Math.floor(c.x / 10) === built && Math.floor(c.z / 10) === 11).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: null, cells: there }).accepted).toBe(true);
+    expect(plotOf(core.map, built, 11)).toBeNull();
+    expect(core.map.getTileValue(built, 11)).toBe(0);
   });
 
   test("painting cells costs a share of the zone's price; clearing is free; the cells stay with the city", () => {

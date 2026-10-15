@@ -25,7 +25,7 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
-import { type CellMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, zoneCode } from "./zoneCells";
+import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, syncCellPlots, zoneCode } from "./zoneCells";
 import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
@@ -478,6 +478,12 @@ export class CityCommands {
         if (city.budget.totalFunds < cost) return { accepted: false, reason: NO_MONEY_FOR_CELLS };
         for (const key of cells) if (code) painted.set(key, code); else painted.delete(key);
         if (cost) city.budget.spend(cost);
+        // The tiles the paint covers enough become plots, which grow buildings (src/zoneCells.ts syncCellPlots)
+        const touched = new Set(cells.map((key) => {
+          const cell = layout.cells[layout.byKey.get(key)!];
+          return Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
+        }));
+        syncCellPlots(map as unknown as CellPlotMap, layout, touched);
         map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
         return { accepted: true };
       }

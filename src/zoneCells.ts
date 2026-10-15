@@ -12,7 +12,9 @@
 // road is straightened or upgraded in place. Step 1: painting and keeping; the buildings that grow on painted cells
 // come next (docs/ZONE_CELLS.md). Plain code: no DOM, nothing random.
 
-import { isOpenLand } from "./plots";
+import { isOpenLand, plotKindOfValue, plotTile } from "./plots";
+import { BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";
+import { DIRT } from "./tileValues";
 import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
 
@@ -70,6 +72,10 @@ export interface CellLayout {
   /** The cells whose middles lie on each tile, for finding the one under a point */
   byTile: Map<number, number[]>;
 }
+
+/** Ground a cell may lie on: open land, a road tile's margin, or a plot the cells themselves made (syncCellPlots), so its
+ * cells stay to be painted over or cleared */
+const cellGround = (value: number): boolean => isOpenLand(value) || isLineRoad(value) || plotKindOfValue(value) !== null;
 
 /** World units a metre on this map */
 const unitsPerMetre = (map: CellMap): number => 10 / (map.tileSizeM || 16);
@@ -174,7 +180,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
       // A road's tile is wider than the road drawn on it (taken above), so a cell may reach over its margin
       if (spot < 0 || taken.get(spot) || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
-          !(isOpenLand(map.getTileValue(tx, ty)) || isLineRoad(map.getTileValue(tx, ty))) || !owns(tx, ty) ||
+          !cellGround(map.getTileValue(tx, ty)) || !owns(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) {
         clear = false;
         break;
@@ -223,7 +229,7 @@ export function layoutSignature(map: CellMap, owns: (x: number, y: number) => bo
   let hash = map.width * 31 + map.height;
   for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
     const v = map.getTileValue(x, y), i = y * map.width + x;
-    const kind = v >= 64 && v <= 238 ? 1 + (map.roadLevels?.[i] ?? 1) : isOpenLand(v) ? (owns(x, y) ? 0 : 20) : 30;
+    const kind = v >= 64 && v <= 238 ? 1 + (map.roadLevels?.[i] ?? 1) : isOpenLand(v) || plotKindOfValue(v) !== null ? (owns(x, y) ? 0 : 20) : 30;
     if (kind) hash = (Math.imul(hash, 16777619) ^ (i * 64 + kind)) | 0;
   }
   return hash;
@@ -261,4 +267,40 @@ export function readZoneCells(saved: unknown): Map<number, number> {
     if (Number.isInteger(key) && key >= 0 && Number.isInteger(code) && zoneOfCode(code)) cells.set(key, code);
   }
   return cells;
+}
+
+/** The share of a tile's cells one zone must cover for the tile to become that zone's plot */
+export const PLOT_COVER = 0.5;
+
+/** A map whose tiles the painted cells turn into plots */
+export interface CellPlotMap extends CellMap {
+  readonly paintedZones?: boolean;
+  getTileFlags(x: number, y: number): number;
+  setTile(x: number, y: number, value: number, flags: number): void;
+}
+
+/**
+ * The plots the painted cells make (owner, 15 Oct 2026: "ทำให้อาคารงอกบนช่องที่ทาในอำเภอเมืองก่อน เมืองจะได้โตได้"): a 16 m
+ * tile whose cells are painted one zone for at least PLOT_COVER of them becomes that zone's plot (src/plots.ts), which
+ * grows its own building month by month as plots do; a plot whose cells no longer are (cleared, or painted another
+ * zone) is taken back, its building with it, so nothing is left behind. tiles: the tile indices to look at (those the
+ * paint touched), or every tile that has cells. Returns the tiles it changed.
+ */
+export function syncCellPlots(map: CellPlotMap, layout: CellLayout, tiles?: Iterable<number>): number[] {
+  const changed: number[] = [];
+  for (const tile of tiles ?? layout.byTile.keys()) {
+    const x = tile % map.width, y = (tile - x) / map.width, cells = layout.byTile.get(tile) ?? [];
+    const counts = [0, 0, 0, 0];
+    for (const index of cells) counts[map.zoneCells?.get(layout.cells[index].key) ?? 0]++;
+    let best = 1;
+    for (let code = 2; code <= 3; code++) if (counts[code] > counts[best]) best = code;
+    const kind = cells.length > 0 && counts[best] >= PLOT_COVER * cells.length ? zoneOfCode(best) : null;
+    const value = map.getTileValue(x, y), plot = (map.getTileFlags(x, y) & ZONE_BIT) ? null : plotKindOfValue(value);
+    if (kind && plot === kind) continue;
+    if (kind && (plot !== null || isOpenLand(value))) map.setTile(x, y, plotTile(kind, 0), PLOT_FLAGS);
+    else if (!kind && plot !== null) map.setTile(x, y, DIRT, 0);
+    else continue;
+    changed.push(tile);
+  }
+  return changed;
 }

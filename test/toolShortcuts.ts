@@ -44,10 +44,9 @@ describe("tool icons", () => {
 });
 
 describe("tool shortcuts", () => {
-  test("digits on the main row and the number pad pick tools; P pauses; M opens the city map", () => {
-    expect(shortcutFor(key("Digit1"))).toEqual({ tool: "residential" });
-    expect(shortcutFor(key("Numpad4"))).toEqual({ tool: "road" });
-    expect(shortcutFor(key("Digit9"))).toEqual({ tool: "query" });
+  test("no digit picks a tool (owner: every tool is picked by a click); P pauses; M opens the city map", () => {
+    expect(TOOL_KEYS).toEqual([]);
+    for (const code of ["Digit1", "Numpad4", "Digit6", "Digit9"]) expect(shortcutFor(key(code))).toBeNull();
     expect(shortcutFor(key("KeyP"))).toEqual({ pause: true });
     expect(shortcutFor(key("KeyM"))).toEqual({ map: true });
     expect(shortcutFor(key("KeyM", { ctrlKey: true }))).toBeNull();

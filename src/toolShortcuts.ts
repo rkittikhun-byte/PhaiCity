@@ -38,19 +38,9 @@ export function showToolPrices(next: Record<string, number>): void {
   relabel?.();
 }
 
-/** The key's label on screen, and the tool it picks. */
-export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
-  { key: "1", tool: "residential" },
-  { key: "2", tool: "commercial" },
-  { key: "3", tool: "industrial" },
-  { key: "4", tool: "road" },
-  { key: "5", tool: "rail" },
-  // Power runs along the roads (src/powerManager.js): 6 builds the power plant the power line's key used to pick
-  { key: "6", tool: "coal" },
-  { key: "7", tool: "park" },
-  { key: "8", tool: "bulldozer" },
-  { key: "9", tool: "query" },
-];
+/** The key's label on screen, and the tool it picks: none now, every tool is picked by a click (owner, 15 Oct 2026:
+ * "ไม่เอาปุ่มเลขลัด ทุกอย่างจะต้องคลิกๆ") */
+export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [];
 
 export const PAUSE_CODE = "KeyP";
 export const MAP_CODE = "KeyM";
