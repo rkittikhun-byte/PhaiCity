@@ -10,7 +10,8 @@ import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import {
-  besideWater, canBuildKind, kindOfTool, PLANT_TOOLS, plantFuel, plantPollution, plantPower, plantSmokes, POWER_KINDS,
+  besideWater, canBuildKind, fuelShare, kindOfTool, MIN_FUEL_SHARE, PLANT_TOOLS, plantFuel, plantPollution, plantPower,
+  plantSmokes, POWER_KINDS,
   powerKindAt,
 } from "../src/powerPlants";
 import { BASE_PRICES } from "../src/provinceRules";
@@ -125,13 +126,22 @@ describe("power plants in the city", () => {
     const month = sim.getDate().month;
     expect(sim._census.plantPower).toBe(plantPower("solar", sim.resources, month, sim.rules.drought) +
       plantPower("gas", sim.resources, month, sim.rules.drought));
-    expect(sim._census.plantFuel).toBe(plantFuel("gas", sim.resources));
+    // Nothing uses their power, so the gas plant burns only the least share of its fuel (fuelShare)
+    expect(sim._powerManager.load).toBeLessThan(MIN_FUEL_SHARE);
+    expect(sim._census.plantFuel).toBeCloseTo(plantFuel("gas", sim.resources) * MIN_FUEL_SHARE);
     sim._census.totalPop = 10;
     sim.budget.collectTax(0, sim._census);
-    expect(sim.budget.fuelCost).toBe(plantFuel("gas", sim.resources));
+    expect(sim.budget.fuelCost).toBe(Math.round(plantFuel("gas", sim.resources) * MIN_FUEL_SHARE));
     // The solar farm's tiles stay clean, the gas plant's do not
     const pollution = sim.blockMaps.pollutionDensityMap;
     expect(pollution.worldGet(10, 10)).toBeLessThan(pollution.worldGet(30, 10));
+  });
+
+  test("a plant burns fuel for the share of its power the city uses, and a little standing by", () => {
+    // Owner, 15 Oct 2026: "หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี"
+    expect(fuelShare(0)).toBe(MIN_FUEL_SHARE);
+    expect(fuelShare(0.5)).toBe(0.5);
+    expect(fuelShare(1.5)).toBe(1);
   });
 
   test("has its words in both languages", () => {

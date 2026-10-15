@@ -15,7 +15,7 @@ import { BlockMap } from './blockMap.ts';
 import { forEachCardinalDirection } from './direction.ts';
 import { EventEmitter } from './eventEmitter.js';
 import { Position } from './position.ts';
-import { plantFuel, plantPower, plantSmokes, powerKindAt } from './powerPlants.ts';
+import { fuelShare, plantFuel, plantPower, plantSmokes, powerKindAt } from './powerPlants.ts';
 import { NOT_ENOUGH_POWER } from './messages.ts';
 import { Random } from './random.ts';
 import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
@@ -34,6 +34,8 @@ var PowerManager = EventEmitter(function(map) {
   // ... the province's resources, which run its kinds of plant, and its dry season, which slows its dams
   this.resources = {};
   this.drySeason = null;
+  // ... and the share of the plants' power the city used at the last power scan, by which they burn fuel
+  this.load = 1;
 });
 
 
@@ -106,6 +108,7 @@ PowerManager.prototype.doPowerScan = function(census) {
       if (!isRoadTile(this._map.getTileValue(pos.x, pos.y))) {
         powerConsumption++;
         if (powerConsumption > maxPower) {
+          this.load = 1;
           this._emitEvent(NOT_ENOUGH_POWER);
           return;
         }
@@ -129,6 +132,7 @@ PowerManager.prototype.doPowerScan = function(census) {
         this._powerStack.push(new Position(pos.x, pos.y));
     } while (conNum);
   }
+  this.load = maxPower > 0 ? powerConsumption / maxPower : 0;
 };
 
 
@@ -146,7 +150,8 @@ PowerManager.prototype.coalPowerFound = function(map, x, y, simData) {
   var kind = powerKindAt(map.powerKinds, y * map.width + x);
   var month = Math.floor((simData.cityTime || 0) % 48) >> 2;
   simData.census.plantPower += plantPower(kind, this.resources, month, this.drySeason);
-  simData.census.plantFuel += plantFuel(kind, this.resources);
+  // ... burning for the share of the power the city used (src/powerPlants.ts fuelShare)
+  simData.census.plantFuel += plantFuel(kind, this.resources) * fuelShare(this.load);
 
   this._powerStack.push(new Position(x, y));
 

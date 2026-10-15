@@ -87,9 +87,21 @@ export function plantPower(kind: PowerKind, resources: Resources, month: number,
   return Math.round(power);
 }
 
-/** What a plant's fuel costs a year, in baht. */
+/** What a plant's fuel costs a year, in baht, running flat out. */
 export function plantFuel(kind: PowerKind, resources: Resources): number {
   return SPECS[kind].fuel(levelOf(kind, resources));
+}
+
+/** The least share of its fuel a plant burns, standing by however little of its power the city uses */
+export const MIN_FUEL_SHARE = 0.2;
+
+/**
+ * The share of its fuel a plant burns when the city uses `load` (0–1) of the power its plants can give (owner, 15 Oct
+ * 2026: "หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี"): a plant burns for the power it makes, so a town using a third of a
+ * lignite plant's power pays a third of its fuel, and a second plant built early costs little until it is needed.
+ */
+export function fuelShare(load: number): number {
+  return Math.max(MIN_FUEL_SHARE, Math.min(1, load));
 }
 
 export function plantPollution(kind: PowerKind): number {

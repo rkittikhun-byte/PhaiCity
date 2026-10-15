@@ -27,6 +27,12 @@ var roadMaintenanceCost = 1;
 // Cost of maintaining 1 rail tile
 var railMaintenanceCost = 2;
 
+// PhaiCity (owner, 15 Oct 2026: "แก้เรื่องเงินก่อน หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี แล้วปรับให้สมดุล"): what the taxes
+// bring, six times the original game's. A town here also pays for its power plants' fuel, its schools, its hospitals,
+// the ruler's house and its rubbish, which the original never charged; at the original's taxes a sensibly built town
+// of 2,000 to 6,000 people lost ฿300–700 a year (src/core/autoPlayer.ts, test/play/khonKaen.ts)
+var TAX_YIELD = 6;
+
 
 var Budget = EventEmitter(function() {
   Object.defineProperties(this,
@@ -319,7 +325,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   // PhaiCity: homes, shops and factories each pay their own rate, on the census's population index of each
   var taxed = census.resPop / 8 * this.cityTax + census.comPop * this.comTax + census.indPop * this.indTax;
   this.taxFund = Math.floor(Math.floor(taxed * census.landValueAverage / 120) * FLevels[gameLevel] *
-                            (1 + (this.taxBonus || 0)));
+                            (1 + (this.taxBonus || 0)) * TAX_YIELD);
+  // ... kept as its own line, for the year's accounts (src/core/autoPlayer.ts)
+  this.taxIncome = this.taxFund;
   // ... and the water fee, for each zone the water reaches (src/waterManager.ts)
   this.waterIncome = Math.floor((census.wateredZoneCount || 0) * this.waterFee);
   this.taxFund += this.waterIncome;
@@ -419,4 +427,4 @@ Budget.prototype.shouldDegradeRoad = function() {
 };
 
 
-export { Budget };
+export { Budget, TAX_YIELD };

@@ -60,6 +60,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 | `npm run geo:neighbors` | Check the neighbour lists in `data/thailand-provinces.json` against the province shapes; `-- --osm` asks OpenStreetMap about any pair that differs. Rerun `geo:edges` after changing a list |
 | `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
+| `PHAICITY_PLAY=1 npx jest --coverage=false test/play/` | The auto player (`src/core/autoPlayer.ts`) plays a new Mueang Khon Kaen city for 10 years (`PHAICITY_YEARS`) and prints each year's people, money and income and costs line by line, to check the game's balance (`docs/TAXES.md`); about 6 s a year, skipped otherwise |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 | `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |
 | `npm run art:export` | Dev server and `art-export.html`: every registered 3D model, in every region, as glTF files in a new run of the art archive outside the project (`../phaicity-art/exports/`, `docs/3d/ART_ARCHIVE.md`) |

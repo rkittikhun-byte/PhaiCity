@@ -1,0 +1,69 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+ */
+
+// Plays a new Mueang Khon Kaen city for years with the auto player (src/core/autoPlayer.ts) and prints each year's
+// people, money and accounts, to check the game's balance. It only runs when asked, as it takes about 3 s a year:
+//   PHAICITY_PLAY=1 npx jest --coverage=false test/play
+// PHAICITY_YEARS sets the years (10), PHAICITY_PLAY_OUT a file for the whole report as JSON.
+
+import * as fs from "fs";
+import { AutoPlayer, type PlayerYear } from "../../src/core/autoPlayer";
+import { CityCore } from "../../src/core/cityCore";
+import { firstFrame } from "../../src/cityFrame";
+import { DISTRICT_BLOCK, framePreset, isDistrictMap } from "../../src/geo/districtFrame";
+import { decodePresetCells, decodePresetLayer } from "../../src/geo/presetMap";
+import { checkProfilesData, measuredLevels, provinceLevels } from "../../src/geo/provinceResources";
+import { startingFunds } from "../../src/geo/provinceProfile";
+import { MapGenerator } from "../../src/mapGenerator.js";
+import { checkRulesData, resolveRules } from "../../src/provinceRules";
+import { keepHigherRank, RANKS, rankForCityClass } from "../../src/rulerRank";
+
+const read = (path: string) => JSON.parse(fs.readFileSync(path, "utf8"));
+
+/** A new city on a district's map, set up as the game's start screen sets one up (src/splashScreen.js startProvince) */
+async function newCity(districtId: string, provinceId: string, region: string) {
+  const whole = read(`data/maps/district/${districtId}.json`);
+  const preset = isDistrictMap(whole) ? await framePreset(whole, firstFrame(whole, whole.town, DISTRICT_BLOCK)) : whole;
+  const layer = (encoded: string | undefined) => (encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null);
+  const transport = layer(preset.transport);
+  const map = (MapGenerator as any).fromPresetCells(preset.width, preset.height, decodePresetCells(preset), transport);
+  Object.assign(map, {
+    nationalTransport: transport, insideProvince: layer(preset.inside), town: preset.town || null, provinceId,
+    districtId: preset.districtId || null, tileSizeM: preset.tileSizeM || null, mapCenter: preset.center || null,
+    frame: preset.frame || null, districtPlace: preset.district || null, paintedZones: preset.paintedZones === true,
+    cellZones: preset.cellZones === true, roadLevels: layer(preset.roadLevels),
+  });
+  const rules = resolveRules(checkRulesData(read("data/province-rules.json")).data, region, provinceId);
+  const measured = measuredLevels(read("data/geo/province-indicators.json").provinces);
+  const entry = checkProfilesData(read("data/province-profiles.json")).data.provinces[provinceId];
+  const resources: Record<string, number> = {};
+  provinceLevels(measured[provinceId], entry).forEach((r) => { resources[r.id] = r.level; });
+  // The ruler's rank follows the city's class and is never lost, as in the game (src/game.js)
+  let rank: string = "muen";
+  const core: CityCore = new CityCore({ map, seed: 11, rules, resources,
+    hooks: { rank: () => Math.max(0, RANKS.indexOf(rank as never)) } } as never);
+  core.on("month", () => { rank = keepHigherRank(rank as never, rankForCityClass(core.simulation.evaluation.cityClass)); });
+  core.simulation.budget.setFunds(startingFunds(preset.stats) || 20000);
+  return core;
+}
+
+const row = (y: PlayerYear) => {
+  const lines = (r: Record<string, number>) => Object.entries(r).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
+  return `year ${y.year}: ${y.population} people, ฿${y.funds} (built ฿${y.built}), ${y.cityClass}, ${y.approval}% happy, land value ${y.landValue}, pollution ${y.pollution}, power used ${y.powerUse}%, ` +
+    `demand ${y.demand.join("/")}\n  in: ${lines(y.accounts.income)}\n  out: ${lines(y.accounts.costs)}\n  net ${y.accounts.net}\n`;
+};
+
+(process.env.PHAICITY_PLAY ? test : test.skip)("play Mueang Khon Kaen for years", async () => {
+  const core = await newCity("TH-40-mueang-khon-kaen", "TH-40", "northeast");
+  const player = new AutoPlayer(core, { town: core.map.town });
+  player.start();
+  const years: PlayerYear[] = [];
+  for (let n = 0; n < Number(process.env.PHAICITY_YEARS || 10); n++) {
+    const year = player.playYear();
+    years.push(year);
+    process.stdout.write(row(year));
+  }
+  process.stdout.write(player.log.join("\n") + "\n");
+  if (process.env.PHAICITY_PLAY_OUT) fs.writeFileSync(process.env.PHAICITY_PLAY_OUT, JSON.stringify({ years, log: player.log }, null, 1));
+}, 3600000);

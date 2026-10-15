@@ -250,7 +250,11 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
           pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish, plantPollution, mapX, mapY);
           if (extraPollution)
             pollutionLevel += extraPollution(mapX, mapY, tileValue);
-          if (tileValue >= TileValues.ROADBASE)
+          // PhaiCity: the state's roads and railways a real map starts with are not the city's land (owner, 15 Oct 2026:
+          // "หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี"): a district's thousands of them far from the town made its average land
+          // value, and so its taxes, a tenth of what its own blocks are worth
+          if (tileValue >= TileValues.ROADBASE &&
+              !(tileValue <= TileValues.LASTRAIL && map.isNationalTransport && map.isNationalTransport(mapX, mapY)))
             developed = true;
         }
       }

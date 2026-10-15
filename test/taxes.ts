@@ -4,7 +4,8 @@
 
 // Taxes by kind of zone and the two fees (src/budget.js; owner, 13 Oct 2026): each brings money and costs something.
 
-import { Budget } from "../src/budget.js";
+import { BlockMapUtils } from "../src/blockMapUtils.js";
+import { Budget, TAX_YIELD } from "../src/budget.js";
 import { commandProblem } from "../src/cityCommands";
 import { GameMap } from "../src/gameMap.js";
 import { hasKey } from "../src/i18n/index";
@@ -39,8 +40,10 @@ describe("taxes by kind of zone", () => {
     const budget: any = new (Budget as any)();
     budget.collectTax(0, census({ wateredZoneCount: 0 }));
     const same = budget.taxFund;
-    // The one tax's sum: the population index times the land value, times the rate, times the easy level's 1.4
-    expect(same).toBe(Math.floor(Math.floor((800 / 8 + 40 + 40) * 120 / 120) * 7 * 1.4));
+    // The one tax's sum: the population index times the land value, times the rate, times the easy level's 1.4, and
+    // the game's yield (src/budget.js TAX_YIELD)
+    expect(same).toBe(Math.floor(Math.floor((800 / 8 + 40 + 40) * 120 / 120) * 7 * 1.4 * TAX_YIELD));
+    expect(budget.taxIncome).toBe(same);
     budget.setTaxes({ industrial: 0 });
     budget.collectTax(0, census({ wateredZoneCount: 0 }));
     expect(budget.taxFund).toBeLessThan(same);
@@ -95,5 +98,22 @@ describe("taxes by kind of zone", () => {
       "budget.water_fee_label", "budget.tourist_fee", "budget.tourist_fee_label", "budget.water_income"]) {
       expect([key, hasKey(key)]).toEqual([key, true]);
     }
+  });
+});
+
+describe("land value for the taxes", () => {
+  // Owner, 15 Oct 2026: "หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี": a district's thousands of state roads far from the town made
+  // its average land value, and so its taxes, a tenth of its own blocks'
+  test("the state's roads alone are not the city's land, the city's own roads are", () => {
+    const average = (national: boolean) => {
+      const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(40, 40);
+      for (let x = 0; x < 40; x++) map.setTile(x, 20, 66, 0);
+      map.nationalTransport = national ? new Uint8Array(40 * 40).fill(1) : null;
+      const sim: any = new (Simulation as any)(map, 0, 3, null);
+      BlockMapUtils.pollutionTerrainLandValueScan(map, sim._census, sim.blockMaps, 1);
+      return sim._census.landValueAverage;
+    };
+    expect(average(true)).toBe(0);
+    expect(average(false)).toBeGreaterThan(0);
   });
 });
