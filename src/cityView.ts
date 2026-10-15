@@ -38,8 +38,8 @@ export interface ToolHover {
   /** A zone brush on a map painted a cell at a time (src/zoneCells.ts): where the mouse is, in tiles, to show the cell
    * under it instead of a tile */
   cellPoint?: { x: number; y: number } | null;
-  /** ... and while it drags a rectangle, the rectangle in tiles: every cell in it is shown as it will be painted */
-  cellArea?: { x0: number; y0: number; x1: number; y1: number } | null;
+  /** ... and while it drags a rectangle, the cells it will paint (their keys, src/zoneCells.ts), shown as they will be */
+  cellKeys?: readonly number[] | null;
   /** A road or railway tool: where it would start or end, on an existing road's middle line when near one (in tiles),
    * shown as a small marker rather than a tile; and where the line being drawn started */
   linePoint?: { x: number; y: number } | null;

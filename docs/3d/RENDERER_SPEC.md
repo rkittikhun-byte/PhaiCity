@@ -308,6 +308,7 @@ or songthaew stop is the single tile 1021 (`BUS_STOP`) beside a road (`docs/TRAN
 | Field | Meaning |
 |---|---|
 | `gameMap.stationKinds` | An object from a station's centre tile index (`x + y * width`, string key) to its kind: `"train_station"`, `"metro_station"` or `"hsr_station"`. No entry, or no object, is a train station. Never write it. |
+| `gameMap.buses` | Since 15 Oct 2026 a bus needs no stop: the tile index of each road tile a bus was put on. The view drives each one up and down its road there (`src/render3d/city/buses.ts`). Never write it. |
 
 - Until models exist the stations draw as the generic 3×3 service box, and the stop shows a waiting songthaew
   (`veh.songthaew`).

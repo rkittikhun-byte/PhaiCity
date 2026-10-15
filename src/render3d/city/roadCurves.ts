@@ -51,6 +51,8 @@ export class RoadCurves {
   readonly root = new Group();
   private covered = new Uint8Array(0);
   private lines: Array<{ points: Point[]; rail: boolean; level: number }> = [];
+  /** The roads and railways as drawn, for whatever moves along them (buses.ts) */
+  get drawnLines(): ReadonlyArray<{ points: Point[]; rail: boolean; level: number }> { return this.lines; }
   private readonly roadMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   private readonly railMaterial = new MeshStandardMaterial({ color: 0x9aa3a0, roughness: 0.4, metalness: 0.6 });

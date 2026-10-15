@@ -62,8 +62,7 @@ export class ZoneCellsView {
 
   /** Each frame: the paint, if it changed, and the cell under the brush (a point in tiles, or null), or every cell in
    * the rectangle it drags (in tiles) */
-  update(point: { x: number; y: number } | null, colour: string | null,
-    area: { x0: number; y0: number; x1: number; y1: number } | null = null): void {
+  update(point: { x: number; y: number } | null, colour: string | null, area: readonly number[] | null = null): void {
     if ((this.map.zoneCellsVersion ?? 0) !== this.version) this.drawPaint();
     this.showArea(area && this.showing ? area : null, colour);
     const cell = !area && point && this.layout && this.showing ? cellAt(this.layout, this.map.width, point.x * 10, point.y * 10) : null;
@@ -78,14 +77,14 @@ export class ZoneCellsView {
   }
 
   /** The cells a dragged rectangle will paint, in the brush's colour (src/game.js handleToolArea paints the same) */
-  private showArea(area: { x0: number; y0: number; x1: number; y1: number } | null, colour: string | null): void {
-    const key = area ? [area.x0, area.y0, area.x1, area.y1].map((v) => v.toFixed(2)).join() + colour : '';
+  private showArea(area: readonly number[] | null, colour: string | null): void {
+    const key = area ? `${area.length}:${area[0] ?? ''}:${area[area.length - 1] ?? ''}:${colour}` : '';
     if (key === this.areaKey) return;
     this.areaKey = key;
     if (this.area) { this.root.remove(this.area); this.area.dispose(); this.area = null; }
     if (!area || !this.layout) return;
-    const x0 = area.x0 * 10, x1 = area.x1 * 10, z0 = area.y0 * 10, z1 = area.y1 * 10;
-    const cells = this.layout.cells.filter((cell) => cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1);
+    const layout = this.layout;
+    const cells = area.map((k) => layout.byKey.get(k)).filter((i): i is number => i !== undefined).map((i) => layout.cells[i]);
     if (!cells.length) return;
     if (colour) this.hoverMaterial.color.set(colour);
     this.area = this.cellMesh(cells, this.hoverMaterial, null);

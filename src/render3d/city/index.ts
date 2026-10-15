@@ -22,6 +22,7 @@ import { ProvinceBackdropView } from './provinceBackdrop.js';
 import { RoadCurves } from './roadCurves.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
+import { CityBuses } from './buses.js';
 import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
 import { browserPrototypeProvider } from './worker-provider.js';
@@ -49,7 +50,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
-  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;
+  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private buses?:CityBuses;
   private bed:Mesh;private bedDrop:number;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
@@ -157,7 +158,11 @@ export class CityView3D implements CityView {
     const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
-    this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellArea??null);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
+    this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellKeys??null);
+    // The city's buses driving their roads (buses.ts)
+    const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
+    if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
+      this.buses.update(this.curves.drawnLines,this.seconds);}this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.sky.update(this.navigation.camera.position,this.seconds);
@@ -224,7 +229,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

@@ -269,7 +269,7 @@ export const BASE_PRICES: Record<CostTool, number> = {
   kindergarten: 400, primary_school: 800, secondary_school: 1500, vocational_college: 2500, university: 6000,
   health_centre: 500, community_hospital: 1500, provincial_hospital: 4000, regional_hospital: 8000,
   landfill: 300, incinerator: 2000, recycling_plant: 3000, waste_power_plant: 6000, wastewater_plant: 4000,
-  bus_stop: 150, train_station: 2500, metro_station: 6000, hsr_station: 20000,
+  bus_stop: 300, train_station: 2500, metro_station: 6000, hsr_station: 20000,
   police_box: 250, police_large: 1200, police_hq: 2500, fire_post: 250, fire_centre: 1500, building_upgrade: 250,
 };
 

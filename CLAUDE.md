@@ -284,8 +284,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   and buys more with the "buy land" tool, one at a time, beside owned land, ฿1,000 rising ฿500 each, as many as the rank
   allows (a `land` command). Tools are refused on unbought land (`LAND_LOCKED` in `placeProblem`), which the 3D view
   and the city map shade lightly. Practice maps and older saves own everything (`landBlocks` null).
-- **Public transport (ขนส่งสาธารณะ, owner 13 Oct 2026):** `docs/TRANSIT.md`, `src/transit.ts`. A bus or songthaew stop
-  (tile 1021, beside a road) and three stations on one 3×3 (1001–1009, `gameMap.stationKinds`, saved; RENDERER_SPEC 6J):
+- **Public transport (ขนส่งสาธารณะ, owner 13 Oct 2026):** `docs/TRANSIT.md`, `src/transit.ts`. A bus or songthaew, put on a
+  road with no stop (owner 15 Oct 2026; `gameMap.buses`, saved; old stop tiles 1021 still work) and three stations on one 3×3 (1001–1009, `gameMap.stationKinds`, saved; RENDERER_SPEC 6J):
   train (beside a railway), metro (rank หลวง, works with two stations) and high-speed rail (rank พระ, beside a railway,
   one per city). A share of the trips near them ride instead of drive, so roads carry less traffic, and where rail
   reaches, a trip with no road route still arrives (`Traffic.transit` in `src/traffic.js`); trains and high-speed

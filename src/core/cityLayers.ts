@@ -11,7 +11,7 @@ import type { CommandTarget } from "../cityCommands.js";
 import { decodePresetLayer, encodePresetLayer } from "../geo/presetMap.js";
 import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
-import { newRoadLevels } from "../roadLevels.js";
+import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { levelsStanding } from "../buildingLevels.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
@@ -63,6 +63,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.buildingLevels = Object.assign({}, saved.buildingLevels || {});
     // ... and where buildings beside a road are drawn, slid along it (src/game.js buildingPose)
     map.buildingPoses = Object.assign({}, saved.buildingPoses || {});
+    // ... and where its buses run (src/busStopTool.ts)
+    map.buses = Array.isArray(saved.buses) ? saved.buses.filter((i: unknown) => Number.isInteger(i)) : [];
     // ... and, on a map whose zones go a cell at a time, its painted cells (src/zoneCells.ts)
     map.cellZones = saved.cellZones === true;
     map.zoneCells = readZoneCells(saved.zoneCells);
@@ -113,6 +115,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.stationKinds = map.stationKinds || {};
   map.buildingLevels = map.buildingLevels || {};
   map.buildingPoses = map.buildingPoses || {};
+  map.buses = map.buses || [];
   map.zoneCells = map.zoneCells || new Map();
 }
 
@@ -157,6 +160,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts)
     buildingLevels: levelsStanding(map),
     buildingPoses: posesStanding(map),
+    // ... and its buses, those whose road still stands
+    buses: (map.buses || []).filter((i: number) => isRoadTile(map.getTileValue(i % map.width, Math.floor(i / map.width)))),
     // ... and its zone cells (src/zoneCells.ts)
     cellZones: map.cellZones ? true : undefined,
     zoneCells: map.cellZones ? writeZoneCells(map.zoneCells) : undefined,
@@ -224,6 +229,7 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     // ... and the level of a building that has levels (src/buildingLevels.ts)
     setBuildingLevel: (x: number, y: number, level: number) => { map.buildingLevels[y * map.width + x] = level; },
     setBuildingPose: (x: number, y: number, pose: [number, number, number]) => { map.buildingPoses[y * map.width + x] = pose; },
+    addBus: (x: number, y: number) => { map.buses.push(y * map.width + x); },
     isRailAt: (x: number, y: number) => {
       if (!map.testBounds(x, y)) return false;
       const value = map.getTileValue(x, y);

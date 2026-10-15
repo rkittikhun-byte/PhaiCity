@@ -121,6 +121,8 @@ interface CommandTool {
   pendingTiles?(): Array<{ x: number; y: number }>;
   /** The kind of power plant it builds (src/gameTools.js, src/powerPlants.ts) */
   powerKind?: string;
+  /** Puts a bus down on the road (src/busStopTool.ts) */
+  busTool?: boolean;
   /** The kind of mine it digs (src/mining.ts) */
   mineKind?: string;
   /** The level of the roads it lays (src/roadLevels.ts) */
@@ -209,6 +211,8 @@ export interface CommandTarget {
   setWasteKind?(x: number, y: number, kind: string): void;
   setBuildingLevel?(x: number, y: number, level: number): void;
   setBuildingPose?(x: number, y: number, pose: [number, number, number]): void;
+  /** A bus put down on the road at (x, y) (src/busStopTool.ts) */
+  addBus?(x: number, y: number): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
   setStationKind?(x: number, y: number, kind: string): void;
 }
@@ -391,6 +395,7 @@ export class CityCommands {
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
         if (applied && command.pose && placesBuilding(command.tool, tool)) city.setBuildingPose?.(command.x, command.y, command.pose);
+        if (applied && tool.busTool) city.addBus?.(command.x, command.y);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }

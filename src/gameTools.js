@@ -162,7 +162,7 @@ function GameTools(map, rules) {
 var ZONE_TOOLS = ['residential', 'commercial', 'industrial'];
 var placesBuilding = function(name, tool) {
   return ZONE_TOOLS.indexOf(name) === -1 &&
-    (tool instanceof BuildingTool || tool instanceof WaterTowerTool || tool instanceof BusStopTool);
+    (tool instanceof BuildingTool || tool instanceof WaterTowerTool);
 };
 
 

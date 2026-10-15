@@ -152,6 +152,7 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   if (save.buildingPoses) out.buildingPoses = movedKeys(save.buildingPoses as Record<string, [number, number, number]>,
     ([x, z, turn]): [number, number, number] => [x + dx * 10, z + dy * 10, turn]);
   if (Array.isArray(save.objects)) out.objects = save.objects.map((v: number, i: number) => (i % 2 === 0 ? moved(v) : v));
+  if (Array.isArray(save.buses)) out.buses = save.buses.map(moved);
   out.rulerHouse = point(save.rulerHouse);
   out.town = point(save.town);
   // The land: the old frame's blocks in place, the new ones not yet the city's

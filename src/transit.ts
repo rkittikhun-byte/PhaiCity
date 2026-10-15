@@ -38,7 +38,8 @@ export interface TransitSpec {
 }
 
 export const TRANSIT_SPECS: Readonly<Record<TransitKind, TransitSpec>> = {
-  bus_stop: { price: 150, upkeep: 30, reach: 6, riders: 0.3, rail: false, rank: 0, byRail: false },
+  // A bus driving round its roads (owner, 15 Oct 2026: no stops, the bus picks people up)
+  bus_stop: { price: 300, upkeep: 30, reach: 10, riders: 0.3, rail: false, rank: 0, byRail: false },
   train_station: { price: 2500, upkeep: 150, reach: 12, riders: 0.25, rail: true, rank: 0, byRail: true },
   metro_station: { price: 6000, upkeep: 400, reach: 8, riders: 0.5, rail: true, rank: 2, byRail: false },
   hsr_station: { price: 20000, upkeep: 1000, reach: 15, riders: 0.2, rail: true, rank: 3, byRail: true },

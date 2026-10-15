@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// Public transport (src/transit.ts, docs/TRANSIT.md): a stop and three stations that carry a share of the trips near
+// Public transport (src/transit.ts, docs/TRANSIT.md): a bus put down on a road and three stations that carry a share of the trips near
 // them, rescue trips with no way by road where rail reaches, and bring visitors, trade and land value, for upkeep,
 // power, a railway beside them and the ruler's rank.
 
@@ -13,7 +13,7 @@ import { hasKey } from "../src/i18n/index";
 import { BASE_PRICES } from "../src/provinceRules";
 import { Simulation } from "../src/simulation.js";
 import { POWERBIT } from "../src/tileFlags";
-import { BUS_STOP, STATION } from "../src/tileValues";
+import { STATION } from "../src/tileValues";
 import { Traffic } from "../src/traffic.js";
 import {
   HSR_TRADE, MOST_RIDERS, NEEDS_RAIL, ONE_HSR, Transit, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS, transitProblem,
@@ -22,6 +22,7 @@ import {
 function city(rank = 5) {
   const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(64, 40);
   map.stationKinds = {};
+  map.buses = [];
   const sim: any = new (Simulation as any)(map, 0, 3, null);
   const tools: any = new (GameTools as any)(map);
   sim.budget.setFunds(200000);
@@ -32,6 +33,7 @@ function city(rank = 5) {
     map, cityTime: () => sim._cityTime, rank: () => rank, houseMap: map,
     isRailAt: (x: number, y: number) => rail.has(y * map.width + x),
     setStationKind: (x: number, y: number, kind: string) => { map.stationKinds[y * map.width + x] = kind; },
+    addBus: (x: number, y: number) => { map.buses.push(y * map.width + x); },
   } as any);
   const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
   return { map, sim, tool, rail };
@@ -47,7 +49,7 @@ const site = (transit: Transit, kind: string, x: number, y: number) => {
 };
 
 describe("public transport", () => {
-  test("a stop and three stations, each with its price and words", () => {
+  test("a bus and three stations, each with its price and words", () => {
     expect(TRANSIT_KINDS).toHaveLength(4);
     for (const kind of TRANSIT_KINDS) {
       expect([kind, BASE_PRICES[kind]]).toEqual([kind, TRANSIT_SPECS[kind].price]);
@@ -59,8 +61,13 @@ describe("public transport", () => {
 
   test("stations stand beside a railway, the metro and high-speed rail wait for the rank, and one high-speed station", () => {
     const { map, tool, rail } = city();
+    // A bus goes on a road, changing no tile, and nowhere else
+    expect(tool("bus_stop", 5, 5).toolResult).not.toBe(0);
+    expect(map.buses).toEqual([]);
+    map.setTile(5, 5, 66, 0);
     expect(tool("bus_stop", 5, 5).toolResult).toBe(0);
-    expect(map.getTileValue(5, 5)).toBe(BUS_STOP);
+    expect(map.getTileValue(5, 5)).toBe(66);
+    expect(map.buses).toEqual([5 * map.width + 5]);
     expect(tool("train_station", 20, 20)).toMatchObject({ accepted: false, reason: NEEDS_RAIL });
     rail.add(20 * map.width + 22); // just beside its east side
     expect(tool("train_station", 20, 20).toolResult).toBe(0);
@@ -121,10 +128,10 @@ describe("public transport", () => {
     expect(transit.pollutionAt(powered, 29, 29, STATION - 4)).toBeGreaterThan(0);
   });
 
-  test("in a city: upkeep counted, an unpowered station idle, a stop by a road working", () => {
+  test("in a city: upkeep counted, an unpowered station idle, a bus on its road working", () => {
     const { map, sim, tool, rail } = city();
     for (let x = 0; x < 20; x++) map.setTile(x, 6, 66, 0); // a road
-    tool("bus_stop", 5, 5);
+    tool("bus_stop", 5, 6);
     rail.add(20 * map.width + 22);
     tool("train_station", 20, 20); // no power
     for (let step = 0; step < 16 * 3; step++) sim._simulate(sim._constructSimData());

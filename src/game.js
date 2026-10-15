@@ -801,10 +801,22 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 // it lands where its outline (turned against the road in the 3D view) showed; the tile itself elsewhere
 Game.prototype.buildingTile = function(tile, size) {
   var map = this.gameMap;
+  var isRoad = function(x, y) { return map.testBounds(x, y) && isRoadTile(map.getTileValue(x, y)); };
+  // A bus goes on the nearest road tile, as the road drawn smooth does not always lie on its tiles (src/busStopTool.ts)
+  var tools = this.inputStatus.gameTools, current = tools && tools[this.inputStatus.toolName];
+  if (tile !== null && current && current.busTool) {
+    var road = null, roadDistance = Infinity;
+    for (var ry = -3; ry <= 3; ry++)
+      for (var rx = -3; rx <= 3; rx++)
+        if (rx * rx + ry * ry < roadDistance && isRoad(tile.x + rx, tile.y + ry)) {
+          roadDistance = rx * rx + ry * ry;
+          road = {x: tile.x + rx, y: tile.y + ry};
+        }
+    return road || tile;
+  }
   // A one-tile building too (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน")
   if (!map.cellZones || tile === null || !(size >= 3 || size === 1 && this.placesBuilding()))
     return tile;
-  var isRoad = function(x, y) { return map.testBounds(x, y) && isRoadTile(map.getTileValue(x, y)); };
   // A bigger building's tile is its centre, one in from its top left; a one-tile building's is itself
   var offset = size > 1 ? 1 : 0;
   var beside = size > 1 ? function(x, y) { return besideRoad(map.width, map.height, isRoad, x, y, size); } :
@@ -823,6 +835,42 @@ Game.prototype.buildingTile = function(tile, size) {
     }
   }
   return best || tile;
+};
+
+
+// The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it that the start reaches
+// without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), as keys
+Game.prototype.cellsInArea = function(from, to) {
+  var a = this.cityView.pointAt(from.x, from.y);
+  var b = this.cityView.pointAt(to.x, to.y) || a;
+  if (a === null)
+    return [];
+  var x0 = Math.min(a.x, b.x) * 10, x1 = Math.max(a.x, b.x) * 10, z0 = Math.min(a.y, b.y) * 10, z1 = Math.max(a.y, b.y) * 10;
+  var sx = a.x * 10, sz = a.y * 10;
+  // The roads' pieces within the rectangle, which a cell's way from the start must not cross
+  var pieces = [];
+  this.networkLines(false).forEach(function(line) {
+    for (var i = 1; i < line.length; i++) {
+      var p = line[i - 1], q = line[i];
+      if (Math.max(p[0], q[0]) >= Math.min(x0, sx) - 1 && Math.min(p[0], q[0]) <= Math.max(x1, sx) + 1 &&
+          Math.max(p[1], q[1]) >= Math.min(z0, sz) - 1 && Math.min(p[1], q[1]) <= Math.max(z1, sz) + 1)
+        pieces.push([p[0], p[1], q[0], q[1]]);
+    }
+  });
+  var side = function(ax, az, bx, bz, cx, cz) { return (bx - ax) * (cz - az) - (bz - az) * (cx - ax); };
+  var crosses = function(cx, cz) {
+    for (var k = 0; k < pieces.length; k++) {
+      var r = pieces[k];
+      var d1 = side(sx, sz, cx, cz, r[0], r[1]), d2 = side(sx, sz, cx, cz, r[2], r[3]);
+      var d3 = side(r[0], r[1], r[2], r[3], sx, sz), d4 = side(r[0], r[1], r[2], r[3], cx, cz);
+      if ((d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0) && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0)
+        return true;
+    }
+    return false;
+  };
+  return this.cellLayout().cells.filter(function(cell) {
+    return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1 && !crosses(cell.x, cell.z);
+  }).map(function(cell) { return cell.key; });
 };
 
 
@@ -1522,10 +1570,15 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.cellPoint = this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
     // ... and, while a rectangle is dragged, every cell it will paint (handleToolArea)
     var cellDrag = this.inputStatus.areaDrag;
-    var start = cellDrag ? this.cityView.pointAt(cellDrag.from.x, cellDrag.from.y) : null;
-    if (start !== null && hover.cellPoint)
-      hover.cellArea = {x0: Math.min(start.x, hover.cellPoint.x), y0: Math.min(start.y, hover.cellPoint.y),
-                        x1: Math.max(start.x, hover.cellPoint.x), y1: Math.max(start.y, hover.cellPoint.y)};
+    if (cellDrag && hover.cellPoint) {
+      // Worked out again only when the drag moves
+      var dragKey = [cellDrag.from.x, cellDrag.from.y, cellDrag.to.x, cellDrag.to.y].join();
+      if (this._cellDragKey !== dragKey) {
+        this._cellDragKey = dragKey;
+        this._cellDragCells = this.cellsInArea(cellDrag.from, cellDrag.to);
+      }
+      hover.cellKeys = this._cellDragCells;
+    }
     return hover;
   }
 
@@ -1899,16 +1952,12 @@ Game.prototype.handleToolArea = function(data) {
   if (tool === null)
     return;
 
-  // A rectangle dragged with a zone brush on a map painted a cell at a time: every cell inside it
+  // A rectangle dragged with a zone brush on a map painted a cell at a time: every cell inside it on this side of the
+  // roads (cellsInArea)
   if (this.isCellBrush(toolName)) {
-    var a = this.cityView.pointAt(data.from.x, data.from.y);
-    var b = this.cityView.pointAt(data.to.x, data.to.y) || a;
-    if (a === null)
-      return;
-    var x0 = Math.min(a.x, b.x) * 10, x1 = Math.max(a.x, b.x) * 10, z0 = Math.min(a.y, b.y) * 10, z1 = Math.max(a.y, b.y) * 10;
-    this.paintCells(this.cellLayout().cells.filter(function(cell) {
-      return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1;
-    }).map(function(cell) { return cell.key; }), data.to.x);
+    var keys = this.cellsInArea(data.from, data.to);
+    if (keys.length)
+      this.paintCells(keys, data.to.x);
     return;
   }
 

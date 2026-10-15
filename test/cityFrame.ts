@@ -66,6 +66,8 @@ describe("a district's frame", () => {
     expect(core.apply({ type: "tool", tool: "coal" as any, x: 30, y: 37 }).accepted).toBe(true);
     expect(core.apply({ type: "tool", tool: "landfill" as any, x: 50, y: 37 }).accepted).toBe(true);
     core.map.buildingPoses[37 * 96 + 50] = [500, 380, 1];
+    expect(core.apply({ type: "tool", tool: "bus_stop" as any, x: 60, y: 40 }).toolResult).toBe(0);
+    expect(core.map.buses).toEqual([40 * 96 + 60]);
     core.run(100);
     const save = JSON.parse(JSON.stringify(core.save()));
 
@@ -92,6 +94,7 @@ describe("a district's frame", () => {
     expect(again.map.civicKinds[at(40, 26)]).toBe("ruler_house");
     expect(again.map.wasteKinds).toEqual(Object.fromEntries(Object.entries(core.map.wasteKinds).map(([k, v]) => [String(at(Number(k) % 96, Math.floor(Number(k) / 96))), v])));
     expect(again.map.buildingPoses[at(50, 37)]).toEqual([500 + dx * 10, 380 + dy * 10, 1]);
+    expect(again.map.buses).toEqual([at(60, 40)]);
     expect(again.map.rulerHouse).toMatchObject({ x: 40 + dx, y: 26 + dy });
     expect(again.map.town).toEqual({ x: 40 + dx, y: 26 + dy });
     // The land it owned is still its own, and the new land is not

@@ -326,6 +326,14 @@ Simulation.prototype._clearCensus = function() {
   // The cycle's stops and stations reach the next cycle's trips (src/transit.ts)
   this._transit.endCycle();
   this._census.clearCensus();
+  // PhaiCity: each bus on a road works as a stop did, reaching further (src/busStopTool.ts); its upkeep goes in this
+  // cycle's census, as the stations found on the map do
+  var buses = this._map.buses || [];
+  for (var b = 0; b < buses.length; b++) {
+    var bx = buses[b] % this._map.width, by = Math.floor(buses[b] / this._map.width);
+    if (this._map.testBounds(bx, by) && isRoadTile(this._map.getTileValue(bx, by)))
+      this._transit.stopFound(bx, by, this._census, true);
+  }
   this._powerManager.clearPowerStack();
   this._waterManager.clearCycle();
   this._mining.clearCycle();
