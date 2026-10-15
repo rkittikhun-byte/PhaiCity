@@ -46,7 +46,8 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { cellsAlong, cellsOf } from './zoneCells.ts';
-import { nearestOnLines, networkOf, realUnits, roadReach, smoothLine } from './roadGeometry.ts';
+import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
+import { placesBuilding } from './gameTools.js';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
@@ -795,17 +796,22 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 // it lands where its outline (turned against the road in the 3D view) showed; the tile itself elsewhere
 Game.prototype.buildingTile = function(tile, size) {
   var map = this.gameMap;
-  if (!map.cellZones || !(size >= 3) || tile === null)
+  // A one-tile building too (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน")
+  if (!map.cellZones || tile === null || !(size >= 3 || size === 1 && this.placesBuilding()))
     return tile;
-  var isRoad = function(x, y) { return isRoadTile(map.getTileValue(x, y)); };
+  var isRoad = function(x, y) { return map.testBounds(x, y) && isRoadTile(map.getTileValue(x, y)); };
+  // A bigger building's tile is its centre, one in from its top left; a one-tile building's is itself
+  var offset = size > 1 ? 1 : 0;
+  var beside = size > 1 ? function(x, y) { return besideRoad(map.width, map.height, isRoad, x, y, size); } :
+    function(x, y) { return isRoad(x - 1, y) || isRoad(x + 1, y) || isRoad(x, y - 1) || isRoad(x, y + 1); };
   var best = null, bestDistance = Infinity;
   for (var dy = -3; dy <= 3; dy++) {
     for (var dx = -3; dx <= 3; dx++) {
       var x = tile.x + dx, y = tile.y + dy, clear = true;
-      for (var ty = y - 1; ty <= y + size - 2 && clear; ty++)
-        for (var tx = x - 1; tx <= x + size - 2 && clear; tx++)
+      for (var ty = y - offset; ty < y - offset + size && clear; ty++)
+        for (var tx = x - offset; tx < x - offset + size && clear; tx++)
           clear = map.testBounds(tx, ty) && !isRoad(tx, ty);
-      if (!clear || !besideRoad(map.width, map.height, isRoad, x, y, size))
+      if (!clear || !beside(x, y))
         continue;
       var distance = dx * dx + dy * dy;
       if (distance < bestDistance) { bestDistance = distance; best = {x: x, y: y}; }
@@ -1454,6 +1460,13 @@ Game.prototype.processFrontEndMessage = function(message) {
 };
 
 
+// Whether the tool in hand puts a building down (src/gameTools.js placesBuilding), which stands against its road
+Game.prototype.placesBuilding = function() {
+  var name = this.inputStatus.toolName, tools = this.inputStatus.gameTools;
+  return !!name && !!tools && placesBuilding(name, tools[name]);
+};
+
+
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
   // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
@@ -1473,6 +1486,12 @@ Game.prototype.calculateMouseForPaint = function() {
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
   if (pose !== null)
     hover.pose = pose;
+  // A building's outline is the building as it will stand: against its road, and at the size it is drawn, its real
+  // size on a city map (src/render3d/city/tileModels.ts BUILDING_SCALE)
+  if (this.placesBuilding()) {
+    hover.building = true;
+    hover.fill = realUnits(this.gameMap.tileSizeM) ? BUILDING_SCALE : 1;
+  }
   // Buying land shows the whole block under the mouse (src/landBlocks.ts)
   var cityMap = this.gameMap;
   if (this.inputStatus.toolName === 'land') {
@@ -1597,8 +1616,11 @@ Game.prototype.networkLines = function(rail) {
     var network = networkOf({width: map.width, height: map.height,
       value: function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); },
       level: function(i) { return levels ? levels[i] || 1 : 1; }}, rail);
-    this[cache] = {edits: this._edits, lines: network.stretches.map(function(stretch) { return smoothLine(stretch.points); }),
-                   levels: network.stretches.map(function(stretch) { return stretch.level; })};
+    // The lines as the 3D view draws them, one where a road runs on through a junction (src/roadGeometry.ts roadLines),
+    // so a building stands against the road it sees
+    var drawn = roadLines(network).lines;
+    this[cache] = {edits: this._edits, lines: drawn.map(function(line) { return line.points; }),
+                   levels: drawn.map(function(line) { return line.level; })};
   }
   return this[cache].lines;
 };
@@ -1609,7 +1631,8 @@ Game.prototype.networkLines = function(rail) {
 // ให้ขยับได้ ทีละช่อง ทุก object"): [x, z, rotation] in world units, or null
 Game.prototype.buildingPose = function(size, x, y) {
   var map = this.gameMap;
-  if (!map.cellZones || !(size >= 3) || typeof this.cityView.pointAt !== 'function')
+  // Every tool that puts a building down, a one-tile one too (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน")
+  if (!map.cellZones || !this.placesBuilding() || typeof this.cityView.pointAt !== 'function')
     return null;
   var point = this.cityView.pointAt(x, y);
   if (point === null)

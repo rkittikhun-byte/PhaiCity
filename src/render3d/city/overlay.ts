@@ -148,11 +148,14 @@ export class ToolOutline {
       if(hover.line){const dashes=new Mesh(centreDashes(tiles,.62,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(dashes);}
       return;
     }
-    const x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5,shrink=this.scaledBuildings&&hover.size>=3?BUILDING_SCALE:1;
+    const x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5;
+    // A building's outline at the size it is drawn (owner, 15 Oct 2026: "ขนาดของ rect ของ tools ก่อนที่จะวาง ต้องเท่ากับ
+    // ขนาดของ tool นั้นๆ และ snap กับถนน")
+    const shrink=hover.building?(hover.fill??1):this.scaledBuildings&&hover.size>=3?BUILDING_SCALE:1;
     const w=(r.x1-r.x0+1)*10*shrink,d=(r.y1-r.y0+1)*10*shrink;
     // A building of 3 x 3 and up beside a road: turned to face it and stood against its edge, at the size it is drawn
     // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
-    const size=hover.size,near=size>=3&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
+    const size=hover.size,near=(hover.building??size>=3)&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
     if(near||hover.pose){
       // The building the tool would put down, stood against its road as the city view will draw it (placement.ts)
       const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!);

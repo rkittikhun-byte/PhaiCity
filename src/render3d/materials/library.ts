@@ -488,7 +488,8 @@ export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMateri
 export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
   return finishedMaterial(`city-tool-${fill}`, 'sign_thai', color, material => {
     material.userData.keepColorMap = true; material.map = null;
-    material.transparent = fill; material.opacity = fill ? 0.10 : 0.95;
+    // A fill strong enough to read on any ground (owner, 15 Oct 2026: "rect ก่อนจะวางให้สีเข้มขึ้น")
+    material.transparent = fill; material.opacity = fill ? 0.45 : 0.95;
     material.depthWrite = false; material.roughness = 1;
     material.polygonOffset = true; material.polygonOffsetFactor = -2;
     material.polygonOffsetUnits = -2;

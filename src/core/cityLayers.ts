@@ -132,7 +132,7 @@ function posesStanding(map: Legacy): Record<string, [number, number, number]> | 
   const kept: Record<string, [number, number, number]> = {};
   for (const [index, pose] of Object.entries(map.buildingPoses || {})) {
     const i = Number(index), x = i % map.width, y = (i - x) / map.width;
-    if (map.testBounds(x, y) && map.getTile(x, y).isZone()) kept[index] = pose as [number, number, number];
+    if (map.testBounds(x, y) && (map.getTile(x, y).isZone() || map.getTileValue(x, y) >= 240)) kept[index] = pose as [number, number, number];
   }
   return Object.keys(kept).length ? kept : undefined;
 }

@@ -31,6 +31,7 @@ import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
 import { UndoHistory } from "./undoHistory";
+import { placesBuilding } from "./gameTools.js";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
@@ -389,7 +390,7 @@ export class CityCommands {
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
-        if (applied && command.pose && (tool.size ?? 1) >= 3) city.setBuildingPose?.(command.x, command.y, command.pose);
+        if (applied && command.pose && placesBuilding(command.tool, tool)) city.setBuildingPose?.(command.x, command.y, command.pose);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }

@@ -48,6 +48,10 @@ export interface ToolHover {
   controls?: readonly TilePoint[] | null;
   /** A building slid along its road (src/game.js buildingPose): where it would stand, x and z in world units, and its turn */
   pose?: readonly [number, number, number] | null;
+  /** The tool puts a building down, which stands against its road (src/gameTools.js placesBuilding) ... */
+  building?: boolean;
+  /** ... drawn this share of its tiles where no road is near (1, or BUILDING_SCALE on a city map) */
+  fill?: number;
 }
 
 export interface CityView {

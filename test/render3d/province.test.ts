@@ -144,6 +144,16 @@ describe('Province ground and appearance',()=>{
       expect(new Euler().setFromQuaternion(rotation).y).toBeCloseTo(turn);
     }finally{surface.dispose();}
   });
+  it('every building stands against its road, a one-tile one and a power plant too, but not a power line (owner: "tool ทุก tool จะต้อง snap กับ ถนน")',()=>{
+    const s=new TileSnapshot(9,9);s.realUnits=realUnits(16);s.curves=true;
+    // A road along x = 45 (world units), running north-south
+    s.roadSnap=(x,z,reach)=>Math.abs(x-45)<=reach?{x:45,z,tx:0,tz:1,reach:1.5}:null;
+    s.values[4*9+3]=1020;s.values[4*9+6]=210;
+    const tower=s.placement(4*9+3,'central')!,wire=s.placement(4*9+6,'central')!;
+    expect(tower).toBeInstanceOf(RoadsidePlacement);expect(tower.fill).toBeCloseTo(BUILDING_SCALE);
+    expect(Math.abs(tower.x-45)).toBeCloseTo(1.5+.6+5*BUILDING_SCALE);
+    expect(wire).not.toBeInstanceOf(RoadsidePlacement);
+  });
   it('on a real-scale city map things are drawn at their real size, and roads and the ground still fill their tiles',()=>{
     // A 16 m tile is drawn 10 units: a water tower's model at 10/16, a laterite road 5 m wide (owner, 15 Oct 2026)
     const s=new TileSnapshot(5,5);s.values[12]=1020;s.values[6]=66;s.realUnits=realUnits(16);

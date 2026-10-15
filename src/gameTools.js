@@ -157,4 +157,13 @@ function GameTools(map, rules) {
 }
 
 
-export { GameTools };
+// PhaiCity: the tools that put a building down, which stands against its road (owner, 15 Oct 2026: "จงจำไว้ว่า tool ทุก
+// tool จะต้อง snap กับ ถนน"): every building tool but the zones (which grow their own buildings) and the park (trees)
+var ZONE_TOOLS = ['residential', 'commercial', 'industrial'];
+var placesBuilding = function(name, tool) {
+  return ZONE_TOOLS.indexOf(name) === -1 &&
+    (tool instanceof BuildingTool || tool instanceof WaterTowerTool || tool instanceof BusStopTool);
+};
+
+
+export { GameTools, placesBuilding };

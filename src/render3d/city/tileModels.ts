@@ -259,7 +259,10 @@ export class TileSnapshot implements CityMapReader {
    */
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
-    if(size<3||['residential','commercial','industrial','terrain','road','rail','power','shore','debug'].includes(p.kind))return p;
+    // Every building (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน"): a one-tile one too, and a power plant;
+    // not zones, which grow their own, nor the ground, roads, railways, power lines and shores
+    if(['residential','commercial','industrial','terrain','road','rail','shore','debug','veg','park'].includes(p.kind)||
+      size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
     // Where the player slid it along its road, kept with the city (src/game.js buildingPose)
     const kept=(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
     if(kept)return p.againstRoad(kept[0],kept[1],kept[2],BUILDING_SCALE);
