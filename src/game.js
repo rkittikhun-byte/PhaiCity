@@ -24,6 +24,8 @@ import { showDemandAndPeople, showServices, showTourism, showWaste } from './cit
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
+import { grownFrame, reframeSave } from './cityFrame.ts';
+import { DISTRICT_BLOCK, framePreset, freshFrame } from './geo/districtFrame.ts';
 import { Config } from './config.js';
 import { CongratsWindow } from './congratsWindow.js';
 import { DebugWindow } from './debugWindow.js';
@@ -138,6 +140,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     // Province maps are larger than the classic 120x100, so size the map from the save itself
     this.gameMap = new GameMap(gameMap.width || 120, gameMap.height || 100);
     savedGame = gameMap;
+    // What a saved city's map file gives it that saves do not keep (src/splashScreen.js savedCityHeights,
+    // loadProvinceBackdrop): where it lies on the earth and in its district, the province round it, its land cover
+    // and its streets' names
+    ['mapCenter', 'districtPlace', 'provinceBackdrop', 'landCover', 'roadNames', 'streetNameList'].forEach(function(key) {
+      if (gameMap[key] !== undefined)
+        this.gameMap[key] = gameMap[key];
+    }, this);
   }
 
   // Which province and online world this city belongs to (both null for offline random maps)
@@ -525,6 +534,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     save: this.save.bind(this),
     shouldAutosave: function() { return self.provinceId !== null || self.cityId !== null; }
   }, {onSaved: showSavedNote, onFull: showFullNote});
+  // A city whose land already reaches near the edge of its district's frame opens more of the district at once
+  // (docs/DISTRICT_FRAME.md)
+  this.growFrame();
 
   // The 3D view's turn and reset buttons, and sliding the city with the mouse when no tool is in hand
   // (src/viewControls.ts), with a note on the mouse the first time
@@ -640,17 +652,22 @@ Game.prototype.inspectAtPixel = function(x, y) {
 };
 
 
-// Saves this city in its own slot. Returns false when the browser's storage is full.
-Game.prototype.save = function() {
-  // The city itself from the core (src/core/cityCore.ts save): its records, objects, tools and simulation; then what
-  // only the game keeps
-  var saveData = Object.assign(this.core.save(), {
+// The city as a save keeps it: from the core (src/core/cityCore.ts save) its records, objects, tools and simulation;
+// then what only the game keeps
+Game.prototype.saveData = function() {
+  return Object.assign(this.core.save(), {
     name: this.name, everClicked: this.everClicked,
     provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
     rulerRank: this.rulerRank,
     goals: this.rulerGoals.state(), news: this.newsLog.items()
   });
+};
 
+
+// Saves this city in its own slot (saveData: the city to keep, this one as it is by default). Returns false when the
+// browser's storage is full.
+Game.prototype.save = function(saveData) {
+  saveData = saveData || this.saveData();
   var date = this.simulation.getDate();
   try {
     this.cityId = saveCity(saveData, {
@@ -665,6 +682,40 @@ Game.prototype.save = function() {
       return false;
     throw e;
   }
+};
+
+
+// When the city owns land near the edge of the frame of its district it plays, the frame grows (src/cityFrame.ts,
+// docs/DISTRICT_FRAME.md): the city is saved moved into the bigger frame, its new land from the district's map, and
+// opens again on it (index.html?city=<id>), as a city opens from My cities. Nothing on a map that is not a frame.
+Game.prototype.growFrame = function() {
+  var map = this.gameMap, place = map.districtPlace;
+  if (!map.frame || !place || !map.landBlocks || !this.districtId || this.growingFrame)
+    return;
+  var to = grownFrame(map.frame, map.landBlocks, place, DISTRICT_BLOCK);
+  if (to === null)
+    return;
+  this.growingFrame = true;
+  showCornerNote(t('land.note.opening'), 20000);
+  var self = this, from = map.frame;
+  fetch('data/maps/district/' + this.districtId + '.json').then(function(response) {
+    if (!response.ok)
+      throw new Error(response.status + ' ' + response.statusText);
+    return response.json();
+  }).then(function(whole) {
+    return framePreset(whole, to);
+  }).then(function(framed) {
+    var moved = reframeSave(self.saveData(), from, to, freshFrame(framed), DISTRICT_BLOCK);
+    // The autosave must not put the old frame back as the page goes
+    self.autosave.stop();
+    if (!self.save(moved))
+      throw new Error('storage full');
+    window.location.assign(window.location.pathname + '?city=' + encodeURIComponent(self.cityId));
+  }).catch(function(error) {
+    self.growingFrame = false;
+    console.warn('Could not open more of the district: ' + error.message);
+    showCornerNote(t('land.note.open_failed', {reason: error.message}), 8000);
+  });
 };
 
 
@@ -866,6 +917,9 @@ Game.prototype.applyCommand = function(command) {
   var outcome = this.core.apply(command);
   if (outcome.accepted)
     this._edits = (this._edits || 0) + 1;
+  // Land bought near the edge of the frame of its district the city plays opens more of it (docs/DISTRICT_FRAME.md)
+  if (outcome.accepted && command.type === 'land')
+    this.growFrame();
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
   if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL, NEEDS_RAIL, ONE_HSR,

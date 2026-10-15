@@ -204,6 +204,8 @@ export const STRINGS: Record<string, Translation> = {
   "land.note.needs_rank": { en: "More land needs the rank {rank}", th: "ซื้อที่ดินเพิ่มต้องได้ยศ{rank}ก่อน" },
   "land.note.no_money": { en: "This block costs {price}", th: "บล็อกนี้ราคา {price} เงินไม่พอ" },
   "land.note.all_open": { en: "All this map's land is the city's", th: "ที่ดินทั้งแผนที่เป็นของเมืองอยู่แล้ว" },
+  "land.note.opening": { en: "Opening more of the district…", th: "กำลังเปิดพื้นที่อำเภอเพิ่ม…" },
+  "land.note.open_failed": { en: "More of the district could not be opened: {reason}", th: "เปิดพื้นที่อำเภอเพิ่มไม่ได้: {reason}" },
   "tool.zone_residential": { en: "Paint Homes {price}", th: "ระบายเขตที่อยู่อาศัย {price}" },
   "tool.zone_commercial": { en: "Paint Shops {price}", th: "ระบายเขตพาณิชย์ {price}" },
   "tool.zone_industrial": { en: "Paint Industry {price}", th: "ระบายเขตอุตสาหกรรม {price}" },

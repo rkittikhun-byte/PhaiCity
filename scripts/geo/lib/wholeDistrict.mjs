@@ -22,14 +22,20 @@ const TOUCH_PROVINCE_M = 2500;
 const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320;
 
-/** The grid of a district's map: centred on its town, moved in as far as needed to stay within the district's box */
-export function districtGrid(bbox, town) {
+/** A district's map is cut into land blocks of this many tiles (src/landBlocks.ts CITY_BLOCK_SIZE), so its sides are
+ * whole blocks */
+export const DISTRICT_BLOCK = 32;
+
+/**
+ * The grid of a district's map: the whole district (owner, 15 Oct 2026, docs/DISTRICT_FRAME.md), its box in whole
+ * blocks round the box's middle. The game plays a frame of it round the town and opens more as the city buys land.
+ */
+export function districtGrid(bbox) {
   const [west, south, east, north] = bbox;
-  const halfM = DISTRICT_SIZE * DISTRICT_TILE_M / 2;
-  const halfLat = halfM / M_PER_DEG_LAT, halfLon = halfM / (M_PER_DEG_LON * Math.cos(town.lat * Math.PI / 180));
-  const within = (value, low, high) => (low > high ? (low + high) / 2 : Math.max(low, Math.min(high, value)));
-  const center = { lat: within(town.lat, south + halfLat, north - halfLat), lon: within(town.lon, west + halfLon, east - halfLon) };
-  return makeGrid({ center, width: DISTRICT_SIZE, height: DISTRICT_SIZE, tileSizeM: DISTRICT_TILE_M });
+  const center = { lat: (south + north) / 2, lon: (west + east) / 2 };
+  const widthM = (east - west) * M_PER_DEG_LON * Math.cos(center.lat * Math.PI / 180), heightM = (north - south) * M_PER_DEG_LAT;
+  const tiles = (metres) => Math.max(DISTRICT_SIZE, Math.ceil(metres / DISTRICT_TILE_M / DISTRICT_BLOCK) * DISTRICT_BLOCK);
+  return makeGrid({ center, width: tiles(widthM), height: tiles(heightM), tileSizeM: DISTRICT_TILE_M });
 }
 
 /** The nearest two vertices of two sets of rings are closer than limitM (a cheap test of touching outlines) */

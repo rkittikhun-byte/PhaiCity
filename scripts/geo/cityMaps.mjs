@@ -144,7 +144,7 @@ async function main() {
     // A district (owner, 14 Oct 2026): its outline on 16 m tiles round its town, one road towards each neighbour; the
     // road graph reaches well beyond, to find the way to each neighbour's town
     const whole = Boolean(district && options.whole && options.db);
-    const grid = whole ? districtGrid(shape.bbox, town)
+    const grid = whole ? districtGrid(shape.bbox)
       : makeGrid({ center: { lat: town.lat, lon: town.lon }, width: options.size, height: options.size, tileSizeM: CITY_TILE_M });
     const fetchBox = whole ? grownBox(shape.bbox, 0.25) : (() => {
       const half = options.size * CITY_TILE_M / 2 + 500;

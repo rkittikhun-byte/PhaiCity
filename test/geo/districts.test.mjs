@@ -30,9 +30,11 @@ test('every listed district has a map of the whole district, of the province it 
       const map = readJson(path.join(MAPS_DIR, 'district', `${district.id}.json`));
       assert.equal(map.provinceId, provinceId);
       assert.equal(map.districtId, district.id);
-      // The whole district (owner, 14 Oct 2026), its tiles 16 m or coarser to fit (scripts/geo/lib/wholeDistrict.mjs)
+      // The whole district at 16 m a tile, in whole land blocks of 32 tiles (owner, 15 Oct 2026; the game plays a frame
+      // of it, docs/DISTRICT_FRAME.md; scripts/geo/lib/wholeDistrict.mjs)
       assert.equal(map.scale, 'district');
-      assert.ok(map.tileSizeM >= 16 && map.width <= 480 && map.height <= 480, `${district.id} fits`);
+      assert.ok(map.tileSizeM === 16 && map.width % 32 === 0 && map.height % 32 === 0 && map.width >= 480 && map.height >= 480,
+        `${district.id} is whole blocks`);
       assert.equal(map.paintedZones, true);
       assert.ok(Array.isArray(map.neighbours) && map.neighbours.length > 0, `${district.id} has neighbours`);
       assert.ok(map.exits.some((exit) => exit.kind === 'road'), `${district.id} has a road out`);

@@ -263,6 +263,8 @@
 | `land.note.needs_rank` | `src/game.js` | — | `More land needs the rank {rank}` | `ซื้อที่ดินเพิ่มต้องได้ยศ{rank}ก่อน` |  |
 | `land.note.no_money` | `src/game.js` | — | `This block costs {price}` | `บล็อกนี้ราคา {price} เงินไม่พอ` |  |
 | `land.note.all_open` | `src/game.js` | — | `All this map's land is the city's` | `ที่ดินทั้งแผนที่เป็นของเมืองอยู่แล้ว` |  |
+| `land.note.opening` | `src/game.js` | — | `Opening more of the district…` | `กำลังเปิดพื้นที่อำเภอเพิ่ม…` | ที่ดินที่ซื้อเข้าใกล้ขอบพื้นที่เล่น (docs/DISTRICT_FRAME.md) |
+| `land.note.open_failed` | `src/game.js` | — | `More of the district could not be opened: {reason}` | `เปิดพื้นที่อำเภอเพิ่มไม่ได้: {reason}` |  |
 | `tool.zone_residential` | `src/toolLevels.ts` | — | `Paint Homes {price}` | `ระบายเขตที่อยู่อาศัย {price}` | ระบายเขตทีละแปลง 16 ม. บนแผนที่เมือง (Claude Code 13 ต.ค. 2026, docs/ZONE_PAINT.md) |
 | `tool.zone_commercial` | `src/toolLevels.ts` | — | `Paint Shops {price}` | `ระบายเขตพาณิชย์ {price}` |  |
 | `tool.zone_industrial` | `src/toolLevels.ts` | — | `Paint Industry {price}` | `ระบายเขตอุตสาหกรรม {price}` |  |

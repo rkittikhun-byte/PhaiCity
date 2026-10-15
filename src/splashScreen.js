@@ -19,6 +19,8 @@ import { loadCityView3D } from './cityView3dLoader.ts';
 import { showCornerNote } from './cornerNote.ts';
 import { Game } from './game.js';
 import { decodePresetCells, decodePresetHeights, decodePresetLayer, decodePresetLayerWide } from './geo/presetMap.ts';
+import { firstFrame } from './cityFrame.ts';
+import { DISTRICT_BLOCK, framePreset, isDistrictMap, presetHeights } from './geo/districtFrame.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
 import { t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
@@ -137,7 +139,11 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 var startProvince = function(provinceId, cityName, difficulty, districtId) {
   var self = this;
 
-  fetchJson(districtId ? districtUrl(districtId) : mapUrl(provinceId, cityScale(provinceId))).then(function(preset) {
+  fetchJson(districtId ? districtUrl(districtId) : mapUrl(provinceId, cityScale(provinceId))).then(function(whole) {
+    // A district's map is the whole district; the city plays a frame of it round its town, which grows as it buys
+    // land (docs/DISTRICT_FRAME.md)
+    return isDistrictMap(whole) ? framePreset(whole, firstFrame(whole, whole.town, DISTRICT_BLOCK)) : whole;
+  }).then(function(preset) {
     var layer = function(encoded) {
       return encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null;
     };
@@ -152,6 +158,9 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     map.tileSizeM = preset.tileSizeM || null;
     // Where the map lies on the earth, to lay the province round a district's map (loadProvinceBackdrop)
     map.mapCenter = preset.center || null;
+    // ... and, on a district's map, the frame of it the city plays and the district's own size and middle
+    map.frame = preset.frame || null;
+    map.districtPlace = preset.district || null;
     // A whole district's map is painted a tile at a time too (owner, 14 Oct 2026; docs/ZONE_PAINT.md), or a cell at a
     // time along its roads (src/zoneCells.ts; Mueang Khon Kaen first)
     map.paintedZones = preset.paintedZones === true;
@@ -161,7 +170,7 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     streetNamesFrom(map, preset);
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);
-    return decodePresetHeights(preset).then(function(heights) {
+    return presetHeights(preset).then(function(heights) {
       map.heights = heights;
       launch.call(self, map, difficulty, cityName);
     });
@@ -267,13 +276,16 @@ var savedCityHeights = function(map) {
       return Promise.resolve();
     map.tileSizeM = preset.tileSizeM || null;
     map.mapCenter = preset.center || null;
+    map.districtPlace = preset.district || null;
     // ... and its streets' real names, which saves do not keep either
     streetNamesFrom(map, preset);
-    return decodePresetHeights(preset).then(function(heights) { map.heights = heights; });
+    return presetHeights(preset).then(function(heights) { map.heights = heights; });
   };
-  // ... and a district's city from its district's map
+  // ... and a district's city from its district's map, cut to the frame it plays (docs/DISTRICT_FRAME.md)
   if (map.districtId) {
-    return fetchJson(districtUrl(map.districtId)).then(heightsFrom).catch(function(error) {
+    return fetchJson(districtUrl(map.districtId)).then(function(whole) {
+      return map.frame && isDistrictMap(whole) ? framePreset(whole, map.frame) : whole;
+    }).then(heightsFrom).catch(function(error) {
       console.warn('No heights for ' + map.districtId + ': ' + error.message);
     });
   }
