@@ -1,0 +1,13 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <g stroke="#1d2925" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path fill="#fff4d6" d="M13 5h22l11 38H2z"/>
+    <path fill="#3a3a3a" d="M13 5h3L5 43h-3zM35 5h-3L43 43h3z"/>
+    <path fill="none" stroke="#3a3a3a" stroke-width="2" stroke-dasharray="4 3" d="M18.0 8 11.3 41"/>
+    <path fill="none" stroke="#3a3a3a" stroke-width="2" stroke-dasharray="4 3" d="M21.0 8 17.7 41"/>
+    <path fill="none" stroke="#3a3a3a" stroke-width="2" d="M24.0 8 24.0 41"/>
+    <path fill="none" stroke="#3a3a3a" stroke-width="2" stroke-dasharray="4 3" d="M27.0 8 30.3 41"/>
+    <path fill="none" stroke="#3a3a3a" stroke-width="2" stroke-dasharray="4 3" d="M30.0 8 36.7 41"/>
+  </g>
+</svg>
