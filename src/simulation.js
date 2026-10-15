@@ -621,10 +621,12 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var green = hasPolicy(this._map, 'green_zoning') ? GREEN_LAND_VALUE : 0;
   // ... and the metro near its stations (src/transit.ts)
   var transit = this._transit;
+  // ... the house's reach in tiles a step of distance, longer on a map at real scale
+  var step = BlockMapUtils.nearnessStep(this._map);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
                                               function(x, y) {
-                                                return (house ? houseLandValue(house, x, y) : 0) + green +
+                                                return (house ? houseLandValue(house, x, y, step) : 0) + green +
                                                        transit.landValueAt(x, y);
                                               });
 };

@@ -6,6 +6,7 @@
 
 import { BlockMapUtils } from "../src/blockMapUtils.js";
 import { Budget, TAX_YIELD } from "../src/budget.js";
+import { houseLandValue } from "../src/rulerHouse";
 import { commandProblem } from "../src/cityCommands";
 import { GameMap } from "../src/gameMap.js";
 import { hasKey } from "../src/i18n/index";
@@ -115,5 +116,39 @@ describe("land value for the taxes", () => {
     };
     expect(average(true)).toBe(0);
     expect(average(false)).toBeGreaterThan(0);
+  });
+
+  // Owner, 16 Oct 2026: "แก้ราคาที่ดินต่ำ ให้บ้านกับร้านค้าโตได้สูงขึ้น"
+  /** The land value of a road tile 30 tiles east of the centre, on a map of tileSizeM metres a tile (null: original) */
+  const valueAt = (tileSizeM: number | null, cover: number) => {
+    const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(80, 40);
+    map.tileSizeM = tileSizeM;
+    for (let x = 0; x < 80; x++) map.setTile(x, 20, 66, 0);
+    // What covers the open land round it (scripts/geo/lib/landCover.mjs COVER: 1 paddy, 6 village, 7 town)
+    map.landCover = new Uint8Array(80 * 40).fill(cover);
+    const sim: any = new (Simulation as any)(map, 0, 3, null);
+    // The simulation starts its centre in the middle of the map; this one stands at the west end
+    map.cityCentreX = 10; map.cityCentreY = 20;
+    BlockMapUtils.pollutionTerrainLandValueScan(map, sim._census, sim.blockMaps, 1);
+    return sim.blockMaps.landValueMap.worldGet(40, 20);
+  };
+
+  test("on a city map the land is worth less only some 3 km from the centre, not 1 km", () => {
+    expect(BlockMapUtils.nearnessStep({ tileSizeM: 16 })).toBe(3);
+    expect(BlockMapUtils.nearnessStep({ tileSizeM: 600 })).toBe(1);
+    expect(BlockMapUtils.nearnessStep({})).toBe(1);
+    expect(valueAt(16, 7)).toBeGreaterThan(valueAt(null, 7) + 30);
+  });
+
+  test("paddy, fields, orchards, grass and wetland round the land are open land, as woods are; a town is not", () => {
+    expect(valueAt(16, 1)).toBeGreaterThan(valueAt(16, 7) + 30);
+    expect(valueAt(16, 6)).toBe(valueAt(16, 7)); // a village is built land too
+  });
+
+  test("the ruler's house raises the land three times as far on a city map", () => {
+    const house = { x: 0, y: 0, level: 2, wings: [] };
+    expect(houseLandValue(house, 10, 0)).toBe(0);
+    expect(houseLandValue(house, 10, 0, 3)).toBeGreaterThan(0);
+    expect(houseLandValue(house, 0, 0, 3)).toBe(houseLandValue(house, 0, 0));
   });
 });

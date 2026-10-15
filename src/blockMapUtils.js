@@ -24,6 +24,10 @@ import * as TileValues from "./tileValues.ts";
 var SMOOTH_NEIGHBOURS_THEN_BLOCK = 0;
 var SMOOTH_ALL_THEN_CLAMP = 1;
 
+// PhaiCity: the land covers of a real map (gameMap.landCover, scripts/geo/lib/landCover.mjs COVER) that are open land
+// for the land value: paddy, field, orchard, grass and wetland, but not a village or the town
+var OPEN_COVER = [false, true, true, true, true, true, false, false];
+
 
 // Smooth the map src into dest. The way in which the map is smoothed depends on the value of smoothStyle.
 // The meanings are as follows:
@@ -163,6 +167,17 @@ var getPollutionValue = function(tileValue, industryPollution, shopRubbish, plan
 };
 
 
+// PhaiCity: on a map at real scale (16 m tiles, docs/CITY_SCALE.md) the distance counts in steps of about this many metres,
+// an original tile's worth, so a town's land is worth less only some 3 km from its centre rather than 1 km (owner,
+// 15 Oct 2026: "แก้ราคาที่ดินต่ำ ให้บ้านกับร้านค้าโตได้สูงขึ้น": the middle of a town of 5,000 counted as its edge)
+var NEARNESS_STEP_M = 48;
+var REAL_SCALE_TILE_M = 40;
+var centreDistanceStep = function(map) {
+  var metres = map.tileSizeM;
+  return metres && metres <= REAL_SCALE_TILE_M ? Math.max(1, Math.round(NEARNESS_STEP_M / metres)) : 1;
+};
+
+
 // Compute the Manhattan distance of the given point from the city centre, and force into the range 0-64
 var getCityCentreDistance = function(map, x, y) {
   var xDis, yDis;
@@ -177,7 +192,7 @@ var getCityCentreDistance = function(map, x, y) {
   else
     yDis = map.cityCentreY - y;
 
-  return Math.min(xDis + yDis, 64);
+  return Math.min(Math.floor((xDis + yDis) / centreDistanceStep(map)), 64);
 };
 
 
@@ -197,6 +212,7 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
                                              extraPollution, extraLandValue) {
   if (industryPollution === undefined)
     industryPollution = 1;
+  var landCover = map.landCover || null;
 
   // We record raw pollution readings for each tile into tempMap1, and then use tempMap2 and tempMap1 to smooth
   // out the pollution in order to construct the new values for the populationDensityMap
@@ -235,8 +251,14 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
 
           var tileValue = map.getTileValue(mapX, mapY);
 
-          if (tileValue === TileValues.DIRT)
+          if (tileValue === TileValues.DIRT) {
+            // PhaiCity: on a real map, bare land the map knows is paddy, field, orchard, grass or wetland is open land
+            // as woods and water are, and makes the land beside it worth more (owner, 15 Oct 2026: "แก้ราคาที่ดินต่ำ
+            // ให้บ้านกับร้านค้าโตได้สูงขึ้น": round Khon Kaen it was all plain ground, so no block had any of it)
+            if (landCover && OPEN_COVER[landCover[mapY * map.width + mapX]])
+              tempMap3.worldSet(mapX, mapY, tempMap3.worldGet(mapX, mapY) + 15);
             continue;
+          }
 
           if (tileValue < TileValues.RUBBLE) {
             // Undeveloped land: record in tempMap3. Each undeveloped piece of land scores 15.
@@ -524,7 +546,9 @@ var BlockMapUtils = {
   neutraliseRateOfGrowthMap: neutraliseRateOfGrowthMap,
   neutraliseTrafficMap: neutraliseTrafficMap,
   pollutionTerrainLandValueScan: pollutionTerrainLandValueScan,
-  populationDensityScan: populationDensityScan
+  populationDensityScan: populationDensityScan,
+  // PhaiCity: the tiles in one step of distance from the centre on this map (1, or 3 on a city map at real scale)
+  nearnessStep: centreDistanceStep
 };
 
 

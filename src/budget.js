@@ -31,7 +31,7 @@ var railMaintenanceCost = 2;
 // bring, six times the original game's. A town here also pays for its power plants' fuel, its schools, its hospitals,
 // the ruler's house and its rubbish, which the original never charged; at the original's taxes a sensibly built town
 // of 2,000 to 6,000 people lost ฿300–700 a year (src/core/autoPlayer.ts, test/play/khonKaen.ts)
-var TAX_YIELD = 6;
+var TAX_YIELD = 4;
 
 
 var Budget = EventEmitter(function() {

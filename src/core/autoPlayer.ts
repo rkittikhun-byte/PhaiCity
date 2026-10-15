@@ -8,6 +8,7 @@
 // plant and water works beside the roads near the town, zones painted along the roads nearest the town (homes, shops
 // and factories mixed), then each year the services its people ask for and more zones while money allows. No DOM.
 
+import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
 import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
 import { blockColumns, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
@@ -54,6 +55,11 @@ export interface PlotLevelReport {
   landValue: number;
   pollution: number;
   score: number | null;
+  /** The parts of their land value (src/blockMapUtils.js): nearness to the city's centre, open land round them, and
+   *  the ruler's house and the rest; pollution and crime take away */
+  nearness: number;
+  openLand: number;
+  crime: number;
   /** Shares, 0–1: no power; thirsty (no water, needed to grow past a house); pollution over 128 (homes cannot rise);
    *  too few people round them to rise (homes); the land worth too little for a bigger shop */
   unpowered: number;
@@ -69,16 +75,23 @@ export interface PlotLevelReport {
 export function plotReport(core: CityCore): PlotLevelReport[] {
   const map = core.map, sim = core.simulation, bm = sim.blockMaps, water = sim._waterManager?.view;
   const groups = new Map<string, { kind: string; level: number; n: number; lv: number; pol: number; score: number;
+    near: number; open: number; crime: number;
     unpowered: number; thirsty: number; unpiped: number; polluted: number; quiet: number; capped: number }>();
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const plot = plotOf(map, x, y);
       if (!plot) continue;
       const key = plot.kind + plot.level;
-      const g = groups.get(key) ?? { kind: plot.kind, level: plot.level, n: 0, lv: 0, pol: 0, score: 0, unpowered: 0,
+      const g = groups.get(key) ?? { kind: plot.kind, level: plot.level, n: 0, lv: 0, pol: 0, score: 0, near: 0, open: 0, crime: 0, unpowered: 0,
         thirsty: 0, unpiped: 0, polluted: 0, quiet: 0, capped: 0 };
       const lv = bm.landValueMap.worldGet(x, y), pol = bm.pollutionDensityMap.worldGet(x, y);
       g.n++; g.lv += lv; g.pol += pol;
+      const bx = x & ~1, by = y & ~1;
+      const step = BlockMapUtils.nearnessStep(map);
+      const far = Math.min(Math.floor((Math.abs(bx - map.cityCentreX) + Math.abs(by - map.cityCentreY)) / step), 64);
+      g.near += (34 - Math.floor(far / 2)) * 4;
+      g.open += bm.terrainDensityMap.worldGet(x, y);
+      if (bm.crimeRateMap.worldGet(x, y) > 190) g.crime += 20;
       if (!map.getTile(x, y).isPowered()) g.unpowered++;
       if (water && water.zoneWater(x, y) === 3) {
         g.thirsty++;
@@ -97,6 +110,7 @@ export function plotReport(core: CityCore): PlotLevelReport[] {
   }
   return [...groups.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.level - b.level).map((g) => ({
     kind: g.kind, level: g.level, count: g.n, landValue: Math.round(g.lv / g.n), pollution: Math.round(g.pol / g.n),
+    nearness: Math.round(g.near / g.n), openLand: Math.round(g.open / g.n), crime: Math.round(g.crime / g.n),
     score: g.kind === "residential" ? Math.round(g.score / g.n) : null, unpowered: g.unpowered / g.n,
     thirsty: g.thirsty / g.n, unpiped: g.unpiped / g.n, polluted: g.polluted / g.n, tooQuiet: g.quiet / g.n, landCaps: g.capped / g.n,
   }));
@@ -141,6 +155,10 @@ const SERVICES: ReadonlyArray<[number, string]> = [[300, "police_box"], [300, "f
   [3000, "ruler_house_upgrade"], [3000, "secondary_school"], [4000, "community_hospital"], [5000, "police_large"],
   [5000, "fire_centre"]];
 
+/** A bus for this many people */
+const BUS_PEOPLE = 1500;
+/** One home tile in this many is a park */
+const PARK_EVERY = 8;
 /** Another power plant goes up when the city uses this share of its plants' power */
 const MORE_POWER_AT = 0.85;
 /** ... and another water works when this share of its buildings went without water */
@@ -193,6 +211,12 @@ export class AutoPlayer {
       }
       this.next++;
     }
+    // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry less
+    // traffic and its smoke (src/transit.ts, src/busStopTool.ts)
+    while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {
+      const n = core.map.buses?.length ?? 0;
+      if (!this.place("bus_stop", x + ((n * 5) % 13) - 6, y + ((n * 3) % 13) - 6, 12)) break;
+    }
     // A power plant more when the city uses nearly all its power (src/powerManager.js load)
     const load = sim._powerManager?.load ?? 0;
     if (load >= MORE_POWER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) this.place("coal", x + PLANT_FROM, y + 8);
@@ -238,7 +262,7 @@ export class AutoPlayer {
   private failures = new Map<string, number>();
 
   /** A tool at (x, y); true when it built, counting what it cost */
-  private apply(tool: string, x: number, y: number): boolean {
+  private apply(tool: string, x: number, y: number, quiet = false): boolean {
     const budget = this.core.simulation.budget, before = budget.totalFunds;
     const outcome = this.core.apply({ type: "tool", tool: tool as never, x, y });
     const cost = before - budget.totalFunds;
@@ -248,7 +272,7 @@ export class AutoPlayer {
       return false;
     }
     this.built += cost;
-    this.note(`${tool} at ${x},${y} ฿${cost}`);
+    if (!quiet) this.note(`${tool} at ${x},${y} ฿${cost}`);
     return true;
   }
 
@@ -322,9 +346,15 @@ export class AutoPlayer {
       }
       return (Math.floor(c.x / 10) * 7 + Math.floor(c.z / 10) * 13) % 4 === 0 ? "commercial" : "residential";
     };
+    // One home tile in PARK_EVERY is left for a park, which raises the land's value round it (src/blockMapUtils.js)
+    const tileOf = (c: { x: number; z: number }) => ({ x: Math.floor(c.x / 10), y: Math.floor(c.z / 10) });
+    const isPark = (c: { x: number; z: number }) => {
+      const { x, y } = tileOf(c);
+      return zoneOf(c) === "residential" && (x * 3 + y * 7 + 1) % PARK_EVERY === 0;
+    };
     let painted = 0;
     for (const zone of ["residential", "commercial", "industrial"] as const) {
-      const keys = free.filter((c) => zoneOf(c) === zone).map((c) => c.key);
+      const keys = free.filter((c) => zoneOf(c) === zone && !isPark(c)).map((c) => c.key);
       for (let i = 0; i < keys.length; i += 4000) {
         const before = budget.totalFunds;
         if (core.apply({ type: "zoneCells", zone, cells: keys.slice(i, i + 4000) }).accepted) {
@@ -333,7 +363,12 @@ export class AutoPlayer {
         }
       }
     }
-    this.note(`painted ${painted} cells`);
+    const parks = new Map<number, { x: number; y: number }>();
+    for (const c of free) if (isPark(c)) { const t = tileOf(c); parks.set(t.y * map.width + t.x, t); }
+    let parked = 0;
+    this.failures.clear();
+    for (const { x, y } of parks.values()) if (this.apply("park", x, y, true)) parked++;
+    this.note(`painted ${painted} cells, ${parked} parks` + (parks.size && !parked ? ` (${[...this.failures].map(([w, n]) => `${w} ×${n}`).join(", ")})` : ""));
     return painted;
   }
 

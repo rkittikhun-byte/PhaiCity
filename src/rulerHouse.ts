@@ -252,11 +252,12 @@ export function houseProblem(map: HouseMap | undefined, tool: string, rank: numb
 
 /**
  * Land value the house adds at (x, y): more at a higher level, less further out (src/blockMapUtils.js); twice as much
- * with the front garden.
+ * with the front garden. step: tiles to a step of distance, more than 1 on a map at real scale (BlockMapUtils
+ * nearnessStep), where 4 + 2 × its level tiles would be only 100–250 m.
  */
-export function houseLandValue(house: RulerHouse | null | undefined, x: number, y: number): number {
+export function houseLandValue(house: RulerHouse | null | undefined, x: number, y: number, step = 1): number {
   if (!house) return 0;
-  const radius = 4 + 2 * house.level;
+  const radius = (4 + 2 * house.level) * step;
   const distance = Math.hypot(x - house.x, y - house.y);
   if (distance >= radius) return 0;
   const garden = (house.wings ?? []).includes("front_garden") ? GARDEN_LAND_VALUE : 1;

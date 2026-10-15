@@ -34,6 +34,8 @@ async function newCity(districtId: string, provinceId: string, region: string) {
     districtId: preset.districtId || null, tileSizeM: preset.tileSizeM || null, mapCenter: preset.center || null,
     frame: preset.frame || null, districtPlace: preset.district || null, paintedZones: preset.paintedZones === true,
     cellZones: preset.cellZones === true, roadLevels: layer(preset.roadLevels),
+    // What covers its open land, which makes the land beside it worth more (src/blockMapUtils.js)
+    landCover: layer(preset.landCover),
   });
   const rules = resolveRules(checkRulesData(read("data/province-rules.json")).data, region, provinceId);
   const measured = measuredLevels(read("data/geo/province-indicators.json").provinces);
@@ -67,7 +69,7 @@ const row = (y: PlayerYear) => {
     if (process.env.PHAICITY_PLOTS) {
       const pct = (label: string, v: number) => (v ? `, ${label} ${Math.round(v * 100)}%` : "");
       for (const g of plotReport(core)) {
-        process.stdout.write(`    ${g.kind} ${g.level}: ${g.count}, land ${g.landValue}, pollution ${g.pollution}` +
+        process.stdout.write(`    ${g.kind} ${g.level}: ${g.count}, land ${g.landValue} (near ${g.nearness} + open ${g.openLand} - pollution ${g.pollution} - crime ${g.crime})` +
           (g.score !== null ? `, score ${g.score}` : "") + pct("no power", g.unpowered) + pct("thirsty", g.thirsty) + pct("of them no pipe", g.unpiped) +
           pct("polluted", g.polluted) + pct("too quiet", g.tooQuiet) + pct("land too cheap", g.landCaps) + "\n");
       }
