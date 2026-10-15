@@ -155,6 +155,9 @@ const SERVICES: ReadonlyArray<[number, string]> = [[300, "police_box"], [300, "f
   [3000, "ruler_house_upgrade"], [3000, "secondary_school"], [4000, "community_hospital"], [5000, "police_large"],
   [5000, "fire_centre"]];
 
+/** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go */
+const CAPS: ReadonlyArray<[string, string, number, number]> = [["resCap", "stadium", -20, -12],
+  ["indCap", "port", 30, 12], ["comCap", "airport", 30, -20]];
 /** A bus for this many people */
 const BUS_PEOPLE = 1500;
 /** One home tile in this many is a park */
@@ -231,8 +234,18 @@ export class AutoPlayer {
     if (dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) {
       this.place("waterworks", x - 10 - this.year, y + 8);
     }
+    // What the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
+    // stadium for the homes, a port for the factories, an airport for the shops; saved for before more zones and land
+    const valves = sim._valves ?? {};
+    let saving = false;
+    for (const [cap, tool, dx, dy] of CAPS) {
+      if (!valves[cap]) continue;
+      const price = core.tools?.[tool]?.toolCost ?? 0;
+      if (budget.totalFunds >= price + 500 && this.place(tool, x + dx, y + dy)) continue;
+      saving = true;
+    }
     // More zones while money allows, and a block of land more when the town's own is nearly all painted
-    if (budget.totalFunds > (this.options.reserve ?? 3000) + 1000) {
+    if (!saving && budget.totalFunds > (this.options.reserve ?? 3000) + 1000) {
       const wanted = this.options.paintEachYear ?? 3000;
       const painted = this.paint(wanted);
       if (painted < wanted / 2 && this.buyLand() !== null) this.paint(wanted - painted);
@@ -244,7 +257,6 @@ export class AutoPlayer {
         if (plot) plots[plot.kind as keyof typeof plots][plot.level]++;
       }
     }
-    const valves = sim._valves ?? {};
     return {
       year: this.year, population, funds: budget.totalFunds, built: this.built - builtBefore, accounts: yearAccounts(budget),
       cityClass: sim.evaluation.cityClass, approval: sim.evaluation.cityYes,

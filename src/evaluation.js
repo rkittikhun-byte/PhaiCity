@@ -35,8 +35,9 @@ Evaluation.prototype.cityEvaluation = function(simData) {
   var census = simData.census;
 
   if (census.totalPop > 0) {
+    // PhaiCity: each problem's place set to nothing, as the original does; the port pushed seven more every year
     for (var i = 0; i < NUMPROBLEMS; i++)
-      problemData.push(0);
+      problemData[i] = 0;
 
     this.getAssessedValue(census);
     this.getPopulation(census);
@@ -288,8 +289,10 @@ Evaluation.prototype.getScore = function(simData) {
     // If the city is growing, scale score by percentage growth in population
     scale = (this.cityPopDelta / this.cityPop) + 1.0;
   } else if (this.cityPopDelta < 0) {
-    // If the city is shrinking, scale down by up to 5% based on level of outward migration
-    scale = 0.95 + Math.floor(this.cityPopDelta / (this.cityPop - this.cityPopDelta));
+    // If the city is shrinking, scale down by up to 5% based on level of outward migration. PhaiCity: as the original
+    // Micropolis does; the port floored the share, so any shrinking at all made the scale -0.05 and the year's score 0,
+    // and the people's approval fell by half whenever a few moved out (owner, 16 Oct 2026: happiness swung 4–85%)
+    scale = 0.95 + this.cityPopDelta / (this.cityPop - this.cityPopDelta);
   }
 
   score = Math.round(score * scale);
