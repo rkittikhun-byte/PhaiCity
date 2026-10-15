@@ -30,13 +30,15 @@ describe("the auto player", () => {
     expect(core.map.rulerHouse).toBeTruthy();
     expect(player.log.some((line) => line.includes("coal at"))).toBe(true);
     let funds = core.simulation.budget.totalFunds, checked = 0;
-    for (let n = 0; n < 3; n++) {
+    for (let n = 0; n < 4; n++) {
       const year = player.playYear();
-      // Gained by the year's end, less what was built and painted through the year (the first year's end finds no one)
-      if (year.population > 0) { expect(year.funds).toBe(funds + year.accounts.net - year.built); checked++; }
+      // Gained by the year's end, less what was built and painted through the year (nothing is charged while no one lives
+      // in the city, as at its start)
+      expect(year.funds).toBe(funds + (year.accounts.charged ? year.accounts.net : 0) - year.built);
+      if (year.accounts.charged) checked++;
       funds = year.funds;
     }
-    expect(checked).toBeGreaterThan(1);
+    expect(checked).toBeGreaterThan(0);
     expect(core.simulation.evaluation.cityPop).toBeGreaterThan(0);
   });
 

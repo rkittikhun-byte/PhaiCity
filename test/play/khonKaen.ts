@@ -5,10 +5,11 @@
 // Plays a new Mueang Khon Kaen city for years with the auto player (src/core/autoPlayer.ts) and prints each year's
 // people, money and accounts, to check the game's balance. It only runs when asked, as it takes about 3 s a year:
 //   PHAICITY_PLAY=1 npx jest --coverage=false test/play
-// PHAICITY_YEARS sets the years (10), PHAICITY_PLAY_OUT a file for the whole report as JSON.
+// PHAICITY_YEARS sets the years (10), PHAICITY_PLOTS=1 adds what holds each kind and level of plot back each year,
+// PHAICITY_PLAY_OUT a file for the whole report as JSON.
 
 import * as fs from "fs";
-import { AutoPlayer, type PlayerYear } from "../../src/core/autoPlayer";
+import { AutoPlayer, type PlayerYear, plotReport } from "../../src/core/autoPlayer";
 import { CityCore } from "../../src/core/cityCore";
 import { firstFrame } from "../../src/cityFrame";
 import { DISTRICT_BLOCK, framePreset, isDistrictMap } from "../../src/geo/districtFrame";
@@ -50,7 +51,7 @@ async function newCity(districtId: string, provinceId: string, region: string) {
 
 const row = (y: PlayerYear) => {
   const lines = (r: Record<string, number>) => Object.entries(r).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
-  return `year ${y.year}: ${y.population} people, ฿${y.funds} (built ฿${y.built}), ${y.cityClass}, ${y.approval}% happy, land value ${y.landValue}, pollution ${y.pollution}, power used ${y.powerUse}%, ` +
+  return `year ${y.year}: ${y.population} people, ฿${y.funds} (built ฿${y.built}), ${y.cityClass}, ${y.approval}% happy, land value ${y.landValue}, pollution ${y.pollution}, power used ${y.powerUse}%, water ${y.water.used}/${y.water.supply} from ${y.water.works} works, ` +
     `demand ${y.demand.join("/")}\n  in: ${lines(y.accounts.income)}\n  out: ${lines(y.accounts.costs)}\n  net ${y.accounts.net}\n`;
 };
 
@@ -63,6 +64,14 @@ const row = (y: PlayerYear) => {
     const year = player.playYear();
     years.push(year);
     process.stdout.write(row(year));
+    if (process.env.PHAICITY_PLOTS) {
+      const pct = (label: string, v: number) => (v ? `, ${label} ${Math.round(v * 100)}%` : "");
+      for (const g of plotReport(core)) {
+        process.stdout.write(`    ${g.kind} ${g.level}: ${g.count}, land ${g.landValue}, pollution ${g.pollution}` +
+          (g.score !== null ? `, score ${g.score}` : "") + pct("no power", g.unpowered) + pct("thirsty", g.thirsty) + pct("of them no pipe", g.unpiped) +
+          pct("polluted", g.polluted) + pct("too quiet", g.tooQuiet) + pct("land too cheap", g.landCaps) + "\n");
+      }
+    }
   }
   process.stdout.write(player.log.join("\n") + "\n");
   if (process.env.PHAICITY_PLAY_OUT) fs.writeFileSync(process.env.PHAICITY_PLAY_OUT, JSON.stringify({ years, log: player.log }, null, 1));

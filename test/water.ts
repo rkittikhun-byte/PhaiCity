@@ -11,7 +11,7 @@ import { dimmed, KIND_COLOURS, layerPixels, MAP_LAYERS, tileColour, waterCounts,
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import {
-  computeGroundwater, drawGroundwater, fullStores, GROUNDWATER_FULL, GROUNDWATER_MAX, GROUNDWATER_MIN, pumpFactor,
+  computeGroundwater, drawGroundwater, falloffTiles, fullStores, GROUNDWATER_FULL, GROUNDWATER_MAX, GROUNDWATER_MIN, pumpFactor,
   rechargeGroundwater, UNITS_PER_LEVEL,
 } from "../src/groundwater";
 import { GROUNDWATER_LOW, NOT_ENOUGH_WATER } from "../src/messages";
@@ -58,6 +58,12 @@ describe("groundwater", () => {
     expect(levels[6]).toBeLessThan(levels[2]);
     expect(levels[39]).toBe(GROUNDWATER_MIN);
     for (let x = 1; x < 40; x++) expect(levels[x]).toBeLessThanOrEqual(levels[x - 1]);
+    // On a map at real scale it falls off by metres: 39 tiles of 16 m (624 m) from the river the ground still holds
+    // water (owner, 15 Oct 2026: "แก้เมืองหยุดโต")
+    const city = Object.assign(newMap(40, 10), { tileSizeM: 16 });
+    for (let y = 0; y < 10; y++) city.setTile(0, y, RIVER, 0);
+    expect(falloffTiles(city)).toBe(125);
+    expect(computeGroundwater(city)[39]).toBeGreaterThan(GROUNDWATER_MIN + 2);
   });
 
   test("is lower on ground that stands above the nearest water", () => {
@@ -169,6 +175,25 @@ describe("the water supply", () => {
     water.supplyZone(70, 9, null, false);
     water.clearCycle();
     expect(water.view.zoneWater(70, 9)).toBe(ZONE_DRY);
+  });
+
+  test("an empty lot takes no water, so the buildings the scan reaches later still get it", () => {
+    // Owner, 15 Oct 2026: "แก้เมืองหยุดโต": a town's empty lots took the water its factories, scanned last, needed
+    const map = newMap(80, 12);
+    putWorks(map, 2, 5);
+    road(map, 1, 79, 7);
+    const water = new WaterManager(map);
+    water.prepareGround(null);
+    water.findSources();
+    water.doWaterScan(5, false);
+    water.clearCycle();
+    const counts = census();
+    // Far more empty lots along the road than the supply's shares: each is watered and takes nothing
+    for (let x = 5; x < 77; x++) expect(water.supplyPlot(x, 8, x, 7, counts, false)).toBe(true);
+    expect([counts.wateredZoneCount, counts.dryZoneCount]).toEqual([0, 0]);
+    // ... so a building after them still gets its share
+    expect(water.supplyPlot(77, 8, 77, 7, counts, true)).toBe(true);
+    expect(counts.wateredZoneCount).toBeGreaterThan(0);
   });
 
   test("the dry season takes its share, and towers on the pipes give some back", () => {

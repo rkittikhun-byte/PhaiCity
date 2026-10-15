@@ -10,16 +10,19 @@
 
 import { canBuildIn } from "./cityLayers.js";
 import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
-import { ownsLand } from "../landBlocks.js";
-import { plotOf } from "../plots.js";
+import { blockColumns, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
+import { LANDFILL_HOLDS, LANDFILL_WARN } from "../waste.js";
+import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { cellsOf } from "../zoneCells.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
   income: Record<string, number>;
   costs: Record<string, number>;
-  /** Income less costs: what the year's end added to the treasury */
+  /** Income less costs: what the year's end added to the treasury, when it charged them (charged) */
   net: number;
+  /** Whether the year's end charged them: not while no one lived in the city */
+  charged: boolean;
 }
 
 type Budget = Record<string, number>;
@@ -38,7 +41,65 @@ export function yearAccounts(budget: Budget): YearAccounts {
     transit: budget.transitCost ?? 0,
   };
   const sum = (lines: Record<string, number>) => Object.values(lines).reduce((a, b) => a + b, 0);
-  return { income, costs, net: sum(income) - sum(costs) };
+  return { income, costs, net: sum(income) - sum(costs), charged: (budget as Record<string, unknown>).charged !== false };
+}
+
+/** Why the plots of one kind at one level are where they are: how many, and the share held back by each cause */
+export interface PlotLevelReport {
+  kind: string;
+  level: number;
+  count: number;
+  /** Averages over them: land value, pollution, and (homes) their growth score, which grows them when well above 0
+   *  and shrinks them below 350 (src/plots.ts grows, shrinks) */
+  landValue: number;
+  pollution: number;
+  score: number | null;
+  /** Shares, 0–1: no power; thirsty (no water, needed to grow past a house); pollution over 128 (homes cannot rise);
+   *  too few people round them to rise (homes); the land worth too little for a bigger shop */
+  unpowered: number;
+  thirsty: number;
+  /** ... of which no pipe reaches (the rest went without because the supply ran out) */
+  unpiped: number;
+  polluted: number;
+  tooQuiet: number;
+  landCaps: number;
+}
+
+/** The city's plots by kind and level, and what holds each group back (src/plots.ts plotFound) */
+export function plotReport(core: CityCore): PlotLevelReport[] {
+  const map = core.map, sim = core.simulation, bm = sim.blockMaps, water = sim._waterManager?.view;
+  const groups = new Map<string, { kind: string; level: number; n: number; lv: number; pol: number; score: number;
+    unpowered: number; thirsty: number; unpiped: number; polluted: number; quiet: number; capped: number }>();
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const plot = plotOf(map, x, y);
+      if (!plot) continue;
+      const key = plot.kind + plot.level;
+      const g = groups.get(key) ?? { kind: plot.kind, level: plot.level, n: 0, lv: 0, pol: 0, score: 0, unpowered: 0,
+        thirsty: 0, unpiped: 0, polluted: 0, quiet: 0, capped: 0 };
+      const lv = bm.landValueMap.worldGet(x, y), pol = bm.pollutionDensityMap.worldGet(x, y);
+      g.n++; g.lv += lv; g.pol += pol;
+      if (!map.getTile(x, y).isPowered()) g.unpowered++;
+      if (water && water.zoneWater(x, y) === 3) {
+        g.thirsty++;
+        const road = nearestRoad(map, x, y);
+        if (!road || !water.hasWater(road.x, road.y)) g.unpiped++;
+      }
+      if (plot.kind === "residential") {
+        const land = Math.min(Math.max(lv - pol, 0) * 32, 6000) - 3000;
+        g.score += (sim._valves?.resValve ?? 0) + land;
+        if (pol > 128) g.polluted++;
+        if (plot.level > 0 && bm.populationDensityMap.worldGet(x, y) <= DENSITY_TO_RISE[plot.level]) g.quiet++;
+      }
+      if (plot.kind === "commercial" && plot.level > lv >> 5) g.capped++;
+      groups.set(key, g);
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.level - b.level).map((g) => ({
+    kind: g.kind, level: g.level, count: g.n, landValue: Math.round(g.lv / g.n), pollution: Math.round(g.pol / g.n),
+    score: g.kind === "residential" ? Math.round(g.score / g.n) : null, unpowered: g.unpowered / g.n,
+    thirsty: g.thirsty / g.n, unpiped: g.unpiped / g.n, polluted: g.polluted / g.n, tooQuiet: g.quiet / g.n, landCaps: g.capped / g.n,
+  }));
 }
 
 /** What a year of play left */
@@ -55,6 +116,8 @@ export interface PlayerYear {
   /** The census's average land value (0–250) and pollution, which the taxes and the people's mood follow */
   landValue: number;
   pollution: number;
+  /** The water works' supply in zone shares (a plot takes an eighth) and what the buildings asked for, at the last scan */
+  water: { supply: number; used: number; works: number };
   /** Share of the power plants' power the city used at the last power scan, % */
   powerUse: number;
   /** Demand for homes, shops and factories (the simulation's valves, −2000 … 2000) */
@@ -74,12 +137,17 @@ export interface PlayerOptions {
 
 /** The services a town builds as its people grow: [people, tool] */
 const SERVICES: ReadonlyArray<[number, string]> = [[300, "police_box"], [300, "fire_post"], [500, "primary_school"],
-  [500, "health_centre"], [800, "kindergarten"], [1500, "landfill"], [2000, "waterworks"],
+  [500, "health_centre"], [800, "kindergarten"], [1500, "landfill"],
   [3000, "ruler_house_upgrade"], [3000, "secondary_school"], [4000, "community_hospital"], [5000, "police_large"],
-  [5000, "fire_centre"], [8000, "waterworks"]];
+  [5000, "fire_centre"]];
 
 /** Another power plant goes up when the city uses this share of its plants' power */
 const MORE_POWER_AT = 0.85;
+/** ... and another water works when this share of its buildings went without water */
+const MORE_WATER_AT = 0.15;
+/** Factories stand this far from the town's middle at least (world units, 10 a tile), the power plants further */
+const FACTORIES_FROM = 100;
+const PLANT_FROM = 24;
 
 export class AutoPlayer {
   /** What it did, a line each, with the year */
@@ -94,7 +162,7 @@ export class AutoPlayer {
   start(): void {
     const { x, y } = this.options.town;
     this.place("ruler_house", x, y);
-    this.place("coal", x + 14, y);
+    this.place("coal", x + PLANT_FROM, y);
     this.place("waterworks", x - 10, y + 8);
     this.paint(this.options.paintFirst ?? 6000);
   }
@@ -127,8 +195,24 @@ export class AutoPlayer {
     }
     // A power plant more when the city uses nearly all its power (src/powerManager.js load)
     const load = sim._powerManager?.load ?? 0;
-    if (load >= MORE_POWER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) this.place("coal", x + 14, y + 8);
-    if (budget.totalFunds > (this.options.reserve ?? 3000) + 1000) this.paint(this.options.paintEachYear ?? 3000);
+    if (load >= MORE_POWER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) this.place("coal", x + PLANT_FROM, y + 8);
+    // A landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
+    const waste = sim._waste;
+    const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
+    if ((nearlyFull || (waste?.overflow ?? 0) > 0) && budget.totalFunds > (this.options.reserve ?? 3000) / 2) {
+      this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
+    }
+    // A water works more when many buildings went without (src/waterManager.ts: empty lots take none)
+    const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
+    if (dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) {
+      this.place("waterworks", x - 10 - this.year, y + 8);
+    }
+    // More zones while money allows, and a block of land more when the town's own is nearly all painted
+    if (budget.totalFunds > (this.options.reserve ?? 3000) + 1000) {
+      const wanted = this.options.paintEachYear ?? 3000;
+      const painted = this.paint(wanted);
+      if (painted < wanted / 2 && this.buyLand() !== null) this.paint(wanted - painted);
+    }
     const map = core.map, plots = { residential: [0, 0, 0, 0, 0, 0], commercial: [0, 0, 0, 0, 0, 0], industrial: [0, 0, 0, 0, 0, 0] };
     for (let ty = 0; ty < map.height; ty++) {
       for (let tx = 0; tx < map.width; tx++) {
@@ -142,16 +226,27 @@ export class AutoPlayer {
       cityClass: sim.evaluation.cityClass, approval: sim.evaluation.cityYes,
       landValue: sim._census.landValueAverage, pollution: sim._census.pollutionAverage,
       powerUse: Math.round((sim._powerManager?.load ?? 0) * 100),
+      water: { supply: sim._waterManager?.supply ?? 0, used: Math.round(sim._waterManager?.used ?? 0),
+        works: sim._census.waterWorksPop ?? 0 },
       demand: [valves.resValve ?? 0, valves.comValve ?? 0, valves.indValve ?? 0], plots,
     };
   }
+
+  /** Buying land for a building that found no room, so a failure there does not buy again */
+  private buying = false;
+  /** Why the last tries of a tool failed, and how often */
+  private failures = new Map<string, number>();
 
   /** A tool at (x, y); true when it built, counting what it cost */
   private apply(tool: string, x: number, y: number): boolean {
     const budget = this.core.simulation.budget, before = budget.totalFunds;
     const outcome = this.core.apply({ type: "tool", tool: tool as never, x, y });
     const cost = before - budget.totalFunds;
-    if (!outcome.accepted || outcome.toolResult !== 0 || cost <= 0) return false;
+    if (!outcome.accepted || outcome.toolResult !== 0 || cost <= 0) {
+      const why = !outcome.accepted ? String(outcome.reason) : `tool result ${String(outcome.toolResult)}`;
+      this.failures.set(why, (this.failures.get(why) ?? 0) + 1);
+      return false;
+    }
     this.built += cost;
     this.note(`${tool} at ${x},${y} ฿${cost}`);
     return true;
@@ -160,6 +255,7 @@ export class AutoPlayer {
   /** A building at the nearest spot round (cx, cy) the game takes, as a player tries spots near a road */
   private place(tool: string, cx: number, cy: number, reach = 40): boolean {
     const map = this.core.map;
+    this.failures.clear();
     for (let r = 0; r <= reach; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
@@ -170,22 +266,60 @@ export class AutoPlayer {
         }
       }
     }
-    this.note(`${tool}: no place`);
+    // No room left on the city's land: a block more, and the building there
+    if (!this.buying) {
+      this.buying = true;
+      const land = this.buyLand();
+      const built = land !== null && this.place(tool, land.x, land.y, 16);
+      this.buying = false;
+      if (built) return true;
+    }
+    const reasons = [...this.failures].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${why} ×${n}`);
+    this.note(`${tool}: no place (${reasons.join(", ")})`);
     return false;
   }
 
-  /** Up to n more zone cells, the nearest the town first: factories on the town's east side, by the power plant, and
-   *  homes and shops elsewhere, mixed by tile (3 : 1) */
-  private paint(n: number): void {
+  /** The block of land beside the city's own nearest the town, bought (src/landBlocks.ts): its middle tile, or null when
+   *  none can be */
+  private buyLand(): { x: number; y: number } | null {
+    const map = this.core.map, budget = this.core.simulation.budget;
+    if (!map.landBlocks) return null;
+    const size = blockSizeOf(map), columns = blockColumns(map), rows = blockRows(map);
+    const { x, y } = this.options.town;
+    const blocks: Array<{ bx: number; by: number; d: number }> = [];
+    for (let by = 0; by < rows; by++) {
+      for (let bx = 0; bx < columns; bx++) {
+        if (!map.landBlocks[by * columns + bx]) blocks.push({ bx, by, d: Math.hypot((bx + 0.5) * size - x, (by + 0.5) * size - y) });
+      }
+    }
+    blocks.sort((a, b) => a.d - b.d);
+    for (const { bx, by } of blocks.slice(0, 24)) {
+      const tx = Math.min(map.width - 1, Math.floor((bx + 0.5) * size)), ty = Math.min(map.height - 1, Math.floor((by + 0.5) * size));
+      const before = budget.totalFunds;
+      if (this.core.apply({ type: "land", x: tx, y: ty }).accepted) {
+        this.built += before - budget.totalFunds;
+        this.note(`land at ${tx},${ty} ฿${before - budget.totalFunds}`);
+        return { x: tx, y: ty };
+      }
+    }
+    this.note("land: none to buy");
+    return null;
+  }
+
+  /** Up to n more zone cells, the nearest the town first: factories on the town's east side past a band of shops, by
+   *  the power plant, and homes and shops elsewhere, mixed by tile (3 : 1) */
+  private paint(n: number): number {
     const core = this.core, map = core.map, budget = core.simulation.budget;
-    if (!map.cellZones) return;
+    if (!map.cellZones) return 0;
     const owns = canBuildIn(map);
     const layout = cellsOf(map, (x, y) => ownsLand(map, x, y) && owns(x, y));
     const tx = this.options.town.x * 10, tz = this.options.town.y * 10;
     const free = layout.cells.filter((c) => !map.zoneCells?.get?.(c.key))
       .sort((a, b) => Math.hypot(a.x - tx, a.z - tz) - Math.hypot(b.x - tx, b.z - tz)).slice(0, n);
     const zoneOf = (c: { x: number; z: number }) => {
-      if (Math.abs(Math.atan2(c.z - tz, c.x - tx)) < Math.PI / 4) return "industrial";
+      if (Math.abs(Math.atan2(c.z - tz, c.x - tx)) < Math.PI / 4) {
+        return Math.hypot(c.x - tx, c.z - tz) > FACTORIES_FROM ? "industrial" : "commercial";
+      }
       return (Math.floor(c.x / 10) * 7 + Math.floor(c.z / 10) * 13) % 4 === 0 ? "commercial" : "residential";
     };
     let painted = 0;
@@ -200,6 +334,7 @@ export class AutoPlayer {
       }
     }
     this.note(`painted ${painted} cells`);
+    return painted;
   }
 
   private note(text: string): void { this.log.push(`year ${this.year}: ${text}`); }

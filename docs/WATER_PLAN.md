@@ -29,8 +29,9 @@ Most of the fall comes in the first two or three years. A works serving half of 
 ## How the simulation does it
 
 - `src/groundwater.ts`: each tile's natural level, 0–7, from the land: open water 7, land at most 6, falling over
-  12 tiles from the nearest water and by one level per 15 m above it (with the province map's heights), never below
-  1. Each tile's store (0–224, 32 per level) starts full. Once a month: the rains give back level² / 384 of what a
+  12 tiles from the nearest water (on a map at real scale, 16 m tiles, over 2 km instead: since 15 Oct 2026, as 12 of
+  its tiles are only 192 m and left every works in a town on nearly dry ground, `falloffTiles`) and by one level per
+  15 m above it (with the map's heights), never below 1. Each tile's store (0–224, 32 per level) starts full. Once a month: the rains give back level² / 384 of what a
   store lacks (not in a dry month); each works draws `10 × the share of its full output it pumped` from its centre,
   less further out, as far as 4 tiles, never from open water. A works pumps in proportion to the mean store under
   its 3×3.
@@ -45,6 +46,9 @@ Most of the fall comes in the first two or three years. A works serving half of 
   - each R/C/I zone takes one share in the scan (`supplyZone`); when none is left it is dry and NOT_ENOUGH_WATER is
     sent (once a cycle; the simulation relays it at most every two minutes, as for power); the census counts
     `wateredZoneCount` and `dryZoneCount`;
+  - a painted plot (`supplyPlot`, `docs/ZONE_PAINT.md`) takes an eighth of a share once it has a building; an empty
+    lot takes none and is not counted (since 15 Oct 2026: a growing town's empty lots took the water its buildings
+    needed, and the factories, which the scan reached last, never had any);
   - `view` (`WaterView`) is what may be read from outside: `zoneWater(x, y)` (1 water, 2 dry but fine at its size,
     3 thirsty: dry and held back or shrinking), `hasWater(x, y)` for roads, `groundwater(x, y)`. It sits on the map
     as `gameMap.water` for the renderer and in `simulation.blockMaps.water` for the city map.

@@ -793,6 +793,7 @@
 | `msg.bad.few_hospitals` | `src/text.js` | — | `Too few hospitals: people worry about falling ill here` | `โรงพยาบาลไม่พอ คนเริ่มกังวลเรื่องเจ็บป่วย` | ไม่เกินปีละครั้ง |
 | `msg.bad.rubbish_overflow` | `src/text.js` | — | `Rubbish is piling up in the streets: build a landfill or an incinerator` | `ขยะล้นเมือง กองอยู่ตามถนน ควรสร้างบ่อฝังกลบหรือโรงเผาขยะ` | ไม่เกินปีละครั้ง |
 | `msg.bad.landfill_full` | `src/text.js` | — | `A landfill is full and takes no more rubbish` | `บ่อฝังกลบขยะเต็มแล้ว รับขยะเพิ่มไม่ได้` |  |
+| `msg.bad.landfill_nearly_full` | `src/text.js` | — | `A landfill is nearly full: build another landfill, an incinerator or a recycling plant before the rubbish lies in the streets` | `บ่อฝังกลบขยะใกล้เต็มแล้ว ควรสร้างบ่อฝังกลบใหม่ โรงเผาขยะ หรือโรงรีไซเคิลไว้ก่อนขยะจะล้นถนน` | ที่ 80% (Claude Code 15 ต.ค. 2026) |
 | `msg.bad.untreated_sewage` | `src/text.js` | — | `The town's sewage runs untreated into the water: fishing and visitors suffer` | `น้ำเสียของเมืองไหลลงแหล่งน้ำโดยไม่ผ่านการบำบัด ประมงและการท่องเที่ยวเสียหาย` | ไม่เกินปีละครั้ง |
 | `msg.bad.ship_crash` | `src/text.js` | `Shipwreck reported ` | `Shipwreck reported in waters!` | `รายงานอุบัติเหตุเรือชนกันหรือเรืออับปาง!` | เรือล่ม |
 | `msg.bad.high_crime` | `src/text.js` | `Crime very high` | `Crime rate is dangerously high!` | `สถิติอาชญากรรมพุ่งสูงขึ้นขั้นวิกฤต!` | อาชญากรรมสูง |

@@ -344,7 +344,7 @@ function homeScore(sim: PlotSimData, x: number, y: number, traffic: number): num
 }
 
 /** How crowded the neighbourhood must be for a home to rise past each level: towers want a busy town round them */
-const DENSITY_TO_RISE = [0, 32, 64, 96, 128];
+export const DENSITY_TO_RISE = [0, 32, 64, 96, 128];
 
 /** Whether a plot may grow a level: the top level only on a lot (lotOf). */
 export function mayRise(map: PlotMap, x: number, y: number, plot: Plot): boolean {

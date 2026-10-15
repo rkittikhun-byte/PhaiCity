@@ -21,6 +21,14 @@ export const UNITS_PER_LEVEL = 32;
 export const GROUNDWATER_FULL = GROUNDWATER_MAX * UNITS_PER_LEVEL;
 /** Tiles from the nearest water over which the natural level falls to its least */
 const FALLOFF_TILES = 12;
+/**
+ * ... on a map at real scale, metres instead (owner, 15 Oct 2026: "แก้เมืองหยุดโต"): 12 tiles of a province map are some
+ * 7 km, but 12 of a city map's 16 m tiles only 192 m, which left every water works in a town on nearly dry ground, a
+ * seventh of a full works' water, and the town's buildings without
+ */
+const FALLOFF_M = 2000;
+/** The largest tile, in metres, of a map at real scale (docs/CITY_SCALE.md; src/roadGeometry.ts realUnits) */
+const REAL_SCALE_TILE_M = 40;
 /** Metres above the nearest water that cost one level */
 const METRES_PER_LEVEL = 15;
 /** A month of rain gives back level² / RECHARGE_DIVISOR of what a store lacks (a seventh near water, far less inland) */
@@ -32,6 +40,14 @@ interface Terrain {
   readonly width: number;
   readonly height: number;
   getTileValue(x: number, y: number): number;
+  /** Metres a tile, on a map that knows it */
+  readonly tileSizeM?: number | null;
+}
+
+/** Tiles from the nearest water over which the natural level falls to its least, on this map */
+export function falloffTiles(map: Pick<Terrain, "tileSizeM">): number {
+  const metres = map.tileSizeM;
+  return metres && metres <= REAL_SCALE_TILE_M ? Math.round(FALLOFF_M / metres) : FALLOFF_TILES;
 }
 
 const isWater = (value: number): boolean => value >= WATER_LOW && value <= WATER_HIGH;
@@ -42,6 +58,7 @@ const isWater = (value: number): boolean => value >= WATER_LOW && value <= WATER
  */
 export function computeGroundwater(map: Terrain, heights: ArrayLike<number> | null = null): Uint8Array {
   const { width, height } = map;
+  const falloff = falloffTiles(map);
   const count = width * height;
   const distance = new Int16Array(count).fill(-1);
   // The height of the water each tile is nearest to
@@ -61,7 +78,7 @@ export function computeGroundwater(map: Terrain, heights: ArrayLike<number> | nu
   // Out from the water, one tile at a time, as far as the falloff
   while (head < tail) {
     const i = queue[head++];
-    if (distance[i] >= FALLOFF_TILES) continue;
+    if (distance[i] >= falloff) continue;
     const x = i % width;
     const y = (i - x) / width;
     const next = [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, y > 0 ? i - width : -1, y < height - 1 ? i + width : -1];
@@ -83,7 +100,7 @@ export function computeGroundwater(map: Terrain, heights: ArrayLike<number> | nu
       levels[i] = GROUNDWATER_MIN;
       continue;
     }
-    let level = GROUNDWATER_MAX * (1 - distance[i] / FALLOFF_TILES);
+    let level = GROUNDWATER_MAX * (1 - distance[i] / falloff);
     if (heights) level -= Math.max(0, heights[i] - waterLevel[i]) / METRES_PER_LEVEL;
     // Land never reaches the level of open water
     levels[i] = Math.max(GROUNDWATER_MIN, Math.min(GROUNDWATER_MAX - 1, Math.round(level)));

@@ -682,6 +682,10 @@ Simulation.prototype._wasteMonth = function() {
   month.filled.forEach(function(site) {
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.LANDFILL_FULL, data: {x: site.x, y: site.y}});
   }, this);
+  // ... and warns while there is time to build another (src/waste.ts LANDFILL_WARN)
+  month.nearlyFull.forEach(function(site) {
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.LANDFILL_NEARLY_FULL, data: {x: site.x, y: site.y}});
+  }, this);
 
   this._monthsSinceRubbishWarning++;
   this._monthsSinceSewageWarning++;

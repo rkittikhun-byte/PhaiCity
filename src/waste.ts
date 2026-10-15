@@ -62,6 +62,9 @@ export const OVERFLOW_FULL = 600;
 export const RUBBISH_POLLUTION = 40;
 /** What a landfill holds before it is full for good, and the poison it seeps each month */
 export const LANDFILL_HOLDS = 40000;
+/** The share of it at which the news warns it is nearly full (owner, 15 Oct 2026: "แก้เมืองหยุดโต": a town of 18,000
+ *  whose one landfill filled had its rubbish in every street at once, and its land value fell from 31 to 3 in a month) */
+export const LANDFILL_WARN = 0.8;
 const LANDFILL_SEEP = 4;
 const SEEP_RADIUS = 3;
 /** Power a waste power plant gives with all the rubbish it can burn (the coal plant's tiles give 700) */
@@ -112,14 +115,16 @@ export interface WasteMonth {
   sewage: number;
   /** What recycling sold, in baht */
   sales: number;
-  /** Landfills that filled up this month */
+  /** Landfills that filled up this month, and those that passed LANDFILL_WARN of it */
   filled: WasteSite[];
+  nearlyFull: WasteSite[];
   /** How many of these buildings stand, working or not */
   buildings: number;
 }
 
 export const NO_WASTE: WasteMonth = {
-  people: 0, rubbish: 0, taken: 0, rubbishShare: 100, sewageShare: 100, overflow: 0, sewage: 0, sales: 0, filled: [], buildings: 0,
+  people: 0, rubbish: 0, taken: 0, rubbishShare: 100, sewageShare: 100, overflow: 0, sewage: 0, sales: 0, filled: [], nearlyFull: [],
+  buildings: 0,
 };
 
 interface MapLike {
@@ -208,6 +213,7 @@ export class Waste {
     let burning = 0;
     let beforeBurning = rubbish;
     const filled: WasteSite[] = [];
+    const nearlyFull: WasteSite[] = [];
     for (const kind of TAKING_ORDER) {
       if (kind === "waste_power_plant") beforeBurning = left;
       for (const site of this.sites) {
@@ -226,6 +232,7 @@ export class Waste {
           const before = this.fill[key] ?? 0;
           this.fill[key] = before + take;
           if (this.fill[key] >= LANDFILL_HOLDS && before < LANDFILL_HOLDS) filled.push(site);
+          else if (this.fill[key] >= LANDFILL_HOLDS * LANDFILL_WARN && before < LANDFILL_HOLDS * LANDFILL_WARN) nearlyFull.push(site);
         }
       }
     }
@@ -253,6 +260,7 @@ export class Waste {
       sewage: this.sewage,
       sales,
       filled,
+      nearlyFull,
       buildings: this.standing,
     };
   }

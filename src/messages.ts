@@ -49,6 +49,7 @@ export const HELICOPTER_CRASHED = "Helicopter crashed";
 export const HIGH_CRIME = "High crime";
 export const HIGH_POLLUTION = "High pollution";
 export const LANDFILL_FULL = "Landfill full";
+export const LANDFILL_NEARLY_FULL = "Landfill nearly full";
 export const MINE_EXHAUSTED = "Mine exhausted";
 export const MAIN_MENU_WINDOW_CLOSED = "Main menu window closed";
 export const MAP_REQUESTED = "City map requested";

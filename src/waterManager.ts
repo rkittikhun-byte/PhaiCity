@@ -47,6 +47,8 @@ interface MapLike {
   readonly height: number;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
+  /** Metres a tile, which sets how far from water the ground holds it (src/groundwater.ts) */
+  readonly tileSizeM?: number | null;
 }
 
 interface CensusLike {
@@ -343,19 +345,21 @@ export class WaterManager {
 
   /**
    * The same for a one-tile plot of painted zones (src/plots.ts): the water comes along the road it reaches, at
-   * (roadX, roadY) (-1 with none), and it takes an eighth of a zone's share.
+   * (roadX, roadY) (-1 with none), and it takes an eighth of a zone's share. needsWater false is an empty lot, which
+   * takes none and is not counted (owner, 15 Oct 2026: "แก้เมืองหยุดโต": the empty lots of a growing town took the water
+   * its buildings needed, and the factories, scanned last, never had any).
    */
   supplyPlot(x: number, y: number, roadX: number, roadY: number, census: CensusLike | null = null,
              needsWater = true): boolean {
     const piped = roadX >= 0 && this.view.hasWater(roadX, roadY);
-    const watered = piped && this.used < this.supply;
-    if (watered) this.used += PLOT_SHARE;
+    const watered = piped && (!needsWater || this.used < this.supply);
+    if (watered && needsWater) this.used += PLOT_SHARE;
     if (piped && !watered && !this.short) {
       this.short = true;
       this.emit(NOT_ENOUGH_WATER);
     }
     if (this.inBounds(x, y)) this.zonesNext.worldSet(x, y, watered ? ZONE_WATERED : needsWater ? ZONE_THIRSTY : ZONE_DRY);
-    if (census) {
+    if (census && needsWater) {
       if (watered) census.wateredZoneCount += PLOT_SHARE;
       else census.dryZoneCount += PLOT_SHARE;
     }

@@ -365,6 +365,8 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.transitCost = Math.round(census.transitUpkeep || 0);
   this.taxFund -= this.transitCost;
 
+  // ... and whether the year's end charges it all: a city no one lives in yet pays and is paid nothing
+  this.charged = census.totalPop > 0;
   if (census.totalPop > 0) {
     this.cashFlow = this.taxFund - (this.policeMaintenanceBudget + this.fireMaintenanceBudget + this.roadMaintenanceBudget);
     this.doBudgetNow(false);

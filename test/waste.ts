@@ -15,7 +15,7 @@ import { Simulation } from "../src/simulation.js";
 import { POWERBIT } from "../src/tileFlags";
 import { RESBASE, WASTE, WASTE_BASE } from "../src/tileValues";
 import {
-  LANDFILL_HOLDS, OWN_RUBBISH, OWN_SEWAGE, RUBBISH_POLLUTION, rubbishOf, SEWAGE_FULL, Waste, WASTE_KINDS, WASTE_POWER,
+  LANDFILL_HOLDS, LANDFILL_WARN, OWN_RUBBISH, OWN_SEWAGE, RUBBISH_POLLUTION, rubbishOf, SEWAGE_FULL, Waste, WASTE_KINDS, WASTE_POWER,
   WASTE_SPECS, type WasteKind, wasteKindAt,
 } from "../src/waste";
 
@@ -100,6 +100,16 @@ describe("rubbish and wastewater", () => {
     expect(month.rubbish).toBeLessThan(OWN_RUBBISH);
     expect([month.overflow, month.rubbishShare, month.sewage]).toEqual([0, 100, 0]);
     expect(rubbishOf(0, 1000)).toBeGreaterThan(0);
+  });
+
+  test("the news hears once when a landfill is nearly full, while there is time to build another", () => {
+    const waste = working(["landfill"]);
+    const ground = new Uint8Array(1600);
+    const key = String(5 * 40 + 4);
+    waste.fill[key] = LANDFILL_HOLDS * LANDFILL_WARN - 100;
+    expect(waste.month(20000, 0, ground).nearlyFull).toHaveLength(1);
+    expect(waste.month(20000, 0, ground).nearlyFull).toHaveLength(0);
+    expect(hasKey("msg.bad.landfill_nearly_full")).toBe(true);
   });
 
   test("a landfill fills for good, seeps into the ground, and is forgotten when gone", () => {

@@ -659,6 +659,7 @@ export const STRINGS: Record<string, Translation> = {
   "msg.bad.few_hospitals": { en: "Too few hospitals: people worry about falling ill here", th: "โรงพยาบาลไม่พอ คนเริ่มกังวลเรื่องเจ็บป่วย" },
   "msg.bad.rubbish_overflow": { en: "Rubbish is piling up in the streets: build a landfill or an incinerator", th: "ขยะล้นเมือง กองอยู่ตามถนน ควรสร้างบ่อฝังกลบหรือโรงเผาขยะ" },
   "msg.bad.landfill_full": { en: "A landfill is full and takes no more rubbish", th: "บ่อฝังกลบขยะเต็มแล้ว รับขยะเพิ่มไม่ได้" },
+  "msg.bad.landfill_nearly_full": { en: "A landfill is nearly full: build another landfill, an incinerator or a recycling plant before the rubbish lies in the streets", th: "บ่อฝังกลบขยะใกล้เต็มแล้ว ควรสร้างบ่อฝังกลบใหม่ โรงเผาขยะ หรือโรงรีไซเคิลไว้ก่อนขยะจะล้นถนน" },
   "msg.bad.untreated_sewage": { en: "The town's sewage runs untreated into the water: fishing and visitors suffer", th: "น้ำเสียของเมืองไหลลงแหล่งน้ำโดยไม่ผ่านการบำบัด ประมงและการท่องเที่ยวเสียหาย" },
   "msg.bad.ship_crash": { en: "Shipwreck reported in waters!", th: "รายงานอุบัติเหตุเรือชนกันหรือเรืออับปาง!" },
   "msg.bad.high_crime": { en: "Crime rate is dangerously high!", th: "สถิติอาชญากรรมพุ่งสูงขึ้นขั้นวิกฤต!" },
