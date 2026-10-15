@@ -176,7 +176,8 @@ function seededProp(builder: PowerBuilder, random: () => number, water: boolean)
 export function createPower(kind: PowerKind, options: ModelOptions = {}): Group {
   const id = `power.${kind}`, mask = powerMask(kind), water = kind === 'water';
   const builder = new PowerBuilder(options), random = seededRng(options.seed);
-  builder.world(horizontal(10, 10, water ? -0.6 : 0), getMaterial(water ? 'water_river' : 'dirt_laterite'));
+  // 'open': on the land the map draws under it (a real-scale city map's fields and grass), not a square of laterite
+  if (water || options.state !== 'open') builder.world(horizontal(10, 10, water ? -0.6 : 0), getMaterial(water ? 'water_river' : 'dirt_laterite'));
   support(builder, water); crossarms(builder, mask); wires(builder, id, mask, random); seededProp(builder, random, water);
   if (kind === 'end') builder.prop('guy_wire', () => {
     builder.box(point(0, 0.1, 3.8), point(0.4, 0.2, 0.4), roadConcrete());

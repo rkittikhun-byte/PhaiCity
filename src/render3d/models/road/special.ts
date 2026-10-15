@@ -170,7 +170,8 @@ export function createRailCrossing(options: ModelOptions, tiles: readonly number
 
 export function createPowerCrossing(options: ModelOptions, tiles: readonly number[]): Group {
   const builder = new RoadBuilder(options);
-  roadBase(builder, 'straight', false); roadProps(builder, 'straight', options, false);
+  // 'wires': the poles and wires alone, over a road drawn as a smooth curve (src/render3d/city/roadCurves.ts)
+  if (options.state !== 'wires') { roadBase(builder, 'straight', false); roadProps(builder, 'straight', options, false); }
   const attachments = crossingPowerLines(builder, 'road.power_crossing');
   const root = builder.finishRoad('road.power_crossing', tiles, 5); root.add(...attachments);
   root.userData.power = { ...POWER_INTERFACE, offsets: [...POWER_INTERFACE.offsets] };

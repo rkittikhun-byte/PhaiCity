@@ -520,7 +520,7 @@
 | `map.layer.police` | `src/mapWindow.js` | — | `Police cover` | `เขตตำรวจ` | |
 | `map.layer.fire` | `src/mapWindow.js` | — | `Fire cover` | `เขตดับเพลิง` | |
 | `map.about.city` | `src/mapWindow.js` | — | `What stands on every piece of land.` | `สิ่งที่อยู่บนที่ดินทุกผืนในเมือง` | คำอธิบายใต้แผนที่ |
-| `map.about.power` | `src/mapWindow.js` | — | `Yellow has power, red has none: link red zones to a power plant with power lines or other zones.` | `สีเหลืองมีไฟฟ้า สีแดงไม่มี ต่อโซนสีแดงเข้ากับโรงไฟฟ้าด้วยสายไฟหรือผ่านโซนอื่น` | |
+| `map.about.power` | `src/mapWindow.js` | — | `Yellow has power, red has none: power runs along the roads, so link red zones by road to a road with a power plant beside it.` | `สีเหลืองมีไฟฟ้า สีแดงไม่มี ไฟฟ้าวิ่งไปตามถนน ต่อโซนสีแดงด้วยถนนไปหาถนนที่มีโรงไฟฟ้าอยู่ติด` | |
 | `map.about.water` | `src/mapWindow.js` | — | `Blue zones have running water, orange ones have none. Water runs from a water works along every road joined to it.` | `เขตสีฟ้ามีน้ำประปา สีส้มไม่มี น้ำไหลจากโรงผลิตน้ำไปตามถนนทุกสายที่ต่อถึงกัน` |  |
 | `map.about.groundwater` | `src/mapWindow.js` | — | `How much water is in the ground: most near rivers, lakes and the sea. A water works pumped hard draws it down; the rains fill it again, but not in the dry season.` | `ปริมาณน้ำใต้ดิน มีมากใกล้แม่น้ำ บึง และทะเล โรงผลิตน้ำที่สูบหนักทำให้ลดลง ฝนเติมกลับ แต่หน้าแล้งไม่เติม` |  |
 | `map.about.toxic` | `src/mapWindow.js` | — | `Poison the mines put into the ground: it lowers the land's value and spoils the water pumped there, and fades only over years.` | `สารพิษที่เหมืองปล่อยลงดิน ทำให้ราคาที่ดินตก และทำให้น้ำที่สูบตรงนั้นใช้ได้น้อยลง ใช้เวลาหลายปีกว่าจะจางไป` |  |
@@ -1324,8 +1324,8 @@
 | `goals.homes.hint` | `src/rulerGoals.ts` | — | `Pick Residential and click on open land. People move in once there is power and a road.` | `เลือก “ที่อยู่อาศัย” แล้วคลิกบนพื้นที่ว่าง ผู้คนจะย้ายเข้ามาเมื่อมีไฟฟ้าและถนน` | |
 | `goals.power` | `src/rulerGoals.ts` | — | `Build a power plant` | `สร้างโรงไฟฟ้า` | |
 | `goals.power.hint` | `src/rulerGoals.ts` | — | `A coal plant is cheaper but smoky, so keep it a little away from the homes.` | `โรงไฟฟ้าถ่านหินราคาถูกกว่าแต่ควันเยอะ วางให้ห่างจากบ้านสักหน่อย` | |
-| `goals.wires` | `src/rulerGoals.ts` | — | `Bring power to the homes` | `เดินสายไฟไปถึงบ้าน` | |
-| `goals.wires.hint` | `src/rulerGoals.ts` | — | `Run a Power Line from the plant until it touches a zone. Zones that touch pass the power on.` | `ใช้ “สายไฟฟ้า” ต่อจากโรงไฟฟ้าจนแตะเขตที่อยู่อาศัย เขตที่ติดกันจะส่งไฟต่อกันเอง` | |
+| `goals.wires` | `src/rulerGoals.ts` | — | `Bring power to the homes` | `ต่อไฟฟ้าไปถึงบ้าน` | |
+| `goals.wires.hint` | `src/rulerGoals.ts` | — | `Power runs along the roads: build the plant beside a road that reaches the homes. Zones that touch pass the power on.` | `ไฟฟ้าวิ่งไปตามถนน: สร้างโรงไฟฟ้าให้ติดถนนเส้นที่ไปถึงบ้าน เขตที่ติดกันจะส่งไฟต่อกันเอง` | |
 | `goals.roads` | `src/rulerGoals.ts` | — | `Lay roads` | `ตัดถนน` | |
 | `goals.roads.hint` | `src/rulerGoals.ts` | — | `People need roads to get to work and the shops. Drag the mouse to lay a long road.` | `ผู้คนต้องมีถนนไปทำงานและไปตลาด ลากเมาส์เพื่อวางถนนยาว ๆ` | |
 | `goals.jobs` | `src/rulerGoals.ts` | — | `Create jobs: commerce and industry` | `สร้างงาน: เขตพาณิชย์และอุตสาหกรรม` | |

@@ -19,7 +19,7 @@ import { plantFuel, plantPower, plantSmokes, powerKindAt } from './powerPlants.t
 import { NOT_ENOUGH_POWER } from './messages.ts';
 import { Random } from './random.ts';
 import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
-import { NUCLEAR, POWERPLANT } from "./tileValues.ts";
+import { HBRDG0, HBRDG_END, HRAILROAD, LASTROAD, NUCLEAR, POWERPLANT, ROADBASE, VBRDG0, VBRDG3, VRAILROAD } from "./tileValues.ts";
 
 // PhaiCity: the plants on the coal plant's tiles are of five kinds now, each with its own power (src/powerPlants.ts)
 var NUCLEAR_POWER_STRENGTH = 2000;
@@ -57,11 +57,21 @@ PowerManager.prototype.clearPowerStack = function() {
 };
 
 
+// PhaiCity: power runs along the roads, as water does (owner, 15 Oct 2026: "ไฟฟ้าไม่ต้องปักเสาเลย มีถนน แล้วก็มีไฟเลย
+// ได้ไหม แต่ต้องสร้างเครื่องกำเนิดไฟ"): every road tile carries it, from a plant beside a road to the zones beside it, and
+// takes none of the plant's power on the way (a district's roads are thousands of tiles)
+var isRoadTile = function(value) {
+  return value >= ROADBASE && value <= LASTROAD || value === HRAILROAD || value === VRAILROAD ||
+         value >= HBRDG0 && value <= HBRDG_END || value >= VBRDG0 && value <= VBRDG3;
+};
+
+
 PowerManager.prototype.testForConductive = function(pos, testDir) {
   var movedPos = Position.move(pos, testDir);
 
   if (this._map.isPositionInBounds(movedPos)) {
-    if (this._map.getTile(movedPos.x, movedPos.y).isConductive()) {
+    var tile = this._map.getTile(movedPos.x, movedPos.y);
+    if (tile.isConductive() || isRoadTile(tile.getValue())) {
       if (this.powerGridMap.worldGet(movedPos.x, movedPos.y) === 0)
           return true;
     }
@@ -89,14 +99,17 @@ PowerManager.prototype.doPowerScan = function(census) {
     var anyDir = undefined;
     var conNum;
     do {
-      powerConsumption++;
-      if (powerConsumption > maxPower) {
-        this._emitEvent(NOT_ENOUGH_POWER);
-        return;
-      }
-
       if (anyDir)
         pos = Position.move(pos, anyDir);
+
+      // PhaiCity: a road carries the power without taking any
+      if (!isRoadTile(this._map.getTileValue(pos.x, pos.y))) {
+        powerConsumption++;
+        if (powerConsumption > maxPower) {
+          this._emitEvent(NOT_ENOUGH_POWER);
+          return;
+        }
+      }
 
       this.powerGridMap.worldSet(pos.x, pos.y, 1);
       conNum = 0;

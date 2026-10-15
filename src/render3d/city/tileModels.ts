@@ -59,7 +59,9 @@ export const isPlainRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 
 export const isRail = (v: number): boolean => v >= 224 && v <= 238 || v === 221 || v === 222;
 /** A plain railway tile; with the plain roads, drawn as part of a smooth curve when the view asks (roadCurves.ts) */
 export const isCurveRail = (v: number): boolean => v >= 226 && v <= 236;
-export const isCurved = (v: number): boolean => isPlainRoad(v) || isCurveRail(v);
+/** A road tile with a power line over it: the road is part of the curve, the wires keep their model (wiresOnly) */
+export const isPowerCrossing = (v: number): boolean => v === 77 || v === 78;
+export const isCurved = (v: number): boolean => isPlainRoad(v) || isPowerCrossing(v) || isCurveRail(v);
 export const isPower = (v: number): boolean => v >= 208 && v <= 222 || v === 77 || v === 78 || v === 239;
 export const isWater = (v: number): boolean => v >= 2 && v <= 20;
 export const isWaterNeighbor = (v:number):boolean => isWater(v)||v===64||v===65||v===208||v===209||v===224||v===225||v>=828&&v<=832||v>=948&&v<=951;
@@ -228,9 +230,17 @@ export class TileSnapshot implements CityMapReader {
    * either side (roadCurves.ts nearest), so the ruler's buildings stand against the curved roads */
   roadSnap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
+    if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
     const p=this.atRealSize(this.placementOf(i,region,this.values[i]));
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
+  }
+  /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */
+  private wiresOnly(i:number,region:RegionId):Placement|null {
+    const p=this.placementOf(i,region,this.values[i]);
+    if(!p)return null;
+    p.id='road.power_crossing';p.kind='power';p.options={...p.options,state:'wires'};
+    return p;
   }
   /**
    * On a real-scale city map a model's metres are the map's (owner, 15 Oct 2026: "ย่อของในภาพ 3D ให้เท่าของจริง"): a
@@ -299,7 +309,8 @@ export class TileSnapshot implements CityMapReader {
         if(id==='rail.corner')variant=staircaseVariant(this.railStaircase(x,y),pick.quarterTurns)&3;}
     } else if(isPower(v)) {
       kind='power'; if(v===208||v===209){id='power.water';special(v===208);}
-      else {const pick=powerForMask(this.mask(x,y,isPower))??{id:'power.end',rotationY:0};id=pick.id;rotation=pick.rotationY;}
+      else {const pick=powerForMask(this.mask(x,y,isPower))??{id:'power.end',rotationY:0};id=pick.id;rotation=pick.rotationY;
+        if(this.realUnits)state='open';}
     } else if(v>=5&&v<=20) {kind='shore';id='terrain.shore';variant=this.mask(x,y,n=>!isWaterNeighbor(n));}
     else if(isWoods(v)) {variant=this.mask(x,y,isWoods);}
     else if(v===0||v>=44&&v<=51) {variant=(hash>>>2)&3;if(v===0&&this.paintedZones)state=LAND_COVER_STATES[this.source?.landCover?.[i]??0]??'grass';}

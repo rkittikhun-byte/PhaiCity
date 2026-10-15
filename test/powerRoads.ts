@@ -1,0 +1,48 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+ */
+
+// Power runs along the roads, as water does (owner, 15 Oct 2026: "ไฟฟ้าไม่ต้องปักเสาเลย มีถนน แล้วก็มีไฟเลยได้ไหม แต่ต้อง
+// สร้างเครื่องกำเนิดไฟ"): a plant beside a road powers the zones beside that road, with no power lines, and the road
+// takes none of its power (src/powerManager.js).
+
+import { CityCore } from "../src/core/cityCore";
+import { MapGenerator } from "../src/mapGenerator.js";
+import { Random } from "../src/random";
+import { POWERBIT } from "../src/tileFlags";
+
+function city() {
+  Random.seed(11);
+  const map = (MapGenerator as any).fromPresetCells(120, 40, new Uint8Array(120 * 40));
+  const core = new CityCore({ map, seed: 11 });
+  core.simulation.budget.setFunds(100000);
+  // A long road along row 20
+  for (let x = 2; x < 118; x++) expect(core.apply({ type: "tool", tool: "road", x, y: 20 }).accepted).toBe(true);
+  // A new city's first building is its office, beside a road
+  expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 12, y: 18 }).accepted).toBe(true);
+  return core;
+}
+
+const powered = (core: CityCore, x: number, y: number): boolean => (core.map.getTileFlags(x, y) & POWERBIT) !== 0;
+
+describe("power along the roads", () => {
+  test("a plant beside a road powers a zone beside it far away, with no power lines", () => {
+    const core = city();
+    // A coal plant at the road's west end, its tiles 17–20 down to the road's row less one: (4..7, 16..19)
+    expect(core.apply({ type: "tool", tool: "coal", x: 5, y: 17 }).accepted).toBe(true);
+    // Homes 100 tiles away, beside the road (centre (105, 18): tiles 104..106, 17..19)
+    expect(core.apply({ type: "tool", tool: "residential", x: 105, y: 18 }).accepted).toBe(true);
+    // ... and homes nowhere near a road
+    expect(core.apply({ type: "tool", tool: "residential", x: 60, y: 5 }).accepted).toBe(true);
+    core.run(200);
+    expect(powered(core, 105, 18)).toBe(true);
+    expect(powered(core, 60, 5)).toBe(false);
+  });
+
+  test("without a plant the road carries nothing", () => {
+    const core = city();
+    expect(core.apply({ type: "tool", tool: "residential", x: 105, y: 18 }).accepted).toBe(true);
+    core.run(200);
+    expect(powered(core, 105, 18)).toBe(false);
+  });
+});

@@ -17,23 +17,18 @@ describe("tool icons", () => {
   test("every tool button has its icon file", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const tools = [...html.matchAll(/data-tool="(\w+)"/g)].map((m) => m[1]);
-    expect(tools.length).toBe(27);
-    // The water tools, the mine, the farm, the harbour, the ruler's house, the schools and hospitals and the rubbish
-    // buildings wait for their icons (Codex Prompts W1, M1, F1 and RH1, docs/WASTE.md); their buttons show a square in
-    // their colour until then
-    const awaitingIcons = ["waterworks", "watertower", "mine", "farm", "fishing", "ruler_house", "primary_school", "health_centre",
-      "landfill", "bus_stop", "land"];
-    for (const tool of tools.filter((t) => !awaitingIcons.includes(t))) {
-      expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
-    }
+    expect(tools.length).toBe(26);
+    // Every one has its icon now (owner, 15 Oct 2026: "ใส่ icon มาให้หมดเลย")
+    for (const tool of tools) expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
   });
 
-  test("twenty-two buttons; the tools grouped into another button's choices keep their size and colour in the page", () => {
+  test("twenty-one buttons (no power line: power runs along the roads); the tools grouped into another button's choices keep their size and colour in the page", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const buttons = [...html.matchAll(/<button [^>]*data-tool="(\w+)"/g)].map((m) => m[1]);
     const template = html.match(/<template id="toolChoices">([\s\S]*?)<\/template>/)?.[1] ?? "";
     const kept = [...template.matchAll(/data-size="(\d)" data-tool="(\w+)" data-colour="([^"]+)"/g)].map((m) => m[2]);
-    expect(buttons).toHaveLength(22);
+    expect(buttons).toHaveLength(21);
+    expect(buttons).not.toContain("wire");
     expect(buttons[0]).toBe("ruler_house"); // a new city builds it first (src/rulerHouse.ts)
     expect([...kept].sort()).toEqual(["airport", "fire", "fishing", "nuclear", "watertower"]);
     for (const tool of kept) {

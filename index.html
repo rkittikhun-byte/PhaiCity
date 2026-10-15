@@ -148,7 +148,6 @@
             <button id="roadButton" data-size="1" data-tool="road" data-colour="black" class="toolButton unselected">Road $10</button>
             <button id="railButton" data-size="1" data-tool="rail" data-colour="brown" class="toolButton unselected">Rail $20</button>
             <button id="portButton" data-size="4" data-tool="port" data-colour="dodgerblue" class="toolButton unselected">Port $3000</button>
-            <button id="wireButton" data-size="1" data-tool="wire" data-colour="khaki" class="toolButton unselected">Wire $5</button>
             <button id="stadiumButton" data-size="4" data-tool="stadium" data-colour="indigo" class="toolButton unselected">Stadium $5000</button>
             <button id="bulldozerButton" data-size="1" data-tool="bulldozer" data-colour="salmon" class="toolButton unselected">Bulldozer $1</button>
             <button id="waterworksButton" data-size="3" data-tool="waterworks" data-colour="deepskyblue" class="toolButton unselected">Water works $1500</button>
@@ -166,6 +165,8 @@
             <button id="queryButton" data-size="1" data-tool="query" data-colour="cyan" class="toolButton unselected">Query</button>
             <button id="parkButton" data-size="1" data-tool="park" data-colour="darkgreen" class="toolButton unselected">Park $10</button>
           </div>
+          <!-- Power runs along the roads (src/powerManager.js, owner 15 Oct 2026), so the power line has no button now;
+               an old city's lines still carry power -->
           <!-- Tools without a button of their own: they are chosen above another button (src/toolLevels.ts, pageChoice),
                the nuclear plant above power, fire above safety (police), the airport above the port, the water tower
                above the water works and the fishing harbour above the farm. Their size and colour live here. -->

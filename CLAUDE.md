@@ -144,7 +144,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     shows under the bar for a few seconds, then fades (`src/notification.js`).
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
-    Twenty-two buttons, the last buying land (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`): some group tools in the choices of that card
+    Twenty-one buttons, the last buying land (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`; no power line since 15 Oct 2026: power
+    runs along the roads from a plant beside one, as water does, `src/powerManager.js`, `docs/POWER_PLANTS.md`): some group tools in the choices of that card
     (safety: police or fire; power: every kind and nuclear; water: works or tower; rubbish: five buildings; schools;
     hospitals; farms or harbours; port or airport; public transport: a stop and three stations), and a button wears the
     chosen tool's size and colour. Tools without a button

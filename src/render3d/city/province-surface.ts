@@ -12,7 +12,7 @@ import { alongRoad, bends, clipTriangle, roadDistance, roadShape } from '../mode
 import { ROAD_SECTION } from '../models/road/interfaces.js';
 import { COMBASE, HOSPITALBASE, INDBASE, PORTBASE, RESBASE } from '../../tileValues.js';
 import { type LandMap, ownsLand } from '../../landBlocks.js';
-import { isCurved, isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
+import { isCurved, isPower, isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
@@ -118,7 +118,8 @@ export class ProvinceSurface {
     const v=this.snapshot.values[y*this.snapshot.width+x],wet=isWaterNeighbor(v),city=this.snapshot.paintedZones;
     let cover=this.snapshot.source?.landCover?.[y*this.snapshot.width+x]??0;
     // Under a curved road the land is its neighbours', so no staircase of bare ground shows beside it
-    if(!cover&&this.snapshot.curves&&isCurved(v))cover=this.neighbourCover(x,y);
+    // ... and under a power line its neighbours' too, as its poles stand on the land (tileModels.ts power 'open')
+    if(!cover&&this.snapshot.curves&&(isCurved(v)||isPower(v)))cover=this.neighbourCover(x,y);
     out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):cover?COVER_COLOURS[cover]??this.landColour():this.landColour());
     if(!wet){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(city?(patch%7-3)*.006:0,0,(patch%9-4)*.006);}
     return out;

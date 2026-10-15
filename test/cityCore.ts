@@ -87,10 +87,11 @@ describe("the game's core", () => {
     expect(kinds).toContain("civic");
     expect(core.objects.all().find(o => o.kind === "power_plant")!.sort(map)).toBe("gas");
     expect(kinds.filter(k => k === "home")).toHaveLength(5);
-    // The first month's look found what the commands built; every month turned once
+    // The first month's look found what the commands built, and the homes that grew with power along the roads
+    // (src/powerManager.js); every month turned once
     expect(heard.filter(h => h.startsWith("built")).sort()).toEqual(
-      ["built civic", "built home", "built home", "built home", "built home", "built home", "built power_plant",
-        "built shop", "built shop", "built shop"]);
+      ["built civic", "built home", "built home", "built home", "built home", "built home", "built home", "built home",
+        "built power_plant", "built shop", "built shop", "built shop"]);
     // The first step reports the month the city starts in, then twelve months turn
     expect(heard.filter(h => h.startsWith("month"))).toHaveLength(13);
     expect(core.simulation.getDate().year).toBe(start + 1);

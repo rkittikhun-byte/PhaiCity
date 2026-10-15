@@ -14,6 +14,9 @@ export type Point = [number, number];
  * power lines over a road keep their tiles) */
 export const isLineRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 77 && v !== 78;
 export const isLineRail = (v: number): boolean => v >= 226 && v <= 236;
+/** ... and a road tile with a power line over it (77, 78), which the road's line runs on through: only the wires keep
+ * their tile's model (owner, 15 Oct 2026, a picture of a road widening into a block at each pole) */
+export const isPowerCrossing = (v: number): boolean => v === 77 || v === 78;
 /** Any road or railway tile, which a line runs up to */
 export const isAnyRoad = (v: number): boolean => v >= 64 && v <= 206 || v === 237 || v === 238 || v >= 828 && v <= 832 ||
   v >= 948 && v <= 951 || v === 239;
@@ -162,7 +165,7 @@ export interface Network {
 /** The stretches of the roads (rail false) or the railways of a map */
 export function networkOf(map: LineMap, rail: boolean): Network {
   const { width, height } = map;
-  const plain = rail ? isLineRail : isLineRoad, joins = rail ? isAnyRail : isAnyRoad;
+  const plain = rail ? isLineRail : (v: number) => isLineRoad(v) || isPowerCrossing(v), joins = rail ? isAnyRail : isAnyRoad;
   const levelOf = (i: number): number => (rail ? 0 : Math.max(1, map.level(i)));
   const near = (i: number): number[] => {
     const x = i % width, y = (i - x) / width, out: number[] = [];

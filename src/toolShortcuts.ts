@@ -45,7 +45,8 @@ export const TOOL_KEYS: ReadonlyArray<{ key: string; tool: string }> = [
   { key: "3", tool: "industrial" },
   { key: "4", tool: "road" },
   { key: "5", tool: "rail" },
-  { key: "6", tool: "wire" },
+  // Power runs along the roads (src/powerManager.js): 6 builds the power plant the power line's key used to pick
+  { key: "6", tool: "coal" },
   { key: "7", tool: "park" },
   { key: "8", tool: "bulldozer" },
   { key: "9", tool: "query" },

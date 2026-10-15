@@ -64,8 +64,9 @@ export const CHAPTERS: Chapter[] = [
       { id: "house", tool: "ruler_house", done: (s) => s.rulerHouse >= 1 },
       { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
       { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },
-      // Power plants are zones with power themselves, so at least one other zone must have it
-      { id: "wires", tool: "wire", done: (s) => s.poweredZones - s.powerPlants >= 1 },
+      // Power plants are zones with power themselves, so at least one other zone must have it; it runs along the
+      // roads (src/powerManager.js)
+      { id: "wires", tool: "road", done: (s) => s.poweredZones - s.powerPlants >= 1 },
       { id: "roads", tool: "road", done: (s) => s.roads >= 10 },
       { id: "jobs", tool: "commercial", done: (s) => s.comZones >= 1 && s.indZones >= 1 },
       // Houses grow without water, but nothing bigger does
@@ -82,7 +83,7 @@ export const CHAPTERS: Chapter[] = [
       // The fire station is chosen above the safety (police) button (src/toolLevels.ts)
       { id: "fire", tool: "police", done: (s) => s.fireStations >= 1 },
       // Only counts once the city has enough zones for keeping them all lit to take some care
-      { id: "lit", tool: "wire", done: (s) => s.litZones >= 20 && s.darkZones === 0 },
+      { id: "lit", tool: "coal", done: (s) => s.litZones >= 20 && s.darkZones === 0 },
       { id: "rail", tool: "rail", done: (s) => s.rails >= 20 },
       { id: "stadium", tool: "stadium", done: (s) => s.stadiums >= 1 },
       // A city (over 10,000 people) earns the rank หลวง

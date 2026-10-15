@@ -9,6 +9,9 @@ import { Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { networkOf } from '../../src/roadGeometry.js';
+import { registry } from '../../src/render3d/models/registry.js';
+import { visibleMeshes } from '../../src/render3d/util/geometry.js';
 
 const flat = { sample: () => 0, sampleTile: () => 0, inside: () => true } as unknown as CityHeightField;
 
@@ -56,5 +59,23 @@ describe('road curves', () => {
     expect(curves.roadsNear(new Vector3(300, 0, 250)).length).toBeGreaterThan(0);
     expect(curves.roadsNear(new Vector3(300, 0, 200)).length).toBeGreaterThanOrEqual(before);
     curves.dispose();
+  });
+  test('a power line over a curved road keeps only its poles and wires, and the road runs on through it', () => {
+    // A road along row 2 with a power line crossing it at (5, 2) (tile 77)
+    const W = 12, snapshot = new TileSnapshot(W, 6);
+    for (let x = 1; x < 10; x++) snapshot.values[2 * W + x] = 66;
+    snapshot.values[2 * W + 5] = 77;
+    snapshot.curves = true;
+    const crossing = snapshot.placement(2 * W + 5, 'central')!;
+    expect(crossing).toMatchObject({ id: 'road.power_crossing', kind: 'power' });
+    expect(crossing.options.state).toBe('wires');
+    const network = networkOf({ width: W, height: 6, value: (i) => snapshot.values[i], level: () => 1 }, false);
+    expect(network.stretches).toHaveLength(1);
+    expect(network.stretches[0].tiles).toContain(2 * W + 5);
+    // The wires alone have no road under them, and a power line on a city map no laterite square
+    const full = registry['road.power_crossing'].factory({ seed: 1 }), wires = registry['road.power_crossing'].factory({ seed: 1, state: 'wires' });
+    expect(visibleMeshes(wires).length).toBeLessThan(visibleMeshes(full).length);
+    const ground = registry['power.straight'].factory({ seed: 1 }), open = registry['power.straight'].factory({ seed: 1, state: 'open' });
+    expect(visibleMeshes(open).length).toBeLessThan(visibleMeshes(ground).length);
   });
 });
