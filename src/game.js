@@ -336,6 +336,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   }.bind(this));
 
   this.mapWindow = new MapWindow(opacityLayerID, 'mapWindow');
+  // The layer the city map shows lies over the city's ground while the window is open (src/render3d/city/layerOverlay.ts)
+  this.mapWindow.onLayer = function(tiles) {
+    if (typeof this.cityView.showLayer === 'function')
+      this.cityView.showLayer(tiles);
+  }.bind(this);
   this.mapWindow.addEventListener(Messages.MAP_WINDOW_CLOSED, function(target) {
     this.genericDialogClosure();
     if (target !== null)

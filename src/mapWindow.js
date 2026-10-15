@@ -39,6 +39,9 @@ var MapWindow = ModalWindow(function() {
   this._overlays = null;
   this._view = null;
   this._layer = savedLayer();
+  // Told the layer's picture as the layer changes, or null (the whole city, or the window closed): src/game.js lays it
+  // over the 3D ground
+  this.onLayer = null;
 
   $('#mapForm').on('submit', function(e) {
     e.preventDefault();
@@ -81,6 +84,7 @@ MapWindow.prototype._setLayer = function(layer) {
 
 
 MapWindow.prototype._draw = function() {
+  var ground = null;
   if (this._map !== null) {
     var width = this._map.width;
     var height = this._map.height;
@@ -92,6 +96,10 @@ MapWindow.prototype._draw = function() {
     tiles.height = height;
     tiles.getContext('2d').putImageData(
       new ImageData(layerPixels(this._layer, this._map, this._overlays), width, height), 0, 0);
+    // A layer other than the whole city is laid over the city's ground too, as Cities: Skylines' info views (owner,
+    // 15 Oct 2026: "คลิกปุ่มใน แผนที่เมือง แล้วให้เห็นใน map ของ ที่กำลังเล่นอยู่ได้ไหม")
+    if (this._layer !== 'city')
+      ground = tiles;
 
     var canvas = document.getElementById('mapCanvas');
     canvas.width = width * scale;
@@ -116,6 +124,8 @@ MapWindow.prototype._draw = function() {
   }
 
   this._label();
+  if (this.onLayer)
+    this.onLayer(ground);
 };
 
 
@@ -192,6 +202,9 @@ MapWindow.prototype.open = function(map, overlays, view) {
 
 // target: the tile clicked, or null when the window just closes
 MapWindow.prototype.close = function(target) {
+  // The layer leaves the ground with the window
+  if (this.onLayer)
+    this.onLayer(null);
   this._map = null;
   this._overlays = null;
   this._view = null;
