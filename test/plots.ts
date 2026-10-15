@@ -113,13 +113,19 @@ describe("painted zones", () => {
     expect(map.getTileValue(12, ROAD_Y + 1)).toBe(WOODS);
   });
 
-  test("the eraser takes the paint off empty plots only", () => {
+  test("the latest brush wins: the eraser and another zone's brush take a built plot too, its building with it", () => {
+    // Owner, 15 Oct 2026: "วาดทับได้ เอา tool ล่าสุด เท่านั้น แต่ต้องไม่มี object ไหนค้างอยู่"
     const { map, commands } = city();
     commands.apply({ type: "tool", tool: "zone_commercial", x: 10, y: ROAD_Y - 1, stroke: 2 });
     expect(commands.apply({ type: "tool", tool: ERASE_TOOL, x: 10, y: ROAD_Y - 1, stroke: 3 }).toolResult).toBe(0);
     expect(map.getTileValue(10, ROAD_Y - 1)).toBe(DIRT);
     map.setTile(11, ROAD_Y - 1, plotTile("commercial", 2, 1), BLBNCNBIT);
-    expect(commands.apply({ type: "tool", tool: ERASE_TOOL, x: 11, y: ROAD_Y - 1, stroke: 4 }).toolResult).toBe(3);
+    expect(commands.apply({ type: "tool", tool: ERASE_TOOL, x: 11, y: ROAD_Y - 1, stroke: 4 }).toolResult).toBe(0);
+    expect(map.getTileValue(11, ROAD_Y - 1)).toBe(DIRT);
+    // A built shop painted over with homes is an empty home plot: the shop is gone
+    map.setTile(12, ROAD_Y - 1, plotTile("commercial", 3, 0), BLBNCNBIT);
+    expect(commands.apply({ type: "tool", tool: "zone_residential", x: 12, y: ROAD_Y - 1, stroke: 5 }).toolResult).toBe(0);
+    expect(plotOf(map, 12, ROAD_Y - 1)).toMatchObject({ kind: "residential", level: 0 });
   });
 
   test("a fill paints the bare land along the road up to other zones, and erasing fills the same kind", () => {

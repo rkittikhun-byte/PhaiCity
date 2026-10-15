@@ -24,8 +24,11 @@ export const POINTS_NEEDED: Readonly<Partial<Record<DrawMode, number>>> = { stra
 const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire"]);
 const PAINT_TOOL_NAMES = new Set<string>([...Object.values(PAINT_TOOLS), ERASE_TOOL]);
 const GROUP_MODES: Readonly<Record<ModeGroup, readonly DrawMode[]>> = { line: LINE_MODES, paint: PAINT_MODES };
-const DEFAULTS: Readonly<Record<ModeGroup, DrawMode>> = { line: "straight", paint: "brush" };
-const STORAGE_KEY = "phaicity.drawModes";
+// Zones are painted by dragging a rectangle over them (owner, 15 Oct 2026: "บ้าน ร้านค้า อุสาหกรรม การวาด ต้องเป็น drag แล้ว
+// คลุมได้")
+const DEFAULTS: Readonly<Record<ModeGroup, DrawMode>> = { line: "straight", paint: "rectangle" };
+// Kept per player; a new key from 15 Oct 2026, when the brushes' default became the rectangle, so every player gets it
+const STORAGE_KEY = "phaicity.drawModes.2";
 
 /** Whether a tool draws lines (roads, railways, power lines) or paints zones, or neither. */
 export function modeGroupOf(tool: string | null | undefined): ModeGroup | null {

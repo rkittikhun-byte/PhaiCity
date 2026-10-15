@@ -1515,6 +1515,12 @@ Game.prototype.calculateMouseForPaint = function() {
   // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
   if (this.isCellBrush(this.inputStatus.toolName)) {
     hover.cellPoint = this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
+    // ... and, while a rectangle is dragged, every cell it will paint (handleToolArea)
+    var cellDrag = this.inputStatus.areaDrag;
+    var start = cellDrag ? this.cityView.pointAt(cellDrag.from.x, cellDrag.from.y) : null;
+    if (start !== null && hover.cellPoint)
+      hover.cellArea = {x0: Math.min(start.x, hover.cellPoint.x), y0: Math.min(start.y, hover.cellPoint.y),
+                        x1: Math.max(start.x, hover.cellPoint.x), y1: Math.max(start.y, hover.cellPoint.y)};
     return hover;
   }
 

@@ -47,10 +47,9 @@ PlotTool.prototype.doTool = function(this: ToolThis, x: number, y: number): void
       this.result = this.TOOLRESULT_FAILED;
       return;
     }
-    if (plot.level > 0) {
-      this.result = this.TOOLRESULT_NEEDS_BULLDOZE;
-      return;
-    }
+    // ... and off a built one, its building pulled down with it (owner, 15 Oct 2026: "วาดทับได้ เอา tool ล่าสุด
+    // เท่านั้น แต่ต้องไม่มี object ไหนค้างอยู่"), at the bulldozer's price
+    if (plot.level > 0) this.addCost(1);
     this._worldEffects.setTile(x, y, DIRT, 0);
     this.result = this.TOOLRESULT_OK;
     return;
@@ -62,12 +61,14 @@ PlotTool.prototype.doTool = function(this: ToolThis, x: number, y: number): void
     this.result = this.TOOLRESULT_OK;
     return;
   }
-  if (outcome !== "paint") {
-    this.result = outcome === "built" ? this.TOOLRESULT_NEEDS_BULLDOZE : this.TOOLRESULT_FAILED;
+  // A plot of another zone, built or not, takes the new paint: the latest brush wins, and its building goes with it
+  if (outcome !== "paint" && outcome !== "built") {
+    this.result = this.TOOLRESULT_FAILED;
     return;
   }
   const value = this._worldEffects.getTileValue(x, y);
-  if (isWoodsValue(value)) this.addBulldozeCost(value, 1);
+  if (outcome === "built") this.addCost(1);
+  else if (isWoodsValue(value)) this.addBulldozeCost(value, 1);
   else if (value !== DIRT && plotOf(this._map, x, y) === null) this.addCost(1);
   this._worldEffects.setTile(x, y, plotTile(kind, 0), BLBNCNBIT);
   this.addCost(this.toolCost);

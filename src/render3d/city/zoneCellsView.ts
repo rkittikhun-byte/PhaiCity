@@ -28,6 +28,8 @@ export class ZoneCellsView {
   private readonly hoverMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55,
     depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   private showing = false;
+  private area: InstancedMesh | null = null;
+  private areaKey = '';
   private version = -1;
 
   constructor(private readonly map: CellMap & { zoneCellsVersion?: number }, private readonly terrain: CityHeightField) {
@@ -58,10 +60,13 @@ export class ZoneCellsView {
     this.drawPaint();
   }
 
-  /** Each frame: the paint, if it changed, and the cell under the brush (a point in tiles, or null) */
-  update(point: { x: number; y: number } | null, colour: string | null): void {
+  /** Each frame: the paint, if it changed, and the cell under the brush (a point in tiles, or null), or every cell in
+   * the rectangle it drags (in tiles) */
+  update(point: { x: number; y: number } | null, colour: string | null,
+    area: { x0: number; y0: number; x1: number; y1: number } | null = null): void {
     if ((this.map.zoneCellsVersion ?? 0) !== this.version) this.drawPaint();
-    const cell = point && this.layout && this.showing ? cellAt(this.layout, this.map.width, point.x * 10, point.y * 10) : null;
+    this.showArea(area && this.showing ? area : null, colour);
+    const cell = !area && point && this.layout && this.showing ? cellAt(this.layout, this.map.width, point.x * 10, point.y * 10) : null;
     this.hover.visible = cell !== null;
     if (cell && this.layout) {
       const size = this.layout.cellUnits;
@@ -72,8 +77,25 @@ export class ZoneCellsView {
     }
   }
 
+  /** The cells a dragged rectangle will paint, in the brush's colour (src/game.js handleToolArea paints the same) */
+  private showArea(area: { x0: number; y0: number; x1: number; y1: number } | null, colour: string | null): void {
+    const key = area ? [area.x0, area.y0, area.x1, area.y1].map((v) => v.toFixed(2)).join() + colour : '';
+    if (key === this.areaKey) return;
+    this.areaKey = key;
+    if (this.area) { this.root.remove(this.area); this.area.dispose(); this.area = null; }
+    if (!area || !this.layout) return;
+    const x0 = area.x0 * 10, x1 = area.x1 * 10, z0 = area.y0 * 10, z1 = area.y1 * 10;
+    const cells = this.layout.cells.filter((cell) => cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1);
+    if (!cells.length) return;
+    if (colour) this.hoverMaterial.color.set(colour);
+    this.area = this.cellMesh(cells, this.hoverMaterial, null);
+    this.area.renderOrder = 3;
+    this.area.position.y = 0.02;
+    this.root.add(this.area);
+  }
+
   dispose(): void {
-    for (const mesh of [this.painted, this.empty]) if (mesh) mesh.dispose();
+    for (const mesh of [this.painted, this.empty, this.area]) if (mesh) mesh.dispose();
     this.plane.dispose(); this.paintMaterial.dispose(); this.hoverMaterial.dispose(); this.gridMaterial.dispose();
     this.root.clear();
   }

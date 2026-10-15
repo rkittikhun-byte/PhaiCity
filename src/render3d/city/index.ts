@@ -151,7 +151,7 @@ export class CityView3D implements CityView {
     const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
-    this.cells?.update(hover?.cellPoint??null,hover?.colour??null);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
+    this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellArea??null);this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     this.sky.update(this.navigation.camera.position,this.seconds);
