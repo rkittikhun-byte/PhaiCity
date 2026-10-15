@@ -56,6 +56,18 @@ describe("zone cells", () => {
     expect(cellsAlong(layout, core.map.width, [150, 95], [250, 95]).length).toBeGreaterThan(30);
   });
 
+  test("rows beside a straight road are whole: a cell every 2 m, none missing (owner: \"ทำไมไม่เรียงกันสวยๆ\")", () => {
+    const core = city(), layout = cellLayout(core.map);
+    // The straight road's own cells (its stretch's id), not the slanted road's rows that reach up near it
+    const road = layout.cells.find(c => c.row === 0 && Math.abs(c.x - 300) < 2 && Math.abs(c.z - 105) < 5)!.road;
+    for (const row of [0, 5, CELL_DEPTH - 1]) for (const side of [-1, 1]) {
+      const xs = layout.cells.filter(c => c.road === road && c.row === row && Math.sign(c.z - 105) === side && c.x > 100 && c.x < 500)
+        .map(c => c.x).sort((a, b) => a - b);
+      expect(xs.length).toBeGreaterThan(300);
+      for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeCloseTo(layout.cellUnits);
+    }
+  });
+
   test("painting cells costs a share of the zone's price; clearing is free; the cells stay with the city", () => {
     const core = city(), layout = cellsOf(core.map);
     const keys = cellsAlong(layout, core.map.width, [150, 95], [250, 95]);

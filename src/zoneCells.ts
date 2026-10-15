@@ -13,7 +13,7 @@
 // come next (docs/ZONE_CELLS.md). Plain code: no DOM, nothing random.
 
 import { isOpenLand } from "./plots";
-import { isLineRoad, networkOf, realUnits, roadReach, smoothLine, type Point } from "./roadGeometry";
+import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
@@ -22,6 +22,9 @@ export const RASTER_M = 1;
 export const CELL_DEPTH = 16;
 /** The gap between a road's edge and its first row (world units) */
 const EDGE_GAP = 0.25;
+/** Two cells' middles at least this share of a cell apart do not overlap enough to matter: cells side by side in a row
+ * are a whole cell apart, so a row stays whole (owner, 15 Oct 2026: "ช่อง ทำไม ขาดๆ หายๆ แบบนี้ ทำไมไม่เรียงกันสวยๆ") */
+const CELL_GAP = 0.9;
 
 /** The zones a cell takes, and their codes in map.zoneCells */
 export const CELL_ZONES = ["residential", "commercial", "industrial"] as const;
@@ -94,11 +97,20 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const levels = map.roadLevels;
   const roads = networkOf({ width: map.width, height: map.height, value, level: (i) => levels?.[i] ?? 1 }, false);
   const rails = networkOf({ width: map.width, height: map.height, value, level: () => 0 }, true);
+  // The roads as the 3D view draws them, one line where a road runs on through a junction (src/roadGeometry.ts
+  // roadLines), so their rows of cells run on through it too; each cell still belongs to the stretch it faces
+  const drawn = roadLines(roads).lines;
+  const stretchAt = new Map<number, number>();
+  for (const stretch of roads.stretches) { const id = Math.min(...stretch.tiles); for (const tile of stretch.tiles) stretchAt.set(tile, id); }
+  const lines = [
+    ...drawn.map((road) => ({ rail: false, level: road.level, line: road.points,
+      first: Math.min(...roads.stretches[road.stretches[0]].tiles) })),
+    ...rails.stretches.map((stretch) => ({ rail: true, level: 0, line: smoothLine(stretch.points), first: 0 })),
+  ];
   // The roads and railways themselves, out to their edges, take their ground first
-  const lines = [...roads.stretches, ...rails.stretches].map((stretch) => ({ stretch, line: smoothLine(stretch.points) }));
-  for (const { stretch, line } of lines) {
+  for (const { rail, level, line } of lines) {
     // Raster squares whose middles lie on the road or its shoulders, so the first row of cells fits beside it
-    const reach = (stretch.rail ? 1.9 * Math.min(1, real ?? 1) : roadReach(stretch.level, real)) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
+    const reach = (rail ? 1.9 * Math.min(1, real ?? 1) : roadReach(level, real)) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
     for (const [px, pz] of line) {
       const cx = Math.floor(px / rasterUnits), cz = Math.floor(pz / rasterUnits);
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
@@ -110,14 +122,14 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   }
   // Every row of cells beside the roads zones may face, nearest the road first
   const candidates: Array<Cell & { distance: number }> = [];
-  for (const { stretch, line } of lines) {
-    if (stretch.rail || !servesZones(stretch.level) || line.length < 2) continue;
-    const road = Math.min(...stretch.tiles);
+  for (const { rail, level, line, first } of lines) {
+    if (rail || !servesZones(level) || line.length < 2) continue;
+    let road = first;
     const along = [0];
     for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
     const length = along[along.length - 1], count = Math.floor(length / cellUnits);
     if (count < 1) continue;
-    const start = (length - count * cellUnits) / 2, edge = roadReach(stretch.level, real) + EDGE_GAP;
+    const start = (length - count * cellUnits) / 2, edge = roadReach(level, real) + EDGE_GAP;
     let segment = 1;
     for (let k = 0; k < count; k++) {
       const s = start + (k + 0.5) * cellUnits;
@@ -125,6 +137,8 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       const [ax, az] = line[segment - 1], [bx, bz] = line[segment], span = along[segment] - along[segment - 1] || 1;
       const t = (s - along[segment - 1]) / span, px = ax + (bx - ax) * t, pz = az + (bz - az) * t;
       const tx = (bx - ax) / span, tz = (bz - az) / span, angle = Math.atan2(tx, tz);
+      // The stretch of road it faces: the one whose tile lies under the road's line there
+      road = stretchAt.get(Math.floor(pz / 10) * map.width + Math.floor(px / 10)) ?? road;
       for (const side of [1, -1]) {
         const nx = -tz * side, nz = tx * side;
         for (let row = 0; row < CELL_DEPTH; row++) {
@@ -137,9 +151,20 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   candidates.sort((a, b) => a.distance - b.distance);
   const cells: Cell[] = [], byKey = new Map<number, number>(), byTile = new Map<number, number[]>();
   const half = cellUnits / 2 - 0.15;
+  // The cells taken so far, by their middles, in buckets a cell wide: a cell too near one already taken (the nearer
+  // road's, or its own row's on the inside of a bend) is left out, so no two overlap
+  const bucket = new Map<number, Array<[number, number]>>(), gap = CELL_GAP * cellUnits;
+  const bucketOf = (bx: number, bz: number): number => bz * 1048576 + bx;
+  const crowded = (x: number, z: number): boolean => {
+    const bx = Math.floor(x / cellUnits), bz = Math.floor(z / cellUnits);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      for (const [ox, oz] of bucket.get(bucketOf(bx + dx, bz + dz)) ?? []) if (Math.hypot(ox - x, oz - z) < gap) return true;
+    }
+    return false;
+  };
   for (const cell of candidates) {
     const key = keyOf(cell.x, cell.z);
-    if (key < 0 || taken.get(key)) continue;
+    if (key < 0 || taken.get(key) || crowded(cell.x, cell.z)) continue;
     // Its corners, edges and middle: on open land the city may build on, and clear of every cell before it
     const sin = Math.sin(cell.angle), cos = Math.cos(cell.angle), spots: number[] = [];
     let clear = true;
@@ -157,7 +182,9 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       spots.push(spot);
     }
     if (!clear) continue;
-    for (const spot of spots) taken.set(spot);
+    const home = bucketOf(Math.floor(cell.x / cellUnits), Math.floor(cell.z / cellUnits));
+    if (!bucket.has(home)) bucket.set(home, []);
+    bucket.get(home)!.push([cell.x, cell.z]);
     const index = cells.length, tile = Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
     cells.push({ key, x: cell.x, z: cell.z, angle: cell.angle, row: cell.row, road: cell.road });
     byKey.set(key, index);
