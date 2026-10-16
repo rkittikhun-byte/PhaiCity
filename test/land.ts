@@ -12,7 +12,8 @@ import { GameTools } from "../src/gameTools.js";
 import { decodePresetLayer, encodePresetLayer } from "../src/geo/presetMap";
 import { hasKey } from "../src/i18n/index";
 import {
-  BLOCK_PRICE_STEP, BLOCK_SIZE, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, FIRST_BLOCK_PRICE,
+  BLOCK_PRICE_STEP, BLOCK_SIZE, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, blocksByRank,
+  CITY_BLOCK_PRICE_STEP, CITY_BLOCKS_BY_RANK, FIRST_BLOCK_PRICE,
   LAND_ALL_OPEN, LAND_LOCKED, LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, landProblem,
   ownsLand, startingBlocks,
 } from "../src/landBlocks";
@@ -80,6 +81,15 @@ describe("land blocks", () => {
     for (let k = 0; k < BLOCKS_BY_RANK[0]; k++) expect(low.commands.apply({ type: "land", x: (6 + k) * B, y: 3 * B }).accepted).toBe(true);
     expect(low.commands.apply({ type: "land", x: 7 * B, y: 2 * B })) // beside the last, but one too many
       .toMatchObject({ accepted: false, reason: LAND_NEEDS_RANK });
+  });
+
+  test("on a city map each rank may buy enough land for the people the next rank asks, and blocks cost less more", () => {
+    // Owner, 16 Oct 2026: "ให้อัพให้ได้ level สูงสุด": at หลวง nine blocks held some 25,000 people, short of 50,000
+    expect(blocksByRank({ tileSizeM: 16 })).toBe(CITY_BLOCKS_BY_RANK);
+    expect(blocksByRank({ tileSizeM: 600 })).toBe(BLOCKS_BY_RANK);
+    for (let rank = 0; rank < 5; rank++) expect(CITY_BLOCKS_BY_RANK[rank]).toBeGreaterThan(BLOCKS_BY_RANK[rank]);
+    expect(blockPrice({ tileSizeM: 16, landBought: 10 } as any)).toBe(FIRST_BLOCK_PRICE + 10 * CITY_BLOCK_PRICE_STEP);
+    expect(blockPrice({ tileSizeM: 600, landBought: 10 } as any)).toBe(FIRST_BLOCK_PRICE + 10 * BLOCK_PRICE_STEP);
   });
 
   test("the land tool's outline covers its whole block; the city map shows unbought land darker; saves keep it", () => {

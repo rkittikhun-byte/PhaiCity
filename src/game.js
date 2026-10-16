@@ -59,7 +59,7 @@ import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
 import { readPolicies } from './policies.ts';
-import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, LAND_ALL_OPEN, LAND_LOCKED,
+import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, blocksByRank, LAND_ALL_OPEN, LAND_LOCKED,
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
          startingBlocks } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
@@ -1314,7 +1314,7 @@ Game.prototype.handleTool = function(data) {
       if (this.cityView.landChanged)
         this.cityView.landChanged();
     } else {
-      var rankNeeded = BLOCKS_BY_RANK.findIndex(function(n) { return n > (this.gameMap.landBought || 0); }, this);
+      var rankNeeded = blocksByRank(this.gameMap).findIndex(function(n) { return n > (this.gameMap.landBought || 0); }, this);
       showCornerNote(t('land.note.' + LAND_KEYS[bought.reason], {
         rank: t('rank.' + RANKS[Math.max(0, rankNeeded)]), price: formatMoney(blockPrice(this.gameMap))}), OUTSIDE_NOTE_MS);
     }

@@ -152,20 +152,32 @@ export interface PlayerOptions {
 /** The services a town builds as its people grow: [people, tool] */
 const SERVICES: ReadonlyArray<[number, string]> = [[300, "police_box"], [300, "fire_post"], [500, "primary_school"],
   [500, "health_centre"], [800, "kindergarten"], [1500, "landfill"],
-  [3000, "ruler_house_upgrade"], [3000, "secondary_school"], [4000, "community_hospital"], [5000, "police_large"],
-  [5000, "fire_centre"]];
+  [3000, "secondary_school"], [4000, "community_hospital"], [5000, "police_large"],
+  [5000, "fire_centre"], [8000, "primary_school"], [8000, "health_centre"], [12000, "vocational_college"],
+  [15000, "secondary_school"], [20000, "provincial_hospital"], [25000, "police_large"], [25000, "fire_centre"],
+  [30000, "university"], [40000, "primary_school"], [40000, "community_hospital"], [60000, "police_hq"],
+  [80000, "regional_hospital"], [100000, "university"]];
 
 /** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go */
 const CAPS: ReadonlyArray<[string, string, number, number]> = [["resCap", "stadium", -20, -12],
   ["indCap", "port", 30, 12], ["comCap", "airport", 30, -20]];
+/** Rubbish lying in the streets (src/waste.ts overflow, 0–1) at which another landfill goes up */
+const OVERFLOW_AT = 0.1;
+/** Zones and land are bought while the treasury has this much: cells are cheap, and a town that stops growing stays small */
+const EXPAND_FROM = 1500;
+/** Taxes while every kind of zone is wanted this much (the valves, up to 1500–2000), and otherwise */
+const WANTED_FOR_TAX = 1000;
+const GROWING_TAX = 9;
+const DEFAULT_TAX = 7;
 /** A bus for this many people */
 const BUS_PEOPLE = 1500;
 /** One home tile in this many is a park */
 const PARK_EVERY = 8;
 /** Another power plant goes up when the city uses this share of its plants' power */
 const MORE_POWER_AT = 0.85;
-/** ... and another water works when this share of its buildings went without water */
+/** ... and another water works when this share of its buildings went without water, or this share of its supply is taken */
 const MORE_WATER_AT = 0.15;
+const MORE_WATER_USED = 0.9;
 /** Factories stand this far from the town's middle at least (world units, 10 a tile), the power plants further */
 const FACTORIES_FROM = 100;
 const PLANT_FROM = 24;
@@ -204,38 +216,9 @@ export class AutoPlayer {
     this.year++;
     const population = sim.evaluation.cityPop;
     const { x, y } = this.options.town;
-    while (this.next < SERVICES.length && population >= SERVICES[this.next][0] && budget.totalFunds > (this.options.reserve ?? 3000)) {
-      const [, tool] = SERVICES[this.next];
-      if (tool === "ruler_house_upgrade") {
-        const house = core.map.rulerHouse;
-        if (house) this.apply(tool, house.x, house.y);
-      } else {
-        this.place(tool, x + ((this.next * 7) % 21) - 10, y + ((this.next * 11) % 21) - 10);
-      }
-      this.next++;
-    }
-    // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry less
-    // traffic and its smoke (src/transit.ts, src/busStopTool.ts)
-    while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {
-      const n = core.map.buses?.length ?? 0;
-      if (!this.place("bus_stop", x + ((n * 5) % 13) - 6, y + ((n * 3) % 13) - 6, 12)) break;
-    }
-    // A power plant more when the city uses nearly all its power (src/powerManager.js load)
-    const load = sim._powerManager?.load ?? 0;
-    if (load >= MORE_POWER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) this.place("coal", x + PLANT_FROM, y + 8);
-    // A landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
-    const waste = sim._waste;
-    const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
-    if ((nearlyFull || (waste?.overflow ?? 0) > 0) && budget.totalFunds > (this.options.reserve ?? 3000) / 2) {
-      this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
-    }
-    // A water works more when many buildings went without (src/waterManager.ts: empty lots take none)
-    const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
-    if (dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT && budget.totalFunds > (this.options.reserve ?? 3000)) {
-      this.place("waterworks", x - 10 - this.year, y + 8);
-    }
-    // What the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
-    // stadium for the homes, a port for the factories, an airport for the shops; saved for before more zones and land
+    // First what the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
+    // stadium for the homes, a port for the factories, an airport for the shops; while one waits, money is saved for
+    // it and nothing else but power, water and rubbish is bought
     const valves = sim._valves ?? {};
     let saving = false;
     for (const [cap, tool, dx, dy] of CAPS) {
@@ -244,8 +227,47 @@ export class AutoPlayer {
       if (budget.totalFunds >= price + 500 && this.place(tool, x + dx, y + dy)) continue;
       saving = true;
     }
+    // Then what keeps the town running: a power plant more when it uses nearly all its power (src/powerManager.js load)
+    const load = sim._powerManager?.load ?? 0;
+    if (load >= MORE_POWER_AT && budget.totalFunds > 3500) this.place("coal", x + PLANT_FROM, y + 8);
+    // ... a water works more when many buildings went without or the supply is nearly all taken (src/waterManager.ts)
+    const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
+    const water = sim._waterManager, short = water && water.supply > 0 && water.used >= water.supply * MORE_WATER_USED;
+    if ((short || dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT) && budget.totalFunds > 2000) {
+      this.place("waterworks", x - 10 - this.year, y + 8);
+    }
+    // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
+    const waste = sim._waste;
+    const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
+    if ((nearlyFull || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
+      this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
+    }
+    if (!saving) {
+      // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts)
+      const house = core.map.rulerHouse;
+      if (house && budget.totalFunds > (this.options.reserve ?? 3000)) this.apply("ruler_house_upgrade", house.x, house.y);
+      // The services its people ask for, in turn; one the office is not yet high enough for waits (serviceProblem)
+      while (this.next < SERVICES.length && population >= SERVICES[this.next][0] && budget.totalFunds > (this.options.reserve ?? 3000)) {
+        const [, tool] = SERVICES[this.next];
+        if (!this.place(tool, x + ((this.next * 7) % 41) - 20, y + ((this.next * 11) % 41) - 20)) break;
+        this.next++;
+      }
+      // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
+      // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
+      while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {
+        const n = core.map.buses?.length ?? 0;
+        if (!this.place("bus_stop", x + ((n * 5) % 13) - 6, y + ((n * 3) % 13) - 6, 12)) break;
+      }
+    }
     // More zones while money allows, and a block of land more when the town's own is nearly all painted
-    if (!saving && budget.totalFunds > (this.options.reserve ?? 3000) + 1000) {
+    // ... and taxes a little higher while every kind of zone is wanted, as a ruler of a growing town would set them
+    const wanted = Math.min(valves.resValve ?? 0, valves.comValve ?? 0, valves.indValve ?? 0);
+    const tax = wanted >= WANTED_FOR_TAX ? GROWING_TAX : DEFAULT_TAX;
+    if (budget.cityTax !== tax) {
+      core.apply({ type: "budget", tax, comTax: tax, indTax: tax, road: Math.round(budget.roadPercent * 100),
+        fire: Math.round(budget.firePercent * 100), police: Math.round(budget.policePercent * 100), yearEnd: false });
+    }
+    if (!saving && budget.totalFunds > EXPAND_FROM) {
       const wanted = this.options.paintEachYear ?? 3000;
       const painted = this.paint(wanted);
       if (painted < wanted / 2 && this.buyLand() !== null) this.paint(wanted - painted);

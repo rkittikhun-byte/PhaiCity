@@ -20,6 +20,13 @@ export const FIRST_BLOCK_PRICE = 1000;
 export const BLOCK_PRICE_STEP = 500;
 /** Blocks the ruler may have bought, by rank (src/rulerRank.ts: 0 หมื่น … 5 เจ้าพระยา, who may buy all) */
 export const BLOCKS_BY_RANK: readonly number[] = [2, 5, 9, 14, 20, Infinity];
+/**
+ * ... and on a city map, whose blocks are 512 m rather than some 14 km, with a smaller step in price (owner, 16 Oct 2026:
+ * "ให้อัพให้ได้ level สูงสุด"): at หลวง nine blocks more held a town of 25,000, short of the 50,000 the next rank asks,
+ * so no city could rise past it. Each rank now holds the people the next one asks for.
+ */
+export const CITY_BLOCKS_BY_RANK: readonly number[] = [4, 12, 30, 60, 120, Infinity];
+export const CITY_BLOCK_PRICE_STEP = 100;
 
 /** Why buying a block was refused */
 export const LAND_OWNED = "the city owns that land";
@@ -100,7 +107,12 @@ export function startingBlocks(map: LandMap, town: { x: number; y: number }): Ui
 
 /** What the next block costs, before the province's price rules. */
 export function blockPrice(map: LandMap): number {
-  return FIRST_BLOCK_PRICE + BLOCK_PRICE_STEP * (map.landBought ?? 0);
+  return FIRST_BLOCK_PRICE + (isCityMap(map) ? CITY_BLOCK_PRICE_STEP : BLOCK_PRICE_STEP) * (map.landBought ?? 0);
+}
+
+/** The blocks each rank may have bought on this map */
+export function blocksByRank(map: { tileSizeM?: number | null }): readonly number[] {
+  return isCityMap(map) ? CITY_BLOCKS_BY_RANK : BLOCKS_BY_RANK;
 }
 
 /** Why the block at (x, y) may not be bought now, or null. rank: the ruler's, 0–5; funds: the treasury's. */
@@ -116,7 +128,8 @@ export function landProblem(map: LandMap, x: number, y: number, rank: number, fu
   const owned = (cx: number, cy: number): boolean =>
     cx >= 0 && cy >= 0 && cx < columns && cy < blockRows(map) && map.landBlocks?.[cy * columns + cx] === 1;
   if (!owned(bx - 1, by) && !owned(bx + 1, by) && !owned(bx, by - 1) && !owned(bx, by + 1)) return LAND_NOT_BESIDE;
-  if ((map.landBought ?? 0) >= BLOCKS_BY_RANK[Math.max(0, Math.min(BLOCKS_BY_RANK.length - 1, rank))]) return LAND_NEEDS_RANK;
+  const allowed = blocksByRank(map);
+  if ((map.landBought ?? 0) >= allowed[Math.max(0, Math.min(allowed.length - 1, rank))]) return LAND_NEEDS_RANK;
   return funds < blockPrice(map) ? LAND_NO_MONEY : null;
 }
 
