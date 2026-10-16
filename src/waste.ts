@@ -59,6 +59,9 @@ export const RUBBISH_PER_VISITOR = 0.01;
 export const OWN_RUBBISH = 60;
 /** Tonnes a month left lying at which the streets are as dirty as they get, and that pollution on homes and shops */
 export const OVERFLOW_FULL = 600;
+/** How much dirtier the streets may get in a month (0–1), and how much cleaner: some ten months to the worst */
+export const OVERFLOW_RISE = 0.1;
+export const OVERFLOW_FALL = 0.25;
 export const RUBBISH_POLLUTION = 40;
 /** What a landfill holds before it is full for good, and the poison it seeps each month */
 export const LANDFILL_HOLDS = 40000;
@@ -247,7 +250,10 @@ export class Waste {
 
     const taken = rubbish - left;
     const atHome = Math.min(left, OWN_RUBBISH);
-    this.overflow = clamp01((left - atHome) / OVERFLOW_FULL);
+    // The streets get dirtier a little each month, as rubbish piles up, and cleaner faster once it is taken (owner, 16
+    // Oct 2026: a town of 36,000 whose landfill filled had its land value fall from 66 to 11 in a year and went bankrupt)
+    const target = clamp01((left - atHome) / OVERFLOW_FULL);
+    this.overflow = target > this.overflow ? Math.min(target, this.overflow + OVERFLOW_RISE) : Math.max(target, this.overflow - OVERFLOW_FALL);
     const treated = this.sites.reduce((sum, site) => sum + WASTE_SPECS[site.kind].treats, 0);
     this.sewage = clamp01((people - treated - OWN_SEWAGE) / SEWAGE_FULL);
     return {

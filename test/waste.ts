@@ -15,7 +15,7 @@ import { Simulation } from "../src/simulation.js";
 import { POWERBIT } from "../src/tileFlags";
 import { RESBASE, WASTE, WASTE_BASE } from "../src/tileValues";
 import {
-  LANDFILL_HOLDS, LANDFILL_WARN, OWN_RUBBISH, OWN_SEWAGE, RUBBISH_POLLUTION, rubbishOf, SEWAGE_FULL, Waste, WASTE_KINDS, WASTE_POWER,
+  LANDFILL_HOLDS, LANDFILL_WARN, OVERFLOW_RISE, OWN_RUBBISH, OWN_SEWAGE, RUBBISH_POLLUTION, rubbishOf, SEWAGE_FULL, Waste, WASTE_KINDS, WASTE_POWER,
   WASTE_SPECS, type WasteKind, wasteKindAt,
 } from "../src/waste";
 
@@ -90,7 +90,11 @@ describe("rubbish and wastewater", () => {
     // Twice the people: more than the two can take
     month = waste.month(40000, 0, new Uint8Array(1600));
     const left = rubbishOf(40000, 0) - WASTE_SPECS.landfill.takes - WASTE_SPECS.recycling_plant.takes;
-    expect(month.overflow).toBeCloseTo((left - OWN_RUBBISH) / 600);
+    // The streets get dirtier a month at a time (OVERFLOW_RISE), up to what lies there
+    const lying = (left - OWN_RUBBISH) / 600;
+    expect(month.overflow).toBeCloseTo(Math.min(lying, OVERFLOW_RISE));
+    for (let m = 0; m < 10; m++) month = waste.month(40000, 0, new Uint8Array(1600));
+    expect(month.overflow).toBeCloseTo(lying);
     expect(month.rubbishShare).toBeLessThan(100);
   });
 

@@ -12,8 +12,10 @@ import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
 import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
 import { blockColumns, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
-import { LANDFILL_HOLDS, LANDFILL_WARN } from "../waste.js";
+import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
+import { besideRoad } from "../cityCommands.js";
+import { isRoadTile } from "../roadLevels.js";
 import { cellsOf } from "../zoneCells.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
@@ -239,7 +241,11 @@ export class AutoPlayer {
     // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
     const waste = sim._waste;
     const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
-    if ((nearlyFull || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
+    // Landfills enough for the town's rubbish: one more while those not yet nearly full take less than it makes, or
+    // rubbish lies in the streets (the cheapest to keep: ฿20 a year against an incinerator's ฿150, src/waste.ts)
+    const room = Object.values(waste?.fill ?? {}).filter((t) => (t as number) < LANDFILL_HOLDS * LANDFILL_WARN).length;
+    const made = rubbishOf(population / 1, 0);
+    if ((nearlyFull || room * WASTE_SPECS.landfill.takes < made || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
       this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
     }
     if (!saving) {
@@ -332,8 +338,41 @@ export class AutoPlayer {
       this.buying = false;
       if (built) return true;
     }
+    // Still no room: plots cleared for it beside a road, as a player knocks houses down for a stadium or a port
+    if (reach > 16 && (tool === "landfill" || CAPS.some(([, waited]) => waited === tool)) && this.clearFor(tool, cx, cy)) return true;
     const reasons = [...this.failures].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${why} ×${n}`);
     this.note(`${tool}: no place (${reasons.join(", ")})`);
+    return false;
+  }
+
+  /**
+   * Room for a building of the tool's size made on painted plots beside a road, the nearest (cx, cy): their cells
+   * cleared (the eraser takes a plot and its building back, src/zoneCells.ts), then the building put there. Only plots,
+   * open land and the city's own land; no road, service or other building is taken.
+   */
+  private clearFor(tool: string, cx: number, cy: number): boolean {
+    const core = this.core, map = core.map, size = core.tools?.[tool]?.size ?? 3;
+    if (!map.cellZones) return false;
+    const isRoad = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && isRoadTile(map.getTileValue(x, y));
+    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && ownsLand(map, x, y) &&
+      (map.getTileValue(x, y) === 0 || plotOf(map, x, y) !== null);
+    for (let r = 0; r <= 30; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = cx + dx, y = cy + dy, left = x - 1, top = y - 1;
+          let ok = besideRoad(map.width, map.height, isRoad, x, y, size);
+          for (let ty = top; ok && ty < top + size; ty++) for (let tx = left; ok && tx < left + size; tx++) ok = free(tx, ty);
+          if (!ok) continue;
+          const keys = cellsOf(map).cells.filter((c) => {
+            const tx = Math.floor(c.x / 10), ty = Math.floor(c.z / 10);
+            return tx >= left && tx < left + size && ty >= top && ty < top + size && map.zoneCells?.get?.(c.key);
+          }).map((c) => c.key);
+          for (let i = 0; i < keys.length; i += 4000) core.apply({ type: "zoneCells", zone: null, cells: keys.slice(i, i + 4000) });
+          if (this.apply(tool, x, y)) { this.note(`cleared ${keys.length} cells for ${tool}`); return true; }
+        }
+      }
+    }
     return false;
   }
 
