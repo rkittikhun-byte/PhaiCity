@@ -167,6 +167,22 @@ describe('Province ground and appearance',()=>{
     // Other maps keep their old widths and sizes
     expect(realUnits(null)).toBeNull();expect(realUnits(600)).toBeNull();expect(halfWidth(1,realUnits(600))).toBe(3.5);
   });
+  it('a bridge on a real-scale city map is as narrow as the road or railway drawn up to it, and as long as its tile',()=>{
+    // Owner, 15 Oct 2026: the roads were their real width, but each bridge still widened into a whole 16 m tile
+    const s=new TileSnapshot(5,5);s.realUnits=realUnits(16);s.curves=true;s.values[6]=64;s.values[18]=224;
+    const bridge=s.placement(6,'central')!,rails=s.placement(18,'central')!;
+    expect(bridge.id).toBe('road.bridge');expect(bridge.across).toBeCloseTo(roadReach(2,realUnits(16))/roadReach(2));
+    expect(rails.id).toBe('rail.bridge');expect(rails.across).toBeCloseTo(.625);
+    const position=new Vector3(),rotation=new Quaternion(),size=new Vector3();
+    bridge.modelMatrix(new Matrix4()).decompose(position,rotation,size);
+    expect(size.x).toBeCloseTo(bridge.across!);expect(size.z).toBeCloseTo(1);
+    // A laterite road's bridge too
+    const laterite=new TileSnapshot(5,5);laterite.realUnits=realUnits(16);laterite.curves=true;laterite.values[6]=64;
+    laterite.source={roadLevels:new Uint8Array(25).fill(1)} as never;laterite.roadLevel=1;
+    const dusty=laterite.placement(6,'central')!;expect(dusty.id).toBe('road.laterite_bridge');expect(dusty.across).toBeCloseTo(roadReach(1,realUnits(16))/roadReach(1));
+    // On other maps a bridge is as built
+    const old=new TileSnapshot(5,5);old.values[6]=64;expect(old.placement(6,'central')!.across).toBeUndefined();
+  });
   it('keeps the complete previous ground and forest visible during a sliced rebuild',()=>{
     const f=fixture(4,4);f.map.values[0]=37;const t=f.build(),surface=new ProvinceSurface(t.snapshot,t);
     try{surface.finish();const c=surface.chunks[0],geometry=c.land.geometry,count=c.trees.count;

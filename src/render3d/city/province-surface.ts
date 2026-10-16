@@ -152,6 +152,9 @@ export class ProvinceSurface {
    * up (models/road/centreline.ts). Laterite stops at its verge; asphalt fills the tile with its pavements unless it bends.
    */
   private road(c:SurfaceChunk,x:number,y:number,i:number,mask:number,level:number,bridge:boolean,height:(x:number,z:number)=>number):void {
+    // A bridge on a real-scale city map is as narrow as its road (TileSnapshot.narrowBridge) and its model has its own
+    // deck: painting the whole tile would show round it as a block
+    if(bridge&&this.snapshot.curves&&this.snapshot.realUnits)return;
     const laterite=level===1&&!bridge,steps=bridge?0:this.snapshot.staircase(x,y),diagonal=steps&15;
     const shape=laterite?lateriteShape(mask,diagonal,steps>>4):roadShape(mask,diagonal,false,steps>>4);
     const edge=bridge?Infinity:laterite?LATERITE_EDGE:bends(mask,diagonal,false)?ROAD_SECTION.carriageway/2:Infinity;

@@ -32,6 +32,9 @@ export class Placement implements PlacementFields {
   /** How much of its tiles it covers as drawn, across and up: 1 fills them; less when it is drawn at its real size on
    * a real-scale city map (10/16 of a 16 m tile, TileSnapshot.atRealSize) or smaller against its road */
   declare fill?: number;
+  /** How wide its model is drawn across the way it runs (its own x), as a share: a bridge on a real-scale city map is
+   *  as narrow as the road or railway drawn up to it (TileSnapshot.narrowBridge); 1 or none, as built */
+  declare across?: number;
   constructor(fields: PlacementFields) { Object.assign(this, fields); }
   /** What a tool in hand would put down: a building of size × size tiles centred at (x, z), before it is built, so its
    * outline stands where and as the building will (overlay.ts) */
@@ -48,12 +51,19 @@ export class Placement implements PlacementFields {
   }
   /** Its model's matrix: on its ground, turned and scaled */
   modelMatrix(target: Matrix4): Matrix4 {
-    return target.makeRotationY(this.rotation).scale(size.setScalar(this.scale)).setPosition(this.x, this.baseY ?? 0, this.z);
+    return target.makeRotationY(this.rotation).scale(size.set(this.scale * (this.across ?? 1), this.scale, this.scale))
+      .setPosition(this.x, this.baseY ?? 0, this.z);
   }
   /** Its box from afar: its tiles less an inset (world units), `height` tall at full size, standing on y, both as
    * much as it fills. A plain placement's box is unturned, as tiles are */
   farBox(target: Matrix4, height: number, inset: number, y = this.baseY ?? 0): Matrix4 {
     const f = this.fill ?? 1;
+    // A narrowed bridge's box is as narrow as it, across the way it runs
+    if (this.across !== undefined && this.across < 1) {
+      return target.makeRotationY(this.rotation)
+        .scale(size.set((this.footprint[0] * 10 - inset) * f * this.across, height * f, (this.footprint[1] * 10 - inset) * f))
+        .setPosition(this.x, y + height * f / 2, this.z);
+    }
     return target.makeScale((this.footprint[0] * 10 - inset) * f, height * f, (this.footprint[1] * 10 - inset) * f)
       .setPosition(this.x, y + height * f / 2, this.z);
   }

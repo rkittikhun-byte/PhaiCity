@@ -14,6 +14,7 @@ import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
 import type { CityMapReader } from './types.js';
 import { Placement, type PlacementFields } from './placement.js';
+import { roadReach } from '../../roadGeometry.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 
@@ -232,7 +233,7 @@ export class TileSnapshot implements CityMapReader {
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
-    const p=this.atRealSize(this.placementOf(i,region,this.values[i]));
+    const p=this.narrowBridge(this.atRealSize(this.placementOf(i,region,this.values[i])));
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
   }
   /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */
@@ -271,6 +272,23 @@ export class TileSnapshot implements CityMapReader {
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
     const {x,z,rotation}=poseAgainstRoad(p.x,p.z,size,near);
     return p.againstRoad(x,z,rotation,BUILDING_SCALE);
+  }
+  /**
+   * A bridge on a real-scale city map, as narrow as the road or railway drawn up to it on either side (owner, 15 Oct
+   * 2026: the roads were their real width but a bridge still the whole 16 m tile, so each one widened into a block): a
+   * road bridge to its level's reach, shoulders and all, a railway bridge to the rails' scale. Its length still spans
+   * the tile, where the lines stop.
+   */
+  private narrowBridge(p:Placement|null):Placement|null {
+    const units=this.realUnits;
+    if(!p||!units||!this.curves)return p;
+    if(p.id==='rail.bridge'){p.across=Math.min(1,units);return p;}
+    // A road bridge of any surface, laterite's too, and a drawbridge
+    if(!p.id||!/^road\.(laterite_)?(draw)?bridge$/.test(p.id))return p;
+    // The map's own level of the road, 1 laterite … 8 tollway (src/roadLevels.ts), asphalt where it has none
+    const level=this.roadLevels?.[p.index]||2;
+    p.across=Math.min(1,roadReach(level,units)/roadReach(level));
+    return p;
   }
   /** Open land beside a curved road, which the curve may cross: its fields' raised ground would hide the road */
   private besideCurve(i:number):boolean {

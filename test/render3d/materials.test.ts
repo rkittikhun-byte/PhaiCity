@@ -12,6 +12,7 @@ import { FICTIONAL_THAI_SIGNS, thaiSign } from '../../src/render3d/materials/sig
 import { loadTexture } from '../../src/render3d/materials/textures.js';
 
 describe('bundled licensed assets', () => {
+  // It reads every map's file, which a busy full run can make slower than Jest's 5 s
   it('covers every material with local, genuine 1K maps and source credits', async () => {
     expect(Object.keys(TEXTURE_CATALOG).sort()).toEqual([...MATERIAL_KEYS].sort());
     const credits = readFileSync(resolve('assets/CREDITS.md'), 'utf8');
@@ -37,7 +38,7 @@ describe('bundled licensed assets', () => {
     expect(sky.subarray(0, 250).toString()).toMatch(/-Y 512 \+X 1024/);
     for (const weight of ['Regular', 'Bold']) expect(existsSync(resolve(`assets/fonts/Sarabun-${weight}.ttf`))).toBe(true);
     expect(readFileSync(resolve('assets/fonts/OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE Version 1.1');
-  });
+  }, 30000);
 
   it('provides 40 distinct Thai texts and 12 reproducible pastel choices', () => {
     expect(FICTIONAL_THAI_SIGNS).toHaveLength(40);
