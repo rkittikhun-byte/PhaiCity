@@ -1398,6 +1398,16 @@
 | `object.fact.land_value` | `src/inspect.ts` | — | `Land value: {grade}` | `ราคาที่ดิน: {grade}` |  |
 | `object.fact.pollution` | `src/inspect.ts` | — | `Pollution: {grade}` | `มลพิษ: {grade}` |  |
 | `object.fact.crime` | `src/inspect.ts` | — | `Crime: {grade}` | `อาชญากรรม: {grade}` |  |
+| `object.fact.why.none` | `src/inspect.ts` | — | `Growing: it rises when its turn comes` | `กำลังโต: จะขยายเมื่อถึงรอบ` | เหตุที่แปลงไม่โต (`src/plots.ts` PLOT_WHY) |
+| `object.fact.why.power` | `src/inspect.ts` | — | `Not growing: no power. Build a power plant beside a road it reaches` | `ไม่โต: ไม่มีไฟฟ้า สร้างโรงไฟฟ้าติดถนนที่ต่อถึง` |  |
+| `object.fact.why.water` | `src/inspect.ts` | — | `Not growing: no water. Build a water works, or another if the water runs short` | `ไม่โต: ไม่มีน้ำประปา สร้างโรงประปา หรือเพิ่มอีกแห่งถ้าน้ำไม่พอ` |  |
+| `object.fact.why.road` | `src/inspect.ts` | — | `Not growing: no road to drive on` | `ไม่โต: ไม่มีถนนให้รถออกไปได้` |  |
+| `object.fact.why.pollution` | `src/inspect.ts` | — | `Not growing: too much pollution here. Keep factories and busy roads away, or plant parks` | `ไม่โต: มลพิษมากเกินไป ย้ายโรงงานและถนนที่รถมากออกห่าง หรือปลูกสวน` |  |
+| `object.fact.why.land` | `src/inspect.ts` | — | `Not growing: the land is worth too little. Parks, buses and the town centre raise it` | `ไม่โต: ราคาที่ดินต่ำเกินไป สวน รถเมล์ และความใกล้ใจกลางเมืองช่วยได้` |  |
+| `object.fact.why.demand` | `src/inspect.ts` | — | `Not growing: the city wants no more of this kind now` | `ไม่โต: ตอนนี้เมืองยังไม่ต้องการอาคารแบบนี้เพิ่ม` |  |
+| `object.fact.why.quiet` | `src/inspect.ts` | — | `Not growing taller: too few people around yet` | `ยังไม่ขยายสูงขึ้น: คนรอบ ๆ ยังน้อย` |  |
+| `object.fact.why.lot` | `src/inspect.ts` | — | `At its tallest on one plot: four grown plots side by side make room for more` | `สูงสุดสำหรับแปลงเดียว ต้องมีแปลงที่โตแล้วติดกัน 4 แปลงจึงสูงได้อีก` |  |
+| `object.fact.why.top` | `src/inspect.ts` | — | `At its tallest` | `โตเต็มที่แล้ว` |  |
 | `object.grade.0` | `src/inspect.ts` | — | `low` | `ต่ำ` |  |
 | `object.grade.1` | `src/inspect.ts` | — | `medium` | `ปานกลาง` |  |
 | `object.grade.2` | `src/inspect.ts` | — | `high` | `สูง` |  |

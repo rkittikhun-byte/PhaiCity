@@ -10,7 +10,8 @@ import { CityCore } from "../src/core/cityCore";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
-import { plotOf } from "../src/plots";
+import { PLOT_WHY, plotOf } from "../src/plots";
+import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
 import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf } from "../src/zoneCells";
 
@@ -101,6 +102,28 @@ describe("zone cells", () => {
     expect(core.apply({ type: "zoneCells", zone: null, cells: there }).accepted).toBe(true);
     expect(plotOf(core.map, built, 11)).toBeNull();
     expect(core.map.getTileValue(built, 11)).toBe(0);
+  });
+
+  test("each plot says why it does not grow, in both languages (docs/MUEANG_CS_PLAN.md M1.1)", () => {
+    Random.seed(4);
+    const core = city();
+    const layout = cellsOf(core.map);
+    const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: "residential", cells: keys }).accepted).toBe(true);
+    core.run(16 * 4);
+    const whys = () => {
+      const found = new Set<string>();
+      for (let y = 11; y <= 13; y++) for (let x = 10; x <= 30; x++) {
+        if (plotOf(core.map, x, y)) found.add(PLOT_WHY[core.map.plotWhy[y * core.map.width + x]]);
+      }
+      return found;
+    };
+    // No power plant yet: every home says so
+    expect([...whys()]).toEqual(["power"]);
+    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 7 }).accepted).toBe(true);
+    core.run(16 * 8);
+    expect(whys().has("power")).toBe(false);
+    for (const why of PLOT_WHY) expect([why, hasKey(`object.fact.why.${why}`)]).toEqual([why, true]);
   });
 
   test("painting cells costs a share of the zone's price; clearing is free; the cells stay with the city", () => {

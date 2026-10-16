@@ -17,6 +17,7 @@ import { PLANT_TOOLS } from "./powerPlants.js";
 import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
 import { roadSegmentAt } from "./objects/roadSegment.js";
 import { cellsOf } from "./zoneCells.js";
+import { PLOT_WHY, plotOf } from "./plots.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
@@ -125,6 +126,11 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
       ? { key: "object.fact.built", params: { year: city.startingYear + Math.floor(building.built / 48) } }
       : { key: "object.fact.built_before" });
     facts.push(...areaFacts(city.blockMaps, building.x, building.y));
+    // A painted plot says what holds it back (src/plots.ts PLOT_WHY; docs/MUEANG_CS_PLAN.md M1.1)
+    const why = map.plotWhy?.[building.y * map.width + building.x];
+    if (why !== undefined && ["home", "shop", "factory"].includes(building.kind)) {
+      facts.unshift({ key: `object.fact.why.${PLOT_WHY[why] ?? "none"}` });
+    }
     const street = streetBeside(map, rect);
     const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
     // A police or fire station is named by its level (src/buildingLevels.ts)
@@ -168,6 +174,9 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
   }
   const cover = map.landCover?.[i] ?? 0;
   const facts: Fact[] = [...areaFacts(city.blockMaps, x, y), ...outside];
+  // An empty painted plot says why nothing is built on it yet
+  const why = plotOf(map, x, y) ? map.plotWhy?.[i] : undefined;
+  if (why !== undefined) facts.unshift({ key: `object.fact.why.${PLOT_WHY[why] ?? "none"}` });
   if (map.landBlocks && !outside.length && !ownsLand(map, x, y)) facts.push({ key: "object.fact.unowned" });
   return { title: { key: cover ? `object.cover.${cover}` : "object.kind.land" }, facts, rect };
 }

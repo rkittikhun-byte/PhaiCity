@@ -106,6 +106,8 @@ function savedLand(map: Legacy, land: string): Uint8Array {
 
 /** The records every city has, whatever made it (a practice map has none of them yet) */
 export function ensureCityLayers(map: Legacy): void {
+  // Why each painted plot does not grow, which the scan fills (src/plots.ts PLOT_WHY); never saved
+  if (map.paintedZones && map.plotWhy === undefined) map.plotWhy = null;
   map.powerKinds = map.powerKinds || {};
   map.mineKinds = map.mineKinds || {};
   map.roadLevels = map.roadLevels || newRoadLevels(map.width, map.height);

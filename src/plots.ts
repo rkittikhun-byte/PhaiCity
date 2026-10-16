@@ -299,7 +299,17 @@ export interface PlotCensus {
 export interface PlotScanMap extends PlotMap {
   getTile(x: number, y: number): { isPowered(): boolean };
   setTile(x: number, y: number, value: number, flags: number): void;
+  /** Why each plot is not growing, by tile (PLOT_WHY), as the last scan found it; made on the first scan, not saved */
+  plotWhy?: Uint8Array | null;
 }
+
+/**
+ * Why a plot does not grow, the first that holds it back (owner, 16 Oct 2026, docs/MUEANG_CS_PLAN.md M1.1: "the player
+ * always knows why"): what the inspector says and the view shows over it. 0 is nothing: it grows when its turn comes.
+ */
+export const PLOT_WHY = ["none", "power", "water", "road", "pollution", "land", "demand", "quiet", "lot", "top"] as const;
+export type PlotWhy = typeof PLOT_WHY[number];
+const WHY = (why: PlotWhy): number => PLOT_WHY.indexOf(why);
 
 export interface PlotSimData {
   blockMaps: {
@@ -360,6 +370,29 @@ function setLevel(map: PlotScanMap, x: number, y: number, sim: PlotSimData, plot
   ZoneUtils.incRateOfGrowth(sim.blockMaps, x, y, level > plot.level ? 1 : -1);
 }
 
+/** What holds a plot back now (PLOT_WHY), from what plotFound weighs */
+function plotWhyOf(map: PlotMap, x: number, y: number, sim: PlotSimData, plot: Plot, powered: boolean, watered: boolean,
+                   noRoad: boolean): PlotWhy {
+  const { kind, level } = plot, bm = sim.blockMaps;
+  if (!powered) return "power";
+  if (noRoad) return "road";
+  if (!watered && level >= 1) return "water";
+  if (level >= PLOT_TOP[kind]) return "top";
+  const valve = kind === "residential" ? sim.valves.resValve : kind === "commercial" ? sim.valves.comValve : sim.valves.indValve;
+  if (valve <= 0) return "demand";
+  if (kind === "residential") {
+    if (bm.pollutionDensityMap.worldGet(x, y) > 128) return "pollution";
+    // A home whose place scores too low shrinks about as often as it grows (grows, shrinks)
+    if (valve + homeScore(sim, x, y, ROUTE_FOUND) < 350) {
+      return bm.pollutionDensityMap.worldGet(x, y) * 2 > bm.landValueMap.worldGet(x, y) ? "pollution" : "land";
+    }
+    if (level > 0 && bm.populationDensityMap.worldGet(x, y) <= DENSITY_TO_RISE[level]) return "quiet";
+  } else if (kind === "commercial" && level > bm.landValueMap.worldGet(x, y) >> 5) {
+    return "land";
+  }
+  return mayRise(map, x, y, plot) ? "none" : "lot";
+}
+
 /**
  * The map scanner found a tile of a home, shop or factory on a map with painted zones (src/mapScanner.js). Returns
  * false when it is not a plot (a tile of an old 3 × 3 zone), which then goes on as before. A plot is counted, takes
@@ -399,6 +432,12 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
       setLevel(map, x, y, sim, plot, level - 1);
       return true;
     }
+  }
+
+  // Why it does not grow, without a draw of the random numbers, so the city is the same with or without it
+  if (map.plotWhy !== undefined) {
+    const why = map.plotWhy ?? (map.plotWhy = new Uint8Array(map.width * map.height));
+    why[y * map.width + x] = WHY(plotWhyOf(map, x, y, sim, plot, powered, watered, traffic === NO_ROAD_FOUND));
   }
 
   if (kind === "residential") {
