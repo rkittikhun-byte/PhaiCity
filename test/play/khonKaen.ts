@@ -6,7 +6,7 @@
 // people, money and accounts, to check the game's balance. It only runs when asked, as it takes about 3 s a year:
 //   PHAICITY_PLAY=1 npx jest --coverage=false test/play
 // PHAICITY_YEARS sets the years (10), PHAICITY_PLOTS=1 adds what holds each kind and level of plot back each year,
-// PHAICITY_PLAY_OUT a file for the whole report as JSON.
+// PHAICITY_PLAY_OUT a file for the whole report as JSON, PHAICITY_PLAY_SAVE a file of the city as the game saves it.
 
 import * as fs from "fs";
 import { AutoPlayer, type PlayerYear, plotReport } from "../../src/core/autoPlayer";
@@ -19,6 +19,7 @@ import { startingFunds } from "../../src/geo/provinceProfile";
 import { MapGenerator } from "../../src/mapGenerator.js";
 import { checkRulesData, resolveRules } from "../../src/provinceRules";
 import { keepHigherRank, RANKS, rankForCityClass } from "../../src/rulerRank";
+import { encodeMap } from "../../src/cityStorage";
 
 const read = (path: string) => JSON.parse(fs.readFileSync(path, "utf8"));
 
@@ -47,6 +48,7 @@ async function newCity(districtId: string, provinceId: string, region: string) {
   const core: CityCore = new CityCore({ map, seed: 11, rules, resources,
     hooks: { rank: () => Math.max(0, RANKS.indexOf(rank as never)) } } as never);
   core.on("month", () => { rank = keepHigherRank(rank as never, rankForCityClass(core.simulation.evaluation.cityClass)); });
+  (core as unknown as { rank: () => string }).rank = () => rank;
   core.simulation.budget.setFunds(startingFunds(preset.stats) || 20000);
   return core;
 }
@@ -76,5 +78,15 @@ const row = (y: PlayerYear) => {
     }
   }
   process.stdout.write(player.log.join("\n") + "\n");
+  // The city as the game saves it (src/game.js saveData, src/cityStorage.ts), to open in the browser: { save, meta }
+  if (process.env.PHAICITY_PLAY_SAVE) {
+    const rank = (core as unknown as { rank: () => string }).rank(), date = core.simulation.getDate();
+    const save: Record<string, unknown> = { ...core.save(), name: "ขอนแก่น เล่นอัตโนมัติ", provinceId: "TH-40",
+      districtId: core.map.districtId, rulerRank: rank, news: [], version: 4 };
+    save.mapRle = encodeMap(save.map as Array<{ value: number }>); delete save.map;
+    const meta = { name: save.name, provinceId: "TH-40", districtId: core.map.districtId, population: core.simulation.evaluation.cityPop,
+      funds: core.simulation.budget.totalFunds, year: date.year, month: date.month, rank };
+    fs.writeFileSync(process.env.PHAICITY_PLAY_SAVE, JSON.stringify({ save, meta }));
+  }
   if (process.env.PHAICITY_PLAY_OUT) fs.writeFileSync(process.env.PHAICITY_PLAY_OUT, JSON.stringify({ years, log: player.log }, null, 1));
 }, 3600000);
