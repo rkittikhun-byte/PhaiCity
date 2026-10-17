@@ -140,7 +140,7 @@ export function renderModes(row: HTMLElement, tool: string | null, doc: Document
     button.type = "button";
     button.className = `modeButton${mode === drawModeOf(tool) ? " current" : ""}`;
     button.dataset.mode = mode;
-    button.title = t(`draw.mode.${mode}.hint`);
+    button.setAttribute("aria-label", t(`draw.mode.${mode}`));
     button.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${ICONS[mode]}</svg>`;
     const name = doc.createElement("span");
     name.textContent = t(`draw.mode.${mode}`);
@@ -156,7 +156,7 @@ export function renderModes(row: HTMLElement, tool: string | null, doc: Document
     const snap = doc.createElement("button");
     snap.type = "button";
     snap.className = `modeButton snapButton${snapping ? " current" : ""}`;
-    snap.title = t("draw.snap.hint");
+    snap.setAttribute("aria-label", t("draw.snap"));
     snap.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${SNAP_ICON}</svg>`;
     const name = doc.createElement("span");
     name.textContent = t("draw.snap");

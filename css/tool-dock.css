@@ -32,24 +32,23 @@ body.toolDockReady #buttons { display: none !important; }
 #toolCategories::-webkit-scrollbar { display: none; }
 
 #toolCategories .toolCategory {
-  position: relative; width: 62px; min-height: 48px; border-radius: 10px;
+  position: relative; width: 44px; min-height: 40px; border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: transparent; border: 1px solid transparent; color: var(--hud-text, #1d2925);
   font: 600 10.5px/1.2 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
-  transition: all 0.15s ease; padding: 3px 2px;
+  transition: all 0.15s ease; padding: 2px;
 }
 #toolCategories .toolCategory .catIconPlate {
-  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
   background: rgba(255, 255, 255, 0.65); border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow: 0 1px 4px rgba(12, 24, 20, 0.08);
   transition: all 0.15s ease;
 }
 #toolCategories .toolCategory .catIconPlate img {
-  width: 17px; height: 17px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 #toolCategories .toolCategory .catLabel {
-  font-size: 9.5px; font-weight: 600; white-space: nowrap; max-width: 58px; overflow: hidden; text-overflow: ellipsis;
-  color: var(--hud-text, #1d2925);
+  display: none !important;
 }
 #toolCategories .toolCategory:hover {
   background: rgba(255, 255, 255, 0.5); color: #000; transform: translateY(-2px);
@@ -119,9 +118,77 @@ body.toolDockReady #toolTray::before {
   border-bottom: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85));
 }
 
-/* Hide header title bar per user request ("ไม่เอา label และ title") */
+/* Tray Header & Draw Modes (Reveal modes like straight, curve, grid, snap) */
 .toolTrayHeader {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2px 4px 6px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 6px;
+}
+.toolTrayHeader[hidden],
+.toolTrayHeader:empty {
   display: none !important;
+}
+.trayTitleWrap,
+.trayBack,
+.toolTrayClose {
+  display: none !important;
+}
+.trayModes {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+.trayModes .modesTitle {
+  display: none !important;
+}
+.trayModes .modeButton {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  height: 26px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: var(--hud-text, #1d2925) !important;
+  font: 600 11px/1 'Sarabun Thai', 'Open Sans', sans-serif !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 3px rgba(12, 24, 20, 0.06) !important;
+}
+.trayModes .modeButton svg {
+  width: 13px !important;
+  height: 13px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+.trayModes .modeButton svg circle {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+.trayModes .modeButton:hover {
+  background: #ffffff !important;
+  border-color: rgba(34, 107, 87, 0.3) !important;
+  color: #000000 !important;
+  transform: translateY(-1px);
+}
+.trayModes .modeButton.current {
+  background: #226b57 !important;
+  border-color: #226b57 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(34, 107, 87, 0.35) !important;
+}
+.trayModes .modeButton.snapButton {
+  border-style: dashed !important;
+}
+.trayModes .modeButton.snapButton.current {
+  border-style: solid !important;
 }
 
 /* The Cards inside the Tray */

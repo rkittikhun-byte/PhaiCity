@@ -93,11 +93,16 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
   // Faces up: a and b at one end, c and d at the other
   const quad = (out: number[], a: number[], b: number[], c: number[], d: number[]): void => { out.push(...a, ...c, ...b, ...b, ...c, ...d); };
   let along = 0;
-  const w = halfW, d = Math.min(.3, halfW * .12);
+  const w = halfW, d = Math.min(.3, halfW * .12), ew = Math.min(.22, halfW * .08);
   for (let i = 1; i < line.length; i++) {
     const [ax, az] = line[i - 1], [bx, bz] = line[i], [nax, naz] = side(i - 1), [nbx, nbz] = side(i);
     quad(band, [ax + nax * w, height(ax + nax * w, az + naz * w), az + naz * w], [ax - nax * w, height(ax - nax * w, az - naz * w), az - naz * w],
       [bx + nbx * w, height(bx + nbx * w, bz + nbz * w), bz + nbz * w], [bx - nbx * w, height(bx - nbx * w, bz - nbz * w), bz - nbz * w]);
+    // Outer white shoulder lines for sharp visibility on terrain
+    quad(dashes, [ax + nax * w, height(ax + nax * w, az + naz * w) + .06, az + naz * w], [ax + nax * (w - ew), height(ax + nax * (w - ew), az + naz * (w - ew)) + .06, az + naz * (w - ew)],
+      [bx + nbx * w, height(bx + nbx * w, bz + nbz * w) + .06, bz + nbz * w], [bx + nbx * (w - ew), height(bx + nbx * (w - ew), bz + nbz * (w - ew)) + .06, bz + nbz * (w - ew)]);
+    quad(dashes, [ax - nax * (w - ew), height(ax - nax * (w - ew), az - naz * (w - ew)) + .06, az - naz * (w - ew)], [ax - nax * w, height(ax - nax * w, az - naz * w) + .06, az - naz * w],
+      [bx - nbx * (w - ew), height(bx - nbx * (w - ew), bz - nbz * (w - ew)) + .06, bz - nbz * (w - ew)], [bx - nbx * w, height(bx - nbx * w, bz - nbz * w) + .06, bz - nbz * w]);
     // A dash on every other 5 units of its length
     const length = Math.hypot(bx - ax, bz - az);
     if (Math.floor(along / 5) % 2 === 0) {

@@ -543,9 +543,9 @@ export function cityZoneGridMaterial(color: ColorRepresentation = 0xe9eef2): Mes
 export function cityDrawMaterial(color: ColorRepresentation): MeshStandardMaterial {
   return finishedMaterial('city-draw', 'sign_thai', color, material => {
     material.userData.keepColorMap = true; material.map = null;
-    material.transparent = true; material.opacity = 0.42;
+    material.transparent = true; material.opacity = 0.78;
     material.depthWrite = false; material.roughness = 1;
-    material.emissive.set(color); material.emissiveIntensity = 0.35;
+    material.emissive.set(color); material.emissiveIntensity = 0.45;
     material.polygonOffset = true; material.polygonOffsetFactor = -3;
     material.polygonOffsetUnits = -3;
   });

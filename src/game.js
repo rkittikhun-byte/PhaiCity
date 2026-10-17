@@ -1664,9 +1664,13 @@ Game.prototype.placesBuilding = function() {
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
   // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
-  this.showDrawTip(null);
-  if (this.inputStatus.mouseX === -1 || !(this.inputStatus.toolWidth > 0))
+  if (this.lineDraft === null)
+    this.showDrawTip(null);
+  if (this.inputStatus.mouseX === -1 || !(this.inputStatus.toolWidth > 0)) {
+    if (this.lineDraft !== null && this._lastDraftHover)
+      return this._lastDraftHover;
     return this.selectionOutline();
+  }
 
   var tile = this.cityView.tileAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
   if (tile === null)
@@ -1757,8 +1761,11 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.controls = preview.controls || null;
   }
   this.showDrawTip(preview);
-  if (preview !== null)
+  if (preview !== null) {
+    if (this.lineDraft !== null)
+      this._lastDraftHover = hover;
     return hover;
+  }
 
   // While a zone tool drags an area, show every zone it will lay
   var drag = this.inputStatus.areaDrag;
@@ -1979,6 +1986,7 @@ Game.prototype.roadWayAt = function(tile) {
 
 Game.prototype.resetDraft = function() {
   this.lineDraft = null;
+  this._lastDraftHover = null;
   this._cellStroke = null;
   this._strokeTile = null;
   this.showDrawTip(null);
@@ -2111,25 +2119,25 @@ Game.prototype.showDrawTip = function(preview) {
   var tip = document.getElementById('drawTip');
   if (!tip)
     return;
-  // A chip each, as Cities: Skylines shows them: the length, the price, the next click, how to stop
-  var parts = [];
-  if (preview !== null) {
-    if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
-      parts.push('∠ ' + preview.angle + '°');
-    if (preview.guide)
-      parts.push(t('draw.snap.' + preview.guide));
-    if (preview.metres > 0)
-      parts.push('↔ ' + (preview.metres >= 1000 ? t('draw.length_km', {km: (preview.metres / 1000).toFixed(1)}) :
-                         t('draw.length', {metres: Math.round(preview.metres)})));
-    if (preview.tiles.length > 0)
-      parts.push(t('draw.cost', {count: preview.tiles.length, price: formatMoney(preview.cost)}));
-    if (preview.step >= 0)
-      parts.push(t('draw.step.' + preview.mode + '.' + preview.step));
-    else if (preview.mode === 'fill' && preview.tiles.length === 0)
-      parts.push(t('draw.step.fill'));
-    if (preview.step > 0)
-      parts.push(t('draw.cancel'));
+  if (preview === null) {
+    if (this.lineDraft !== null)
+      return;
+    tip.hidden = true;
+    tip.dataset.text = '';
+    return;
   }
+  // Concise metric chips: angle, guide, length, cost (wordy step/cancel text omitted per user request)
+  var parts = [];
+  if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
+    parts.push('∠ ' + preview.angle + '°');
+  if (preview.guide)
+    parts.push(t('draw.snap.' + preview.guide));
+  if (preview.metres > 0)
+    parts.push('↔ ' + (preview.metres >= 1000 ? t('draw.length_km', {km: (preview.metres / 1000).toFixed(1)}) :
+                       t('draw.length', {metres: Math.round(preview.metres)})));
+  if (preview.tiles.length > 0)
+    parts.push(t('draw.cost', {count: preview.tiles.length, price: formatMoney(preview.cost)}));
+
   var text = parts.join('\n');
   tip.hidden = text === '';
   if (text === '')
@@ -2144,8 +2152,10 @@ Game.prototype.showDrawTip = function(preview) {
   }
   var canvas = document.getElementById('MicropolisCanvas');
   var rect = canvas ? canvas.getBoundingClientRect() : {left: 0, top: 0};
-  tip.style.left = Math.round(rect.left + this.inputStatus.mouseX + 18) + 'px';
-  tip.style.top = Math.round(rect.top + this.inputStatus.mouseY + 20) + 'px';
+  if (this.inputStatus.mouseX >= 0 && this.inputStatus.mouseY >= 0) {
+    tip.style.left = Math.round(rect.left + this.inputStatus.mouseX + 18) + 'px';
+    tip.style.top = Math.round(rect.top + this.inputStatus.mouseY + 20) + 'px';
+  }
 };
 
 

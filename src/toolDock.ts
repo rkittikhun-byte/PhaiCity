@@ -3,7 +3,7 @@
  */
 import { onLanguageChange, t } from "./i18n/index.js";
 import { TOOL_CHOICES_CHANGED, activateToolChoice, toolChoicesFor } from "./toolLevels.js";
-import { TOOL_LABELS_CHANGED, toolIconUrl, toolLabel, toolTitle } from "./toolShortcuts.js";
+import { TOOL_LABELS_CHANGED, toolIconUrl, toolLabel } from "./toolShortcuts.js";
 import { hide, show } from "./motion.js";
 import { modesFor, renderModes } from "./drawModes.js";
 
@@ -118,7 +118,6 @@ export function installToolDock(doc: Document = document): void {
   pillCancel.type = "button";
   pillCancel.className = "pillCancel";
   pillCancel.textContent = "×";
-  pillCancel.title = t("dock.cancel");
   pillCancel.setAttribute("aria-label", t("dock.cancel"));
 
   pill.append(pillIcon, pillText, pillEsc, pillCancel);
@@ -211,7 +210,7 @@ export function installToolDock(doc: Document = document): void {
       const backCard = doc.createElement("button");
       backCard.type = "button";
       backCard.className = "trayCard trayBackCard";
-      backCard.title = t("dock.back");
+      backCard.setAttribute("aria-label", t("dock.back"));
       const bThumb = doc.createElement("div");
       bThumb.className = "cardThumb";
       bThumb.innerHTML = '<span style="font-size: 20px; font-weight: bold; color: var(--hud-text, #1d2925);">←</span>';
@@ -260,9 +259,7 @@ export function installToolDock(doc: Document = document): void {
         name.textContent = t(`choice.${choice.tool}`);
 
         card.append(thumb, name);
-
-        // Tooltip
-        card.title = available ? toolTitle(choice.tool, null) : `${t(`choice.${choice.tool}`)}: ${badge.textContent}`;
+        card.setAttribute("aria-label", t(`choice.${choice.tool}`));
 
         card.addEventListener("click", () => {
           if (!available) return;
@@ -279,9 +276,11 @@ export function installToolDock(doc: Document = document): void {
       const iconUrl = toolIconUrl(cat.icon);
       if (trayIcon.getAttribute("src") !== iconUrl) trayIcon.src = iconUrl;
 
-      // Draw modes for category if applicable (e.g. zones)
+      // Draw modes for category if applicable (e.g. zones, roads)
       if (currentCategory === "zones" && modesFor("residential").length > 0) {
         renderModes(modesWrap, "zone_residential", doc);
+      } else if (currentCategory === "roads" && modesFor("road").length > 0) {
+        renderModes(modesWrap, "road", doc);
       }
 
       // Special handling for Zones: 4 direct tools (บ้าน, ร้านค้า, อุตสาหกรรม, รื้อถอน)
@@ -308,7 +307,7 @@ export function installToolDock(doc: Document = document): void {
           card.type = "button";
           card.className = `trayCard${isArmed ? " is-active" : ""}`;
           card.dataset.tool = item.paintTool;
-          card.title = item.title;
+          card.setAttribute("aria-label", item.title);
 
           const thumb = doc.createElement("div");
           thumb.className = "cardThumb";
@@ -397,7 +396,7 @@ export function installToolDock(doc: Document = document): void {
         name.textContent = TOOL_GROUP_LABELS.has(toolId) ? t(`dock.group.${toolId}`) : toolLabel(toolId).name;
 
         card.append(thumb, name);
-        card.title = toolTitle(activeItem, null);
+        card.setAttribute("aria-label", TOOL_GROUP_LABELS.has(toolId) ? t(`dock.group.${toolId}`) : toolLabel(toolId).name);
 
         card.addEventListener("click", () => {
           if (orig.disabled) return;
@@ -415,6 +414,7 @@ export function installToolDock(doc: Document = document): void {
         trayCards.appendChild(card);
       }
     }
+    heading.hidden = modesWrap.childElementCount === 0;
   }
 
   backBtn.addEventListener("click", () => {
@@ -458,7 +458,6 @@ export function installToolDock(doc: Document = document): void {
       const info = toolLabel(toolId);
       pillIcon.src = toolIconUrl(toolId);
       pillText.textContent = info.price ? `${info.name} · ${info.price}` : info.name;
-      pillCancel.title = t("dock.cancel");
       pillCancel.setAttribute("aria-label", t("dock.cancel"));
       show(pill);
     } else {
