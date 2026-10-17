@@ -415,7 +415,7 @@ export class RoadCurves {
     const surfaceOf = (level: number): Color => (level <= 1 ? lateriteColour(LATERITE_EDGE * 0.3) : new Color(level > 2 ? 0x8f8d86 : 0x4b4f50));
     for (let k = 0; k < arms.length; k++) {
       const a = arms[k], b = arms[(k + 1) % arms.length];
-      if (a.end === null && b.end === null) continue;
+      if (a.line === b.line && a.end === null && b.end === null) continue;
       let turn = Math.atan2(b.way[1], b.way[0]) - Math.atan2(a.way[1], a.way[0]);
       while (turn <= 0) turn += Math.PI * 2;
       if (turn >= Math.PI * 0.72) continue;

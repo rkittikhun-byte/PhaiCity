@@ -6,6 +6,7 @@
 // side drawn as one junction, not a ring of little roads.
 
 import { nearestOnLines, networkOf, roadLines, smoothLine } from "../src/roadGeometry";
+import { linePath } from "../src/drawPaths";
 
 function roads(tiles: Array<[number, number]>, width = 30, height = 30) {
   const values = new Uint16Array(width * height);
@@ -110,4 +111,37 @@ describe("road geometry", () => {
       expect(throughRoad.points[i][1]).toBeCloseTo(beforePoints[i][1], 1);
     }
   });
+
+  test("diagonal roads crossing at an angle form a single clean 4-way junction without breaking or shifting either road", () => {
+    // Diagonal road from (15, 38) to (45, 22)
+    const existingRoad: Array<[number, number]> = linePath({ x: 15, y: 38 }, { x: 45, y: 22 }).map(p => [p.x, p.y]);
+    const before = roadLines(roads(existingRoad, 60, 60));
+    expect(before.lines).toHaveLength(1);
+    const beforePoints = before.lines[0].points;
+
+    // Crossing road from (25, 50) to (38, 15)
+    const crossingRoad: Array<[number, number]> = linePath({ x: 25, y: 50 }, { x: 38, y: 15 }).map(p => [p.x, p.y]);
+
+    const combined = [...existingRoad, ...crossingRoad];
+    const after = roadLines(roads(combined, 60, 60));
+
+    // Both roads must remain intact and continuous (2 lines, not fragmented into pieces)
+    expect(after.lines).toHaveLength(2);
+    // There must be exactly 1 junction with 4 arms
+    expect(after.junctions).toHaveLength(1);
+    expect(after.junctions[0].arms).toHaveLength(4);
+
+    // Find the through road corresponding to existingRoad
+    const throughRoad = after.lines.find(l =>
+      Math.hypot(l.points[0][0] - beforePoints[0][0], l.points[0][1] - beforePoints[0][1]) < 1 ||
+      Math.hypot(l.points[l.points.length - 1][0] - beforePoints[0][0], l.points[l.points.length - 1][1] - beforePoints[0][1]) < 1
+    );
+    expect(throughRoad).toBeDefined();
+    expect(throughRoad!.points.length).toBe(beforePoints.length);
+    for (let i = 0; i < beforePoints.length; i++) {
+      expect(throughRoad!.points[i][0]).toBeCloseTo(beforePoints[i][0], 1);
+      expect(throughRoad!.points[i][1]).toBeCloseTo(beforePoints[i][1], 1);
+    }
+  });
 });
+

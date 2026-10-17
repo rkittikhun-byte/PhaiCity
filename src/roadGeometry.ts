@@ -50,7 +50,7 @@ export const roadReach = (level: number, units?: number | null): number => halfW
 /** How far the simplified line may stray from the smoothed one, and how many tiles either side a point is averaged */
 const STRAY = 1.5, REACH = 4;
 /** The widest knot of junction tiles (tiles across) drawn as one junction */
-const MAX_KNOT = 3;
+const MAX_KNOT = 10;
 const SIDES: ReadonlyArray<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 /** Douglas–Peucker: the fewest points that keep the line within tolerance of where it was */
@@ -512,24 +512,26 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
   });
   for (const n of moved) lines[n].points = smoothLine(raw[n]);
   const junctions: JunctionShape[] = network.junctions.map((_, j) => {
-    const { through, throughPts, at } = centres[j], out: JunctionArm[] = [];
-    const partneredArms = armsAt[j].filter((arm) => partner.has(`${arm.s}:${arm.end}`));
-    if (through !== null && throughPts !== null && partneredArms.length === 2) {
-      const near = nearestOnLine(throughPts, at);
-      const wayFwd = wayAlong(throughPts, near.i, at, reach, true);
-      const wayBack = wayAlong(throughPts, near.i, at, reach, false);
-      const a0 = partneredArms[0], a1 = partneredArms[1];
-      const dot0 = a0.way[0] * wayFwd[0] + a0.way[1] * wayFwd[1];
+    const { through, at } = centres[j], out: JunctionArm[] = [];
+    const seenPartners = new Set<string>();
+    for (const arm of armsAt[j]) {
+      const key = `${arm.s}:${arm.end}`;
+      const partnerKey = partner.get(key);
+      if (!partnerKey || seenPartners.has(key)) continue;
+      seenPartners.add(key);
+      seenPartners.add(partnerKey);
+      const [ps] = partnerKey.split(":").map(Number);
+      const line0 = lineOf.get(arm.s)!, line1 = lineOf.get(ps)!;
+      const pts = throughSmoothOf.get(arm.s) ?? throughSmoothOf.get(ps) ?? lines[line0].points;
+      const near = nearestOnLine(pts, at);
+      const wayFwd = wayAlong(pts, near.i, at, reach, true);
+      const wayBack = wayAlong(pts, near.i, at, reach, false);
+      const dot0 = arm.way[0] * wayFwd[0] + arm.way[1] * wayFwd[1];
       const firstFwd = dot0 >= 0;
-      const line0 = lineOf.get(a0.s)!, line1 = lineOf.get(a1.s)!;
       out.push(
         { line: line0, end: null, way: firstFwd ? wayFwd : wayBack, level: lines[line0].level },
         { line: line1, end: null, way: firstFwd ? wayBack : wayFwd, level: lines[line1].level },
       );
-    } else if (through !== null) {
-      const line = lines[through].points, near = nearestOnLine(line, at);
-      out.push({ line: through, end: null, way: wayAlong(line, near.i, at, reach, true), level: lines[through].level },
-        { line: through, end: null, way: wayAlong(line, near.i, at, reach, false), level: lines[through].level });
     }
     for (const arm of armsAt[j]) {
       if (partner.has(`${arm.s}:${arm.end}`)) continue;
