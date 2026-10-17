@@ -417,8 +417,10 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
     for (let a = 0; a < arms.length; a++) for (let b = a + 1; b < arms.length; b++) {
       if (arms[a].s === arms[b].s) continue;
       const angle = Math.acos(Math.max(-1, Math.min(1, arms[a].way[0] * arms[b].way[0] + arms[a].way[1] * arms[b].way[1]))) * 180 / Math.PI;
-      const sameBonus = stretches[arms[a].s].level === stretches[arms[b].s].level ? 8 : 0;
-      if (arms.length === 2 || angle >= THROUGH_DEG) pairs.push([angle + sameBonus, a, b]);
+      const sameBonus = stretches[arms[a].s].level === stretches[arms[b].s].level ? 25 : 0;
+      // In 2-arm connections and 3-arm T-junctions, the continuous road must always remain partnered as through-road
+      // so an existing road's smooth curve/layout never shifts or breaks when a side road connects to it.
+      if (arms.length <= 3 || angle >= THROUGH_DEG) pairs.push([angle + sameBonus, a, b]);
     }
     pairs.sort((p, q) => q[0] - p[0]);
     const used = new Set<number>();

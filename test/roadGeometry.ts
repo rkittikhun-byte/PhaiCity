@@ -78,4 +78,36 @@ describe("road geometry", () => {
     expect(nearestOnLines(lines, 100, 108, 10)).toEqual([100, 105]);
     expect(nearestOnLines(lines, 100, 130, 10)).toBeNull();
   });
+
+  test("connecting a side road does not shift or break an existing curved road", () => {
+    // An existing curved road connected orthogonally
+    const curveTiles: Array<[number, number]> = [];
+    for (let x = 2; x <= 8; x++) curveTiles.push([x, 5]);
+    let cx = 8, cy = 5;
+    for (let step = 0; step < 5; step++) {
+      cy++; curveTiles.push([cx, cy]);
+      cx++; curveTiles.push([cx, cy]);
+    }
+    for (let y = cy + 1; y <= 20; y++) curveTiles.push([cx, y]);
+
+    const before = roadLines(roads(curveTiles));
+    expect(before.lines).toHaveLength(1);
+    const beforePoints = before.lines[0].points;
+
+    // Attach a side road to the curve at (cx, 15)
+    const withBranch = [...curveTiles];
+    for (let x = cx + 1; x <= cx + 6; x++) withBranch.push([x, 15]);
+
+    const after = roadLines(roads(withBranch));
+    // The curve must be preserved as the through road
+    expect(after.junctions).toHaveLength(1);
+    expect(after.junctions[0].through).not.toBeNull();
+    const throughRoad = after.lines[after.junctions[0].through!];
+    // Through road points must match the original curve's points
+    expect(throughRoad.points).toHaveLength(beforePoints.length);
+    for (let i = 0; i < beforePoints.length; i++) {
+      expect(throughRoad.points[i][0]).toBeCloseTo(beforePoints[i][0], 1);
+      expect(throughRoad.points[i][1]).toBeCloseTo(beforePoints[i][1], 1);
+    }
+  });
 });
