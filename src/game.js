@@ -987,6 +987,9 @@ Game.prototype.paintCells = function(cells, screenX) {
       zone = kind;
   });
   var outcome = this.applyCommand({type: 'zoneCells', zone: zone, cells: cells});
+  if (!outcome.accepted && outcome.reason === HOUSE_FIRST) {
+    showCornerNote(t('house.note.first'), 4000);
+  }
   this.gameAudio.toolUsed(toolName, outcome.accepted ? tool.TOOLRESULT_OK : tool.TOOLRESULT_FAILED, screenX);
 };
 
@@ -1528,7 +1531,7 @@ Game.prototype.handleTool = function(data) {
   this.refreshUndo();
   if (toolName === HOUSE_TOOL || toolName === HOUSE_UPGRADE_TOOL || toolName === 'bulldozer')
     this.refreshHouse();
-  if (result === tool.TOOLRESULT_OK && !isContinuousTool(toolName))
+  if ((result === tool.TOOLRESULT_OK || (outcome && outcome.accepted)) && (toolName === HOUSE_TOOL || !isContinuousTool(toolName)))
     this.inputStatus.clearTool();
 };
 

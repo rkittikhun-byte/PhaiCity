@@ -267,8 +267,7 @@ export function installToolDock(doc: Document = document): void {
         card.addEventListener("click", () => {
           if (!available) return;
           if (orig) activateToolChoice(orig, choice, doc);
-          // Tool chosen: CLOSE TRAY IMMEDIATELY!
-          closeTray();
+          renderTray();
         });
 
         trayCards.appendChild(card);
@@ -348,7 +347,7 @@ export function installToolDock(doc: Document = document): void {
                 activateOriginal(orig);
               }
             }
-            closeTray();
+            renderTray();
           });
 
           trayCards.appendChild(card);
@@ -409,7 +408,7 @@ export function installToolDock(doc: Document = document): void {
           } else {
             // Direct tool: arm it and CLOSE TRAY IMMEDIATELY!
             activateOriginal(orig);
-            closeTray();
+            renderTray();
           }
         });
 
