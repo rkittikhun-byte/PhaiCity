@@ -1291,4 +1291,5 @@ export const STRINGS: Record<string, Translation> = {
   "dock.group.mine": { en: "Mines & wells", th: "เหมืองและบ่อน้ำมัน" },
   "dock.group.road": { en: "Roads", th: "ถนน" },
   "dock.group.ruler_house": { en: "Ruler's house", th: "ที่ว่าการ" },
+  "dock.back": { en: "Back", th: "ย้อนกลับ" },
 };

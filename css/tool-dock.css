@@ -1,103 +1,238 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
-/* Persistent categories, a family tray, and a separate side panel for actual tools. */
+/* Fable-style Dark Frosted Glass Tool Dock, unified Tray, and Active Tool Pill */
+
+/* Completely hide the bulky left-side panel */
+body.toolDockReady #toolLevels { display: none !important; }
+
+/* The Bottom Dock */
 body.toolDockReady #controls {
-  width: max-content; max-width: calc(100vw - 128px); bottom: 8px; padding: 6px;
-  transform: translateX(-50%); border: 1px solid var(--hud-edge); border-radius: 16px;
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%) !important;
+  width: auto; max-width: calc(100vw - 32px); padding: 4px 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%), rgba(10, 16, 26, 0.92);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  display: flex; align-items: center; gap: 4px; z-index: 25;
   transition: none; animation: none; overflow: visible;
 }
-body.toolDockReady #controls:is(:hover,:has(:focus-visible),:has(.toolButton.selected)) { transform: translateX(-50%); }
-body.toolDockReady #toolInfo { display: flex; gap: 8px; justify-content: flex-start; padding: 0 5px 5px; min-height: 21px; }
-body.toolDockReady #activeToolLabel { min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.toolDockReady #toolOutput { margin-left: auto; font-size: 9px; color: var(--hud-dim); }
-body.toolDockReady #toolCancel, body.toolDockReady #undoButton {
-  flex: none; width: 24px; height: 22px; padding: 0; border-radius: 6px; font-size: 16px;
+body.toolDockReady #controls:is(:hover, :has(:focus-visible), :has(.toolButton.selected)) {
+  transform: translateX(-50%) !important;
 }
-body.toolDockReady #toolCancel[hidden] { display: none; }
-#toolCategories { display: flex; gap: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+
+/* Hide legacy title bar & raw 21 buttons */
+body.toolDockReady #toolInfo { display: none !important; }
+body.toolDockReady #buttons { display: none !important; }
+
+/* Category Navigation */
+#toolCategories {
+  display: flex; gap: 4px; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+}
+#toolCategories::-webkit-scrollbar { display: none; }
+
 #toolCategories .toolCategory {
-  position: relative; flex: 0 0 83px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; min-height: 57px; padding: 5px 6px; border: 1px solid transparent; border-radius: 10px;
-  color: var(--hud-text); background: transparent; font: 400 12px/1.3 'Sarabun Thai','Open Sans',sans-serif; cursor: pointer;
+  position: relative; width: 72px; min-height: 55px; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: transparent; border: 1px solid transparent; color: rgba(255, 255, 255, 0.72);
+  font: 500 11px/1.2 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
+  transition: all 0.15s ease; padding: 4px 2px;
 }
-#toolCategories .toolCategory img { width: 27px; height: 27px; object-fit: contain; }
-#toolCategories .toolCategory span { white-space: nowrap; }
-#toolCategories .toolCategory:hover { background: rgba(255,255,255,.5); }
-#toolCategories .toolCategory.current { background: rgba(255,255,255,.8); border-color: rgba(53,108,82,.4); }
-#toolCategories .toolCategory.hasTool::after { content: ''; position: absolute; bottom: 2px; width: 22px; height: 3px; border-radius: 3px; background: #337c58; }
+#toolCategories .toolCategory .catIconPlate {
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+#toolCategories .toolCategory .catIconPlate img {
+  width: 22px; height: 22px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+#toolCategories .toolCategory .catLabel {
+  font-size: 10.5px; font-weight: 600; white-space: nowrap; max-width: 68px; overflow: hidden; text-overflow: ellipsis;
+}
+#toolCategories .toolCategory:hover {
+  background: rgba(255, 255, 255, 0.07); color: #fff; transform: translateY(-2px);
+}
+#toolCategories .toolCategory:hover .catIconPlate {
+  background: rgba(255, 255, 255, 0.12); transform: scale(1.05);
+}
+#toolCategories .toolCategory.current {
+  background: linear-gradient(180deg, rgba(79, 195, 247, 0.22), rgba(79, 195, 247, 0.06));
+  border-color: rgba(79, 195, 247, 0.55); color: #fff;
+  box-shadow: 0 0 14px rgba(79, 195, 247, 0.35);
+}
+#toolCategories .toolCategory.current .catIconPlate {
+  background: #4fc3f7; border-color: transparent; box-shadow: 0 0 12px rgba(79, 195, 247, 0.5);
+}
+#toolCategories .toolCategory.current .catIconPlate img {
+  filter: brightness(0) invert(0);
+}
+#toolCategories .toolCategory.current::before {
+  content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 3px; background: #4fc3f7; border-radius: 0 0 3px 3px;
+  box-shadow: 0 0 8px #4fc3f7;
+}
+#toolCategories .toolCategory.hasTool::after {
+  content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: 20px; height: 2px; border-radius: 1px; background: #34d399; box-shadow: 0 0 6px #34d399;
+}
 #toolCategories .toolCategory.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
+
+/* The Unified Interactive Tray (Fable-style) */
 body.toolDockReady #toolTray {
-  position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%); padding: 9px;
-  width: max-content; max-width: min(920px,calc(100vw - 128px)); box-sizing: border-box;
-  border: 1px solid var(--hud-edge); border-radius: 14px; background: var(--hud-glass); box-shadow: var(--hud-shadow);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+  background: rgba(9, 14, 23, 0.94);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  padding: 8px 10px 10px; max-width: calc(100vw - 32px); min-width: 320px; z-index: 24;
+  animation: fc-rise 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-body.toolDockReady #toolTray[hidden] { display: none; }
-.toolTrayHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 2px 7px; font-size: 13px; }
-body.toolDockReady :is(.toolTrayClose,#toolLevelsClose) {
-  flex: none; width: 25px; height: 25px; padding: 0; border: 1px solid transparent; border-radius: 7px;
-  background: rgba(255,255,255,.45); color: var(--hud-text); font: 400 19px/1 sans-serif; cursor: pointer;
+body.toolDockReady #toolTray[hidden] { display: none !important; }
+
+@keyframes fc-rise {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
-body.toolDockReady :is(.toolTrayClose,#toolLevelsClose):hover { background: rgba(255,255,255,.9); }
-body.toolDockReady #buttons { display: flex; gap: 7px; overflow-x: auto; padding: 2px 2px 6px; max-width: 100%; }
-body.toolDockReady #buttons .toolButton {
-  order: initial; position: relative; display: flex; flex: 0 0 110px; width: 110px; height: 117px;
-  padding: 6px; gap: 3px; border: 1px solid rgba(83,112,88,.2); border-radius: 10px;
-  background: rgba(255,255,255,.35); color: var(--hud-text); text-align: center; cursor: pointer;
+
+body.toolDockReady #toolTray::before {
+  content: ''; position: absolute; bottom: -7px; left: 50%; width: 12px; height: 12px;
+  transform: translateX(-50%) rotate(45deg); background: rgba(9, 14, 23, 0.94);
+  border-right: 1px solid rgba(255, 255, 255, 0.14); border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
-body.toolDockReady #buttons .toolButton:is(.dockHidden,[hidden]) { display: none !important; }
-body.toolDockReady #buttons .toolButton:is(.browsing,.selected) { border-color: #3d8663; box-shadow: inset 0 0 0 1px #3d8663; background: rgba(255,255,255,.8); }
-body.toolDockReady #buttons .toolButton:hover:not(:disabled) { background: rgba(255,255,255,.9); }
-body.toolDockReady #buttons .toolIcon { width: 86px; height: 49px; flex: none; }
-body.toolDockReady #buttons .toolIcon img { object-fit: contain; }
-body.toolDockReady #buttons .toolName { display: block; width: 100%; font-size: 12px; line-height: 1.3; white-space: normal; }
-body.toolDockReady #buttons .toolPrice { color: #356b47; font-size: 11px; }
-body.toolDockReady #buttons .toolSelection { display: block; max-width: 100%; color: var(--hud-dim); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.toolDockReady.houseFirst #buttons .toolButton[data-has-choices='true'] { pointer-events: auto; opacity: .65; }
-/* The left side leaves the ruler's tasks and the camera strip on the right undisturbed. */
-body.toolDockReady #toolLevels {
-  top: 82px; bottom: 113px; left: 54px; right: auto; width: 354px; max-width: calc(100vw - 116px);
-  transform: none; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 8px; padding: 10px;
-  box-sizing: border-box; z-index: 14; animation: none; transition: none; border-radius: 14px;
+
+.toolTrayHeader {
+  display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 8px;
 }
-body.toolDockReady:has(#toolTray:not([hidden])) #toolLevels { bottom: 264px; }
-body.toolDockReady #toolLevels[hidden] { display: none; }
-body.toolDockReady #toolLevels .levelsHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex: none; }
-body.toolDockReady #toolLevels .levelsTitle { font-size: 15px; line-height: 1.4; white-space: normal; }
-body.toolDockReady #toolLevels .levelsSlots {
-  display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-content: start; gap: 8px;
-  min-height: 0; overflow-y: auto; padding: 3px; scrollbar-width: thin;
+.trayBack {
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 8px;
+  cursor: pointer; transition: all 0.12s;
 }
-body.toolDockReady #toolLevels button.levelSlot {
-  width: auto; min-width: 0; height: auto; min-height: 124px; padding: 7px 4px; gap: 5px;
-  border: 1px solid rgba(83,112,88,.22); background: rgba(255,255,255,.3); border-radius: 9px;
+.trayBack:hover { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.25); }
+.trayBack[hidden] { display: none; }
+
+.trayTitleWrap { display: flex; align-items: center; gap: 6px; }
+.trayIcon { width: 20px; height: 20px; object-fit: contain; }
+#toolTrayTitle { color: #fff; font-size: 13.5px; font-weight: 700; letter-spacing: 0.01em; }
+
+.trayModes { display: flex; align-items: center; gap: 4px; margin-left: 12px; }
+.trayModes .modesTitle { color: rgba(255, 255, 255, 0.45); font-size: 10px; font-weight: 500; margin-right: 2px; }
+.trayModes .modeButton {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px;
+  border-radius: 5px; font-size: 10px; font-weight: 600; color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer; transition: all 0.12s;
 }
-body.toolDockReady #toolLevels .levelIcon { width: 100%; height: 51px; justify-content: center; flex: none; }
-body.toolDockReady #toolLevels .levelIcon .toolIcon { width: 80px; max-width: 100%; height: 51px; }
-body.toolDockReady #toolLevels .levelIcon img { object-fit: contain; }
-body.toolDockReady #toolLevels .levelName { font-size: 11px; line-height: 1.35; white-space: normal; }
-body.toolDockReady #toolLevels .levelNote { font-size: 10px; line-height: 1.3; white-space: normal; }
-body.toolDockReady #toolLevels button.levelSlot.current { box-shadow: inset 0 0 0 1px #3d8663; border-color: #3d8663; background: rgba(255,255,255,.85); }
-body.toolDockReady #toolLevels button.levelSlot.unavailable { opacity: .52; border-style: dashed; }
-body.toolDockReady #toolLevels .levelsModes { flex: none; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--hud-edge); padding-top: 8px; }
-body.toolDockReady #toolLevels .levelsModes[hidden] { display: none; }
-body.toolDockReady #toolLevels .modesTitle { width: 100%; font-size: 11px; }
-body.toolDockReady #toolLevels .modeButton { min-height: 28px; padding: 4px 7px; font-size: 11px; }
-body.toolDockReady :is(.toolCategory,.toolButton,.levelSlot,.modeButton,.toolTrayClose,#toolLevelsClose):focus-visible { outline: 3px solid #bd8c1f; outline-offset: 2px; }
-body.toolDockReady #cameraBar { bottom: 113px; }
+.trayModes .modeButton svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
+.trayModes .modeButton:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.trayModes .modeButton.current {
+  color: #0b1118; background: #4fc3f7; border-color: transparent; box-shadow: 0 0 8px rgba(79, 195, 247, 0.4);
+}
+
+.toolTrayClose {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6); display: grid; place-items: center;
+  cursor: pointer; font-size: 15px; line-height: 1; transition: all 0.12s;
+}
+.toolTrayClose:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+
+/* The Cards inside the Tray */
+.trayCards {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none;
+}
+.trayCards::-webkit-scrollbar { display: none; }
+
+.trayCard {
+  width: 96px; flex: 0 0 96px; display: flex; flex-direction: column; align-items: center;
+  gap: 5px; padding: 6px 5px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1; text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
+}
+.trayCard .cardThumb {
+  width: 84px; height: 48px; border-radius: 7px; background: #141f2c;
+  border: 1px solid rgba(255, 255, 255, 0.09); position: relative; overflow: hidden;
+  display: grid; place-items: center; transition: all 0.15s ease;
+}
+.trayCard .cardThumb img { width: 100%; height: 100%; object-fit: contain; }
+.trayCard .cardThumb::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 42%), linear-gradient(0deg, rgba(0, 0, 0, 0.25), transparent 40%);
+}
+.trayCard .cardThumb .cardPrice {
+  position: absolute; top: 3px; left: 3px; z-index: 2;
+  font-size: 9.5px; font-weight: 700; color: #ffd66b;
+  background: rgba(9, 14, 22, 0.88); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 214, 107, 0.35); border-radius: 4px;
+  padding: 1px 5px; line-height: 1.2; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.trayCard .cardThumb .cardPrice.hasChoices {
+  color: #94a3b8; border-color: rgba(255, 255, 255, 0.15); font-size: 8.5px;
+}
+.trayCard .cardName {
+  font-size: 11px; font-weight: 600; color: #f1f5f9; line-height: 1.2;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trayCard:hover {
+  background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.2);
+  color: #fff; transform: translateY(-2px);
+}
+.trayCard:hover .cardThumb {
+  transform: scale(1.03); border-color: rgba(255, 255, 255, 0.2);
+}
+.trayCard.is-active {
+  border-color: #4fc3f7; background: rgba(79, 195, 247, 0.16);
+  box-shadow: 0 0 16px rgba(79, 195, 247, 0.35); color: #fff;
+}
+.trayCard.is-active .cardThumb {
+  border-color: #4fc3f7; box-shadow: 0 0 10px rgba(79, 195, 247, 0.4);
+}
+.trayCard.unavailable {
+  opacity: 0.45; cursor: not-allowed; border-style: dashed; transform: none !important;
+}
+
+/* Active Tool Capsule (Pill) */
+#activeToolPill {
+  position: fixed; bottom: 18px; left: calc(50% + 280px); z-index: 26;
+  height: 36px; padding: 0 10px 0 6px;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(9, 14, 23, 0.92); backdrop-filter: blur(20px);
+  border: 1px solid rgba(79, 195, 247, 0.5); border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(79, 195, 247, 0.25);
+  animation: fc-pill-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#activeToolPill[hidden] { display: none !important; }
+
+@keyframes fc-pill-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+#activeToolPill .pillIcon { width: 22px; height: 22px; object-fit: contain; }
+#activeToolPill .pillText { font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; }
+#activeToolPill .pillEsc {
+  font-size: 9.5px; font-weight: 600; color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px; padding: 1px 5px;
+}
+#activeToolPill .pillCancel {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1); border: none; color: #cbd5e1;
+  display: grid; place-items: center; font-size: 13px; line-height: 1;
+  cursor: pointer; transition: all 0.12s;
+}
+#activeToolPill .pillCancel:hover { background: #ef4444; color: #fff; }
+
+/* Camera bar sits comfortably */
+body.toolDockReady #cameraBar { bottom: 84px; }
+
+/* Small screen / Mobile */
 @media (max-width: 700px) {
-  body.toolDockReady #controls { left: 47px; right: 8px; width: auto; max-width: none; transform: none !important; padding: 5px; }
-  body.toolDockReady #toolOutput { display: none; }
-  #toolCategories .toolCategory { flex-basis: 78px; min-height: 55px; font-size: 12px; }
-  body.toolDockReady #toolTray { left: 0; right: 0; width: auto; max-width: none; transform: none; }
-  body.toolDockReady #toolLevels { left: 47px; right: 8px; width: auto; max-width: none; top: 72px; bottom: 110px; }
-  body.toolDockReady:has(#toolTray:not([hidden])) #toolLevels { bottom: 264px; }
-  body.toolDockReady #toolLevels .levelsSlots { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  body.toolDockReady #toolLevels button.levelSlot { min-height: 123px; }
-  body.toolDockReady #toolLevels .levelsTitle { font-size: 14px; }
-}
-@media (max-height: 550px) and (min-width: 701px) {
-  body.toolDockReady #toolLevels { top: 60px; bottom: 110px !important; }
-  body.toolDockReady:has(#toolLevels:not([hidden])) #toolTray { max-width: calc(100vw - 490px); left: auto; right: 0; transform: none; }
+  body.toolDockReady #controls { left: 8px; right: 8px; transform: none !important; width: auto; max-width: none; }
+  #toolCategories .toolCategory { width: auto; flex: 1; min-width: 44px; }
+  #toolCategories .toolCategory .catLabel { display: none; }
+  body.toolDockReady #toolTray { left: 8px; right: 8px; width: auto; max-width: none; transform: none; }
+  body.toolDockReady #toolTray::before { display: none; }
+  #activeToolPill { left: 8px; bottom: 74px; }
 }

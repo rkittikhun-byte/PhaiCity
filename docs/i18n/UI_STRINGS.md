@@ -1493,3 +1493,4 @@
 | `dock.group.mine` | `src/toolDock.ts` | — | `Mines & wells` | `เหมืองและบ่อน้ำมัน` | Family |
 | `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | Family |
 | `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | Family |
+| `dock.back` | `src/toolDock.ts` | — | `Back` | `ย้อนกลับ` | Navigation |

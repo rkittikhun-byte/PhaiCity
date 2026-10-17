@@ -1343,6 +1343,14 @@ Game.prototype.handleMandatoryBudget = function() {
 };
 
 
+var isContinuousTool = function(name) {
+  if (!name) return false;
+  return name.indexOf('road') === 0 || name === 'motorway' || name === 'tollway' ||
+         name === 'rail' || name === 'wire' || name === 'bulldozer' || name === 'query' ||
+         name.indexOf('zone_') === 0 || name === 'residential' || name === 'commercial' || name === 'industrial';
+};
+
+
 Game.prototype.handleTool = function(data) {
   var x = data.x;
   var y = data.y;
@@ -1389,6 +1397,7 @@ Game.prototype.handleTool = function(data) {
       if (this.cityView.landChanged)
         this.cityView.landChanged();
       this.cancelDraft();
+      this.inputStatus.clearTool();
     } else {
       var rankNeeded = blocksByRank(this.gameMap).findIndex(function(n) { return n > (this.gameMap.landBought || 0); }, this);
       showCornerNote(t('land.note.' + LAND_KEYS[bought.reason], {
@@ -1468,6 +1477,8 @@ Game.prototype.handleTool = function(data) {
   this.refreshUndo();
   if (toolName === HOUSE_TOOL || toolName === HOUSE_UPGRADE_TOOL || toolName === 'bulldozer')
     this.refreshHouse();
+  if (result === tool.TOOLRESULT_OK && !isContinuousTool(toolName))
+    this.inputStatus.clearTool();
 };
 
 
