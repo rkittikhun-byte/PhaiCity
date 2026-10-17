@@ -10,10 +10,10 @@ body.toolDockReady #toolLevels { display: none !important; }
 body.toolDockReady #controls {
   position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%) !important;
   width: auto; max-width: calc(100vw - 32px); padding: 4px 6px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%), rgba(10, 16, 26, 0.92);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: var(--hud-glass, rgba(246, 250, 247, 0.78));
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.75)); border-radius: 18px;
+  box-shadow: var(--hud-shadow, 0 10px 28px rgba(12, 24, 20, 0.26));
   display: flex; align-items: center; gap: 4px; z-index: 25;
   transition: none; animation: none; overflow: visible;
 }
@@ -34,47 +34,49 @@ body.toolDockReady #buttons { display: none !important; }
 #toolCategories .toolCategory {
   position: relative; width: 62px; min-height: 48px; border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  background: transparent; border: 1px solid transparent; color: rgba(255, 255, 255, 0.72);
-  font: 500 10.5px/1.2 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
+  background: transparent; border: 1px solid transparent; color: var(--hud-text, #1d2925);
+  font: 600 10.5px/1.2 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
   transition: all 0.15s ease; padding: 3px 2px;
 }
 #toolCategories .toolCategory .catIconPlate {
   width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.65); border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(12, 24, 20, 0.08);
   transition: all 0.15s ease;
 }
 #toolCategories .toolCategory .catIconPlate img {
-  width: 17px; height: 17px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  width: 17px; height: 17px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 #toolCategories .toolCategory .catLabel {
   font-size: 9.5px; font-weight: 600; white-space: nowrap; max-width: 58px; overflow: hidden; text-overflow: ellipsis;
+  color: var(--hud-text, #1d2925);
 }
 #toolCategories .toolCategory:hover {
-  background: rgba(255, 255, 255, 0.07); color: #fff; transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.5); color: #000; transform: translateY(-2px);
 }
 #toolCategories .toolCategory:hover .catIconPlate {
-  background: rgba(255, 255, 255, 0.12); transform: scale(1.05);
+  background: #ffffff; transform: scale(1.05);
 }
 #toolCategories .toolCategory.current {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.28); color: #fff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background: var(--hud-glass-strong, rgba(255, 255, 255, 0.95));
+  border-color: rgba(255, 255, 255, 0.95); color: #1d2925;
+  box-shadow: 0 3px 12px rgba(12, 24, 20, 0.14);
 }
 #toolCategories .toolCategory.current .catIconPlate {
-  background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #ffffff; border-color: rgba(34, 107, 87, 0.35);
+  box-shadow: 0 2px 6px rgba(12, 24, 20, 0.12);
 }
 #toolCategories .toolCategory.current .catIconPlate img {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 #toolCategories .toolCategory.current::before {
   content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
-  width: 20px; height: 3px; background: rgba(255, 255, 255, 0.85); border-radius: 0 0 3px 3px;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+  width: 22px; height: 3px; background: #226b57; border-radius: 0 0 3px 3px;
+  box-shadow: 0 0 4px rgba(34, 107, 87, 0.4);
 }
 #toolCategories .toolCategory.hasTool::after {
   content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
-  width: 20px; height: 2px; border-radius: 1px; background: #34d399; box-shadow: 0 0 6px #34d399;
+  width: 20px; height: 2px; border-radius: 1px; background: #226b57; box-shadow: 0 0 4px rgba(34, 107, 87, 0.4);
 }
 #toolCategories .toolCategory.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
 
@@ -95,10 +97,10 @@ body.toolDockReady #activeToolPill button {
 /* The Unified Interactive Tray (Fable-style) */
 body.toolDockReady #toolTray {
   position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
-  background: rgba(9, 14, 23, 0.94);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: var(--hud-glass, rgba(246, 250, 247, 0.88));
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85)); border-radius: 14px;
+  box-shadow: var(--hud-shadow, 0 10px 28px rgba(12, 24, 20, 0.26));
   padding: 6px 8px; max-width: calc(100vw - 32px); min-width: auto; z-index: 24;
   animation: fc-rise 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -111,8 +113,10 @@ body.toolDockReady #toolTray[hidden] { display: none !important; }
 
 body.toolDockReady #toolTray::before {
   content: ''; position: absolute; bottom: -7px; left: 50%; width: 12px; height: 12px;
-  transform: translateX(-50%) rotate(45deg); background: rgba(9, 14, 23, 0.94);
-  border-right: 1px solid rgba(255, 255, 255, 0.14); border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--hud-glass, rgba(246, 250, 247, 0.95));
+  border-right: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85));
+  border-bottom: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85));
 }
 
 /* Hide header title bar per user request ("ไม่เอา label และ title") */
@@ -132,57 +136,64 @@ body.toolDockReady #toolTray::before {
   height: 46px !important; min-height: 46px !important; flex: 0 0 48px !important;
   display: flex !important; flex-direction: column !important; align-items: center !important;
   justify-content: center !important; padding: 2px !important;
-  border-radius: 8px !important; background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #cbd5e1 !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  color: var(--hud-text, #1d2925) !important;
   text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
   box-sizing: border-box !important; overflow: visible !important;
 }
 .trayCard .cardThumb {
-  width: 42px !important; height: 38px !important; border-radius: 6px !important; background: #141f2c !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important; position: relative; overflow: hidden;
+  width: 42px !important; height: 38px !important; border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important; position: relative; overflow: hidden;
   display: flex !important; align-items: center !important; justify-content: center !important;
   transition: all 0.15s ease; flex-shrink: 0 !important;
+  box-shadow: 0 1px 3px rgba(12, 24, 20, 0.08);
 }
 .trayCard .cardThumb img {
   width: 22px !important; height: 22px !important; max-width: 22px !important; max-height: 22px !important;
-  object-fit: contain !important; display: block !important; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  object-fit: contain !important; display: block !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
 }
 .trayCard .cardThumb::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 42%), linear-gradient(0deg, rgba(0, 0, 0, 0.25), transparent 40%);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.5), transparent 50%);
 }
 .trayCard .cardThumb .cardPrice {
   position: absolute; top: 2px; left: 2px; z-index: 2;
-  font-size: 8.5px; font-weight: 700; color: #ffd66b;
-  background: rgba(9, 14, 22, 0.9); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 214, 107, 0.35); border-radius: 3px;
-  padding: 1px 4px; line-height: 1.1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  font-size: 8.5px; font-weight: 700; color: #1e4a38;
+  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
+  border: 1px solid rgba(34, 107, 87, 0.3); border-radius: 3px;
+  padding: 1px 4px; line-height: 1.1; box-shadow: 0 1px 2px rgba(12, 24, 20, 0.1);
   white-space: nowrap;
 }
 .trayCard .cardThumb .cardPrice.hasChoices {
-  color: #94a3b8; border-color: rgba(255, 255, 255, 0.15); font-size: 7.5px;
+  color: var(--hud-dim, #5a6964); border-color: rgba(0, 0, 0, 0.15); font-size: 7.5px;
 }
 /* Hide card text label per user request ("ไม่เอา label และ title") */
 .trayCard .cardName {
   display: none !important;
 }
 .trayCard:hover {
-  background: rgba(255, 255, 255, 0.12) !important; border-color: rgba(255, 255, 255, 0.28) !important;
-  color: #fff !important; transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.8) !important; border-color: rgba(255, 255, 255, 0.95) !important;
+  color: #000 !important; transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(12, 24, 20, 0.12);
 }
 .trayCard:hover .cardThumb {
-  transform: scale(1.04); border-color: rgba(255, 255, 255, 0.28) !important;
+  transform: scale(1.04); border-color: rgba(34, 107, 87, 0.3) !important;
+  background: #ffffff !important;
 }
 .trayCard.is-active {
-  border-color: rgba(255, 255, 255, 0.45) !important;
-  background: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-  color: #fff !important;
+  border-color: #226b57 !important;
+  background: var(--hud-glass-strong, rgba(255, 255, 255, 0.95)) !important;
+  box-shadow: 0 0 0 1px #226b57, 0 3px 10px rgba(34, 107, 87, 0.2) !important;
+  color: #1d2925 !important;
 }
 .trayCard.is-active .cardThumb {
-  border-color: rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2) !important;
-  background: rgba(28, 38, 52, 0.95) !important;
+  border-color: #226b57 !important;
+  box-shadow: 0 1px 4px rgba(34, 107, 87, 0.25) !important;
+  background: #ffffff !important;
 }
 .trayCard.unavailable {
   opacity: 0.45 !important; cursor: not-allowed !important; border-style: dashed !important; transform: none !important;
@@ -193,10 +204,10 @@ body.toolDockReady #toolTray::before {
   position: fixed; bottom: 18px; left: calc(50% + 280px); z-index: 26;
   height: 34px; padding: 0 10px 0 6px;
   display: inline-flex; align-items: center; gap: 7px;
-  background: var(--hud-glass, rgba(10, 16, 26, 0.88));
+  background: var(--hud-glass, rgba(246, 250, 247, 0.88));
   -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid var(--hud-edge-bright, rgba(255, 255, 255, 0.28)); border-radius: 999px;
-  box-shadow: var(--hud-shadow, 0 8px 24px rgba(0, 0, 0, 0.45)), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85)); border-radius: 999px;
+  box-shadow: var(--hud-shadow, 0 8px 24px rgba(12, 24, 20, 0.2)), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   animation: fc-pill-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 #activeToolPill[hidden] { display: none !important; }
@@ -207,15 +218,15 @@ body.toolDockReady #toolTray::before {
 }
 
 #activeToolPill .pillIcon { width: 22px; height: 22px; object-fit: contain; }
-#activeToolPill .pillText { font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; }
+#activeToolPill .pillText { font-size: 11.5px; font-weight: 700; color: var(--hud-text, #1d2925); white-space: nowrap; }
 #activeToolPill .pillEsc {
-  font-size: 9.5px; font-weight: 600; color: #94a3b8;
-  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 9.5px; font-weight: 600; color: var(--hud-dim, #5a6964);
+  background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 4px; padding: 1px 5px;
 }
 #activeToolPill .pillCancel {
   width: 18px; height: 18px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1); border: none; color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.08); border: none; color: var(--hud-text, #1d2925);
   display: grid; place-items: center; font-size: 13px; line-height: 1;
   cursor: pointer; transition: all 0.12s;
 }

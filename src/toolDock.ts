@@ -214,7 +214,7 @@ export function installToolDock(doc: Document = document): void {
       backCard.title = t("dock.back");
       const bThumb = doc.createElement("div");
       bThumb.className = "cardThumb";
-      bThumb.innerHTML = '<span style="font-size: 20px; font-weight: bold; color: #fff;">←</span>';
+      bThumb.innerHTML = '<span style="font-size: 20px; font-weight: bold; color: var(--hud-text, #1d2925);">←</span>';
       backCard.appendChild(bThumb);
       backCard.addEventListener("click", () => {
         currentGroup = null;
