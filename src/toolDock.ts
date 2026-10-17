@@ -10,11 +10,11 @@ import { modesFor, renderModes } from "./drawModes.js";
 export interface ToolCategory { id: string; icon: string; tools: readonly string[] }
 
 export const TOOL_CATEGORIES: readonly ToolCategory[] = [
-  { id: "roads", icon: "road", tools: ["road", "rail", "bus_stop", "port"] },
+  { id: "city", icon: "ruler_house", tools: ["ruler_house", "land", "park", "stadium"] },
   { id: "zones", icon: "residential", tools: ["residential", "commercial", "industrial"] },
+  { id: "roads", icon: "road", tools: ["road", "rail", "bus_stop", "port"] },
   { id: "services", icon: "coal", tools: ["coal", "waterworks", "landfill", "police", "primary_school", "health_centre"] },
   { id: "resources", icon: "mine", tools: ["farm", "mine"] },
-  { id: "city", icon: "ruler_house", tools: ["ruler_house", "land", "park", "stadium"] },
   { id: "bulldoze", icon: "bulldozer", tools: ["bulldozer"] },
   { id: "info", icon: "query", tools: ["query"] },
 ];
@@ -431,6 +431,13 @@ export function installToolDock(doc: Document = document): void {
     if (active !== lastActive) {
       lastActive = active;
       if (armed) currentCategory = categoryForTool(armed.dataset.tool ?? "")?.id ?? currentCategory;
+      const armedTool = armed ? (armed.dataset.activeTool ?? armed.dataset.tool ?? null) : null;
+      doc.dispatchEvent(new CustomEvent("phaicity:active_tool_changed", {
+        detail: {
+          tool: armedTool,
+          category: armed ? (categoryForTool(armed.dataset.tool ?? "")?.id ?? null) : null,
+        }
+      }));
     }
 
     // Update categories on the dock

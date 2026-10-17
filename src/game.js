@@ -48,6 +48,8 @@ import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZ
 import { cellsAlong, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { placesBuilding } from './gameTools.js';
+import { layerPixels } from './cityMap.ts';
+import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
@@ -560,6 +562,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
                   function(x, y) { self.inspectAtPixel(x, y); });
   // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
   installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
+  document.addEventListener('phaicity:active_tool_changed', function(event) {
+    self.updateContextualOverlay(event.detail && event.detail.tool);
+  });
   onLanguageChange(function() { if (self.inspectCard) self.inspectCard.render(); });
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && self.inspectCard && self.inspectCard.isOpen)
@@ -647,6 +652,52 @@ Game.prototype.mapOverlays = function() {
     return score < 0 ? null : score;
   };
   return overlays;
+};
+
+
+// Contextual overlays when tools are armed (industrial -> pollution & wind, water -> groundwater, mine -> toxic)
+Game.prototype.updateContextualOverlay = function(activeTool) {
+  if (this.mapWindow && this.mapWindow.isOpen)
+    return;
+
+  var targetLayer = null;
+  var tool = activeTool || '';
+
+  if (tool === 'industrial' || tool === 'zone_industrial' || tool === 'coal') {
+    targetLayer = 'pollution';
+  } else if (tool === 'waterworks' || tool === 'watertower' || tool === 'water') {
+    targetLayer = 'groundwater';
+  } else if (tool === 'mine') {
+    targetLayer = 'toxic';
+  }
+
+  if (targetLayer && this.gameMap && this.cityView && typeof this.cityView.showLayer === 'function') {
+    var width = this.gameMap.width, height = this.gameMap.height;
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.putImageData(new ImageData(layerPixels(targetLayer, this.gameMap, this.mapOverlays()), width, height), 0, 0);
+      this.cityView.showLayer(canvas);
+    }
+
+    if (tool === 'industrial' || tool === 'zone_industrial') {
+      var date = this.simulation.getDate ? this.simulation.getDate() : { month: 0 };
+      var wind = seasonWind(date.month, 2);
+      var dirKey = wind.season === 'northeast_monsoon' ? 'wind.dir.sw' : wind.season === 'hot_season' ? 'wind.dir.n' : 'wind.dir.ne';
+      showCornerNote(t('wind.hint.industrial', {
+        season: t('wind.season.' + wind.season),
+        dir: t(dirKey),
+      }), 7000);
+    } else if (tool === 'waterworks' || tool === 'watertower') {
+      showCornerNote(t('dock.hint.groundwater'), 5000);
+    } else if (tool === 'mine') {
+      showCornerNote(t('dock.hint.toxic'), 5000);
+    }
+  } else if (!targetLayer && this.cityView && typeof this.cityView.showLayer === 'function') {
+    this.cityView.showLayer(null);
+  }
 };
 
 

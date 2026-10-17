@@ -1292,4 +1292,22 @@ export const STRINGS: Record<string, Translation> = {
   "dock.group.road": { en: "Roads", th: "ถนน" },
   "dock.group.ruler_house": { en: "Ruler's house", th: "ที่ว่าการ" },
   "dock.back": { en: "Back", th: "ย้อนกลับ" },
+  "wind.season.northeast_monsoon": { en: "Northeast Monsoon", th: "มรสุมตะวันออกเฉียงเหนือ" },
+  "wind.season.hot_season": { en: "Hot Season", th: "ฤดูร้อน" },
+  "wind.season.southwest_monsoon": { en: "Southwest Monsoon", th: "มรสุมตะวันตกเฉียงใต้" },
+  "wind.hint.industrial": {
+    en: "Wind: {season} blowing towards {dir}. Place industries downwind away from residential areas.",
+    th: "ทิศทางลม: {season} พัดไปทาง{dir} ควรวางเขตอุตสาหกรรมไว้ใต้ลมเพื่อเลี่ยงควันพิษเข้าบ้านเรือน"
+  },
+  "wind.dir.sw": { en: "Southwest ↙", th: "ทิศตะวันตกเฉียงใต้ ↙" },
+  "wind.dir.ne": { en: "Northeast ↗", th: "ทิศตะวันออกเฉียงเหนือ ↗" },
+  "wind.dir.n": { en: "North ⬆", th: "ทิศเหนือ ⬆" },
+  "dock.hint.groundwater": {
+    en: "Showing groundwater overlay: place pumps and water towers on high water reserves.",
+    th: "แสดงแหล่งน้ำใต้ดิน: ควรสร้างปั๊มน้ำและหอพักน้ำบนจุดที่มีน้ำบาดาลหนาแน่น"
+  },
+  "dock.hint.toxic": {
+    en: "Showing toxic contamination: keep mines away from aquifers and residential zones.",
+    th: "แสดงแผนที่สารปนเปื้อน: ระวังอย่าสร้างเหมืองแร่ใกล้แหล่งน้ำใต้ดินและบ้านเรือน"
+  },
 };

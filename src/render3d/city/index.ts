@@ -81,7 +81,7 @@ export class CityView3D implements CityView {
   private cameraPose:number[]=[];
   private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private buses?:CityBuses;private problems?:ProblemIcons;
   private bed:Mesh;private bedDrop:number;private wideBed:boolean;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
-  private darkMode=false;private darkBtn?:HTMLButtonElement;
+  private darkMode=false;
   private dayNightMode:'auto'|'day'|'night'='auto';
   private readonly CYCLE_DURATION=180;
   private sunAngle=Math.PI*0.35;
@@ -139,29 +139,9 @@ export class CityView3D implements CityView {
     this.renderer.outputColorSpace=SRGBColorSpace;this.renderer.toneMapping=ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=PCFSoftShadowMap;
     setup.container.append(this.canvas);this.resize();this.bindMouse();
-    if(!this.headless&&typeof document!=='undefined'){
-      const btn=document.createElement('button');
-      btn.type='button';btn.title='สลับโหมดมืด / สว่าง (Trafficity Dark Mode)';btn.textContent='🌙';
-      btn.style.cssText='position:fixed;top:6px;right:108px;z-index:25;width:28px;height:28px;border-radius:14px;border:1px solid rgba(255,255,255,0.28);background:rgba(20,25,35,0.78);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);box-shadow:0 2px 8px rgba(0,0,0,0.35);';
-      btn.addEventListener('click',()=>this.toggleDarkMode());
-      setup.container.append(btn);this.darkBtn=btn;
-    }
     if(typeof ResizeObserver!=='undefined'){this.resizeObserver=new ResizeObserver(()=>{if(!this.disposed){this.resize();this.render();}});this.resizeObserver.observe(setup.container);}
     if(!this.headless)this.loadSky();
     this.render();this.metrics.firstFrameMs=this.now()-this.created;
-  }
-  private updateDarkButtonText():void {
-    if(!this.darkBtn)return;
-    if(this.dayNightMode==='auto'){
-      this.darkBtn.textContent=this.darkMode?'🌙':'☀️';
-      this.darkBtn.title='โหมดกลางวัน-กลางคืน: อัตโนมัติ (คลิกเพื่อล็อคกลางวัน)';
-    }else if(this.dayNightMode==='day'){
-      this.darkBtn.textContent='☀️';
-      this.darkBtn.title='ล็อคกลางวันคงที่ (คลิกเพื่อล็อคกลางคืน)';
-    }else{
-      this.darkBtn.textContent='🌙';
-      this.darkBtn.title='ล็อคกลางคืนคงที่ (คลิกเพื่อสลับเป็นอัตโนมัติ)';
-    }
   }
   /** Continuous day/night and twilight color interpolation (GC-free, zero allocations) */
   private applyDayNight(nightFactor:number,twilight:number,sunAngle?:number):void {
@@ -190,7 +170,6 @@ export class CityView3D implements CityView {
 
     if(wasDark!==this.darkMode){
       this.bed.material=this.wideBed?cityBedMaterial(this.darkMode?0x1b222e:0x7a9150):tint('dirt_laterite',this.darkMode?0x1a2028:0x4c5543);
-      this.updateDarkButtonText();
     }
   }
   private updateDayNight():void {
@@ -208,7 +187,6 @@ export class CityView3D implements CityView {
     this.dayNightMode=on?'night':'day';
     this.lastNightFactor=-1;
     this.updateDayNight();
-    this.updateDarkButtonText();
     this.render();
   }
   toggleDarkMode():boolean {
@@ -217,7 +195,6 @@ export class CityView3D implements CityView {
     else this.dayNightMode='auto';
     this.lastNightFactor=-1;
     this.updateDayNight();
-    this.updateDarkButtonText();
     this.render();
     return this.darkMode;
   }
@@ -367,7 +344,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.darkBtn?.remove();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}
