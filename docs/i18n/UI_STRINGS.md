@@ -1462,35 +1462,3 @@
    * *ข้อเสนอ PhaiCity:* ตัดข้อความการขอรับบริจาคส่วนบุคคลเดิมออกทั้งหมด และแทนที่ด้วยข้อความเกี่ยวกับเป้าหมายของโครงการ PhaiCity และการร่วมพัฒนาชุมชนโอเพนซอร์สตามจิตวิญญาณ GPL v3
 6. **ข้อความเครื่องหมายการค้า (Trademark Attribution):**
    * ข้อความลิขสิทธิ์เครื่องหมายการค้า Micropolis ของ Micropolis GmbH ในแถบ Footer **ต้องคงภาษาอังกฤษไว้ตามข้อกำหนดของ Micropolis Public Name License** โดยไม่ทำการดัดแปลงหรือแปลเป็นภาษาไทย
-
-## เมนูเครื่องมือแบบหมวดและตัวเลือกด้านข้าง (17 ตุลาคม 2026)
-
-| Key | File | Current | English | Thai | Note |
-|---|---|---|---|---|---|
-| `dock.categories` | `index.html` | — | `Build categories` | `หมวดเครื่องมือก่อสร้าง` | Accessible navigation |
-| `dock.choose_category` | `src/toolDock.ts` | — | `Choose a category to build` | `เลือกหมวดเพื่อเริ่มสร้าง` | Idle state |
-| `dock.active` | `src/toolDock.ts` | — | `In hand: {name}` | `กำลังใช้: {name}` | Active tool |
-| `dock.cancel` | `index.html` | — | `Put down the tool` | `วางเครื่องมือ` | Keep menus separate from tool cancellation |
-| `dock.close_tray` | `src/toolDock.ts` | — | `Close category tray` | `ปิดถาดหมวดเครื่องมือ` | Does not cancel the tool |
-| `dock.close_choices` | `index.html` | — | `Close tool choices` | `ปิดแผงตัวเลือก` | Does not cancel the tool |
-| `dock.house_first` | `src/toolLevels.ts` | — | `Build the ruler's house first` | `สร้างที่ว่าการก่อน` | Existing city rule |
-| `dock.category.roads` | `src/toolDock.ts` | — | `Transport` | `ถนนและขนส่ง` | Category |
-| `dock.category.zones` | `src/toolDock.ts` | — | `Zones` | `เขตเมือง` | Category |
-| `dock.category.services` | `src/toolDock.ts` | — | `Services` | `บริการเมือง` | Category |
-| `dock.category.resources` | `src/toolDock.ts` | — | `Resources` | `เกษตรและแร่` | Category |
-| `dock.category.city` | `src/toolDock.ts` | — | `City & land` | `เมืองและที่ดิน` | Category |
-| `dock.category.bulldoze` | `src/toolDock.ts` | — | `Bulldoze` | `รื้อถอน` | Category |
-| `dock.category.info` | `src/toolDock.ts` | — | `Inspect` | `ตรวจสอบ` | Category |
-| `dock.group.coal` | `src/toolDock.ts` | — | `Power plant` | `โรงไฟฟ้า` | Family |
-| `dock.group.waterworks` | `src/toolDock.ts` | — | `Water supply` | `ประปา` | Family |
-| `dock.group.landfill` | `src/toolDock.ts` | — | `Waste & sewage` | `ขยะและน้ำเสีย` | Family |
-| `dock.group.police` | `src/toolDock.ts` | — | `Safety` | `ความปลอดภัย` | Family |
-| `dock.group.primary_school` | `src/toolDock.ts` | — | `Education` | `การศึกษา` | Family |
-| `dock.group.health_centre` | `src/toolDock.ts` | — | `Healthcare` | `สาธารณสุข` | Family |
-| `dock.group.bus_stop` | `src/toolDock.ts` | — | `Public transport` | `ขนส่งสาธารณะ` | Family |
-| `dock.group.port` | `src/toolDock.ts` | — | `Port & airport` | `ท่าเรือและสนามบิน` | Family |
-| `dock.group.farm` | `src/toolDock.ts` | — | `Farms & fishing` | `เกษตรและประมง` | Family |
-| `dock.group.mine` | `src/toolDock.ts` | — | `Mines & wells` | `เหมืองและบ่อน้ำมัน` | Family |
-| `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | Family |
-| `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | Family |
-| `dock.back` | `src/toolDock.ts` | — | `Back` | `ย้อนกลับ` | Navigation |
