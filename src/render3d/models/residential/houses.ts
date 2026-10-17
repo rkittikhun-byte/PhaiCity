@@ -12,6 +12,8 @@ import type { HouseStyleId, HouseStyle } from '../../regional/house-styles.js';
 import type { RoofForm } from '../../regional/contracts.js';
 import type { GeometryPart } from '../../util/geometry.js';
 import { beveledBox } from '../../util/geometry.js';
+import { LAND_LABELS, PlotBuilder } from '../plot/builder.js';
+import { buildConstructionStage } from '../plot/construction.js';
 import type { ModelOptions } from '../registry.js';
 
 export const HOUSE_IDS = ['res.house_0_0', 'res.house_0_1', 'res.house_0_2', 'res.house_1_0', 'res.house_1_1', 'res.house_1_2',
@@ -22,6 +24,11 @@ interface Component { role: string; min: number[]; max: number[]; triangles: num
 
 export function createHouse(index: number, options: ModelOptions = {}) {
   if (!Number.isInteger(index) || index < 0 || index >= HOUSE_IDS.length) throw new RangeError('Unknown house index');
+  if (options.state === 'stage_1' || options.state === 'stage_2') {
+    const pb = new PlotBuilder(options, 3);
+    const meta = buildConstructionStage(pb, options.state, 'residential', 1, [1, 1]);
+    return pb.finishPlot(HOUSE_IDS[index], 'residential', HOUSE_TIERS[index], 1, LAND_LABELS, meta, [1, 1]);
+  }
   const kit = getRegionKit(options.region), rng = seededRng(options.seed), propRng = seededRng((options.seed ?? 1) ^ 0x713a),
     b = new KitBuilder(), components: Component[] = [];
   const styleId = VERNACULAR[index], traditional = styleId !== undefined;

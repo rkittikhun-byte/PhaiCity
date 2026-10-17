@@ -21,6 +21,9 @@ export interface CityMapReader {
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number; readonly wings?: readonly string[] } | null;
   /** What stands on each rubbish or wastewater 3 × 3, by its centre's index (RENDERER_SPEC 6I): landfill, incinerator, recycling_plant, waste_power_plant, wastewater_plant; none is a landfill */
   readonly wasteKinds?: Readonly<Record<string, string>> | null;
+  readonly powerKinds?: Readonly<Record<string, string>> | null;
+  readonly mineKinds?: Readonly<Record<string, string>> | null;
+  readonly stationKinds?: Readonly<Record<string, string>> | null;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
 }

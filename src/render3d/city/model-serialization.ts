@@ -34,7 +34,8 @@ export function serializeModel(key: string, root: Group): { value: SerializedPro
   root.traverseVisible(node => {
     if (!(node instanceof Mesh) || node instanceof InstancedMesh && node.count === 0) return;
     const geometry = bakedGeometry(node), material = node.material as MeshStandardMaterial;
-    const part: SerializedPart = { attributes: {}, index: null, ground: node.name.endsWith('/ground'),
+    const part: SerializedPart = { attributes: {}, index: null,
+      ground: node.name.endsWith('/ground') || (root.name.startsWith('res.house_') && node.name.endsWith('/grass')),
       castShadow: node.castShadow, receiveShadow: node.receiveShadow,
       material: { key: material.userData.materialKey, name: material.name, color: material.color.getHex(), data: material.userData } };
     geometry.computeBoundingBox(); geometry.computeBoundingSphere();

@@ -13,6 +13,8 @@ import { TestCity } from '../../src/render3d/city/test-city.js';
 import { CityChunks } from '../../src/render3d/city/chunks.js';
 import type { PrototypeRequest, SerializedPrototype } from '../../src/render3d/city/prototypes.js';
 import { cityWorldMaterial, getMaterial } from '../../src/render3d/materials/library.js';
+import { CityHeightField } from '../../src/render3d/city/heightfield.js';
+import { CityFoliage, CityPedestrians, CityRoadTraffic, HUMAN_HEIGHT_M } from '../../src/render3d/city/pedestrians.js';
 import { readFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 
@@ -147,5 +149,20 @@ describe('3D CityView lifecycle',()=>{
   });
   it('city sources contain no unseeded randomness, storage or autonomous frame loop',()=>{
     const dir=resolve('src/render3d/city');for(const name of readdirSync(dir).filter(n=>n.endsWith('.ts'))){const source=readFileSync(resolve(dir,name),'utf8');expect(source).not.toMatch(/Math\.random\s*\(|localStorage|requestAnimationFrame\s*\(/);}
+  });
+  it('populates sidewalks with true-scale 3D pedestrians (1.68 m), 3D street/forest trees and real 3D vehicles on city maps',()=>{
+    const m=map(20,20),s=new TileSnapshot(20,20);s.realUnits=10/16;s.sync(m);
+    const terrain=new CityHeightField(s,m),peds=new CityPedestrians(s,terrain,10/16),traffic=new CityRoadTraffic(s,terrain,'northeast',10/16),foliage=new CityFoliage(s,terrain,'northeast',10/16);
+    const lines=[{points:[[20,50],[180,50]] as [number,number][],rail:false,level:2}];
+    try{
+      expect(HUMAN_HEIGHT_M*(10/16)).toBeCloseTo(1.05,2);
+      peds.update(lines,new Vector3(100,0,50),120,1.5);
+      expect(peds.shirtMesh.count).toBeGreaterThan(0);
+      expect(peds.strideAMesh.count).toBe(peds.shirtMesh.count);
+      traffic.update(lines,new Vector3(100,0,50),120,1.5);
+      expect(traffic.root.children.some(c=>c.visible)).toBe(true);
+      foliage.update(lines,new Vector3(100,0,50),120);
+      expect(foliage.root.children.some(c=>(c as InstancedMesh).count>0)).toBe(true);
+    }finally{peds.dispose();traffic.dispose();foliage.dispose();}
   });
 });

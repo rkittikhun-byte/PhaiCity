@@ -58,6 +58,7 @@ export class CityHeightField {
   inside(x: number, y: number): boolean { return !this.mask || this.mask[y * this.snapshot.width + x] !== 0; }
   /** A one-tile building, whose ground is levelled: a house, or a painted plot's building (src/plots.ts). */
   private isSingle(i:number):boolean {
+    if((this.map as {cellZones?:boolean}).cellZones)return false;
     if(singleBuilding(this.snapshot.values[i]))return true;
     if(!this.snapshot.paintedZones)return false;
     const w=this.snapshot.width,plot=plotOf(this.snapshot,i%w,Math.floor(i/w));return !!plot&&plot.level>0;
@@ -99,18 +100,21 @@ export class CityHeightField {
       this.corners[y * (w + 1) + x] = this.enabled ? water < Infinity ? water : sum / count : 0;
     }
     // Flatten every corner of a zone, including the perimeter; adjacent terrain supplies the transition.
-    const sums = new Map<number, { sum: number; count: number }>();
-    for (let i = 0; i < coverage.length; i++) if (coverage[i] >= 0) {
-      const c = coverage[i], s = sums.get(c) ?? { sum: 0, count: 0 }; s.sum += this.tileHeights[i]; s.count++; sums.set(c, s);
-    }
-    for (let i = 0; i < coverage.length; i++) if (coverage[i] >= 0 && flags[coverage[i]] & ZONEBIT) {
-      const s = sums.get(coverage[i])!, level = s.sum / s.count, x = i % w, y = Math.floor(i / w);
-      this.pads[i]=level;
-      for (const j of [y * (w + 1) + x, y * (w + 1) + x + 1, (y + 1) * (w + 1) + x, (y + 1) * (w + 1) + x + 1]) this.corners[j] = level;
-    }
-    for(let i=0;i<values.length;i++)if(coverage[i]<0&&this.single[i]){
-      this.pads[i]=this.tileHeights[i];const x=i%w,y=Math.floor(i/w);
-      for(const j of[y*(w+1)+x,y*(w+1)+x+1,(y+1)*(w+1)+x,(y+1)*(w+1)+x+1])this.corners[j]=this.pads[i];
+    // On cellZones maps, buildings are rotated against roads and have their own foundation/plinth, so axis-aligned tile pads are skipped.
+    if (!(this.map as {cellZones?:boolean}).cellZones) {
+      const sums = new Map<number, { sum: number; count: number }>();
+      for (let i = 0; i < coverage.length; i++) if (coverage[i] >= 0) {
+        const c = coverage[i], s = sums.get(c) ?? { sum: 0, count: 0 }; s.sum += this.tileHeights[i]; s.count++; sums.set(c, s);
+      }
+      for (let i = 0; i < coverage.length; i++) if (coverage[i] >= 0 && flags[coverage[i]] & ZONEBIT) {
+        const s = sums.get(coverage[i])!, level = s.sum / s.count, x = i % w, y = Math.floor(i / w);
+        this.pads[i]=level;
+        for (const j of [y * (w + 1) + x, y * (w + 1) + x + 1, (y + 1) * (w + 1) + x, (y + 1) * (w + 1) + x + 1]) this.corners[j] = level;
+      }
+      for(let i=0;i<values.length;i++)if(coverage[i]<0&&this.single[i]){
+        this.pads[i]=this.tileHeights[i];const x=i%w,y=Math.floor(i/w);
+        for(const j of[y*(w+1)+x,y*(w+1)+x+1,(y+1)*(w+1)+x,(y+1)*(w+1)+x+1])this.corners[j]=this.pads[i];
+      }
     }
     this.min = 0; this.max = 0;
     for (const c of this.corners) { this.min = Math.min(this.min, c); this.max = Math.max(this.max, c); }

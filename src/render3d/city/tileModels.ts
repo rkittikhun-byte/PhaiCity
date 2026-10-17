@@ -8,10 +8,11 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
-import { CIVIC, WASTE } from '../../tileValues.js';
+import { cellPlotPose, type CellMap } from '../../zoneCells.js';
+import { CIVIC, FARM, HARBOUR, MINE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
-import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf } from '../../plots.js';
+import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf, readPlotValue } from '../../plots.js';
 import type { CityMapReader } from './types.js';
 import { Placement, type PlacementFields } from './placement.js';
 import { roadReach } from '../../roadGeometry.js';
@@ -70,7 +71,7 @@ export const isWoods = (v: number): boolean => v >= 21 && v <= 39;
 const SIDES = [[0,-1,1],[1,0,2],[0,1,4],[-1,0,8]] as const;
 /** Heights of the painted plots' buildings by level (src/plots.ts), for the far view's boxes and the camera */
 const PLOT_HEIGHTS: Readonly<Record<PlotKind, readonly number[]>> = {
-  residential: [0, 6, 8, 14, 26, 66], commercial: [0, 6, 11, 17, 36, 92], industrial: [0, 7, 9, 12, 16],
+  residential: [0, 5, 7, 11, 18, 34], commercial: [0, 5, 9, 14, 24, 42], industrial: [0, 6, 8, 11, 14],
 };
 const PLOT_MODEL_PREFIX: Readonly<Record<PlotKind, string>> = { residential: 'res', commercial: 'com', industrial: 'ind' };
 /** A building's turn so its front (+Z) faces its road: north, east, south, west (src/plots.ts plotFacing) */
@@ -81,14 +82,40 @@ const FACING_ROTATION = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 export const BUILDING_SCALE = 10 / 16;
 /** Tiling pieces fill their tiles at any scale; everything else is drawn at its real size on a real-scale city map */
 const TILING_KINDS: ReadonlySet<string> = new Set(['terrain', 'road', 'rail', 'power', 'shore', 'debug']);
+/** Proportional scale adjustments on real-scale city maps so power plants, hospitals, waste facilities, high-rise plots,
+ * and the district office (ruler_house) maintain clear, realistic architectural hierarchy relative to houses and roads. */
+const CITY_MODEL_SCALE: Readonly<Record<string, number>> = {
+  'power.coal': 0.75,
+  'power.solar': 0.85,
+  'power.wind': 0.85,
+  'power.gas': 0.78,
+  'power.hydro': 0.85,
+  'power.nuclear': 0.70,
+  'waste.waste_power_plant': 0.80,
+  'waste.incinerator': 0.82,
+  'waste.recycling_plant': 0.90,
+  'waste.wastewater_plant': 0.90,
+  'waste.landfill': 0.90,
+  'civic.regional_hospital': 0.92,
+  'civic.provincial_hospital': 0.95,
+  'civic.community_hospital': 1.0,
+  'svc.hospital': 0.95,
+  'civic.ruler_house': 1.0,
+  'water.works': 0.95,
+  'svc.fire': 1.0,
+  'svc.police': 1.0,
+  'svc.stadium': 0.90,
+  'port.seaport': 0.90,
+  'port.airport': 0.90,
+};
 
 /** The nearest point of a road's middle line, the way it runs there and how far the road reaches either side */
 export type RoadNear = { x: number; z: number; tx: number; tz: number; reach: number };
 
-/** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at BUILDING_SCALE:
+/** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at fill (default BUILDING_SCALE):
  * its middle and its turn, its front to the road */
-export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNear): { x: number; z: number; rotation: number } {
-  const half = size * 5 * BUILDING_SCALE;
+export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNear, fill = BUILDING_SCALE): { x: number; z: number; rotation: number } {
+  const half = size * 5 * fill;
   let nx = -near.tz, nz = near.tx;
   if (nx * (x - near.x) + nz * (z - near.z) < 0) { nx = -nx; nz = -nz; }
   const gap = near.reach + .6 + half;
@@ -101,24 +128,65 @@ export class TileSnapshot implements CityMapReader {
   roadLevel: 1 | 2 | 3 | ((x:number,y:number)=>1|2|3) = 2;
   /** World units a metre on a real-scale city map (src/roadGeometry.ts realUnits), null on any other map */
   realUnits: number | null = null;
+  /** Whether newly grown or upgraded plots play through the 3D construction sequence (stage_1 -> stage_2 -> closed) */
+  enableConstruction = false;
+  private initialSync = true;
+  private nowSec = 0;
+  readonly construction = new Map<number, { startSec: number; stage: 'stage_1' | 'stage_2' }>();
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
+  private readonly levelsCopy: Uint8Array;
   constructor(readonly width: number, readonly height: number) {
     this.values = new Uint16Array(width*height); this.flags = new Uint16Array(width*height);
+    this.levelsCopy = new Uint8Array(width*height);
     this.coverage = new Int32Array(width*height); this.coverage.fill(-1);
   }
   getTileValue(x:number,y:number):number { return this.values[y*this.width+x]; }
   getTileFlags(x:number,y:number):number { return this.flags[y*this.width+x]; }
   sync(map: CityMapReader): number[] {
     const changed: number[] = []; let zonesChanged = false;
+    const rl = map.roadLevels;
+    const trackBuild = this.enableConstruction && !this.initialSync && this.paintedZones;
     for(let i=0;i<this.values.length;i++) {
       const x=i%this.width,y=Math.floor(i/this.width),v=map.getTileValue(x,y),f=map.getTileFlags(x,y) & (ZONEBIT|POWERBIT);
-      if(v!==this.values[i]||f!==this.flags[i]) { changed.push(i); if ((f|this.flags[i]) & ZONEBIT) zonesChanged=true; this.values[i]=v; this.flags[i]=f; }
+      const lv = rl ? rl[i] : 0;
+      if(v!==this.values[i]||f!==this.flags[i]||lv!==this.levelsCopy[i]) {
+        if (trackBuild && v !== this.values[i]) {
+          const oldPlot = readPlotValue(this.values[i]);
+          const newPlot = readPlotValue(v);
+          if (newPlot && newPlot.level > 0 && (!oldPlot || newPlot.level > oldPlot.level || newPlot.value > oldPlot.value)) {
+            this.construction.set(i, { startSec: this.nowSec, stage: 'stage_1' });
+          } else if (!newPlot || newPlot.level <= 0) {
+            this.construction.delete(i);
+          }
+        }
+        changed.push(i);
+        if ((f|this.flags[i]) & ZONEBIT) zonesChanged=true;
+        this.values[i]=v; this.flags[i]=f; this.levelsCopy[i]=lv;
+      }
     }
+    this.initialSync = false;
     if(zonesChanged) this.coverZones(); return changed;
+  }
+  /** Advances active 3D plot construction sequences (stage_1 foundation -> stage_2 scaffolding/crane -> finished building). */
+  stepConstruction(seconds: number): number[] {
+    this.nowSec = seconds;
+    if (this.construction.size === 0) return [];
+    const transitioned: number[] = [];
+    for (const [i, entry] of this.construction.entries()) {
+      const elapsed = seconds - entry.startSec;
+      if (elapsed >= 4.8) {
+        this.construction.delete(i);
+        transitioned.push(i);
+      } else if (elapsed >= 2.0 && entry.stage === 'stage_1') {
+        entry.stage = 'stage_2';
+        transitioned.push(i);
+      }
+    }
+    return transitioned;
   }
   coverZones(): void {
     this.coverage.fill(-1);
@@ -166,16 +234,31 @@ export class TileSnapshot implements CityMapReader {
       water:false,rotation:0,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
         variant:house.level,state:[...(house.wings??[])].sort().join(','),waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:0}});
   }
-  /** The side of a building centred at x, y (size 1 or 3 tiles) with the most road beside it: 0 north, 1 east, 2 south,
-   * 3 west; south when it has none or a tie with the south. */
+  /** The side of a building centred at x, y (size 1, 3, 4 or 6 tiles) with the most road beside it: 0 north, 1 east,
+   * 2 south, 3 west; south when it has none or a tie with the south. */
   roadSide(x:number,y:number,size:number):number {
-    const r=(size-1)/2,scores=[0,0,0,0];
-    for(let n=-r;n<=r;n++){
-      const points=[[x+n,y-r-1],[x+r+1,y+n],[x+n,y+r+1],[x-r-1,y+n]];
+    const left=x-(size>1?1:0),top=y-(size>1?1:0),scores=[0,0,0,0];
+    for(let n=0;n<size;n++){
+      const points=[[left+n,top-1],[left+size,top+n],[left+n,top+size],[left-1,top+n]];
       points.forEach(([px,py],side)=>{if(px>=0&&py>=0&&px<this.width&&py<this.height&&isRoad(this.getTileValue(px,py)))scores[side]++;});
     }
     let side=2;for(const candidate of [1,3,0])if(scores[candidate]>scores[side])side=candidate;
     return side;
+  }
+  /** A regional power plant on tiles 745–760 (centre 750, src/powerPlants.ts): `power.solar`, `power.wind`, `power.gas`,
+   * `power.hydro`, or `power.coal` (`lignite`), picked from `gameMap.powerKinds` and turned toward its road. */
+  private powerPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
+    if(this.values[i]!==POWERPLANT)return null;
+    const pk=this.source?.powerKinds?.[i]??'lignite';
+    const id=pk==='lignite'?'power.coal':`power.${pk}`;
+    if(!registry[id])return null;
+    const heights:Record<string,number>={lignite:44,solar:8,wind:36,gas:28,hydro:16};
+    const colors:Record<string,number>={lignite:0xa2b8b4,solar:0x365b8c,wind:0xdbe3e6,gas:0xb5bfc4,hydro:0x7ea1b5};
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,4)];
+    const cx=(x+1)*10,cz=(y+1)*10;
+    return new Placement({index:i,x:cx,z:cz,id,kind:'services',footprint:[4,4],height:heights[pk]??30,color:colors[pk]??0xa2b8b4,
+      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
   }
   /** A school or hospital on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its
    * gate toward its road. The ruler's house keeps its own placement; a kind without a model stays generic. */
@@ -198,6 +281,31 @@ export class TileSnapshot implements CityMapReader {
       water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
         variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
+  /** Extended 3 × 3 buildings (mines, farms, harbours, stations) mapped to registered 3D models so none stay coarse cubes. */
+  private extendedPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
+    const v=this.values[i];
+    if(v!==MINE&&v!==FARM&&v!==HARBOUR&&v!==STATION)return null;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    const rotation=v===HARBOUR?this.portRotation(x,y,3):FACING_ROTATION[this.roadSide(x,y,3)];
+    let id='ind.block_0_0',kind='industrial',height=9,color=0xc7a473;
+    if(v===MINE){
+      const mk=this.source?.mineKinds?.[i]??'limestone_quarry';
+      id=mk==='oil_gas_well'||mk==='salt_works'?'ind.block_1_2':mk==='gem_mine'?'ind.block_0_2':'ind.block_0_3';
+      height=12;
+    }else if(v===FARM){
+      id='ind.block_0_0';height=7;color=0x9ba873;
+    }else if(v===HARBOUR){
+      id='ind.block_0_1';kind='transport';height=9;color=0x9aa8aa;
+    }else if(v===STATION){
+      const sk=this.source?.stationKinds?.[i]??'train_station';
+      id=sk==='hsr_station'?'com.block_3_3':sk==='metro_station'?'com.block_2_2':'civic.vocational_college';
+      kind='transport';height=10;color=0x9aa8aa;
+    }
+    if(!registry[id])return null;
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind,footprint:[3,3],height,color,
+      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
+        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
+  }
   /** A lot's one building over its four plots (src/plots.ts lotOf), from its top-left tile; null on its other tiles. */
   private lotPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null|undefined {
     const lot=lotOf(this,x,y);if(!lot)return undefined;if(lot.x!==x||lot.y!==y)return null;
@@ -206,9 +314,10 @@ export class TileSnapshot implements CityMapReader {
     const id=registry[named]?named:registry[single]?single:null,scale=registry[named]?1:1.6;
     const rotation=FACING_ROTATION[lotFacing(this,lot)],cx=(x+LOT_SIZE/2)*10,cz=(y+LOT_SIZE/2)*10;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    const state=this.construction.get(i)?.stage??'closed';
     return new Placement({index:i,x:cx,z:cz,id,kind:lot.kind,footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[lot.kind],water:false,rotation,scale,
-      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state:'closed',
+      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state,
         waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
   }
   /** A painted plot's building, facing its road, or null for an empty plot, whose painted ground is enough. */
@@ -219,9 +328,10 @@ export class TileSnapshot implements CityMapReader {
     const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[this.values[i]]?.id??null:registry[named]?named:null;
     const rotation=FACING_ROTATION[plotFacing(this,x,y)];
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    const state=this.construction.get(i)?.stage??'closed';
     return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation,scale:1,
-      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state:'closed',
+      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state,
         waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
   /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
@@ -232,7 +342,7 @@ export class TileSnapshot implements CityMapReader {
   roadSnap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
-    if(this.curves&&(isCurved(this.values[i])||this.values[i]===0&&this.besideCurve(i)))return null;
+    if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
     const p=this.narrowBridge(this.atRealSize(this.placementOf(i,region,this.values[i])));
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
   }
@@ -251,7 +361,8 @@ export class TileSnapshot implements CityMapReader {
   private atRealSize(p:Placement|null):Placement|null {
     const units=this.realUnits;
     if(!p||!units||units>=1||TILING_KINDS.has(p.kind))return p;
-    p.scale*=units;p.fill=units;return p;
+    const factor=p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    p.scale*=units*factor;p.fill=units*factor;p.height*=factor;return p;
   }
   /**
    * A building of the ruler's (3 × 3 and up) beside a road, as Cities: Skylines sets one: turned to face the road and
@@ -260,18 +371,36 @@ export class TileSnapshot implements CityMapReader {
    */
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
-    // Every building (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน"): a one-tile one too, and a power plant;
-    // not zones, which grow their own, nor the ground, roads, railways, power lines and shores
-    if(['residential','commercial','industrial','terrain','road','rail','shore','debug','veg','park'].includes(p.kind)||
-      size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
+    const zoned=p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial';
+    // Every building (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน") and every grown plot/lot/zone stands
+    // aligned with and facing its road; not the ground, roads, railways, power lines and shores
+    if(['terrain','road','rail','shore','debug','veg','park'].includes(p.kind)||
+      !zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
+    const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    const scale=BUILDING_SCALE*factor;
     // Where the player slid it along its road, kept with the city (src/game.js buildingPose)
     const kept=(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
-    if(kept)return p.againstRoad(kept[0],kept[1],kept[2],BUILDING_SCALE);
-    const near=this.roadSnap!(p.x,p.z,size*5+14);
+    if(kept){
+      const rot=kept[2],nx=-Math.sin(rot),nz=-Math.cos(rot),delta=size*5*BUILDING_SCALE*(factor-1);
+      return p.againstRoad(kept[0]+nx*delta,kept[1]+nz*delta,rot,scale);
+    }
+    if(zoned&&size<3&&(this.source as CellMap|null)?.cellZones){
+      const tx=p.index%this.width,ty=Math.floor(p.index/this.width);
+      const cellPose=cellPlotPose(this.source as unknown as CellMap,tx,ty,size,scale);
+      if(cellPose)return p.againstRoad(cellPose.x,cellPose.z,cellPose.rotation,scale);
+    }
+    const near=this.roadSnap!(p.x,p.z,size*5+28);
     if(!near)return p;
+    if(zoned&&size<3){
+      let nx=-near.tz,nz=near.tx;
+      if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
+      const half=size*5*scale;
+      const gap=near.reach+.4+half;
+      return p.againstRoad(near.x+nx*gap,near.z+nz*gap,Math.atan2(-nx,-nz),scale);
+    }
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road
-    const {x,z,rotation}=poseAgainstRoad(p.x,p.z,size,near);
-    return p.againstRoad(x,z,rotation,BUILDING_SCALE);
+    const {x,z,rotation}=poseAgainstRoad(p.x,p.z,size,near,scale);
+    return p.againstRoad(x,z,rotation,scale);
   }
   /**
    * A bridge on a real-scale city map, as narrow as the road or railway drawn up to it on either side (owner, 15 Oct
@@ -305,10 +434,14 @@ export class TileSnapshot implements CityMapReader {
     if(plot)return this.plotPlacement(i,x,y,plot,region,hash);
     const house=zone?this.housePlacement(i,x,y,region,hash):null;
     if(house)return house;
+    const power=zone?this.powerPlacement(i,x,y,region,hash):null;
+    if(power)return power;
     const school=zone?this.civicPlacement(i,x,y,region,hash):null;
     if(school)return school;
     const waste=zone?this.wastePlacement(i,x,y,region,hash):null;
     if(waste)return waste;
+    const extended=zone?this.extendedPlacement(i,x,y,region,hash):null;
+    if(extended)return extended;
     let id=entry.id,rotation=0,variant=0,state='closed',kind=entry.kind;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const special = (horizontal:boolean):void => { rotation=horizontal?-Math.PI/2:0; };
@@ -354,6 +487,9 @@ export class TileSnapshot implements CityMapReader {
   }
 }
 export function prototypeKey(p:PlacementFields):string {
-  const o=p.options; return [p.id,o.seed,o.region,o.variant,o.state,p.id==='terrain.woods'?o.waterMask??0:0,
+  const o=p.options;
+  const shareSeed=p.id?.startsWith('plot.')||p.id?.startsWith('lot.')||p.id?.startsWith('res.')||p.id?.startsWith('com.')||p.id?.startsWith('ind.');
+  const seed=shareSeed?0:o.seed;
+  return [p.id,seed,o.region,o.variant,o.state,p.id==='terrain.woods'?o.waterMask??0:0,
     p.id==='terrain.water'?o.landMask??0:0,p.kind==='rail'?o.sleeperOffset??0:0].join('|');
 }

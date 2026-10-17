@@ -22,10 +22,10 @@ type RoadPoint=readonly [number,number,number];
 /** The open land's covers far away (scripts/geo/lib/landCover.mjs): paddy, field, orchard, grass, wetland, village, built-up */
 const COVER_COLOURS:Record<number,number>={1:0x7aa84a,2:0x8e5f3f,3:0x5a7d3c,4:0x89a052,5:0x5f8068,6:0x6b8a4a,7:0x8a9568};
 const ZONE_PAINT={residential:new Color(0x3fae4a),commercial:new Color(0x3a7bd5),industrial:new Color(0xe0b020)};
-const ZONE_PAINT_SHARE=.55,ZONE_GAP=.45;
+const ZONE_PAINT_SHARE=.55,ZONE_GAP=.45,MAX_TREES=SIZE*SIZE*5;
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
-  positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,number>;buildingSlots:Map<number,number>;
-  publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,number>;publishedBuildings:Map<number,number>;
+  positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,[number,number]>;buildingSlots:Map<number,number>;
+  publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,[number,number]>;publishedBuildings:Map<number,number>;
   foliageFade:number;
   treeCount:number;buildingCount:number;treeMatrices:Float32Array;buildingMatrices:Float32Array;treeOutside:Float32Array;buildingOutside:Float32Array;buildingColors:Float32Array }
 function attributes(geometry:BufferGeometry,count:number,instanced=false):void {
@@ -36,12 +36,39 @@ function attributes(geometry:BufferGeometry,count:number,instanced=false):void {
   geometry.setAttribute('cityTerrain',new attribute(new Float32Array(count*4),4));
   geometry.setAttribute('cityBridgeDepth',new attribute(new Float32Array(count),1));
 }
+function colorPart(g:BufferGeometry,hex:number):BufferGeometry {
+  const nonIndexed=g.index?g.toNonIndexed():g;if(nonIndexed!==g)g.dispose();
+  const count=nonIndexed.getAttribute('position').count,c=new Color(hex),arr=new Float32Array(count*3);
+  for(let i=0;i<count;i++){arr[i*3]=c.r;arr[i*3+1]=c.g;arr[i*3+2]=c.b;}
+  nonIndexed.setAttribute('color',new Float32BufferAttribute(arr,3));return nonIndexed;
+}
 function treeGeometry():BufferGeometry {
-  const crown=new OctahedronGeometry(1,0).scale(2.6,2.7,2.6).translate(0,3.5,0),vertices:number[]=[];
-  for(let i=0;i<4;i++){const a=i*Math.PI/2,b=a+Math.PI/2;vertices.push(0,2,0,.3*Math.cos(b),0,.3*Math.sin(b),.3*Math.cos(a),0,.3*Math.sin(a));}
+  const vertices:number[]=[];
+  // Tapered 6-sided trunk with root flare and 4 spreading upper boughs
+  for(let i=0;i<6;i++){const a=i*Math.PI/3,b=a+Math.PI/3,r0=.42,r1=.18;
+    vertices.push(r1*Math.cos(a),2.8,r1*Math.sin(a),r0*Math.cos(b),0,r0*Math.sin(b),r0*Math.cos(a),0,r0*Math.sin(a));
+    vertices.push(r1*Math.cos(a),2.8,r1*Math.sin(a),r1*Math.cos(b),2.8,r1*Math.sin(b),r0*Math.cos(b),0,r0*Math.sin(b));}
+  for(let k=0;k<4;k++){const a=k*Math.PI/2+.3,dx=Math.cos(a)*1.75,dz=Math.sin(a)*1.75;
+    vertices.push(-.14*Math.sin(a),2.1,.14*Math.cos(a),.14*Math.sin(a),2.1,-.14*Math.cos(a),dx,3.7,dz);}
   const trunk=new BufferGeometry().setAttribute('position',new Float32BufferAttribute(vertices,3));trunk.computeVertexNormals();
-  for(const[g,c]of[[crown,0x6e985f],[trunk,0x796348]]as const)g.setAttribute('color',new Float32BufferAttribute(Array.from({length:g.getAttribute('position').count},()=>new Color(c).toArray()).flat(),3));
-  const geometry=mergeGeometry([crown,trunk]);crown.dispose();trunk.dispose();return geometry;
+  const parts:BufferGeometry[]=[colorPart(trunk,0x54402d)];
+  // 9 overlapping foliage puffs with OctahedronGeometry(1, 1) (288 triangles total, 7x faster GPU vertex shading)
+  const puffs:readonly [number,number,number,number,number,number,number][]=[
+    [0,3.35,0,2.7,1.55,2.7,0x2e5b26],
+    [-1.7,3.8,-1.1,2.15,1.5,2.15,0x3a6b2e],
+    [1.75,3.85,-1.0,2.1,1.5,2.1,0x417634],
+    [-1.1,3.95,1.65,2.15,1.5,2.15,0x477f39],
+    [1.45,4.0,1.45,2.05,1.45,2.05,0x4f8a3f],
+    [-0.9,4.7,-0.6,2.25,1.55,2.25,0x5a9947],
+    [0.9,4.8,-0.5,2.15,1.5,2.15,0x63a54e],
+    [0.0,4.9,0.85,2.15,1.55,2.15,0x6db357],
+    [0.0,5.45,0.0,1.85,1.4,1.85,0x7fc965],
+  ];
+  for(const[px,py,pz,sx,sy,sz,hex]of puffs){
+    const puff=new OctahedronGeometry(1,1).scale(sx,sy,sz).translate(px,py,pz);
+    parts.push(colorPart(puff,hex));
+  }
+  const geometry=mergeGeometry(parts);parts.forEach(p=>p.dispose());return geometry;
 }
 /** Two-layer chunks: continuous ground and instanced silhouettes. Only crossed/visible chunks reach the GPU.
  * Initial 4-tile patches appear immediately; full-resolution tiles are filled in bounded paint slices.
@@ -59,12 +86,13 @@ export class ProvinceSurface {
     this.edge=new LineSegments2(edgeGeometry,provinceEdgeMaterial());this.edge.visible=boundary.length>0;this.edge.renderOrder=20;this.edge.frustumCulled=false;this.root.add(this.edge);
     for(let y=0;y<snapshot.height;y+=SIZE)for(let x=0;x<snapshot.width;x+=SIZE){
       const group=new Group(),land=new Mesh(new BufferGeometry(),cityCoarseSurfaceMaterial());land.receiveShadow=true;
-      const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseTreeMaterial(),SIZE*SIZE);
+      const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseTreeMaterial(),MAX_TREES);
       const buildings=new InstancedMesh(this.boxSource.clone(),cityCoarseSurfaceMaterial(),SIZE*SIZE);
-      for(const mesh of[trees,buildings]){attributes(mesh.geometry,SIZE*SIZE,true);mesh.count=0;mesh.receiveShadow=true;mesh.castShadow=false;}
+      attributes(trees.geometry,MAX_TREES,true);trees.count=0;trees.receiveShadow=true;trees.castShadow=false;
+      attributes(buildings.geometry,SIZE*SIZE,true);buildings.count=0;buildings.receiveShadow=true;buildings.castShadow=false;
       group.add(land,trees,buildings);this.root.add(group);
       const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
-        publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(SIZE*SIZE*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(SIZE*SIZE),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
+        publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(MAX_TREES*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(MAX_TREES),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
         this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(this.landColour()),(x,z)=>terrain.sample(x,z),yy*snapshot.width+xx,false);
@@ -179,8 +207,9 @@ export class ProvinceSurface {
     // Zones are painted cell by cell, as in Cities: Skylines (docs/CITY_SCALE.md): green homes, blue shops, yellow
     // factories, each tile a square a little inside its edges so the grid shows between them
     const zone=v>=RESBASE&&v<HOSPITALBASE?ZONE_PAINT.residential:v>=COMBASE&&v<INDBASE?ZONE_PAINT.commercial:v>=INDBASE&&v<PORTBASE?ZONE_PAINT.industrial:null;
-    // A city map's painted zones show 8 m cells, 2 × 2 a tile, as its zone grid does (overlay.ts ZONE_GRID_CELLS)
-    if(zone&&!wet){const paint=this.tileShade(x,y,new Color()).lerp(zone,ZONE_PAINT_SHARE),cells=this.snapshot.paintedZones?ZONE_GRID_CELLS:1,size=10/cells,gap=cells>1?.32:ZONE_GAP;
+    // A city map's painted zones show 8 m cells, 2 × 2 a tile, unless road-aligned cellZones (zoneCellsView.ts) draw them
+    const cellZones=(this.snapshot.source as {cellZones?:boolean}|null)?.cellZones===true;
+    if(zone&&!wet&&!cellZones){const paint=this.tileShade(x,y,new Color()).lerp(zone,ZONE_PAINT_SHARE),cells=this.snapshot.paintedZones?ZONE_GRID_CELLS:1,size=10/cells,gap=cells>1?.32:ZONE_GAP;
       for(let cy=0;cy<cells;cy++)for(let cx=0;cx<cells;cx++){const x0=x*10+cx*size+gap,z0=y*10+cy*size+gap,x1=x*10+(cx+1)*size-gap,z1=y*10+(cy+1)*size-gap;
         for(const[px,pz]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){c.positions.push(px,this.terrain.sampleTile(x,y,px,pz)+.015,pz);c.colors.push(paint.r,paint.g,paint.b);c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}}}
     for(const[x0,z0,top0,bottom0,x1,z1,top1,bottom1]of this.terrain.walls(x,y)){
@@ -213,17 +242,62 @@ export class ProvinceSurface {
       }
       c.ranges.set(i,[start,c.fade.length]);
     }
+    const cover=this.snapshot.source?.landCover?.[i]??0;
+    const hasLandCover=Boolean(this.snapshot.source?.landCover);
     if(woods&&(!outside||tileSeed(x,y)%2===0)){
-      // Trees wander over most of their tile, so the woods' edge does not line up with the tiles
-      const slot=c.treeCount++;c.treeSlots.set(i,slot);const seed=tileSeed(x,y),scale=.75+seed%7*.07;
-      const tx=(x+.5)*10+((seed>>>8)%101/100-.5)*7,tz=(y+.5)*10+((seed>>>16)%101/100-.5)*7;
-      matrix.makeScale(scale,scale,scale).setPosition(tx,this.terrain.sample(tx,tz),tz);c.treeMatrices.set(matrix.elements,slot*16);
-      c.treeOutside[slot]=outside?1:0;
+      // Multi-tree cluster per forest tile
+      const seed=tileSeed(x,y),realScale=this.snapshot.realUnits??1;
+      const count=outside?2:this.snapshot.realUnits?4:3+(seed%2);
+      const startSlot=c.treeCount;
+      const offsets:readonly [number,number][]=[[0,0],[-2.7,-2.4],[2.6,-2.3],[-2.4,2.6],[2.6,2.4],[0,-3.3],[0,3.3],[-3.2,0]];
+      for(let k=0;k<count&&c.treeCount<MAX_TREES;k++){
+        const slot=c.treeCount++,hSeed=tileSeed(x*7+k*13,y*11+k*17);
+        const [ox,oz]=offsets[k%offsets.length];
+        const jx=((hSeed>>>4)%101/100-.5)*1.8,jz=((hSeed>>>12)%101/100-.5)*1.8;
+        const tx=(x+.5)*10+ox+jx,tz=(y+.5)*10+oz+jz;
+        const s=realScale*(.82+(hSeed%9)*.07)*(k===0?1.2:1);
+        const sy=s*(.92+((hSeed>>>8)%7)*.05);
+        matrix.makeRotationY((hSeed%16)*Math.PI/8).scale(new Vector3(s,sy,s)).setPosition(tx,this.terrain.sample(tx,tz),tz);
+        c.treeMatrices.set(matrix.elements,slot*16);
+        c.treeOutside[slot]=outside?1:0;
+      }
+      if(c.treeCount>startSlot)c.treeSlots.set(i,[startSlot,c.treeCount-startSlot]);
+    }else if(hasLandCover&&v===0&&!wet&&(!outside||tileSeed(x,y)%3===0)){
+      // Real-scale city landscape trees: orchards (3), villages (6), parks/meadows (4), wetlands (5), paddy dikes (1) & field borders (2)
+      const seed=tileSeed(x,y),realScale=this.snapshot.realUnits??1;
+      const count=cover===3?3:cover===6?2:cover===4||cover===5?(seed%3===0?2:1):cover===1||cover===2?(seed%5<2?1:0):(seed%4===0?1:0);
+      if(count>0){
+        const startSlot=c.treeCount;
+        const orchardOffsets:readonly [number,number][]=[[-2.4,-2.4],[2.4,-2.4],[-2.4,2.4],[2.4,2.4]];
+        for(let k=0;k<count&&c.treeCount<MAX_TREES;k++){
+          const slot=c.treeCount++,hSeed=tileSeed(x*13+k*19,y*17+k*23);
+          let ox=0,oz=0;
+          if(cover===3){[ox,oz]=orchardOffsets[k%4];}
+          else if(cover===1||cover===2){
+            // Along the north or west paddy dike / field boundary (ต้นไม้หัวไร่ปลายนา / ต้นตาลตามคันนา)
+            const onNorth=(hSeed&1)===0;
+            ox=onNorth?((hSeed>>>4)%101/100-.5)*7.5:-4.1+((hSeed>>>4)%21/100);
+            oz=onNorth?-4.1+((hSeed>>>8)%21/100):((hSeed>>>8)%101/100-.5)*7.5;
+          }else{
+            ox=((hSeed>>>4)%101/100-.5)*6.8;
+            oz=((hSeed>>>12)%101/100-.5)*6.8;
+          }
+          const tx=(x+.5)*10+ox,tz=(y+.5)*10+oz;
+          const baseScale=cover===3?.78:cover===1||cover===2?.88:.85;
+          const s=realScale*(baseScale+(hSeed%7)*.055);
+          const sy=s*(cover===1&&hSeed%3===0?1.35:.95+((hSeed>>>7)%5)*.05);
+          matrix.makeRotationY((hSeed%16)*Math.PI/8).scale(new Vector3(s,sy,s)).setPosition(tx,this.terrain.sample(tx,tz),tz);
+          c.treeMatrices.set(matrix.elements,slot*16);
+          c.treeOutside[slot]=outside?1:0;
+        }
+        if(c.treeCount>startSlot)c.treeSlots.set(i,[startSlot,c.treeCount-startSlot]);
+      }
     }else if(p&&p.id&&p.id!=='terrain.dirt'&&!woods&&!wet&&!isRoad(v)&&!isRail(v)&&p.kind!=='power'&&p.kind!=='shore'){
       // Its box as the placement itself draws it (placement.ts): a building stood against its road is as small and as
       // turned as its model
       const slot=c.buildingCount++;c.buildingSlots.set(i,slot);
-      p.farBox(matrix,Math.max(.2,p.height),.8);c.buildingMatrices.set(matrix.elements,slot*16);color.setHex(p.color).toArray(c.buildingColors,slot*3);
+      const inset=p.id.startsWith('plot.')||p.id.startsWith('lot.')?1.4:.8;
+      p.farBox(matrix,Math.max(.2,p.height),inset);c.buildingMatrices.set(matrix.elements,slot*16);color.setHex(p.color).toArray(c.buildingColors,slot*3);
       c.buildingOutside[slot]=outside?1:0;
     }
   }
@@ -237,7 +311,12 @@ export class ProvinceSurface {
     c.buildings.instanceColor=new InstancedBufferAttribute(c.buildingColors.slice(),3);
     (c.trees.geometry.getAttribute('cityOutside').array as Float32Array).set(c.treeOutside);(c.buildings.geometry.getAttribute('cityOutside').array as Float32Array).set(c.buildingOutside);
     c.publishedRanges=c.ranges;c.publishedTrees=c.treeSlots;c.publishedBuildings=c.buildingSlots;
-    for(const[mesh,slots]of[[c.trees,c.publishedTrees],[c.buildings,c.publishedBuildings]]as const){const a=mesh.geometry.getAttribute('instanceDetail');for(const[i,slot]of slots)a.setX(slot,Math.max(this.detail.get(i)??0,mesh===c.trees?c.foliageFade:0));a.needsUpdate=true;}
+    {const a=c.trees.geometry.getAttribute('instanceDetail');
+      for(const[i,[start,len]]of c.publishedTrees){const f=Math.max(this.detail.get(i)??0,c.foliageFade);for(let s=start;s<start+len;s++)a.setX(s,f);}
+      a.needsUpdate=true;}
+    {const a=c.buildings.geometry.getAttribute('instanceDetail');
+      for(const[i,slot]of c.publishedBuildings)a.setX(slot,this.detail.get(i)??0);
+      a.needsUpdate=true;}
     for(const m of[c.trees,c.buildings]){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;
       m.geometry.getAttribute('cityOutside').needsUpdate=true;m.computeBoundingSphere();}
   }
@@ -260,13 +339,16 @@ export class ProvinceSurface {
     for(const c of this.chunks){const range=Math.hypot(c.x*10+160-target.x,c.y*10+160-target.z);
       const wanted=Math.max(0,Math.min(1,Math.max((distance-1400)/400,(range-800)/250)));
       const fade=c.foliageFade+Math.max(-dt/350,Math.min(dt/350,wanted-c.foliageFade));
-      if(fade!==c.foliageFade){c.foliageFade=fade;const a=c.trees.geometry.getAttribute('instanceDetail');(a.array as Float32Array).fill(fade);a.needsUpdate=true;}
+      if(Math.abs(fade-c.foliageFade)>=.025||((fade===0||fade===1)&&fade!==c.foliageFade)){c.foliageFade=fade;const a=c.trees.geometry.getAttribute('instanceDetail');(a.array as Float32Array).fill(fade,0,c.treeCount);a.needsUpdate=true;}
       c.trees.visible=fade<1;
     }
   }
   fade(index:number,fade:number):void {
     this.detail.set(index,fade);const x=index%this.snapshot.width,y=Math.floor(index/this.snapshot.width),c=this.chunks[Math.floor(y/SIZE)*this.columns+Math.floor(x/SIZE)];
-    for(const[mesh,slots]of[[c.trees,c.publishedTrees],[c.buildings,c.publishedBuildings]]as const){const slot=slots.get(index);if(slot!==undefined){mesh.geometry.getAttribute('instanceDetail').setX(slot,Math.max(fade,mesh===c.trees?c.foliageFade:0));mesh.geometry.getAttribute('instanceDetail').needsUpdate=true;}}
+    const treeSpan=c.publishedTrees.get(index);
+    if(treeSpan!==undefined){const a=c.trees.geometry.getAttribute('instanceDetail'),f=Math.max(fade,c.foliageFade);for(let s=treeSpan[0];s<treeSpan[0]+treeSpan[1];s++)a.setX(s,f);a.needsUpdate=true;}
+    const bSlot=c.publishedBuildings.get(index);
+    if(bSlot!==undefined){const a=c.buildings.geometry.getAttribute('instanceDetail');a.setX(bSlot,fade);a.needsUpdate=true;}
     const range=c.publishedRanges.get(index);if(range){const attr=c.land.geometry.getAttribute('instanceDetail');for(let i=range[0];i<range[1];i++)attr.setX(i,fade);attr.needsUpdate=true;}
   }
   get pending():number{return this.chunks.filter(c=>c.dirty).length;}

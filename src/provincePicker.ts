@@ -30,6 +30,7 @@ import {
 } from "./geo/provinceResources";
 import { keepHigherRank, rankForPopulation } from "./rulerRank";
 import { mountStartBackdrop, StartBackdrop } from "./startBackdrop";
+import { fadeCurtain, setCurtainDark } from "./curtain";
 
 interface Province {
   id: string;
@@ -544,11 +545,16 @@ function leaveTo(next: () => void): void {
   leaving = true;
   window.clearTimeout(sceneTimer);
   if (view) {
-    hide(view.overlay, true);
-    // Nothing comes back to the start screen without a reload, so free the animation now
-    view.backdrop.dispose();
+    view.overlay.classList.add("leavingToGame");
   }
-  next();
+  setCurtainDark();
+  window.setTimeout(() => {
+    if (view) {
+      view.backdrop.dispose();
+      hide(view.overlay, true);
+    }
+    next();
+  }, 700);
 }
 
 // --- Map and camera ---
@@ -1709,6 +1715,7 @@ export function openStartScreen(startActions: StartActions, options: StartOption
     view.overlay.classList.add("awaitGate");
   }
   show(view.overlay);
+  fadeCurtain(false, 600);
 
   // The map is drawn as soon as the data is in, behind the title page (its loading line goes with it); the story
   // waits until the player has entered and the screen has come out

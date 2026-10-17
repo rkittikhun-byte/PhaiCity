@@ -31,6 +31,7 @@ import { checkProfilesData, measuredLevels, provinceLevels } from './geo/provinc
 import { requestedCity } from './viewControls.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
+import { setCurtainDark } from './curtain.ts';
 
 /*
  *
@@ -50,6 +51,15 @@ var PROVINCE_ID = /^TH-\d{2}$/;
 var getRequestedProvince = function() {
   var id = new URLSearchParams(window.location.search).get('province');
   return id !== null && PROVINCE_ID.test(id) ? id : null;
+};
+
+// index.html?district=TH-40-mueang-khon-kaen or ?khonkaen opens straight on that real-scale district
+var getRequestedDistrict = function() {
+  var params = new URLSearchParams(window.location.search);
+  var district = params.get('district');
+  if (district) return district;
+  if (params.has('khonkaen') || params.has('kkc')) return 'TH-40-mueang-khon-kaen';
+  return null;
 };
 
 
@@ -107,6 +117,13 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   var cityToOpen = cityId !== null ? loadCity(cityId) : null;
   if (cityToOpen !== null) {
     launch.call(this, cityToOpen, Simulation.LEVEL_EASY, null);
+    return;
+  }
+
+  var reqDistrict = getRequestedDistrict();
+  if (reqDistrict) {
+    var provId = reqDistrict.slice(0, 5);
+    startProvince.call(this, provId, 'ขอนแก่น', Simulation.LEVEL_EASY, reqDistrict);
     return;
   }
 
@@ -338,6 +355,7 @@ var loadProvinceBackdrop = function(map) {
 // A saved game brings its own name and difficulty
 var launch = function(map, difficulty, name) {
   var self = this;
+  setCurtainDark();
   // Leave the dark start: the game's own header, footer and background come back
   document.body.classList.remove('starting');
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)

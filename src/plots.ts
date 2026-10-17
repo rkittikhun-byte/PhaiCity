@@ -356,18 +356,70 @@ function homeScore(sim: PlotSimData, x: number, y: number, traffic: number): num
 /** How crowded the neighbourhood must be for a home to rise past each level: towers want a busy town round them */
 export const DENSITY_TO_RISE = [0, 32, 64, 96, 128];
 
+/** Architectural branch codes by environmental class (0 = A basic, 1 = B standard, 2 = C good, 3 = D prime/luxury). */
+export const PLOT_BRANCHES = ["A", "B", "C", "D"] as const;
+export type PlotBranch = typeof PLOT_BRANCHES[number];
+
+/** Returns a plot's branch & level code such as "A1", "B2", "C2", "D3", or "A0" when empty. */
+export function plotBranchCode(plot: Plot): string {
+  const branch = PLOT_BRANCHES[Math.max(0, Math.min(3, plot.value | 0))] ?? "A";
+  return `${branch}${plot.level}`;
+}
+
+/**
+ * Evaluates the surrounding environment of a plot at (x, y) to determine its architectural branch (0=A, 1=B, 2=C, 3=D).
+ * Considers land value, pollution, nearby parks/trees/water (within 3 tiles), civic services (schools/hospitals/district
+ * office within 5 tiles), and road level, so a building that starts as A1 automatically upgrades to C2 or D3 when the
+ * surrounding environment improves.
+ */
+export function plotEnvironmentClass(map: PlotMap, sim: PlotSimData, x: number, y: number, kind: PlotKind): number {
+  const shield = sim.pollutionShield ?? 0;
+  let score = sim.blockMaps.landValueMap.worldGet(x, y) - sim.blockMaps.pollutionDensityMap.worldGet(x, y) * (1 - shield);
+  let natureBonus = 0;
+  let civicBonus = 0;
+  for (let dy = -4; dy <= 4; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx, ny = y + dy;
+      if (!inside(map, nx, ny)) continue;
+      const dist = Math.abs(dx) + Math.abs(dy);
+      const v = map.getTileValue(nx, ny);
+      // Water (2..20), woods/trees (21..39), or park/fountain (840..849) within Manhattan distance 4
+      if (dist <= 4 && ((v >= 2 && v <= 39) || (v >= 840 && v <= 849))) {
+        natureBonus = Math.min(64, natureBonus + 16);
+      }
+      // Civic buildings (hospital, police, fire, school, ruler's house: 405..422, 761..778)
+      if (dist <= 6 && ((v >= 405 && v <= 422) || (v >= 761 && v <= 778))) {
+        civicBonus = Math.min(48, civicBonus + 24);
+      }
+    }
+  }
+  const road = nearestRoad(map, x, y);
+  const roadBonus = road && roadLevelAt(map, road.x, road.y) >= 3 ? 20 : 0;
+  score += natureBonus + civicBonus + roadBonus;
+  if (kind === "industrial") {
+    return score >= 85 ? 1 : (Random.getRandom16() & 1);
+  }
+  if (score < 30) return 0;
+  if (score < 80) return 1;
+  if (score < 140) return 2;
+  return 3;
+}
+
 /** Whether a plot may grow a level: the top level only on a lot (lotOf). */
 export function mayRise(map: PlotMap, x: number, y: number, plot: Plot): boolean {
   return plot.level + 1 < PLOT_TOP[plot.kind] || lotOf(map, x, y) !== null;
 }
 
 function setLevel(map: PlotScanMap, x: number, y: number, sim: PlotSimData, plot: Plot, level: number): void {
-  if (level < 0 || level > PLOT_TOP[plot.kind] || level === plot.level) return;
-  const value = plot.kind === "industrial" ? Random.getRandom16() & 1 :
-    ZoneUtils.getLandPollutionValue(sim.blockMaps, x, y);
+  if (level < 0 || level > PLOT_TOP[plot.kind]) return;
+  const value = level === 0 ? 0 : plotEnvironmentClass(map, sim, x, y, plot.kind);
+  if (level === plot.level && value <= plot.value) return;
   const powered = map.getTile(x, y).isPowered();
   map.setTile(x, y, plotTile(plot.kind, level, value, Random.getRandom(2)), BLBNCNBIT | (powered ? POWERBIT : 0));
-  ZoneUtils.incRateOfGrowth(sim.blockMaps, x, y, level > plot.level ? 1 : -1);
+  if (level !== plot.level) {
+    ZoneUtils.incRateOfGrowth(sim.blockMaps, x, y, level > plot.level ? 1 : -1);
+  }
 }
 
 /** What holds a plot back now (PLOT_WHY), from what plotFound weighs */
@@ -451,6 +503,8 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
       if (sim.blockMaps.pollutionDensityMap.worldGet(x, y) <= 128 && (level === 0 || crowd > DENSITY_TO_RISE[level]) &&
           mayRise(map, x, y, plot))
         setLevel(map, x, y, sim, plot, level + 1);
+      else if (level >= 1 && sim.blockMaps.pollutionDensityMap.worldGet(x, y) <= 128)
+        setLevel(map, x, y, sim, plot, level);
     } else if (shrinks(score)) {
       setLevel(map, x, y, sim, plot, level - 1);
     }
@@ -466,6 +520,8 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
     // A shop grows only as far as the land is worth (src/commercial.js)
     if ((kind !== "commercial" || level <= sim.blockMaps.landValueMap.worldGet(x, y) >> 5) && mayRise(map, x, y, plot))
       setLevel(map, x, y, sim, plot, level + 1);
+    else if (level >= 1)
+      setLevel(map, x, y, sim, plot, level);
   } else if (shrinks(score)) {
     setLevel(map, x, y, sim, plot, level - 1);
   }

@@ -25,7 +25,7 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
-import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, syncCellPlots, zoneCode } from "./zoneCells";
+import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, plotTileOfCell, syncCellPlots, zoneCode } from "./zoneCells";
 import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
@@ -279,7 +279,8 @@ const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is
  */
 function roadBesideProblem(city: CommandTarget, toolName: string, size: number, x: number, y: number): string | null {
   const map = city.map as unknown as { cellZones?: boolean } | undefined;
-  if (!map?.cellZones || size < 3 || toolName === "ruler_house" || isOneOf(["residential", "commercial", "industrial"], toolName)) {
+  const isBuilding = size >= 3 || placesBuilding(toolName, city.tools[toolName]);
+  if (!map?.cellZones || !isBuilding || toolName === "ruler_house" || isOneOf(["residential", "commercial", "industrial"], toolName)) {
     return null;
   }
   return besideRoad(city.width, city.height, (rx, ry) => isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK), x, y, size)
@@ -289,7 +290,8 @@ function roadBesideProblem(city: CommandTarget, toolName: string, size: number, 
 /** Whether a building of size tiles centred at (x, y) has a road tile along one of its sides (isRoad(x, y)) */
 export function besideRoad(width: number, height: number, isRoad: (x: number, y: number) => boolean,
   x: number, y: number, size: number): boolean {
-  const left = x - 1, top = y - 1, right = left + size - 1, bottom = top + size - 1;
+  const offset = size > 1 ? 1 : 0;
+  const left = x - offset, top = y - offset, right = left + size - 1, bottom = top + size - 1;
   const road = (rx: number, ry: number): boolean => rx >= 0 && ry >= 0 && rx < width && ry < height && isRoad(rx, ry);
   for (let k = left; k <= right; k++) if (road(k, top - 1) || road(k, bottom + 1)) return true;
   for (let k = top; k <= bottom; k++) if (road(left - 1, k) || road(right + 1, k)) return true;
@@ -407,6 +409,25 @@ export class CityCommands {
             }
           }
         }
+        // When a road or railway cuts through painted zoneCells / plots, clear painted cells on the road tiles and re-sync plots
+        const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;
+        if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === "bulldozer") && before.length) {
+          const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
+          const touched = new Set<number>();
+          for (const c of before) {
+            const tileIdx = c.y * city.width + c.x;
+            touched.add(tileIdx);
+            if (isRoadTile(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK) && cellMap.zoneCells) {
+              for (let cz = 0; cz < 4; cz++) {
+                for (let cx = 0; cx < 4; cx++) {
+                  cellMap.zoneCells.delete((c.y * 4 + cz) * city.width * 4 + (c.x * 4 + cx));
+                }
+              }
+            }
+          }
+          syncCellPlots(cellMap, layout, touched);
+          cellMap.zoneCellsVersion = (cellMap.zoneCellsVersion ?? 0) + 1;
+        }
         if (applied && map && !tool.noUndo) {
           const changes = before.map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
             .filter((c) => c.after !== c.before);
@@ -484,10 +505,13 @@ export class CityCommands {
         for (const key of cells) if (code) painted.set(key, code); else painted.delete(key);
         if (cost) city.budget.spend(cost);
         // The tiles the paint covers enough become plots, which grow buildings (src/zoneCells.ts syncCellPlots)
-        const touched = new Set(cells.map((key) => {
+        const touched = new Set<number>();
+        for (const key of cells) {
           const cell = layout.cells[layout.byKey.get(key)!];
-          return Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
-        }));
+          touched.add(Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10));
+          const pt = plotTileOfCell(map, cell);
+          if (pt >= 0) touched.add(pt);
+        }
         syncCellPlots(map as unknown as CellPlotMap, layout, touched);
         map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
         return { accepted: true };

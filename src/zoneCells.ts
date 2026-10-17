@@ -19,9 +19,9 @@ import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, typ
 import { servesZones } from "./roadLevels";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
-export const CELL_M = 2;
+export const CELL_M = 4;
 export const RASTER_M = 1;
-export const CELL_DEPTH = 16;
+export const CELL_DEPTH = 4;
 /** The gap between a road's edge and its first row (world units) */
 const EDGE_GAP = 0.25;
 /** Two cells' middles at least this share of a cell apart do not overlap enough to matter: cells side by side in a row
@@ -56,6 +56,10 @@ export interface Cell {
   x: number;
   z: number;
   angle: number;
+  /** Outward unit normal away from the road into this cell's side, and the yaw for a building (+Z front) to face the road */
+  nx: number;
+  nz: number;
+  facing: number;
   /** Its row from the road, 0 next to it */
   row: number;
   /** The stretch of road it faces (src/objects/roadSegment.ts segmentId: its lowest tile) */
@@ -71,6 +75,8 @@ export interface CellLayout {
   byKey: Map<number, number>;
   /** The cells whose middles lie on each tile, for finding the one under a point */
   byTile: Map<number, number[]>;
+  /** The cells assigned to each non-road buildable plot tile (including row 0 cells on adjacent road margins) */
+  byPlotTile: Map<number, number[]>;
 }
 
 /** Ground a cell may lie on: open land, a road tile's margin, or a plot the cells themselves made (syncCellPlots), so its
@@ -79,6 +85,25 @@ const cellGround = (value: number): boolean => isOpenLand(value) || isLineRoad(v
 
 /** World units a metre on this map */
 const unitsPerMetre = (map: CellMap): number => 10 / (map.tileSizeM || 16);
+
+/** Which non-road front-row tile (tx, ty) a cell belongs to: anchored from its column's row-0 road edge along (nx, nz) */
+export function plotTileOfCell(map: CellMap, cell: Pick<Cell, "x" | "z" | "nx" | "nz"> & { row?: number }): number {
+  const cellUnits = CELL_M * unitsPerMetre(map);
+  const r = cell.row ?? 0;
+  const x0 = cell.x - cell.nx * r * cellUnits;
+  const z0 = cell.z - cell.nz * r * cellUnits;
+  let fallback = -1;
+  for (const step of [0, 2, 4, 6, 8, 10, 12]) {
+    const tx = Math.floor((x0 + cell.nx * step) / 10), ty = Math.floor((z0 + cell.nz * step) / 10);
+    if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) continue;
+    const v = map.getTileValue(tx, ty);
+    if (!isLineRoad(v)) {
+      if (isOpenLand(v) || plotKindOfValue(v) !== null) return ty * map.width + tx;
+      if (fallback < 0) fallback = ty * map.width + tx;
+    }
+  }
+  return fallback;
+}
 
 /** The raster key of a point (world units) */
 export function rasterKey(map: CellMap, x: number, z: number): number {
@@ -146,16 +171,16 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       // The stretch of road it faces: the one whose tile lies under the road's line there
       road = stretchAt.get(Math.floor(pz / 10) * map.width + Math.floor(px / 10)) ?? road;
       for (const side of [1, -1]) {
-        const nx = -tz * side, nz = tx * side;
+        const nx = -tz * side, nz = tx * side, facing = Math.atan2(-nx, -nz);
         for (let row = 0; row < CELL_DEPTH; row++) {
           const distance = edge + (row + 0.5) * cellUnits;
-          candidates.push({ key: -1, x: px + nx * distance, z: pz + nz * distance, angle, row, road, distance });
+          candidates.push({ key: -1, x: px + nx * distance, z: pz + nz * distance, angle, nx, nz, facing, row, road, distance });
         }
       }
     }
   }
   candidates.sort((a, b) => a.distance - b.distance);
-  const cells: Cell[] = [], byKey = new Map<number, number>(), byTile = new Map<number, number[]>();
+  const cells: Cell[] = [], byKey = new Map<number, number>(), byTile = new Map<number, number[]>(), byPlotTile = new Map<number, number[]>();
   const half = cellUnits / 2 - 0.15;
   // The cells taken so far, by their middles, in buckets a cell wide: a cell too near one already taken (the nearer
   // road's, or its own row's on the inside of a bend) is left out, so no two overlap
@@ -188,29 +213,39 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       spots.push(spot);
     }
     if (!clear) continue;
+    const created: Cell = { key, x: cell.x, z: cell.z, angle: cell.angle, nx: cell.nx, nz: cell.nz, facing: cell.facing, row: cell.row, road: cell.road };
+    const plotTileIdx = plotTileOfCell(map, created);
+    if (plotTileIdx < 0) continue;
+    const pv = map.getTileValue(plotTileIdx % map.width, Math.floor(plotTileIdx / map.width));
+    if (!isOpenLand(pv) && plotKindOfValue(pv) === null) continue;
     const home = bucketOf(Math.floor(cell.x / cellUnits), Math.floor(cell.z / cellUnits));
     if (!bucket.has(home)) bucket.set(home, []);
     bucket.get(home)!.push([cell.x, cell.z]);
     const index = cells.length, tile = Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
-    cells.push({ key, x: cell.x, z: cell.z, angle: cell.angle, row: cell.row, road: cell.road });
+    cells.push(created);
     byKey.set(key, index);
     if (!byTile.has(tile)) byTile.set(tile, []);
     byTile.get(tile)!.push(index);
+    if (!byPlotTile.has(plotTileIdx)) byPlotTile.set(plotTileIdx, []);
+    byPlotTile.get(plotTileIdx)!.push(index);
   }
-  return { cellUnits, rasterUnits, rasterWidth, cells, byKey, byTile };
+  return { cellUnits, rasterUnits, rasterWidth, cells, byKey, byTile, byPlotTile };
 }
 
-/** The cell under a point (world units), or null */
+/** The cell under a point (world units), or the nearest cell within a small margin on bends/curbs */
 export function cellAt(layout: CellLayout, width: number, x: number, z: number): Cell | null {
   const tx = Math.floor(x / 10), tz = Math.floor(z / 10), half = layout.cellUnits / 2;
+  let nearest: Cell | null = null, bestDist = layout.cellUnits * 1.35;
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     for (const index of layout.byTile.get((tz + dz) * width + tx + dx) ?? []) {
       const cell = layout.cells[index], sin = Math.sin(cell.angle), cos = Math.cos(cell.angle);
       const ox = x - cell.x, oz = z - cell.z, u = ox * cos - oz * sin, v = ox * sin + oz * cos;
       if (Math.abs(u) <= half && Math.abs(v) <= half) return cell;
+      const d = Math.hypot(ox, oz);
+      if (d < bestDist) { bestDist = d; nearest = cell; }
     }
   }
-  return null;
+  return nearest;
 }
 
 /** The cells a stroke from one point to another (world units) passes over, in order, each once */
@@ -243,7 +278,121 @@ export function cellsOf(map: CellMap, owns: (x: number, y: number) => boolean = 
   if (kept && kept.signature === signature) return kept.layout;
   const layout = cellLayout(map, owns);
   layouts.set(map, { signature, layout });
+  // Migrate any legacy 2 m saved cell keys into the 4 m layout by their 1 m raster world position
+  if (map.zoneCells && map.zoneCells.size > 0) {
+    let matched = 0;
+    for (const k of map.zoneCells.keys()) if (layout.byKey.has(k)) matched++;
+    if (matched < map.zoneCells.size * 0.5 && layout.cells.length > 0) {
+      const migrated = new Map<number, number>();
+      for (const [oldKey, code] of map.zoneCells.entries()) {
+        if (layout.byKey.has(oldKey)) { migrated.set(oldKey, code); continue; }
+        const rx = oldKey % layout.rasterWidth, rz = Math.floor(oldKey / layout.rasterWidth);
+        const x = (rx + 0.5) * layout.rasterUnits, z = (rz + 0.5) * layout.rasterUnits;
+        const c = cellAt(layout, map.width, x, z);
+        if (c) migrated.set(c.key, code);
+      }
+      if (migrated.size > 0) {
+        map.zoneCells.clear();
+        for (const [k, v] of migrated) map.zoneCells.set(k, v);
+        map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
+      }
+    }
+  }
   return layout;
+}
+
+/**
+ * Exact world pose (x, z, rotation) for a plot or lot building of `size` tiles and `scale` fill at (tx, ty) on a
+ * cellZones map: centered along the road on the painted cells belonging to that plot, its front edge (+Z) aligned with
+ * the road's row-0 edge, and turned to face the road along its curve.
+ */
+export function cellPlotPose(
+  map: CellMap,
+  tx: number,
+  ty: number,
+  size: number,
+  scale: number,
+): { x: number; z: number; rotation: number } | null {
+  if (!map.cellZones || !map.zoneCells || !map.zoneCells.size) return null;
+  const layout = cellsOf(map);
+  const paint = map.zoneCells;
+  const raw: Cell[] = [];
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      const tile = (ty + dy) * map.width + (tx + dx);
+      for (const idx of layout.byPlotTile.get(tile) ?? []) {
+        const c = layout.cells[idx];
+        if (paint.has(c.key)) raw.push(c);
+      }
+    }
+  }
+  if (!raw.length) return null;
+  // Pick the dominant road + side so cross-street cells at a corner never skew the building's heading
+  const groups = new Map<string, Cell[]>();
+  for (const c of raw) {
+    const sideKey = `${c.road}:${Math.round(c.nx * 2)}:${Math.round(c.nz * 2)}`;
+    const list = groups.get(sideKey) ?? [];
+    list.push(c);
+    groups.set(sideKey, list);
+  }
+  let group = raw;
+  for (const list of groups.values()) if (list.length > group.length || group === raw) group = list;
+  const targetCode = paint.get(group[0].key) ?? 1;
+  group = group.filter((c) => paint.get(c.key) === targetCode);
+  if (!group.length) return null;
+
+  let nx = 0, nz = 0;
+  for (const c of group) { nx += c.nx; nz += c.nz; }
+  const nLen = Math.hypot(nx, nz) || 1;
+  nx /= nLen; nz /= nLen;
+  const rx = nz, rz = -nx;
+  const ref = group[0];
+
+  let minAlong = Infinity, maxAlong = -Infinity, minAcross = Infinity, minRow = Infinity;
+  for (const c of group) {
+    const along = (c.x - ref.x) * rx + (c.z - ref.z) * rz;
+    const across = (c.x - ref.x) * nx + (c.z - ref.z) * nz;
+    if (along < minAlong) minAlong = along;
+    if (along > maxAlong) maxAlong = along;
+    if (across < minAcross) minAcross = across;
+    if (c.row < minRow) minRow = c.row;
+  }
+
+  // If a small painted patch straddles a tile boundary, absorb spillover cells from the same patch so the building centers on it
+  const half = size * 5 * scale;
+  if (maxAlong - minAlong < half * 1.4) {
+    const mid0 = (minAlong + maxAlong) / 2;
+    for (let dy = -1; dy <= size; dy++) {
+      for (let dx = -1; dx <= size; dx++) {
+        if (dx >= 0 && dx < size && dy >= 0 && dy < size) continue;
+        const nxT = tx + dx, nyT = ty + dy;
+        if (nxT < 0 || nyT < 0 || nxT >= map.width || nyT >= map.height) continue;
+        const neighborIndices = layout.byPlotTile.get(nyT * map.width + nxT) ?? [];
+        const neighborPainted = neighborIndices.map((i) => layout.cells[i]).filter((c) => paint.get(c.key) === targetCode);
+        if (neighborPainted.length > 0 && neighborPainted.length <= 2) {
+          for (const c of neighborPainted) {
+            if (c.road !== ref.road || Math.abs(c.row - minRow) > 2) continue;
+            const along = (c.x - ref.x) * rx + (c.z - ref.z) * rz;
+            const across = (c.x - ref.x) * nx + (c.z - ref.z) * nz;
+            if (Math.abs(along - mid0) <= half * 1.5) {
+              if (along < minAlong) minAlong = along;
+              if (along > maxAlong) maxAlong = along;
+              if (across < minAcross) minAcross = across;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const midAlong = (minAlong + maxAlong) / 2;
+  const frontEdge = minAcross - (minRow + 0.5) * layout.cellUnits;
+  const centerAcross = frontEdge + half;
+  return {
+    x: ref.x + rx * midAlong + nx * centerAcross,
+    z: ref.z + rz * midAlong + nz * centerAcross,
+    rotation: Math.atan2(-nx, -nz),
+  };
 }
 
 /** The price of painting a cell, from its zone's tool price: a 16 m tile's paint (PAINT_PRICE_SHARE) shared by its cells */
@@ -270,7 +419,7 @@ export function readZoneCells(saved: unknown): Map<number, number> {
 }
 
 /** The share of a tile's cells one zone must cover for the tile to become that zone's plot */
-export const PLOT_COVER = 0.5;
+export const PLOT_COVER = 0.28;
 
 /** A map whose tiles the painted cells turn into plots */
 export interface CellPlotMap extends CellMap {
@@ -288,13 +437,31 @@ export interface CellPlotMap extends CellMap {
  */
 export function syncCellPlots(map: CellPlotMap, layout: CellLayout, tiles?: Iterable<number>): number[] {
   const changed: number[] = [];
-  for (const tile of tiles ?? layout.byTile.keys()) {
-    const x = tile % map.width, y = (tile - x) / map.width, cells = layout.byTile.get(tile) ?? [];
+  let candidates: Iterable<number>;
+  if (tiles) {
+    const expanded = new Set<number>();
+    for (const tile of tiles) {
+      const tx = tile % map.width, ty = (tile - tx) / map.width;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = tx + dx, ny = ty + dy;
+        if (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height) expanded.add(ny * map.width + nx);
+      }
+    }
+    candidates = expanded;
+  } else {
+    candidates = new Set([...layout.byTile.keys(), ...layout.byPlotTile.keys()]);
+  }
+  for (const tile of candidates) {
+    const x = tile % map.width, y = (tile - x) / map.width;
+    if (isLineRoad(map.getTileValue(x, y))) continue;
+    const allCells = layout.byPlotTile.get(tile) ?? layout.byTile.get(tile) ?? [];
     const counts = [0, 0, 0, 0];
-    for (const index of cells) counts[map.zoneCells?.get(layout.cells[index].key) ?? 0]++;
+    for (const index of allCells) counts[map.zoneCells?.get(layout.cells[index].key) ?? 0]++;
     let best = 1;
     for (let code = 2; code <= 3; code++) if (counts[code] > counts[best]) best = code;
-    const kind = cells.length > 0 && counts[best] >= PLOT_COVER * cells.length ? zoneOfCode(best) : null;
+    const minCells = Math.max(2, Math.ceil(PLOT_COVER * allCells.length));
+    const qualifies = allCells.length > 0 && counts[best] >= minCells;
+    const kind = qualifies ? zoneOfCode(best) : null;
     const value = map.getTileValue(x, y), plot = (map.getTileFlags(x, y) & ZONE_BIT) ? null : plotKindOfValue(value);
     if (kind && plot === kind) continue;
     if (kind && (plot !== null || isOpenLand(value))) map.setTile(x, y, plotTile(kind, 0), PLOT_FLAGS);

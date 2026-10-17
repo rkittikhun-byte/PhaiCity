@@ -25,6 +25,11 @@ export class CityChunks {
   private lastUpdate:number;
   readonly columns:number;unknownTiles=0;rebuildMs=0;detailCalls=0;
   drawBudget=180;detailSwaps=0;dirtSwaps=0;
+  private allBatches:Batch[]=[];
+  private lastCandidateTarget=new Vector3(-9999,-9999,-9999);
+  private lastCandidateDistance=-9999;
+  private cachedCandidates:{b:Batch;range:number}[]=[];
+  private batchesDirty=true;
   readonly surfaces?:ProvinceSurface;
   constructor(readonly snapshot:TileSnapshot,readonly region:RegionId,private provider:PrototypeProvider,private now:()=>number,readonly terrain?:CityHeightField) {
     const n=snapshot.width*snapshot.height;this.columns=Math.ceil(snapshot.width/CHUNK_TILES);
@@ -38,7 +43,7 @@ export class CityChunks {
     this.ground=new InstancedMesh(this.groundGeometry,cityWorldMaterial(getMaterial('dirt_laterite')),n);
     this.solid.count=0;this.water.count=0;
     for(const mesh of [this.solid,this.water,this.ground]){mesh.instanceMatrix.setUsage(DynamicDrawUsage);mesh.frustumCulled=false;mesh.receiveShadow=true;if(!terrain?.province)this.root.add(mesh);}
-    if(terrain?.province){this.surfaces=new ProvinceSurface(snapshot,terrain);this.root.add(this.surfaces.root);this.drawBudget=this.maxDrawBudget;}
+    if(terrain?.province){this.surfaces=new ProvinceSurface(snapshot,terrain);this.root.add(this.surfaces.root);this.drawBudget=Math.min(320,this.maxDrawBudget);}
     // Cheap complete ground is available before a single detailed model is built.
     for(let i=0;i<n;i++) {const x=i%snapshot.width,y=Math.floor(i/snapshot.width),water=snapshot.values[i]>=2&&snapshot.values[i]<=20;
       matrix.makeScale(10,.06,10).setPosition((x+.5)*10,water?-.63:.01,(y+.5)*10);
@@ -56,12 +61,25 @@ export class CityChunks {
       for(let cy=Math.floor(Math.max(0,y-6)/16);cy<=Math.floor(Math.min(this.snapshot.height-1,y+6)/16);cy++)
         for(let cx=Math.floor(Math.max(0,x-6)/16);cx<=Math.floor(Math.min(this.snapshot.width-1,x+6)/16);cx++)ids.add(cy*this.columns+cx);
     }
-    for(const id of ids){const chunk=this.chunks[id];chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);}
+    const eager=indices.length<=64&&(this.snapshot.realUnits??1)<1;
+    for(const id of ids){
+      const chunk=this.chunks[id];
+      const wasVisible=eager?new Set(chunk.batches.filter(b=>b.selected||b.fade>0).map(b=>b.key)):undefined;
+      chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);
+      if(eager&&wasVisible&&wasVisible.size>0){
+        while(chunk.cursor<256)this.cell(chunk,chunk.cursor++);
+        this.finish(chunk,wasVisible);
+      }
+    }
+    this.batchesDirty=true;
   }
   private coarseMatrix(p:Placement):Matrix4 {
-    const zone=p.footprint[0]>1, height=zone?(this.prototypes.get(prototypeKey(p))?.height??p.height):p.id?.startsWith('plot.')?p.height:p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
+    const zone=p.footprint[0]>1, protoH=this.prototypes.get(prototypeKey(p))?.height;
+    const rawH=zone?(protoH!==undefined?protoH*(p.height/Math.max(1,protoH)):p.height):p.id?.startsWith('plot.')||p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial'?p.height:p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);
+    const height=zone&&protoH!==undefined&&!this.snapshot.realUnits?protoH:rawH;
+    const inset=p.id?.startsWith('plot.')||p.id?.startsWith('lot.')||p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial'?1.6:zone?1.2:0;
     // Water lies a little under the ground; everything else is the placement's own box (placement.ts)
-    return p.water?matrix.makeScale(p.footprint[0]*10,height,p.footprint[1]*10).setPosition(p.x,(p.baseY??0)-.63,p.z):p.farBox(matrix,height,zone?1:0);
+    return p.water?matrix.makeScale(p.footprint[0]*10,height,p.footprint[1]*10).setPosition(p.x,(p.baseY??0)-.63,p.z):p.farBox(matrix,height,inset);
   }
   private setCoarse(index:number,p:Placement|null):void {
     this.surfaces?.set(index,p);
@@ -83,6 +101,8 @@ export class CityChunks {
   private clear(chunk:Chunk):void {
     for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
     chunk.batches=[];
+    this.allBatches=[];
+    this.batchesDirty=true;
   }
   private showCoarse(p:Placement,show:boolean):void {
     if(show===!this.hidden.has(p.index))return;
@@ -95,11 +115,23 @@ export class CityChunks {
     const slot=(p.water?this.waterSlots:this.solidSlots)[p.index];
     if(slot>=0){(p.water?this.waterDetail:this.solidDetail).setX(slot,fade);this.fadeDirty=true;}
   }
-  private finish(chunk:Chunk):void {
+  private finish(chunk:Chunk,wasVisible?:Set<string>):void {
     const groups=new Map<string,Placement[]>();
     for(const p of chunk.placements)if(p.id){const key=prototypeKey(p),g=groups.get(key)??[];g.push(p);groups.set(key,g);}
     chunk.batches=Array.from(groups,([key,placements])=>({key,placements,group:new Group(),calls:0,selected:false,fade:0}));
-    chunk.batches.forEach(b=>{b.group.visible=false;this.root.add(b.group);});chunk.dirty=false;
+    for(const b of chunk.batches){
+      const proto=wasVisible&&(wasVisible.has(b.key)||['residential','commercial','industrial','services','transport'].includes(b.placements[0].kind))?this.prototypes.get(b.key):undefined;
+      if(proto){
+        b.selected=true;b.fade=1;this.instantiate(b,proto);b.group.visible=true;
+        for(const p of b.placements){this.showCoarse(p,false);this.coarseFade(p,1);}
+      } else {
+        b.group.visible=false;
+      }
+      this.root.add(b.group);
+    }
+    chunk.dirty=false;
+    this.allBatches=[];
+    this.batchesDirty=true;
   }
   private cell(chunk:Chunk,n:number):void {
     const x=chunk.x+n%16,y=chunk.y+Math.floor(n/16);if(x>=this.snapshot.width||y>=this.snapshot.height)return;
@@ -156,29 +188,43 @@ export class CityChunks {
         this.coarseDirty=true;
       } catch(error){this.failed.add(result.key);console.warn('City model skipped:',result.key,String(error));}
     }
-    const radius=Math.min(230,Math.max(85,distance*.55)),margin=25;
-    const nearby=this.chunks.filter(c=>Math.abs(c.x*10+80-target.x)<radius+margin+114&&Math.abs(c.y*10+80-target.z)<radius+margin+114);
-    const candidates=nearby.flatMap(c=>c.batches).map(b=>{let range=Infinity;for(const p of b.placements)range=Math.min(range,Math.hypot(p.x-target.x,p.z-target.z));return{b,range};});
-    const rank=(p:Placement):number=>p.footprint[0]>1?-180:p.kind==='road'&&(p.id?.includes('crossing')||p.id?.includes('bridge'))?-150:p.kind==='road'||p.kind==='rail'||p.kind==='power'?-95:p.id==='terrain.woods'?-40:0;
-    // An incumbent keeps its place until a challenger is at least 25 m closer (with the same model priority).
-    candidates.sort((a,b)=>a.range+rank(a.b.placements[0])-(a.b.selected?margin:0)
-      -b.range-rank(b.b.placements[0])+(b.b.selected?margin:0));
-    const preferred=new Set<Batch>();let preferredCalls=0;
+    const wideCity=Boolean(this.surfaces&&(this.snapshot.realUnits??1)<1);
+    const radius=wideCity?Math.min(950,Math.max(520,distance*1.55)):Math.min(280,Math.max(85,distance*.55)),margin=wideCity?35:25;
+    const moved=this.batchesDirty||target.distanceToSquared(this.lastCandidateTarget)>9||Math.abs(distance-this.lastCandidateDistance)>8;
+    if(moved){
+      this.lastCandidateTarget.copy(target);this.lastCandidateDistance=distance;this.batchesDirty=false;
+      const nearby=this.chunks.filter(c=>Math.abs(c.x*10+80-target.x)<radius+margin+114&&Math.abs(c.y*10+80-target.z)<radius+margin+114);
+      const candidates:{b:Batch;range:number}[]=[];
+      for(const c of nearby){
+        for(const b of c.batches){
+          let range=Infinity;
+          for(const p of b.placements){const d=Math.hypot(p.x-target.x,p.z-target.z);if(d<range)range=d;}
+          candidates.push({b,range});
+        }
+      }
+      candidates.sort((a,b)=>a.range+chunkRank(a.b.placements[0])-(a.b.selected?margin:0)
+        -b.range-chunkRank(b.b.placements[0])+(b.b.selected?margin:0));
+      this.cachedCandidates=candidates;
+    }
+    const candidates=this.cachedCandidates;
+    const preferred=new Set<Batch>();let preferredCalls=0,instantiated=0;
     for(const{b,range}of candidates){
-      if(this.surfaces&&(b.placements[0].id==='terrain.woods'||b.placements[0].id==='terrain.dirt'&&distance>(b.selected?145:120)||b.placements[0].kind==='shore'||b.placements[0].water||b.placements[0].outside&&b.placements[0].kind==='terrain'))continue;
-      const detailRadius=b.placements[0].id==='terrain.dirt'?35:radius;
-      if(distance<=(b.selected?1000:950)&&range<detailRadius+(b.selected?margin:0)){
+      if(this.surfaces&&(b.placements[0].id==='terrain.woods'||b.placements[0].id==='terrain.dirt'||b.placements[0].kind==='shore'||b.placements[0].water||b.placements[0].outside&&b.placements[0].kind==='terrain'))continue;
+      const detailRadius=b.placements[0].id==='terrain.dirt'?35:b.placements[0].id==='terrain.woods'&&this.surfaces?180:radius;
+      if(distance<=(b.selected?(wideCity?2200:1400):(wideCity?2000:1300))&&range<detailRadius+(b.selected?margin:0)){
         const proto=this.prototypes.get(b.key);
         if(!proto&&!this.failed.has(b.key)&&!this.requested.has(b.key)){const p=b.placements[0];this.requested.add(b.key);this.provider.request({key:b.key,id:p.id!,options:p.options});}
-        if(proto&&!b.calls&&this.now()<deadline)this.instantiate(b,proto);
+        if(proto&&!b.calls&&(instantiated<6||this.now()<deadline)){this.instantiate(b,proto);instantiated++;}
         if(b.calls&&preferredCalls+b.calls<=this.drawBudget){preferred.add(b);preferredCalls+=b.calls;}
       }
     }
-    const all=this.chunks.flatMap(c=>c.batches),dt=Math.max(0,Math.min(100,start-this.lastUpdate));this.lastUpdate=start;
+    if(this.allBatches.length===0)this.allBatches=this.chunks.flatMap(c=>c.batches);
+    const all=this.allBatches,dt=Math.max(0,Math.min(100,start-this.lastUpdate));this.lastUpdate=start;
     const select=(b:Batch,show:boolean):void=>{if(b.selected!==show){this.detailSwaps++;if(b.placements[0].id==='terrain.dirt')this.dirtSwaps++;b.selected=show;}};
     for(const b of all)if(b.selected&&!preferred.has(b))select(b,false);
     // Outgoing batches finish fading before their draw calls are lent to incoming detail.
-    let reserved=all.reduce((sum,b)=>sum+(b.selected||b.fade>0?b.calls:0),0);
+    let reserved=0;
+    for(const b of all)reserved+=b.selected||b.fade>0?b.calls:0;
     for(const{b}of candidates)if(preferred.has(b)&&!b.selected&&reserved+(b.fade>0?0:b.calls)<=this.drawBudget){reserved+=b.fade>0?0:b.calls;select(b,true);}
     let calls=0;
     for(const b of all){
@@ -203,7 +249,7 @@ export class CityChunks {
     return max;
   }
   get pendingChunks():number{return this.chunks.filter(c=>c.dirty).length+(this.surfaces?.pending??0);}
-  get maxDrawBudget():number{return this.surfaces?100:180;}
+  get maxDrawBudget():number{return this.surfaces?((this.snapshot.realUnits??1)<1?380:300):180;}
   get pendingModels():number{return this.requested.size-this.prototypes.size-this.failed.size;}
   roadsNear(target:Vector3):Placement[] {
     const roads:Placement[]=[];
@@ -219,3 +265,6 @@ export class CityChunks {
   dispose():void {this.provider.dispose();this.chunks.forEach(c=>this.clear(c));this.surfaces?.dispose();for(const p of this.prototypes.values())p.parts.forEach(part=>part.geometry.dispose());this.prototypes.clear();this.solid.dispose();this.water.dispose();this.ground.dispose();this.geometry.dispose();this.waterGeometry.dispose();this.groundGeometry.dispose();this.root.clear();this.coarse.clear();this.hidden.clear();this.chunks.length=0;this.requested.clear();this.failed.clear();this.pendingResults.length=0;}
 }
 function isBridge(p:Placement):boolean {return !!p.id?.includes('bridge');}
+function chunkRank(p:Placement):number {
+  return p.footprint[0]>1?-180:['residential','commercial','industrial','services','transport'].includes(p.kind)?-160:p.kind==='road'&&(p.id?.includes('crossing')||p.id?.includes('bridge'))?-150:p.kind==='road'||p.kind==='rail'||p.kind==='power'?-95:p.id==='terrain.woods'?-40:0;
+}

@@ -58,6 +58,7 @@ import { NEEDS_RAIL, ONE_HSR, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS }
 import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
+import { fadeCurtain } from './curtain.ts';
 import { readPolicies } from './policies.ts';
 import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, blocksByRank, LAND_ALL_OPEN, LAND_LOCKED,
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
@@ -595,7 +596,10 @@ Game.prototype.inspectTile = function(x, y) {
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
                          cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
                          language: getLanguage(), satisfaction: this.satisfactionContext()}, x, y);
-  if (found)
+  // Clicking empty land/woods/water while an object/road card is already open closes the card cleanly
+  var isPlainGround = found && ['object.kind.land', 'object.kind.woods', 'object.kind.water'].indexOf(found.title.key) !== -1 &&
+                      (!found.facts || found.facts.every(function(f) { return f.key.indexOf('object.fact.why.') !== 0; }));
+  if (found && !(this.inspectCard.isOpen && isPlainGround))
     this.inspectCard.open(found);
   else
     this.inspectCard.close();
@@ -603,20 +607,16 @@ Game.prototype.inspectTile = function(x, y) {
 
 
 // With no tool in hand, the outline round what the inspector's card shows (a building's centre is one tile in from
-// its top-left corner, as the tools place it)
+// its top-left corner, as the tools place it; roads do not draw a floating ghost band over adjacent buildings)
 Game.prototype.selectionOutline = function() {
   var shown = this.inspectCard && this.inspectCard.inspection;
   if (!shown || this.inputStatus.currentTool !== null)
     return null;
+  if (shown.path && shown.path.length > 1)
+    return null;
   var rect = shown.rect;
-  var outline = {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
-                 colour: '#8fdcff'};
-  // A stretch of road is outlined along its whole length (src/objects/roadSegment.ts)
-  if (shown.path && shown.path.length > 1) {
-    outline.path = shown.path;
-    outline.line = true;
-  }
-  return outline;
+  return {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
+          colour: '#8fdcff'};
 };
 
 
@@ -804,10 +804,11 @@ Game.prototype.buildingTile = function(tile, size) {
   var isRoad = function(x, y) { return map.testBounds(x, y) && isRoadTile(map.getTileValue(x, y)); };
   // A bus goes on the nearest road tile, as the road drawn smooth does not always lie on its tiles (src/busStopTool.ts)
   var tools = this.inputStatus.gameTools, current = tools && tools[this.inputStatus.toolName];
-  if (tile !== null && current && current.busTool) {
+  if (tile !== null && current && (current.busTool || this.inputStatus.toolName === UPGRADE_TOOL)) {
+    var reach = current.busTool ? 3 : 1;
     var road = null, roadDistance = Infinity;
-    for (var ry = -3; ry <= 3; ry++)
-      for (var rx = -3; rx <= 3; rx++)
+    for (var ry = -reach; ry <= reach; ry++)
+      for (var rx = -reach; rx <= reach; rx++)
         if (rx * rx + ry * ry < roadDistance && isRoad(tile.x + rx, tile.y + ry)) {
           roadDistance = rx * rx + ry * ry;
           road = {x: tile.x + rx, y: tile.y + ry};
@@ -838,39 +839,73 @@ Game.prototype.buildingTile = function(tile, size) {
 };
 
 
-// The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it that the start reaches
-// without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), as keys
+// The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it or along the stroke
+// that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), expanded to full 4-row lot depth
 Game.prototype.cellsInArea = function(from, to) {
   var a = this.cityView.pointAt(from.x, from.y);
   var b = this.cityView.pointAt(to.x, to.y) || a;
   if (a === null)
     return [];
-  var x0 = Math.min(a.x, b.x) * 10, x1 = Math.max(a.x, b.x) * 10, z0 = Math.min(a.y, b.y) * 10, z1 = Math.max(a.y, b.y) * 10;
-  var sx = a.x * 10, sz = a.y * 10;
-  // The roads' pieces within the rectangle, which a cell's way from the start must not cross
+  var layout = this.cellLayout();
+  var u = layout.cellUnits, pad = u * 0.65;
+  var sx = a.x * 10, sz = a.y * 10, ex = b.x * 10, ez = b.y * 10;
+  var x0 = Math.min(sx, ex) - pad, x1 = Math.max(sx, ex) + pad, z0 = Math.min(sz, ez) - pad, z1 = Math.max(sz, ez) + pad;
+  // The roads' pieces within the rectangle, which a cell's way from the reference point must not cross
   var pieces = [];
-  this.networkLines(false).forEach(function(line) {
+  var lines = this.networkLines(false);
+  lines.forEach(function(line) {
     for (var i = 1; i < line.length; i++) {
       var p = line[i - 1], q = line[i];
-      if (Math.max(p[0], q[0]) >= Math.min(x0, sx) - 1 && Math.min(p[0], q[0]) <= Math.max(x1, sx) + 1 &&
-          Math.max(p[1], q[1]) >= Math.min(z0, sz) - 1 && Math.min(p[1], q[1]) <= Math.max(z1, sz) + 1)
+      if (Math.max(p[0], q[0]) >= x0 - 2 && Math.min(p[0], q[0]) <= x1 + 2 &&
+          Math.max(p[1], q[1]) >= z0 - 2 && Math.min(p[1], q[1]) <= z1 + 2)
         pieces.push([p[0], p[1], q[0], q[1]]);
     }
   });
+  // If the drag started right on the road centerline and pulled outward into a lot, measure road-crossing from the end point
+  var startOnRoad = nearestOnLines(lines, sx, sz, 4.5) !== null;
+  var endOnRoad = nearestOnLines(lines, ex, ez, 4.5) !== null;
+  var rx = startOnRoad && !endOnRoad ? ex : sx, rz = startOnRoad && !endOnRoad ? ez : sz;
   var side = function(ax, az, bx, bz, cx, cz) { return (bx - ax) * (cz - az) - (bz - az) * (cx - ax); };
   var crosses = function(cx, cz) {
+    if (startOnRoad && endOnRoad) return false;
     for (var k = 0; k < pieces.length; k++) {
       var r = pieces[k];
-      var d1 = side(sx, sz, cx, cz, r[0], r[1]), d2 = side(sx, sz, cx, cz, r[2], r[3]);
-      var d3 = side(r[0], r[1], r[2], r[3], sx, sz), d4 = side(r[0], r[1], r[2], r[3], cx, cz);
+      var d1 = side(rx, rz, cx, cz, r[0], r[1]), d2 = side(rx, rz, cx, cz, r[2], r[3]);
+      var d3 = side(r[0], r[1], r[2], r[3], rx, rz), d4 = side(r[0], r[1], r[2], r[3], cx, cz);
       if ((d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0) && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0)
         return true;
     }
     return false;
   };
-  return this.cellLayout().cells.filter(function(cell) {
+  var seedCells = layout.cells.filter(function(cell) {
     return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1 && !crosses(cell.x, cell.z);
-  }).map(function(cell) { return cell.key; });
+  });
+  // Also include cells along the direct stroke between from and to (so a single click or a drag parallel to a road works)
+  var strokeKeys = cellsAlong(layout, this.gameMap.width, [sx, sz], [ex, ez]);
+  strokeKeys.forEach(function(k) {
+    var idx = layout.byKey.get(k);
+    if (idx !== undefined && !crosses(layout.cells[idx].x, layout.cells[idx].z))
+      seedCells.push(layout.cells[idx]);
+  });
+  if (!seedCells.length)
+    return [];
+  // Expand every touched road column to all 4 rows deep (rows 0..3) so painted strips always form valid buildable plots
+  var isSmallClick = Math.hypot(ex - sx, ez - sz) < u * 1.5;
+  var alongTol = isSmallClick ? u * 2.1 : u * 0.65;
+  var outKeys = [], seen = {};
+  seedCells.forEach(function(c) {
+    layout.cells.forEach(function(other) {
+      if (other.road === c.road && (other.nx * c.nx + other.nz * c.nz) > 0.5 &&
+          Math.hypot(other.x - (c.x + c.nx * (other.row - c.row) * u),
+                     other.z - (c.z + c.nz * (other.row - c.row) * u)) <= alongTol) {
+        if (!seen[other.key]) {
+          seen[other.key] = true;
+          outKeys.push(other.key);
+        }
+      }
+    });
+  });
+  return outKeys;
 };
 
 
@@ -905,7 +940,7 @@ Game.prototype.paintCells = function(cells, screenX) {
 };
 
 
-// A press or a drag of the brush: the cells from where it last was in this stroke to where it is now
+// A press or a drag of the brush: the full road-fronting lot(s) along the road from where it last was to where it is now
 Game.prototype.paintCellStroke = function(data) {
   var point = this.cityView.pointAt(data.x, data.y);
   if (point === null)
@@ -913,7 +948,46 @@ Game.prototype.paintCellStroke = function(data) {
   var world = [point.x * 10, point.y * 10];
   var last = this._cellStroke && this._cellStroke.stroke === data.stroke ? this._cellStroke.point : null;
   this._cellStroke = {stroke: data.stroke, point: world};
-  this.paintCells(cellsAlong(this.cellLayout(), this.gameMap.width, last, world), data.x);
+  var layout = this.cellLayout();
+  var rawKeys = cellsAlong(layout, this.gameMap.width, last, world);
+  if (!rawKeys.length)
+    return;
+  var mode = drawModeOf(this.inputStatus.toolName);
+  // In 'fill' (เติม) mode, fill the entire contiguous side of this road stretch
+  if (mode === 'fill') {
+    var firstIdx = layout.byKey.get(rawKeys[0]);
+    if (firstIdx !== undefined) {
+      var ref = layout.cells[firstIdx];
+      var fillKeys = layout.cells.filter(function(other) {
+        return other.road === ref.road && (other.nx * ref.nx + other.nz * ref.nz) > 0.5;
+      }).map(function(other) { return other.key; });
+      if (fillKeys.length) {
+        this.paintCells(fillKeys, data.x);
+        return;
+      }
+    }
+  }
+  // Expand each touched cell to all cells in its road-fronting plot tile (all 4 rows deep along the road)
+  var fullLotKeys = [];
+  var seenKey = {};
+  rawKeys.forEach(function(k) {
+    var idx = layout.byKey.get(k);
+    if (idx === undefined)
+      return;
+    var c = layout.cells[idx];
+    // Include all cells on the same road side within 1 plot width (5 world units) and full depth (rows 0..3)
+    layout.cells.forEach(function(other) {
+      if (other.road === c.road && (other.nx * c.nx + other.nz * c.nz) > 0.5 &&
+          Math.hypot(other.x - (c.x + c.nx * (other.row - c.row) * layout.cellUnits),
+                     other.z - (c.z + c.nz * (other.row - c.row) * layout.cellUnits)) <= layout.cellUnits * 2.1) {
+        if (!seenKey[other.key]) {
+          seenKey[other.key] = true;
+          fullLotKeys.push(other.key);
+        }
+      }
+    });
+  });
+  this.paintCells(fullLotKeys.length ? fullLotKeys : rawKeys, data.x);
 };
 
 
@@ -1301,7 +1375,8 @@ Game.prototype.handleTool = function(data) {
   this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y};
   if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
       Math.abs(last.x - tileCoords.x) + Math.abs(last.y - tileCoords.y) > 1) {
-    linePath(last, tileCoords).slice(1, -1).forEach(function(tile) {
+    var fill = toolName === UPGRADE_TOOL ? this.upgradeRoadPath([last, tileCoords]) : linePath(last, tileCoords);
+    fill.slice(1, -1).forEach(function(tile) {
       this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
     }, this);
   }
@@ -1313,6 +1388,7 @@ Game.prototype.handleTool = function(data) {
       this.refreshPrices();
       if (this.cityView.landChanged)
         this.cityView.landChanged();
+      this.cancelDraft();
     } else {
       var rankNeeded = blocksByRank(this.gameMap).findIndex(function(n) { return n > (this.gameMap.landBought || 0); }, this);
       showCornerNote(t('land.note.' + LAND_KEYS[bought.reason], {
@@ -1560,7 +1636,7 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.colour = OUTSIDE_COLOUR;
   // ... and, on a map painted a cell at a time, a building not beside a road, which may not stand there
   // (src/cityCommands.ts besideRoad)
-  if (cityMap.cellZones && hover.size >= 3 && !besideRoad(cityMap.width, cityMap.height, function(x, y) {
+  if (cityMap.cellZones && (hover.building || hover.size >= 3) && !besideRoad(cityMap.width, cityMap.height, function(x, y) {
     return isRoadTile(cityMap.getTileValue(x, y));
   }, tile.x, tile.y, hover.size))
     hover.colour = OUTSIDE_COLOUR;
@@ -1584,6 +1660,13 @@ Game.prototype.calculateMouseForPaint = function() {
 
   // A road or railway tool shows a small marker where it would start or end, on an existing line's middle when near
   // one (owner, 14 Oct 2026: "ช่อง tool ให้เล็กลงอีก ที่จะวาด และให้ snap กับ เส้นกลาง ของถนน")
+  var roadLevel = ROAD_TOOLS.indexOf(this.inputStatus.toolName) + 1;
+  var units = realUnits(cityMap.tileSizeM);
+  if (roadLevel > 0) {
+    hover.roadWidth = roadReach(roadLevel, units) * 2;
+  } else if (this.inputStatus.toolName === 'rail') {
+    hover.roadWidth = 3.2 * (units || 1);
+  }
   var linePoint = this.linePoint(this.inputStatus.toolName, this.inputStatus.mouseX, this.inputStatus.mouseY);
   if (linePoint !== null) {
     hover.linePoint = linePoint;
@@ -1596,12 +1679,12 @@ Game.prototype.calculateMouseForPaint = function() {
   var preview = this.drawPreview(tile);
   if (preview !== null && preview.tiles.length > 0) {
     hover.path = preview.tiles;
-    // A road, railway or power line being drawn shows blue with a dashed middle, as in Cities: Skylines
-    hover.line = preview.mode !== 'fill' && preview.mode !== 'rectangle';
+    hover.drawMode = preview.mode;
+    // A road, railway or power line being drawn (including rectangle and grid road modes) uses road ribbons
+    hover.line = preview.mode !== 'fill' && (preview.mode !== 'rectangle' || roadLevel > 0 || this.inputStatus.toolName === 'rail');
     // ... in the colour of what it builds: laterite, asphalt, concrete, railway (owner, 14 Oct 2026)
     if (hover.line && hover.colour !== OUTSIDE_COLOUR) {
-      var level = ROAD_TOOLS.indexOf(this.inputStatus.toolName) + 1;
-      hover.colour = level === 1 ? '#d9824a' : level === 2 ? '#4a4f52' : level > 2 ? '#9a978f' :
+      hover.colour = roadLevel === 1 ? '#d9824a' : roadLevel === 2 ? '#4a4f52' : roadLevel > 2 ? '#9a978f' :
                      this.inputStatus.toolName === 'rail' ? '#7a6f63' : DRAW_COLOUR;
     }
     // Every mode's preview is the very line it builds: the straight line or the curve through its points
@@ -1641,11 +1724,13 @@ Game.prototype.handleToolPoint = function(data) {
     return;
   if (this.isCellBrush(toolName)) {
     this.paintCellStroke(data);
+    this.resetDraft();
     return;
   }
   var mode = drawModeOf(toolName);
   if (mode === 'fill') {
     this.applyTiles(fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
+    this.resetDraft();
     return;
   }
   var needed = POINTS_NEEDED[mode];
@@ -1661,13 +1746,59 @@ Game.prototype.handleToolPoint = function(data) {
   draft.points.push(tile);
   if (draft.points.length < needed)
     return;
-  var path = curvePath(draft.points);
+  var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
   this.applyTiles(path, data.stroke, data.x);
-  // The next line starts where this one ended, and its angle is told from the way this one went
-  var back = path[Math.max(0, path.length - 4)];
-  draft.from = {x: tile.x - back.x, y: tile.y - back.y};
-  draft.points = [tile];
-  draft.startPoint = this.linePoint(toolName, data.x, data.y);
+  this.resetDraft();
+};
+
+
+// Shortest path along existing 4-connected road tiles from points[0] to points[last] for UPGRADE_TOOL, so upgrading a
+// slanted or curved road hits every tile of its staircase rather than skipping elbows with a Bresenham line
+Game.prototype.upgradeRoadPath = function(points) {
+  if (!points || points.length < 2)
+    return points || [];
+  var map = this.gameMap, w = map.width, h = map.height;
+  var isRoad = function(x, y) { return x >= 0 && y >= 0 && x < w && y < h && isRoadTile(map.getTileValue(x, y)); };
+  var snapRoad = function(pt) {
+    if (isRoad(pt.x, pt.y)) return pt;
+    for (var d = 1; d <= 2; d++)
+      for (var dy = -d; dy <= d; dy++)
+        for (var dx = -d; dx <= d; dx++)
+          if (isRoad(pt.x + dx, pt.y + dy)) return {x: pt.x + dx, y: pt.y + dy};
+    return pt;
+  };
+  var start = snapRoad(points[0]), goal = snapRoad(points[points.length - 1]);
+  if (!isRoad(start.x, start.y) || !isRoad(goal.x, goal.y))
+    return curvePath(points);
+  var startIdx = start.y * w + start.x, goalIdx = goal.y * w + goal.x;
+  if (startIdx === goalIdx)
+    return [start];
+  var prev = new Int32Array(w * h).fill(-1);
+  prev[startIdx] = startIdx;
+  var queue = [startIdx], head = 0, maxSteps = 4000;
+  var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  while (head < queue.length && head < maxSteps) {
+    var cur = queue[head++];
+    if (cur === goalIdx) break;
+    var cx = cur % w, cy = (cur - cx) / w;
+    for (var k = 0; k < 4; k++) {
+      var nx = cx + dirs[k][0], ny = cy + dirs[k][1];
+      if (!isRoad(nx, ny)) continue;
+      var ni = ny * w + nx;
+      if (prev[ni] !== -1) continue;
+      prev[ni] = cur;
+      queue.push(ni);
+    }
+  }
+  if (prev[goalIdx] === -1)
+    return curvePath(points);
+  var out = [];
+  for (var at = goalIdx; ; at = prev[at]) {
+    out.push({x: at % w, y: Math.floor(at / w)});
+    if (at === startIdx) break;
+  }
+  out.reverse();
+  return out;
 };
 
 
@@ -1781,10 +1912,18 @@ Game.prototype.roadWayAt = function(tile) {
 };
 
 
+Game.prototype.resetDraft = function() {
+  this.lineDraft = null;
+  this._cellStroke = null;
+  this._strokeTile = null;
+  this.showDrawTip(null);
+};
+
+
 // A right click puts the tool in hand down at once, with any line half drawn (owner, 14 Oct 2026: "คลิกขวา แล้ว ให้
 // tool นั้นหาย ไปเลยได้ไหม"); a right drag still turns the camera, and Esc still takes a half-drawn line first
 Game.prototype.cancelDraft = function() {
-  this.lineDraft = null;
+  this.resetDraft();
   this.inputStatus.clearTool();
 };
 
@@ -1859,8 +1998,8 @@ Game.prototype.drawPreview = function(tile) {
     guide = snap.guide;
     if (draft !== null && draft.points.length > 0) {
       var points = draft.points.concat([snap.tile]);
-      tiles = curvePath(points);
-      controls = points;
+      tiles = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(points) : curvePath(points);
+      controls = toolName === UPGRADE_TOOL ? null : points;
       var start = points[0], leaving = points[1];
       angle = joinAngle({x: leaving.x - start.x, y: leaving.y - start.y}, draft.from, this.roadWayAt(start));
     } else if (snap.tile.x !== tile.x || snap.tile.y !== tile.y) {
@@ -1958,6 +2097,7 @@ Game.prototype.handleToolArea = function(data) {
     var keys = this.cellsInArea(data.from, data.to);
     if (keys.length)
       this.paintCells(keys, data.to.x);
+    this.resetDraft();
     return;
   }
 
@@ -1965,16 +2105,21 @@ Game.prototype.handleToolArea = function(data) {
   var mode = drawModeOf(toolName);
   if (isAreaMode(mode)) {
     var from = this.cityView.tileAt(data.from.x, data.from.y);
-    if (from === null)
+    if (from === null) {
+      this.resetDraft();
       return;
+    }
     var to = this.cityView.tileAt(data.to.x, data.to.y) || from;
     this.applyTiles(mode === 'grid' ? gridPath(from, to) : rectanglePath(from, to), data.stroke, data.to.x);
+    this.resetDraft();
     return;
   }
 
   var centres = this.areaCentresFor(data, this.inputStatus.toolWidth - 0);
-  if (centres === null)
+  if (centres === null) {
+    this.resetDraft();
     return;
+  }
 
   // Zones that do not fit (water, buildings in the way) are skipped; one sound for the whole area
   var best = null;
@@ -1991,6 +2136,7 @@ Game.prototype.handleToolArea = function(data) {
     this.showToolResult(tool, best);
   this.gameAudio.toolUsed(toolName, best, data.to.x);
   this.refreshUndo();
+  this.resetDraft();
 };
 
 
@@ -2041,7 +2187,7 @@ var tick = function() {
   this.handleInput();
 
   if (this.dialogOpen) {
-    window.setTimeout(this.tick, 0);
+    window.setTimeout(this.tick, 33);
     return;
   }
 
@@ -2050,10 +2196,7 @@ var tick = function() {
     this.core.tick();
   }
 
-  // Run this even when paused: you can still build when paused
-  this.mouse = this.calculateMouseForPaint();
-
-  window.setTimeout(this.tick, 0);
+  window.setTimeout(this.tick, 33);
 };
 
 
@@ -2065,6 +2208,9 @@ var commonAnimate = function() {
 
   if (!this.isPaused)
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
+
+  // Run this once per animation frame (even when paused: you can still build when paused)
+  this.mouse = this.calculateMouseForPaint();
 
   // The tiles that can take painted zones show along the roads while a brush or a road tool is in hand (src/plots.ts)
   // On a map painted a cell at a time its cells along the roads show with a road tool too, as Cities: Skylines shows
@@ -2078,6 +2224,10 @@ var commonAnimate = function() {
   }
 
   this.cityView.paint(this.mouse, this.spritesIn(this.cityView.visibleTiles()), this.isPaused);
+  if (!this._curtainFaded) {
+    this._curtainFaded = true;
+    fadeCurtain(false, 900);
+  }
 
   if (this.monsterTV !== null) {
     var tv = this.monsterTV.canvas;

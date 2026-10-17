@@ -80,7 +80,10 @@ export function cornerShop(b: PlotBuilder): Record<string, unknown> {
       b.ac(bx + 2.65, y + 0.2, front + 0.17);
       if (land === 3) { b.pot(bx - 2.2, front + 0.35, y - 0.4, 0.8); b.pot(bx + 1.0, front + 0.35, y - 0.4, 0.8); }
     }
-    for (const dx of [-2, 1.4]) b.pane(1.1, 1.1, bx + dx, 1.9 + (floors - 1) * 3, back - 0.02, b.glass, Math.PI);
+    b.tone(0x4b4239, 0.86, 2.05, 0.05, bx - 0.35, 1.225, back - 0.025);
+    for (let f = 0; f < floors; f++) for (const dx of [-2.1, 1.45]) {
+      b.framed(1.1, 1.15, bx + dx, 1.2 + f * 3.1, back, trim, { facing: -1, mullion: true });
+    }
   });
   b.feature('greenery', () => { if (land >= 1) b.plant(3.7, 3.85, 3.0, 0.55, 0.06, 0, s.plants[0]); });
   return { floors, floorHeight: [ground, 3], shopName: name, awning: true, gasCylinders: 3, regionalGoods: kit.commercial.goods };
@@ -109,7 +112,12 @@ export function shophouse(b: PlotBuilder): Record<string, unknown> {
       if (!arcade) b.tone(wall(Math.min(i, 1)), 0.24, ground, front - line, x, plinth + ground / 2, (line + front) / 2);
       b.tone(color, 0.24, top - first + 0.4, 0.12, x, first + (top - first + 0.4) / 2, front + 0.06);
     }
-    xs.forEach((x, i) => { for (let f = 0; f < 2; f++) b.tone(trim(i), unit - 0.1, 0.16, 0.14, x, first + f * upper, front + 0.07); });
+    xs.forEach((x, i) => {
+      for (let f = 0; f < 2; f++) {
+        b.tone(trim(i), unit - 0.1, 0.16, 0.14, x, first + f * upper, front + 0.07);
+        b.tone(trim(i), unit - 0.1, 0.16, 0.14, x, first + f * upper, back - 0.05);
+      }
+    });
   });
   b.feature('shop-fronts', () => xs.forEach((x, i) => {
     const gw = unit - 0.6;
@@ -137,6 +145,7 @@ export function shophouse(b: PlotBuilder): Record<string, unknown> {
     b.tone(0xc9b9a0, W, plinth + 0.06, front - line, 0, (plinth + 0.06) / 2, (line + front) / 2, b.stone);
   });
   b.feature('upper-floors', () => xs.forEach((x, i) => {
+    b.tone(0x4b4239, 0.86, 2.05, 0.05, x + 0.6, plinth + 1.025, back - 0.025);
     for (let f = 0; f < 2; f++) {
       const y = first + f * upper + 0.95;
       if (style.timberUpper && f === 0) {
@@ -152,7 +161,7 @@ export function shophouse(b: PlotBuilder): Record<string, unknown> {
       if (b.random() < 0.8 && !(arcade && f === 0)) {
         if (arcade || land === 3) b.ac(x + 0.6, y - 0.55, front + 0.17); else b.ac(x, y - 0.45, front + 0.17);
       }
-      b.pane(1.2, 1.4, x, y + 0.7, back - 0.02, b.glass, Math.PI);
+      b.framed(1.2, 1.4, x, y, back, trim(i), { facing: -1, mullion: true });
     }
     if (style.balcony) {
       b.tone(timber(i), unit - 0.3, 0.12, 0.78, x, first + 0.06, front + 0.39);

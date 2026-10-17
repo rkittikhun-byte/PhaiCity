@@ -201,13 +201,30 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   const canvas = doc.getElementById("MicropolisCanvas");
   if (!pan || !canvas) return;
   let drag: { id: number; x: number; y: number; moved: boolean; shift: boolean; turning: boolean } | null = null;
+  let spaceHeld = false;
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && (e.target === document.body || e.target === canvas)) {
+        spaceHeld = true;
+        canvas.classList.add("canPan");
+      }
+    });
+    window.addEventListener("keyup", (e) => {
+      if (e.code === "Space") {
+        spaceHeld = false;
+        canvas.classList.toggle("canPan", !holdingTool());
+      }
+    });
+  }
 
   // The player taking the camera stops a flight home
   canvas.addEventListener("wheel", stopHomeFlight, { passive: true });
   canvas.addEventListener("pointerdown", (event) => {
     stopHomeFlight();
-    if (event.button !== 0 || holdingTool()) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey, turning: false };
+    const canPanWithTool = event.shiftKey || spaceHeld;
+    if (event.button !== 0 || (holdingTool() && !canPanWithTool)) return;
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey || spaceHeld, turning: false };
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
@@ -215,13 +232,13 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     }
   });
   canvas.addEventListener("pointermove", (event) => {
-    canvas.classList.toggle("canPan", !holdingTool());
+    canvas.classList.toggle("canPan", !holdingTool() || spaceHeld);
     if (!drag || event.pointerId !== drag.id) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_START_PX) return;
     // The first few pixels decide what this whole drag does
-    if (!drag.moved) drag.turning = dragMode(dx, dy, drag.shift, turn !== null) === "turn";
+    if (!drag.moved) drag.turning = !spaceHeld && dragMode(dx, dy, drag.shift, turn !== null) === "turn";
     drag.moved = true;
     canvas.classList.add("panning");
     // The camera buttons' mode (src/cameraModes.ts): pan, rotate, zoom or tilt; free as always

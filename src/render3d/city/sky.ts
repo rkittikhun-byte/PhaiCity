@@ -64,5 +64,11 @@ export class SkyDome {
     this.mesh.position.copy(camera);
     this.material.uniforms.time.value = seconds;
   }
+  /** Updates zenith, horizon and haze colors for smooth day/night transitions. */
+  setColors(zenith: Color, horizon: Color, haze: Color): void {
+    this.material.uniforms.zenith.value.copy(zenith);
+    this.material.uniforms.horizon.value.copy(horizon);
+    this.material.uniforms.haze.value.copy(haze);
+  }
   dispose(): void { this.mesh.geometry.dispose(); this.material.dispose(); }
 }

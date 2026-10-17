@@ -273,3 +273,15 @@ Every flag must appear on the review page and in the final report.
 5. `npm test` and `npm run build` pass, and the game plays as before.
 6. No changes to existing license headers. New files get the PhaiCity header (see `docs/3d/MODEL_SPEC.md` section 8).
 7. Report to the project owner **in Thai**: what was produced, every flag found, and anything that needs a human decision.
+
+## 13. Local Thailand Database (PostgreSQL + PostGIS) & Real-Scale District Maps
+
+Real-scale district and city maps (`16 m/tile`, `data/maps/district/TH-xx-*.json`) are generated offline from the local Thailand PostGIS database (`scripts/geo/lib/db.mjs`, `dbLayers.mjs`, `cityStreets.mjs`, `landCover.mjs`, `wholeDistrict.mjs`).
+
+| Parameter | Value |
+|---|---|
+| Host & Port | `localhost:5432` |
+| Database | `thailand` (PostGIS + `postgis_raster` + `hstore`, EPSG:4326) |
+| Tables | `planet_osm_point`, `planet_osm_line`, `planet_osm_polygon`, `planet_osm_roads`, `dem_glo90` |
+| Commands | `npm run geo:districts -- --only TH-40` and `npm run geo:city -- --only TH-40 --districts` |
+

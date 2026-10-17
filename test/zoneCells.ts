@@ -36,10 +36,10 @@ function city() {
 }
 
 describe("zone cells", () => {
-  test("rows of 2 m cells lie beside the roads, along them, and never on them", () => {
+  test("rows of 4 m cells lie beside the roads, along them, and never on them", () => {
     const core = city(), layout = cellLayout(core.map);
-    expect(layout.cellUnits).toBeCloseTo(1.25);
-    expect(layout.cells.length).toBeGreaterThan(500);
+    expect(layout.cellUnits).toBeCloseTo(2.5);
+    expect(layout.cells.length).toBeGreaterThan(250);
     // Along the straight road (its middle at z = 105) the cells face it, in rows from 0 to CELL_DEPTH - 1
     const beside = layout.cells.filter(c => c.x > 100 && c.x < 500 && Math.abs(c.z - 105) < 30);
     expect(new Set(beside.map(c => c.row)).size).toBe(CELL_DEPTH);
@@ -50,24 +50,24 @@ describe("zone cells", () => {
     }
     // Along the slanted one they turn with it (two along, one down)
     const slanted = layout.cells.filter(c => c.z > 220 && c.z < 290 && c.x > 150 && c.x < 400);
-    expect(slanted.length).toBeGreaterThan(20);
+    expect(slanted.length).toBeGreaterThan(10);
     const heading = Math.atan2(2, 1);
     expect(slanted.filter(c => Math.abs(Math.abs(c.angle) - heading) < 0.15 || Math.abs(Math.abs(c.angle) - (Math.PI - heading)) < 0.15).length)
       .toBeGreaterThan(slanted.length * 0.8);
     // A point finds its cell, and a stroke the cells it crosses
     const first = beside[0];
     expect(cellAt(layout, core.map.width, first.x + 0.5, first.z - 0.5)?.key).toBe(first.key);
-    expect(cellsAlong(layout, core.map.width, [150, 95], [250, 95]).length).toBeGreaterThan(30);
+    expect(cellsAlong(layout, core.map.width, [150, 95], [250, 95]).length).toBeGreaterThan(15);
   });
 
-  test("rows beside a straight road are whole: a cell every 2 m, none missing (owner: \"ทำไมไม่เรียงกันสวยๆ\")", () => {
+  test("rows beside a straight road are whole: a cell every 4 m, none missing (owner: \"ทำไมไม่เรียงกันสวยๆ\")", () => {
     const core = city(), layout = cellLayout(core.map);
     // The straight road's own cells (its stretch's id), not the slanted road's rows that reach up near it
-    const road = layout.cells.find(c => c.row === 0 && Math.abs(c.x - 300) < 2 && Math.abs(c.z - 105) < 5)!.road;
-    for (const row of [0, 5, CELL_DEPTH - 1]) for (const side of [-1, 1]) {
+    const road = layout.cells.find(c => c.row === 0 && Math.abs(c.x - 300) < 3 && Math.abs(c.z - 105) < 6)!.road;
+    for (const row of [0, 3, CELL_DEPTH - 1]) for (const side of [-1, 1]) {
       const xs = layout.cells.filter(c => c.road === road && c.row === row && Math.sign(c.z - 105) === side && c.x > 100 && c.x < 500)
         .map(c => c.x).sort((a, b) => a - b);
-      expect(xs.length).toBeGreaterThan(300);
+      expect(xs.length).toBeGreaterThan(150);
       for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeCloseTo(layout.cellUnits);
     }
   });
@@ -83,13 +83,13 @@ describe("zone cells", () => {
     const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "residential", cells: keys }).accepted).toBe(true);
     expect(plotOf(core.map, 15, 11)).toMatchObject({ kind: "residential", level: 0 });
-    expect(plotOf(core.map, 15, 12)).toMatchObject({ kind: "residential" });
+    expect(plotOf(core.map, 15, 12)).toBeNull();
     // ... and the jobs homes need: shops and factories across the road (z 70..104), as a player paints them
     const across = (x0: number, x1: number) => layout.cells.filter(c => c.x > x0 && c.x < x1 && c.z > 70 && c.z < 104).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "commercial", cells: across(100, 220) }).accepted).toBe(true);
     expect(core.apply({ type: "zoneCells", zone: "industrial", cells: across(230, 420) }).accepted).toBe(true);
     // The cells on a plot stay, to be painted over or cleared
-    expect(cellsOf(core.map).cells.filter(c => Math.floor(c.x / 10) === 15 && Math.floor(c.z / 10) === 11).length).toBeGreaterThan(20);
+    expect(cellsOf(core.map).cells.filter(c => Math.floor(c.x / 10) === 15 && Math.floor(c.z / 10) === 11).length).toBeGreaterThan(8);
     core.run(2 * STEPS_PER_YEAR);
     const grown = [];
     for (let y = 11; y <= 13; y++) for (let x = 10; x <= 30; x++) { const plot = plotOf(core.map, x, y); if (plot && plot.level > 0) grown.push(plot); }

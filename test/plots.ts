@@ -207,4 +207,76 @@ describe("painted zones", () => {
     keys.push(`tool.${ERASE_TOOL}`, `choice.${ERASE_TOOL}`);
     for (const key of keys) expect([key, hasKey(key)]).toEqual([key, true]);
   });
+
+  test("environment-driven branching upgrades (A1 -> C2 -> D3) and 3D construction sequence (stage_1 -> stage_2 -> closed)", () => {
+    const { plotBranchCode, plotEnvironmentClass } = require("../src/plots");
+    const { TileSnapshot } = require("../src/render3d/city/tileModels");
+    const { createPlot } = require("../src/render3d/models/plot/index");
+    const { disposeModel } = require("../src/render3d/util/geometry");
+
+    const { map, sim } = city();
+    const x = 15, y = ROAD_Y + 1, idx = y * map.width + x;
+    const simData = sim._constructSimData();
+
+    // Start in a basic area (low land value, no parks/civic nearby) -> Class 0 (A1)
+    simData.blockMaps.landValueMap.worldSet(x, y, 18);
+    simData.blockMaps.pollutionDensityMap.worldSet(x, y, 0);
+    expect(plotEnvironmentClass(map, simData, x, y, "residential")).toBe(0);
+    map.setTile(x, y, plotTile("residential", 1, 0), BLBNCNBIT);
+    expect(plotBranchCode(plotOf(map, x, y)!)).toBe("A1");
+
+    // Take initial 3D snapshot with construction tracking enabled
+    const snapshot = new TileSnapshot(map.width, map.height);
+    snapshot.source = map;
+    snapshot.enableConstruction = true;
+    snapshot.sync(map);
+    expect(snapshot.placement(idx, "central")?.options.state).toBe("closed");
+
+    // Improve surrounding environment: add woods/parks and higher land value -> Class 2 (C)
+    simData.blockMaps.landValueMap.worldSet(x, y, 60);
+    map.setTile(x - 1, y, WOODS, 0);
+    map.setTile(x + 1, y, WOODS, 0);
+    map.setTile(x, y + 1, WOODS, 0);
+    const cClass = plotEnvironmentClass(map, simData, x, y, "residential");
+    expect(cClass).toBe(2);
+
+    // Upgrade A1 -> C2: triggers 3D construction sequence (stage_1 -> stage_2 -> closed)
+    map.setTile(x, y, plotTile("residential", 2, cClass), BLBNCNBIT);
+    expect(plotBranchCode(plotOf(map, x, y)!)).toBe("C2");
+    snapshot.sync(map);
+    expect(snapshot.placement(idx, "central")?.options.state).toBe("stage_1");
+    expect(snapshot.placement(idx, "central")?.options.variant).toBe(2);
+
+    // Advance construction timer to 2.5s -> stage_2 (scaffolding & safety mesh)
+    expect(snapshot.stepConstruction(2.5)).toContain(idx);
+    expect(snapshot.placement(idx, "central")?.options.state).toBe("stage_2");
+
+    // Advance construction timer to 5.2s -> closed (finished C2 building)
+    expect(snapshot.stepConstruction(5.2)).toContain(idx);
+    expect(snapshot.placement(idx, "central")?.options.state).toBe("closed");
+
+    // Further improve environment (hospital/civic + avenue + high land value) -> Class 3 (D) -> D3
+    simData.blockMaps.landValueMap.worldSet(x, y, 100);
+    map.setTile(x + 2, y + 1, 405, BLBNCNBIT); // hospital tile nearby
+    const dClass = plotEnvironmentClass(map, simData, x, y, "residential");
+    expect(dClass).toBe(3);
+    map.setTile(x, y, plotTile("residential", 3, dClass), BLBNCNBIT);
+    expect(plotBranchCode(plotOf(map, x, y)!)).toBe("D3");
+
+    // Verify 3D models for stage_1, stage_2 (with tower crane on level 3), and finished D3
+    const m1 = createPlot("plot.res_3", { variant: 3, state: "stage_1" });
+    const m2 = createPlot("plot.res_3", { variant: 3, state: "stage_2" });
+    const mDone = createPlot("plot.res_3", { variant: 3, state: "closed" });
+    try {
+      expect(m1.userData.constructionStage).toBe("stage_1");
+      expect(m2.userData.constructionStage).toBe("stage_2");
+      expect(m2.userData.towerCrane).toBe(true);
+      expect(mDone.userData.constructionStage).toBeUndefined();
+      expect(mDone.userData.landValue).toBe(3);
+    } finally {
+      disposeModel(m1);
+      disposeModel(m2);
+      disposeModel(mDone);
+    }
+  });
 });

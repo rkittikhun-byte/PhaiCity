@@ -10,6 +10,9 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
 - **Goal:** realistic Thai-themed 3D graphics with three.js.
   - The city simulation stays as is; only the rendering changes.
   - The roadmap is in `README.md`.
+- **Unified Architecture & Cities: Skylines Upgrade Docs (17 Oct 2026):**
+  - `docs/ARCHITECTURE.md` — Consolidated game systems, core architecture, map scales, district frames, zone cells, curved roads, and utilities.
+  - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
 
 **Talk to the project owner in Thai.** Code, comments and identifiers stay in English, matching the existing code.
 

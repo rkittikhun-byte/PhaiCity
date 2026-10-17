@@ -22,7 +22,7 @@ export function loadTexture(url: string, colorMap = false, asset?: TextureAsset)
       new TextureLoader().load(url, texture => {
         texture.wrapS = texture.wrapT = RepeatWrapping;
         texture.repeat.set(1 / (asset?.meters[0] ?? 1), 1 / (asset?.meters[1] ?? 1));
-        texture.anisotropy = 4;
+        texture.anisotropy = 8;
         if (colorMap) texture.colorSpace = SRGBColorSpace;
         resolve(texture);
       }, undefined, () => resolve(null));
@@ -65,6 +65,7 @@ export function getWaterNormal(): Texture {
   waterNormal = new DataTexture(data, size, size, RGBAFormat);
   waterNormal.wrapS = waterNormal.wrapT = RepeatWrapping;
   waterNormal.repeat.setScalar(1 / 8); // Broad 2–3 m wavelets with meter-based world UVs.
+  waterNormal.anisotropy = 8;
   waterNormal.needsUpdate = true;
   return waterNormal;
 }

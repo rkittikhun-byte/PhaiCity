@@ -12,3 +12,4 @@ assets/audio/_raw/
 # Secrets (API keys, the server's settings); only *.env.example files belong in git
 .env
 *.env
+.claude/

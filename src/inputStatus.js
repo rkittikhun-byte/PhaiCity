@@ -208,6 +208,12 @@ InputStatus.prototype.isClickTool = function() {
 
 
 var mouseDownHandler = function(e) {
+  if (e.which === 1 && this.currentTool !== null && this.isClickTool()) {
+    var c = this.getRelativeCoordinates(e);
+    this._linePress = {x: c.x, y: c.y};
+    $(this.canvasID).on('mouseup', this.mouseUpHandler);
+    return;
+  }
   var area = this.isAreaTool();
   if (this.currentTool === null || this.isClickTool() || !(this.currentTool.isDraggable || area) ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
@@ -238,6 +244,22 @@ var mouseUpHandler = function(e) {
   this._lastDragX = -1;
   this._lastDragY = -1;
   $(this.canvasID).off('mouseup');
+
+  if (this._linePress && this.currentTool !== null && this.isClickTool()) {
+    var c = this.getRelativeCoordinates(e);
+    var press = this._linePress;
+    this._linePress = null;
+    var dist = Math.hypot(c.x - press.x, c.y - press.y);
+    if (dist >= 14 && drawModeOf(this.toolName) === 'straight') {
+      this.stroke += 1;
+      this._emitEvent(Messages.TOOL_POINT, {x: press.x, y: press.y, stroke: this.stroke});
+      this._emitEvent(Messages.TOOL_POINT, {x: c.x, y: c.y, stroke: this.stroke});
+      this._suppressNextClick = true;
+      e.preventDefault();
+      return;
+    }
+  }
+  this._linePress = null;
 
   // Releasing the mouse lays the dragged area of zones
   if (this.areaDrag !== null) {
@@ -297,6 +319,11 @@ var mouseMoveHandler = function(e) {
 
 
 var canvasClickHandler = function(e) {
+  if (this._suppressNextClick) {
+    this._suppressNextClick = false;
+    e.preventDefault();
+    return;
+  }
   var clicks = this.isClickTool();
   if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||

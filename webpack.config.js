@@ -136,7 +136,7 @@ function injectArtExportBundle() {
 
 function addDevelopmentConfigTo(options) {
   options.devServer = {
-    static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY) },
+    static: { directory: path.resolve(__dirname, OUTPUT_DIRECTORY), serveIndex: false },
     setupMiddlewares: (middlewares, devServer) => {
       addAdminRoutes(devServer.app, __dirname);
       addArtRoutes(devServer.app, __dirname);

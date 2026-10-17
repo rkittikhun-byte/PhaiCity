@@ -29,32 +29,33 @@ function simplifiedTree(kind: TreeKind, rng: () => number, options: ModelOptions
       b.taper([point(x, 0, z), point(x * 1.2, 4, z * 1.2), point(x * 2.6, 7.6, z * 2.6)], 0.075, bark, 3, 3);
     }
   } else if (kind === 'banana') {
-    for (let stem = 0; stem < 3; stem++) b.taper([point((stem - 1) * 0.4, 0, 0),
-      point((stem - 1) * 0.5, 4 + stem * 0.5, 0)], 0.15, bark, 2, 4);
+    for (let stem = 0; stem < 5; stem++) b.taper([point((stem - 2) * 0.35, 0, (stem % 2 - 0.5) * 0.2),
+      point((stem - 2) * 0.45, 4 + stem * 0.35, (stem % 2 - 0.5) * 0.3)], 0.16, bark, 3, 4);
   } else b.taper([point(0, 0, 0), point(kind === 'coconut' ? -0.3 : 0.05, trunkTop * 0.5, 0), crown],
     kind === 'oil_palm' ? 0.42 : 0.18, bark, 4, 4);
-  if (palm) for (let frond = 0; frond < (detail === 1 ? 6 : 4); frond++) {
-    const angle = frond * Math.PI * 2 / (detail === 1 ? 6 : 4) + rng() * 0.1, tip = crown.clone().add(point(Math.cos(angle) * 1.6, -1, Math.sin(angle) * 1.6));
-    const curve = b.taper([crown, crown.clone().add(point(Math.cos(angle) * 0.8, 0.55, Math.sin(angle) * 0.8)), tip], 0.04, bark, 2, 3);
-    for (let pair = 0; pair < (detail === 1 ? 4 : 3); pair++) for (const side of [-1, 1]) {
-      const center = kind === 'sugar_palm' ? curve.getPointAt(0.6) : curve.getPointAt((pair + 1) / 5);
-      const a = angle + side * (kind === 'sugar_palm' ? (pair + 1) * 0.19 : 0.8);
-      b.leaf(center, point(Math.cos(a), -0.25, Math.sin(a)), kind === 'sugar_palm' ? 0.95 : 0.8, 0.2, leaf, angle);
+  if (palm) for (let frond = 0; frond < (detail === 1 ? 10 : 8); frond++) {
+    const frondCount = detail === 1 ? 10 : 8;
+    const angle = frond * Math.PI * 2 / frondCount + rng() * 0.1, tip = crown.clone().add(point(Math.cos(angle) * 2.2, -1.2, Math.sin(angle) * 2.2));
+    const curve = b.taper([crown, crown.clone().add(point(Math.cos(angle) * 1.1, 0.7, Math.sin(angle) * 1.1)), tip], 0.045, bark, 2, 3);
+    for (let pair = 0; pair < 6; pair++) for (const side of [-1, 1]) {
+      const center = kind === 'sugar_palm' ? curve.getPointAt(0.4 + pair * 0.1) : curve.getPointAt((pair + 1) / 7);
+      const a = angle + side * (kind === 'sugar_palm' ? (pair + 1) * 0.18 : 0.75);
+      b.leaf(center, point(Math.cos(a), -0.25, Math.sin(a)), kind === 'sugar_palm' ? 1.1 : 0.95, 0.28, leaf, angle);
     }
   } else if (kind === 'banana') {
-    for (let i = 0; i < (detail === 1 ? 12 : 8); i++) b.leaf(point((i % 3 - 1) * 0.5, 4.2 + i % 3 * 0.5, 0),
-      point(Math.cos(i * 2.4), 0.3, Math.sin(i * 2.4)), 1.8, 0.7, leaf, i, -0.2, 2, i % 4 === 0);
+    for (let i = 0; i < 22; i++) b.leaf(point((i % 5 - 2) * 0.4, 4.0 + (i % 4) * 0.4, (i % 3 - 1) * 0.25),
+      point(Math.cos(i * 1.8), 0.35, Math.sin(i * 1.8)), 2.1, 0.85, leaf, i, -0.25, 2, i % 3 === 0);
   } else {
     const umbrella = ['rain_tree', 'tamarind', 'mangrove'].includes(kind);
-    const cards = Math.round((kind === 'pine' ? 80 : bamboo ? 72 : 84) * detail);
+    const cards = Math.round((kind === 'pine' ? 150 : bamboo ? 120 : 160) * Math.max(0.75, detail));
     for (let i = 0; i < cards; i++) {
       const t = (i + 0.5) / cards, angle = i * 2.399963;
-      const radius = kind === 'eucalyptus' ? 1 : kind === 'durian' || kind === 'pine' ? 1.9 * t : umbrella ? 2 * Math.sqrt(t) : 1.55 * Math.sqrt(t);
-      const y = umbrella ? 7.2 - t * 0.9 : 7.8 - t * 2.6;
+      const radius = kind === 'eucalyptus' ? 1.25 : kind === 'durian' || kind === 'pine' ? 2.2 * t : umbrella ? 2.45 * Math.sqrt(t) : 1.95 * Math.sqrt(t);
+      const y = umbrella ? 7.6 - t * 1.1 : 8.2 - t * 2.8;
       const center = point(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-      if (i % 16 === 0 && !bamboo) b.taper([crown, center], 0.06, bark, 1, 3);
+      if (i % 12 === 0 && !bamboo) b.taper([crown, center], 0.065, bark, 1, 3);
       b.leaf(center, point(Math.cos(angle + 0.6), 0.25, Math.sin(angle + 0.6)),
-        kind === 'teak' ? 1.35 : bamboo ? 0.85 : 1.1, kind === 'pine' || kind === 'eucalyptus' || bamboo ? 0.18 : 0.65,
+        kind === 'teak' ? 1.45 : bamboo ? 0.95 : 1.25, kind === 'pine' || kind === 'eucalyptus' || bamboo ? 0.22 : 0.75,
         leaf, rng() * Math.PI, 0.1, 1, false, i % 2 === 0);
     }
   }

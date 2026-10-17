@@ -400,16 +400,34 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       #undef USE_INSTANCING_COLOR
       #include <color_vertex>
       #define USE_INSTANCING_COLOR`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour; uniform float cityTime;')
       .replace('#include <color_fragment>', `#include <color_fragment>
+        if (cityIsGround > 0.5) {
+          float gMicro = sin(cityWorldXZ.x * 3.7 + sin(cityWorldXZ.y * 2.9)) * cos(cityWorldXZ.y * 4.1 - sin(cityWorldXZ.x * 3.1));
+          float gMeso = sin(cityWorldXZ.x * 0.42 + cityWorldXZ.y * 0.31) * cos(cityWorldXZ.x * 0.27 - cityWorldXZ.y * 0.39);
+          float gMacro = sin(cityWorldXZ.x * 0.065 - cityWorldXZ.y * 0.052) * cos(cityWorldXZ.x * 0.048 + cityWorldXZ.y * 0.071);
+          diffuseColor.rgb *= 1.0 + gMicro * 0.042 + gMeso * 0.048 + gMacro * 0.045;
+        }
         // Rivers, lakes and the sea meet the land along curves: the ground takes the colour of the side of the curve it
         // lies on, while its tile keeps its height (roads, rails and bridges are not ground and keep their colours)
         if (cityMaskOn > 0.5 && cityIsGround > 0.5) {
           vec2 cityCell = cityWorldXZ / 10.0;
           float cityTileWet = texelFetch(cityMask, ivec2(clamp(floor(cityCell), vec2(0.0), cityMaskSize - 1.0)), 0).g;
-          float cityShapeWet = smoothstep(0.42, 0.58, texture2D(cityMask, cityCell / cityMaskSize).g);
+          float cityRawWet = texture2D(cityMask, cityCell / cityMaskSize).g;
+          float cityShapeWet = smoothstep(0.42, 0.58, cityRawWet);
           if (cityTileWet < 0.5) diffuseColor.rgb = mix(diffuseColor.rgb, cityWaterColour, cityShapeWet);
           else diffuseColor.rgb = mix(cityBankColour, diffuseColor.rgb, cityShapeWet);
+          if (cityShapeWet > 0.2) {
+            float deepFactor = smoothstep(0.48, 0.92, cityRawWet);
+            float w1 = sin(cityWorldXZ.x * 0.85 + cityWorldXZ.y * 0.55 + cityTime * 1.65);
+            float w2 = cos(cityWorldXZ.x * 0.62 - cityWorldXZ.y * 0.95 - cityTime * 1.25);
+            float wave = (w1 + w2) * 0.5;
+            float glint = smoothstep(0.72, 0.98, wave);
+            vec3 shallowCol = cityWaterColour * vec3(1.06, 1.08, 1.02);
+            vec3 deepCol = cityWaterColour * vec3(0.74, 0.84, 0.94);
+            vec3 waterCol = mix(shallowCol, deepCol, deepFactor) + vec3(0.03, 0.045, 0.055) * wave + vec3(0.22, 0.21, 0.17) * glint;
+            diffuseColor.rgb = mix(diffuseColor.rgb, waterCol, cityShapeWet);
+          }
         }`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         float provinceLuma = dot(gl_FragColor.rgb, vec3(0.2126,0.7152,0.0722));
@@ -766,14 +784,22 @@ export function isLibraryMaterial(material: Material): boolean {
   return owned.has(material);
 }
 
-/** Shared lighting setting: update existing materials and future tinted instances. */
-export function setNightMode(night: boolean): void {
+/** Shared lighting setting: update existing materials and future tinted instances with smooth night factor. */
+export function setNightMode(night: boolean, nightFactor?: number): void {
   nightMode = night;
-  cache.forEach(applyNight);
+  const factor = nightFactor !== undefined ? nightFactor : (night ? 1 : 0);
+  const lampIntensity = Math.max(0.015, factor * 2.2);
+  const winIntensity = Math.max(0.15, factor * 2.6);
+  const signIntensity = Math.max(0.3, factor * 2.0);
+  cache.forEach(material => {
+    if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = lampIntensity;
+    if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = winIntensity;
+    if (material.userData.litSign) material.emissiveIntensity = signIntensity;
+  });
 }
 
 function applyNight(material: MeshStandardMaterial): void {
-  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = nightMode ? 1.5 : 0.015;
-  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.5 : 0.15;
-  if (material.userData.litSign) material.emissiveIntensity = nightMode ? 1.6 : 0.3;
+  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = nightMode ? 2.2 : 0.015;
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.6 : 0.15;
+  if (material.userData.litSign) material.emissiveIntensity = nightMode ? 2.0 : 0.3;
 }

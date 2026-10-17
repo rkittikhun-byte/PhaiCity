@@ -49,7 +49,7 @@ export class StreetLabels {
     this.root.visible = show;
     if (!show || !visible) return;
     const opacity = distance <= FADE_FROM ? 1 : 1 - (distance - FADE_FROM) / (LABEL_DISTANCE - FADE_FROM);
-    const rect = `${visible.x0},${visible.y0},${visible.x1},${visible.y1}`;
+    const rect = `${Math.floor(visible.x0 / 6)},${Math.floor(visible.y0 / 6)},${Math.ceil(visible.x1 / 6)},${Math.ceil(visible.y1 / 6)}`;
     if (rect !== this.rect) { this.rect = rect; this.place(visible); }
     camera.updateMatrixWorld(); this.right.setFromMatrixColumn(camera.matrixWorld, 0);
     for (const label of this.labels.values()) {
@@ -83,7 +83,7 @@ export class StreetLabels {
     this.relabel();
   }
   private place(visible: TileRect): void {
-    const margin = 4, inside: typeof this.spots = [];
+    const margin = 6, inside: typeof this.spots = [];
     // Bigger streets come first (src/streetNames.ts sorts them); a name too near one already written is left off
     for (const s of this.spots) {
       if (inside.length >= MAX_LABELS) break;
@@ -132,7 +132,7 @@ export class StreetLabels {
   private drop(label: Label): void {
     label.mesh.geometry.dispose(); (label.mesh.material as MeshBasicMaterial).dispose(); label.mesh.removeFromParent();
     const text = this.texts.get(label.text);
-    if (text && --text.users <= 0) { text.texture.dispose(); this.texts.delete(label.text); }
+    if (text && text.users > 0) text.users--;
   }
   private baseAt(x: number, y: number): number {
     if (!this.terrain) return 0;

@@ -23,7 +23,7 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
     xs.forEach((x, i) => b.body(wall(i), unit - 0.04, top, depth, x, 0, zc, stain));
     // Party walls stand proud of the front and rise as short fire walls between the units.
     for (let i = 0; i <= units; i++) b.tone(trim(Math.min(i, units - 1)), 0.2, top + 0.3, 0.3, edge(i) + (i === 0 ? 0.1 : i === units ? -0.1 : 0), (top + 0.3) / 2, front + 0.1);
-    b.tone(trim(0), W - 0.2, 0.16, 0.3, 0, plinth + storey, front + 0.1);
+    b.tone(trim(0), W + 0.08, 0.16, depth + 0.12, 0, plinth + storey, zc);
   });
   b.feature('roof', () => b.ridgeRoof(s.roof, W, depth, top, zc, { pitch: kit.defaults.pitch * 0.6, overhang: 0.35,
     material: s.roofMaterial, wall: wall(0), ornaments: true, trim: trim(0) }));
@@ -42,7 +42,8 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
       b.tone(trim(i), 1.25, 0.08, 0.7, x - 1.0, plinth + 2.62, front + 0.35);
     }
     b.lamp(edge(i) + 0.3, plinth + 2.3, front + 0.25);
-    b.pane(1.1, 1.1, x, plinth + 1.6, back - 0.02, b.glass, Math.PI);
+    b.framed(0.95, 1.1, x - 0.45, plinth + 0.95, back, trim(i), { facing: -1, mullion: true });
+    b.tone(0x4b4239, 0.82, 2.05, 0.05, x + 0.55, plinth + 1.025, back - 0.025);
   }));
   b.feature('upper-floor', () => xs.forEach((x, i) => {
     const y = plinth + storey + 0.95;
@@ -62,7 +63,7 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
       if (s.windowFret) b.take(b.dress(kit.ornaments.fretwork({ width: 2.0, height: 0.3, seed, color: colors[i].trim, detail: 'low' })), x - 0.7, y + 1.95, front + 0.1);
     }
     if (s.ventPanel) for (let n = 0; n < 3; n++) b.tone(trim(i), 0.9, 0.06, 0.06, x + (units === 3 ? -0.25 : 1.3), top - 0.5 + n * 0.12, front + 0.04);
-    b.pane(1.2, 1.2, x, y + 0.65, back - 0.02, b.glass, Math.PI);
+    b.framed(1.15, 1.15, x, y, back, trim(i), { facing: -1, mullion: true });
   }));
   b.feature('front-yards-and-gates', () => {
     const pave = [0x8f8a80, 0xb3afa6, 0xc9c6bf, 0xd8d3c8][land];
@@ -77,11 +78,19 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
       if (land >= 1 && !(s.hedge && i === hedgeAt) && !(land < 2 && i === laundryAt) && !(land === 3 && i === propAt)) b.pot(x + unit / 2 - 0.62, yardEnd - 0.62);
     });
     b.tank(xs[tankAt] + unit / 2 - 0.62, 0.06, front + 0.62, 0.4, 1.0, land === 0 ? 0x3c6ea7 : 0xd3d8d9);
+    if (land === 2) {
+      // C2 branch: Modern Tropical timber sun-louvre screen and entrance pergola
+      const pergolaAt = xs[propAt];
+      for (let n = 0; n < 4; n++) b.tone(0x8a5e3b, 0.08, 0.08, yardEnd - front - 0.35, pergolaAt - 0.9 + n * 0.6, 2.52, yardMid - 0.1);
+      for (const dx of [-1, 1]) b.tone(0x5d4632, 0.08, 2.55, 0.08, pergolaAt + dx * (unit / 2 - 0.35), 1.28, yardEnd - 0.45);
+    }
     if (land === 3) {
       b.auto(xs[propAt], yardMid + 0.05, b.pick(CARS), Math.PI / 2);
-      // A sheet-metal carport over the car, on two slim posts at the gate.
+      // D2 branch: A sheet-metal carport over the car + courtyard plunge pool in the twin unit's garden
       b.tilt(0x9aa3a6, unit - 0.3, 0.05, yardEnd - front - 0.35, xs[propAt], 2.55, yardMid - 0.1, -0.08, b.metal);
       for (const dx of [-1, 1]) b.tone(0x5d6466, 0.08, 2.62, 0.08, xs[propAt] + dx * (unit / 2 - 0.3), 1.33, yardEnd - 0.45, b.metal);
+      const poolUnit = xs[(propAt + 1) % units];
+      b.pool(poolUnit, yardMid, 2.1, 1.35, 0.08);
     }
     if (land >= 2) xs.forEach(x => b.tone(0xb83a2e, 0.32, 0.26, 0.16, x + unit / 2 - 0.42, 1.25, yardEnd - 0.06, b.metal));
     else if (s.props.length) {
@@ -99,7 +108,8 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
     if (s.hedge && land >= 1) b.take(b.dress(kit.gardenPlant('hedge', { seed })), xs[hedgeAt], 0.06, yardEnd - 0.42, 0, 0.85);
     b.plant(edge(0) + 0.75, yardEnd - 0.7, 3.2, 0.55, 0.06, 0, s.plants[0]);
   });
-  return { floors: 2, floorHeight: storey, units, unitWidth: unit, frontYard: yardEnd - front, roofForm: s.roof, roofMaterial: s.roofMaterial };
+  return { floors: 2, floorHeight: storey, units, unitWidth: unit, frontYard: yardEnd - front, roofForm: s.roof, roofMaterial: s.roofMaterial,
+    branchCode: `${['A', 'B', 'C', 'D'][land]}2` };
 }
 
 /** Level 3: a three- or four-storey walk-up (อพาร์ตเมนต์เล็ก) with front balconies, laundry, air conditioners and a
@@ -128,8 +138,11 @@ export function walkup(b: PlotBuilder): Record<string, unknown> {
       if (land < 2) {
         b.tone(wall, 3.2, 0.95, 0.1, x, y + 0.55, front + 0.95);
         for (const dx of [-1.55, 1.55]) b.tone(wall, 0.1, 0.95, 0.9, x + dx, y + 0.55, front + 0.5);
-      } else if (land === 2) b.bars(3.1, 1.0, x, y + 0.12, front + 0.96, 8, rail);
-      else b.box(3.1, 0.95, 0.04, x, y + 0.6, front + 0.96, b.glass);
+      } else if (land === 2) {
+        b.bars(3.1, 1.0, x, y + 0.12, front + 0.96, 8, rail);
+        // C3 branch: Modern vertical timber-tone privacy fin between balconies
+        b.tone(0x8a5e3b, 0.1, storey - 0.15, 0.95, mx, y + storey / 2, front + 0.48);
+      } else b.box(3.1, 0.95, 0.04, x, y + 0.6, front + 0.96, b.glass);
       b.tone(0xbfc2bd, 1.9, 2.15, 0.05, x - 0.45, y + 1.2, front + 0.025, b.metal);
       b.box(1.76, 2.0, 0.04, x - 0.45, y + 1.15, front + 0.06, b.glass);
       b.ac(x + 1.05, y + 0.42, front + 0.3);
@@ -146,8 +159,13 @@ export function walkup(b: PlotBuilder): Record<string, unknown> {
     b.parapet(weather(0xd0ccc2, land), cw, cd, cx, coreTop + 0.12, cz, 0.6);
     for (const dz of [-1.1, 0.4]) b.tank(cx, coreTop + 0.12, cz + dz, 0.45, 1.05, land === 0 ? 0x3c6ea7 : 0xd3d8d9);
     if (land < 3) b.dish(cx + 0.45, coreTop + 0.12, cz + 1.55, 0.6);
+    else {
+      // D3 branch: Luxury rooftop architectural pergola canopy over the core terrace
+      b.tone(0x5d4632, cw - 0.2, 0.1, 1.8, cx, coreTop + 1.65, cz + 1.1);
+      for (const dx of [-0.65, 0.65]) b.tone(0x5d4632, 0.08, 1.5, 0.08, cx + dx, coreTop + 0.88, cz + 1.8);
+    }
     b.shopSign(b.pick(['อพาร์ตเมนต์ลมเย็น', 'หอพักบ้านสวน', 'แมนชั่นใบไม้', 'อพาร์ตเมนต์ริมคลอง']), 0.62, 3.4, cx + 0.55, top - 2.2, cz + cd / 2 + 0.06,
-      { vertical: true, background: 0xf1ead8, foreground: 0x8c3b2e });
+      { vertical: true, background: land === 3 ? 0x253b37 : 0xf1ead8, foreground: land === 3 ? 0xf6e7b6 : 0x8c3b2e, lit: land === 3 });
   });
   b.feature('ground-floor', () => {
     if (open) {

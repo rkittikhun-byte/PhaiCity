@@ -12,6 +12,7 @@ import { cornerShop, mixedUse, office, officeTower, shophouse } from './shops.js
 import { garage, processingWorks, smallFactory, warehouse } from './factories.js';
 import { apartmentBlock, condoTowerLot, mall, officeTowerLot } from './lots.js';
 import { factoryLot, plantLot } from './lots-industry.js';
+import { buildConstructionStage } from './construction.js';
 
 /** One-tile painted zones ("plots", แปลง) grow one of these per tile, level by level, and joined plots grow the
  * two-by-two "lots". They claim no tile values: the city view places them from its plots layer and turns each to face
@@ -55,6 +56,9 @@ export const PLOT_IDS = PLOT_SPECS.map(s => s.id);
 export function createPlot(id: string, options: ModelOptions = {}): Group {
   const plot = PLOT_SPECS.find(s => s.id === id);
   if (!plot) throw new RangeError(`Unknown plot model: ${id}`);
-  const b = new PlotBuilder(options, plot.variants.length - 1), metadata = plot.build(b);
+  const b = new PlotBuilder(options, plot.variants.length - 1);
+  const metadata = options.state === 'stage_1' || options.state === 'stage_2'
+    ? buildConstructionStage(b, options.state, plot.category, plot.level, plot.footprint)
+    : plot.build(b);
   return b.finishPlot(plot.id, plot.category, plot.regionTier, plot.level, plot.labels, metadata, plot.footprint);
 }

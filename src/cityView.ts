@@ -54,6 +54,10 @@ export interface ToolHover {
   building?: boolean;
   /** ... drawn this share of its tiles where no road is near (1, or BUILDING_SCALE on a city map) */
   fill?: number;
+  /** Width of a road or railway tool in world units, so its marker, line and rectangle previews match the road drawn */
+  roadWidth?: number;
+  /** Active drawing mode ('straight' | 'curve' | 'scurve' | 'free' | 'rectangle' | 'grid' | 'fill') */
+  drawMode?: string;
 }
 
 export interface CityView {

@@ -65,7 +65,7 @@ function centreDashes(tiles: readonly TilePoint[], lift: number, terrain?: CityH
  */
 function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField,
   start?: { x: number; y: number } | null, end?: { x: number; y: number } | null, straight = false,
-  controls?: readonly TilePoint[] | null): { band: BufferGeometry; dashes: BufferGeometry } {
+  controls?: readonly TilePoint[] | null, halfW = 3.6): { band: BufferGeometry; dashes: BufferGeometry } {
   // From the marked start to the marked end (on the middle of the roads they join), through the tiles between
   const middles = tiles.map((t): Point => [(t.x + .5) * 10, (t.y + .5) * 10]);
   if (start && middles.length) middles[0] = [start.x * 10, start.y * 10];
@@ -93,14 +93,14 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
   // Faces up: a and b at one end, c and d at the other
   const quad = (out: number[], a: number[], b: number[], c: number[], d: number[]): void => { out.push(...a, ...c, ...b, ...b, ...c, ...d); };
   let along = 0;
+  const w = halfW, d = Math.min(.3, halfW * .12);
   for (let i = 1; i < line.length; i++) {
-    const [ax, az] = line[i - 1], [bx, bz] = line[i], [nax, naz] = side(i - 1), [nbx, nbz] = side(i), w = 3.6;
+    const [ax, az] = line[i - 1], [bx, bz] = line[i], [nax, naz] = side(i - 1), [nbx, nbz] = side(i);
     quad(band, [ax + nax * w, height(ax + nax * w, az + naz * w), az + naz * w], [ax - nax * w, height(ax - nax * w, az - naz * w), az - naz * w],
       [bx + nbx * w, height(bx + nbx * w, bz + nbz * w), bz + nbz * w], [bx - nbx * w, height(bx - nbx * w, bz - nbz * w), bz - nbz * w]);
     // A dash on every other 5 units of its length
     const length = Math.hypot(bx - ax, bz - az);
     if (Math.floor(along / 5) % 2 === 0) {
-      const d = .3;
       quad(dashes, [ax + nax * d, height(ax, az) + .06, az + naz * d], [ax - nax * d, height(ax, az) + .06, az - naz * d],
         [bx + nbx * d, height(bx, bz) + .06, bz + nbz * d], [bx - nbx * d, height(bx, bz) + .06, bz - nbz * d]);
     }
@@ -115,6 +115,37 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
   return { band: geometry(band), dashes: geometry(dashes) };
 }
 
+/** Split a rectangle or grid tile set into contiguous horizontal and vertical road runs so each run renders at the exact road width. */
+function gridRuns(tiles: readonly TilePoint[]): TilePoint[][] {
+  const byRow = new Map<number, number[]>(), byCol = new Map<number, number[]>();
+  for (const t of tiles) {
+    let row = byRow.get(t.y); if (!row) { row = []; byRow.set(t.y, row); } row.push(t.x);
+    let col = byCol.get(t.x); if (!col) { col = []; byCol.set(t.x, col); } col.push(t.y);
+  }
+  const runs: TilePoint[][] = [];
+  for (const [y, xs] of byRow) {
+    xs.sort((a, b) => a - b);
+    let run: TilePoint[] = [];
+    for (let i = 0; i < xs.length; i++) {
+      if (i > 0 && xs[i] === xs[i - 1]) continue;
+      if (run.length && xs[i] !== run[run.length - 1].x + 1) { if (run.length > 1) runs.push(run); run = []; }
+      run.push({ x: xs[i], y });
+    }
+    if (run.length > 1) runs.push(run);
+  }
+  for (const [x, ys] of byCol) {
+    ys.sort((a, b) => a - b);
+    let run: TilePoint[] = [];
+    for (let i = 0; i < ys.length; i++) {
+      if (i > 0 && ys[i] === ys[i - 1]) continue;
+      if (run.length && ys[i] !== run[run.length - 1].y + 1) { if (run.length > 1) runs.push(run); run = []; }
+      run.push({ x, y: ys[i] });
+    }
+    if (run.length > 1) runs.push(run);
+  }
+  return runs;
+}
+
 export class ToolOutline {
   readonly root=new Group();private signature='';
   /** The nearest road (roadCurves.ts nearest), so a building's outline stands against it as the building will */
@@ -127,20 +158,34 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
+    const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
     if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
-      const dot=new Mesh(new CircleGeometry(1.4,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=12;
-      const ring=new Mesh(new RingGeometry(1.7,2.1,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=12;
+      const r0=Math.max(.9,Math.min(2.1,halfW));
+      const dot=new Mesh(new CircleGeometry(r0*.66,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=12;
+      const ring=new Mesh(new RingGeometry(r0*.81,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=12;
       this.root.add(dot,ring);
       if(!hover.path||hover.path.length<2)return;}
     if(hover.path&&hover.path.length>0){
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
-      // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a grid, a rectangle or a fill as
-      // its tiles
-      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true,hover.controls);
+      if(hover.line&&tiles.length>1&&(hover.drawMode==='rectangle'||hover.drawMode==='grid')){
+        const runs=gridRuns(tiles);
+        if(runs.length){
+          const bandMat=cityDrawMaterial(hover.colour),dashMat=cityToolMaterial('#ffffff');
+          for(const run of runs){
+            const ghost=ghostRoad(run,.56,this.terrain,null,null,true,null,halfW);
+            const band=new Mesh(ghost.band,bandMat);band.renderOrder=10;
+            const dashes=new Mesh(ghost.dashes,dashMat);dashes.renderOrder=11;
+            this.root.add(band,dashes);
+          }
+          return;
+        }
+      }
+      // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a fill as its tiles
+      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true,hover.controls,halfW);
         const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=10;
         const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(band,dashes);return;}
       const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.56,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=10;
@@ -153,9 +198,25 @@ export class ToolOutline {
     // ขนาดของ tool นั้นๆ และ snap กับถนน")
     const shrink=hover.building?(hover.fill??1):this.scaledBuildings&&hover.size>=3?BUILDING_SCALE:1;
     const w=(r.x1-r.x0+1)*10*shrink,d=(r.y1-r.y0+1)*10*shrink;
+    const size=hover.size;
+    // When hovering over a road with a 1x1 tool (query, bulldozer, road_upgrade), fit the outline rect to the road's actual width and angle
+    if(size===1&&!hover.building&&!hover.linePoint&&this.snap){
+      const roadNear=this.snap(x,z,5);
+      if(roadNear){
+        const rw=Math.max(2.6,roadNear.reach*2),rd=10,rot=Math.atan2(roadNear.tx,roadNear.tz);
+        const ground=this.terrain?.enabled?this.terrain.sample(roadNear.x,roadNear.z):0;
+        const frame=new Group();frame.position.set(roadNear.x,ground+.6,roadNear.z);frame.rotation.y=rot;
+        const fill=new Mesh(new PlaneGeometry(rw,rd).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
+        const edge=cityToolMaterial('#ffffff'),t=.32;
+        for(const[lw,ld,sx,sz]of[[rw+t,t,0,-rd/2],[rw+t,t,0,rd/2],[t,rd+t,-rw/2,0],[t,rd+t,rw/2,0]]){
+          const line=new Mesh(new BoxGeometry(lw,.06,ld),edge);line.position.set(sx,.04,sz);line.renderOrder=11;frame.add(line);}
+        this.root.add(frame);
+        return;
+      }
+    }
     // A building of 3 x 3 and up beside a road: turned to face it and stood against its edge, at the size it is drawn
     // (owner, 14 Oct 2026: "ช่วงที่จะวาด ก็ต้อง snap กับถนนเลย")
-    const size=hover.size,near=(hover.building??size>=3)&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
+    const near=(hover.building??size>=3)&&!hover.cellPoint&&!hover.pose&&this.snap?this.snap(x,z,size*5+14):null;
     if(near||hover.pose){
       // The building the tool would put down, stood against its road as the city view will draw it (placement.ts)
       const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!);

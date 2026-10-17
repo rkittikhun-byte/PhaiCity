@@ -2,11 +2,11 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 import { ACESFilmicToneMapping, Color, DirectionalLight, Fog, HemisphereLight, OrthographicCamera,
-  Mesh, PlaneGeometry, PCFShadowMap, PMREMGenerator, Scene, SRGBColorSpace, WebGLRenderer, WebGLRenderTarget } from 'three';
+  Mesh, PlaneGeometry, PCFSoftShadowMap, PMREMGenerator, Scene, SRGBColorSpace, WebGLRenderer, WebGLRenderTarget } from 'three';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { CityView, ToolHover, TilePoint, TileRect } from '../../cityView.js';
 import { DAY_SKY_URL } from '../materials/catalog.js';
-import { cityBedMaterial, getMaterial, setCityWind, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
+import { cityBedMaterial, getMaterial, setCityWind, setNightMode, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
 import { seasonWind } from '../../wind.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
@@ -23,6 +23,7 @@ import { RoadCurves } from './roadCurves.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { CityBuses } from './buses.js';
+import { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
@@ -30,6 +31,7 @@ import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
+export { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
 export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number;detailSwaps:number;dirtSwaps:number;pixelRatioChanges:number }
 export interface CityViewDependencies {
   canvas?:HTMLCanvasElement; rendererFactory?:(canvas:HTMLCanvasElement)=>WebGLRenderer;
@@ -37,6 +39,32 @@ export interface CityViewDependencies {
   /** A native-resolution benchmark can cap supersampling independently of the host display. */
   pixelRatioLimit?:number;
 }
+
+const cDayHaze = new Color(0xc8dde2);
+const cNightHaze = new Color(0x121722);
+const cTwilightHaze = new Color(0xdf8456);
+const cHemiSkyDay = new Color(0xd7edff);
+const cHemiSkyNight = new Color(0x4c68a8);
+const cHemiSkyTwilight = new Color(0xf6b080);
+const cHemiGndDay = new Color(0xb5a385);
+const cHemiGndNight = new Color(0x181f2c);
+const cHemiGndTwilight = new Color(0x6a402d);
+const cSunDay = new Color(0xffe4bc);
+const cSunNight = new Color(0x9bb8ff);
+const cSunTwilight = new Color(0xff7a33);
+const cZenithDay = new Color(0x4f8fd0);
+const cZenithNight = new Color(0x060b18);
+const cZenithTwilight = new Color(0x2c3b68);
+const cHorizonDay = new Color(0xd5e6ef);
+const cHorizonNight = new Color(0x151c2d);
+const cHorizonTwilight = new Color(0xfb8b51);
+const tHaze = new Color();
+const tSky = new Color();
+const tGnd = new Color();
+const tSun = new Color();
+const tZenith = new Color();
+const tHorizon = new Color();
+
 /** No animation loop or game state mutations: the game owns paint(), including while paused. */
 export class CityView3D implements CityView {
   readonly kind='3d' as const;readonly scene=new Scene();readonly navigation:CityCamera;readonly chunks:CityChunks;
@@ -44,18 +72,23 @@ export class CityView3D implements CityView {
   readonly canvas:HTMLCanvasElement;readonly renderer:WebGLRenderer;
   readonly terrain:CityHeightField;
   readonly pixelRatioLimit:number;
-  private snapshot:TileSnapshot;private sprites=new CitySprites();private outline:ToolOutline;private zones:ZoneGrid;
-  private sun=new DirectionalLight(0xffe4bc,3.3);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
+  private snapshot:TileSnapshot;private sprites=new CitySprites();private pedestrians:CityPedestrians;private roadTraffic:CityRoadTraffic;private foliage:CityFoliage;private outline:ToolOutline;private zones:ZoneGrid;
+  private sun=new DirectionalLight(0xffe4bc,3.3);private hemi=new HemisphereLight(0xd7edff,0xb5a385,1.25);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
   private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private buses?:CityBuses;private problems?:ProblemIcons;
-  private bed:Mesh;private bedDrop:number;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
+  private bed:Mesh;private bedDrop:number;private wideBed:boolean;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
+  private darkMode=false;private darkBtn?:HTMLButtonElement;
+  private dayNightMode:'auto'|'day'|'night'='auto';
+  private readonly CYCLE_DURATION=180;
+  private sunAngle=Math.PI*0.35;
+  private lastNightFactor=-1;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
-    this.pixelRatioLimit=Math.max(1,Math.min(2,dependencies.pixelRatioLimit??2));
+    this.pixelRatioLimit=Math.max(1,Math.min(1.25,dependencies.pixelRatioLimit??1.25));
     this.lastQualityChange=this.created;this.lastMotion=this.created;
     if(!Number.isInteger(setup.map.width)||!Number.isInteger(setup.map.height)||setup.map.width<=0||setup.map.height<=0)throw new RangeError('A city map must have positive integer dimensions');
     this.canvas=dependencies.canvas??document.createElement('canvas');this.canvas.id='MicropolisCanvas';
@@ -64,13 +97,17 @@ export class CityView3D implements CityView {
     this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:true,preserveDrawingBuffer:true});
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
-    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=setup.map;this.snapshot.sync(setup.map);this.snapshot.coverZones();
+    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=setup.map;this.snapshot.enableConstruction=!this.headless;this.snapshot.sync(setup.map);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;
     // A real-scale city map's things at their real size (tileModels.ts atRealSize, roadGeometry.ts realUnits)
     this.snapshot.realUnits=realUnits(setup.map.tileSizeM);this.sprites.size=Math.min(1,this.snapshot.realUnits??1);
     // Plain roads and railways as smooth curves rather than tile by tile (roadCurves.ts; owner, 14 Oct 2026)
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
+    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
+    this.pedestrians=new CityPedestrians(this.snapshot,this.terrain,this.sprites.size);
+    this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
+    this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
     // On a real-scale city map the camera comes down to the street
     if((setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40){this.navigation.minDistance=5;this.navigation.clearance=1.1;}
@@ -82,11 +119,11 @@ export class CityView3D implements CityView {
     // Under the map, the bed; a real-scale city map's runs far past its edges in the land's colour, into the haze, so
     // the land seems to go on (docs/CITY_SCALE.md)
     // ... unless the province itself lies round it (provinceBackdrop.ts)
-    const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.bedDrop=wide?.4:3.015;const spread=wide&&!setup.province?9:1;
+    const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.wideBed=wide;this.bedDrop=wide?.4:3.015;const spread=wide&&!setup.province?9:1;
     const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
-    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);this.outline.snap=this.snapshot.roadSnap;this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);
-    this.scene.add(this.chunks.root,this.curves.root,this.sprites.root,this.outline.root,this.zones.root);
+    this.outline.snap=this.snapshot.roadSnap;this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);
+    this.scene.add(this.chunks.root,this.curves.root,this.sprites.root,this.pedestrians.root,this.roadTraffic.root,this.foliage.root,this.outline.root,this.zones.root);
     // Street names along the roads (src/streetNames.ts), when the game says how to write them
     if(setup.streetName){this.streets=new StreetLabels(setup.map,setup.streetName,this.terrain,this.now);this.scene.add(this.streets.root);}
     // The whole province round a district's map, so the wheel zooms out over all of it (provinceBackdrop.ts)
@@ -96,15 +133,93 @@ export class CityView3D implements CityView {
     const haze=new Color(0xc8dde2),city=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;
     this.fogNear=city?900:2400;this.fogFar=city?5500:7000;this.fog=new Fog(haze,this.fogNear,this.fogFar);
     this.scene.background=haze;this.scene.fog=this.fog;this.sky=new SkyDome(9000,haze);this.scene.add(this.sky.mesh);
-    this.scene.add(new HemisphereLight(0xd7edff,0xb5a385,1.2),this.sun,this.sun.target);
-    this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.bias=-.00025;this.sun.shadow.normalBias=.15;
+    this.scene.add(this.hemi,this.sun,this.sun.target);
+    this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.bias=-.00035;this.sun.shadow.normalBias=.06;
     this.renderer.setPixelRatio(Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit));
     this.renderer.outputColorSpace=SRGBColorSpace;this.renderer.toneMapping=ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=PCFShadowMap;
+    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=PCFSoftShadowMap;
     setup.container.append(this.canvas);this.resize();this.bindMouse();
+    if(!this.headless&&typeof document!=='undefined'){
+      const btn=document.createElement('button');
+      btn.type='button';btn.title='สลับโหมดมืด / สว่าง (Trafficity Dark Mode)';btn.textContent='🌙';
+      btn.style.cssText='position:fixed;top:6px;right:108px;z-index:25;width:28px;height:28px;border-radius:14px;border:1px solid rgba(255,255,255,0.28);background:rgba(20,25,35,0.78);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);box-shadow:0 2px 8px rgba(0,0,0,0.35);';
+      btn.addEventListener('click',()=>this.toggleDarkMode());
+      setup.container.append(btn);this.darkBtn=btn;
+    }
     if(typeof ResizeObserver!=='undefined'){this.resizeObserver=new ResizeObserver(()=>{if(!this.disposed){this.resize();this.render();}});this.resizeObserver.observe(setup.container);}
     if(!this.headless)this.loadSky();
     this.render();this.metrics.firstFrameMs=this.now()-this.created;
+  }
+  private updateDarkButtonText():void {
+    if(!this.darkBtn)return;
+    if(this.dayNightMode==='auto'){
+      this.darkBtn.textContent=this.darkMode?'🌙':'☀️';
+      this.darkBtn.title='โหมดกลางวัน-กลางคืน: อัตโนมัติ (คลิกเพื่อล็อคกลางวัน)';
+    }else if(this.dayNightMode==='day'){
+      this.darkBtn.textContent='☀️';
+      this.darkBtn.title='ล็อคกลางวันคงที่ (คลิกเพื่อล็อคกลางคืน)';
+    }else{
+      this.darkBtn.textContent='🌙';
+      this.darkBtn.title='ล็อคกลางคืนคงที่ (คลิกเพื่อสลับเป็นอัตโนมัติ)';
+    }
+  }
+  /** Continuous day/night and twilight color interpolation (GC-free, zero allocations) */
+  private applyDayNight(nightFactor:number,twilight:number,sunAngle?:number):void {
+    const wasDark=this.darkMode;
+    this.darkMode=nightFactor>0.5;
+    if(sunAngle!==undefined)this.sunAngle=sunAngle;
+    if(Math.abs(nightFactor-this.lastNightFactor)<0.002&&wasDark===this.darkMode)return;
+    this.lastNightFactor=nightFactor;
+
+    tHaze.copy(cDayHaze).lerp(cNightHaze,nightFactor).lerp(cTwilightHaze,twilight*0.65);
+    this.fog.color.copy(tHaze);this.scene.background=tHaze;
+
+    tSky.copy(cHemiSkyDay).lerp(cHemiSkyNight,nightFactor).lerp(cHemiSkyTwilight,twilight*0.7);
+    tGnd.copy(cHemiGndDay).lerp(cHemiGndNight,nightFactor).lerp(cHemiGndTwilight,twilight*0.7);
+    this.hemi.color.copy(tSky);this.hemi.groundColor.copy(tGnd);
+    this.hemi.intensity=(1.25*(1-nightFactor)+0.65*nightFactor)+twilight*0.2;
+
+    tSun.copy(cSunDay).lerp(cSunNight,nightFactor).lerp(cSunTwilight,twilight*0.85);
+    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.7,3.3*(1-nightFactor)+1.2*nightFactor);
+
+    tZenith.copy(cZenithDay).lerp(cZenithNight,nightFactor).lerp(cZenithTwilight,twilight*0.75);
+    tHorizon.copy(cHorizonDay).lerp(cHorizonNight,nightFactor).lerp(cHorizonTwilight,twilight*0.85);
+    this.sky.setColors(tZenith,tHorizon,tHaze);
+
+    setNightMode(this.darkMode, nightFactor);
+
+    if(wasDark!==this.darkMode){
+      this.bed.material=this.wideBed?cityBedMaterial(this.darkMode?0x1b222e:0x7a9150):tint('dirt_laterite',this.darkMode?0x1a2028:0x4c5543);
+      this.updateDarkButtonText();
+    }
+  }
+  private updateDayNight():void {
+    if(this.dayNightMode==='day'){this.applyDayNight(0,0,Math.PI*0.35);return;}
+    if(this.dayNightMode==='night'){this.applyDayNight(1,0,-Math.PI*0.5);return;}
+    const phase=(this.seconds/this.CYCLE_DURATION)%1.0;
+    const angle=phase*Math.PI*2;
+    const elevation=Math.sin(angle);
+    const nightFactor=Math.max(0,Math.min(1,(-elevation+0.18)/0.36));
+    const twilight=Math.max(0,1-Math.abs(elevation)/0.22);
+    this.applyDayNight(nightFactor,twilight,angle);
+  }
+  /** Switch between Day Mode, Dark Mode and Auto Day/Night Cycle */
+  setDarkMode(on:boolean):void {
+    this.dayNightMode=on?'night':'day';
+    this.lastNightFactor=-1;
+    this.updateDayNight();
+    this.updateDarkButtonText();
+    this.render();
+  }
+  toggleDarkMode():boolean {
+    if(this.dayNightMode==='auto')this.dayNightMode='day';
+    else if(this.dayNightMode==='day')this.dayNightMode='night';
+    else this.dayNightMode='auto';
+    this.lastNightFactor=-1;
+    this.updateDayNight();
+    this.updateDarkButtonText();
+    this.render();
+    return this.darkMode;
   }
   get width():number{return this.setup.container.clientWidth;}
   get height():number{return this.setup.container.clientHeight;}
@@ -122,10 +237,12 @@ export class CityView3D implements CityView {
     listen('contextmenu',e=>e.preventDefault());
     listen('pointerdown',e=>{const p=e as PointerEvent;if(p.button!==1&&p.button!==2)return;e.preventDefault();this.drag={button:p.button,x:p.clientX,y:p.clientY};this.canvas.setPointerCapture?.(p.pointerId);});
     listen('pointermove',e=>{const p=e as PointerEvent;if(!this.drag)return;const dx=p.clientX-this.drag.x,dy=p.clientY-this.drag.y;
-      if(this.drag.button===2)this.navigation.rotate(dx,dy);else this.navigation.pan(dx,dy,this.height);this.drag.x=p.clientX;this.drag.y=p.clientY;});
+      if(this.drag.button===2){if(p.shiftKey)this.navigation.rotate(dx,dy);else this.navigation.pan(dx,dy,this.height);}
+      else this.navigation.pan(dx,dy,this.height);this.drag.x=p.clientX;this.drag.y=p.clientY;});
     listen('pointerup',()=>{this.drag=null;});listen('pointercancel',()=>{this.drag=null;});
     listen('wheel',e=>{const w=e as WheelEvent;w.preventDefault();const rect=this.canvas.getBoundingClientRect();
-      this.navigation.zoom(w.deltaY*(w.deltaMode===1?16:w.deltaMode===2?this.height:1),w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);});
+      if(w.ctrlKey){this.navigation.zoom(w.deltaY*4,w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);}
+      else{this.navigation.zoom(w.deltaY*(w.deltaMode===1?16:w.deltaMode===2?this.height:1),w.clientX-rect.left,w.clientY-rect.top,this.width,this.height);}});
   }
   /** Shows the tiles that can take painted zones along the roads (src/plots.ts), while a brush or a road tool is in hand. */
   zoneGrid(on:boolean):void {if(this.cells)this.cells.show(on);else this.zones.show(on);}
@@ -142,20 +259,23 @@ export class CityView3D implements CityView {
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
-    this.resize();const changed=this.snapshot.sync(this.setup.map);
+    this.resize();const synced=this.snapshot.sync(this.setup.map),built=this.snapshot.stepConstruction(this.seconds);
+    const changed=built.length?[...new Set([...synced,...built])]:synced;
     // The ruler's house rises a level or takes a wing without its tiles changing: rebuild it when it does
     {const house=this.setup.map.rulerHouse,sign=house?`${house.x},${house.y},${house.level},${(house.wings??[]).join(',')}`:'';
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
-    if(changed.length||raised.length)this.curves.update(raised.length?[...changed,...raised]:changed);
+    if(changed.length||raised.length){this.curves.update(raised.length?[...changed,...raised]:changed);this.foliage.invalidate();}
     if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     // The camera stays over what stands under it, not over what it looks at, so it can come down and look across the
     // city to the horizon (owner, 14 Oct 2026: "มุมเงยหน้า สุดแค่ตรงนี้เอง")
     this.navigation.update(start,this.chunks.tallestNear(this.navigation.camera.position,24));
     const pose=this.navigation.camera.matrixWorld.elements;
-    if(this.drag||this.navigation.isAnimating(start)||pose.some((value,i)=>Math.abs(value-this.cameraPose[i])>1e-6))this.lastMotion=start;
-    this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);this.cameraPose=pose.slice();
+    let poseMoved=false;
+    for(let i=0;i<16;i++){if(Math.abs(pose[i]-this.cameraPose[i])>1e-6){poseMoved=true;this.cameraPose[i]=pose[i];}}
+    if(this.drag||this.navigation.isAnimating(start)||poseMoved)this.lastMotion=start;
+    this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);
     const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
@@ -166,9 +286,14 @@ export class CityView3D implements CityView {
     // The city's buses driving their roads (buses.ts)
     const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
     if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
-      this.buses.update(this.curves.drawnLines,this.seconds);}this.sprites.update(sprites,dt,isPaused,this.navigation.distance>950?[]:this.curves.roadsNear(this.navigation.target),this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
+      this.buses.update(this.curves.drawnLines,this.seconds);}
+    this.pedestrians.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds);
+    this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
+    this.foliage.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance);
+    this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
+    this.updateDayNight();
     this.sky.update(this.navigation.camera.position,this.seconds);
     // The 2D view looks from far above, past the sky and the haze: a clear map
     this.sky.mesh.visible=!this.navigation.flat;this.scene.fog=this.navigation.flat?null:this.fog;
@@ -191,8 +316,9 @@ export class CityView3D implements CityView {
     if(!this.headless&&++this.qualityFrames%30===0&&this.frameTimes.length===120&&!this.metrics.pendingChunks&&!this.metrics.pendingModels
       &&start-this.lastMotion>=1000&&start-this.lastQualityChange>=3000){
       const ratio=this.renderer.getPixelRatio(),limit=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit);
+      const realScale=(this.snapshot.realUnits??1)<1,minRatio=1,minBudget=realScale?180:60;
       let nextRatio=ratio,nextBudget=this.chunks.drawBudget;
-      if(this.metrics.frameMs>22){if(ratio>1)nextRatio=Math.max(1,ratio-.25);else nextBudget=Math.max(60,nextBudget-12);}
+      if(this.metrics.frameMs>22){if(ratio>minRatio)nextRatio=Math.max(minRatio,ratio-.25);else nextBudget=Math.max(minBudget,nextBudget-12);}
       else if(this.fastSince!==null&&start-this.fastSince>=10000&&start-this.lastQualityChange>=10000){
         if(nextBudget<this.chunks.maxDrawBudget)nextBudget=Math.min(this.chunks.maxDrawBudget,nextBudget+6);else if(ratio<limit)nextRatio=Math.min(limit,ratio+.25);
       }
@@ -203,9 +329,17 @@ export class CityView3D implements CityView {
     }
   }
   private render():void {
-    const t=this.navigation.target,span=Math.min(450,Math.max(130,this.navigation.distance*.75));
-    this.sun.position.set(t.x-180,t.y+380,t.z+160);this.sun.target.position.copy(t);
-    const c=this.sun.shadow.camera;c.left=-span;c.right=span;c.top=span;c.bottom=-span;c.near=1;c.far=900;c.updateProjectionMatrix();
+    const t=this.navigation.target,span=Math.min(340,Math.max(85,this.navigation.distance*.58));
+    const steppedAngle=Math.round(this.sunAngle*30)/30;
+    const sunHeight=Math.max(120,Math.sin(steppedAngle)*400),sunX=Math.cos(steppedAngle)*260;
+    const sx=t.x+sunX,sy=t.y+sunHeight,sz=t.z+160;
+    if(Math.abs(sx-this.sun.position.x)>1.5||Math.abs(sy-this.sun.position.y)>1.5||Math.abs(sz-this.sun.position.z)>1.5){
+      this.sun.position.set(sx,sy,sz);this.sun.target.position.copy(t);
+    }
+    const c=this.sun.shadow.camera;
+    if(Math.abs(c.left-(-span))>3){
+      c.left=-span;c.right=span;c.top=span;c.bottom=-span;c.near=1;c.far=900;c.updateProjectionMatrix();
+    }
     this.renderer.render(this.scene,this.navigation.camera);
   }
   tileAt(x:number,y:number):TilePoint|null{return pickTile(this.navigation.camera,x,y,this.width,this.height,this.setup.map.width,this.setup.map.height,this.terrain);}
@@ -233,7 +367,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.darkBtn?.remove();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

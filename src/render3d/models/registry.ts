@@ -14,6 +14,7 @@ import { createFire } from './services/fire.js';
 import { createStadium, STADIUM_TILES } from './services/stadium.js';
 import { createCoal } from './services/coal.js';
 import { createNuclear } from './services/nuclear.js';
+import { createGas, createHydro, createSolar, createWind } from './services/solar.js';
 import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
 import { createRulerHouse, RULER_HOUSE_ID, RULER_HOUSE_LEVELS } from './civic/ruler-house.js';
@@ -128,6 +129,14 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     tiles: STADIUM_TILES, budget: TRIANGLE_BUDGETS.special, regionTier: 'R3', states: ['empty', 'game'] },
   'power.coal': { factory: createCoal, category: 'services', footprint: [4, 4],
     tiles: Array.from({ length: 16 }, (_, i) => 745 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'power.solar': { factory: createSolar, category: 'services', footprint: [4, 4],
+    tiles: [], budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'power.wind': { factory: createWind, category: 'services', footprint: [4, 4],
+    tiles: [], budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'power.gas': { factory: createGas, category: 'services', footprint: [4, 4],
+    tiles: [], budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
+  'power.hydro': { factory: createHydro, category: 'services', footprint: [4, 4],
+    tiles: [], budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
   'power.nuclear': { factory: createNuclear, category: 'services', footprint: [4, 4],
     tiles: Array.from({ length: 16 }, (_, i) => 811 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
   'port.seaport': { factory: createSeaport, category: 'transport', footprint: [4, 4],

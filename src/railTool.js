@@ -16,13 +16,15 @@ import { BULLBIT, BURNBIT, CONDBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 
+import { RoadTool } from './roadTool.js';
+
 var RailTool = ConnectingTool(function(map) {
   this.init(20, map, true, true);
 });
 
 
 RailTool.prototype.layRail = function(x, y) {
-  this.doAutoBulldoze(x, y);
+  RoadTool.prototype.clearRightOfWay.call(this, x, y);
   var tile = this._worldEffects.getTileValue(x, y);
   tile = TileUtils.normalizeRoad(tile);
   var cost = this.toolCost;

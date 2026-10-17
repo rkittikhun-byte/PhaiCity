@@ -30,8 +30,29 @@
 @font-face { font-family: 'Sarabun Thai'; src: url('../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; unicode-range: U+0E00-0E7F; }
 
 body {
-  background-image: url('../images/dirtbg.png');
+  background-color: #060908;
   font-family: 'Sarabun Thai', serif;
+}
+
+#canvasContainer {
+  background-color: #060908;
+}
+
+#screenCurtain {
+  position: fixed;
+  inset: 0;
+  background-color: #060908;
+  z-index: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#screenCurtain.curtainActive {
+  opacity: 1;
+  pointer-events: auto;
+}
+#screenCurtain.curtainHidden {
+  display: none;
 }
 
 button, input[type="submit"] {
@@ -1049,6 +1070,12 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
   font: 11px/1.5 Sarabun, system-ui, sans-serif;
 }
 #provincePicker[hidden] { display: none; }
+#provincePicker.leavingToGame {
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0 !important;
+  transform: scale(0.97);
+  pointer-events: none;
+}
 #provincePicker h2, #provincePicker h3, #provincePicker h4, #provincePicker p {
   font-family: Sarabun, system-ui, sans-serif; color: inherit; text-shadow: none; }
 #provincePicker button { font: inherit; cursor: pointer; width: auto; height: auto; min-height: 24px; line-height: 1.4;

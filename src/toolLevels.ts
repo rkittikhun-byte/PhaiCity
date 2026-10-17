@@ -207,7 +207,7 @@ export function installToolLevels(doc: Document = document): void {
     show(card);
   };
   rerender = () => {
-    if (shownTool !== null) render(true);
+    if (shownTool !== null && isShown(card)) render(true);
   };
 
   // The game marks the tool in hand with a class on its button (src/inputStatus.js)
