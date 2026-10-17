@@ -207,6 +207,21 @@ export function installToolDock(doc: Document = document): void {
         renderModes(modesWrap, currentGroup, doc);
       }
 
+      // First card in Level 2 is back navigation
+      const backCard = doc.createElement("button");
+      backCard.type = "button";
+      backCard.className = "trayCard trayBackCard";
+      backCard.title = t("dock.back");
+      const bThumb = doc.createElement("div");
+      bThumb.className = "cardThumb";
+      bThumb.innerHTML = '<span style="font-size: 20px; font-weight: bold; color: #fff;">←</span>';
+      backCard.appendChild(bThumb);
+      backCard.addEventListener("click", () => {
+        currentGroup = null;
+        renderTray();
+      });
+      trayCards.appendChild(backCard);
+
       const choices = toolChoicesFor(currentGroup) ?? [];
       const orig = source(currentGroup);
       const activeTool = orig?.dataset.activeTool ?? orig?.dataset.tool;
@@ -268,6 +283,77 @@ export function installToolDock(doc: Document = document): void {
       // Draw modes for category if applicable (e.g. zones)
       if (currentCategory === "zones" && modesFor("residential").length > 0) {
         renderModes(modesWrap, "zone_residential", doc);
+      }
+
+      // Special handling for Zones: 4 direct tools (บ้าน, ร้านค้า, อุตสาหกรรม, รื้อถอน)
+      if (currentCategory === "zones") {
+        const zoneItems = [
+          { tool: "residential", paintTool: "zone_residential", icon: "residential", title: "บ้าน (ที่อยู่อาศัย)" },
+          { tool: "commercial", paintTool: "zone_commercial", icon: "commercial", title: "ร้านค้า (พาณิชย์)" },
+          { tool: "industrial", paintTool: "zone_industrial", icon: "industrial", title: "โรงงาน (อุตสาหกรรม)" },
+          { tool: "zone_erase", paintTool: "zone_erase", icon: "bulldozer", title: "รื้อถอนผังเมือง" },
+        ];
+
+        for (const item of zoneItems) {
+          const orig = source(item.tool === "zone_erase" ? "residential" : item.tool);
+          const hasPainted = Boolean(toolChoicesFor(item.tool === "zone_erase" ? "residential" : item.tool)?.some(c => c.tool === item.paintTool));
+
+          let isArmed = false;
+          if (item.tool === "zone_erase") {
+            isArmed = Boolean(orig?.classList.contains("selected") && orig?.dataset.activeTool === "zone_erase");
+          } else {
+            isArmed = Boolean(orig?.classList.contains("selected") && (orig?.dataset.activeTool ?? orig?.dataset.tool) === (hasPainted ? item.paintTool : item.tool));
+          }
+
+          const card = doc.createElement("button");
+          card.type = "button";
+          card.className = `trayCard${isArmed ? " is-active" : ""}`;
+          card.dataset.tool = item.paintTool;
+          card.title = item.title;
+
+          const thumb = doc.createElement("div");
+          thumb.className = "cardThumb";
+          const thumbImg = doc.createElement("img");
+          thumbImg.src = toolIconUrl(item.icon);
+          thumbImg.alt = "";
+
+          const price = item.tool === "zone_erase" ? "฿0" : toolLabel(item.tool).price;
+          if (price) {
+            const badge = doc.createElement("span");
+            badge.className = "cardPrice";
+            badge.textContent = price;
+            thumb.appendChild(badge);
+          }
+          thumb.appendChild(thumbImg);
+
+          const name = doc.createElement("span");
+          name.className = "cardName";
+          name.textContent = item.title;
+
+          card.append(thumb, name);
+
+          card.addEventListener("click", () => {
+            if (!orig) return;
+            if (item.tool === "zone_erase") {
+              if (hasPainted) {
+                activateToolChoice(orig, { tool: "zone_erase", available: true, size: 1, colour: "#8c8c8c" }, doc);
+              } else {
+                const bdozer = source("bulldozer");
+                if (bdozer) activateOriginal(bdozer);
+              }
+            } else {
+              if (hasPainted) {
+                activateToolChoice(orig, { tool: item.paintTool, available: true, size: 1, colour: orig.dataset.colour }, doc);
+              } else {
+                activateOriginal(orig);
+              }
+            }
+            closeTray();
+          });
+
+          trayCards.appendChild(card);
+        }
+        return;
       }
 
       for (const toolId of cat.tools) {

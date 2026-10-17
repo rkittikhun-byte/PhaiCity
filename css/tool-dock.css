@@ -96,9 +96,9 @@ body.toolDockReady #toolTray {
   position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
   background: rgba(9, 14, 23, 0.94);
   -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px;
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  padding: 8px 10px 10px; max-width: calc(100vw - 32px); min-width: 320px; z-index: 24;
+  padding: 6px 8px; max-width: calc(100vw - 32px); min-width: auto; z-index: 24;
   animation: fc-rise 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 body.toolDockReady #toolTray[hidden] { display: none !important; }
@@ -114,71 +114,36 @@ body.toolDockReady #toolTray::before {
   border-right: 1px solid rgba(255, 255, 255, 0.14); border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
+/* Hide header title bar per user request ("ไม่เอา label และ title") */
 .toolTrayHeader {
-  display: flex !important; align-items: center !important; gap: 8px !important; padding: 2px 4px 8px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; margin-bottom: 8px !important;
-  background: transparent !important; background-image: none !important; height: auto !important;
+  display: none !important;
 }
-.trayBack {
-  background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 6px !important; color: #fff !important; font-size: 11px !important; font-weight: 600 !important;
-  padding: 3px 8px !important; height: 24px !important; line-height: 18px !important;
-  cursor: pointer; transition: all 0.12s;
-}
-.trayBack:hover { background: rgba(255, 255, 255, 0.18) !important; border-color: rgba(255, 255, 255, 0.25) !important; }
-.trayBack[hidden] { display: none !important; }
-
-.trayTitleWrap { display: flex; align-items: center; gap: 6px; }
-.trayIcon { width: 20px; height: 20px; object-fit: contain; }
-#toolTrayTitle { color: #fff; font-size: 13.5px; font-weight: 700; letter-spacing: 0.01em; }
-
-.trayModes { display: flex; align-items: center; gap: 4px; margin-left: 12px; }
-.trayModes .modesTitle { color: rgba(255, 255, 255, 0.45); font-size: 10px; font-weight: 500; margin-right: 2px; }
-.trayModes .modeButton {
-  display: inline-flex !important; align-items: center !important; gap: 4px !important; height: 22px !important; padding: 0 6px !important;
-  border-radius: 5px !important; font-size: 10px !important; font-weight: 600 !important; color: #94a3b8 !important;
-  background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  cursor: pointer; transition: all 0.12s;
-}
-.trayModes .modeButton svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
-.trayModes .modeButton:hover { color: #fff !important; background: rgba(255, 255, 255, 0.12) !important; }
-.trayModes .modeButton.current {
-  color: #0b1118 !important; background: #4fc3f7 !important; border-color: transparent !important; box-shadow: 0 0 8px rgba(79, 195, 247, 0.4) !important;
-}
-
-.toolTrayClose {
-  margin-left: auto; width: 22px !important; height: 22px !important; border-radius: 6px !important;
-  background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  color: rgba(255, 255, 255, 0.6) !important; display: grid !important; place-items: center !important;
-  cursor: pointer; font-size: 15px !important; line-height: 1 !important; transition: all 0.12s;
-}
-.toolTrayClose:hover { background: rgba(255, 255, 255, 0.15) !important; color: #fff !important; }
 
 /* The Cards inside the Tray */
 .trayCards {
-  display: flex !important; gap: 8px !important; overflow-x: auto !important; padding: 4px 2px 6px !important; scrollbar-width: none !important;
-  align-items: stretch !important;
+  display: flex !important; gap: 6px !important; overflow-x: auto !important; padding: 2px !important; scrollbar-width: none !important;
+  align-items: center !important;
 }
 .trayCards::-webkit-scrollbar { display: none; }
 
 .trayCard {
-  width: 96px !important; min-width: 96px !important; max-width: 96px !important;
-  height: auto !important; min-height: 84px !important; flex: 0 0 96px !important;
+  width: 58px !important; min-width: 58px !important; max-width: 58px !important;
+  height: 54px !important; min-height: 54px !important; flex: 0 0 58px !important;
   display: flex !important; flex-direction: column !important; align-items: center !important;
-  justify-content: flex-start !important; gap: 6px !important; padding: 6px 5px 8px !important;
-  border-radius: 12px !important; background: rgba(255, 255, 255, 0.04) !important;
+  justify-content: center !important; padding: 3px !important;
+  border-radius: 10px !important; background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #cbd5e1 !important;
   text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
   box-sizing: border-box !important; overflow: visible !important;
 }
 .trayCard .cardThumb {
-  width: 84px !important; height: 48px !important; border-radius: 8px !important; background: #141f2c !important;
+  width: 50px !important; height: 46px !important; border-radius: 7px !important; background: #141f2c !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important; position: relative; overflow: hidden;
   display: flex !important; align-items: center !important; justify-content: center !important;
   transition: all 0.15s ease; flex-shrink: 0 !important;
 }
 .trayCard .cardThumb img {
-  width: 36px !important; height: 36px !important; max-width: 36px !important; max-height: 36px !important;
+  width: 30px !important; height: 30px !important; max-width: 30px !important; max-height: 30px !important;
   object-fit: contain !important; display: block !important; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 .trayCard .cardThumb::after {
@@ -186,34 +151,33 @@ body.toolDockReady #toolTray::before {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 42%), linear-gradient(0deg, rgba(0, 0, 0, 0.25), transparent 40%);
 }
 .trayCard .cardThumb .cardPrice {
-  position: absolute; top: 3px; left: 3px; z-index: 2;
-  font-size: 9.5px; font-weight: 700; color: #ffd66b;
-  background: rgba(9, 14, 22, 0.88); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 214, 107, 0.35); border-radius: 4px;
-  padding: 1px 5px; line-height: 1.2; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  position: absolute; top: 2px; left: 2px; z-index: 2;
+  font-size: 8.5px; font-weight: 700; color: #ffd66b;
+  background: rgba(9, 14, 22, 0.9); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 214, 107, 0.35); border-radius: 3px;
+  padding: 1px 4px; line-height: 1.1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
 }
 .trayCard .cardThumb .cardPrice.hasChoices {
-  color: #94a3b8; border-color: rgba(255, 255, 255, 0.15); font-size: 8.5px;
+  color: #94a3b8; border-color: rgba(255, 255, 255, 0.15); font-size: 7.5px;
 }
+/* Hide card text label per user request ("ไม่เอา label และ title") */
 .trayCard .cardName {
-  font-size: 11px !important; font-weight: 600 !important; color: #f1f5f9 !important; line-height: 1.2 !important;
-  max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
-  display: block !important;
+  display: none !important;
 }
 .trayCard:hover {
-  background: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(255, 255, 255, 0.12) !important; border-color: rgba(255, 255, 255, 0.28) !important;
   color: #fff !important; transform: translateY(-2px);
 }
 .trayCard:hover .cardThumb {
-  transform: scale(1.03); border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(1.04); border-color: rgba(255, 255, 255, 0.28) !important;
 }
 .trayCard.is-active {
-  border-color: #4fc3f7 !important; background: rgba(79, 195, 247, 0.18) !important;
-  box-shadow: 0 0 16px rgba(79, 195, 247, 0.35) !important; color: #fff !important;
+  border-color: #4fc3f7 !important; background: rgba(79, 195, 247, 0.22) !important;
+  box-shadow: 0 0 14px rgba(79, 195, 247, 0.4) !important; color: #fff !important;
 }
 .trayCard.is-active .cardThumb {
-  border-color: #4fc3f7 !important; box-shadow: 0 0 10px rgba(79, 195, 247, 0.4) !important;
+  border-color: #4fc3f7 !important; box-shadow: 0 0 10px rgba(79, 195, 247, 0.45) !important;
 }
 .trayCard.unavailable {
   opacity: 0.45 !important; cursor: not-allowed !important; border-style: dashed !important; transform: none !important;

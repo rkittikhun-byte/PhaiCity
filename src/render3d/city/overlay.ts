@@ -152,7 +152,7 @@ export class ToolOutline {
   snap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   /** Whether buildings are drawn at BUILDING_SCALE (a map painted a cell at a time), so the outline is that size too */
   scaledBuildings=false;
-  constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=10;}
+  constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=25;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
@@ -162,10 +162,10 @@ export class ToolOutline {
     if(!r||!hover)return;
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
-    if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
+    if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.75;
       const r0=Math.max(.9,Math.min(2.1,halfW));
-      const dot=new Mesh(new CircleGeometry(r0*.66,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=12;
-      const ring=new Mesh(new RingGeometry(r0*.81,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=12;
+      const dot=new Mesh(new CircleGeometry(r0*.66,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=26;
+      const ring=new Mesh(new RingGeometry(r0*.81,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=26;
       this.root.add(dot,ring);
       if(!hover.path||hover.path.length<2)return;}
     if(hover.path&&hover.path.length>0){
@@ -176,21 +176,21 @@ export class ToolOutline {
         if(runs.length){
           const bandMat=cityDrawMaterial(hover.colour),dashMat=cityToolMaterial('#ffffff');
           for(const run of runs){
-            const ghost=ghostRoad(run,.56,this.terrain,null,null,true,null,halfW);
-            const band=new Mesh(ghost.band,bandMat);band.renderOrder=10;
-            const dashes=new Mesh(ghost.dashes,dashMat);dashes.renderOrder=11;
+            const ghost=ghostRoad(run,.65,this.terrain,null,null,true,null,halfW);
+            const band=new Mesh(ghost.band,bandMat);band.renderOrder=25;
+            const dashes=new Mesh(ghost.dashes,dashMat);dashes.renderOrder=26;
             this.root.add(band,dashes);
           }
           return;
         }
       }
       // A line drawn tile by tile is shown as the smooth road it becomes (ghostRoad); a fill as its tiles
-      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.56,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true,hover.controls,halfW);
-        const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=10;
-        const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(band,dashes);return;}
-      const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.56,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=10;
+      if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.65,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true,hover.controls,halfW);
+        const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=25;
+        const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=26;this.root.add(band,dashes);return;}
+      const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.65,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=25;
       this.root.add(band);
-      if(hover.line){const dashes=new Mesh(centreDashes(tiles,.62,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=11;this.root.add(dashes);}
+      if(hover.line){const dashes=new Mesh(centreDashes(tiles,.72,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=26;this.root.add(dashes);}
       return;
     }
     const x=(r.x0+r.x1+1)*5,z=(r.y0+r.y1+1)*5;
@@ -233,11 +233,11 @@ export class ToolOutline {
     const elevation=(sx:number,sz:number):number=>this.terrain?.sample(Math.max(r.x0*10+.0001,Math.min((r.x1+1)*10-.0001,sx)),Math.max(r.y0*10+.0001,Math.min((r.y1+1)*10-.0001,sz)))??0;
     const material=cityToolMaterial(hover.colour),fill=new Mesh(new PlaneGeometry(w,d).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));
     if(this.terrain?.enabled){const p=fill.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,elevation(x+p.getX(i),z+p.getZ(i)));fill.geometry.computeVertexNormals();}
-    fill.position.set(x,.56,z);fill.renderOrder=10;this.root.add(fill);
+    fill.position.set(x,.65,z);fill.renderOrder=25;this.root.add(fill);
     for(const[sw,sd,sx,sz]of[[w,.35,x,z-d/2],[w,.35,x,z+d/2],[.35,d,x-w/2,z],[.35,d,x+w/2,z]]){
       const line=new Mesh(new BoxGeometry(sw,.025,sd),material);
       if(this.terrain?.enabled){const p=line.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+elevation(sx+p.getX(i),sz+p.getZ(i)));line.geometry.computeVertexNormals();}
-      line.position.set(sx,.58,sz);line.renderOrder=11;this.root.add(line);
+      line.position.set(sx,.68,sz);line.renderOrder=26;this.root.add(line);
     }
   }
   private clear():void {this.root.traverse(n=>{if(n instanceof Mesh)n.geometry.dispose();});this.root.clear();}

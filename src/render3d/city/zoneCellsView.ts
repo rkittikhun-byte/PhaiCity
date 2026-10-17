@@ -11,7 +11,7 @@ import type { CityHeightField } from './heightfield.js';
 
 /** The zones' colours, as the zone buttons wear them */
 const ZONE_COLOURS = [0, 0x4fbf5a, 0x3f86d8, 0xe2b83c];
-const LIFT = 0.04, FILL = 0.98;
+const LIFT = 0.22, FILL = 0.98;
 
 export class ZoneCellsView {
   readonly root = new Group();
@@ -21,12 +21,12 @@ export class ZoneCellsView {
   private readonly lotPad: Mesh;
   private readonly lotBorder: Mesh;
   private readonly plane = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-  private readonly paintMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.52,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
-  private readonly hoverMaterial = new MeshBasicMaterial({ color: 0x4fbf5a, transparent: true, opacity: 0.55,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
-  private readonly borderMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });
+  private readonly paintMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.65,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 });
+  private readonly hoverMaterial = new MeshBasicMaterial({ color: 0x4fbf5a, transparent: true, opacity: 0.70,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12 });
+  private readonly borderMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.90,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12 });
   private showing = false;
   private area: InstancedMesh | null = null;
   private areaKey = '';
@@ -34,20 +34,20 @@ export class ZoneCellsView {
 
   constructor(private readonly map: CellMap & { zoneCellsVersion?: number }, private readonly terrain: CityHeightField) {
     this.root.name = 'zone_cells';
-    this.root.renderOrder = 9;
+    this.root.renderOrder = 20;
 
     // Ground-hugging road-snapped lot preview (no floating mid-air planes that look offset from angled camera views)
     this.hoverGroup.visible = false;
-    this.hoverGroup.renderOrder = 12;
+    this.hoverGroup.renderOrder = 25;
 
     this.lotPad = new Mesh(this.plane, this.hoverMaterial);
     this.lotPad.scale.set(9.6, 1, 9.6);
-    this.lotPad.renderOrder = 12;
+    this.lotPad.renderOrder = 25;
 
     this.lotBorder = new Mesh(this.plane, this.borderMaterial);
     this.lotBorder.scale.set(10.0, 1, 10.0);
     this.lotBorder.position.y = -0.005;
-    this.lotBorder.renderOrder = 11;
+    this.lotBorder.renderOrder = 24;
 
     this.hoverGroup.add(this.lotBorder, this.lotPad);
     this.root.add(this.hoverGroup);
@@ -117,8 +117,8 @@ export class ZoneCellsView {
     if (!cells.length) return;
     if (colour) this.hoverMaterial.color.set(colour);
     this.area = this.cellMesh(cells, this.hoverMaterial, null);
-    this.area.renderOrder = 12;
-    this.area.position.y = 0.02;
+    this.area.renderOrder = 25;
+    this.area.position.y = 0.05;
     this.root.add(this.area);
   }
 
@@ -174,7 +174,7 @@ export class ZoneCellsView {
     });
     if (!painted.length) return;
     this.painted = this.cellMesh(painted, this.paintMaterial, (key) => ZONE_COLOURS[paint.get(key) ?? 0] ?? 0xffffff);
-    this.painted.renderOrder = 10;
+    this.painted.renderOrder = 21;
     this.root.add(this.painted);
   }
 }
