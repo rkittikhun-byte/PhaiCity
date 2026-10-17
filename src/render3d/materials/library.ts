@@ -9,6 +9,7 @@ import {
 } from 'three';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { getWaterNormal, loadMaterialTextures, TextureSet } from './textures.js';
+import { configureTerrainDetail } from './terrain-detail.js';
 export { SHOPHOUSE_PASTELS, shophousePastel } from './palette.js';
 
 const definitions = {
@@ -476,6 +477,16 @@ export function cityCoarseSurfaceMaterial():MeshLambertMaterial {
   if(!provinceSurface){provinceSurface=new MeshLambertMaterial({color:0xffffff,vertexColors:true});provinceSurface.name='city-province-surface';
     configureCityLOD(provinceSurface,true);owned.add(provinceSurface);}
   return provinceSurface;
+}
+/** Fine terrain shares the province masks, using scanned ground and per-pixel PBR only around the camera. */
+export function cityTerrainDetailMaterial():MeshStandardMaterial {
+  const token='city-terrain-detail',cached=cache.get(token);if(cached)return cached;
+  const material=new MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:0.96});
+  // Match the far Lambert terrain's sun/hemisphere irradiance; an extra HDRI contribution would reveal patch edges.
+  material.envMapIntensity=0;
+  material.name=token;material.userData={provinceSurface:true,terrainDetail:true};
+  configureCityLOD(material,true);configureTerrainDetail(material);
+  owned.add(material);cache.set(token,material);return material;
 }
 let provinceEdge:LineMaterial|undefined;
 export function provinceEdgeMaterial():LineMaterial {

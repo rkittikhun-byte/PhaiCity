@@ -16,6 +16,7 @@ import { isCurved, isPower, isRoad, isRail, isWaterNeighbor, isWoods, tileSeed, 
 import { CityHeightField } from './heightfield.js';
 import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
+import { TerrainDetail } from './terrain-detail.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 type RoadPoint=readonly [number,number,number];
 /** The zones' paint (docs/CITY_SCALE.md), how much of it shows over the ground, and the gap that draws the grid */
@@ -75,10 +76,13 @@ function treeGeometry():BufferGeometry {
  */
 export class ProvinceSurface {
   readonly root=new Group();readonly chunks:SurfaceChunk[]=[];
+  readonly terrainDetail:TerrainDetail;
   private edge:LineSegments2;private treeSource=treeGeometry();private boxSource=new BoxGeometry(1,1,1);
   private placements=new Map<number,Placement>();private detail=new Map<number,number>();private columns:number;
   private lastUpdate?:number;
   constructor(readonly snapshot:TileSnapshot,readonly terrain:CityHeightField) {
+    this.terrainDetail=new TerrainDetail(terrain,(x,y,wet,out)=>this.corner(x,y,wet,out));
+    this.root.add(this.terrainDetail.root);
     this.boxSource.setAttribute('color',new Float32BufferAttribute(new Float32Array(this.boxSource.getAttribute('position').count*3).fill(1),3));
     this.columns=Math.ceil(snapshot.width/SIZE);
     this.updateMask();
@@ -323,6 +327,7 @@ export class ProvinceSurface {
   set(index:number,p:Placement|null):void {if(p){p.baseY=this.terrain.base(index);p.outside=!this.terrain.inside(index%this.snapshot.width,Math.floor(index/this.snapshot.width));this.placements.set(index,p);}else this.placements.delete(index);}
   dirty(indices:readonly number[]):void {
     if(!indices.length)return;
+    this.terrainDetail.dirty(indices);
     const affected=new Set<SurfaceChunk>();
     for(const i of indices){const x=i%this.snapshot.width,y=Math.floor(i/this.snapshot.width);
       for(let yy=Math.floor(Math.max(0,y-6)/SIZE);yy<=Math.floor(Math.min(this.snapshot.height-1,y+6)/SIZE);yy++)
@@ -333,6 +338,7 @@ export class ProvinceSurface {
   }
   update(target:Vector3,distance:number,now:()=>number,deadline:number):void {
     const time=now(),dt=Math.max(0,Math.min(100,time-(this.lastUpdate??time-16)));this.lastUpdate=time;
+    this.terrainDetail.update(target,distance,now,Math.min(deadline,time+.6));
     const dirty=this.chunks.filter(c=>c.dirty).sort((a,b)=>Math.hypot(a.x*10+160-target.x,a.y*10+160-target.z)-Math.hypot(b.x*10+160-target.x,b.y*10+160-target.z));
     for(const c of dirty){while(c.cursor<SIZE*SIZE&&now()<deadline)this.cell(c,c.cursor++);
       if(c.cursor===SIZE*SIZE){this.publish(c);c.dirty=false;}if(now()>=deadline)break;}
@@ -351,7 +357,7 @@ export class ProvinceSurface {
     if(bSlot!==undefined){const a=c.buildings.geometry.getAttribute('instanceDetail');a.setX(bSlot,fade);a.needsUpdate=true;}
     const range=c.publishedRanges.get(index);if(range){const attr=c.land.geometry.getAttribute('instanceDetail');for(let i=range[0];i<range[1];i++)attr.setX(i,fade);attr.needsUpdate=true;}
   }
-  get pending():number{return this.chunks.filter(c=>c.dirty).length;}
+  get pending():number{return this.chunks.filter(c=>c.dirty).length+this.terrainDetail.pending;}
   finish():void {for(const c of this.chunks)if(c.dirty){while(c.cursor<SIZE*SIZE)this.cell(c,c.cursor++);this.publish(c);c.dirty=false;}}
-  dispose():void {for(const c of this.chunks){c.land.geometry.dispose();for(const m of[c.trees,c.buildings]){m.geometry.dispose();m.dispose();}}this.edge.geometry.dispose();this.treeSource.dispose();this.boxSource.dispose();this.root.clear();this.placements.clear();this.detail.clear();}
+  dispose():void {this.terrainDetail.dispose();for(const c of this.chunks){c.land.geometry.dispose();for(const m of[c.trees,c.buildings]){m.geometry.dispose();m.dispose();}}this.edge.geometry.dispose();this.treeSource.dispose();this.boxSource.dispose();this.root.clear();this.placements.clear();this.detail.clear();}
 }

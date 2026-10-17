@@ -258,6 +258,7 @@ export class CityChunks {
     return roads.sort((a,b)=>Math.hypot(a.x-target.x,a.z-target.z)-Math.hypot(b.x-target.x,b.z-target.z)).slice(0,64);
   }
   mapLOD(show:boolean):void {
+    if(this.surfaces)this.surfaces.terrainDetail.root.visible=!show;
     for(const chunk of this.chunks)for(const batch of chunk.batches)if(batch.selected||batch.fade>0){batch.group.visible=!show;batch.placements.forEach(p=>{this.showCoarse(p,show||batch.fade<1);this.coarseFade(p,show?0:batch.fade);});}
     this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;
     this.solidDetail.needsUpdate=true;this.waterDetail.needsUpdate=true;
