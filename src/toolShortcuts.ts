@@ -14,6 +14,7 @@ import { turnView } from "./viewControls";
 // The prices on the tool buttons: the game's own until a city starts with its province's (src/provinceRules.ts)
 let prices: Record<string, number> = toolPrices(DEFAULT_RULES);
 let relabel: (() => void) | null = null;
+export const TOOL_LABELS_CHANGED = "phaicity:toollabels";
 
 /** "ที่อยู่อาศัย ฿100": a tool's name with its price in this province. */
 export function toolName(tool: string): string {
@@ -235,6 +236,7 @@ export function installToolShortcuts(doc: Document = document): void {
       button.title = toolTitle(tool, key);
     });
     // The menu's pause and map buttons show their keys in the names that slide out of them (src/menuRail.ts)
+    doc.dispatchEvent(new CustomEvent(TOOL_LABELS_CHANGED));
   };
   label();
   relabel = label;

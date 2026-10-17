@@ -29,6 +29,7 @@ import { TileSetSnowURI } from './tileSetSnowURI.ts';
 import { installHudTooltips } from './hudTooltip.ts';
 import { installToolShortcuts } from './toolShortcuts.ts';
 import { installToolLevels } from './toolLevels.ts';
+import { installToolDock } from './toolDock.ts';
 
 /*
  *
@@ -136,6 +137,7 @@ installCreditLine();
 // 1–9 pick tools and P pauses (src/toolShortcuts.ts), and the tool in hand shows its levels (src/toolLevels.ts)
 installToolShortcuts();
 installToolLevels();
+installToolDock();
 // Quick small tooltips on everything in the game that has a title (src/hudTooltip.ts)
 installHudTooltips();
 

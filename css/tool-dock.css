@@ -1,0 +1,103 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+ */
+/* Persistent categories, a family tray, and a separate side panel for actual tools. */
+body.toolDockReady #controls {
+  width: max-content; max-width: calc(100vw - 128px); bottom: 8px; padding: 6px;
+  transform: translateX(-50%); border: 1px solid var(--hud-edge); border-radius: 16px;
+  transition: none; animation: none; overflow: visible;
+}
+body.toolDockReady #controls:is(:hover,:has(:focus-visible),:has(.toolButton.selected)) { transform: translateX(-50%); }
+body.toolDockReady #toolInfo { display: flex; gap: 8px; justify-content: flex-start; padding: 0 5px 5px; min-height: 21px; }
+body.toolDockReady #activeToolLabel { min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.toolDockReady #toolOutput { margin-left: auto; font-size: 9px; color: var(--hud-dim); }
+body.toolDockReady #toolCancel, body.toolDockReady #undoButton {
+  flex: none; width: 24px; height: 22px; padding: 0; border-radius: 6px; font-size: 16px;
+}
+body.toolDockReady #toolCancel[hidden] { display: none; }
+#toolCategories { display: flex; gap: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+#toolCategories .toolCategory {
+  position: relative; flex: 0 0 83px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; min-height: 57px; padding: 5px 6px; border: 1px solid transparent; border-radius: 10px;
+  color: var(--hud-text); background: transparent; font: 400 12px/1.3 'Sarabun Thai','Open Sans',sans-serif; cursor: pointer;
+}
+#toolCategories .toolCategory img { width: 27px; height: 27px; object-fit: contain; }
+#toolCategories .toolCategory span { white-space: nowrap; }
+#toolCategories .toolCategory:hover { background: rgba(255,255,255,.5); }
+#toolCategories .toolCategory.current { background: rgba(255,255,255,.8); border-color: rgba(53,108,82,.4); }
+#toolCategories .toolCategory.hasTool::after { content: ''; position: absolute; bottom: 2px; width: 22px; height: 3px; border-radius: 3px; background: #337c58; }
+#toolCategories .toolCategory.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
+body.toolDockReady #toolTray {
+  position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%); padding: 9px;
+  width: max-content; max-width: min(920px,calc(100vw - 128px)); box-sizing: border-box;
+  border: 1px solid var(--hud-edge); border-radius: 14px; background: var(--hud-glass); box-shadow: var(--hud-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+}
+body.toolDockReady #toolTray[hidden] { display: none; }
+.toolTrayHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 2px 7px; font-size: 13px; }
+body.toolDockReady :is(.toolTrayClose,#toolLevelsClose) {
+  flex: none; width: 25px; height: 25px; padding: 0; border: 1px solid transparent; border-radius: 7px;
+  background: rgba(255,255,255,.45); color: var(--hud-text); font: 400 19px/1 sans-serif; cursor: pointer;
+}
+body.toolDockReady :is(.toolTrayClose,#toolLevelsClose):hover { background: rgba(255,255,255,.9); }
+body.toolDockReady #buttons { display: flex; gap: 7px; overflow-x: auto; padding: 2px 2px 6px; max-width: 100%; }
+body.toolDockReady #buttons .toolButton {
+  order: initial; position: relative; display: flex; flex: 0 0 110px; width: 110px; height: 117px;
+  padding: 6px; gap: 3px; border: 1px solid rgba(83,112,88,.2); border-radius: 10px;
+  background: rgba(255,255,255,.35); color: var(--hud-text); text-align: center; cursor: pointer;
+}
+body.toolDockReady #buttons .toolButton:is(.dockHidden,[hidden]) { display: none !important; }
+body.toolDockReady #buttons .toolButton:is(.browsing,.selected) { border-color: #3d8663; box-shadow: inset 0 0 0 1px #3d8663; background: rgba(255,255,255,.8); }
+body.toolDockReady #buttons .toolButton:hover:not(:disabled) { background: rgba(255,255,255,.9); }
+body.toolDockReady #buttons .toolIcon { width: 86px; height: 49px; flex: none; }
+body.toolDockReady #buttons .toolIcon img { object-fit: contain; }
+body.toolDockReady #buttons .toolName { display: block; width: 100%; font-size: 12px; line-height: 1.3; white-space: normal; }
+body.toolDockReady #buttons .toolPrice { color: #356b47; font-size: 11px; }
+body.toolDockReady #buttons .toolSelection { display: block; max-width: 100%; color: var(--hud-dim); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.toolDockReady.houseFirst #buttons .toolButton[data-has-choices='true'] { pointer-events: auto; opacity: .65; }
+/* The left side leaves the ruler's tasks and the camera strip on the right undisturbed. */
+body.toolDockReady #toolLevels {
+  top: 82px; bottom: 113px; left: 54px; right: auto; width: 354px; max-width: calc(100vw - 116px);
+  transform: none; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 8px; padding: 10px;
+  box-sizing: border-box; z-index: 14; animation: none; transition: none; border-radius: 14px;
+}
+body.toolDockReady:has(#toolTray:not([hidden])) #toolLevels { bottom: 264px; }
+body.toolDockReady #toolLevels[hidden] { display: none; }
+body.toolDockReady #toolLevels .levelsHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex: none; }
+body.toolDockReady #toolLevels .levelsTitle { font-size: 15px; line-height: 1.4; white-space: normal; }
+body.toolDockReady #toolLevels .levelsSlots {
+  display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-content: start; gap: 8px;
+  min-height: 0; overflow-y: auto; padding: 3px; scrollbar-width: thin;
+}
+body.toolDockReady #toolLevels button.levelSlot {
+  width: auto; min-width: 0; height: auto; min-height: 124px; padding: 7px 4px; gap: 5px;
+  border: 1px solid rgba(83,112,88,.22); background: rgba(255,255,255,.3); border-radius: 9px;
+}
+body.toolDockReady #toolLevels .levelIcon { width: 100%; height: 51px; justify-content: center; flex: none; }
+body.toolDockReady #toolLevels .levelIcon .toolIcon { width: 80px; max-width: 100%; height: 51px; }
+body.toolDockReady #toolLevels .levelIcon img { object-fit: contain; }
+body.toolDockReady #toolLevels .levelName { font-size: 11px; line-height: 1.35; white-space: normal; }
+body.toolDockReady #toolLevels .levelNote { font-size: 10px; line-height: 1.3; white-space: normal; }
+body.toolDockReady #toolLevels button.levelSlot.current { box-shadow: inset 0 0 0 1px #3d8663; border-color: #3d8663; background: rgba(255,255,255,.85); }
+body.toolDockReady #toolLevels button.levelSlot.unavailable { opacity: .52; border-style: dashed; }
+body.toolDockReady #toolLevels .levelsModes { flex: none; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--hud-edge); padding-top: 8px; }
+body.toolDockReady #toolLevels .levelsModes[hidden] { display: none; }
+body.toolDockReady #toolLevels .modesTitle { width: 100%; font-size: 11px; }
+body.toolDockReady #toolLevels .modeButton { min-height: 28px; padding: 4px 7px; font-size: 11px; }
+body.toolDockReady :is(.toolCategory,.toolButton,.levelSlot,.modeButton,.toolTrayClose,#toolLevelsClose):focus-visible { outline: 3px solid #bd8c1f; outline-offset: 2px; }
+body.toolDockReady #cameraBar { bottom: 113px; }
+@media (max-width: 700px) {
+  body.toolDockReady #controls { left: 47px; right: 8px; width: auto; max-width: none; transform: none !important; padding: 5px; }
+  body.toolDockReady #toolOutput { display: none; }
+  #toolCategories .toolCategory { flex-basis: 78px; min-height: 55px; font-size: 12px; }
+  body.toolDockReady #toolTray { left: 0; right: 0; width: auto; max-width: none; transform: none; }
+  body.toolDockReady #toolLevels { left: 47px; right: 8px; width: auto; max-width: none; top: 72px; bottom: 110px; }
+  body.toolDockReady:has(#toolTray:not([hidden])) #toolLevels { bottom: 264px; }
+  body.toolDockReady #toolLevels .levelsSlots { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  body.toolDockReady #toolLevels button.levelSlot { min-height: 123px; }
+  body.toolDockReady #toolLevels .levelsTitle { font-size: 14px; }
+}
+@media (max-height: 550px) and (min-width: 701px) {
+  body.toolDockReady #toolLevels { top: 60px; bottom: 110px !important; }
+  body.toolDockReady:has(#toolLevels:not([hidden])) #toolTray { max-width: calc(100vw - 490px); left: auto; right: 0; transform: none; }
+}

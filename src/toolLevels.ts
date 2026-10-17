@@ -20,13 +20,15 @@
 import { renderModes } from "./drawModes";
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, isShown, show } from "./motion";
-import { relabelTools, toolIconUrl, toolLabel } from "./toolShortcuts";
+import { relabelTools, toolIconUrl, toolLabel, toolTitle } from "./toolShortcuts";
 
 /** How many level places each tool shows. */
 export const LEVEL_SLOTS = 5;
 
 /** The event that tells the game the button in hand now uses another tool; its detail is that tool's name. */
 export const TOOL_CHOICE_EVENT = "phaicity:toolchoice";
+export const TOOL_GROUP_EVENT = "phaicity:toolgroup";
+export const TOOL_CHOICES_CHANGED = "phaicity:toolchoiceschanged";
 
 export interface ToolChoice {
   /** The tool it uses (src/gameTools.js) */
@@ -47,6 +49,21 @@ export interface ToolChoice {
 
 const choices = new Map<string, readonly ToolChoice[]>();
 let rerender: (() => void) | null = null;
+export function toolChoicesFor(group: string): readonly ToolChoice[] | undefined { return choices.get(group); }
+
+/** Selecting a card arms the original game button once; choosing it again keeps the tool in hand. */
+export function activateToolChoice(button: HTMLElement, choice: ToolChoice, doc: Document = document): void {
+  if (!choice.available) return;
+  if (choice.action) { choice.action(); return; }
+  button.dataset.activeTool = choice.tool;
+  wear(button, choice);
+  relabelTools();
+  if (!button.classList.contains("selected")) {
+    button.dataset.choiceActivating = "true";
+    try { button.click(); } finally { delete button.dataset.choiceActivating; }
+  }
+  doc.dispatchEvent(new CustomEvent(TOOL_CHOICE_EVENT, { detail: choice.tool }));
+}
 
 /** A button's own size and colour, kept the first time a choice changes them. */
 function own(button: HTMLElement): { size: string; colour: string } {
@@ -95,6 +112,7 @@ export function setToolChoices(group: string, list: readonly ToolChoice[], doc: 
     if (button.disabled) button.title = t(`choice.none.${group}`);
   }
   rerender?.();
+  doc.dispatchEvent?.(new CustomEvent(TOOL_CHOICES_CHANGED, { detail: group }));
 }
 
 /** Takes a button's choices away again: it shows its levels and uses its own tool (a city without painted zones). */
@@ -108,6 +126,7 @@ export function clearToolChoices(group: string, doc: Document = document): void 
     relabelTools();
   }
   rerender?.();
+  doc.dispatchEvent?.(new CustomEvent(TOOL_CHOICES_CHANGED, { detail: group }));
 }
 
 export function installToolLevels(doc: Document = document): void {
@@ -119,16 +138,22 @@ export function installToolLevels(doc: Document = document): void {
   const modes = card?.querySelector<HTMLElement>(".levelsModes") ?? null;
   if (!card || !buttons || !title || !slots) return;
   let shownTool: string | null = null;
+  let browsing: string | null = null, lastArmed: string | null = null, dismissed: string | null = null;
 
   /** The places of a tool with choices: each one a button. */
   const choiceSlots = (selected: HTMLElement, list: readonly ToolChoice[]): HTMLElement[] => {
     const active = selected.dataset.activeTool ?? selected.dataset.tool;
     return list.map((choice) => {
+      const houseLocked = doc.body.classList.contains("houseFirst") &&
+        !["ruler_house", "bulldozer", "query", "road"].includes(selected.dataset.tool ?? "");
+      const available = choice.available && !houseLocked;
       const slot = doc.createElement("button");
       slot.type = "button";
       slot.className = `levelSlot choice${choice.tool === active && !choice.action ? " current" : ""}` +
-        `${choice.available ? "" : " unavailable"}`;
-      slot.disabled = !choice.available;
+        `${available ? "" : " unavailable"}`;
+      slot.disabled = !available;
+      slot.dataset.toolChoice = choice.tool;
+      slot.setAttribute("aria-pressed", String(choice.tool === active && !choice.action));
       slot.style.setProperty("--tool", choice.colour ?? selected.style.getPropertyValue("--tool"));
       const icon = doc.createElement("span");
       icon.className = "levelIcon";
@@ -147,70 +172,57 @@ export function installToolLevels(doc: Document = document): void {
       label.textContent = t(`choice.${choice.tool}`);
       const note = doc.createElement("span");
       note.className = "levelNote";
-      const unavailable = t(choice.reason ?? "choice.unavailable");
-      note.textContent = !choice.available ? unavailable : choice.note ? t(choice.note) : price;
-      slot.title = choice.available ? name : `${name}: ${unavailable}`;
+      const unavailable = t(houseLocked ? "dock.house_first" : choice.reason ?? "choice.unavailable");
+      note.textContent = !available ? unavailable : choice.note ? t(choice.note) : price;
+      slot.title = available ? toolTitle(choice.tool, null) : `${name}: ${unavailable}`;
       slot.append(icon, label, note);
       slot.addEventListener("click", () => {
-        if (!choice.available) return;
-        if (choice.action) {
-          choice.action();
-          return;
-        }
-        selected.dataset.activeTool = choice.tool;
-        wear(selected, choice);
-        relabelTools();
-        doc.dispatchEvent(new CustomEvent(TOOL_CHOICE_EVENT, { detail: choice.tool }));
+        if (!available) return;
+        activateToolChoice(selected, choice, doc);
         render(true);
       });
       return slot;
     });
   };
 
-  /** The places of a tool with levels: the first the tool itself, the rest waiting. */
-  const levelSlots = (selected: HTMLElement, price: string): HTMLElement[] =>
-    Array.from({ length: LEVEL_SLOTS }, (_, index) => {
-      const slot = doc.createElement("div");
-      slot.className = index === 0 ? "levelSlot current" : "levelSlot empty";
-      const icon = doc.createElement("span");
-      icon.className = "levelIcon";
-      if (index === 0) {
-        const own = selected.querySelector(".toolIcon");
-        if (own) icon.appendChild(own.cloneNode(true));
-        slot.style.setProperty("--tool", selected.style.getPropertyValue("--tool") ?? "");
-      }
-      const label = doc.createElement("span");
-      label.className = "levelName";
-      label.textContent = t("levels.level", { n: index + 1 });
-      const note = doc.createElement("span");
-      note.className = "levelNote";
-      note.textContent = index === 0 ? price : t("levels.soon");
-      slot.append(icon, label, note);
-      return slot;
-    });
-
   const render = (force = false): void => {
-    const selected = buttons.querySelector<HTMLElement>(".toolButton.selected");
-    const tool = selected?.dataset.tool ?? null;
+    const armed = buttons.querySelector<HTMLElement>(".toolButton.selected");
+    const armedTool = armed?.dataset.tool ?? null;
+    if (armedTool !== lastArmed) { browsing = armedTool; dismissed = null; lastArmed = armedTool; }
+    const tool = browsing ?? armedTool;
+    const selected = tool ? buttons.querySelector<HTMLElement>(`.toolButton[data-tool="${tool}"]`) : null;
     if (!selected || tool === null) {
       shownTool = null;
       hide(card, true);
       return;
     }
+    const list = choices.get(tool);
+    if (dismissed === tool || !list?.length) { hide(card, true); shownTool = null; return; }
     if (tool === shownTool && !force && isShown(card)) return;
     shownTool = tool;
-    const list = choices.get(tool);
-    const { name, price } = toolLabel(selected.dataset.activeTool ?? tool);
-    title.textContent = list ? t(`choice.title.${tool}`) : name;
-    slots.replaceChildren(...(list ? choiceSlots(selected, list) : levelSlots(selected, price)));
+    title.textContent = t(`choice.title.${tool}`);
+    card.dataset.group = tool;
+    slots.replaceChildren(...choiceSlots(selected, list));
     if (modes) renderModes(modes, selected.dataset.activeTool ?? tool, doc);
     show(card);
   };
   rerender = () => {
     if (shownTool !== null && isShown(card)) render(true);
   };
+  doc.addEventListener(TOOL_GROUP_EVENT, (event) => {
+    const group = (event as CustomEvent<string | null>).detail;
+    if (group === null) {
+      browsing = null; dismissed = lastArmed; shownTool = null; hide(card, true); return;
+    }
+    // Remember the armed tool independently of the group being browsed.
+    lastArmed = buttons.querySelector<HTMLElement>(".toolButton.selected")?.dataset.tool ?? null;
+    browsing = group; dismissed = null; render(true);
+  });
+  doc.getElementById("toolLevelsClose")?.addEventListener("click", () =>
+    doc.dispatchEvent(new CustomEvent(TOOL_GROUP_EVENT, { detail: null })));
 
   // The game marks the tool in hand with a class on its button (src/inputStatus.js)
   new MutationObserver(() => render()).observe(buttons, { subtree: true, attributes: true, attributeFilter: ["class"] });
   onLanguageChange(() => render(true));
+  new MutationObserver(() => render(true)).observe(doc.body, { attributes: true, attributeFilter: ["class"] });
 }

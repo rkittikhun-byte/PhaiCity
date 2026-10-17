@@ -20,6 +20,7 @@
     <meta name="viewport" content="width=device-width, height=device-height, user-scalable=no">
     <meta name="description" content="PhaiCity: build and rule a Thai city in your browser. A modified version of micropolisJS.">
     <link rel="stylesheet" media="screen" type="text/css" href="css/style.css">
+    <link rel="stylesheet" media="screen" type="text/css" href="css/tool-dock.css">
     <title data-i18n="app.title">PhaiCity</title>
   </head>
   <!-- body.starting: the dark start (loading, story, choosing a province); removed when a city starts -->
@@ -133,10 +134,12 @@
         </div>
         <div id="RCIContainer" class="controlShadow leftedge width140 padding10 mintcream z1 initialHidden"></div>
         <div id="controls" class="controlShadow mintcream z1 initialHidden rightedge open">
-          <div id="toolInfo" class="alignCenter"><span id="toolOutput" data-i18n="tool.header">Tools</span>
+          <div id="toolInfo" class="alignCenter"><span id="activeToolLabel"></span><span id="toolOutput" data-i18n="tool.header">Tools</span>
             <!-- Undo the last building (Ctrl+Z), src/undoHistory.ts -->
             <button id="undoButton" type="button" data-i18n-title="undo.button" data-i18n-aria-label="undo.button" disabled>↶</button>
+            <button id="toolCancel" type="button" data-i18n-title="dock.cancel" data-i18n-aria-label="dock.cancel" hidden>×</button>
           </div>
+          <nav id="toolCategories" data-i18n-aria-label="dock.categories"></nav>
           <!-- The buttons' words and prices are written by src/toolShortcuts.ts, in the province's prices -->
           <div id="buttons">
             <!-- The ruler's house, a new city's first building (src/rulerHouse.ts) -->
@@ -197,8 +200,10 @@
           </div>
         </div>
         <!-- The tool in hand and the places for its levels, above the tools dock (src/toolLevels.ts) -->
-        <div id="toolLevels" hidden>
-          <div class="levelsTitle"></div>
+        <div id="toolLevels" role="region" aria-labelledby="toolLevelsTitle" hidden>
+          <div class="levelsHeader"><div id="toolLevelsTitle" class="levelsTitle"></div>
+            <button id="toolLevelsClose" type="button" data-i18n-title="dock.close_choices" data-i18n-aria-label="dock.close_choices">×</button>
+          </div>
           <div class="levelsSlots"></div>
           <!-- How the tool draws: lines and curves for roads, brushes and fills for painted zones (src/drawModes.ts) -->
           <div class="levelsModes" hidden></div>
