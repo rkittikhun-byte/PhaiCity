@@ -62,7 +62,7 @@ export function installToolDock(doc: Document = document): void {
   tray.hidden = true;
   tray.setAttribute("aria-labelledby", "toolTrayTitle");
 
-  const heading = doc.createElement("header");
+  const heading = doc.createElement("div");
   heading.className = "toolTrayHeader";
 
   const backBtn = doc.createElement("button");
@@ -301,7 +301,7 @@ export function installToolDock(doc: Document = document): void {
         } else if (hasChoices) {
           const badge = doc.createElement("span");
           badge.className = "cardPrice hasChoices";
-          badge.textContent = toolLabel(activeItem).name;
+          badge.textContent = price ? `${price} ▾` : "เลือก ▾";
           thumb.appendChild(badge);
         }
         thumb.appendChild(thumbImg);

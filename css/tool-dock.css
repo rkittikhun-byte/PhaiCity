@@ -77,6 +77,20 @@ body.toolDockReady #buttons { display: none !important; }
 }
 #toolCategories .toolCategory.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
 
+/* Reset buttons in Dock and Tray so style.css (width: 140px, height: 19px) never overrides them */
+body.toolDockReady #controls button,
+body.toolDockReady #toolTray button,
+body.toolDockReady #activeToolPill button {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  border: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 /* The Unified Interactive Tray (Fable-style) */
 body.toolDockReady #toolTray {
   position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
@@ -101,16 +115,18 @@ body.toolDockReady #toolTray::before {
 }
 
 .toolTrayHeader {
-  display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 8px;
+  display: flex !important; align-items: center !important; gap: 8px !important; padding: 2px 4px 8px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; margin-bottom: 8px !important;
+  background: transparent !important; background-image: none !important; height: auto !important;
 }
 .trayBack {
-  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 6px !important; color: #fff !important; font-size: 11px !important; font-weight: 600 !important;
+  padding: 3px 8px !important; height: 24px !important; line-height: 18px !important;
   cursor: pointer; transition: all 0.12s;
 }
-.trayBack:hover { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.25); }
-.trayBack[hidden] { display: none; }
+.trayBack:hover { background: rgba(255, 255, 255, 0.18) !important; border-color: rgba(255, 255, 255, 0.25) !important; }
+.trayBack[hidden] { display: none !important; }
 
 .trayTitleWrap { display: flex; align-items: center; gap: 6px; }
 .trayIcon { width: 20px; height: 20px; object-fit: contain; }
@@ -119,43 +135,52 @@ body.toolDockReady #toolTray::before {
 .trayModes { display: flex; align-items: center; gap: 4px; margin-left: 12px; }
 .trayModes .modesTitle { color: rgba(255, 255, 255, 0.45); font-size: 10px; font-weight: 500; margin-right: 2px; }
 .trayModes .modeButton {
-  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px;
-  border-radius: 5px; font-size: 10px; font-weight: 600; color: #94a3b8;
-  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+  display: inline-flex !important; align-items: center !important; gap: 4px !important; height: 22px !important; padding: 0 6px !important;
+  border-radius: 5px !important; font-size: 10px !important; font-weight: 600 !important; color: #94a3b8 !important;
+  background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
   cursor: pointer; transition: all 0.12s;
 }
 .trayModes .modeButton svg { width: 12px; height: 12px; stroke: currentColor; fill: none; }
-.trayModes .modeButton:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.trayModes .modeButton:hover { color: #fff !important; background: rgba(255, 255, 255, 0.12) !important; }
 .trayModes .modeButton.current {
-  color: #0b1118; background: #4fc3f7; border-color: transparent; box-shadow: 0 0 8px rgba(79, 195, 247, 0.4);
+  color: #0b1118 !important; background: #4fc3f7 !important; border-color: transparent !important; box-shadow: 0 0 8px rgba(79, 195, 247, 0.4) !important;
 }
 
 .toolTrayClose {
-  margin-left: auto; width: 22px; height: 22px; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.6); display: grid; place-items: center;
-  cursor: pointer; font-size: 15px; line-height: 1; transition: all 0.12s;
+  margin-left: auto; width: 22px !important; height: 22px !important; border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.6) !important; display: grid !important; place-items: center !important;
+  cursor: pointer; font-size: 15px !important; line-height: 1 !important; transition: all 0.12s;
 }
-.toolTrayClose:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.toolTrayClose:hover { background: rgba(255, 255, 255, 0.15) !important; color: #fff !important; }
 
 /* The Cards inside the Tray */
 .trayCards {
-  display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none;
+  display: flex !important; gap: 8px !important; overflow-x: auto !important; padding: 4px 2px 6px !important; scrollbar-width: none !important;
+  align-items: stretch !important;
 }
 .trayCards::-webkit-scrollbar { display: none; }
 
 .trayCard {
-  width: 96px; flex: 0 0 96px; display: flex; flex-direction: column; align-items: center;
-  gap: 5px; padding: 6px 5px; border-radius: 11px;
-  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #cbd5e1; text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
+  width: 96px !important; min-width: 96px !important; max-width: 96px !important;
+  height: auto !important; min-height: 84px !important; flex: 0 0 96px !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important;
+  justify-content: flex-start !important; gap: 6px !important; padding: 6px 5px 8px !important;
+  border-radius: 12px !important; background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #cbd5e1 !important;
+  text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
+  box-sizing: border-box !important; overflow: visible !important;
 }
 .trayCard .cardThumb {
-  width: 84px; height: 48px; border-radius: 7px; background: #141f2c;
-  border: 1px solid rgba(255, 255, 255, 0.09); position: relative; overflow: hidden;
-  display: grid; place-items: center; transition: all 0.15s ease;
+  width: 84px !important; height: 48px !important; border-radius: 8px !important; background: #141f2c !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important; position: relative; overflow: hidden;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  transition: all 0.15s ease; flex-shrink: 0 !important;
 }
-.trayCard .cardThumb img { width: 100%; height: 100%; object-fit: contain; }
+.trayCard .cardThumb img {
+  width: 36px !important; height: 36px !important; max-width: 36px !important; max-height: 36px !important;
+  object-fit: contain !important; display: block !important; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
 .trayCard .cardThumb::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), transparent 42%), linear-gradient(0deg, rgba(0, 0, 0, 0.25), transparent 40%);
@@ -166,30 +191,32 @@ body.toolDockReady #toolTray::before {
   background: rgba(9, 14, 22, 0.88); backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 214, 107, 0.35); border-radius: 4px;
   padding: 1px 5px; line-height: 1.2; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 .trayCard .cardThumb .cardPrice.hasChoices {
   color: #94a3b8; border-color: rgba(255, 255, 255, 0.15); font-size: 8.5px;
 }
 .trayCard .cardName {
-  font-size: 11px; font-weight: 600; color: #f1f5f9; line-height: 1.2;
-  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11px !important; font-weight: 600 !important; color: #f1f5f9 !important; line-height: 1.2 !important;
+  max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
+  display: block !important;
 }
 .trayCard:hover {
-  background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.2);
-  color: #fff; transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important; transform: translateY(-2px);
 }
 .trayCard:hover .cardThumb {
-  transform: scale(1.03); border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.03); border-color: rgba(255, 255, 255, 0.25) !important;
 }
 .trayCard.is-active {
-  border-color: #4fc3f7; background: rgba(79, 195, 247, 0.16);
-  box-shadow: 0 0 16px rgba(79, 195, 247, 0.35); color: #fff;
+  border-color: #4fc3f7 !important; background: rgba(79, 195, 247, 0.18) !important;
+  box-shadow: 0 0 16px rgba(79, 195, 247, 0.35) !important; color: #fff !important;
 }
 .trayCard.is-active .cardThumb {
-  border-color: #4fc3f7; box-shadow: 0 0 10px rgba(79, 195, 247, 0.4);
+  border-color: #4fc3f7 !important; box-shadow: 0 0 10px rgba(79, 195, 247, 0.4) !important;
 }
 .trayCard.unavailable {
-  opacity: 0.45; cursor: not-allowed; border-style: dashed; transform: none !important;
+  opacity: 0.45 !important; cursor: not-allowed !important; border-style: dashed !important; transform: none !important;
 }
 
 /* Active Tool Capsule (Pill) */
