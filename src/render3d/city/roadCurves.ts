@@ -33,6 +33,12 @@ const UNDER_LIFT = 0.13, CORNER_LIFT = 0.145;
 const NODE_LIFT = 0.185, NODE_PAINT_LIFT = NODE_LIFT + 0.009;
 /** ... laid in triangles no longer than this a side (world units), so it follows the ground */
 const NODE_STEP = 1.5;
+/** A railway's ballast, its edges, and the sleepers on it: dark stone under light concrete, the steel darker still */
+const BALLAST = new Color(0x5d564d), BALLAST_EDGE = new Color(0x6b6357);
+/** ... a sleeper's size (metres: across the track, high, along it) and the height of its top over the ground */
+const SLEEPER_SIZE = [2, 0.1, 0.26] as const, SLEEPER_TOP = 0.35;
+/** ... the least half width of a rail (world units), wider than a real one so it shows from the game's camera */
+const RAIL_MIN_HALF = 0.06;
 /** ... the share of the way out from its middle that is all its own colour, before it shades into its roads' */
 const NODE_INNER = 0.55;
 /**
@@ -200,9 +206,9 @@ export class RoadCurves {
   get drawnLines(): ReadonlyArray<{ points: Point[]; rail: boolean; level: number }> { return this.lines; }
   private readonly roadMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-  private readonly railMaterial = new MeshStandardMaterial({ color: 0x9aa3a0, roughness: 0.4, metalness: 0.6 });
-  private readonly sleeperMaterial = new MeshStandardMaterial({ color: 0x8d877c, roughness: 0.9 });
-  private readonly sleeperGeometry = new BoxGeometry(1.8, 0.08, 0.22);
+  private readonly railMaterial = new MeshStandardMaterial({ color: 0x4c5155, roughness: 0.45, metalness: 0.5 });
+  private readonly sleeperMaterial = new MeshStandardMaterial({ color: 0xaaa497, roughness: 0.9 });
+  private readonly sleeperGeometry = new BoxGeometry(...SLEEPER_SIZE);
   /** Laterite roads, their junctions and ends: the gallery model's dirt, its scanned bumps lit as relief (normal map),
    * coloured by the road's own profile */
   private readonly dirtMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
@@ -723,13 +729,17 @@ export class RoadCurves {
   }
 
   private rail(line: Point[], positions: number[], colors: number[], railPositions: number[], sleepers: Matrix4[]): void {
-    const m = this.metre, ballast = new Color(0x8b8379), edge = new Color(0x77705f), half = RAIL_INTERFACE.ballastWidth / 2 * m;
-    this.band(line, [-half, -1.2 * m, 1.2 * m, half], (d) => (Math.abs(d) > 1.21 * m ? edge : ballast), LIFT, positions, colors);
-    // The two rails, low boxes along the line
-    const gauge = (RAIL_INTERFACE.gauge + RAIL_INTERFACE.railWidth) / 2 * m, rail = 0.05 * m;
+    // Dark ballast, so the light sleepers and the steel on it read as a railway, not a pale path (owner, 18 Oct 2026:
+    // the track beside the crossing on the Khon Kaen map was taken for a footpath)
+    const m = this.metre, half = RAIL_INTERFACE.ballastWidth / 2 * m;
+    this.band(line, [-half, -1.2 * m, 1.2 * m, half], (d) => (Math.abs(d) > 1.21 * m ? BALLAST_EDGE : BALLAST), LIFT, positions, colors);
+    // The two rails, standing up off the sleepers with their sides, at least RAIL_MIN_HALF wide so they still show on a
+    // real-scale map, where a metre-gauge rail is a few centimetres of a 16 m tile
+    const gauge = (RAIL_INTERFACE.gauge + RAIL_INTERFACE.railWidth) / 2 * m, rail = Math.max(RAIL_INTERFACE.railWidth / 2 * m, RAIL_MIN_HALF);
+    const foot = SLEEPER_TOP * m, head = Math.max(RAIL_INTERFACE.headY * m, foot + 2 * rail);
     for (const side of [-1, 1]) {
-      const scratch: number[] = [], none: number[] = [];
-      this.band(line, [side * gauge - rail, side * gauge + rail], () => ballast, 0.42 * m, scratch, none);
+      const scratch: number[] = [], none: number[] = [], left = side * gauge - rail, right = side * gauge + rail;
+      this.band(line, [left - 1e-4, left, right, right + 1e-4], () => BALLAST, (d) => (d < left || d > right ? foot : head), scratch, none);
       railPositions.push(...scratch);
     }
     // Sleepers every RAIL_INTERFACE.sleeperSpacing along it
@@ -742,7 +752,7 @@ export class RoadCurves {
       turn.setFromAxisAngle(up, -Math.atan2(bz - az, bx - ax) + Math.PI / 2);
       for (let s = carry; s < length; s += spacing) {
         const x = ax + (bx - ax) * s / length, z = az + (bz - az) * s / length;
-        place.set(x, this.height(x, z) + 0.3 * m, z);
+        place.set(x, this.height(x, z) + (SLEEPER_TOP - SLEEPER_SIZE[1] / 2) * m, z);
         sleepers.push(new Matrix4().compose(place, turn, size));
       }
       carry = (carry - length) % spacing;
