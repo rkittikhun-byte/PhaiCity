@@ -84,9 +84,8 @@ describe("zone cells", () => {
     const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "residential", cells: keys }).accepted).toBe(true);
     expect(plotOf(core.map, 15, 11)).toMatchObject({ kind: "residential", level: 0 });
-    // ... and the tile behind it: the cells go two plots deep, 32 m (owner, 18 Oct 2026), and no further
-    expect(plotOf(core.map, 15, 12)).toMatchObject({ kind: "residential", level: 0 });
-    expect(plotOf(core.map, 15, 13)).toBeNull();
+    // ... and none behind it: the cells are one plot deep, 16 m (owner, 18 Oct 2026: "ไม่มีแปลงหลัง มีแค่แปลงเดียวติดถนน")
+    expect(plotOf(core.map, 15, 12)).toBeNull();
     // ... and the jobs homes need: shops and factories across the road (z 70..104), as a player paints them
     const across = (x0: number, x1: number) => layout.cells.filter(c => c.x > x0 && c.x < x1 && c.z > 70 && c.z < 104).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "commercial", cells: across(100, 220) }).accepted).toBe(true);
@@ -157,12 +156,15 @@ describe("zone cells", () => {
     expect(core.apply({ type: "tool", tool: "police", x: 40, y: 8 }).accepted).toBe(true);
   });
 
-  test("the cells go two plots deep, 32 m: the four rows nearest the road the tile beside it, the next four the tile behind", () => {
-    // Owner, 18 Oct 2026: "ช่องเขตลึก 32 ม."
+  test("the cells are one plot deep, 16 m: four rows, all of the tile beside the road, none behind it", () => {
+    // Owner, 18 Oct 2026: "ไม่มีแปลงหลัง มีแค่แปลงเดียวติดถนน"
     const core = city(), layout = cellLayout(core.map);
+    expect(CELL_DEPTH).toBe(PLOT_ROWS);
     const south = layout.cells.filter(c => c.x > 250 && c.x < 350 && c.z > 105 && c.z < 140 && Math.abs(c.nz - 1) < 0.01);
-    expect(new Set(south.map(c => c.row))).toEqual(new Set([0, 1, 2, 3, 4, 5, 6, 7]));
-    for (const cell of south) expect(Math.floor(plotTileOfCell(core.map, cell) / core.map.width)).toBe(cell.row < PLOT_ROWS ? 11 : 12);
+    expect(new Set(south.map(c => c.row))).toEqual(new Set([0, 1, 2, 3]));
+    for (const cell of south) expect(Math.floor(plotTileOfCell(core.map, cell) / core.map.width)).toBe(11);
+    // Nothing lies further from the road than the plot's own 16 m (10 world units) and its edge
+    expect(Math.max(...south.map(c => c.z)) - 105).toBeLessThan(16);
   });
 
   test("a junction's corners go to one road, its rows running on to the other's edge, with no gaps (owner, 18 Oct 2026)", () => {
@@ -184,7 +186,7 @@ describe("zone cells", () => {
       const sin = Math.sin(c.angle), cos = Math.cos(c.angle), ox = px - c.x, oz = pz - c.z;
       return Math.abs(ox * cos - oz * sin) <= half && Math.abs(ox * sin + oz * cos) <= half * (c.span ?? 1);
     }).length;
-    // The ground round the junction from 4 to 16 world units off the roads' middles as drawn, a point a metre apart:
+    // The ground round the junction from 4 to 11 world units off the roads' middles as drawn, a point a metre apart:
     // each under a cell, and seldom under two (a point on the edge between two cells is under both)
     const W = core.map.width, value = (i: number): number => core.map.getTileValue(i % W, Math.floor(i / W));
     const drawn = roadLines(networkOf({ width: W, height: core.map.height, value, level: () => 1 }, false));
@@ -196,7 +198,7 @@ describe("zone cells", () => {
     let points = 0, bare = 0, twice = 0;
     for (let pz = junction[1] - 22; pz <= junction[1] + 22; pz += 0.625) for (let px = junction[0] - 22; px <= junction[0] + 22; px += 0.625) {
       const off = offRoad(px, pz);
-      if (off < 4 || off > 16) continue;
+      if (off < 4 || off > 11) continue;
       points++;
       const n = covered(px, pz);
       if (n === 0) bare++;

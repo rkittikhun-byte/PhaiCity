@@ -74,8 +74,8 @@ export const NOTHING_TO_PAINT = "nothing to paint";
 export const NO_MONEY_FOR_CELLS = "not enough money";
 /** Why a building was refused on a map painted a cell at a time: every building there stands beside a road */
 export const NEEDS_ROAD_BESIDE = "needs a road beside it";
-/** The most cells one command paints: twice what it was once the cells went 32 m deep, so one stroke still reaches as far */
-export const MAX_CELLS = 8000;
+/** The most cells one command paints */
+export const MAX_CELLS = 4000;
 
 export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */

@@ -5,7 +5,7 @@
 // Zone cells along the roads, as in Cities: Skylines (owner, 14 Oct 2026: "ลดขนาดช่องลงอีก เหลือ 4x4 และ วาดสีทีละช่อง
 // และ ให้ snap กันถนน", then "จาก 4x4 เหลือ 2x2", Mueang Khon Kaen first). Beside every road that zones may face, on
 // both sides, rows of 2 m cells (half a Thai shophouse's frontage) lie along the road's smooth line
-// (src/roadGeometry.ts), straight, slanted or curved, CELL_DEPTH deep (32 m: two plots, PLOT_ROWS each); the player paints homes, shops or factories a cell at a time (the zoneCells command,
+// (src/roadGeometry.ts), straight, slanted or curved, CELL_DEPTH deep (16 m: one plot, PLOT_ROWS rows); the player paints homes, shops or factories a cell at a time (the zoneCells command,
 // src/cityCommands.ts). Where two roads' cells would overlap, the nearer road's win; no cell lies on a road, a railway,
 // water, a building, outside the district or on land the city has not bought.
 // A painted cell is kept by where its middle lies, on a 1 m raster of the map (its key), so the paint stays when the
@@ -21,9 +21,10 @@ import { servesZones } from "./roadLevels";
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
 export const CELL_M = 4;
 export const RASTER_M = 1;
-export const CELL_DEPTH = 8;
-/** The rows a 16 m plot tile takes, so the cells beside a road make two plots, one behind the other: 32 m deep as in
- * Cities: Skylines (owner, 18 Oct 2026: "ช่องเขตลึก 32 ม."), where four plots join into a lot (src/plots.ts lotOf) */
+export const CELL_DEPTH = 4;
+/** The rows a 16 m plot tile takes. The cells beside a road are one plot deep, 16 m, so no building stands behind another
+ * (owner, 18 Oct 2026: "ไม่มีแปลงหลัง มีแค่แปลงเดียวติดถนน", after 32 m, two plots, which it had asked for earlier and which
+ * stacked buildings); a lot of 2 × 2 plots (src/plots.ts lotOf) then forms only where two roads' plots meet */
 export const PLOT_ROWS = 4;
 /** The gap between a road's edge and its first row (world units) */
 const EDGE_GAP = 0.25;
