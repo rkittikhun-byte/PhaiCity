@@ -25,7 +25,7 @@ import { junctionLayout } from './roadJunctions.js';
 export { smoothLine, type Point };
 
 
-const LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
+const LIFT = 0.15, OUTSIDE_SHADE = 0.62;
 /** A road's end under the road it meets, and the shoulders round a junction's corners. */
 const UNDER_LIFT = 0.13, CORNER_LIFT = 0.145;
 /** A junction's patch (RoadCurves.node): well over the roads' surfaces and their lines, which it covers, as the ground
@@ -45,8 +45,13 @@ const LATERITE_RELIEF: readonly (readonly [number, number])[] = [[0, 0.025], [0.
   [1.45, -0.022], [1.8, -0.005], [2.1, 0.004], [2.7, -0.003], [3.2, -0.012], [LATERITE_EDGE, -0.018]];
 /** ... past its edge a dusty shoulder this share of its half width, sloping down to just over the land */
 const LATERITE_SHOULDER = 0.24, SHOULDER_LIFT = 0.04, SHOULDER_DUST = new Color(0xb7a07a);
-/** A laterite road's end, its round plate over the crown of the road running into it */
-const DIRT_PLATE_LIFT = 0.178;
+/** A laterite road's two wheel tracks: their middle and half their width, as the model's distance from its middle */
+const RUT_MIDDLE = 1.275, RUT_HALF = 0.2;
+/** ... over a junction's patch, the tracks of cars turning from one road into the next, and of those going straight on,
+ * this much of the way from the patch's colour to the tracks' own at their middle (at the roads they are the tracks') */
+const TURN_WEAR = 0.5, STRAIGHT_WEAR = 0.8;
+/** Two roads meeting end to end at a corner turn on a bend this many times the wider one's reach along each */
+const BEND_REACH = 1.6;
 /** The laterite's own scanned grain (Poly Haven red_laterite_soil_stones) repeats every 2 m */
 const DIRT_REPEAT_M = 2, DIRT_BUMPS = 1;
 /** Loose gravel on the shoulders, between these distances from the middle (the model's, as LATERITE_RELIEF), about
@@ -130,6 +135,39 @@ function splitEnds(line: Point[], fromStart: number, fromEnd: number): [Point[],
   const middle = [...(a ? [a.p] : []), ...line.slice(a ? a.i : 0, b ? b.i : line.length), ...(b ? [b.p] : [])];
   const finish = b ? [b.p, ...line.slice(b.i)] : [];
   return [start, middle, finish];
+}
+
+function lengthOf(line: readonly Point[]): number {
+  let length = 0;
+  for (let i = 1; i < line.length; i++) length += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+  return length;
+}
+
+/** A line run on straight past each end that lies on one of the stops, by that much, so it stops square there */
+function stopSquare(line: Point[], stops: readonly Point[], by: number): Point[] {
+  if (line.length < 2 || by <= 0) return line;
+  const out = [...line];
+  for (const last of [false, true]) {
+    const i = last ? out.length - 1 : 0, j = last ? out.length - 2 : 1;
+    if (!stops.some(([x, z]) => Math.hypot(x - out[i][0], z - out[i][1]) < 0.5)) continue;
+    const dx = out[i][0] - out[j][0], dz = out[i][1] - out[j][1], l = Math.hypot(dx, dz) || 1;
+    const past: Point = [out[i][0] + dx / l * by, out[i][1] + dz / l * by];
+    if (last) out.push(past); else out.unshift(past);
+  }
+  return out;
+}
+
+/** A point of the curve from a through b to c (a quadratic Bezier), t from 0 to 1 */
+function quadratic(a: Point, b: Point, c: Point, t: number): Point {
+  const u = 1 - t;
+  return [u * u * a[0] + 2 * u * t * b[0] + t * t * c[0], u * u * a[1] + 2 * u * t * b[1] + t * t * c[1]];
+}
+
+/** A point of the curve from a to d, leaving a towards b and coming into d from c (a cubic Bezier), t from 0 to 1 */
+function cubic(a: Point, b: Point, c: Point, d: Point, t: number): Point {
+  const u = 1 - t;
+  return [u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0],
+    u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]];
 }
 
 interface DrawnCurveLine {
@@ -290,7 +328,8 @@ export class RoadCurves {
             if (end === 0) line.unshift(past); else line.push(past);
           }
           this.lines.push({ points: line, rail, level, ...lineBounds(line) });
-          this.rail(line, positions, colors, railPositions, sleepers);
+          this.rail(stopSquare(line, plates.map(([x, z]): Point => [x, z]), RAIL_INTERFACE.ballastWidth / 2 * this.metre),
+            positions, colors, railPositions, sleepers);
         }
       } else {
         // Where a road ends at a junction with a road running through it, its end lies under that road
@@ -304,15 +343,47 @@ export class RoadCurves {
             under.set(`${arm.line}:${arm.end}`, reach / Math.max(0.35, sine) + 0.3);
           }
         }
+        // Where two roads drawn one after another meet end to end at a corner (src/roadPieces.ts), not going on along
+        // each other's way, each stops short of it and a bend of its own joins them, its wheel tracks and lines turning
+        // with it (owner, 18 Oct 2026: no round plate laid on the corner)
+        const cut = new Map<string, number>(), bends: Array<{ at: Point; arms: JunctionArm[] }> = [];
+        for (const junction of drawn.junctions) {
+          const { arms } = junction;
+          if (arms.length !== 2 || junction.smooth || arms.some((arm) => arm.end === null)) continue;
+          const reach = Math.max(...arms.map((arm) => roadReach(drawn.lines[arm.line].level, this.snapshot.realUnits)));
+          const along = Math.min(BEND_REACH * reach, ...arms.map((arm) => lengthOf(drawn.lines[arm.line].points) * 0.45));
+          for (const arm of arms) cut.set(`${arm.line}:${arm.end}`, along);
+          bends.push({ at: junction.at, arms });
+        }
+        // Where a road stops (a dead end, or a junction only it reaches) it runs on past its tile's middle as far as it
+        // reaches either side and stops square (owner, 18 Oct 2026: "เอาวงกลมที่ปลายถนนออก")
+        const stops: Point[] = plates.map(([x, z]): Point => [x, z]);
+        for (const junction of drawn.junctions) if (junction.arms.length === 1) stops.push(junction.at);
+        const ends = new Map<string, Point>();
         drawn.lines.forEach(({ points: line, level }, n) => {
           this.lines.push({ points: line, rail, level, ...lineBounds(line) });
-          const [start, main, finish] = splitEnds(line, under.get(`${n}:0`) ?? 0, under.get(`${n}:1`) ?? 0);
+          const reach = roadReach(level, this.snapshot.realUnits);
+          const cutStart = cut.get(`${n}:0`) ?? 0, cutEnd = cut.get(`${n}:1`) ?? 0;
+          const kept = cutStart || cutEnd ? splitEnds(line, cutStart, cutEnd)[1] : line;
+          if (kept.length < 2) return;
+          ends.set(`${n}:0`, kept[0]); ends.set(`${n}:1`, kept[kept.length - 1]);
+          const whole = stopSquare(kept, stops, reach);
+          const [start, main, finish] = splitEnds(whole, under.get(`${n}:0`) ?? 0, under.get(`${n}:1`) ?? 0);
           for (const part of [start, finish]) if (part.length > 1) this.road(part, level, positions, colors, UNDER_LIFT, false);
           if (main.length > 1) this.road(main, level, positions, colors);
         });
+        for (const { at, arms } of bends) this.bend(at, arms, drawn.lines, ends, positions, colors);
         for (const junction of drawn.junctions) this.junction(junction, drawn.lines, positions, colors);
       }
-      for (const [x, z, level] of plates) this.plate(x, z, rail ? null : level, positions, colors);
+      // A lone tile, which no line reaches: a short stretch of its road or railway across it, ending square
+      for (const [x, z, level] of plates) {
+        if (this.lines.some(({ points, rail: other }) => other === rail &&
+          [points[0], points[points.length - 1]].some(([px, pz]) => Math.hypot(px - x, pz - z) < 0.5))) continue;
+        const half = rail ? RAIL_INTERFACE.ballastWidth / 2 * this.metre : roadReach(level, this.snapshot.realUnits);
+        const stub: Point[] = [[x - half, z], [x + half, z]];
+        if (rail) this.rail(stub, positions, colors, railPositions, sleepers);
+        else this.road(stub, level, positions, colors);
+      }
     }
     // The buildings' lots, in their own lawn or yard (lots)
     const lawn: number[] = [], yard: number[] = [], none: number[] = [];
@@ -590,6 +661,67 @@ export class RoadCurves {
       new Vector3(0.16 * size, 0.08 * size, 0.12 * size)));
   }
 
+  /**
+   * Two roads drawn one after another meeting end to end at a corner: from where each was cut short of it (rebuild),
+   * one bend through the corner, as the road would be built, its wheel tracks, lines and shoulders turning with it; of
+   * each road's own level up to its middle
+   */
+  private bend(at: Point, arms: readonly JunctionArm[], lines: ReadonlyArray<{ level: number }>, ends: ReadonlyMap<string, Point>,
+    positions: number[], colors: number[]): void {
+    const [a, b] = arms, from = ends.get(`${a.line}:${a.end}`), to = ends.get(`${b.line}:${b.end}`);
+    if (!from || !to) return;
+    const steps = 16, points: Point[] = [];
+    for (let i = 0; i <= steps; i++) points.push(quadratic(from, at, to, i / steps));
+    const levelA = lines[a.line].level, levelB = lines[b.line].level;
+    if (levelA === levelB) { this.road(points, levelA, positions, colors); return; }
+    this.road(points.slice(0, steps / 2 + 1), levelA, positions, colors);
+    this.road(points.slice(steps / 2), levelB, positions, colors);
+  }
+
+  /**
+   * The wheel tracks over a laterite junction's patch (owner, 18 Oct 2026: "ร่องล้อเลี้ยวผ่านแยก"): from each road to
+   * the next round it, the tracks of the cars turning there, the inner wheels' tighter than the outer's, and across to a
+   * road straight opposite, the tracks of those going on; each leaves its road where that road's own tracks end, in their
+   * colour, and wears lighter over the middle where fewer wheels run
+   */
+  private tracks(layout: ReturnType<typeof junctionLayout>): void {
+    const { mouths } = layout, n = mouths.length, k = this.lateriteShare;
+    const middle = RUT_MIDDLE * k, half = RUT_HALF * k * 1.15, patch = lateriteColour(0.6), rut = lateriteColour(RUT_MIDDLE);
+    const at = (m: typeof mouths[number], offset: number): Point =>
+      [m.at[0] + m.normal[0] * offset, m.at[1] + m.normal[1] * offset];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const A = mouths[i], B = mouths[j], straight = A.way[0] * B.way[0] + A.way[1] * B.way[1] < -0.8;
+      if (!straight && j !== i + 1 && !(i === 0 && j === n - 1)) continue;
+      // The side of each road the other lies on: the inner wheels' track joins those, the outer wheels' the far sides;
+      // going straight on, a track keeps to its side of the road
+      const sideA = Math.sign(A.normal[0] * B.way[0] + A.normal[1] * B.way[1]) || 1;
+      const sideB = Math.sign(B.normal[0] * A.way[0] + B.normal[1] * A.way[1]) || 1;
+      for (const s of [1, -1]) {
+        const offA = straight ? s * middle : s * sideA * middle, offB = straight ? -s * middle : s * sideB * middle;
+        const p = at(A, offA), q = at(B, offB), reach = Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.42;
+        const c1: Point = [p[0] - A.way[0] * reach, p[1] - A.way[1] * reach], c2: Point = [q[0] - B.way[0] * reach, q[1] - B.way[1] * reach];
+        const line: Point[] = [];
+        for (let t = 0; t <= 14; t++) line.push(cubic(p, c1, c2, q, t / 14));
+        const wear = straight ? STRAIGHT_WEAR : TURN_WEAR;
+        this.track(line, half, (t) => patch.clone().lerp(rut, 1 - (1 - wear) * Math.sin(Math.PI * t)), NODE_LIFT + 0.002);
+      }
+    }
+  }
+
+  /** A strip along a line, half wide either side, its colour by how far along it (0 to 1), lying in the dirt */
+  private track(line: Point[], half: number, colourAt: (along: number) => Color, lift: number): void {
+    for (let i = 1; i < line.length; i++) {
+      const edge = (k: number): [Point, Point] => {
+        const [ax, az] = line[Math.max(0, k - 1)], [bx, bz] = line[Math.min(line.length - 1, k + 1)];
+        const l = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / l * half, nz = (bx - ax) / l * half;
+        return [[line[k][0] + nx, line[k][1] + nz], [line[k][0] - nx, line[k][1] - nz]];
+      };
+      const [a0, a1] = edge(i - 1), [b0, b1] = edge(i), ca = colourAt((i - 1) / (line.length - 1)), cb = colourAt(i / (line.length - 1));
+      this.shaded([a0, a1, b0], [ca, ca, cb], lift, this.dirtPositions, this.dirtColors);
+      this.shaded([a1, b1, b0], [ca, cb, cb], lift, this.dirtPositions, this.dirtColors);
+    }
+  }
+
   private rail(line: Point[], positions: number[], colors: number[], railPositions: number[], sleepers: Matrix4[]): void {
     const m = this.metre, ballast = new Color(0x8b8379), edge = new Color(0x77705f), half = RAIL_INTERFACE.ballastWidth / 2 * m;
     this.band(line, [-half, -1.2 * m, 1.2 * m, half], (d) => (Math.abs(d) > 1.21 * m ? edge : ballast), LIFT, positions, colors);
@@ -629,13 +761,8 @@ export class RoadCurves {
     const junction = drawnJunction.arms.length < 3 ? drawnJunction : this.crossingOf(drawnJunction, lines);
     const { at, arms } = junction, units = this.snapshot.realUnits;
     const maxLevel = Math.max(...arms.map((arm) => lines[arm.line].level));
-    if (arms.length < 3) {
-      // A 2-arm level transition is already joined seamlessly along the continuous smooth curve; 1-arm dead ends get a
-      // plate, and so do two drawn lines that meet end to end at a corner (src/roadPieces.ts), not where the newer goes
-      // on along the older's way
-      if (arms.length === 1 || !junction.smooth && arms.every((arm) => arm.end !== null)) this.plate(at[0], at[1], maxLevel, positions, colors);
-      return;
-    }
+    // One road or two: it stops square, runs on along a smooth curve, or turns on a bend of its own (rebuild, bend)
+    if (arms.length < 3) return;
     const layout = junctionLayout(at, arms.map((arm) => ({ points: lines[arm.line].points, way: arm.way,
       half: lines[arm.line].level <= 1 ? LATERITE_EDGE * this.lateriteShare : halfWidth(lines[arm.line].level, units) })), this.metre);
     this.node(junction, lines, layout, positions, colors);
@@ -740,6 +867,7 @@ export class RoadCurves {
       }
     }
     if (paved) return;
+    this.tracks(layout);
     // A laterite junction's rounded corners fall away into the dusty shoulder its roads have, gravel lying along them
     const edge = lateriteColour(LATERITE_EDGE);
     for (let k = 0; k < n; k++) {
@@ -855,43 +983,6 @@ export class RoadCurves {
     for (const [x, z] of up >= 0 ? [a, b, c] : [a, c, b]) {
       positions.push(x, this.height(x, z) + lift, z);
       const shaded = this.shade(colour, x, z); colors.push(shaded.r, shaded.g, shaded.b);
-    }
-  }
-
-  /**
-   * A round plate at a junction or a road's end, shaded across as the road is (its rings the road's colours from its
-   * middle to its edge), so the roads meeting there run into it rather than ending at a disc; level null for a railway
-   */
-  private plate(cx: number, cz: number, level: number | null, roadPositions: number[], roadColors: number[]): void {
-    // Each ring's radius, its colour and how far over the ground it lies
-    let rings: Array<[number, Color, number?]>, lift = PLATE_LIFT, positions = roadPositions, colors = roadColors;
-    if (level === null) {
-      const m = this.metre, half = RAIL_INTERFACE.ballastWidth / 2 * m;
-      rings = [[0, new Color(0x8b8379)], [1.2 * m, new Color(0x8b8379)], [half, new Color(0x77705f)]];
-    } else if (level <= 1) {
-      // A laterite road's end: its dirt, over the crown of the road running into it, falling away into its shoulder
-      const k = this.lateriteShare, e = LATERITE_EDGE * k;
-      lift = DIRT_PLATE_LIFT; positions = this.dirtPositions; colors = this.dirtColors;
-      rings = [0, 0.35, 0.7, 1].map((share): [number, Color] => [e * share, lateriteColour(LATERITE_EDGE * share)]);
-      rings.push([e * (1 + LATERITE_SHOULDER), SHOULDER_DUST, SHOULDER_LIFT]);
-    } else {
-      const units = this.snapshot.realUnits, half = halfWidth(level, units), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
-      rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + shoulderOf(units), new Color(0xa39c8f)]];
-    }
-    const n = 20, at = (radius: number, angle: number, over: number): [number, number, number] => {
-      const x = cx + Math.cos(angle) * radius, z = cz + Math.sin(angle) * radius;
-      return [x, this.height(x, z) + over, z];
-    };
-    for (let ring = 1; ring < rings.length; ring++) {
-      const [r0, c0, l0 = lift] = rings[ring - 1], [r1, c1, l1 = lift] = rings[ring];
-      const inner = this.shade(c0, cx, cz), outer = this.shade(c1, cx, cz);
-      for (let k = 0; k < n; k++) {
-        const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2;
-        const p = at(r0, a0, l0), q = at(r0, a1, l0), s = at(r1, a0, l1), t = at(r1, a1, l1);
-        for (const [v, c] of [[p, inner], [q, inner], [s, outer], [q, inner], [t, outer], [s, outer]] as const) {
-          positions.push(v[0], v[1], v[2]); colors.push(c.r, c.g, c.b);
-        }
-      }
     }
   }
 }
