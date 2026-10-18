@@ -19,7 +19,7 @@
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
-import { MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
+import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
@@ -81,7 +81,10 @@ export type Command =
   /** stroke: the same number for every command of one press of the mouse, so they undo together. */
   | { type: "tool"; tool: ToolName; x: number; y: number; stroke?: number;
       /** Where a building beside a road is drawn, slid along it a cell at a time: x, z (world units), turn (radians) */
-      pose?: [number, number, number] }
+      pose?: [number, number, number];
+      /** A road or railway: which line of the stroke it is (a grid's rows and columns are lines of their own), and how
+       * that line was drawn, with the points a clicked one was drawn through (src/roadPieces.ts RoadPath) */
+      part?: number; shape?: LineShape; controls?: Array<[number, number]> }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -319,6 +322,12 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (c.pose !== undefined && !(Array.isArray(c.pose) && c.pose.length === 3 && c.pose.every((n) => Number.isFinite(n)))) {
         return "bad pose";
       }
+      if (c.part !== undefined && !isInteger(c.part, 0, 100000)) return "bad part";
+      if (c.shape !== undefined && !isOneOf(LINE_SHAPES, c.shape)) return "bad shape";
+      if (c.controls !== undefined && !(Array.isArray(c.controls) && c.controls.length >= 2 && c.controls.length <= 4 &&
+        c.controls.every((p) => Array.isArray(p) && p.length === 2 && isInteger(p[0], 0, width - 1) && isInteger(p[1], 0, height - 1)))) {
+        return "bad controls";
+      }
       return null;
     case "undo":
       return null;
@@ -363,17 +372,19 @@ export function commandProblem(command: unknown, width: number, height: number):
 export class CityCommands {
   private readonly history = new UndoHistory();
   /** The drawn line the latest stroke of a road tool lays (src/roadPieces.ts) */
-  private roadPiece: { stroke: number; piece: number } | null = null;
-  /** ... and the tiles of that stroke in the order drawn, a path while each is beside the last and none comes twice */
-  private roadPath: { stroke: number; path: RoadPath; valid: boolean } | null = null;
+  private roadPiece: { stroke: string; piece: number } | null = null;
+  /** ... and the tiles of that line in the order drawn, a path while each is beside the last and none comes twice */
+  private roadPath: { stroke: string; path: RoadPath; valid: boolean } | null = null;
 
   /** A road or railway stroke's next tile, kept so the line's shape is worked out once from them (src/roadPieces.ts) */
-  private followPath(stroke: number, x: number, y: number): void {
+  private followPath(stroke: string, x: number, y: number, shape?: LineShape, controls?: Array<[number, number]>): void {
     const city = this.city, width = city.width, index = y * width + x;
     const value = city.map!.getTile(x, y).getRawValue() & BIT_MASK;
     const piece = isRoadTile(value) || isRailTile(value) ? city.roadPieceAt?.(x, y) ?? 0 : 0;
     if (this.roadPath?.stroke !== stroke) this.roadPath = { stroke, path: { from: piece, to: 0, tiles: [] }, valid: true };
     const record = this.roadPath, tiles = record.path.tiles, last = tiles[tiles.length - 1];
+    if (shape) record.path.shape = shape;
+    if (controls) record.path.controls = controls.map(([cx, cy]) => [cx, cy]);
     if (last === index) return;
     if (last !== undefined) {
       const lx = last % width, ly = (last - lx) / width;
@@ -401,7 +412,8 @@ export class CityCommands {
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
         // A road or railway stroke's tiles, in the order drawn (src/roadPieces.ts RoadPath)
         const lays = tool.roadLevel ? isRoadTile : command.tool === "rail" ? isRailTile : null;
-        if (lays && command.stroke !== undefined && city.map) this.followPath(command.stroke, command.x, command.y);
+        const line = command.stroke === undefined ? null : `${command.stroke}:${command.part ?? 0}`;
+        if (lays && line !== null && city.map) this.followPath(line, command.x, command.y, command.shape, command.controls);
         const houseMap = city.houseMap;
         const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
         const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
@@ -441,13 +453,13 @@ export class CityCommands {
         }
         // ... and roads and railways laid where there was neither take the drawn line's piece, one a stroke
         // (src/roadPieces.ts); a crossing keeps the piece of the line that was there
-        if (applied && map && lays && command.stroke !== undefined && city.newRoadPiece && city.setRoadPiece) {
+        if (applied && map && lays && line !== null && city.newRoadPiece && city.setRoadPiece) {
           const laid = before.filter((c) => !isRoadTile(c.before & BIT_MASK) && !isRailTile(c.before & BIT_MASK) && lays(after(c)));
-          if (laid.length && this.roadPiece?.stroke !== command.stroke) this.roadPiece = { stroke: command.stroke, piece: city.newRoadPiece() };
+          if (laid.length && this.roadPiece?.stroke !== line) this.roadPiece = { stroke: line, piece: city.newRoadPiece() };
           for (const c of laid) city.setRoadPiece(c.x, c.y, this.roadPiece!.piece);
         }
         // ... and the piece's path, the tiles drawn so far (a piece shared past the last number keeps none)
-        if (lays && command.stroke !== undefined && this.roadPiece?.stroke === command.stroke && this.roadPath?.stroke === command.stroke) {
+        if (lays && line !== null && this.roadPiece?.stroke === line && this.roadPath?.stroke === line) {
           const piece = this.roadPiece.piece, record = this.roadPath;
           city.setRoadPath?.(piece, record.valid && piece < MAX_ROAD_PIECE ? record.path : null);
         }

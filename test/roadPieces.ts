@@ -7,7 +7,7 @@
 
 import type { TilePoint } from "../src/cityView";
 import { CityCore } from "../src/core/cityCore";
-import { curvePath, gridPath, linePath } from "../src/drawPaths";
+import { curvePath, gridLines, gridPath, linePath } from "../src/drawPaths";
 import { GameMap } from "../src/gameMap.js";
 import { networkOf, roadLines, type Point } from "../src/roadGeometry";
 
@@ -23,10 +23,18 @@ function newCity(saved: unknown = null) {
 }
 
 let stroke = 0;
-/** Lays a drawn line as the game does: a road (or railway) command a tile, all one stroke */
-function draw(core: CityCore, tiles: TilePoint[], tool: "road" | "rail" = "road"): void {
+/** Lays a drawn line as the game does: a road (or railway) command a tile, all one stroke, saying how it was drawn */
+function draw(core: CityCore, tiles: TilePoint[], tool: "road" | "rail" = "road", extra: Record<string, unknown> = {}): void {
   stroke++;
-  for (const { x, y } of tiles) core.apply({ type: "tool", tool, x, y, stroke });
+  for (const { x, y } of tiles) core.apply({ type: "tool", tool, x, y, stroke, ...extra } as any);
+}
+/** ... a straight line from a to b, as the straight mode draws it */
+function drawStraight(core: CityCore, a: TilePoint, b: TilePoint, tool: "road" | "rail" = "road"): void {
+  draw(core, linePath(a, b), tool, { shape: "straight", controls: [[a.x, a.y], [b.x, b.y]] });
+}
+/** ... and the curve through clicked points, as the curve modes draw it */
+function drawCurve(core: CityCore, points: TilePoint[] = CURVE_POINTS, tool: "road" | "rail" = "road"): void {
+  draw(core, curvePath(points), tool, { shape: "curve", controls: points.map((p) => [p.x, p.y]) });
 }
 
 /** The roads' (or railways') lines as the 3D view draws them */
@@ -67,15 +75,16 @@ function expectSameLine(after: Point[] | undefined, before: Point[]): void {
 }
 
 /** A curve east, then bending south, as the screenshot's (owner, 18 Oct 2026) */
-const CURVE = curvePath([{ x: 10, y: 10 }, { x: 40, y: 10 }, { x: 45, y: 40 }]);
+const CURVE_POINTS = [{ x: 10, y: 10 }, { x: 40, y: 10 }, { x: 45, y: 40 }];
+const CURVE = curvePath(CURVE_POINTS);
 const END = CURVE[CURVE.length - 1];
 const MIDDLE = CURVE[Math.floor(CURVE.length / 2)];
 
 describe("road pieces", () => {
   test("each stroke of a road tool lays a piece of its own; roads already there keep theirs", () => {
     const core = newCity();
-    draw(core, linePath({ x: 5, y: 5 }, { x: 20, y: 5 }));
-    draw(core, linePath({ x: 20, y: 5 }, { x: 20, y: 20 }));
+    drawStraight(core, { x: 5, y: 5 }, { x: 20, y: 5 });
+    drawStraight(core, { x: 20, y: 5 }, { x: 20, y: 20 });
     const pieces = core.map.roadPieces, at = (x: number, y: number) => pieces[y * SIZE + x];
     expect(at(5, 5)).toBe(1);
     expect(at(20, 5)).toBe(1);
@@ -87,19 +96,19 @@ describe("road pieces", () => {
   });
 
   test.each([
-    ["straight on south", { x: END.x, y: END.y + 20 }, true],
+    ["straight on along its way", { x: END.x + 3, y: END.y + 18 }, true],
     ["turning south-west", { x: END.x - 15, y: END.y + 15 }, false],
     ["turning east", { x: END.x + 20, y: END.y }, false],
   ])("a road built on from a curve's end (%s) leaves the curve as it was", (_, to, smooth) => {
     const core = newCity();
-    draw(core, CURVE);
+    drawCurve(core);
     const [before] = drawn(core).lines.map((line) => line.points);
-    draw(core, linePath(END, to));
+    drawStraight(core, END, to);
     const after = drawn(core), lines = after.lines.map((line) => line.points);
     const curve = lineThrough(lines, before[0], before[before.length - 1]);
     expectSameLine(curve, before);
-    // The two meet at the curve's end; going on nearly straight the new road leaves along the curve's way, without a
-    // corner, and turning it ends there at a corner under a round plate
+    // The two meet at the curve's end; drawn on along the curve's way the new road leaves it without a corner, and
+    // turning it keeps its angle there, under a round plate (owner, 18 Oct 2026: "วาดแบบไหน จะได้แบบนั้น")
     expect(after.lines).toHaveLength(2);
     const end: Point = [(END.x + 0.5) * 10, (END.y + 0.5) * 10];
     const joint = after.junctions.find(({ at }) => Math.hypot(at[0] - end[0], at[1] - end[1]) < 0.01);
@@ -108,24 +117,24 @@ describe("road pieces", () => {
     expect(joint?.smooth === true).toBe(smooth);
     const road = lines.find((line) => line !== curve)!;
     const turn = degreesBetween(wayAt(curve!, end), wayAt(road, end));
-    if (smooth) expect(turn).toBeLessThan(3); else expect(turn).toBeGreaterThan(30);
+    if (smooth) expect(turn).toBeLessThan(1); else expect(turn).toBeGreaterThan(30);
   });
 
   test("a railway built on from another's end, or leaving it, leaves it as it was", () => {
     const core = newCity();
-    draw(core, CURVE, "rail");
+    drawCurve(core, CURVE_POINTS, "rail");
     const [before] = drawn(core, true).lines.map((line) => line.points);
     expect(core.map.roadPieces[CURVE[3].y * SIZE + CURVE[3].x]).toBe(1);
-    draw(core, linePath(END, { x: END.x, y: END.y + 20 }), "rail");
-    draw(core, linePath(MIDDLE, { x: MIDDLE.x - 20, y: MIDDLE.y + 20 }), "rail");
+    drawStraight(core, END, { x: END.x, y: END.y + 20 }, "rail");
+    drawStraight(core, MIDDLE, { x: MIDDLE.x - 20, y: MIDDLE.y + 20 }, "rail");
     const lines = drawn(core, true).lines.map((line) => line.points);
     expectSameLine(lineThrough(lines, before[0], before[before.length - 1]), before);
   });
 
   test("a road laid across a railway keeps the railway's piece on the crossing", () => {
     const core = newCity();
-    draw(core, linePath({ x: 5, y: 30 }, { x: 40, y: 30 }), "rail");
-    draw(core, linePath({ x: 20, y: 20 }, { x: 20, y: 40 }));
+    drawStraight(core, { x: 5, y: 30 }, { x: 40, y: 30 }, "rail");
+    drawStraight(core, { x: 20, y: 20 }, { x: 20, y: 40 });
     expect(core.map.roadPieces[30 * SIZE + 20]).toBe(1);
     expect(core.map.roadPieces[25 * SIZE + 20]).toBe(2);
   });
@@ -137,7 +146,7 @@ describe("road pieces", () => {
     ["a road laid beside it, touching it", linePath({ x: MIDDLE.x - 12, y: MIDDLE.y - 14 }, { x: MIDDLE.x + 10, y: MIDDLE.y + 16 })],
   ])("%s leaves the curve as it was, running on through the junction", (_, tiles) => {
     const core = newCity();
-    draw(core, CURVE);
+    drawCurve(core);
     const [before] = drawn(core).lines.map((line) => line.points);
     draw(core, tiles);
     const after = drawn(core), lines = after.lines.map((line) => line.points);
@@ -170,7 +179,7 @@ describe("road pieces", () => {
 
   test("bulldozing a drawn road's tiles, an end one by one or one in the middle, leaves the rest where it was drawn", () => {
     const core = newCity();
-    draw(core, CURVE);
+    drawCurve(core);
     const [before] = drawn(core).lines.map((line) => line.points);
     expect(core.map.roadPaths[1].tiles).toHaveLength(CURVE.length);
     for (let k = 1; k <= 4; k++) {
@@ -188,10 +197,10 @@ describe("road pieces", () => {
     expectSameLine(drawn(core).lines.map((line) => line.points)[0], before);
   });
 
-  test("a road built on from another's end keeps its bend out of it when that end is bulldozed", () => {
+  test("a road built on from another's end keeps its shape when that end is bulldozed", () => {
     const core = newCity();
-    draw(core, CURVE);
-    draw(core, linePath(END, { x: END.x, y: END.y + 20 }));
+    drawCurve(core);
+    drawStraight(core, END, { x: END.x + 3, y: END.y + 18 });
     const lines = drawn(core).lines.map((line) => line.points);
     const curve = lines.find((line) => offLine(line, [(CURVE[0].x + 0.5) * 10, (CURVE[0].y + 0.5) * 10]) < 0.01)!;
     const road = lines.find((line) => line !== curve)!;
@@ -210,17 +219,57 @@ describe("road pieces", () => {
     stroke++;
     for (const { x, y } of gridPath({ x: 5, y: 5 }, { x: 19, y: 19 })) core.apply({ type: "tool", tool: "road", x, y, stroke });
     expect(core.map.roadPaths[1]).toBeUndefined();
-    draw(core, linePath({ x: 30, y: 30 }, { x: 50, y: 40 }));
+    drawStraight(core, { x: 30, y: 30 }, { x: 50, y: 40 });
     const saved = JSON.parse(JSON.stringify(core.save()));
     expect(Object.keys(saved.roadPaths)).toEqual(["2"]);
     const again = newCity(saved);
     expect(again.map.roadPaths[2].tiles).toEqual(core.map.roadPaths[2].tiles);
   });
 
+  /** Every point of a line on the straight line through its ends */
+  const straightness = (line: Point[]): number => {
+    const [ax, az] = line[0], [bx, bz] = line[line.length - 1], length = Math.hypot(bx - ax, bz - az) || 1;
+    return Math.max(...line.map(([x, z]) => Math.abs((x - ax) * (bz - az) - (z - az) * (bx - ax)) / length));
+  };
+
+  test("each way of drawing builds what it draws: a straight line, the curve through its points, a grid", () => {
+    // Straight: one straight line from A's middle to B's, however its tiles stairstep
+    let core = newCity();
+    drawStraight(core, { x: 5, y: 5 }, { x: 40, y: 22 });
+    let lines = drawn(core).lines.map((line) => line.points);
+    expect(lines).toHaveLength(1);
+    expect(straightness(lines[0])).toBeLessThan(1e-9);
+    expect(lines[0][0]).toEqual([55, 55]);
+    // Curve: the very curve through the clicked points' middles, as the preview draws it
+    core = newCity();
+    drawCurve(core);
+    lines = drawn(core).lines.map((line) => line.points);
+    const at = CURVE_POINTS.map((p): Point => [(p.x + 0.5) * 10, (p.y + 0.5) * 10]);
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const p: Point = [(1 - t) ** 2 * at[0][0] + 2 * (1 - t) * t * at[1][0] + t * t * at[2][0],
+        (1 - t) ** 2 * at[0][1] + 2 * (1 - t) * t * at[1][1] + t * t * at[2][1]];
+      expect(offLine(lines[0], p)).toBeLessThan(0.05);
+    }
+    // Grid: its rows and columns straight, its corners corners, not rounded into curves
+    core = newCity();
+    stroke++;
+    gridLines({ x: 5, y: 5 }, { x: 19, y: 19 }).forEach((line, part) => {
+      for (const { x, y } of line) core.apply({ type: "tool", tool: "road", x, y, stroke, part, shape: "straight" } as any);
+    });
+    const grid = drawn(core);
+    for (const line of grid.lines) expect(straightness(line.points)).toBeLessThan(1e-9);
+    const corner = grid.junctions.find(({ at: [x, z] }) => x === 55 && z === 55);
+    expect(corner?.smooth).toBeUndefined();
+    expect(corner?.arms.map((arm) => arm.end !== null)).toEqual([true, true]);
+    // ... and taking it back takes the whole grid back at once
+    core.apply({ type: "undo" });
+    expect(drawn(core).lines).toHaveLength(0);
+  });
+
   test("the pieces are saved, and the next stroke is numbered on from them", () => {
     const core = newCity();
-    draw(core, CURVE);
-    draw(core, linePath(END, { x: END.x, y: END.y + 10 }));
+    drawCurve(core);
+    drawStraight(core, END, { x: END.x, y: END.y + 10 });
     const [before] = drawn(core).lines.map((line) => line.points);
     const saved = JSON.parse(JSON.stringify(core.save()));
     expect(typeof saved.roadPieces).toBe("string");

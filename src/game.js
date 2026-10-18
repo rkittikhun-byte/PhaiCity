@@ -52,7 +52,7 @@ import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
-import { curvePath, END_SNAP_REACH, GRID_SPACING, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
+import { curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
@@ -1450,7 +1450,10 @@ Game.prototype.handleTool = function(data) {
       Math.abs(last.x - tileCoords.x) + Math.abs(last.y - tileCoords.y) > 1) {
     var fill = toolName === UPGRADE_TOOL ? this.upgradeRoadPath([last, tileCoords]) : linePath(last, tileCoords);
     fill.slice(1, -1).forEach(function(tile) {
-      this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
+      var filled = {type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke};
+      if (modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL)
+        filled.shape = 'free';
+      this.applyCommand(filled);
     }, this);
   }
 
@@ -1480,6 +1483,9 @@ Game.prototype.handleTool = function(data) {
     var command = {type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y, stroke: data.stroke};
     if (pose !== null)
       command.pose = pose;
+    // A road or railway drawn freely follows the mouse, its tiles smoothed (src/roadPieces.ts RoadPath)
+    if (modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL)
+      command.shape = 'free';
     var outcome = this.applyCommand(command);
     result = outcome.toolResult;
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
@@ -1808,6 +1814,9 @@ Game.prototype.areaCentresFor = function(drag, size) {
 };
 
 
+// The first tile value of the zones and buildings (src/tileValues.ts), which a line may not be laid over
+var BUILDING_TILES = 240;
+
 // The points of a line drawn by clicks, by name, and how long the note after it stays (src/drawReadout.ts)
 var POINT_NAMES = ['A', 'B', 'C', 'D'];
 var STROKE_NOTE_MS = 9000;
@@ -1848,7 +1857,10 @@ Game.prototype.handleToolPoint = function(data) {
   if (draft.points.length < needed)
     return;
   var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
-  var built = this.applyTiles(path, data.stroke, data.x);
+  // ... laid as drawn: one straight line, or the curve through its points (src/roadPieces.ts RoadPath)
+  var shape = toolName === UPGRADE_TOOL ? null : {shape: mode === 'straight' ? 'straight' : 'curve',
+    controls: draft.points.map(function(p) { return [p.x, p.y]; })};
+  var built = this.applyTiles(path, data.stroke, data.x, shape);
   if (built && modeGroupOf(toolName) === 'line')
     showCornerNote(strokeText(draft.clicks, built.laid, built.total, built.refused), STROKE_NOTE_MS);
   this.resetDraft();
@@ -2098,7 +2110,7 @@ Game.prototype.cancelDraft = function() {
 
 // Builds along a drawn line or over a painted area: a command a tile, all one stroke so they undo together, with one
 // sound and one note for the lot
-Game.prototype.applyTiles = function(tiles, stroke, soundX) {
+Game.prototype.applyTiles = function(tiles, stroke, soundX, extra) {
   var toolName = this.inputStatus.toolName;
   var tool = this.inputStatus.currentTool;
   if (tool === null || tiles.length === 0)
@@ -2110,10 +2122,14 @@ Game.prototype.applyTiles = function(tiles, stroke, soundX) {
   // A line tool: how many of its tiles end up of its kind, and why the others do not (src/drawReadout.ts)
   var isLine = modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL ? this.lineKind(toolName) : null;
   var laid = 0, total = 0, refused = {};
-  tiles.forEach(function(tile) {
+  tiles.forEach(function(tile, index) {
     if (!this.gameMap.testBounds(tile.x, tile.y))
       return;
-    var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: stroke});
+    // extra: what each command also says (a line's shape, a grid line's part), the same for all or by tile
+    var command = {type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: stroke};
+    if (extra)
+      Object.assign(command, typeof extra === 'function' ? extra(tile, index) : extra);
+    var outcome = this.applyCommand(command);
     if (!outcome.accepted && refusal === null)
       refusal = outcome.reason;
     var result = outcome.toolResult;
@@ -2210,8 +2226,9 @@ Game.prototype.drawPreview = function(tile) {
     }
     metres *= this.gameMap.tileSizeM || 10;
   }
-  var estimate = tiles.length > 0 ? this.estimateTiles(tiles) : {cost: 0, blocked: []};
-  this._preview = {key: key, tiles: tiles, cost: estimate.cost, blocked: estimate.blocked, mode: mode, step: step,
+  var estimate = tiles.length > 0 ? this.estimateTiles(tiles) : {cost: 0, blocked: [], why: []};
+  this._preview = {key: key, tiles: tiles, cost: estimate.cost, blocked: estimate.blocked, blockedWhy: estimate.why, mode: mode,
+                   step: step,
                    metres: metres, angle: angle, guide: guide, controls: controls, readout: readout};
   return this._preview;
 };
@@ -2230,14 +2247,21 @@ Game.prototype.estimateTiles = function(tiles) {
   var map = this.gameMap, inside = canBuildIn(map);
   var isLine = modeGroupOf(this.inputStatus.toolName) === 'line' && this.inputStatus.toolName !== UPGRADE_TOOL ?
                this.lineKind(this.inputStatus.toolName) : null;
-  var blocked = [];
+  var blocked = [], why = [];
   var cost = this.estimateCostOf(tiles, function(tile, ok) {
     if (isLine === null || isLine(tile.x, tile.y))
       return;
-    if (!ok || !inside(tile.x, tile.y) || !ownsLand(map, tile.x, tile.y))
-      blocked.push(tile);
+    // ... and why, to say beside the mouse: outside the province, land not bought, a building's lot (a building on a
+    // city map is drawn smaller than its tiles, so the edge of its lot looks open: owner, 18 Oct 2026), or else
+    var reason = !inside(tile.x, tile.y) ? 'outside' : !ownsLand(map, tile.x, tile.y) ? 'land' :
+                 ok ? null : map.getTileValue(tile.x, tile.y) >= BUILDING_TILES ? 'building' : 'other';
+    if (reason === null)
+      return;
+    blocked.push(tile);
+    if (why.indexOf(reason) === -1)
+      why.push(reason);
   });
-  return {cost: cost, blocked: blocked};
+  return {cost: cost, blocked: blocked, why: why};
 };
 
 
@@ -2290,7 +2314,8 @@ Game.prototype.showDrawTip = function(preview) {
   if (preview.tiles.length > 0)
     parts.push(t('draw.cost', {count: preview.tiles.length, price: formatMoney(preview.cost)}));
   if (preview.blocked && preview.blocked.length > 0)
-    parts.push(t('draw.debug.blocked', {count: preview.blocked.length}));
+    parts.push(t('draw.debug.blocked', {count: preview.blocked.length,
+      why: (preview.blockedWhy || []).map(function(reason) { return t('draw.debug.blocked.' + reason); }).join(', ')}));
 
   var text = parts.join('\n');
   tip.hidden = text === '';
@@ -2339,7 +2364,14 @@ Game.prototype.handleToolArea = function(data) {
       return;
     }
     var to = this.cityView.tileAt(data.to.x, data.to.y) || from;
-    this.applyTiles(mode === 'grid' ? gridPath(from, to) : rectanglePath(from, to), data.stroke, data.to.x);
+    if (mode === 'grid') {
+      // A grid's rows and columns are straight roads of their own, built as drawn (src/drawPaths.ts gridLines)
+      var lines = gridLines(from, to), tiles = [], parts = [];
+      lines.forEach(function(line, part) { line.forEach(function(tile) { tiles.push(tile); parts.push(part); }); });
+      this.applyTiles(tiles, data.stroke, data.to.x, function(tile, index) { return {part: parts[index], shape: 'straight'}; });
+    } else {
+      this.applyTiles(rectanglePath(from, to), data.stroke, data.to.x);
+    }
     this.resetDraft();
     return;
   }

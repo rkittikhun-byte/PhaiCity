@@ -30,7 +30,18 @@ export function nextRoadPiece(pieces: ArrayLike<number> | null | undefined): num
  * 18 Oct 2026: "ถ้าลบ ไม่ต้องใช้ฟังก์ชั่นนี้ ให้ถนนมันอยู่กับที่ห้ามขยับ"). from and to: the older pieces whose tiles it began and
  * ended on (0 for none), whose way it bends out of at a joint.
  */
-export interface RoadPath { from: number; to: number; tiles: number[] }
+export interface RoadPath {
+  from: number;
+  to: number;
+  tiles: number[];
+  /** How it was drawn (src/drawModes.ts): one straight line, the curve through its clicked points (controls, in tiles,
+   * as src/drawPaths.ts curvePath bends it), or free (its tiles, smoothed); none for a road laid tile by tile */
+  shape?: LineShape;
+  controls?: Array<[number, number]>;
+}
+
+export const LINE_SHAPES = ["straight", "curve", "free"] as const;
+export type LineShape = typeof LINE_SHAPES[number];
 
 /** A save's paths, those that read as paths */
 export function readRoadPaths(saved: unknown): Record<number, RoadPath> {
@@ -39,7 +50,12 @@ export function readRoadPaths(saved: unknown): Record<number, RoadPath> {
   for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
     const path = value as Partial<RoadPath> | null;
     if (!path || !Array.isArray(path.tiles) || !path.tiles.every((i) => Number.isInteger(i))) continue;
-    out[Number(key)] = { from: Number(path.from) || 0, to: Number(path.to) || 0, tiles: path.tiles.slice() };
+    const read: RoadPath = { from: Number(path.from) || 0, to: Number(path.to) || 0, tiles: path.tiles.slice() };
+    if ((LINE_SHAPES as readonly string[]).includes(path.shape as string)) read.shape = path.shape;
+    if (Array.isArray(path.controls) && path.controls.every((c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger))) {
+      read.controls = path.controls.map(([x, y]) => [x, y]);
+    }
+    out[Number(key)] = read;
   }
   return out;
 }
