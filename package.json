@@ -37,6 +37,7 @@
     "test:geo": "node --test \"test/geo/*.test.mjs\"",
     "test:server": "npm --prefix server test",
     "i18n:import": "node scripts/i18n/import-ui-strings.mjs",
+    "theme:css": "node scripts/theme/build-css.mjs",
     "audio:build": "node scripts/audio/build-sfx.mjs",
     "art:export": "webpack serve --mode development --open /art-export.html",
     "art:blend": "node scripts/blender/run.mjs"

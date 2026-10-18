@@ -14,6 +14,10 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
   - `docs/ARCHITECTURE.md` — Consolidated game systems, core architecture, map scales, district frames, zone cells, curved roads, and utilities.
   - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
 
+**One theme for everything (owner, 18 Oct 2026):** every colour, light and size of the pages, icons and 3D comes from
+`src/theme/tokens.ts` (pages through the generated `css/theme.css`). Read `docs/STYLE_GUIDE.md` before any visual work;
+it wins over older style notes, and `test/theme.ts` rejects colours written anywhere else.
+
 **Talk to the project owner in Thai.** Code, comments and identifiers stay in English, matching the existing code.
 
 ## Work split
@@ -64,6 +68,7 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 | `npm run test:server` | Tests of the online API in `server/` (`node --test`, no database needed); the server's own setup is in `server/README.md` |
 | `npm run test:geo` | Node test runner for the geo pipeline (`test/geo/*.test.mjs`; not part of Jest) |
 | `PHAICITY_PLAY=1 npx jest --coverage=false test/play/` | The auto player (`src/core/autoPlayer.ts`) plays a new Mueang Khon Kaen city for 10 years (`PHAICITY_YEARS`) and prints each year's people, money and income and costs line by line, to check the game's balance (`docs/TAXES.md`); `PHAICITY_PLOTS=1` adds what holds each kind and level of plot back (power, water, pollution, land value); about 6 s a year, skipped otherwise |
+| `npm run theme:css` | Regenerate `css/theme.css` from `src/theme/tokens.ts` after changing the theme (`docs/STYLE_GUIDE.md`) |
 | `npm run i18n:import` | Regenerate `src/i18n/strings.ts` from the translation table in `docs/i18n/UI_STRINGS.md` |
 | `npm run audio:build -- --raw <dir>` | Copy the CC0 sounds in `scripts/audio/sfx-manifest.json` from the raw downloads (gitignored `assets/audio/_raw/` in the main folder) into `assets/audio/sfx/` and rewrite `assets/audio/CREDITS.md` |
 | `npm run art:export` | Dev server and `art-export.html`: every registered 3D model, in every region, as glTF files in a new run of the art archive outside the project (`../phaicity-art/exports/`, `docs/3d/ART_ARCHIVE.md`) |

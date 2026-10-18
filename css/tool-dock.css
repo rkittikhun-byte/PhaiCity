@@ -10,10 +10,10 @@ body.toolDockReady #toolLevels { display: none !important; }
 body.toolDockReady #controls {
   position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%) !important;
   width: auto; max-width: calc(100vw - 32px); padding: 4px 6px;
-  background: var(--hud-glass, rgba(246, 250, 247, 0.78));
+  background: var(--hud-glass, rgba(var(--ph-sand-0-rgb), 0.78));
   -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
-  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.75)); border-radius: 18px;
-  box-shadow: var(--hud-shadow, 0 10px 28px rgba(12, 24, 20, 0.26));
+  border: 1px solid var(--hud-edge, rgba(var(--ph-sand-0-rgb), 0.75)); border-radius: 18px;
+  box-shadow: var(--hud-shadow, 0 10px 28px rgba(var(--ph-lavender-900-rgb), 0.26));
   display: flex; align-items: center; gap: 4px; z-index: 25;
   transition: none; animation: none; overflow: visible;
 }
@@ -34,48 +34,48 @@ body.toolDockReady #buttons { display: none !important; }
 #toolCategories .toolCategory {
   position: relative; width: 44px; min-height: 40px; border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  background: transparent; border: 1px solid transparent; color: var(--hud-text, #1d2925);
+  background: transparent; border: 1px solid transparent; color: var(--hud-text, var(--ph-sand-800));
   font: 600 10.5px/1.2 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
   transition: all 0.15s ease; padding: 2px;
 }
 #toolCategories .toolCategory .catIconPlate {
   width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.65); border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 1px 4px rgba(12, 24, 20, 0.08);
+  background: rgba(var(--ph-sand-0-rgb), 0.65); border: 1px solid rgba(var(--ph-sand-0-rgb), 0.85);
+  box-shadow: 0 1px 4px rgba(var(--ph-lavender-900-rgb), 0.08);
   transition: all 0.15s ease;
 }
 #toolCategories .toolCategory .catIconPlate img {
-  width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(var(--ph-lavender-900-rgb), 0.15));
 }
 #toolCategories .toolCategory .catLabel {
   display: none !important;
 }
 #toolCategories .toolCategory:hover {
-  background: rgba(255, 255, 255, 0.5); color: #000; transform: translateY(-2px);
+  background: rgba(var(--ph-sand-0-rgb), 0.5); color: var(--ph-sand-950); transform: translateY(-2px);
 }
 #toolCategories .toolCategory:hover .catIconPlate {
-  background: #ffffff; transform: scale(1.05);
+  background: var(--ph-sand-0); transform: scale(1.05);
 }
 #toolCategories .toolCategory.current {
-  background: var(--hud-glass-strong, rgba(255, 255, 255, 0.95));
-  border-color: rgba(255, 255, 255, 0.95); color: #1d2925;
-  box-shadow: 0 3px 12px rgba(12, 24, 20, 0.14);
+  background: var(--hud-glass-strong, rgba(var(--ph-sand-0-rgb), 0.95));
+  border-color: rgba(var(--ph-sand-0-rgb), 0.95); color: var(--ph-sand-800);
+  box-shadow: 0 3px 12px rgba(var(--ph-lavender-900-rgb), 0.14);
 }
 #toolCategories .toolCategory.current .catIconPlate {
-  background: #ffffff; border-color: rgba(34, 107, 87, 0.35);
-  box-shadow: 0 2px 6px rgba(12, 24, 20, 0.12);
+  background: var(--ph-sand-0); border-color: rgba(var(--ph-clay-600-rgb), 0.35);
+  box-shadow: 0 2px 6px rgba(var(--ph-lavender-900-rgb), 0.12);
 }
 #toolCategories .toolCategory.current .catIconPlate img {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 1px 2px rgba(var(--ph-lavender-900-rgb), 0.2));
 }
 #toolCategories .toolCategory.current::before {
   content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
-  width: 22px; height: 3px; background: #226b57; border-radius: 0 0 3px 3px;
-  box-shadow: 0 0 4px rgba(34, 107, 87, 0.4);
+  width: 22px; height: 3px; background: var(--ph-clay-600); border-radius: 0 0 3px 3px;
+  box-shadow: 0 0 4px rgba(var(--ph-clay-600-rgb), 0.4);
 }
 #toolCategories .toolCategory.hasTool::after {
   content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
-  width: 20px; height: 2px; border-radius: 1px; background: #226b57; box-shadow: 0 0 4px rgba(34, 107, 87, 0.4);
+  width: 20px; height: 2px; border-radius: 1px; background: var(--ph-clay-600); box-shadow: 0 0 4px rgba(var(--ph-clay-600-rgb), 0.4);
 }
 #toolCategories .toolCategory.goalHint { animation: goalPulse 1.6s ease-in-out infinite; }
 
@@ -96,10 +96,10 @@ body.toolDockReady #activeToolPill button {
 /* The Unified Interactive Tray (Fable-style) */
 body.toolDockReady #toolTray {
   position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
-  background: var(--hud-glass, rgba(246, 250, 247, 0.88));
+  background: var(--hud-glass, rgba(var(--ph-sand-0-rgb), 0.88));
   -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85)); border-radius: 14px;
-  box-shadow: var(--hud-shadow, 0 10px 28px rgba(12, 24, 20, 0.26));
+  border: 1px solid var(--hud-edge, rgba(var(--ph-sand-0-rgb), 0.85)); border-radius: 14px;
+  box-shadow: var(--hud-shadow, 0 10px 28px rgba(var(--ph-lavender-900-rgb), 0.26));
   padding: 6px 8px; max-width: calc(100vw - 32px); min-width: auto; z-index: 24;
   animation: fc-rise 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -120,9 +120,9 @@ body.toolDockReady #toolTray.motionLeave { animation: fc-sink 0.2s cubic-bezier(
 body.toolDockReady #toolTray::before {
   content: ''; position: absolute; bottom: -7px; left: 50%; width: 12px; height: 12px;
   transform: translateX(-50%) rotate(45deg);
-  background: var(--hud-glass, rgba(246, 250, 247, 0.95));
-  border-right: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85));
-  border-bottom: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85));
+  background: var(--hud-glass, rgba(var(--ph-sand-0-rgb), 0.95));
+  border-right: 1px solid var(--hud-edge, rgba(var(--ph-sand-0-rgb), 0.85));
+  border-bottom: 1px solid var(--hud-edge, rgba(var(--ph-sand-0-rgb), 0.85));
 }
 
 /* Tray Header & Draw Modes (Reveal modes like straight, curve, grid, snap) */
@@ -131,7 +131,7 @@ body.toolDockReady #toolTray::before {
   align-items: center !important;
   justify-content: center !important;
   padding: 2px 4px 6px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(var(--ph-sand-950-rgb), 0.06);
   margin-bottom: 6px;
 }
 .toolTrayHeader[hidden],
@@ -158,13 +158,13 @@ body.toolDockReady #toolTray::before {
   height: 26px !important;
   padding: 0 9px !important;
   border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.65) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  color: var(--hud-text, #1d2925) !important;
+  background: rgba(var(--ph-sand-0-rgb), 0.65) !important;
+  border: 1px solid rgba(var(--ph-sand-950-rgb), 0.08) !important;
+  color: var(--hud-text, var(--ph-sand-800)) !important;
   font: 600 11px/1 'Sarabun Thai', 'Open Sans', sans-serif !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
-  box-shadow: 0 1px 3px rgba(12, 24, 20, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(var(--ph-lavender-900-rgb), 0.06) !important;
 }
 .trayModes .modeButton svg {
   width: 13px !important;
@@ -180,16 +180,16 @@ body.toolDockReady #toolTray::before {
   stroke: none !important;
 }
 .trayModes .modeButton:hover {
-  background: #ffffff !important;
-  border-color: rgba(34, 107, 87, 0.3) !important;
-  color: #000000 !important;
+  background: var(--ph-sand-0) !important;
+  border-color: rgba(var(--ph-clay-600-rgb), 0.3) !important;
+  color: var(--ph-sand-950) !important;
   transform: translateY(-1px);
 }
 .trayModes .modeButton.current {
-  background: #226b57 !important;
-  border-color: #226b57 !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(34, 107, 87, 0.35) !important;
+  background: var(--ph-clay-600) !important;
+  border-color: var(--ph-clay-600) !important;
+  color: var(--ph-sand-0) !important;
+  box-shadow: 0 2px 6px rgba(var(--ph-clay-600-rgb), 0.35) !important;
 }
 .trayModes .modeButton.snapButton {
   border-style: dashed !important;
@@ -211,63 +211,63 @@ body.toolDockReady #toolTray::before {
   display: flex !important; flex-direction: column !important; align-items: center !important;
   justify-content: center !important; padding: 2px !important;
   border-radius: 8px !important;
-  background: rgba(255, 255, 255, 0.45) !important;
-  border: 1px solid rgba(255, 255, 255, 0.7) !important;
-  color: var(--hud-text, #1d2925) !important;
+  background: rgba(var(--ph-sand-0-rgb), 0.45) !important;
+  border: 1px solid rgba(var(--ph-sand-0-rgb), 0.7) !important;
+  color: var(--hud-text, var(--ph-sand-800)) !important;
   text-align: center; cursor: pointer; transition: all 0.15s ease; position: relative;
   box-sizing: border-box !important; overflow: visible !important;
 }
 .trayCard .cardThumb {
   width: 42px !important; height: 38px !important; border-radius: 6px !important;
-  background: rgba(255, 255, 255, 0.9) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important; position: relative; overflow: hidden;
+  background: rgba(var(--ph-sand-0-rgb), 0.9) !important;
+  border: 1px solid rgba(var(--ph-sand-950-rgb), 0.08) !important; position: relative; overflow: hidden;
   display: flex !important; align-items: center !important; justify-content: center !important;
   transition: all 0.15s ease; flex-shrink: 0 !important;
-  box-shadow: 0 1px 3px rgba(12, 24, 20, 0.08);
+  box-shadow: 0 1px 3px rgba(var(--ph-lavender-900-rgb), 0.08);
 }
 .trayCard .cardThumb img {
   width: 22px !important; height: 22px !important; max-width: 22px !important; max-height: 22px !important;
   object-fit: contain !important; display: block !important;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 1px 2px rgba(var(--ph-lavender-900-rgb), 0.18));
 }
 .trayCard .cardThumb::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.5), transparent 50%);
+  background: linear-gradient(160deg, rgba(var(--ph-sand-0-rgb), 0.5), transparent 50%);
 }
 .trayCard .cardThumb .cardPrice {
   position: absolute; top: 2px; left: 2px; z-index: 2;
-  font-size: 8.5px; font-weight: 700; color: #1e4a38;
-  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);
-  border: 1px solid rgba(34, 107, 87, 0.3); border-radius: 3px;
-  padding: 1px 4px; line-height: 1.1; box-shadow: 0 1px 2px rgba(12, 24, 20, 0.1);
+  font-size: 8.5px; font-weight: 700; color: var(--ph-clay-800);
+  background: rgba(var(--ph-sand-0-rgb), 0.95); backdrop-filter: blur(4px);
+  border: 1px solid rgba(var(--ph-clay-600-rgb), 0.3); border-radius: 3px;
+  padding: 1px 4px; line-height: 1.1; box-shadow: 0 1px 2px rgba(var(--ph-lavender-900-rgb), 0.1);
   white-space: nowrap;
 }
 .trayCard .cardThumb .cardPrice.hasChoices {
-  color: var(--hud-dim, #5a6964); border-color: rgba(0, 0, 0, 0.15); font-size: 7.5px;
+  color: var(--hud-dim, var(--ph-sand-600)); border-color: rgba(var(--ph-sand-950-rgb), 0.15); font-size: 7.5px;
 }
 /* Hide card text label per user request ("ไม่เอา label และ title") */
 .trayCard .cardName {
   display: none !important;
 }
 .trayCard:hover {
-  background: rgba(255, 255, 255, 0.8) !important; border-color: rgba(255, 255, 255, 0.95) !important;
-  color: #000 !important; transform: translateY(-2px);
-  box-shadow: 0 3px 8px rgba(12, 24, 20, 0.12);
+  background: rgba(var(--ph-sand-0-rgb), 0.8) !important; border-color: rgba(var(--ph-sand-0-rgb), 0.95) !important;
+  color: var(--ph-sand-950) !important; transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(var(--ph-lavender-900-rgb), 0.12);
 }
 .trayCard:hover .cardThumb {
-  transform: scale(1.04); border-color: rgba(34, 107, 87, 0.3) !important;
-  background: #ffffff !important;
+  transform: scale(1.04); border-color: rgba(var(--ph-clay-600-rgb), 0.3) !important;
+  background: var(--ph-sand-0) !important;
 }
 .trayCard.is-active {
-  border-color: #226b57 !important;
-  background: var(--hud-glass-strong, rgba(255, 255, 255, 0.95)) !important;
-  box-shadow: 0 0 0 1px #226b57, 0 3px 10px rgba(34, 107, 87, 0.2) !important;
-  color: #1d2925 !important;
+  border-color: var(--ph-clay-600) !important;
+  background: var(--hud-glass-strong, rgba(var(--ph-sand-0-rgb), 0.95)) !important;
+  box-shadow: 0 0 0 1px var(--ph-clay-600), 0 3px 10px rgba(var(--ph-clay-600-rgb), 0.2) !important;
+  color: var(--ph-sand-800) !important;
 }
 .trayCard.is-active .cardThumb {
-  border-color: #226b57 !important;
-  box-shadow: 0 1px 4px rgba(34, 107, 87, 0.25) !important;
-  background: #ffffff !important;
+  border-color: var(--ph-clay-600) !important;
+  box-shadow: 0 1px 4px rgba(var(--ph-clay-600-rgb), 0.25) !important;
+  background: var(--ph-sand-0) !important;
 }
 .trayCard.unavailable {
   opacity: 0.45 !important; cursor: not-allowed !important; border-style: dashed !important; transform: none !important;
@@ -278,10 +278,10 @@ body.toolDockReady #toolTray::before {
   position: fixed; bottom: 18px; left: calc(50% + 280px); z-index: 26;
   height: 34px; padding: 0 10px 0 6px;
   display: inline-flex; align-items: center; gap: 7px;
-  background: var(--hud-glass, rgba(246, 250, 247, 0.88));
+  background: var(--hud-glass, rgba(var(--ph-sand-0-rgb), 0.88));
   -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid var(--hud-edge, rgba(255, 255, 255, 0.85)); border-radius: 999px;
-  box-shadow: var(--hud-shadow, 0 8px 24px rgba(12, 24, 20, 0.2)), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--hud-edge, rgba(var(--ph-sand-0-rgb), 0.85)); border-radius: 999px;
+  box-shadow: var(--hud-shadow, 0 8px 24px rgba(var(--ph-lavender-900-rgb), 0.2)), inset 0 1px 0 rgba(var(--ph-sand-0-rgb), 0.5);
   animation: fc-pill-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 #activeToolPill[hidden] { display: none !important; }
@@ -294,19 +294,19 @@ body:has(#activeToolPill:not([hidden])) #cornerNote { bottom: 62px; max-width: 4
 }
 
 #activeToolPill .pillIcon { width: 22px; height: 22px; object-fit: contain; }
-#activeToolPill .pillText { font-size: 11.5px; font-weight: 700; color: var(--hud-text, #1d2925); white-space: nowrap; }
+#activeToolPill .pillText { font-size: 11.5px; font-weight: 700; color: var(--hud-text, var(--ph-sand-800)); white-space: nowrap; }
 #activeToolPill .pillEsc {
-  font-size: 9.5px; font-weight: 600; color: var(--hud-dim, #5a6964);
-  background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 9.5px; font-weight: 600; color: var(--hud-dim, var(--ph-sand-600));
+  background: rgba(var(--ph-sand-950-rgb), 0.05); border: 1px solid rgba(var(--ph-sand-950-rgb), 0.1);
   border-radius: 4px; padding: 1px 5px;
 }
 #activeToolPill .pillCancel {
   width: 18px; height: 18px; border-radius: 50%;
-  background: rgba(0, 0, 0, 0.08); border: none; color: var(--hud-text, #1d2925);
+  background: rgba(var(--ph-sand-950-rgb), 0.08); border: none; color: var(--hud-text, var(--ph-sand-800));
   display: grid; place-items: center; font-size: 13px; line-height: 1;
   cursor: pointer; transition: all 0.12s;
 }
-#activeToolPill .pillCancel:hover { background: #ef4444; color: #fff; }
+#activeToolPill .pillCancel:hover { background: var(--ph-chili-400); color: var(--ph-sand-0); }
 
 /* Camera bar sits comfortably */
 body.toolDockReady #cameraBar { bottom: 84px; }

@@ -81,6 +81,8 @@ So top-left = center − (1,1), and the model is placed at top-left + (N×10)/2.
 
 ## 5. Materials
 
+- **Colours and the look come from `docs/STYLE_GUIDE.md`** (owner, 18 Oct 2026): take colours from `SCENE` in
+  `src/theme/tokens.ts`, never a new `0x…` in a model file; `test/theme.ts` counts them per folder.
 - **Use only materials from `src/render3d/materials/library.ts`.** Never call `new Material` inside a model file.
   For color variations, use the library's tint function, which caches results.
 - Use `MeshStandardMaterial`, plus `MeshPhysicalMaterial` for glass.

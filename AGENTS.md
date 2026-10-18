@@ -23,6 +23,8 @@ The most important rules, summarized from `CLAUDE.md`:
 3. Do not modify the city simulation (`src/*.js`, `src/*.ts` outside `src/render3d/`) unless explicitly asked.
    Keep it free of DOM / jQuery / `window`, and add no new `Math.random` calls (see "Online plan" in `CLAUDE.md`).
 4. Read the spec before working in its area, and meet its Definition of Done:
+   - Anything visible (pages, icons, 3D, concept images): `docs/STYLE_GUIDE.md` first. Take every colour from
+     `src/theme/tokens.ts` (`var(--ph-…)` in CSS, `SCENE` in 3D) and keep `test/theme.ts` passing (owner, 18 Oct 2026).
    - 3D models: `docs/3d/MODEL_SPEC.md`. Every model supports the 6 regions through `opts.region`
      (tiers R1/R2/R3, section 6A). Start with `docs/3d/HOW_TO_MAKE_3D.md`: the look, the steps and a starter prompt,
      so every model keeps the same style whoever makes it (owner, 14 Oct 2026).
