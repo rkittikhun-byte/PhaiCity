@@ -66,6 +66,7 @@ import { WASTE_KINDS } from './waste.ts';
 import { HouseWindow } from './houseWindow.ts';
 import { PolicyWindow } from './policyWindow.ts';
 import { fadeCurtain } from './curtain.ts';
+import { loadingFirstFrame } from './loadingScreen.ts';
 import { readPolicies } from './policies.ts';
 import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, blocksByRank, LAND_ALL_OPEN, LAND_LOCKED,
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
@@ -2696,6 +2697,8 @@ var commonAnimate = function() {
   if (!this._curtainFaded) {
     this._curtainFaded = true;
     fadeCurtain(false, 900);
+    // The loading screen fades too, once the surfaces still on their way have come (src/loadingScreen.ts)
+    loadingFirstFrame();
   }
 
   if (this.monsterTV !== null) {

@@ -32,6 +32,7 @@ import { requestedCity } from './viewControls.ts';
 import { Simulation } from './simulation.js';
 import { Storage } from './storage.js';
 import { setCurtainDark } from './curtain.ts';
+import { loadingStep, markLoadingStep, showLoadingScreen } from './loadingScreen.ts';
 
 /*
  *
@@ -116,7 +117,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   var cityId = requestedCity(window.location.search);
   var cityToOpen = cityId !== null ? loadCity(cityId) : null;
   if (cityToOpen !== null) {
-    launch.call(this, cityToOpen, Simulation.LEVEL_EASY, null);
+    launch.call(this, cityToOpen, Simulation.LEVEL_EASY, null, 'saved');
     return;
   }
 
@@ -136,11 +137,11 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
     continueCity: function(id) {
       var savedGame = loadCity(id);
       if (savedGame !== null)
-        launch.call(this, savedGame, Simulation.LEVEL_EASY, null);
+        launch.call(this, savedGame, Simulation.LEVEL_EASY, null, 'saved');
     }.bind(this),
     deleteCity: deleteCity,
     practice: function() {
-      launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'));
+      launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'), 'practice');
     }.bind(this)
   // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026), after the
   // title page whose "Enter the game" click lets the music start at once (src/titleGate.ts, owner 12 Oct 2026)
@@ -155,8 +156,11 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 // map (data/maps/district/<id>.json, npm run geo:city -- --districts)
 var startProvince = function(provinceId, cityName, difficulty, districtId) {
   var self = this;
+  // What loads shows on the loading screen, with the region's music (src/loadingScreen.ts)
+  showLoadingScreen({city: cityName, provinceId: provinceId, source: 'province'});
 
-  fetchJson(districtId ? districtUrl(districtId) : mapUrl(provinceId, cityScale(provinceId))).then(function(whole) {
+  loadingStep('map', fetchJson(districtId ? districtUrl(districtId) : mapUrl(provinceId, cityScale(provinceId))))
+      .then(function(whole) {
     // A district's map is the whole district; the city plays a frame of it round its town, which grows as it buys
     // land (docs/DISTRICT_FRAME.md)
     return isDistrictMap(whole) ? framePreset(whole, firstFrame(whole, whole.town, DISTRICT_BLOCK)) : whole;
@@ -187,14 +191,16 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     streetNamesFrom(map, preset);
     // Provinces with less open land start with more money (src/geo/provinceProfile.ts)
     map.startingFunds = startingFunds(preset.stats);
-    return presetHeights(preset).then(function(heights) {
+    return loadingStep('heights', presetHeights(preset)).then(function(heights) {
       map.heights = heights;
-      launch.call(self, map, difficulty, cityName);
+      launch.call(self, map, difficulty, cityName, 'province');
     });
   }).catch(function(error) {
     // Without its map the province can't be played; a random practice map is better than nothing
     console.warn('Could not load province ' + provinceId + ': ' + error.message);
-    launch.call(self, MapGenerator(), difficulty, cityName);
+    markLoadingStep('map', 'failed');
+    markLoadingStep('heights', 'failed');
+    launch.call(self, MapGenerator(), difficulty, cityName, 'practice');
   });
 };
 
@@ -352,8 +358,9 @@ var loadProvinceBackdrop = function(map) {
 };
 
 
-// A saved game brings its own name and difficulty
-var launch = function(map, difficulty, name) {
+// A saved game brings its own name and difficulty; source says where the city comes from, for the loading screen:
+// 'province', 'saved' or 'practice'
+var launch = function(map, difficulty, name, source) {
   var self = this;
   setCurtainDark();
   // Leave the dark start: the game's own header, footer and background come back
@@ -361,11 +368,23 @@ var launch = function(map, difficulty, name) {
   // The footer was hidden until now: let the game area fit itself above it (src/micropolis.js)
   window.dispatchEvent(new Event('resize'));
   var provinceId = map.provinceId || null;
-  Promise.all([prepareView(provinceId), loadRules(provinceId),
-               savedCityHeights(map).then(function() { return loadProvinceBackdrop(map); }), loadResources(provinceId)])
+  // A saved or practice city opens the loading screen here; a province's opened it before its map
+  showLoadingScreen({city: name || map.name || null, provinceId: provinceId, source: source || 'saved'});
+  // A saved city or a practice map is already in hand
+  if (source !== 'province') markLoadingStep('map', 'done');
+  Promise.all([loadingStep('view', prepareView(provinceId)), loadingStep('rules', loadRules(provinceId)),
+               loadingStep('ground', savedCityHeights(map).then(function() { return loadProvinceBackdrop(map); })),
+               loadingStep('resources', loadResources(provinceId))])
       .then(function(results) {
-    var g = new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1],
-                     results[3]);
+    // The city is built in one go, which holds the page: the screen says so first
+    markLoadingStep('city', 'loading');
+    window.setTimeout(function() {
+      new Game(map, self.tileSet, self.snowTileSet, self.spriteSheet, difficulty, name, results[0], results[1],
+               results[3]);
+      markLoadingStep('city', 'done');
+      // ... then the 3D view lays its roads, trees and buildings until its first picture (game.js animate)
+      markLoadingStep('world', 'loading');
+    }, 40);
   });
 };
 
