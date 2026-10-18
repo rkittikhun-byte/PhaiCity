@@ -13,6 +13,8 @@ import { ProvinceSurface } from './province-surface.js';
 interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number }
 interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
 const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),color=new Color();
+/** The fewest tiles a frame scans for their models, however slow the frame (CityChunks.update) */
+export const MIN_CELLS=64;
 export class CityChunks {
   readonly root=new Group();readonly solid:InstancedMesh;readonly water:InstancedMesh;readonly ground:InstancedMesh;
   readonly chunks:Chunk[]=[];readonly prototypes=new Map<string,Prototype>();
@@ -169,17 +171,23 @@ export class CityChunks {
   }
   update(visible:TileRect|null,target:Vector3,distance:number):void {
     // Reserve one millisecond of the four-millisecond slice for batch selection / GPU buffer handoff.
-    const start=this.now(),deadline=start+3,coarseDeadline=this.surfaces?start+1:deadline;
+    const start=this.now(),deadline=start+3;
     const priority=(c:Chunk):number=>{const inView=visible&&c.x<=visible.x1&&c.x+16>visible.x0&&c.y<=visible.y1&&c.y+16>visible.y0;
       return Math.hypot(c.x*10+80-target.x,c.y*10+80-target.z)+(inView?0:100000);};
-    const work=this.chunks.filter(c=>c.dirty).sort((a,b)=>priority(a)-priority(b));
-    for(const chunk of work){while(chunk.cursor<256&&this.now()<coarseDeadline)this.cell(chunk,chunk.cursor++);
-      if(chunk.cursor===256)this.finish(chunk);if(this.now()>=coarseDeadline)break;}
+    const work=this.chunks.filter(c=>c.dirty).map(c=>({c,rank:priority(c)})).sort((a,b)=>a.rank-b.rank);
+    // The scan's slice starts once the work is sorted, and scans a few tiles whatever the clock says: on a real-scale
+    // city map's 900 chunks the sort alone took the whole millisecond, so no chunk was ever scanned and no model shown
+    // (owner, 18 Oct 2026: the level crossing on the Khon Kaen map never appeared)
+    const coarseDeadline=this.surfaces?this.now()+1:deadline;let scanned=0;
+    for(const{c:chunk}of work){while(chunk.cursor<256&&(scanned<MIN_CELLS||this.now()<coarseDeadline)){this.cell(chunk,chunk.cursor++);scanned++;}
+      if(chunk.cursor===256)this.finish(chunk);if(scanned>=MIN_CELLS&&this.now()>=coarseDeadline)break;}
     // Province terrain and worker handoff each get a slice while distant chunks are still being built.
-    this.surfaces?.update(target,distance,this.now,start+2);
+    this.surfaces?.update(target,distance,this.now,Math.max(start+2,this.now()+.5));
     // Decode small transferred buffers incrementally; heavy factories never run on the UI thread.
     this.pendingResults.push(...this.provider.take());
-    while(this.pendingResults.length&&this.now()<deadline){const result=this.pendingResults.shift()!;
+    // ... at least one a frame, as the slices before it can use up the whole budget on a slow frame
+    let decoded=0;
+    while(this.pendingResults.length&&(decoded++<1||this.now()<deadline)){const result=this.pendingResults.shift()!;
       if(result.error){this.failed.add(result.key);console.warn('City model skipped:',result.key,result.error);}
       else try {
         this.prototypes.set(result.key,decodePrototype(result));

@@ -18,6 +18,8 @@ import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
 import { TerrainDetail } from './terrain-detail.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
+/** The fewest tiles of the far ground a frame fills in, however slow the frame (ProvinceSurface.update) */
+const MIN_FILL=32;
 type RoadPoint=readonly [number,number,number];
 /** The zones' paint (docs/CITY_SCALE.md), how much of it shows over the ground, and the gap that draws the grid */
 /** The open land's covers far away (scripts/geo/lib/landCover.mjs): paddy, field, orchard, grass, wetland, village, built-up */
@@ -88,6 +90,7 @@ export class ProvinceSurface {
     this.updateMask();
     const boundary=terrain.boundary(),edgeGeometry=new LineSegmentsGeometry();if(boundary.length)edgeGeometry.setPositions(boundary);
     this.edge=new LineSegments2(edgeGeometry,provinceEdgeMaterial());this.edge.visible=boundary.length>0;this.edge.renderOrder=20;this.edge.frustumCulled=false;this.root.add(this.edge);
+    const under=this.underGround();
     for(let y=0;y<snapshot.height;y+=SIZE)for(let x=0;x<snapshot.width;x+=SIZE){
       const group=new Group(),land=new Mesh(new BufferGeometry(),cityCoarseSurfaceMaterial());land.receiveShadow=true;
       const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseTreeMaterial(),MAX_TREES);
@@ -99,9 +102,28 @@ export class ProvinceSurface {
         publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(MAX_TREES*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(MAX_TREES),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
-        this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(this.landColour()),(x,z)=>terrain.sample(x,z),yy*snapshot.width+xx,false);
+        this.quad(chunk,xx*10,yy*10,Math.min(xx+4,snapshot.width)*10,Math.min(yy+4,snapshot.height)*10,()=>new Color(this.landColour()),under,yy*snapshot.width+xx,false);
       this.publish(chunk);this.resetBuffers(chunk);
     }
+  }
+  /**
+   * The height of the first, coarse ground (4 × 4 tiles a quad, until a chunk's own tiles are filled in): at each of its
+   * corners the lowest ground of the quads round it, so it lies under the real ground everywhere and never over the
+   * roads, railways and models standing on that (owner, 18 Oct 2026: in a hollow of the Khon Kaen map, quads sampled
+   * only at their corners hid a level crossing and the railway and road either side of it).
+   */
+  private underGround():(x:number,z:number)=>number {
+    const {snapshot,terrain}=this;
+    if(!terrain.enabled)return(x,z)=>terrain.sample(x,z);
+    const columns=Math.ceil(snapshot.width/4),rows=Math.ceil(snapshot.height/4),lowest=new Float32Array(columns*rows).fill(Infinity);
+    for(let y=0;y<snapshot.height;y++)for(let x=0;x<snapshot.width;x++){const n=Math.floor(y/4)*columns+Math.floor(x/4);
+      lowest[n]=Math.min(lowest[n],...terrain.tileCorners(x,y));}
+    const corners=new Float32Array((columns+1)*(rows+1));
+    for(let y=0;y<=rows;y++)for(let x=0;x<=columns;x++){let low=Infinity;
+      for(const[px,py]of[[x-1,y-1],[x,y-1],[x-1,y],[x,y]])if(px>=0&&py>=0&&px<columns&&py<rows)low=Math.min(low,lowest[py*columns+px]);
+      corners[y*(columns+1)+x]=low;}
+    // A quad's corner is a multiple of 40 world units, or the map's edge where a quad is cut short
+    return(x,z)=>corners[Math.min(rows,Math.ceil(z/40-1e-6))*(columns+1)+Math.min(columns,Math.ceil(x/40-1e-6))];
   }
   /**
    * The shade outside the province, the edges of the water and the land not yet bought (src/landBlocks.ts) follow
@@ -340,8 +362,10 @@ export class ProvinceSurface {
     const time=now(),dt=Math.max(0,Math.min(100,time-(this.lastUpdate??time-16)));this.lastUpdate=time;
     this.terrainDetail.update(target,distance,now,Math.min(deadline,time+.6));
     const dirty=this.chunks.filter(c=>c.dirty).sort((a,b)=>Math.hypot(a.x*10+160-target.x,a.y*10+160-target.z)-Math.hypot(b.x*10+160-target.x,b.y*10+160-target.z));
-    for(const c of dirty){while(c.cursor<SIZE*SIZE&&now()<deadline)this.cell(c,c.cursor++);
-      if(c.cursor===SIZE*SIZE){this.publish(c);c.dirty=false;}if(now()>=deadline)break;}
+    // A few tiles a frame whatever the clock says, so the coarse first ground is always being replaced (CityChunks.update)
+    let filled=0;
+    for(const c of dirty){while(c.cursor<SIZE*SIZE&&(filled<MIN_FILL||now()<deadline)){this.cell(c,c.cursor++);filled++;}
+      if(c.cursor===SIZE*SIZE){this.publish(c);c.dirty=false;}if(filled>=MIN_FILL&&now()>=deadline)break;}
     for(const c of this.chunks){const range=Math.hypot(c.x*10+160-target.x,c.y*10+160-target.z);
       const wanted=Math.max(0,Math.min(1,Math.max((distance-1400)/400,(range-800)/250)));
       const fade=c.foliageFade+Math.max(-dt/350,Math.min(dt/350,wanted-c.foliageFade));
