@@ -242,7 +242,7 @@ export class CityView3D implements CityView {
     {const house=this.setup.map.rulerHouse,sign=house?`${house.x},${house.y},${house.level},${(house.wings??[]).join(',')}`:'';
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
-    if(changed.length||raised.length){this.curves.update(raised.length?[...changed,...raised]:changed);this.foliage.invalidate();}
+    if(changed.length||raised.length){this.curves.update(changed,raised);this.foliage.invalidate();}
     if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     // The camera stays over what stands under it, not over what it looks at, so it can come down and look across the

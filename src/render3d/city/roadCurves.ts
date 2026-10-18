@@ -14,7 +14,7 @@ import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
 import { halfWidth, nearestOnLines, networkOf, REAL_WIDTH_M, roadLines, roadReach, shoulderOf, smoothLine, type JunctionArm, type JunctionShape, type Point } from '../../roadGeometry.js';
-import type { TileSnapshot } from './tileModels.js';
+import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
@@ -222,6 +222,13 @@ export class RoadCurves {
   private dirtPositions: number[] = [];
   private dirtColors: number[] = [];
   private gravel: Matrix4[] = [];
+  /** Each tile's road as last drawn: its value, level and piece when it is a road or a railway, 0 otherwise; and the
+   * tiles within one of a road, whose ground lies under some road's edges */
+  private roadState = new Uint32Array(0);
+  private roadNear = new Uint8Array(0);
+  /** The meshes of the roads and railways, and of the buildings' lots and driveways, each drawn again on its own */
+  private roadMeshes: Array<Mesh | InstancedMesh> = [];
+  private decorMeshes: Mesh[] = [];
 
   /** World units a metre of a road's or a railway's cross-section: 1 on a map of 10 m tiles, less on a real-scale
    * city map's (owner, 15 Oct 2026: roads their real width, src/roadGeometry.ts) */
@@ -245,12 +252,53 @@ export class RoadCurves {
       dirt.roughnessMap = maps.roughness ?? null; dirt.aoMap = maps.ao ?? null; dirt.aoMapIntensity = 0.65;
       dirt.needsUpdate = true;
     });
+    this.noteRoads(null);
     this.rebuild();
   }
 
-  /** Tiles changed: draw the curves and driveways again when a road, railway or building changes */
-  update(changed: readonly number[]): void {
-    if (changed.length > 0) this.rebuild();
+  /**
+   * Tiles changed (and the ground under raised ones): the roads and railways are drawn again only when one of theirs
+   * changed or the ground moved under them; a building's change only lays its lot and driveway again (owner, 19 Oct
+   * 2026: the game stalled each time a building rose a stage, as every road in the city was drawn again)
+   */
+  update(changed: readonly number[], raised: readonly number[] = []): void {
+    if (!changed.length && !raised.length) return;
+    const roads = this.noteRoads(changed);
+    if (roads || raised.some((i) => this.roadNear[i])) this.rebuild();
+    else this.rebuildDecor();
+  }
+
+  /** What a tile's road is, for telling when one changes: 0 for a tile with none */
+  private roadKey(i: number): number {
+    const value = this.snapshot.values[i];
+    if (!isRoad(value) && !isRail(value)) return 0;
+    return (value | (this.snapshot.roadLevels?.[i] ?? 0) << 10 | (this.snapshot.roadPieces?.[i] ?? 0) << 14) >>> 0;
+  }
+
+  /** Notes the changed tiles' roads (all of them for null), whether any differs, and then which tiles lie near one */
+  private noteRoads(changed: readonly number[] | null): boolean {
+    const { width, height } = this.snapshot, n = width * height;
+    let any = false;
+    if (changed === null || this.roadState.length !== n) {
+      this.roadState = new Uint32Array(n);
+      for (let i = 0; i < n; i++) this.roadState[i] = this.roadKey(i);
+      any = true;
+    } else for (const i of changed) {
+      const key = this.roadKey(i);
+      if (key !== this.roadState[i]) { this.roadState[i] = key; any = true; }
+    }
+    if (any) {
+      this.roadNear = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        if (!this.roadState[i]) continue;
+        const x = i % width, y = Math.floor(i / width);
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < width && ny < height) this.roadNear[ny * width + nx] = 1;
+        }
+      }
+    }
+    return any;
   }
 
   /** The point of a road's middle line nearest (x, z) within reach, using AABB early rejection (TileSnapshot.roadSnap) */
@@ -303,14 +351,27 @@ export class RoadCurves {
   }
 
   private clear(): void {
-    for (const child of [...this.root.children]) {
-      if (child instanceof Mesh || child instanceof InstancedMesh) child.geometry.dispose();
-      this.root.remove(child);
-    }
+    for (const meshes of [this.roadMeshes, this.decorMeshes]) this.drop(meshes);
   }
 
+  /** Takes the meshes off the scene and frees their geometry */
+  private drop(meshes: Array<Mesh | InstancedMesh>): void {
+    for (const mesh of meshes) {
+      mesh.geometry.dispose();
+      this.root.remove(mesh);
+    }
+    meshes.length = 0;
+  }
+
+  /** Adds a mesh of the roads (or, decor, of the lots and driveways) to the scene */
+  private keep(mesh: Mesh | InstancedMesh, decor = false): void {
+    (decor ? this.decorMeshes : this.roadMeshes).push(mesh as Mesh);
+    this.root.add(mesh);
+  }
+
+  /** The roads and railways, then the lots and driveways along them */
   private rebuild(): void {
-    this.clear();
+    this.drop(this.roadMeshes);
     const { width } = this.snapshot;
     this.covered = new Uint8Array(this.snapshot.values.length);
     this.lines = [];
@@ -391,7 +452,52 @@ export class RoadCurves {
         else this.road(stub, level, positions, colors);
       }
     }
-    // The buildings' lots, in their own lawn or yard (lots)
+    if (positions.length) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+      geometry.computeVertexNormals();
+      const mesh = new Mesh(geometry, this.roadMaterial);
+      mesh.name = 'curves'; mesh.receiveShadow = true;
+      this.keep(mesh);
+    }
+    if (this.dirtPositions.length) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(this.dirtPositions, 3));
+      geometry.setAttribute('color', new Float32BufferAttribute(this.dirtColors, 3));
+      applyWorldUV(geometry, DIRT_REPEAT_M * this.metre);
+      geometry.computeVertexNormals();
+      const mesh = new Mesh(geometry, this.dirtMaterial);
+      mesh.name = 'dirt'; mesh.receiveShadow = true;
+      this.keep(mesh);
+    }
+    if (this.gravel.length) {
+      const mesh = new InstancedMesh(this.stoneGeometry, this.stoneMaterial, this.gravel.length);
+      this.gravel.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
+      mesh.name = 'gravel'; mesh.receiveShadow = true;
+      this.keep(mesh);
+    }
+    if (railPositions.length) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(railPositions, 3));
+      geometry.computeVertexNormals();
+      const mesh = new Mesh(geometry, this.railMaterial);
+      mesh.name = 'rails';
+      this.keep(mesh);
+    }
+    if (sleepers.length) {
+      const mesh = new InstancedMesh(this.sleeperGeometry, this.sleeperMaterial, sleepers.length);
+      sleepers.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
+      mesh.name = 'sleepers'; mesh.receiveShadow = true;
+      this.keep(mesh);
+    }
+    this.rebuildDecor();
+  }
+
+  /** The buildings' lots, in their own lawn or yard, and the driveways from their roads: quick, so laid again whenever a
+   * building changes, which never draws the roads again */
+  private rebuildDecor(): void {
+    this.drop(this.decorMeshes);
     const lawn: number[] = [], yard: number[] = [], none: number[] = [];
     this.lots(lawn, yard, none);
     for (const [lot, key, colour] of [[lawn, 'grass', LOT_GRASS], [yard, 'concrete_raw', LOT_YARD]] as const) {
@@ -403,8 +509,9 @@ export class RoadCurves {
       const mesh = new Mesh(applyWorldUV(geometry, LOT_REPEAT_M * 10 / 16), material);
       mesh.geometry.computeVertexNormals();
       mesh.name = 'lots'; mesh.receiveShadow = true;
-      this.root.add(mesh);
+      this.keep(mesh, true);
     }
+    const positions: number[] = [], colors: number[] = [];
     this.driveways(positions, colors);
     if (positions.length) {
       const geometry = new BufferGeometry();
@@ -412,38 +519,8 @@ export class RoadCurves {
       geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
       geometry.computeVertexNormals();
       const mesh = new Mesh(geometry, this.roadMaterial);
-      mesh.name = 'curves'; mesh.receiveShadow = true;
-      this.root.add(mesh);
-    }
-    if (this.dirtPositions.length) {
-      const geometry = new BufferGeometry();
-      geometry.setAttribute('position', new Float32BufferAttribute(this.dirtPositions, 3));
-      geometry.setAttribute('color', new Float32BufferAttribute(this.dirtColors, 3));
-      applyWorldUV(geometry, DIRT_REPEAT_M * this.metre);
-      geometry.computeVertexNormals();
-      const mesh = new Mesh(geometry, this.dirtMaterial);
-      mesh.name = 'dirt'; mesh.receiveShadow = true;
-      this.root.add(mesh);
-    }
-    if (this.gravel.length) {
-      const mesh = new InstancedMesh(this.stoneGeometry, this.stoneMaterial, this.gravel.length);
-      this.gravel.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
-      mesh.name = 'gravel'; mesh.receiveShadow = true;
-      this.root.add(mesh);
-    }
-    if (railPositions.length) {
-      const geometry = new BufferGeometry();
-      geometry.setAttribute('position', new Float32BufferAttribute(railPositions, 3));
-      geometry.computeVertexNormals();
-      const mesh = new Mesh(geometry, this.railMaterial);
-      mesh.name = 'rails';
-      this.root.add(mesh);
-    }
-    if (sleepers.length) {
-      const mesh = new InstancedMesh(this.sleeperGeometry, this.sleeperMaterial, sleepers.length);
-      sleepers.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
-      mesh.name = 'sleepers'; mesh.receiveShadow = true;
-      this.root.add(mesh);
+      mesh.name = 'driveways'; mesh.receiveShadow = true;
+      this.keep(mesh, true);
     }
   }
 
