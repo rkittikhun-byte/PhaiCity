@@ -4,9 +4,10 @@
 
 // The loading screen between the province card and the city (owner, 18 Oct 2026: "จะโหลด สิ่งต่างๆ ในเกมส์ โดยแสดง
 // สิ่งต่างๆ ทั้งหมดว่าโหลดอะไรบ้าง ... และ logo phaicity ด้วย และเพลงที่ใช้เป็นของแต่ละภาคด้วย"): the PhaiCity logo, the
-// city's name, each thing the game loads with whether it is waiting, loading or done (the 3D view's surfaces counted
-// as they arrive), a gold bar of all of it, and the music of the city's region, which starts here and plays on in the
-// city. It all happens in the page, with no reload. It only shows what loads; it never changes the city.
+// city's name, one line saying what is loading now (owner: "แสดงเป็นบันทัดเดียว แล้ว มี progress แบบ cool ๆ"; the 3D
+// view's surfaces counted as they arrive), a glowing gold bar with the share done counting up beside it, and the music
+// of the city's region, which starts here and plays on in the city. It all happens in the page, with no reload. It only
+// shows what loads; it never changes the city.
 
 import { music } from "./audio/index.js";
 import { onLanguageChange, t } from "./i18n/index.js";
@@ -23,7 +24,7 @@ export type CitySource = "province" | "saved" | "practice";
 const SURFACES_WAIT_MS = 8000;
 /** ... and how long no new surface must be asked for before they count as all there */
 const SURFACES_QUIET_MS = 500;
-const FADE_MS = 600;
+const FADE_MS = 600, FULL_MS = 350;
 
 /** The steps a city from this source loads: a saved or practice city has its map already, and no heights to fetch */
 export function stepsFor(source: CitySource): LoadStep[] {
@@ -56,6 +57,13 @@ export class LoadingSteps {
     return this.states.get(step) ?? "waiting";
   }
 
+  /** The step the screen's one line names: the first still loading, else the next waiting, else the last */
+  current(): LoadStep {
+    const open = this.steps.find((step) => this.state(step) === "loading") ??
+      this.steps.find((step) => this.state(step) === "waiting");
+    return open ?? this.steps[this.steps.length - 1];
+  }
+
   /** 0 to 1: each step finished counts one, the surfaces their share arrived so far */
   progress(surfaces: { requested: number; finished: number }): number {
     let done = 0;
@@ -69,6 +77,14 @@ export class LoadingSteps {
 
 interface Screen {
   root: HTMLElement;
+  /** The parts that change: the city's name, the one line, the bar, its glowing head, the share and the music */
+  parts: { city: HTMLElement; line: HTMLElement; name: HTMLElement; detail: HTMLElement; fill: HTMLElement;
+    percent: HTMLElement; music: HTMLElement };
+  /** The share the bar shows, catching up with the real one so it glides */
+  shown: number;
+  /** The step the line named last, so a new one slides in */
+  named: LoadStep | null;
+  timer: number;
   steps: LoadingSteps;
   source: CitySource;
   city: string | null;
@@ -97,13 +113,17 @@ export function showLoadingScreen(options: { city: string | null; provinceId: st
   root.setAttribute("aria-live", "polite");
   document.body.appendChild(root);
   screen = {
-    root, steps: new LoadingSteps(stepsFor(options.source)), source: options.source, city: options.city,
+    root, parts: build(root), shown: 0, named: null, timer: 0,
+    steps: new LoadingSteps(stepsFor(options.source)), source: options.source, city: options.city,
     music: options.provinceId ? "" : t("loading.music_theme"), stopCount: () => undefined, stopLanguage: () => undefined,
     closing: false,
   };
   screen.stopCount = onLoadCount(render);
   screen.stopLanguage = onLanguageChange(render);
   render();
+  // The bar glides towards the share done, a little each tick (timers, not frames, so it moves in a hidden tab too)
+  const live = screen;
+  live.timer = window.setInterval(() => glide(live), 40);
   // The region's music starts now and plays on in the city (game.js asks for the same playlist, which changes nothing)
   void music.playForProvince(options.provinceId);
   if (options.provinceId) void showRegionMusic(options.provinceId);
@@ -148,17 +168,22 @@ export function loadingFirstFrame(): void {
   check();
 }
 
+/** The bar fills to the end and shines a moment, then the screen fades */
 function close(shown: Screen): void {
-  shown.root.classList.remove("shown");
+  window.clearInterval(shown.timer);
   shown.stopCount();
   shown.stopLanguage();
+  shown.parts.fill.style.width = "100%";
+  shown.parts.percent.textContent = "100%";
+  shown.root.classList.add("complete");
+  window.setTimeout(() => shown.root.classList.remove("shown"), FULL_MS);
   window.setTimeout(() => {
     shown.root.remove();
     if (screen === shown) screen = null;
-  }, FADE_MS);
+  }, FULL_MS + FADE_MS);
 }
 
-/** "Music of the Northeast" under the list, once the province's region is known */
+/** "Music of the Northeast" under the line, once the province's region is known */
 async function showRegionMusic(provinceId: string): Promise<void> {
   try {
     const response = await fetch("data/thailand-provinces.json");
@@ -173,12 +198,8 @@ async function showRegionMusic(provinceId: string): Promise<void> {
   }
 }
 
-function render(): void {
-  if (!screen) return;
-  const { root, steps, source, city } = screen;
-  const surfaces = loadCount("textures");
-  // The surfaces load while the world is built; they are loading as soon as the first is asked for
-  if (surfaces.requested > 0 && steps.state("textures") === "waiting") steps.mark("textures", "loading");
+/** The screen's parts, made once: the logo, the city, one line of what loads, the bar with its share, the music */
+function build(root: HTMLElement): Screen["parts"] {
   const doc = root.ownerDocument;
   const element = (tag: string, className: string, text = ""): HTMLElement => {
     const node = doc.createElement(tag);
@@ -186,23 +207,45 @@ function render(): void {
     node.textContent = text;
     return node;
   };
-  const list = element("ul", "lsSteps");
-  for (const step of steps.steps) {
-    const state = steps.state(step);
-    const item = element("li", "lsStep");
-    item.dataset.state = state;
-    item.append(element("span", "lsMark"), element("span", "lsName", t(stepKey(step, source))));
-    const detail = step === "textures" && surfaces.requested > 0 ? `${surfaces.finished}/${surfaces.requested}`
-      : t(`loading.state.${state}`);
-    item.append(element("span", "lsDetail", detail));
-    list.append(item);
-  }
-  const bar = element("div", "lsBar"), fill = element("div", "lsFill");
-  fill.style.width = `${Math.round(steps.progress(surfaces) * 100)}%`;
+  const card = element("div", "lsCard"), city = element("div", "lsCity");
+  const line = element("div", "lsLine"), name = element("span", "lsName"), detail = element("span", "lsDetail");
+  line.append(element("span", "lsSpin"), name, detail);
+  const meter = element("div", "lsMeter"), bar = element("div", "lsBar"), fill = element("div", "lsFill");
+  const percent = element("div", "lsPercent", "0%");
+  fill.append(element("span", "lsHead"));
   bar.append(fill);
-  const card = element("div", "lsCard");
-  card.append(element("div", "lsBrand", "PhaiCity"),
-    element("div", "lsCity", city ? t("loading.title", { city }) : t("loading.title_practice")), list, bar);
-  if (screen.music) card.append(element("div", "lsMusic", `♪ ${screen.music}`));
+  meter.append(bar, percent);
+  const music = element("div", "lsMusic");
+  card.append(element("div", "lsBrand", "PhaiCity"), city, line, meter, music);
   root.replaceChildren(card);
+  return { city, line, name, detail, fill, percent, music };
+}
+
+/** The share the bar and the number show moves a fifth of the way to the real one each tick, and never back */
+function glide(live: Screen): void {
+  const target = live.steps.progress(loadCount("textures"));
+  if (target <= live.shown + 0.0005) return;
+  live.shown = Math.min(target, live.shown + Math.max(0.004, (target - live.shown) * 0.2));
+  live.parts.fill.style.width = `${(live.shown * 100).toFixed(1)}%`;
+  live.parts.percent.textContent = `${Math.floor(live.shown * 100)}%`;
+}
+
+function render(): void {
+  if (!screen) return;
+  const { steps, source, city, parts } = screen;
+  const surfaces = loadCount("textures");
+  // The surfaces load while the world is built; they are loading as soon as the first is asked for
+  if (surfaces.requested > 0 && steps.state("textures") === "waiting") steps.mark("textures", "loading");
+  parts.city.textContent = city ? t("loading.title", { city }) : t("loading.title_practice");
+  // One line: what is loading now, sliding in when it changes
+  const step = steps.current();
+  parts.name.textContent = t(stepKey(step, source));
+  parts.detail.textContent = step === "textures" && surfaces.requested > 0 ? `${surfaces.finished}/${surfaces.requested}` : "";
+  if (step !== screen.named) {
+    screen.named = step;
+    parts.line.classList.remove("lsIn");
+    void parts.line.offsetWidth;
+    parts.line.classList.add("lsIn");
+  }
+  parts.music.textContent = screen.music ? `♪ ${screen.music}` : "";
 }

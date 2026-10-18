@@ -2261,37 +2261,45 @@ body #inspectCard li[data-sign="plus"] { color: #3f9a68; }
 body #inspectCard li[data-sign="minus"] { color: #c45a46; }
 
 /* The loading screen between the province card and the city (src/loadingScreen.ts): the gold PhaiCity logo, the
-   city's name, what loads with a mark for each (waiting, loading, done), a gold bar and the region's music, over the
-   dark curtain, fading away when the city has drawn itself */
+   city's name, one line of what loads now sliding in as it changes, and a glowing gold bar with a comet head and the
+   share done counting beside it, then the region's music; over the dark curtain, fading once the city has drawn */
 #loadingScreen {
-  position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center; overflow: hidden;
   background: radial-gradient(ellipse at 60% 45%, #16241f 0%, #070b0a 70%, #030504 100%);
   opacity: 0; transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1); font-family: Sarabun, 'Sarabun Thai', sans-serif;
 }
 #loadingScreen.shown { opacity: 1; }
-#loadingScreen .lsCard { width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#loadingScreen .lsCard { width: min(460px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 16px; }
 #loadingScreen .lsBrand {
   font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 56px; letter-spacing: 0.04em; color: #f6d77a;
   animation: loadingGlow 1.6s ease-in-out infinite alternate;
 }
-#loadingScreen .lsCity { font-size: 16px; color: #efe6cf; margin-bottom: 6px; }
-#loadingScreen .lsSteps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 7px; }
-#loadingScreen .lsStep { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; font-size: 13px;
-  color: rgba(239, 230, 207, 0.4); transition: color 0.3s; }
-#loadingScreen .lsStep[data-state="loading"] { color: #efe6cf; }
-#loadingScreen .lsStep[data-state="done"] { color: rgba(239, 230, 207, 0.78); }
-#loadingScreen .lsDetail { font-size: 11px; font-variant-numeric: tabular-nums; }
-#loadingScreen .lsStep[data-state="loading"] .lsDetail { color: #f6d77a; }
-#loadingScreen .lsMark { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(246, 215, 122, 0.3); box-sizing: border-box; }
-#loadingScreen .lsStep[data-state="loading"] .lsMark { border-color: #f6d77a; border-right-color: transparent; animation: lsSpin 0.8s linear infinite; }
-#loadingScreen .lsStep[data-state="done"] .lsMark { border: none; background: #f6d77a;
-  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%); border-radius: 0; }
-#loadingScreen .lsStep[data-state="failed"] .lsMark { border: none; height: 2px; background: rgba(239, 230, 207, 0.4); border-radius: 1px; }
-#loadingScreen .lsBar { position: relative; width: 100%; height: 2px; border-radius: 2px; overflow: hidden; background: rgba(246, 215, 122, 0.15); margin-top: 6px; }
-#loadingScreen .lsFill { height: 100%; background: linear-gradient(90deg, #b8862c, #f6d77a 60%, #fff3c4 80%, #f6d77a) 0 0 / 200% 100%;
-  box-shadow: 0 0 10px rgba(246, 215, 122, 0.7); transition: width 0.35s ease-out; animation: loadingSheen 1.4s linear infinite; }
-#loadingScreen .lsMusic { font-size: 12px; color: rgba(246, 215, 122, 0.75); }
+#loadingScreen .lsCity { font-size: 15px; color: #efe6cf; }
+#loadingScreen .lsLine { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 20px; margin-top: 10px;
+  font-size: 13px; color: rgba(239, 230, 207, 0.8); }
+#loadingScreen .lsLine.lsIn { animation: lsLineIn 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+#loadingScreen .lsDetail { color: #f6d77a; font-variant-numeric: tabular-nums; }
+#loadingScreen .lsDetail:empty { display: none; }
+#loadingScreen .lsSpin { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #f6d77a; border-right-color: transparent;
+  box-sizing: border-box; animation: lsSpin 0.8s linear infinite; }
+#loadingScreen .lsMeter { width: 100%; display: flex; align-items: center; gap: 14px; }
+#loadingScreen .lsBar { position: relative; flex: 1; height: 3px; border-radius: 3px; background: rgba(246, 215, 122, 0.12); }
+#loadingScreen .lsFill { position: relative; width: 0; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #6e4f17, #b8862c 35%, #f6d77a 70%, #fff3c4 85%, #f6d77a) 0 0 / 200% 100%;
+  box-shadow: 0 0 12px rgba(246, 215, 122, 0.55); transition: width 0.12s linear; animation: loadingSheen 1.4s linear infinite; }
+/* The comet's head at the end of the fill: a bright core with a soft halo, and a streak of light behind it */
+#loadingScreen .lsHead { position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+  background: #fff8dc; box-shadow: 0 0 8px 3px rgba(255, 236, 170, 0.9), 0 0 24px 8px rgba(246, 215, 122, 0.45);
+  animation: lsPulse 1.1s ease-in-out infinite alternate; }
+#loadingScreen .lsHead::before { content: ""; position: absolute; right: 5px; top: 50%; width: 70px; height: 2px; margin-top: -1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 248, 220, 0.9)); border-radius: 2px; }
+#loadingScreen .lsPercent { min-width: 46px; text-align: right; font-size: 20px; color: #f6d77a; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px rgba(246, 215, 122, 0.45); }
+#loadingScreen.complete .lsFill { box-shadow: 0 0 22px rgba(255, 236, 170, 0.95); filter: brightness(1.25); transition: width 0.25s ease-out, filter 0.3s; }
+#loadingScreen .lsMusic { font-size: 12px; color: rgba(246, 215, 122, 0.7); }
 @keyframes lsSpin { to { transform: rotate(360deg); } }
+@keyframes lsPulse { from { transform: scale(0.85); } to { transform: scale(1.15); } }
+@keyframes lsLineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  #loadingScreen .lsBrand, #loadingScreen .lsFill, #loadingScreen .lsStep[data-state="loading"] .lsMark { animation: none; }
+  #loadingScreen .lsBrand, #loadingScreen .lsFill, #loadingScreen .lsSpin, #loadingScreen .lsHead, #loadingScreen .lsLine.lsIn { animation: none; }
 }

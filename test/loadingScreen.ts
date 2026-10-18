@@ -22,8 +22,7 @@ describe("the loading screen", () => {
     for (const source of ["province", "saved", "practice"] as const) {
       for (const step of stepsFor(source)) expect(hasKey(stepKey(step, source))).toBe(true);
     }
-    for (const key of ["loading.title", "loading.title_practice", "loading.music", "loading.music_theme",
-      "loading.state.waiting", "loading.state.loading", "loading.state.done", "loading.state.failed"]) {
+    for (const key of ["loading.title", "loading.title_practice", "loading.music", "loading.music_theme"]) {
       expect(hasKey(key)).toBe(true);
     }
     for (const region of ["north", "northeast", "central", "east", "west", "south"]) expect(hasKey(`region.${region}.short`)).toBe(true);
@@ -45,6 +44,19 @@ describe("the loading screen", () => {
     // A step the city does not load is not added
     steps.mark("heights", "loading");
     expect(steps.states.has("heights")).toBe(false);
+  });
+
+  test("the one line names the step loading now, else the next one waiting", () => {
+    // Owner, 18 Oct 2026: "แสดงเป็นบันทัดเดียว"
+    const steps = new LoadingSteps(stepsFor("province"));
+    expect(steps.current()).toBe("map");
+    steps.mark("map", "done");
+    steps.mark("view", "loading");
+    expect(steps.current()).toBe("view");
+    steps.mark("view", "done");
+    expect(steps.current()).toBe("heights");
+    for (const step of steps.steps) steps.mark(step, "done");
+    expect(steps.current()).toBe("textures");
   });
 
   test("loads are counted until they settle, whether they arrive or fail", async () => {
