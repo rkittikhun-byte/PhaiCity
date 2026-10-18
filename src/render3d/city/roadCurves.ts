@@ -9,7 +9,7 @@
 // bridges, level crossings and power line crossings keep their own tile models, the ribbons running up to their
 // edges. The tiles themselves, which the simulation, the tools and the cars use, are unchanged: the view draws the
 // curved tiles as open land (TileSnapshot.curves) and this draws the roads. It reads the map and never writes it.
-import { BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, BoxGeometry, Quaternion, ShapeUtils, Vector2, Vector3 } from 'three';
+import { BufferGeometry, Color, Euler, Float32BufferAttribute, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, BoxGeometry, OctahedronGeometry, Quaternion, ShapeUtils, Vector2, Vector3 } from 'three';
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
 import type { CityHeightField } from './heightfield.js';
@@ -17,6 +17,7 @@ import { halfWidth, nearestOnLines, networkOf, REAL_WIDTH_M, roadLines, roadReac
 import type { TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
+import { loadMaterialTextures } from '../materials/textures.js';
 import { applyWorldUV } from '../util/geometry.js';
 import type { ModelOptions } from '../models/registry.js';
 import { junctionLayout } from './roadJunctions.js';
@@ -34,6 +35,50 @@ const NODE_LIFT = 0.185, NODE_PAINT_LIFT = NODE_LIFT + 0.009;
 const NODE_STEP = 1.5;
 /** ... the share of the way out from its middle that is all its own colour, before it shades into its roads' */
 const NODE_INNER = 0.55;
+/**
+ * A laterite road's surface across it, as its gallery model has it (models/road/laterite.ts): by the model's distance
+ * from the middle (0 … LATERITE_EDGE), how far over or under the road's lift it lies (world units): a sunlit crown,
+ * two wheel tracks worn into it, a low ridge beside them and the edge falling away (owner, 18 Oct 2026: "เพิ่มรายละเอียด
+ * 3D (ผิวนูน กรวด ไหล่ทาง) ให้ถนนโค้งและจุดแยกในเกม"). Its crown stays under a junction's patch (NODE_LIFT).
+ */
+const LATERITE_RELIEF: readonly (readonly [number, number])[] = [[0, 0.025], [0.4, 0.021], [0.8, 0.002], [1.1, -0.022],
+  [1.45, -0.022], [1.8, -0.005], [2.1, 0.004], [2.7, -0.003], [3.2, -0.012], [LATERITE_EDGE, -0.018]];
+/** ... past its edge a dusty shoulder this share of its half width, sloping down to just over the land */
+const LATERITE_SHOULDER = 0.24, SHOULDER_LIFT = 0.04, SHOULDER_DUST = new Color(0xb7a07a);
+/** A laterite road's end, its round plate over the crown of the road running into it */
+const DIRT_PLATE_LIFT = 0.178;
+/** The laterite's own scanned grain (Poly Haven red_laterite_soil_stones) repeats every 2 m */
+const DIRT_REPEAT_M = 2, DIRT_BUMPS = 1;
+/** Loose gravel on the shoulders, between these distances from the middle (the model's, as LATERITE_RELIEF), about
+ * one stone each this share of the road's half width along it */
+const GRAVEL_FROM = 2.3, GRAVEL_TO = 3.9, GRAVEL_STEP = 0.4;
+function reliefAt(distance: number): number {
+  const d = Math.abs(distance), next = LATERITE_RELIEF.findIndex(([at]) => d < at);
+  if (next === 0) return LATERITE_RELIEF[0][1];
+  if (next < 0) return LATERITE_RELIEF[LATERITE_RELIEF.length - 1][1];
+  const [d0, h0] = LATERITE_RELIEF[next - 1], [d1, h1] = LATERITE_RELIEF[next];
+  return h0 + (h1 - h0) * (d - d0) / (d1 - d0);
+}
+/** A number in [0, 1) from a seed, the same every time */
+function scatter(seed: number): number {
+  const s = Math.sin(seed) * 43758.5453;
+  return s - Math.floor(s);
+}
+/** The road surfaces' fine grain, so a wide surface of one colour is not flat paint */
+function grain(material: MeshStandardMaterial): void {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoadXZ = position.xz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float rGrain = sin(vRoadXZ.x * 11.3 + cos(vRoadXZ.y * 9.7)) * cos(vRoadXZ.y * 12.1 - sin(vRoadXZ.x * 8.9));
+        float rMacro = sin(vRoadXZ.x * 1.3 + vRoadXZ.y * 0.9) * cos(vRoadXZ.x * 0.8 - vRoadXZ.y * 1.4);
+        diffuseColor.rgb *= 1.0 + rGrain * 0.032 + rMacro * 0.024;`);
+  };
+  material.customProgramCacheKey = () => 'phaicity-road-curves-grain';
+}
 /** How far along each road a junction measures the way it leaves (world units) */
 const NODE_ARM = 6;
 /** The way a drawn line leaves a point on or near it, measured dist along it on the side `towards` points to */
@@ -120,6 +165,19 @@ export class RoadCurves {
   private readonly railMaterial = new MeshStandardMaterial({ color: 0x9aa3a0, roughness: 0.4, metalness: 0.6 });
   private readonly sleeperMaterial = new MeshStandardMaterial({ color: 0x8d877c, roughness: 0.9 });
   private readonly sleeperGeometry = new BoxGeometry(1.8, 0.08, 0.22);
+  /** Laterite roads, their junctions and ends: the gallery model's dirt, its scanned bumps lit as relief (normal map),
+   * coloured by the road's own profile */
+  private readonly dirtMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+  /** One stone of the shoulders' gravel, flattened and turned by each of its places */
+  private readonly stoneGeometry = new OctahedronGeometry(0.5, 0);
+  /** ... the gallery's gravel, pulled toward the camera further than the dirt it lies on so it shows over it */
+  private readonly stoneMaterial = new MeshStandardMaterial({ color: 0x8c877c, roughness: 1, metalness: 0,
+    polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -8 });
+  /** What a rebuild lays in the dirt mesh and the gravel, beside the other roads' positions and colours */
+  private dirtPositions: number[] = [];
+  private dirtColors: number[] = [];
+  private gravel: Matrix4[] = [];
 
   /** World units a metre of a road's or a railway's cross-section: 1 on a map of 10 m tiles, less on a real-scale
    * city map's (owner, 15 Oct 2026: roads their real width, src/roadGeometry.ts) */
@@ -133,18 +191,16 @@ export class RoadCurves {
   constructor(private readonly snapshot: TileSnapshot, private readonly terrain: CityHeightField) {
     this.root.name = 'road_curves';
     this.snapshot.roadSnap = (x, z, reach) => this.nearest(x, z, reach);
-    this.roadMaterial.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoadXZ = position.xz;');
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
-        .replace('#include <color_fragment>', `#include <color_fragment>
-          float rGrain = sin(vRoadXZ.x * 11.3 + cos(vRoadXZ.y * 9.7)) * cos(vRoadXZ.y * 12.1 - sin(vRoadXZ.x * 8.9));
-          float rMacro = sin(vRoadXZ.x * 1.3 + vRoadXZ.y * 0.9) * cos(vRoadXZ.x * 0.8 - vRoadXZ.y * 1.4);
-          diffuseColor.rgb *= 1.0 + rGrain * 0.032 + rMacro * 0.024;`);
-    };
-    this.roadMaterial.customProgramCacheKey = () => 'phaicity-road-curves-grain';
+    grain(this.roadMaterial); grain(this.dirtMaterial);
+    // The laterite's scanned bumps, roughness and shade when they have loaded (none in Node); its colour stays the
+    // road's profile
+    void loadMaterialTextures('dirt_laterite').then((maps) => {
+      if (!maps) return;
+      const dirt = this.dirtMaterial;
+      dirt.normalMap = maps.normal ?? null; dirt.normalScale.setScalar(DIRT_BUMPS);
+      dirt.roughnessMap = maps.roughness ?? null; dirt.aoMap = maps.ao ?? null; dirt.aoMapIntensity = 0.65;
+      dirt.needsUpdate = true;
+    });
     this.rebuild();
   }
 
@@ -199,6 +255,7 @@ export class RoadCurves {
   dispose(): void {
     this.clear();
     this.roadMaterial.dispose(); this.railMaterial.dispose(); this.sleeperMaterial.dispose(); this.sleeperGeometry.dispose();
+    this.dirtMaterial.dispose(); this.stoneGeometry.dispose(); this.stoneMaterial.dispose();
   }
 
   private clear(): void {
@@ -214,6 +271,7 @@ export class RoadCurves {
     this.covered = new Uint8Array(this.snapshot.values.length);
     this.lines = [];
     const positions: number[] = [], colors: number[] = [], railPositions: number[] = [], sleepers: Matrix4[] = [];
+    this.dirtPositions = []; this.dirtColors = []; this.gravel = [];
     for (const rail of [false, true]) {
       const levels = this.snapshot.roadLevels, values = this.snapshot.values, pieces = this.snapshot.roadPieces, paths = this.snapshot.roadPaths;
       const network = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
@@ -278,6 +336,22 @@ export class RoadCurves {
       geometry.computeVertexNormals();
       const mesh = new Mesh(geometry, this.roadMaterial);
       mesh.name = 'curves'; mesh.receiveShadow = true;
+      this.root.add(mesh);
+    }
+    if (this.dirtPositions.length) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(this.dirtPositions, 3));
+      geometry.setAttribute('color', new Float32BufferAttribute(this.dirtColors, 3));
+      applyWorldUV(geometry, DIRT_REPEAT_M * this.metre);
+      geometry.computeVertexNormals();
+      const mesh = new Mesh(geometry, this.dirtMaterial);
+      mesh.name = 'dirt'; mesh.receiveShadow = true;
+      this.root.add(mesh);
+    }
+    if (this.gravel.length) {
+      const mesh = new InstancedMesh(this.stoneGeometry, this.stoneMaterial, this.gravel.length);
+      this.gravel.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
+      mesh.name = 'gravel'; mesh.receiveShadow = true;
       this.root.add(mesh);
     }
     if (railPositions.length) {
@@ -423,16 +497,18 @@ export class RoadCurves {
     return inside ? colour : colour.clone().multiplyScalar(OUTSIDE_SHADE);
   }
 
-  /** A band along the line: columns at the given offsets across it, each with its colour, lifted over the ground */
-  private band(line: Point[], offsets: readonly number[], colourAt: (offset: number) => Color, lift: number,
+  /** A band along the line: columns at the given offsets across it, each with its colour, lifted over the ground (by
+   * as much at each offset, when lift is a function of it) */
+  private band(line: Point[], offsets: readonly number[], colourAt: (offset: number) => Color, lift: number | ((offset: number) => number),
     positions: number[], colors: number[]): void {
+    const liftAt = typeof lift === 'number' ? (): number => lift : lift;
     const rows: Array<Array<[number, number, number, Color]>> = [];
     for (let i = 0; i < line.length; i++) {
       const [px, pz] = line[i], [ax, az] = line[Math.max(0, i - 1)], [bx, bz] = line[Math.min(line.length - 1, i + 1)];
       const length = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / length, nz = (bx - ax) / length;
       rows.push(offsets.map((d) => {
         const x = px + nx * d, z = pz + nz * d;
-        return [x, this.height(x, z) + lift, z, this.shade(colourAt(d), x, z)];
+        return [x, this.height(x, z) + liftAt(d), z, this.shade(colourAt(d), x, z)];
       }));
     }
     for (let i = 1; i < rows.length; i++) for (let k = 1; k < offsets.length; k++) {
@@ -443,8 +519,7 @@ export class RoadCurves {
 
   private road(line: Point[], level: number, positions: number[], colors: number[], lift = LIFT, stripe = true): void {
     if (level <= 1) {
-      const k = this.lateriteShare, e = LATERITE_EDGE * k, offsets = [-e, -e * 0.7, -e * 0.35, 0, e * 0.35, e * 0.7, e];
-      this.band(line, offsets, (d) => lateriteColour(Math.abs(d) / k), lift, positions, colors);
+      this.laterite(line, lift, !stripe);
       return;
     }
     const units = this.snapshot.realUnits, half = halfWidth(level, units), side = shoulderOf(units);
@@ -470,6 +545,49 @@ export class RoadCurves {
         this.band(line, [laneOffset - lw, laneOffset + lw], () => whitePaint, lift + 0.01, positions, colors);
       }
     }
+  }
+
+  /**
+   * A laterite road as its gallery model is (models/road/laterite.ts): across it the model's colours and its relief
+   * (LATERITE_RELIEF), a dusty shoulder sloping down to the land either side, and loose gravel on the shoulders. An end
+   * lying under the road it meets (under) is laid flat, so no crown of it shows through that road's wheel tracks.
+   */
+  private laterite(line: Point[], lift: number, under: boolean): void {
+    const k = this.lateriteShare, e = LATERITE_EDGE * k, outside = e * (1 + LATERITE_SHOULDER);
+    const across = LATERITE_RELIEF.map(([d]) => d * k);
+    const offsets = [-outside, ...across.slice(1).reverse().map((d) => -d), 0, ...across.slice(1), outside];
+    this.band(line, offsets, (d) => (Math.abs(d) > e + 1e-6 ? SHOULDER_DUST : lateriteColour(Math.abs(d) / k)),
+      (d) => (Math.abs(d) > e + 1e-6 ? SHOULDER_LIFT : lift + (under ? reliefAt(LATERITE_EDGE) : reliefAt(Math.abs(d) / k))),
+      this.dirtPositions, this.dirtColors);
+    if (!under) this.stones(line, lift);
+  }
+
+  /** Gravel along a laterite road's shoulders, the same stones each time it is drawn (from where they lie) */
+  private stones(line: Point[], lift: number): void {
+    const k = this.lateriteShare, step = GRAVEL_STEP * LATERITE_EDGE * k, m = this.metre;
+    let carry = 0;
+    for (let i = 1; i < line.length; i++) {
+      const [ax, az] = line[i - 1], [bx, bz] = line[i], length = Math.hypot(bx - ax, bz - az);
+      if (!length) continue;
+      const tx = (bx - ax) / length, tz = (bz - az) / length;
+      for (let s = carry; s < length; s += step) {
+        const x0 = ax + tx * s, z0 = az + tz * s, seed = x0 * 12.9898 + z0 * 78.233;
+        const side = scatter(seed) < 0.5 ? -1 : 1, d = GRAVEL_FROM + (GRAVEL_TO - GRAVEL_FROM) * scatter(seed + 1.7);
+        const slide = (scatter(seed + 3.1) - 0.5) * step;
+        const x = x0 + tx * slide - tz * side * d * k, z = z0 + tz * slide + tx * side * d * k;
+        this.stone(x, z, d <= LATERITE_EDGE ? lift + reliefAt(d) : SHOULDER_LIFT + 0.01, seed, m);
+      }
+      carry = (carry - length) % step;
+      if (carry < 0) carry += step;
+    }
+  }
+
+  /** One stone, a flattened pebble of a size and a turn its seed picks, lying at (x, z) that far over the ground */
+  private stone(x: number, z: number, lift: number, seed: number, m: number): void {
+    const size = (0.8 + 0.8 * scatter(seed + 5.3)) * m;
+    const turn = new Quaternion().setFromEuler(new Euler(0, scatter(seed + 7.9) * Math.PI, (scatter(seed + 9.2) - 0.5) * 0.6));
+    this.gravel.push(new Matrix4().compose(new Vector3(x, this.height(x, z) + lift + 0.015 * size, z), turn,
+      new Vector3(0.16 * size, 0.08 * size, 0.12 * size)));
   }
 
   private rail(line: Point[], positions: number[], colors: number[], railPositions: number[], sleepers: Matrix4[]): void {
@@ -558,9 +676,11 @@ export class RoadCurves {
    * junction shades from its crown in the middle to each road's own colours where the road leaves it, so the tracks
    * fade into it; a paved one is its widest road's surface, with a kerb along each rounded corner.
    */
-  private node(junction: JunctionShape, lines: ReadonlyArray<{ level: number; points: Point[] }>, layout: ReturnType<typeof junctionLayout>, positions: number[], colors: number[]): void {
+  private node(junction: JunctionShape, lines: ReadonlyArray<{ level: number; points: Point[] }>, layout: ReturnType<typeof junctionLayout>, roadPositions: number[], roadColors: number[]): void {
     const { at, arms } = junction, units = this.snapshot.realUnits, n = arms.length, m = this.metre;
     const levels = arms.map((arm) => lines[arm.line].level), maxLevel = Math.max(...levels), paved = maxLevel > 1;
+    // A laterite junction is the laterite roads' own dirt
+    const positions = paved ? roadPositions : this.dirtPositions, colors = paved ? roadColors : this.dirtColors;
     // Each road's carriageway either side of its middle, and its reach with its shoulders
     const half = levels.map((level) => (level <= 1 ? LATERITE_EDGE * this.lateriteShare : halfWidth(level, units)));
     const surfaceAt = (level: number): Color => new Color(level > 2 ? 0x8f8d86 : 0x4b4f50);
@@ -618,6 +738,24 @@ export class RoadCurves {
         this.flat([ai, bi, bo], shoulder, NODE_LIFT + 0.001, positions, colors);
         this.flat([ai, bo, ao], shoulder, NODE_LIFT + 0.001, positions, colors);
       }
+    }
+    if (paved) return;
+    // A laterite junction's rounded corners fall away into the dusty shoulder its roads have, gravel lying along them
+    const edge = lateriteColour(LATERITE_EDGE);
+    for (let k = 0; k < n; k++) {
+      const points = corners[k].points, widthAt = (p: typeof points[number]): number =>
+        LATERITE_SHOULDER * (half[k] + (half[(k + 1) % n] - half[k]) * p.fraction);
+      const offset = (p: typeof points[number], w: number): Point => [p.at[0] + p.normal[0] * w, p.at[1] + p.normal[1] * w];
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1], b = points[i], ao = offset(a, widthAt(a)), bo = offset(b, widthAt(b));
+        this.shaded([a.at, b.at, bo], [edge, edge, SHOULDER_DUST], [NODE_LIFT, NODE_LIFT, SHOULDER_LIFT], positions, colors);
+        this.shaded([a.at, bo, ao], [edge, SHOULDER_DUST, SHOULDER_DUST], [NODE_LIFT, SHOULDER_LIFT, SHOULDER_LIFT], positions, colors);
+      }
+      points.forEach((p, i) => {
+        const seed = p.at[0] * 12.9898 + p.at[1] * 78.233 + i, share = scatter(seed) * 1.3 - 0.3;
+        const [x, z] = offset(p, widthAt(p) * share);
+        this.stone(x, z, share <= 0 ? NODE_LIFT : NODE_LIFT + (SHOULDER_LIFT + 0.01 - NODE_LIFT) * share, seed, m);
+      });
     }
   }
 
@@ -697,13 +835,15 @@ export class RoadCurves {
     this.fine([m, b, c], [cm, cb, cc], lift, positions, colors, depth + 1);
   }
 
-  /** A triangle lying on the ground, lifted, facing up whichever way round its corners come, each corner its colour */
-  private shaded(corners: [Point, Point, Point], colours: [Color, Color, Color], lift: number, positions: number[], colors: number[]): void {
+  /** A triangle lying on the ground, lifted (each corner by as much, when lift lists three), facing up whichever way
+   * round its corners come, each corner its colour */
+  private shaded(corners: [Point, Point, Point], colours: [Color, Color, Color], lift: number | readonly [number, number, number],
+    positions: number[], colors: number[]): void {
     const [a, b, c] = corners;
     const up = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
     for (const k of up >= 0 ? [0, 1, 2] : [0, 2, 1]) {
       const [x, z] = corners[k];
-      positions.push(x, this.height(x, z) + lift, z);
+      positions.push(x, this.height(x, z) + (typeof lift === 'number' ? lift : lift[k]), z);
       const shaded = this.shade(colours[k], x, z); colors.push(shaded.r, shaded.g, shaded.b);
     }
   }
@@ -722,28 +862,32 @@ export class RoadCurves {
    * A round plate at a junction or a road's end, shaded across as the road is (its rings the road's colours from its
    * middle to its edge), so the roads meeting there run into it rather than ending at a disc; level null for a railway
    */
-  private plate(cx: number, cz: number, level: number | null, positions: number[], colors: number[]): void {
-    let rings: Array<[number, Color]>;
+  private plate(cx: number, cz: number, level: number | null, roadPositions: number[], roadColors: number[]): void {
+    // Each ring's radius, its colour and how far over the ground it lies
+    let rings: Array<[number, Color, number?]>, lift = PLATE_LIFT, positions = roadPositions, colors = roadColors;
     if (level === null) {
       const m = this.metre, half = RAIL_INTERFACE.ballastWidth / 2 * m;
       rings = [[0, new Color(0x8b8379)], [1.2 * m, new Color(0x8b8379)], [half, new Color(0x77705f)]];
     } else if (level <= 1) {
+      // A laterite road's end: its dirt, over the crown of the road running into it, falling away into its shoulder
       const k = this.lateriteShare, e = LATERITE_EDGE * k;
-      rings = [0, 0.35, 0.7, 1].map((share) => [e * share, lateriteColour(LATERITE_EDGE * share)]);
+      lift = DIRT_PLATE_LIFT; positions = this.dirtPositions; colors = this.dirtColors;
+      rings = [0, 0.35, 0.7, 1].map((share): [number, Color] => [e * share, lateriteColour(LATERITE_EDGE * share)]);
+      rings.push([e * (1 + LATERITE_SHOULDER), SHOULDER_DUST, SHOULDER_LIFT]);
     } else {
       const units = this.snapshot.realUnits, half = halfWidth(level, units), surface = new Color(level > 2 ? 0x8f8d86 : 0x555959);
       rings = [[0, surface], [half, surface], [half + 0.01, new Color(0xa39c8f)], [half + shoulderOf(units), new Color(0xa39c8f)]];
     }
-    const n = 20, at = (radius: number, angle: number): [number, number, number] => {
+    const n = 20, at = (radius: number, angle: number, over: number): [number, number, number] => {
       const x = cx + Math.cos(angle) * radius, z = cz + Math.sin(angle) * radius;
-      return [x, this.height(x, z) + PLATE_LIFT, z];
+      return [x, this.height(x, z) + over, z];
     };
     for (let ring = 1; ring < rings.length; ring++) {
-      const [r0, c0] = rings[ring - 1], [r1, c1] = rings[ring];
+      const [r0, c0, l0 = lift] = rings[ring - 1], [r1, c1, l1 = lift] = rings[ring];
       const inner = this.shade(c0, cx, cz), outer = this.shade(c1, cx, cz);
       for (let k = 0; k < n; k++) {
         const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2;
-        const p = at(r0, a0), q = at(r0, a1), s = at(r1, a0), t = at(r1, a1);
+        const p = at(r0, a0, l0), q = at(r0, a1, l0), s = at(r1, a0, l1), t = at(r1, a1, l1);
         for (const [v, c] of [[p, inner], [q, inner], [s, outer], [q, inner], [t, outer], [s, outer]] as const) {
           positions.push(v[0], v[1], v[2]); colors.push(c.r, c.g, c.b);
         }

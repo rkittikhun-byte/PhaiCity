@@ -5,7 +5,7 @@
 // Roads and railways as smooth curves (src/render3d/city/roadCurves.ts): a road laid as a staircase of tiles is drawn
 // as one smooth line through them, junctions get a plate, and its tiles draw no model of their own.
 
-import { Mesh, Vector3 } from 'three';
+import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
@@ -73,7 +73,9 @@ describe('road curves', () => {
       for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) { snapshot.values[i] = 66; levels[i] = level; }
       snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
       const curves = new RoadCurves(snapshot, flat);
-      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
+      // A laterite crossing is the laterite roads' own dirt (roadCurves.ts dirt)
+      const name = level > 1 ? 'curves' : 'dirt';
+      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name)!;
       const position = mesh.geometry.getAttribute('position');
       // The patch's triangles and the kerbs', by how high they lie over the flat ground
       const patch: Array<Array<[number, number]>> = [], kerbs: Array<Array<[number, number]>> = [];
@@ -111,22 +113,65 @@ describe('road curves', () => {
       sampleTile: (_tx: number, _tz: number, x: number, z: number) => x * 0.025 + z * 0.015,
       inside: () => true } as unknown as CityHeightField;
     const curves = new RoadCurves(snapshot, hill);
-    const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
-    const position = mesh.geometry.getAttribute('position'), colour = mesh.geometry.getAttribute('color');
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
-      expect(Number.isFinite(x + y + z + colour.getX(i) + colour.getY(i) + colour.getZ(i))).toBe(true);
-      expect(y - x * 0.025 - z * 0.015).toBeGreaterThan(0.129);
+    // Paved roads lie over the ground; laterite's shoulders fall away to just over it
+    for (const [name, over] of [['curves', 0.129], ['dirt', 0.039]] as const) {
+      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name)!;
+      const position = mesh.geometry.getAttribute('position'), colour = mesh.geometry.getAttribute('color');
+      for (let i = 0; i < position.count; i++) {
+        const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+        expect(Number.isFinite(x + y + z + colour.getX(i) + colour.getY(i) + colour.getZ(i))).toBe(true);
+        expect(y - x * 0.025 - z * 0.015).toBeGreaterThan(over);
+      }
     }
     expect(snapshot.values).toEqual(savedValues);
     expect(levels).toEqual(savedLevels);
     curves.dispose();
   });
 
+  test('a laterite road is its gallery model across: a crown, wheel tracks, shoulders falling away, and gravel', () => {
+    // Owner, 18 Oct 2026: "เพิ่มรายละเอียด 3D (ผิวนูน กรวด ไหล่ทาง) ให้ถนนโค้งและจุดแยกในเกม"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    const curves = new RoadCurves(snapshot, flat);
+    const dirt = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    expect(dirt.geometry.getAttribute('uv')).toBeDefined();
+    // Across the road at x = 200 (its middle z = 205): the height at each distance from the middle
+    const position = dirt.geometry.getAttribute('position'), across = new Map<number, number>();
+    for (let i = 0; i < position.count; i++) {
+      if (Math.abs(position.getX(i) - 200) > 4) continue;
+      across.set(Math.round(Math.abs(position.getZ(i) - 205) * 100), position.getY(i));
+    }
+    const at = (d: number): number => across.get(Math.round(d * 100))!;
+    expect(at(0)).toBeGreaterThan(at(1.1));
+    expect(at(2.1)).toBeGreaterThan(at(1.45));
+    expect(at(3.5)).toBeLessThan(at(2.1));
+    // ... its crown under a junction's patch, its shoulder down to just over the land
+    expect(at(0)).toBeLessThan(0.185);
+    const outside = Math.max(...across.keys()) / 100;
+    expect(outside).toBeGreaterThan(3.5);
+    expect(at(outside)).toBeCloseTo(0.04, 4);
+    // Gravel along it, on the shoulders either side and none in the wheel tracks
+    const gravel = curves.root.children.find((child): child is InstancedMesh => child instanceof InstancedMesh && child.name === 'gravel')!;
+    expect(gravel.count).toBeGreaterThan(30);
+    const matrix = new Matrix4(), place = new Vector3(), sides = new Set<number>();
+    for (let n = 0; n < gravel.count; n++) {
+      gravel.getMatrixAt(n, matrix); place.setFromMatrixPosition(matrix);
+      expect(Math.abs(place.z - 205)).toBeGreaterThan(2.2);
+      expect(Math.abs(place.z - 205)).toBeLessThan(4);
+      sides.add(Math.sign(place.z - 205));
+    }
+    expect(sides.size).toBe(2);
+    // The same stones each time it is drawn
+    const again = new RoadCurves(snapshot, flat);
+    const twin = again.root.children.find((child): child is InstancedMesh => child instanceof InstancedMesh && child.name === 'gravel')!;
+    expect(Array.from(twin.instanceMatrix.array)).toEqual(Array.from(gravel.instanceMatrix.array));
+    curves.dispose(); again.dispose();
+  });
+
   test('a staircase of road tiles becomes one smooth line close to them', () => {
     const { snapshot, tiles } = slanted();
     const curves = new RoadCurves(snapshot, flat);
-    expect(curves.root.children.some(child => child instanceof Mesh && child.name === 'curves')).toBe(true);
+    expect(curves.root.children.some(child => child instanceof Mesh && child.name === 'dirt')).toBe(true);
     const near = curves.roadsNear(new Vector3(300, 0, 200));
     expect(near.length).toBeGreaterThan(20);
     // Every piece heads the same way, within a few degrees: no wiggles left from the steps
