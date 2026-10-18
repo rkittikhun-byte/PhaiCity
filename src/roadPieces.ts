@@ -23,3 +23,37 @@ export function nextRoadPiece(pieces: ArrayLike<number> | null | undefined): num
   if (pieces) for (let i = 0; i < pieces.length; i++) if (pieces[i] > top) top = pieces[i];
   return Math.min(MAX_ROAD_PIECE, top + 1);
 }
+
+/**
+ * The tiles a piece was drawn along, in order (gameMap.roadPaths[piece], saved as roadPaths): its shape is worked out
+ * once from them (src/roadGeometry.ts frozen), so bulldozing some of its tiles cuts it and never moves the rest (owner,
+ * 18 Oct 2026: "ถ้าลบ ไม่ต้องใช้ฟังก์ชั่นนี้ ให้ถนนมันอยู่กับที่ห้ามขยับ"). from and to: the older pieces whose tiles it began and
+ * ended on (0 for none), whose way it bends out of at a joint.
+ */
+export interface RoadPath { from: number; to: number; tiles: number[] }
+
+/** A save's paths, those that read as paths */
+export function readRoadPaths(saved: unknown): Record<number, RoadPath> {
+  const out: Record<number, RoadPath> = {};
+  if (!saved || typeof saved !== "object") return out;
+  for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
+    const path = value as Partial<RoadPath> | null;
+    if (!path || !Array.isArray(path.tiles) || !path.tiles.every((i) => Number.isInteger(i))) continue;
+    out[Number(key)] = { from: Number(path.from) || 0, to: Number(path.to) || 0, tiles: path.tiles.slice() };
+  }
+  return out;
+}
+
+/** The paths a save keeps: those of the pieces still on the map, and those their shapes bend out of */
+export function roadPathsKept(paths: Readonly<Record<number, RoadPath>> | null | undefined,
+                              onMap: Iterable<number>): Record<number, RoadPath> | undefined {
+  if (!paths) return undefined;
+  const kept: Record<number, RoadPath> = {}, queue = [...onMap];
+  while (queue.length) {
+    const piece = queue.pop()!, path = paths[piece];
+    if (!path || kept[piece]) continue;
+    kept[piece] = path;
+    queue.push(path.from, path.to);
+  }
+  return Object.keys(kept).length ? kept : undefined;
+}

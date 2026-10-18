@@ -99,6 +99,8 @@ describe("a district's frame", () => {
     expect(again.map.roadPieces[at(20, 40)]).toBe(1);
     expect(again.map.roadPieces[at(79, 40)]).toBe(1);
     expect(again.map.roadPieces[5 * 160 + 5]).toBe(0);
+    expect(again.map.roadPaths[1].tiles[0]).toBe(at(20, 40));
+    expect(again.map.roadPaths[1].tiles[59]).toBe(at(79, 40));
     expect(again.map.rulerHouse).toMatchObject({ x: 40 + dx, y: 26 + dy });
     expect(again.map.town).toEqual({ x: 40 + dx, y: 26 + dy });
     // The land it owned is still its own, and the new land is not

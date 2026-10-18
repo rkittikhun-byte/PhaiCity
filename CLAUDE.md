@@ -259,6 +259,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   Oct 2026): a line built on from another's end, leaving it or crossing it never changes the older one's shape
   (`networkOf` / `roadLines` in `src/roadGeometry.ts`; every reader passes the pieces as `piece`); one going on nearly
   straight from an end bends out of the older one's way, and the next click after a dead end snaps onto that way.
+  Each piece's shape is worked out once from the tiles it was drawn along (`gameMap.roadPaths`, saved), so bulldozing
+  some of its tiles cuts it and never moves the rest.
   Streets are named (`src/streetNames.ts`, from the map alone, not saved yet): roads, sois numbered odd and even along
   their road, แยก off a soi, numbered highways; the 3D view writes the names along the roads near the ground
   (`src/render3d/city/streetLabels.ts`, `streetName` in the view's setup, i18n `street.*`).

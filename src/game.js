@@ -1910,11 +1910,12 @@ Game.prototype.networkLines = function(rail) {
   var cache = rail ? '_railLines' : '_roadLines';
   if (!this[cache] || this[cache].edits !== this._edits) {
     var map = this.gameMap;
-    var levels = map.roadLevels, pieces = map.roadPieces;
+    var levels = map.roadLevels, pieces = map.roadPieces, paths = map.roadPaths;
     var network = networkOf({width: map.width, height: map.height,
       value: function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); },
       level: function(i) { return levels ? levels[i] || 1 : 1; },
-      piece: function(i) { return pieces ? pieces[i] : 0; }}, rail);
+      piece: function(i) { return pieces ? pieces[i] : 0; },
+      path: function(piece) { return paths && paths[piece] || null; }}, rail);
     // The lines as the 3D view draws them, one where a road runs on through a junction (src/roadGeometry.ts roadLines),
     // so a building stands against the road it sees
     var drawn = roadLines(network).lines;

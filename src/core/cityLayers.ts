@@ -12,7 +12,7 @@ import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "../
 import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
-import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece } from "../roadPieces.js";
+import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
 import { levelsStanding } from "../buildingLevels.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
@@ -47,6 +47,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.roadLevels = saved.roadLevels ? decodePresetLayer(saved.roadLevels, map.width, map.height) : null;
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts); roads from before the pieces are 0
     map.roadPieces = saved.roadPieces ? decodePresetLayerWide(saved.roadPieces, map.width, map.height) : null;
+    // ... and the tiles each piece was drawn along, which set its shape for good
+    map.roadPaths = readRoadPaths(saved.roadPaths);
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     map.heights = saved.heights || null;
     map.tileSizeM = saved.tileSizeM || null;
@@ -117,6 +119,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.mineKinds = map.mineKinds || {};
   map.roadLevels = map.roadLevels || newRoadLevels(map.width, map.height);
   map.roadPieces = map.roadPieces || newRoadPieces(map.width, map.height);
+  map.roadPaths = map.roadPaths || {};
   map.civicKinds = map.civicKinds || {};
   map.wasteKinds = map.wasteKinds || {};
   map.policies = map.policies || [];
@@ -146,6 +149,18 @@ function posesStanding(map: Legacy): Record<string, [number, number, number]> | 
     if (map.testBounds(x, y) && (map.getTile(x, y).isZone() || map.getTileValue(x, y) >= 240)) kept[index] = pose as [number, number, number];
   }
   return Object.keys(kept).length ? kept : undefined;
+}
+
+/** The pieces of the roads and railways on the map (src/roadPieces.ts) */
+function piecesOnLines(map: Legacy): Set<number> {
+  const pieces = new Set<number>(), layer = map.roadPieces;
+  if (!layer) return pieces;
+  for (let i = 0; i < layer.length; i++) {
+    if (!layer[i]) continue;
+    const value = map.getTileValue(i % map.width, Math.floor(i / map.width));
+    if (isRoadTile(value) || value >= RAILBASE && value <= LASTRAIL) pieces.add(layer[i]);
+  }
+  return pieces;
 }
 
 /** The records kept beside the tiles, as a save keeps them (run-length encoded like the map) */
@@ -181,6 +196,7 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     roadLevels: map.roadLevels ? encodePresetLayer(map.roadLevels) : undefined,
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
     roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
+    roadPaths: roadPathsKept(map.roadPaths, piecesOnLines(map)),
     // ... and whether its zones are painted tile by tile (src/plots.ts)
     paintedZones: map.paintedZones ? true : undefined,
     // ... and the size of its tiles, which sets the size of its land blocks (src/landBlocks.ts)
@@ -234,6 +250,11 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
       return piece;
     },
     setRoadPiece: (x: number, y: number, piece: number) => { map.roadPieces[y * map.width + x] = piece; },
+    roadPieceAt: (x: number, y: number) => map.roadPieces[y * map.width + x] || 0,
+    setRoadPath: (piece: number, path: unknown) => {
+      if (path) map.roadPaths[piece] = path;
+      else delete map.roadPaths[piece];
+    },
     // The ruler's house (src/rulerHouse.ts): a new city builds it first, and its next level needs the ruler's rank
     houseMap: map,
     rank: () => hooks.rank?.() ?? 0,

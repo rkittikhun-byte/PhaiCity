@@ -7,7 +7,7 @@
 
 import type { TilePoint } from "../src/cityView";
 import { CityCore } from "../src/core/cityCore";
-import { curvePath, linePath } from "../src/drawPaths";
+import { curvePath, gridPath, linePath } from "../src/drawPaths";
 import { GameMap } from "../src/gameMap.js";
 import { networkOf, roadLines, type Point } from "../src/roadGeometry";
 
@@ -34,7 +34,7 @@ function drawn(core: CityCore, rail = false) {
   const map = core.map;
   return roadLines(networkOf({ width: map.width, height: map.height,
     value: (i) => map.getTileValue(i % map.width, Math.floor(i / map.width)),
-    level: (i) => map.roadLevels[i] || 1, piece: (i) => map.roadPieces[i] }, rail));
+    level: (i) => map.roadLevels[i] || 1, piece: (i) => map.roadPieces[i], path: (piece) => map.roadPaths[piece] ?? null }, rail));
 }
 
 /** The way a line runs at its point nearest p, as a unit vector from its start towards its end */
@@ -150,6 +150,71 @@ describe("road pieces", () => {
       expect(lines[junction.through!]).toBe(curve);
       expect(junction.arms.filter((arm) => lines[arm.line] === curve && arm.end === null)).toHaveLength(2);
     }
+  });
+
+  /** How far p lies from a line */
+  const offLine = (line: Point[], p: Point): number => {
+    let best = Infinity;
+    for (let i = 1; i < line.length; i++) {
+      const [ax, az] = line[i - 1], dx = line[i][0] - ax, dz = line[i][1] - az;
+      const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / (dx * dx + dz * dz || 1)));
+      best = Math.min(best, Math.hypot(ax + dx * t - p[0], az + dz * t - p[1]));
+    }
+    return best;
+  };
+  const bulldoze = (core: CityCore, tile: TilePoint) => {
+    stroke++;
+    core.apply({ type: "tool", tool: "bulldozer", x: tile.x, y: tile.y, stroke });
+    expect(core.map.getTileValue(tile.x, tile.y) >= 64 && core.map.getTileValue(tile.x, tile.y) <= 206).toBe(false);
+  };
+
+  test("bulldozing a drawn road's tiles, an end one by one or one in the middle, leaves the rest where it was drawn", () => {
+    const core = newCity();
+    draw(core, CURVE);
+    const [before] = drawn(core).lines.map((line) => line.points);
+    expect(core.map.roadPaths[1].tiles).toHaveLength(CURVE.length);
+    for (let k = 1; k <= 4; k++) {
+      bulldoze(core, CURVE[CURVE.length - k]);
+      const lines = drawn(core).lines.map((line) => line.points);
+      expect(lines).toHaveLength(1);
+      for (const p of lines[0]) expect(offLine(before, p)).toBeLessThan(1e-6);
+    }
+    bulldoze(core, MIDDLE);
+    const halves = drawn(core).lines.map((line) => line.points);
+    expect(halves).toHaveLength(2);
+    for (const line of halves) for (const p of line) expect(offLine(before, p)).toBeLessThan(1e-6);
+    // ... and taking it back puts the very line back
+    for (let k = 0; k < 5; k++) core.apply({ type: "undo" });
+    expectSameLine(drawn(core).lines.map((line) => line.points)[0], before);
+  });
+
+  test("a road built on from another's end keeps its bend out of it when that end is bulldozed", () => {
+    const core = newCity();
+    draw(core, CURVE);
+    draw(core, linePath(END, { x: END.x, y: END.y + 20 }));
+    const lines = drawn(core).lines.map((line) => line.points);
+    const curve = lines.find((line) => offLine(line, [(CURVE[0].x + 0.5) * 10, (CURVE[0].y + 0.5) * 10]) < 0.01)!;
+    const road = lines.find((line) => line !== curve)!;
+    bulldoze(core, END);
+    bulldoze(core, CURVE[CURVE.length - 2]);
+    const after = drawn(core).lines.map((line) => line.points);
+    expect(after).toHaveLength(2);
+    for (const line of after) {
+      const own = offLine(curve, line[1]) < offLine(road, line[1]) ? curve : road;
+      for (const p of line) expect(offLine(own, p)).toBeLessThan(1e-6);
+    }
+  });
+
+  test("a stroke that is no path (a grid) keeps no path, and drawn paths are saved with the city", () => {
+    const core = newCity();
+    stroke++;
+    for (const { x, y } of gridPath({ x: 5, y: 5 }, { x: 19, y: 19 })) core.apply({ type: "tool", tool: "road", x, y, stroke });
+    expect(core.map.roadPaths[1]).toBeUndefined();
+    draw(core, linePath({ x: 30, y: 30 }, { x: 50, y: 40 }));
+    const saved = JSON.parse(JSON.stringify(core.save()));
+    expect(Object.keys(saved.roadPaths)).toEqual(["2"]);
+    const again = newCity(saved);
+    expect(again.map.roadPaths[2].tiles).toEqual(core.map.roadPaths[2].tiles);
   });
 
   test("the pieces are saved, and the next stroke is numbered on from them", () => {

@@ -175,12 +175,13 @@ export class RoadCurves {
     this.lines = [];
     const positions: number[] = [], colors: number[] = [], railPositions: number[] = [], sleepers: Matrix4[] = [];
     for (const rail of [false, true]) {
-      const levels = this.snapshot.roadLevels, values = this.snapshot.values, pieces = this.snapshot.roadPieces;
-      const { stretches, plates, junctions, covered } = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
-        level: (i) => levels?.[i] ?? 1, piece: (i) => pieces?.[i] ?? 0 }, rail);
+      const levels = this.snapshot.roadLevels, values = this.snapshot.values, pieces = this.snapshot.roadPieces, paths = this.snapshot.roadPaths;
+      const network = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
+        level: (i) => levels?.[i] ?? 1, piece: (i) => pieces?.[i] ?? 0, path: (piece) => paths?.[piece] ?? null }, rail);
+      const { plates, junctions, covered } = network;
       for (let i = 0; i < covered.length; i++) if (covered[i]) this.covered[i] = 1;
       // One road where it runs on through a junction, the others ending at it (src/roadGeometry.ts roadLines)
-      const drawn = roadLines({ stretches, plates, junctions, covered });
+      const drawn = roadLines(network);
       if (rail) {
         // A railway that ends at a junction runs on into it a little, so the tracks meeting there overlap and fill it
         for (const { points: line, level } of drawn.lines) {
