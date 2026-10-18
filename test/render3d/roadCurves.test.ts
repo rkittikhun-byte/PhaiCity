@@ -9,7 +9,7 @@ import { Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
-import { networkOf } from '../../src/roadGeometry.js';
+import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { visibleMeshes } from '../../src/render3d/util/geometry.js';
@@ -49,7 +49,7 @@ describe('road curves', () => {
 
   test('a crossing is one patch over both roads out past their edges, its corners rounded, kerbed where paved', () => {
     // Owner, 18 Oct 2026: "จุดแยกของถนน มันควรจะมี graphic ที่สวยงามกว่านี้"
-    for (const level of [1, 3]) {
+    for (const level of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const W = 40, snapshot = new TileSnapshot(W, 40), levels = new Uint8Array(W * 40);
       for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) { snapshot.values[i] = 66; levels[i] = level; }
       snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
@@ -70,7 +70,7 @@ describe('road curves', () => {
         return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
       });
       // The crossing (205, 205), each road's carriageway just past the other's edge, and the rounded corners
-      const half = level <= 1 ? 3.5 : 3.6, reach = level <= 1 ? 3.5 : 3.6 + 0.6;
+      const half = halfWidth(level), reach = roadReach(level);
       for (const [dx, dz] of [[0, 0], [reach + 0.1, 0], [-reach - 0.1, 0], [0, reach + 0.1], [0, -reach - 0.1],
         [reach + 0.1, half * 0.8], [half + 0.3, half + 0.3], [-half - 0.3, half + 0.3]]) expect(under([205 + dx, 205 + dz])).toBe(true);
       // ... and not the ground beyond them
@@ -78,6 +78,30 @@ describe('road curves', () => {
       expect(kerbs.length > 0).toBe(level > 1);
       curves.dispose();
     }
+  });
+
+  test('mixed laterite and paved junctions follow sloped ground without changing saved roads', () => {
+    const W = 40, snapshot = new TileSnapshot(W, W), levels = new Uint8Array(W * W);
+    for (let k = 5; k < 36; k++) {
+      snapshot.values[20 * W + k] = 66; levels[20 * W + k] = k < 20 ? 1 : 5;
+      snapshot.values[k * W + 20] = 66; levels[k * W + 20] = k < 20 ? 2 : 3;
+    }
+    snapshot.source = { roadLevels: levels, tileSizeM: 16 } as unknown as TileSnapshot['source'];
+    const savedValues = snapshot.values.slice(), savedLevels = levels.slice();
+    const hill = { sample: (x: number, z: number) => x * 0.025 + z * 0.015,
+      sampleTile: (_tx: number, _tz: number, x: number, z: number) => x * 0.025 + z * 0.015,
+      inside: () => true } as unknown as CityHeightField;
+    const curves = new RoadCurves(snapshot, hill);
+    const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
+    const position = mesh.geometry.getAttribute('position'), colour = mesh.geometry.getAttribute('color');
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+      expect(Number.isFinite(x + y + z + colour.getX(i) + colour.getY(i) + colour.getZ(i))).toBe(true);
+      expect(y - x * 0.025 - z * 0.015).toBeGreaterThan(0.129);
+    }
+    expect(snapshot.values).toEqual(savedValues);
+    expect(levels).toEqual(savedLevels);
+    curves.dispose();
   });
 
   test('a staircase of road tiles becomes one smooth line close to them', () => {
