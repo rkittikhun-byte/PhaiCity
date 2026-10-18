@@ -163,15 +163,28 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
+    // A dot on each road tile near the mouse where a click may join it, its dead ends ringed, all under the marker of
+    // where the click lands, which stays the boldest (src/game.js snapDots)
+    if(hover.snapDots?.length){const r0=Math.max(.9,Math.min(2.1,halfW)),px=10/Math.max(1,hover.tilePixels??40);
+      // ... a few pixels across whatever the zoom: dots about 7, ends' rings about 17
+      const dot=Math.max(r0*.24,3.5*px),inner=Math.max(r0*.42,6*px),outer=Math.max(r0*.6,8.5*px);
+      const dots=hover.snapDots.filter(d=>!d.end),ends=hover.snapDots.filter(d=>d.end);
+      if(dots.length){const mesh=new Mesh(this.discs(dots,0,dot,.7),cityToolMaterial('#ffffff',true));mesh.renderOrder=25;this.root.add(mesh);}
+      if(ends.length){const mesh=new Mesh(this.discs(ends,inner,outer,.71),cityToolMaterial('#ffffff'));mesh.renderOrder=25;this.root.add(mesh);
+        const fill=new Mesh(this.discs(ends,0,inner,.7),cityToolMaterial(hover.colour,true));fill.renderOrder=25;this.root.add(fill);}}
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
     if(hover.linePoint){const x=hover.linePoint.x*10,z=hover.linePoint.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.75;
-      const r0=Math.max(.9,Math.min(2.1,halfW));
-      const dot=new Mesh(new CircleGeometry(r0*.66,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=26;
-      const ring=new Mesh(new RingGeometry(r0*.81,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=26;
-      this.root.add(dot,ring);
+      // ... the boldest mark there, about 26 pixels across at least whatever the zoom: a thick white ring edged dark, so it
+      // reads on any road or ground, round the tool's colour, and a white point on the very spot the click lands
+      const r0=Math.max(.9,Math.min(2.1,halfW),13*10/Math.max(1,hover.tilePixels??1e9));
+      const dot=new Mesh(new CircleGeometry(r0*.7,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=26;
+      const edge=new Mesh(new RingGeometry(r0*.62,r0*1.12,28).rotateX(-Math.PI/2),cityToolMaterial('#22303a'));edge.position.set(x,y+.01,z);edge.renderOrder=26;
+      const ring=new Mesh(new RingGeometry(r0*.7,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=26.5;
+      const point=new Mesh(new CircleGeometry(r0*.18,12).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));point.position.set(x,y+.02,z);point.renderOrder=26.5;
+      this.root.add(dot,edge,ring,point);
       // ... where the mouse is when a snap moves the click: a faint ring, dashed to where it lands (src/drawReadout.ts)
       if(hover.cursorPoint)this.cursorLink(hover.cursorPoint,{x,z},r0);
       // ... and the line's first point, A, ringed until the line is built
@@ -253,6 +266,17 @@ export class ToolOutline {
       if(this.terrain?.enabled){const p=line.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+elevation(sx+p.getX(i),sz+p.getZ(i)));line.geometry.computeVertexNormals();}
       line.position.set(sx,.68,sz);line.renderOrder=26;this.root.add(line);
     }
+  }
+  /** Flat rings (or discs, from 0) round points in tiles, on the ground, all in one geometry */
+  private discs(points:ReadonlyArray<{x:number;y:number}>,inner:number,outer:number,lift:number):BufferGeometry {
+    const positions:number[]=[],n=16,ground=(x:number,z:number):number=>(this.terrain?.enabled?this.terrain.sample(x,z):0)+lift;
+    for(const p of points){const cx=p.x*10,cz=p.y*10,y=ground(cx,cz);
+      for(let k=0;k<n;k++){const a=k/n*Math.PI*2,b=(k+1)/n*Math.PI*2;
+        const ia:[number,number,number]=[cx+Math.cos(a)*inner,y,cz+Math.sin(a)*inner],ib:[number,number,number]=[cx+Math.cos(b)*inner,y,cz+Math.sin(b)*inner];
+        const oa:[number,number,number]=[cx+Math.cos(a)*outer,y,cz+Math.sin(a)*outer],ob:[number,number,number]=[cx+Math.cos(b)*outer,y,cz+Math.sin(b)*outer];
+        positions.push(...ia,...ob,...oa,...ia,...ib,...ob);}}
+    const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(positions,3));geometry.computeVertexNormals();
+    return geometry;
   }
   /** A faint ring where the mouse is (tiles), and dashes from it to where the click lands (world units) */
   private cursorLink(cursor:{x:number;y:number},land:{x:number;z:number},r0:number):void {

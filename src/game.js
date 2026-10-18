@@ -1682,10 +1682,13 @@ Game.prototype.placesBuilding = function() {
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
   // How big a tile is on the screen, on the camera bar while a line tool is in hand (src/drawReadout.ts)
-  if (modeGroupOf(this.inputStatus.toolName) !== 'line')
+  var tilePixels = null;
+  if (modeGroupOf(this.inputStatus.toolName) !== 'line') {
     showZoom(null);
-  else if (this.inputStatus.mouseX >= 0)
-    showZoom(pixelsPerTile(this.cityView, this.inputStatus.mouseX, this.inputStatus.mouseY));
+  } else if (this.inputStatus.mouseX >= 0) {
+    tilePixels = pixelsPerTile(this.cityView, this.inputStatus.mouseX, this.inputStatus.mouseY);
+    showZoom(tilePixels);
+  }
   // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
   if (this.lineDraft === null)
     this.showDrawTip(null);
@@ -1760,6 +1763,11 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.roadWidth = 3.2 * (units || 1);
   }
   var linePoint = this.linePoint(this.inputStatus.toolName, this.inputStatus.mouseX, this.inputStatus.mouseY);
+  // ... and a dot on each road tile near the mouse, where a click may join it (snapDots)
+  var dots = this.snapDots(this.inputStatus.toolName, tile);
+  if (dots !== null)
+    hover.snapDots = dots;
+  hover.tilePixels = tilePixels;
   if (linePoint !== null) {
     hover.linePoint = linePoint;
     var started = this.lineDraft && this.lineDraft.tool === this.inputStatus.toolName ? this.lineDraft.startPoint : null;
@@ -2001,6 +2009,36 @@ Game.prototype.linePoint = function(toolName, x, y) {
     return near ? {x: near[0] / 10, y: near[1] / 10} : middle;
   }
   return snap.tile.x !== tile.x || snap.tile.y !== tile.y ? middle : point;
+};
+
+
+// While a road or railway tool is in hand, a point on each tile of its kind within this many tiles of the mouse, on the
+// line's middle where a click may join it, its dead ends marked bigger (owner, 18 Oct 2026: "ตามถนน ควรจะมีระยะห่าง
+// แต่ละจุดที่ plot ลงไปได้ แบบชัดเจน ในระแวกที่เม้าชี้ไป"); worked out again only when the mouse's tile or the city changes
+var SNAP_DOT_REACH = 5;
+Game.prototype.snapDots = function(toolName, tile) {
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
+    return null;
+  var key = [toolName, tile.x, tile.y, this._edits].join('|');
+  if (this._snapDots && this._snapDots.key === key)
+    return this._snapDots.dots;
+  var isLine = this.lineKind(toolName), reach = SNAP_DOT_REACH;
+  var mx = (tile.x + 0.5) * 10, mz = (tile.y + 0.5) * 10, room = (reach + 2) * 10;
+  // Only the lines that come near the mouse
+  var near = this.networkLines(toolName === 'rail').filter(function(line) {
+    return line.some(function(p) { return Math.abs(p[0] - mx) < room && Math.abs(p[1] - mz) < room; });
+  });
+  var dots = [];
+  for (var dy = -reach; dy <= reach; dy++) for (var dx = -reach; dx <= reach; dx++) {
+    var x = tile.x + dx, y = tile.y + dy;
+    if (Math.hypot(dx, dy) > reach + 0.5 || !isLine(x, y))
+      continue;
+    var beside = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(function(d) { return isLine(x + d[0], y + d[1]); }).length;
+    var on = nearestOnLines(near, (x + 0.5) * 10, (y + 0.5) * 10, 10);
+    dots.push({x: on ? on[0] / 10 : x + 0.5, y: on ? on[1] / 10 : y + 0.5, end: beside <= 1});
+  }
+  this._snapDots = {key: key, dots: dots};
+  return dots;
 };
 
 
