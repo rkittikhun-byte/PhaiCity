@@ -8,10 +8,11 @@
 // command does the same thing everywhere. Plain code: no DOM.
 
 import type { CommandTarget } from "../cityCommands.js";
-import { decodePresetLayer, encodePresetLayer } from "../geo/presetMap.js";
+import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "../geo/presetMap.js";
 import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
+import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece } from "../roadPieces.js";
 import { levelsStanding } from "../buildingLevels.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
@@ -44,6 +45,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.mineKinds = Object.assign({}, saved.mineKinds || {});
     // ... and each road's level (src/roadLevels.ts); roads from before the levels are laterite
     map.roadLevels = saved.roadLevels ? decodePresetLayer(saved.roadLevels, map.width, map.height) : null;
+    // ... and the drawn line each road tile was laid by (src/roadPieces.ts); roads from before the pieces are 0
+    map.roadPieces = saved.roadPieces ? decodePresetLayerWide(saved.roadPieces, map.width, map.height) : null;
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     map.heights = saved.heights || null;
     map.tileSizeM = saved.tileSizeM || null;
@@ -88,6 +91,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
   // Homes, shops and factories are painted tile by tile on a real-scale city map (src/plots.ts, docs/ZONE_PAINT.md)
   // ... and on a whole district's map, which says so whatever the size of its tiles (scripts/geo/cityMaps.mjs)
   map.paintedZones = map.paintedZones === true || isCityMap(map) || (saved !== null && saved.paintedZones === true);
+  // The next drawn line's number is found again from the map's (src/roadPieces.ts)
+  map.nextRoadPiece = 0;
 }
 
 /** A saved city's land blocks. Saves before 15 Oct 2026 did not keep the size of a city map's tiles, so their 32-tile
@@ -111,6 +116,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.powerKinds = map.powerKinds || {};
   map.mineKinds = map.mineKinds || {};
   map.roadLevels = map.roadLevels || newRoadLevels(map.width, map.height);
+  map.roadPieces = map.roadPieces || newRoadPieces(map.width, map.height);
   map.civicKinds = map.civicKinds || {};
   map.wasteKinds = map.wasteKinds || {};
   map.policies = map.policies || [];
@@ -173,6 +179,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     rulerHouse: houseStanding(map) ? map.rulerHouse : undefined,
     needsRulerHouse: map.needsRulerHouse ? true : undefined,
     roadLevels: map.roadLevels ? encodePresetLayer(map.roadLevels) : undefined,
+    // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
+    roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
     // ... and whether its zones are painted tile by tile (src/plots.ts)
     paintedZones: map.paintedZones ? true : undefined,
     // ... and the size of its tiles, which sets the size of its land blocks (src/landBlocks.ts)
@@ -219,6 +227,13 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setPowerKind: (x: number, y: number, kind: string) => { map.powerKinds[y * map.width + x] = kind; },
     setMineKind: (x: number, y: number, kind: string) => { map.mineKinds[y * map.width + x] = kind; },
     setRoadLevel: (x: number, y: number, level: number) => { map.roadLevels[y * map.width + x] = level; },
+    // ... and the drawn line it belongs to, numbered on from the highest on the map (src/roadPieces.ts)
+    newRoadPiece: () => {
+      const piece = map.nextRoadPiece || nextRoadPiece(map.roadPieces);
+      map.nextRoadPiece = Math.min(MAX_ROAD_PIECE, piece + 1);
+      return piece;
+    },
+    setRoadPiece: (x: number, y: number, piece: number) => { map.roadPieces[y * map.width + x] = piece; },
     // The ruler's house (src/rulerHouse.ts): a new city builds it first, and its next level needs the ruler's rank
     houseMap: map,
     rank: () => hooks.rank?.() ?? 0,

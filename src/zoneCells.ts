@@ -39,6 +39,8 @@ export interface CellMap {
   readonly height: number;
   readonly tileSizeM?: number | null;
   readonly roadLevels?: Uint8Array | null;
+  /** The drawn line each road tile was laid by (src/roadPieces.ts) */
+  readonly roadPieces?: Uint16Array | null;
   readonly insideProvince?: Uint8Array | null;
   getTileValue(x: number, y: number): number;
   /** Whether this map's zones are painted a cell at a time */
@@ -125,9 +127,10 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     return rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight ? -1 : rz * rasterWidth + rx;
   };
   const value = (i: number): number => map.getTileValue(i % map.width, Math.floor(i / map.width));
-  const levels = map.roadLevels;
-  const roads = networkOf({ width: map.width, height: map.height, value, level: (i) => levels?.[i] ?? 1 }, false);
-  const rails = networkOf({ width: map.width, height: map.height, value, level: () => 0 }, true);
+  const levels = map.roadLevels, pieces = map.roadPieces;
+  const roads = networkOf({ width: map.width, height: map.height, value, level: (i) => levels?.[i] ?? 1,
+    piece: (i) => pieces?.[i] ?? 0 }, false);
+  const rails = networkOf({ width: map.width, height: map.height, value, level: () => 0, piece: (i) => pieces?.[i] ?? 0 }, true);
   // The roads as the 3D view draws them, one line where a road runs on through a junction (src/roadGeometry.ts
   // roadLines), so their rows of cells run on through it too; each cell still belongs to the stretch it faces
   const drawn = roadLines(roads).lines;

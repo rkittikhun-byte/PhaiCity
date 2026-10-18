@@ -30,6 +30,7 @@ import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK } from "./tileFlags";
+import { LASTRAIL, RAILBASE } from "./tileValues";
 import { UndoHistory } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
 
@@ -199,6 +200,9 @@ export interface CommandTarget {
   setMineKind?(x: number, y: number, kind: string): void;
   /** Records the level of a road just laid at (x, y) (src/roadLevels.ts). */
   setRoadLevel?(x: number, y: number, level: number): void;
+  /** A new drawn line's number, and the line a road just laid at (x, y) belongs to (src/roadPieces.ts). */
+  newRoadPiece?(): number;
+  setRoadPiece?(x: number, y: number, piece: number): void;
   /** The map's ruler's house and whether the city is new (src/rulerHouse.ts). Without it, no house is asked for. */
   readonly houseMap?: HouseMap;
   /** The ruler's rank, 0 (หมื่น) to 5 (เจ้าพระยา) (src/rulerRank.ts) */
@@ -287,6 +291,8 @@ function roadBesideProblem(city: CommandTarget, toolName: string, size: number, 
     ? null : NEEDS_ROAD_BESIDE;
 }
 
+const isRailTile = (value: number): boolean => value >= RAILBASE && value <= LASTRAIL;
+
 /** Whether a building of size tiles centred at (x, y) has a road tile along one of its sides (isRoad(x, y)) */
 export function besideRoad(width: number, height: number, isRoad: (x: number, y: number) => boolean,
   x: number, y: number, size: number): boolean {
@@ -352,6 +358,8 @@ export function commandProblem(command: unknown, width: number, height: number):
 
 export class CityCommands {
   private readonly history = new UndoHistory();
+  /** The drawn line the latest stroke of a road tool lays (src/roadPieces.ts) */
+  private roadPiece: { stroke: number; piece: number } | null = null;
 
   constructor(private readonly city: CommandTarget) {}
 
@@ -402,12 +410,17 @@ export class CityCommands {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }
         // Roads laid where there were none take the tool's level; roads already there keep theirs
+        const after = (c: { x: number; y: number }): number => map!.getTile(c.x, c.y).getRawValue() & BIT_MASK;
         if (applied && map && tool.roadLevel) {
-          for (const c of before) {
-            if (!isRoadTile(c.before & BIT_MASK) && isRoadTile(map.getTile(c.x, c.y).getRawValue() & BIT_MASK)) {
-              city.setRoadLevel?.(c.x, c.y, tool.roadLevel);
-            }
-          }
+          for (const c of before) if (!isRoadTile(c.before & BIT_MASK) && isRoadTile(after(c))) city.setRoadLevel?.(c.x, c.y, tool.roadLevel);
+        }
+        // ... and roads and railways laid where there was neither take the drawn line's piece, one a stroke
+        // (src/roadPieces.ts); a crossing keeps the piece of the line that was there
+        const lays = tool.roadLevel ? isRoadTile : command.tool === "rail" ? isRailTile : null;
+        if (applied && map && lays && command.stroke !== undefined && city.newRoadPiece && city.setRoadPiece) {
+          const laid = before.filter((c) => !isRoadTile(c.before & BIT_MASK) && !isRailTile(c.before & BIT_MASK) && lays(after(c)));
+          if (laid.length && this.roadPiece?.stroke !== command.stroke) this.roadPiece = { stroke: command.stroke, piece: city.newRoadPiece() };
+          for (const c of laid) city.setRoadPiece(c.x, c.y, this.roadPiece!.piece);
         }
         // When a road or railway cuts through painted zoneCells / plots, clear painted cells on the road tiles and re-sync plots
         const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;

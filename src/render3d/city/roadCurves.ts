@@ -175,9 +175,9 @@ export class RoadCurves {
     this.lines = [];
     const positions: number[] = [], colors: number[] = [], railPositions: number[] = [], sleepers: Matrix4[] = [];
     for (const rail of [false, true]) {
-      const levels = this.snapshot.roadLevels, values = this.snapshot.values;
+      const levels = this.snapshot.roadLevels, values = this.snapshot.values, pieces = this.snapshot.roadPieces;
       const { stretches, plates, junctions, covered } = networkOf({ width, height: this.snapshot.height, value: (i) => values[i],
-        level: (i) => levels?.[i] ?? 1 }, rail);
+        level: (i) => levels?.[i] ?? 1, piece: (i) => pieces?.[i] ?? 0 }, rail);
       for (let i = 0; i < covered.length; i++) if (covered[i]) this.covered[i] = 1;
       // One road where it runs on through a junction, the others ending at it (src/roadGeometry.ts roadLines)
       const drawn = roadLines({ stretches, plates, junctions, covered });
@@ -408,8 +408,10 @@ export class RoadCurves {
     if (!arms.length) return;
     const maxLevel = Math.max(...arms.map((arm) => lines[arm.line].level));
     if (arms.length < 3) {
-      // A 2-arm level transition is already joined seamlessly along the continuous smooth curve; only 1-arm dead ends get a plate
-      if (arms.length === 1) this.plate(at[0], at[1], maxLevel, positions, colors);
+      // A 2-arm level transition is already joined seamlessly along the continuous smooth curve; 1-arm dead ends get a
+      // plate, and so do two drawn lines that meet end to end at a corner (src/roadPieces.ts), not where the newer goes
+      // on along the older's way
+      if (arms.length === 1 || !junction.smooth && arms.every((arm) => arm.end !== null)) this.plate(at[0], at[1], maxLevel, positions, colors);
       return;
     }
     const surfaceOf = (level: number): Color => (level <= 1 ? lateriteColour(LATERITE_EDGE * 0.3) : new Color(level > 2 ? 0x8f8d86 : 0x4b4f50));

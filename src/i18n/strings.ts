@@ -251,6 +251,7 @@ export const STRINGS: Record<string, Translation> = {
   "draw.snap.hint": { en: "Snap onto lines nearby, straight and 45° lines, and the guideline a block of plots from a road", th: "จัดแนวเข้าเส้นเดิมที่อยู่ใกล้ แนวตรงและ 45° และแนวที่ห่างถนนเดิมพอดีเขตสองฝั่ง" },
   "draw.snap.road": { en: "Joins the line", th: "ต่อกับเส้นเดิม" },
   "draw.snap.spacing": { en: "7 tiles from the road beside: plots three deep on both sides", th: "ห่างถนนข้างเคียง 7 ช่อง เขตลึก 3 ช่องพอดีทั้งสองฝั่ง" },
+  "draw.snap.way": { en: "Goes on along the line", th: "ต่อตามแนวเส้นเดิม" },
   "draw.length_km": { en: "{km} km", th: "{km} กม." },
   "draw.cancel": { en: "Esc or right click to stop", th: "Esc หรือคลิกขวาเพื่อหยุด" },
   "house.wings_note": { en: "choose", th: "เลือก" },

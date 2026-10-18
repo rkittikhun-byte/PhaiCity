@@ -310,6 +310,7 @@
 | `draw.snap.hint` | `src/drawModes.ts` | — | `Snap onto lines nearby, straight and 45° lines, and the guideline a block of plots from a road` | `จัดแนวเข้าเส้นเดิมที่อยู่ใกล้ แนวตรงและ 45° และแนวที่ห่างถนนเดิมพอดีเขตสองฝั่ง` |  |
 | `draw.snap.road` | `src/game.js` | — | `Joins the line` | `ต่อกับเส้นเดิม` |  |
 | `draw.snap.spacing` | `src/game.js` | — | `7 tiles from the road beside: plots three deep on both sides` | `ห่างถนนข้างเคียง 7 ช่อง เขตลึก 3 ช่องพอดีทั้งสองฝั่ง` |  |
+| `draw.snap.way` | `src/game.js` | — | `Goes on along the line` | `ต่อตามแนวเส้นเดิม` | ลากต่อจากปลายถนนหรือรางเดิมไปตามทิศของมัน (Claude Code 18 ต.ค. 2026) |
 | `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
 | `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |

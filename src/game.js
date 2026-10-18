@@ -51,7 +51,7 @@ import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
-import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAngle, snapPoint } from './drawPaths.ts';
+import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAlong, snapAngle, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices } from './toolShortcuts.ts';
@@ -1879,10 +1879,11 @@ Game.prototype.networkLines = function(rail) {
   var cache = rail ? '_railLines' : '_roadLines';
   if (!this[cache] || this[cache].edits !== this._edits) {
     var map = this.gameMap;
-    var levels = map.roadLevels;
+    var levels = map.roadLevels, pieces = map.roadPieces;
     var network = networkOf({width: map.width, height: map.height,
       value: function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); },
-      level: function(i) { return levels ? levels[i] || 1 : 1; }}, rail);
+      level: function(i) { return levels ? levels[i] || 1 : 1; },
+      piece: function(i) { return pieces ? pieces[i] : 0; }}, rail);
     // The lines as the 3D view draws them, one where a road runs on through a junction (src/roadGeometry.ts roadLines),
     // so a building stands against the road it sees
     var drawn = roadLines(network).lines;
@@ -1964,11 +1965,45 @@ Game.prototype.snapTile = function(tile, toolName, draft) {
   if (snapped.guide === 'road')
     return {tile: snapped.point, guide: 'road'};
   var points = draft ? draft.points : [];
+  // A line started at a road's dead end goes on along its way (src/roadGeometry.ts smooth joints)
+  var way = points.length === 1 ? this.lineEndWay(toolName, points[0]) : null;
+  var along = way ? snapAlong(points[0], tile, way) : null;
+  if (along !== null)
+    return {tile: along, guide: 'way'};
   if (points.length > 0) {
     var angled = snapAngle(points[points.length - 1], tile);
     return {tile: angled, guide: null};
   }
   return {tile: snapped.point, guide: snapped.guide};
+};
+
+
+// The way a road or railway goes on from its dead end at a tile, as it is drawn (its last stretch, src/roadGeometry.ts):
+// a unit vector in tiles, or null where no line of the tool's kind ends there alone
+Game.prototype.lineEndWay = function(toolName, tile) {
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
+    return null;
+  var x = (tile.x + 0.5) * 10, z = (tile.y + 0.5) * 10, found = null, count = 0;
+  this.networkLines(toolName === 'rail').forEach(function(line) {
+    if (line.length < 2)
+      return;
+    [[0, 1], [line.length - 1, -1]].forEach(function(end) {
+      var p = line[end[0]];
+      if (Math.hypot(p[0] - x, p[1] - z) > 0.5)
+        return;
+      count++;
+      // From about a tile and a half back along it, out through its end
+      var along = 0, k = end[0];
+      while (along < 15 && k + end[1] >= 0 && k + end[1] < line.length) {
+        along += Math.hypot(line[k + end[1]][0] - line[k][0], line[k + end[1]][1] - line[k][1]);
+        k += end[1];
+      }
+      var dx = p[0] - line[k][0], dz = p[1] - line[k][1], length = Math.hypot(dx, dz);
+      if (length > 0)
+        found = {x: dx / length, y: dz / length};
+    });
+  });
+  return count === 1 ? found : null;
 };
 
 

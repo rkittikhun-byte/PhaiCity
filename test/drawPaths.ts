@@ -6,7 +6,7 @@
 
 import type { TilePoint } from "../src/cityView";
 import {
-  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAngle, snapPoint,
+  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAlong, snapAngle, snapPoint,
 } from "../src/drawPaths";
 
 /** Every step of a chain goes to a tile beside the last: never a diagonal, never a jump. */
@@ -60,6 +60,16 @@ describe("drawn lines", () => {
     expect(snapAngle({ x: 5, y: 5 }, { x: 15, y: 16 })).toEqual({ x: 16, y: 16 });
     // Far from any of them it stays where it is
     expect(snapAngle({ x: 0, y: 0 }, { x: 10, y: 4 })).toEqual({ x: 10, y: 4 });
+  });
+
+  test("a line drawn on from a road's end snaps onto the road's own way, when near it", () => {
+    const way = { x: 0.6, y: 0.8 };
+    // Within a few degrees of the way: onto it, as far along as the mouse
+    expect(snapAlong({ x: 10, y: 10 }, { x: 18, y: 19 }, way)).toEqual({ x: 17, y: 20 });
+    // Too far off it, backwards or too short: no snap
+    expect(snapAlong({ x: 10, y: 10 }, { x: 20, y: 12 }, way)).toBeNull();
+    expect(snapAlong({ x: 10, y: 10 }, { x: 4, y: 2 }, way)).toBeNull();
+    expect(snapAlong({ x: 10, y: 10 }, { x: 11, y: 11 }, way)).toBeNull();
   });
 
   test("a click snaps onto a road it nearly touches, or onto the guideline a block of plots from a road", () => {

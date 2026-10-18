@@ -110,7 +110,20 @@ export function snapAngle(a: TilePoint, b: TilePoint, degrees = SNAP_DEGREES): T
   return { x: a.x + ux * length, y: a.y + uy * length };
 }
 
-export type SnapGuide = "road" | "spacing" | null;
+/**
+ * The next point of a line that starts at a road's dead end moved onto the road's own way on from that end (way: a
+ * unit vector, in tiles), when the line is within SNAP_DEGREES of it and at least two tiles long, so a road drawn on
+ * from an end goes on along it, and a curve's bend leaves it smoothly; null when it is not (src/roadGeometry.ts).
+ */
+export function snapAlong(a: TilePoint, b: TilePoint, way: { x: number; y: number }, degrees = SNAP_DEGREES): TilePoint | null {
+  const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
+  if (length < 2) return null;
+  const along = dx * way.x + dy * way.y;
+  if (along <= 0 || Math.acos(Math.min(1, along / length)) > degrees * Math.PI / 180) return null;
+  return { x: Math.round(a.x + way.x * along), y: Math.round(a.y + way.y * along) };
+}
+
+export type SnapGuide = "road" | "spacing" | "way" | null;
 
 /**
  * A clicked point moved onto a road within one tile, so the new line joins it; failing that, onto the guideline

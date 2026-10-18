@@ -13,6 +13,9 @@ export interface CityMapReader {
   /** Homes, shops and factories painted tile by tile (src/plots.ts), and each road tile's level (src/roadLevels.ts) */
   readonly paintedZones?: boolean;
   readonly roadLevels?: Uint8Array | null;
+  /** The drawn line each road tile was laid by (src/roadPieces.ts, RENDERER_SPEC 6G): the roads' lines are smoothed a
+   * line at a time, so building on never moves an older road */
+  readonly roadPieces?: Uint16Array | null;
   /** What covers each open tile of a real-scale city map (scripts/geo/lib/landCover.mjs): 1 paddy, 2 field, 3 orchard,
    * 4 grass, 5 wetland, 6 village, 7 built-up; 0 none */
   readonly landCover?: Uint8Array | null;

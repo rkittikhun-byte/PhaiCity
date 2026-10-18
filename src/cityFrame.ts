@@ -8,7 +8,7 @@
 // its edge. Growing moves everything a save keeps by tile into the bigger frame (reframeSave) and fills the new land
 // from the district's map, so the city opens again on the bigger frame with nothing lost. Plain code: no DOM.
 
-import { decodePresetLayer, encodePresetLayer } from "./geo/presetMap.js";
+import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "./geo/presetMap.js";
 
 /** A frame of a district's map, in its tiles: whole land blocks */
 export interface Frame { x: number; y: number; width: number; height: number }
@@ -127,6 +127,12 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
     return out;
   };
   const decoded = (encoded: unknown): Uint8Array | null => (typeof encoded === "string" ? decodePresetLayer(encoded, w0, h0) : null);
+  // ... and one of two bytes a tile, the new land 0
+  const wideLayer = (encoded: string): Uint16Array => {
+    const old = decodePresetLayerWide(encoded, w0, h0), out = new Uint16Array(w1 * h1);
+    for (let y = 0; y < h0; y++) out.set(old.subarray(y * w0, (y + 1) * w0), (y + dy) * w1 + dx);
+    return out;
+  };
   const point = <T extends { x: number; y: number }>(p: T | undefined): T | undefined => (p ? { ...p, x: p.x + dx, y: p.y + dy } : p);
 
   const out: Save = { ...save, frame: { ...to }, width: w1, height: h1 };
@@ -140,6 +146,8 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   if (fresh.inside) out.inside = encodePresetLayer(fresh.inside);
   if (save.national !== undefined || fresh.national) out.national = encodePresetLayer(layer(decoded(save.national), fresh.national));
   if (save.roadLevels !== undefined || fresh.roadLevels) out.roadLevels = encodePresetLayer(layer(decoded(save.roadLevels), fresh.roadLevels, 1));
+  // ... and the drawn line each road tile was laid by (src/roadPieces.ts); the new land's roads came with the map
+  if (typeof save.roadPieces === "string") out.roadPieces = encodePresetLayer(wideLayer(save.roadPieces));
   // The ground's water: the new land full (the water works fill it to what it holds, src/waterManager.ts prepareGround)
   if (typeof save.groundwater === "string") out.groundwater = encodePresetLayer(layer(decoded(save.groundwater), null, 255));
   if (save.mining) out.mining = { ...save.mining, ground: typeof save.mining.ground === "string" ?

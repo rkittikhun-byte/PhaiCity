@@ -15,6 +15,8 @@ export interface RoadMap {
   readonly height: number;
   readonly tileSizeM?: number | null;
   readonly roadLevels?: Uint8Array | null;
+  /** The drawn line each road tile was laid by (src/roadPieces.ts) */
+  readonly roadPieces?: Uint16Array | null;
   getTileValue(x: number, y: number): number;
 }
 
@@ -46,9 +48,10 @@ export const segmentId = (tiles: readonly number[]): number => Math.min(...tiles
 
 /** Every stretch of road on the map */
 export function roadSegments(map: RoadMap): RoadSegment[] {
-  const levels = map.roadLevels, metresPerUnit = (map.tileSizeM || 16) / 10;
+  const levels = map.roadLevels, pieces = map.roadPieces, metresPerUnit = (map.tileSizeM || 16) / 10;
   const network = networkOf({ width: map.width, height: map.height,
-    value: (i) => map.getTileValue(i % map.width, Math.floor(i / map.width)), level: (i) => levels?.[i] ?? 1 }, false);
+    value: (i) => map.getTileValue(i % map.width, Math.floor(i / map.width)), level: (i) => levels?.[i] ?? 1,
+    piece: (i) => pieces?.[i] ?? 0 }, false);
   return network.stretches.filter((stretch) => stretch.tiles.length > 1).map((stretch) => {
     const line = smoothLine(stretch.points);
     let length = 0;

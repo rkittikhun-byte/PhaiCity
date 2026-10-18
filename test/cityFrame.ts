@@ -62,7 +62,7 @@ describe("a district's frame", () => {
     const core = new CityCore({ map, seed: 5 });
     core.simulation.budget.setFunds(500000);
     expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 40, y: 26 }).accepted).toBe(true);
-    for (let x = 20; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40 });
+    for (let x = 20; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40, stroke: 1 });
     expect(core.apply({ type: "tool", tool: "coal" as any, x: 30, y: 37 }).accepted).toBe(true);
     expect(core.apply({ type: "tool", tool: "landfill" as any, x: 50, y: 37 }).accepted).toBe(true);
     core.map.buildingPoses[37 * 96 + 50] = [500, 380, 1];
@@ -95,6 +95,10 @@ describe("a district's frame", () => {
     expect(again.map.wasteKinds).toEqual(Object.fromEntries(Object.entries(core.map.wasteKinds).map(([k, v]) => [String(at(Number(k) % 96, Math.floor(Number(k) / 96))), v])));
     expect(again.map.buildingPoses[at(50, 37)]).toEqual([500 + dx * 10, 380 + dy * 10, 1]);
     expect(again.map.buses).toEqual([at(60, 40)]);
+    // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
+    expect(again.map.roadPieces[at(20, 40)]).toBe(1);
+    expect(again.map.roadPieces[at(79, 40)]).toBe(1);
+    expect(again.map.roadPieces[5 * 160 + 5]).toBe(0);
     expect(again.map.rulerHouse).toMatchObject({ x: 40 + dx, y: 26 + dy });
     expect(again.map.town).toEqual({ x: 40 + dx, y: 26 + dy });
     // The land it owned is still its own, and the new land is not

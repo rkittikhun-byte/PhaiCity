@@ -255,6 +255,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   fill with traffic more slowly but cost more upkeep (`census.roadUpkeep`); motorways and tollways give zones no way
   in; tollways take tolls. Traffic itself works now: the port's drive never left the zone (fixed in `traffic.js`).
   A slanted road (a staircase of corner tiles) is drawn as diagonals and curves (`src/render3d/models/road/centreline.ts`).
+  Each stroke of a road or rail tool is a piece of its own (`gameMap.roadPieces`, saved; `src/roadPieces.ts`, owner 18
+  Oct 2026): a line built on from another's end, leaving it or crossing it never changes the older one's shape
+  (`networkOf` / `roadLines` in `src/roadGeometry.ts`; every reader passes the pieces as `piece`); one going on nearly
+  straight from an end bends out of the older one's way, and the next click after a dead end snaps onto that way.
   Streets are named (`src/streetNames.ts`, from the map alone, not saved yet): roads, sois numbered odd and even along
   their road, แยก off a soi, numbered highways; the 3D view writes the names along the roads near the ground
   (`src/render3d/city/streetLabels.ts`, `streetName` in the view's setup, i18n `street.*`).

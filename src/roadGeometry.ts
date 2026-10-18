@@ -124,8 +124,11 @@ function densify(points: Point[], step: number): Point[] {
   return out;
 }
 
-/** The smooth line a stretch of tiles' middles is drawn along: its steps averaged away, bends rounded */
+/** The smooth line a stretch of tiles' middles is drawn along: its steps averaged away, bends rounded. The same line
+ * whichever end it is read from, so a road read the other way round (when a junction joins it) keeps its shape. */
 export function smoothLine(points: Point[]): Point[] {
+  const [fx, fz] = points[0], [lx, lz] = points[points.length - 1];
+  if (lx < fx || (lx === fx && lz < fz)) return smoothLine([...points].reverse()).reverse();
   return densify(round(simplify(average(points, REACH, 2), STRAY), 2), 2.5);
 }
 
@@ -147,10 +150,13 @@ export interface LineMap {
   readonly height: number;
   value(i: number): number;
   level(i: number): number;
+  /** The drawn line each road tile was laid by (gameMap.roadPieces, newer lines higher), 0 for roads laid before the
+   * pieces were kept or that came with the map. Without it every tile is 0. */
+  piece?(i: number): number;
 }
 
-/** A stretch between junctions, ends and other tiles: its tiles' middles, and its tiles */
-export interface Stretch { points: Point[]; tiles: number[]; level: number; rail: boolean }
+/** A stretch between junctions, ends and other tiles: its tiles' middles, its tiles, and the drawn line it is part of */
+export interface Stretch { points: Point[]; tiles: number[]; level: number; rail: boolean; piece: number }
 
 export interface Network {
   stretches: Stretch[];
@@ -167,14 +173,53 @@ export function networkOf(map: LineMap, rail: boolean): Network {
   const { width, height } = map;
   const plain = rail ? isLineRail : (v: number) => isLineRoad(v) || isPowerCrossing(v), joins = rail ? isAnyRail : isAnyRoad;
   const rawLevel = (i: number): number => (rail ? 0 : Math.max(1, map.level(i)));
+  const pieceOf = map.piece ? (i: number): number => map.piece!(i) : (): number => 0;
+  const joinsAt = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < width && y < height && joins(map.value(y * width + x));
+  const plainAt = (i: number): boolean => plain(map.value(i));
+  const degree = (i: number): number => {
+    const x = i % width, y = (i - x) / width;
+    let n = 0;
+    for (const [dx, dy] of SIDES) if (joinsAt(x + dx, y + dy)) n++;
+    return n;
+  };
+  // A newer drawn line meets an older one inside a block of 2 × 2 road tiles by two links (a slanted road leaving a road,
+  // or a tile filling the inside of its stairstep): only the one it needs most, the one whose tiles have the fewest
+  // other roads, joins them, so the older road keeps its own tiles' line through a junction of one tile rather than
+  // a knot's middle (owner, 18 Oct 2026: "ถนนที่สร้างไปแล้ว และฉันสร้างต่อ จะต้องไม่เปลี่ยนรูป ถนนอีก")
+  const linkRank = (a: number, b: number): [number, number] => [Math.min(degree(a), degree(b)), Math.min(a, b) * 2 + (Math.abs(a - b) === 1 ? 0 : 1)];
+  const cut = (i: number, j: number): boolean => {
+    const pi = pieceOf(i), pj = pieceOf(j);
+    if (pi === pj || !plainAt(i) || !plainAt(j)) return false;
+    const [deg, key] = linkRank(i, j), xi = i % width, yi = (i - xi) / width, xj = j % width, yj = (j - xj) / width;
+    for (const side of [-1, 1]) {
+      const ox = yi === yj ? 0 : side, oy = yi === yj ? side : 0;
+      if (!joinsAt(xi + ox, yi + oy) || !joinsAt(xj + ox, yj + oy)) continue;
+      const i2 = (yi + oy) * width + xi + ox, j2 = (yj + oy) * width + xj + ox;
+      if (!plainAt(i2) || !plainAt(j2)) continue;
+      for (const [a, b] of [[i, i2], [j, j2], [i2, j2]]) {
+        const pa = pieceOf(a), pb = pieceOf(b);
+        if (!(pa === pi && pb === pj || pa === pj && pb === pi)) continue;
+        const [d, k] = linkRank(a, b);
+        if (d < deg || d === deg && k < key) return true;
+      }
+    }
+    return false;
+  };
+  const nearOf: Array<number[] | undefined> = [];
   const near = (i: number): number[] => {
+    const known = nearOf[i];
+    if (known) return known;
     const x = i % width, y = (i - x) / width, out: number[] = [];
     for (const [dx, dy] of SIDES) {
       const nx = x + dx, ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < width && ny < height && joins(map.value(ny * width + nx))) out.push(ny * width + nx);
+      if (joinsAt(nx, ny) && !cut(i, ny * width + nx)) out.push(ny * width + nx);
     }
+    nearOf[i] = out;
     return out;
   };
+  // Where a newer drawn line goes on from an older one's tile (built on from its end, or from a road laid before the
+  // lines were kept), each is its own line, ending there along its own way: building on never moves the older one
+  const newerBeside = (i: number): boolean => near(i).some((j) => pieceOf(j) > pieceOf(i));
   // Smooth single-tile road level discrepancies along a 2-neighbour stretch so upgrading a diagonal staircase or a
   // junction tile does not leave 1-tile level islands
   const pass1Level = (i: number): number => {
@@ -200,14 +245,15 @@ export function networkOf(map: LineMap, rail: boolean): Network {
   };
   const topoStop = (i: number): boolean => {
     const n = near(i);
-    return n.length !== 2 || n.some((j) => !plain(map.value(j)));
+    return n.length !== 2 || n.some((j) => !plain(map.value(j))) || newerBeside(i);
   };
   const tileMiddle = (i: number): Point => [((i % width) + 0.5) * 10, (Math.floor(i / width) + 0.5) * 10];
   const covered = new Uint8Array(width * height);
   const count = width * height;
   // Junction tiles side by side (a new road laid beside an old one, or two roads meeting at a slant) are one junction
   // at their middle (owner, 14 Oct 2026: "ทำไมทางแยกมัน มีหลายเส้นแบบนี้"), so long as the knot is small.
-  // Only true topological junctions/stops form knots — never 2-neighbour level transitions.
+  // Only true topological junctions/stops form knots — never 2-neighbour level transitions. A knot is one drawn line's
+  // (src/roadPieces.ts): where a newer road touches an older one, the older keeps its own tiles' middles
   const knot = new Map<number, number>(), knots: number[][] = [];
   for (let i = 0; i < count; i++) {
     if (!plain(map.value(i)) || !topoStop(i) || near(i).length <= 2 || knot.has(i)) continue;
@@ -215,7 +261,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     knot.set(i, knots.length);
     for (let q = 0; q < queue.length; q++) {
       for (const j of near(queue[q])) {
-        if (knot.has(j) || !plain(map.value(j)) || !topoStop(j) || near(j).length <= 2) continue;
+        if (knot.has(j) || !plain(map.value(j)) || !topoStop(j) || near(j).length <= 2 || pieceOf(j) !== pieceOf(i)) continue;
         knot.set(j, knots.length);
         members.push(j);
         queue.push(j);
@@ -224,7 +270,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     knots.push(members);
   }
   const knotMiddle = knots.map((members): Point | null => {
-    if (members.length < 2) return null;
+    if (members.length < 2 || pieceOf(members[0]) > 0) return null;
     const xs = members.map((i) => i % width), ys = members.map((i) => Math.floor(i / width));
     if (Math.max(...xs) - Math.min(...xs) > MAX_KNOT || Math.max(...ys) - Math.min(...ys) > MAX_KNOT) return null;
     let x = 0, z = 0;
@@ -234,6 +280,24 @@ export function networkOf(map: LineMap, rail: boolean): Network {
   const merged = (i: number): Point | null => (knot.has(i) ? knotMiddle[knot.get(i)!] : null);
   const sameKnot = (i: number, j: number): boolean => knot.has(i) && knot.get(i) === knot.get(j) && merged(i) !== null;
   const centre = (i: number): Point => merged(i) ?? tileMiddle(i);
+  // A drawn line's knot (src/roadPieces.ts: a slanted road crossing a slanted one shares two of its tiles) keeps its
+  // own tiles' middles, so it keeps its shape; the other roads that meet it there end at one of them, the nearest the
+  // knot's middle, and run on through it as one crossing
+  const gatherAt = knots.map((members): number => {
+    if (members.length < 2 || pieceOf(members[0]) === 0) return -1;
+    let x = 0, z = 0;
+    for (const i of members) { const [mx, mz] = tileMiddle(i); x += mx / members.length; z += mz / members.length; }
+    let best = members[0], bestDistance = Infinity;
+    for (const i of members) {
+      const [mx, mz] = tileMiddle(i), distance = Math.hypot(mx - x, mz - z);
+      if (distance < bestDistance - 1e-9 || Math.abs(distance - bestDistance) <= 1e-9 && i < best) { best = i; bestDistance = distance; }
+    }
+    return best;
+  });
+  const endCentre = (i: number, piece: number): Point => {
+    const k = knot.get(i);
+    return k !== undefined && gatherAt[k] >= 0 && pieceOf(i) !== piece ? tileMiddle(gatherAt[k]) : centre(i);
+  };
   const done = new Set<string>(), stretches: Stretch[] = [], plates: Array<[number, number, number]> = [];
   const junctionKeys = new Set<string>(), junctions: Point[] = [];
   const addJunction = (p: Point): void => {
@@ -244,6 +308,8 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     // A short way out of a knot and straight back in is part of the knot
     const first = tiles[0], end = tiles[tiles.length - 1];
     if (tiles.length <= 2 * MAX_KNOT && sameKnot(first, end)) return;
+    // The drawn line it is part of: its middle tiles' (its ends may be an older line's, which it was built on from)
+    const piece = tiles.length > 2 ? pieceOf(tiles[1]) : Math.max(pieceOf(first), pieceOf(end));
     // Per-tile effective level along the stretch (endpoints inherit their interior neighbour's level if they are junctions)
     const tileLevel = (idx: number): number => {
       const t = tiles[idx];
@@ -251,6 +317,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
       const nb = idx === 0 ? tiles[Math.min(1, tiles.length - 1)] : tiles[Math.max(0, idx - 1)];
       return !topoStop(nb) ? levelOf(nb) : levelOf(t);
     };
+    const middleAt = (idx: number): Point => (idx === 0 || idx === tiles.length - 1 ? endCentre(tiles[idx], piece) : centre(tiles[idx]));
     // Split into contiguous same-level sub-stretches when a road changes level mid-stretch
     let runStart = 0;
     let prevMid: Point | null = null;
@@ -267,24 +334,24 @@ export function networkOf(map: LineMap, rail: boolean): Network {
         if (!last || last[0] !== p[0] || last[1] !== p[1]) points.push(p);
       };
       if (prevMid) addPt(prevMid);
-      for (const tile of subTiles) addPt(centre(tile));
+      for (let t = runStart; t <= endIdx; t++) addPt(middleAt(t));
       if (lvNext !== lvCur) {
-        const [ax, az] = centre(tiles[endIdx]), [bx, bz] = centre(tiles[endIdx + 1]);
+        const [ax, az] = middleAt(endIdx), [bx, bz] = middleAt(endIdx + 1);
         const mid: Point = [(ax + bx) / 2, (az + bz) / 2];
         addPt(mid);
         addJunction(mid);
         prevMid = mid;
         runStart = endIdx + 1;
-        if (points.length > 1) stretches.push({ points, tiles: subTiles, level: lvCur, rail });
+        if (points.length > 1) stretches.push({ points, tiles: subTiles, level: lvCur, rail, piece });
         if (isLast) {
           // Final single tile at the end of the stretch with a different level
           const tailPts: Point[] = [mid];
-          const endC = centre(tiles[k]);
+          const endC = middleAt(k);
           if (endC[0] !== mid[0] || endC[1] !== mid[1]) tailPts.push(endC);
-          if (tailPts.length > 1) stretches.push({ points: tailPts, tiles: [tiles[k]], level: lvNext, rail });
+          if (tailPts.length > 1) stretches.push({ points: tailPts, tiles: [tiles[k]], level: lvNext, rail, piece });
         }
       } else {
-        if (points.length > 1) stretches.push({ points, tiles: subTiles, level: lvCur, rail });
+        if (points.length > 1) stretches.push({ points, tiles: subTiles, level: lvCur, rail, piece });
       }
     }
   };
@@ -313,13 +380,14 @@ export function networkOf(map: LineMap, rail: boolean): Network {
       plated.add(id);
       const [px, pz] = centre(i);
       if (!merged(i) && n.length <= 1) plates.push([px, pz, levelOf(i)]);
-      else if (merged(i) || n.length > 2) addJunction([px, pz]);
+      else if (merged(i) || n.length > 2 || n.every(plainAt)) addJunction([px, pz]);
     }
     for (const j of n) {
       if (!plain(map.value(j))) {
         // Up to the edge of a bridge or a crossing, which keeps its own model
         const [cx, cz] = tileMiddle(i), [jx, jz] = tileMiddle(j);
-        stretches.push({ points: [centre(i), [cx, cz], [(cx + jx) / 2, (cz + jz) / 2]], tiles: [i], level: levelOf(i), rail });
+        stretches.push({ points: [centre(i), [cx, cz], [(cx + jx) / 2, (cz + jz) / 2]], tiles: [i], level: levelOf(i), rail,
+          piece: pieceOf(i) });
       } else if (sameKnot(i, j)) {
         // Inside a knot, which is one junction
         done.add(`${i}>${j}`); done.add(`${j}>${i}`);
@@ -338,14 +406,17 @@ export function networkOf(map: LineMap, rail: boolean): Network {
 const THROUGH_DEG = 125;
 /** How far along a road (world units) its way out of a junction is taken */
 const ARM_REACH = 25;
+/** A road built on from another's end turning no more than this (degrees) leaves along the other's way, smoothly */
+const SMOOTH_JOINT_DEG = 30;
 
 /** A road as drawn: one or more stretches joined where it runs on through a junction, as one smooth line */
 export interface RoadLine { points: Point[]; level: number; rail: boolean; stretches: number[] }
 /** A road at a junction: its line, the end of it that is there (null where the line runs on through), the way it
  * leaves the junction and its level */
 export interface JunctionArm { line: number; end: 0 | 1 | null; way: Point; level: number }
-/** A junction as drawn: where its roads meet (on the through road, when one runs through) and its roads, round it */
-export interface JunctionShape { at: Point; arms: JunctionArm[]; through: number | null }
+/** A junction as drawn: where its roads meet (on the through road, when one runs through) and its roads, round it;
+ * smooth where a road built on from another's end goes on along its way, so the two meet without a corner */
+export interface JunctionShape { at: Point; arms: JunctionArm[]; through: number | null; smooth?: boolean }
 
 const keyOf = (p: Point): string => `${p[0].toFixed(2)},${p[1].toFixed(2)}`;
 const unit = (x: number, z: number): Point => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
@@ -386,6 +457,28 @@ function wayAlong(line: Point[], i: number, from: Point, reach: number, forward:
   return unit(px - from[0], pz - from[1]);
 }
 
+/** How far along a road built on from another's end (world units) it bends from that one's way into its own */
+const BEND_REACH = 60;
+
+/**
+ * A line whose start leaves along `way` instead of its own way: each point within BEND_REACH of the start (or less on a
+ * short line) moved towards where that way would have taken it, fully at the start and not at all by the end of the
+ * bend, smoothly, so the line keeps its start and runs on into its own way without a kink at either end
+ */
+function bendStart(line: Point[], way: Point): Point[] {
+  let length = 0;
+  for (let i = 1; i < line.length; i++) length += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+  const reach = Math.min(BEND_REACH, length * 0.45), [sx, sz] = line[0], out: Point[] = [line[0]];
+  let along = 0;
+  for (let i = 1; i < line.length; i++) {
+    along += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]);
+    if (along >= reach) { out.push(...line.slice(i)); break; }
+    const t = along / reach, share = 1 - t * t * (3 - 2 * t), [x, z] = line[i];
+    out.push([x + share * (sx + way[0] * along - x), z + share * (sz + way[1] * along - z)]);
+  }
+  return out;
+}
+
 /**
  * The roads of a network as drawn (owner, 15 Oct 2026: "1 กับ 2 มันควรจะเป็นถนนเดียวกัน และ 3 มาเชื่อม ทำแยกจุดต่อใหม่ ไม่ใช่
  * เอากลมๆ ไปวางเฉยๆ"): at each junction the two roads that run on most nearly straight are one continuous smooth curve
@@ -416,6 +509,10 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
     const pairs: Array<[number, number, number]> = [];
     for (let a = 0; a < arms.length; a++) for (let b = a + 1; b < arms.length; b++) {
       if (arms[a].s === arms[b].s) continue;
+      // A road runs on through a junction only along its own drawn line (src/roadPieces.ts): an older road keeps its
+      // line through the junction of a newer one that leaves it or crosses it, and a road built on from another's end
+      // ends there (owner, 18 Oct 2026)
+      if (stretches[arms[a].s].piece !== stretches[arms[b].s].piece) continue;
       const angle = Math.acos(Math.max(-1, Math.min(1, arms[a].way[0] * arms[b].way[0] + arms[a].way[1] * arms[b].way[1]))) * 180 / Math.PI;
       const sameBonus = stretches[arms[a].s].level === stretches[arms[b].s].level ? 25 : 0;
       // In 2-arm connections and 3-arm T-junctions, the continuous road must always remain partnered as through-road
@@ -433,7 +530,7 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
   }
   // The stretches joined end to end through their junctions, smoothed as one continuous curve and then split by level
   const lineOf = new Map<number, number>(), lines: RoadLine[] = [], raw: Point[][] = [];
-  const throughSmoothOf = new Map<number, Point[]>();
+  const throughSmoothOf = new Map<number, Point[]>(), whole = new Set<number>();
   const chain = (start: number, enter: 0 | 1): void => {
     const points: Point[] = [];
     const runs: Array<{ level: number; ids: number[]; rawPoints: Point[]; endPoint: Point }> = [];
@@ -463,6 +560,7 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
       const idx = lines.length;
       for (const s of runs[0].ids) { lineOf.set(s, idx); throughSmoothOf.set(s, wholeSmooth); }
       raw.push(points);
+      whole.add(idx);
       lines.push({ points: wholeSmooth, level: runs[0].level, rail: stretches[start].rail, stretches: runs[0].ids });
     } else {
       let prevCut = { i: 1, t: 0, at: wholeSmooth[0] };
@@ -490,7 +588,9 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
   // into it rather than kink
   const reach = 12;
   const centres = network.junctions.map((p, j) => {
-    const throughArm = armsAt[j].find((arm) => partner.has(`${arm.s}:${arm.end}`));
+    // ... the oldest drawn line where two cross (src/roadPieces.ts)
+    const throughArm = armsAt[j].filter((arm) => partner.has(`${arm.s}:${arm.end}`))
+      .reduce<typeof armsAt[number][number] | undefined>((best, arm) => (!best || stretches[arm.s].piece < stretches[best.s].piece ? arm : best), undefined);
     const through = throughArm ? lineOf.get(throughArm.s)! : null;
     const throughPts = throughArm ? (throughSmoothOf.get(throughArm.s) ?? lines[through!].points) : null;
     return { through, throughPts, at: throughPts === null ? p : nearestOnLine(throughPts, p).at };
@@ -511,6 +611,34 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
     }
   });
   for (const n of moved) lines[n].points = smoothLine(raw[n]);
+  // Where a drawn line goes on from an older one's end nearly straight (src/roadPieces.ts), it leaves along the older
+  // one's way, so the two meet without a corner: its first stretch bends from that way into its own line, and the
+  // older one stays as it was. Oldest first, as each line follows the one it was built on from.
+  const leaving = (n: number, p: Point, along: number): Point => {
+    const line = lines[n].points;
+    return endsAt(n, p) === 0 ? wayAlong(line, 1, line[0], along, true) : wayAlong(line, line.length - 1, line[line.length - 1], along, false);
+  };
+  const follows = new Map<number, Array<{ j: number; older: number }>>(), smoothJoints = new Set<number>();
+  network.junctions.forEach((_, j) => {
+    const arms = armsAt[j];
+    if (arms.length !== 2 || arms.some((arm) => partner.has(`${arm.s}:${arm.end}`))) return;
+    const [a, b] = stretches[arms[0].s].piece < stretches[arms[1].s].piece ? arms : [arms[1], arms[0]];
+    const older = lineOf.get(a.s)!, newer = lineOf.get(b.s)!;
+    if (stretches[a.s].piece === stretches[b.s].piece || older === newer || !whole.has(newer)) return;
+    follows.set(newer, [...(follows.get(newer) ?? []), { j, older }]);
+  });
+  const pieceOfLine = (n: number): number => stretches[lines[n].stretches[0]].piece;
+  for (const n of [...follows.keys()].sort((m, k) => pieceOfLine(m) - pieceOfLine(k))) {
+    for (const { j, older } of follows.get(n)!) {
+      const p = network.junctions[j], back = leaving(older, p, 5), out = leaving(n, p, ARM_REACH);
+      const turn = Math.acos(Math.max(-1, Math.min(1, -(back[0] * out[0] + back[1] * out[1])))) * 180 / Math.PI;
+      if (turn > SMOOTH_JOINT_DEG) continue;
+      const fromStart = endsAt(n, p) === 0, line = fromStart ? lines[n].points : [...lines[n].points].reverse();
+      const bent = bendStart(line, [-back[0], -back[1]]);
+      lines[n].points = fromStart ? bent : bent.reverse();
+      smoothJoints.add(j);
+    }
+  }
   const junctions: JunctionShape[] = network.junctions.map((_, j) => {
     const { through, at } = centres[j], out: JunctionArm[] = [];
     const seenPartners = new Set<string>();
@@ -540,7 +668,7 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
       out.push({ line: n, end, way, level: lines[n].level });
     }
     out.sort((a, b) => Math.atan2(a.way[1], a.way[0]) - Math.atan2(b.way[1], b.way[0]));
-    return { at, arms: out, through };
+    return smoothJoints.has(j) ? { at, arms: out, through, smooth: true } : { at, arms: out, through };
   });
   return { lines, junctions };
 }
