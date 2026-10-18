@@ -2264,3 +2264,39 @@ body #inspectCard .inspectBar span[data-mood="fair"] { background: var(--ph-gold
 body #inspectCard .inspectBar span[data-mood="poor"] { background: var(--ph-chili-400); }
 body #inspectCard li[data-sign="plus"] { color: var(--ph-rice-500); }
 body #inspectCard li[data-sign="minus"] { color: var(--ph-chili-500); }
+
+/* The loading screen between the province card and the city (src/loadingScreen.ts): the gold PhaiCity logo, the
+   city's name, what loads with a mark for each (waiting, loading, done), a gold bar and the region's music, over the
+   dark curtain, fading away when the city has drawn itself */
+#loadingScreen {
+  position: fixed; inset: 0; z-index: 600; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 60% 45%, #16241f 0%, #070b0a 70%, #030504 100%);
+  opacity: 0; transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1); font-family: Sarabun, 'Sarabun Thai', sans-serif;
+}
+#loadingScreen.shown { opacity: 1; }
+#loadingScreen .lsCard { width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#loadingScreen .lsBrand {
+  font-family: 'Chunk', 'Sarabun Thai', serif; font-size: 56px; letter-spacing: 0.04em; color: #f6d77a;
+  animation: loadingGlow 1.6s ease-in-out infinite alternate;
+}
+#loadingScreen .lsCity { font-size: 16px; color: #efe6cf; margin-bottom: 6px; }
+#loadingScreen .lsSteps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 7px; }
+#loadingScreen .lsStep { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; font-size: 13px;
+  color: rgba(239, 230, 207, 0.4); transition: color 0.3s; }
+#loadingScreen .lsStep[data-state="loading"] { color: #efe6cf; }
+#loadingScreen .lsStep[data-state="done"] { color: rgba(239, 230, 207, 0.78); }
+#loadingScreen .lsDetail { font-size: 11px; font-variant-numeric: tabular-nums; }
+#loadingScreen .lsStep[data-state="loading"] .lsDetail { color: #f6d77a; }
+#loadingScreen .lsMark { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(246, 215, 122, 0.3); box-sizing: border-box; }
+#loadingScreen .lsStep[data-state="loading"] .lsMark { border-color: #f6d77a; border-right-color: transparent; animation: lsSpin 0.8s linear infinite; }
+#loadingScreen .lsStep[data-state="done"] .lsMark { border: none; background: #f6d77a;
+  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%); border-radius: 0; }
+#loadingScreen .lsStep[data-state="failed"] .lsMark { border: none; height: 2px; background: rgba(239, 230, 207, 0.4); border-radius: 1px; }
+#loadingScreen .lsBar { position: relative; width: 100%; height: 2px; border-radius: 2px; overflow: hidden; background: rgba(246, 215, 122, 0.15); margin-top: 6px; }
+#loadingScreen .lsFill { height: 100%; background: linear-gradient(90deg, #b8862c, #f6d77a 60%, #fff3c4 80%, #f6d77a) 0 0 / 200% 100%;
+  box-shadow: 0 0 10px rgba(246, 215, 122, 0.7); transition: width 0.35s ease-out; animation: loadingSheen 1.4s linear infinite; }
+#loadingScreen .lsMusic { font-size: 12px; color: rgba(246, 215, 122, 0.75); }
+@keyframes lsSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #loadingScreen .lsBrand, #loadingScreen .lsFill, #loadingScreen .lsStep[data-state="loading"] .lsMark { animation: none; }
+}
