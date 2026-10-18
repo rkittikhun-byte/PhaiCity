@@ -498,6 +498,33 @@ function sliceAlong(line: Point[], a: Point, b: Point): Point[] {
   return p.i < q.i || p.i === q.i && p.t <= q.t ? sliceLine(line, p, q) : sliceLine(line, q, p).reverse();
 }
 
+/**
+ * A line whose end (0 its start, 1 its last point) meets another line: it goes on straight along its own way to where
+ * it crosses it, or stops where it already has, a little before its end; to `fallback` if it never does near its end.
+ */
+function meetLine(line: Point[], end: 0 | 1, other: Point[], fallback: Point): Point[] {
+  const own = end === 1 ? line.slice() : [...line].reverse(), tip = own[own.length - 1];
+  const back = wayAlong(own, own.length - 1, tip, 6, false), d: Point = [-back[0], -back[1]];
+  const BEHIND = 20, AHEAD = 25, from: Point = [tip[0] - d[0] * BEHIND, tip[1] - d[1] * BEHIND];
+  let best: number | null = null;
+  for (let i = 1; i < other.length; i++) {
+    const [ax, az] = other[i - 1], ex = other[i][0] - ax, ez = other[i][1] - az;
+    const denominator = d[0] * ez - d[1] * ex;
+    if (Math.abs(denominator) < 1e-9) continue;
+    const s = ((ax - from[0]) * ez - (az - from[1]) * ex) / denominator, u = ((ax - from[0]) * d[1] - (az - from[1]) * d[0]) / denominator;
+    if (u < 0 || u > 1 || s < 0 || s > BEHIND + AHEAD) continue;
+    if (best === null || Math.abs(s - BEHIND) < Math.abs(best - BEHIND)) best = s;
+  }
+  if (best === null) own.push(fallback);
+  else {
+    const cut = best - BEHIND, meet: Point = [tip[0] + d[0] * cut, tip[1] + d[1] * cut];
+    const along = (p: Point): number => (p[0] - tip[0]) * d[0] + (p[1] - tip[1]) * d[1];
+    while (own.length > 1 && along(own[own.length - 1]) >= cut) own.pop();
+    own.push(meet);
+  }
+  return end === 1 ? own : own.reverse();
+}
+
 /** The way along a line from a point on segment i, `reach` units forward (or back), as a unit vector */
 function wayAlong(line: Point[], i: number, from: Point, reach: number, forward: boolean): Point {
   let left = reach, [px, pz] = from;
@@ -664,8 +691,9 @@ export function roadLines(network: Network): { lines: RoadLine[]; junctions: Jun
       if (partner.has(`${arm.s}:${arm.end}`)) continue;
       const n = lineOf.get(arm.s)!, line = raw[n], end = endsAt(n, p);
       line[end === 0 ? 0 : line.length - 1] = at;
-      // ... a drawn piece's own line just reaches on to that point, so it stays as it was drawn
-      if (frozenLines.has(n)) lines[n].points = end === 0 ? [at, ...lines[n].points] : [...lines[n].points, at];
+      // ... a drawn piece's own line goes on (or stops) along its own way to where it meets that road's middle line,
+      // so it stays as it was drawn, with no turn at its end (owner, 18 Oct 2026: "เส้นสุดท้ายฉันให้เป็นเส้นตรง ทำไม มันเลี้ยว")
+      if (frozenLines.has(n)) lines[n].points = meetLine(lines[n].points, end, centres[j].throughPts ?? lines[through].points, at);
       else moved.add(n);
     }
   });

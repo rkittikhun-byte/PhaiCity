@@ -266,6 +266,24 @@ describe("road pieces", () => {
     expect(drawn(core).lines).toHaveLength(0);
   });
 
+  test("a straight road drawn onto a slanted one stays straight to the other's middle line, with no turn at its end", () => {
+    const core = newCity();
+    drawStraight(core, { x: 5, y: 50 }, { x: 60, y: 30 });
+    const main = linePath({ x: 5, y: 50 }, { x: 60, y: 30 });
+    for (const x of [20, 33, 40, 47]) {
+      const b = main.find((t) => t.x === x)!;
+      drawStraight(core, { x: b.x + 2, y: 12 }, b);
+    }
+    const lines = drawn(core).lines.map((line) => line.points);
+    const road = lines.find((line) => line.length > 0 && Math.abs(line[0][1] - 505) < 1 || Math.abs(line[line.length - 1][1] - 505) < 1)!;
+    const branches = lines.filter((line) => line !== road);
+    expect(branches).toHaveLength(4);
+    for (const line of branches) {
+      expect(straightness(line)).toBeLessThan(1e-6);
+      expect(offLine(road, line[line.length - 1])).toBeLessThan(1e-6);
+    }
+  });
+
   test("the pieces are saved, and the next stroke is numbered on from them", () => {
     const core = newCity();
     drawCurve(core);
