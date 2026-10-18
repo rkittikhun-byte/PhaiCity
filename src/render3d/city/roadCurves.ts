@@ -15,6 +15,8 @@ import type { CityHeightField } from './heightfield.js';
 import { halfWidth, networkOf, REAL_WIDTH_M, roadLines, roadReach, shoulderOf, smoothLine, type JunctionShape, type Point } from '../../roadGeometry.js';
 import type { TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
+import { tint } from '../materials/library.js';
+import { applyWorldUV } from '../util/geometry.js';
 import type { ModelOptions } from '../models/registry.js';
 
 export { smoothLine, type Point };
@@ -24,6 +26,11 @@ const LIFT = 0.15, PLATE_LIFT = 0.17, OUTSIDE_SHADE = 0.62;
 /** A road's end under the road it meets, the corners between roads at a junction (their shoulders, then their
  * carriageways), and a junction's middle where no road runs through it: lifted so each lies over what it should */
 const UNDER_LIFT = 0.13, CORNER_LIFT = 0.145, CORNER_TOP_LIFT = 0.154, MIDDLE_LIFT = 0.152;
+/** A roadside building's lot: just over the ground, under its road, its driveway and its own model */
+const LOT_LIFT = 0.03;
+/** ... laid in the buildings' own lawn (models/civic/builder.ts grass, a shade off so its material is the lots' own and
+ * may be pulled over the ground), or bare concrete under a works */
+const LOT_GRASS = 0x8fbe6e, LOT_YARD = 0xb8b2a4, LOT_REPEAT_M = 4;
 /** A corner's curve, as a share of the wider road's reach either side of its middle */
 const CORNER_RADIUS = 1.65;
 
@@ -216,6 +223,20 @@ export class RoadCurves {
       }
       for (const [x, z, level] of plates) this.plate(x, z, rail ? null : level, positions, colors);
     }
+    // The buildings' lots, in their own lawn or yard (lots)
+    const lawn: number[] = [], yard: number[] = [], none: number[] = [];
+    this.lots(lawn, yard, none);
+    for (const [lot, key, colour] of [[lawn, 'grass', LOT_GRASS], [yard, 'concrete_raw', LOT_YARD]] as const) {
+      if (!lot.length) continue;
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(lot, 3));
+      const material = tint(key, colour);
+      material.polygonOffset = true; material.polygonOffsetFactor = -1; material.polygonOffsetUnits = -1;
+      const mesh = new Mesh(applyWorldUV(geometry, LOT_REPEAT_M * 10 / 16), material);
+      mesh.geometry.computeVertexNormals();
+      mesh.name = 'lots'; mesh.receiveShadow = true;
+      this.root.add(mesh);
+    }
     this.driveways(positions, colors);
     if (positions.length) {
       const geometry = new BufferGeometry();
@@ -246,6 +267,32 @@ export class RoadCurves {
    * Trafficity-style Driveway Aprons (ทางเชื่อมหน้าตึกเข้าสู่ถนน): every building standing beside a road gets a paved
    * flared driveway and curb cut connecting its front entrance directly to the road edge.
    */
+  /**
+   * The lot of each building stood against its road (owner, 18 Oct 2026: a road drawn past the ruler's house was refused
+   * on ground that looked open, as the house is drawn smaller than its 3 × 3 tiles): its whole tiles, lawn under a
+   * building of the ruler's, a yard under a works, so what it takes up is what the map shows. Zones' plots show their
+   * own cells.
+   */
+  private lots(lawn: number[], yard: number[], colors: number[]): void {
+    const { width, height, values } = this.snapshot;
+    for (let i = 0; i < width * height; i++) {
+      if (values[i] < 240) continue;
+      const p = this.snapshot.placement(i, 'central');
+      if (!p || !p.posed || ['residential', 'commercial', 'industrial'].includes(p.kind)) continue;
+      const size = Math.max(p.footprint[0], p.footprint[1]);
+      if (size < 3) continue;
+      const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn;
+      const x0 = i % width - 1, y0 = Math.floor(i / width) - 1, white = new Color(0xffffff);
+      // A quad every half tile, so the lot lies on hills
+      for (let ty = 0; ty < size * 2; ty++) for (let tx = 0; tx < size * 2; tx++) {
+        const ax = (x0 + tx / 2) * 10, az = (y0 + ty / 2) * 10, bx = ax + 5, bz = az + 5;
+        if (ax < 0 || az < 0 || bx > width * 10 || bz > height * 10) continue;
+        this.flat([[ax, az], [bx, az], [bx, bz]], white, LOT_LIFT, out, colors);
+        this.flat([[ax, az], [bx, bz], [ax, bz]], white, LOT_LIFT, out, colors);
+      }
+    }
+  }
+
   private driveways(positions: number[], colors: number[]): void {
     const { width, height, values } = this.snapshot;
     if (!this.lines.length) return;

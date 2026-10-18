@@ -10,6 +10,7 @@ import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { networkOf } from '../../src/roadGeometry.js';
+import { ZONEBIT } from '../../src/tileFlags.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { visibleMeshes } from '../../src/render3d/util/geometry.js';
 
@@ -27,6 +28,25 @@ function slanted(): { snapshot: TileSnapshot; tiles: Array<[number, number]> } {
 }
 
 describe('road curves', () => {
+  test('a building stood against its road, drawn smaller than its tiles, lies on a lot of all of them', () => {
+    // A road along row 20, and a civic 3 x 3 (the ruler's house's tiles 414-422) on rows 16-18 above it
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    snapshot.curves = true;
+    const curves = new RoadCurves(snapshot, flat);
+    expect(snapshot.placement(17 * W + 20, 'central')?.posed).toBe(true);
+    const lot = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'lots');
+    expect(lot).toBeDefined();
+    lot!.geometry.computeBoundingBox();
+    const box = lot!.geometry.boundingBox!;
+    // Its tiles, x 19-21 and rows 16-18, whole
+    expect([box.min.x, box.max.x, box.min.z, box.max.z]).toEqual([190, 220, 160, 190]);
+    curves.dispose();
+  });
+
+
   test('a staircase of road tiles becomes one smooth line close to them', () => {
     const { snapshot, tiles } = slanted();
     const curves = new RoadCurves(snapshot, flat);
