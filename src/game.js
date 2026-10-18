@@ -2042,14 +2042,17 @@ Game.prototype.linePoint = function(toolName, x, y) {
 // "ตามถนน ควรจะมีระยะห่าง แต่ละจุดที่ plot ลงไปได้ แบบชัดเจน ในระแวกที่เม้าชี้ไป", then "ทำไมมันเว้นจุดนึงน่ะ" of the
 // uneven points a staircase of tiles gave), and its dead ends marked bigger; worked out again only when the mouse's tile
 // or the city changes
-var SNAP_DOT_REACH = 5, DOT_STEP = 10;
+var DOT_STEP = 10;
 Game.prototype.snapDots = function(toolName, tile) {
   if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
     return null;
-  var key = [toolName, tile.x, tile.y, this._edits].join('|');
+  // As far as a click grabs (roadReach), so each dot in sight is one a click near it lands on
+  var tiles = this.roadReach();
+  var key = [toolName, tile.x, tile.y, this._edits, Math.round(tiles * 4)].join('|');
   if (this._snapDots && this._snapDots.key === key)
     return this._snapDots.dots;
-  var isLine = this.lineKind(toolName), reach = SNAP_DOT_REACH * 10;
+  // (half a tile more, as a click's reach is counted from tile middles, src/drawPaths.ts snapPoint)
+  var isLine = this.lineKind(toolName), reach = (tiles + 0.5) * 10;
   var mx = (tile.x + 0.5) * 10, mz = (tile.y + 0.5) * 10;
   var ends = [], dots = [];
   this.networkLines(toolName === 'rail').forEach(function(line) {
@@ -2136,14 +2139,28 @@ var exactControls = function(points, exact) {
 // How far, in tiles, a click snaps (src/drawPaths.ts): about this many pixels on the screen round the mouse, so a
 // road's end is as easy to hit zoomed out as zoomed in (owner, 18 Oct 2026: "เกี่ยวกับการ zoom out/in ด้วยหรือป่าวนะ")
 var SNAP_PIXELS = 18;
-Game.prototype.snapReach = function() {
+// ... and a click grabs a road, railway or power line (a dot on it) within this many pixels, the same as dots show:
+// whatever dot is in sight, a click near it lands on it (owner, 18 Oct 2026: "ปุ่ม snap กับจุด ไม่ยอมจับหลายถนน" → "คลิกใกล้
+// จุดต้องดูดเสมอ"), in tiles at least ROAD_REACH_MIN and at most ROAD_REACH_MAX
+var ROAD_PIXELS = 120, ROAD_REACH_MIN = 2, ROAD_REACH_MAX = 12;
+Game.prototype.reachTiles = function(pixels, min, max) {
   var view = this.cityView, x = this.inputStatus.mouseX, y = this.inputStatus.mouseY;
   var at = function(px, py) { return typeof view.pointAt === 'function' ? view.pointAt(px, py) : view.tileAt(px, py); };
-  var here = x >= 0 ? at(x, y) : null, across = here ? at(x + SNAP_PIXELS, y) : null, down = here ? at(x, y + SNAP_PIXELS) : null;
+  var here = x >= 0 ? at(x, y) : null, across = here ? at(x + pixels, y) : null, down = here ? at(x, y + pixels) : null;
   if (!here || !across || !down)
-    return MIN_SNAP_REACH;
+    return min;
   var tiles = Math.max(Math.hypot(across.x - here.x, across.y - here.y), Math.hypot(down.x - here.x, down.y - here.y));
-  return Math.max(MIN_SNAP_REACH, Math.min(MAX_SNAP_REACH, tiles));
+  return Math.max(min, Math.min(max, tiles));
+};
+
+
+Game.prototype.snapReach = function() {
+  return this.reachTiles(SNAP_PIXELS, MIN_SNAP_REACH, MAX_SNAP_REACH);
+};
+
+
+Game.prototype.roadReach = function() {
+  return this.reachTiles(ROAD_PIXELS, ROAD_REACH_MIN, ROAD_REACH_MAX);
 };
 
 
@@ -2165,7 +2182,8 @@ Game.prototype.snapTile = function(tile, toolName, draft, point) {
     return {tile: tile, guide: null};
   var reach = this.snapReach();
   var isLine = this.lineKind(toolName);
-  var snapped = snapPoint(tile, isLine, GRID_SPACING, reach, Math.max(END_SNAP_REACH, reach * 2));
+  var roadReach = this.roadReach();
+  var snapped = snapPoint(tile, isLine, GRID_SPACING, roadReach, Math.max(END_SNAP_REACH, roadReach));
   if (snapped.guide === 'road') {
     var exact = toolName === 'wire' ? null : this.roadDot(toolName, snapped.point, point || null);
     var at = exact ? {x: Math.floor(exact.x), y: Math.floor(exact.y)} : null;
