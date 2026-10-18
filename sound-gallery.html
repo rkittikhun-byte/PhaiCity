@@ -1,0 +1,322 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity — Sound & Music Studio</title>
+    <style>
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+      @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+      :root { color-scheme: light; --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 Sarabun, system-ui, sans-serif; }
+      header, main { max-width: 1300px; margin: auto; padding: 24px 32px; }
+      header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+      .eyebrow { color: var(--accent); font-size: 12px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: 4px 0; font-size: 28px; font-weight: 600; }
+      p { margin: 4px 0; color: var(--muted); }
+      .nav-links { display: flex; gap: 14px; font-size: 14px; }
+      .nav-links a { color: var(--accent); text-decoration: none; font-weight: 600; }
+      .nav-links a:hover { text-decoration: underline; }
+      
+      .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 20px 0; padding: 14px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+      .filter-btn { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600; transition: background .15s, color .15s; }
+      .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .filter-btn.btn-fun.active { background: #d97706; border-color: #b45309; }
+      .search-box { margin-left: auto; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 13px; width: 220px; }
+      
+      .sound-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+      .sound-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: transform .15s, border-color .15s; }
+      .sound-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+      .sound-card.is-fun { border-left: 4px solid #f59e0b; }
+      .card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+      .card-title { font-weight: 700; font-size: 15px; margin: 0; line-height: 1.4; }
+      .tag-group { display: flex; gap: 4px; align-items: center; }
+      .tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+      .tag-vehicle { background: #e3edf7; color: #1e5288; }
+      .tag-ui { background: #e8f5e9; color: #2e7d32; }
+      .tag-ambience { background: #fff3e0; color: #e65100; }
+      .tag-music { background: #f3e5f5; color: #7b1fa2; }
+      .tag-event { background: #fbe9e7; color: #c62828; }
+      .tag-fun { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+      
+      .card-desc { font-size: 13px; color: var(--muted); margin: 0; min-height: 38px; }
+      .card-meta { font-size: 12px; font-family: ui-monospace, monospace; color: var(--muted); background: var(--paper); padding: 4px 8px; border-radius: 4px; }
+      
+      .controls { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+      .source-link { font-size: 12px; color: var(--accent); text-decoration: none; margin-left: auto; font-weight: 600; }
+      .source-link:hover { text-decoration: underline; }
+      
+      audio { width: 100%; height: 32px; margin-top: 6px; outline: none; }
+
+      /* SoundFont Audition Studio */
+      .audition-box { background: #ffffff; border: 2px solid var(--accent); border-radius: 12px; padding: 22px; margin-bottom: 24px; box-shadow: 0 4px 18px rgba(34, 107, 87, 0.08); }
+      .audition-header { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 16px; }
+      .audition-title { margin: 0; font-size: 21px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+      .audition-subtitle { color: var(--muted); font-size: 13.5px; margin: 6px 0 0 0; }
+      .sf-profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px; }
+      .sf-badge { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+      .sf-badge.recommended { border-color: var(--accent); background: #f0f7f4; }
+      .sf-badge-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: var(--ink); display: flex; justify-content: space-between; }
+      .sf-badge-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
+      .sf-matrix { display: flex; flex-direction: column; gap: 14px; }
+      .sf-song-row { background: #fbfcf9; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+      .sf-song-title { font-size: 15px; font-weight: 700; margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px; }
+      .sf-demos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+      .sf-demo-item { background: #ffffff; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+      .sf-demo-label { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; justify-content: space-between; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <div class="eyebrow">PhaiCity Sound Studio</div>
+        <h1>คลังเสียงและดนตรี 6 ภาค (Sound & Music Studio)</h1>
+        <p>ดนตรีประจำภาค 6 ภาค (ภาคละ 3 เพลง รวมเพลงสนุกๆ คึกคัก) และเสียง SFX ไทย พร้อมไฟล์โปรเจกต์ต้นฉบับ .scraft</p>
+      </div>
+      <div class="nav-links">
+        <a href="index.html">← กลับหน้าเกม</a>
+        <a href="model-gallery.html">3D Models</a>
+        <a href="about.html">About</a>
+      </div>
+    </header>
+
+    <main>
+      <!-- SoundFont Audition Section -->
+      <section class="audition-box">
+        <div class="audition-header">
+          <h2 class="audition-title">🎛️ เลือก SoundFont สำหรับ PhaiCity (SoundFont Audition Studio)</h2>
+          <p class="audition-subtitle">
+            เราได้เตรียม SoundFont อะคูสติกมาตรฐานสตูดิโอระดับโลก 3 แบบมาให้คุณทดลองฟังเปรียบเทียบจาก 3 สไตล์เพลงเดียวกัน (เหนือ ละมุน / กลาง ไพเราะ / อีสาน สนุกคึกคัก) เพื่อให้คุณเลือกโทนเสียงที่ชอบที่สุดสำหรับทั้ง 18 เพลงของเกม:
+          </p>
+        </div>
+
+        <div class="sf-profiles">
+          <div class="sf-badge">
+            <div class="sf-badge-title">
+              <span>1. GeneralUser GS</span>
+              <span style="font-size:11px; font-weight:normal; color:var(--muted);">31.2 MB</span>
+            </div>
+            <div class="sf-badge-desc">
+              โทนเสียงอะคูสติกธรรมชาติ นุ่มนวล ละมุนหู ไม่บาดหู เสียงขลุ่ย ขิม กีตาร์โปร่ง และสายดีดให้มิติอบอุ่น ฟังสบาย เหมาะมากสำหรับเพลงพื้นบ้านไทยและเพลงสร้างเมืองที่ต้องฟังต่อเนื่องยาวๆ
+            </div>
+          </div>
+          <div class="sf-badge recommended" style="border-color:#1e5288; background:#f0f4f9;">
+            <div class="sf-badge-title">
+              <span>2. FluidR3 GM <span style="color:#1e5288;">✔ เลือกใช้งานสำหรับทั้งเกม (Active Master)</span></span>
+              <span style="font-size:11px; font-weight:normal; color:var(--muted);">148.3 MB</span>
+            </div>
+            <div class="sf-badge-desc">
+              มัลติแซมเปิลขนาดใหญ่ รายละเอียดไดนามิกสูง โทนเสียงอลังการแบบวงออร์เคสตรา / ซาวด์แทร็กภาพยนตร์ เบสและเครื่องเป่าทองเหลืองมีน้ำหนัก <strong>★ ขณะนี้เรนเดอร์ทั้ง 18 เพลงของทุกภาคด้วย FluidR3 GM เรียบร้อยแล้ว!</strong>
+            </div>
+          </div>
+          <div class="sf-badge">
+            <div class="sf-badge-title">
+              <span>3. Chorium RevA</span>
+              <span style="font-size:11px; font-weight:normal; color:var(--muted);">27.5 MB</span>
+            </div>
+            <div class="sf-badge-desc">
+              โทนเสียงคลาสสิก วินเทจ มีมนต์ขลังเฉพาะตัว เสียงเครื่องสายและเครื่องเป่าลมไม้มีลูกเล่นและหางเสียงแบบเพลงเกม RPG คลาสสิก
+            </div>
+          </div>
+        </div>
+
+        <div class="sf-matrix">
+          <!-- Track 1: North -->
+          <div class="sf-song-row">
+            <div class="sf-song-title">
+              <span>⛰️ ภาคเหนือ: สายหมอกสะล้อซอซึง (North - Gentle & Mellow, 84 BPM)</span>
+            </div>
+            <div class="sf-demos-grid">
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>GeneralUser GS</span><span>★ นุ่มโปร่ง ฟังสบาย</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/north_01_generaluser.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>FluidR3 GM</span><span>ทรงพลัง กังวานลึก</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/north_01_fluidr3.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>Chorium RevA</span><span>วินเทจ คลาสสิก</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/north_01_chorium.ogg"></audio>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track 2: Central -->
+          <div class="sf-song-row">
+            <div class="sf-song-title">
+              <span>🌊 ภาคกลาง: สายน้ำเจ้าพระยา (Central - River Melodies, 80 BPM)</span>
+            </div>
+            <div class="sf-demos-grid">
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>GeneralUser GS</span><span>★ ขิมและขลุ่ยละมุนใส</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/central_01_generaluser.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>FluidR3 GM</span><span>อิ่มแน่น บรรยากาศกว้าง</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/central_01_fluidr3.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>Chorium RevA</span><span>แหลมใสสไตล์ดั้งเดิม</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/central_01_chorium.ogg"></audio>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track 3: Northeast Fun -->
+          <div class="sf-song-row">
+            <div class="sf-song-title">
+              <span>🎉 ภาคอีสาน (สนุกๆ): เซิ้งบั้งไฟม่วนซื่น / เต้ยสามช่า (Isan Festive, 134 BPM)</span>
+            </div>
+            <div class="sf-demos-grid">
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>GeneralUser GS</span><span>★ โปงลางและพิณกระชับ โจ๊ะๆ</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/northeast_03_generaluser.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>FluidR3 GM</span><span>เบสหนัก กลองแน่น</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/northeast_03_fluidr3.ogg"></audio>
+              </div>
+              <div class="sf-demo-item">
+                <div class="sf-demo-label"><span>Chorium RevA</span><span>เปรี้ยวสดใส สนุกสนาน</span></div>
+                <audio controls preload="none" src="assets/audio/music/soundfont_demos/northeast_03_chorium.ogg"></audio>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <button class="filter-btn active" data-filter="all">ทั้งหมด (All)</button>
+        <button class="filter-btn btn-fun" data-filter="fun">🎉 เพลงสนุกๆ ประจำภาค (Festive)</button>
+        <button class="filter-btn" data-filter="music">ดนตรีประจำภาค (All Music)</button>
+        <button class="filter-btn" data-filter="north">ภาคเหนือ</button>
+        <button class="filter-btn" data-filter="northeast">ภาคอีสาน</button>
+        <button class="filter-btn" data-filter="central">ภาคกลาง</button>
+        <button class="filter-btn" data-filter="east">ภาคตะวันออก</button>
+        <button class="filter-btn" data-filter="west">ภาคตะวันตก</button>
+        <button class="filter-btn" data-filter="south">ภาคใต้</button>
+        <button class="filter-btn" data-filter="vehicle">ยานพาหนะ</button>
+        <button class="filter-btn" data-filter="ui">UI & เครื่องมือ</button>
+        <button class="filter-btn" data-filter="ambience">บรรยากาศ</button>
+        <input type="text" id="search" class="search-box" placeholder="ค้นหาชื่อเสียง...">
+      </div>
+
+      <div class="sound-grid" id="grid">
+        <!-- Rendered by JS -->
+      </div>
+    </main>
+
+    <script>
+      const SOUNDS_DATA = [
+        // --- 1. NORTH (ภาคเหนือ) ---
+        { id: "music.north_01", region: "north", name: "ภาคเหนือ 1: สายหมอกสะล้อซอซึง", tag: "music", thai: true, file: "assets/audio/music/north_01.ogg", source: "assets/audio/_sources/projects/north_01.scraft", desc: "สะล้อสีขับขาน คลอเสียงซึงดีดพริ้วไหว กลิ่นอายสายหมอกยอดดอยและเมืองเชียงใหม่ (84 BPM)" },
+        { id: "music.north_02", region: "north", name: "ภาคเหนือ 2: ทิวเขาเวียงพิงค์", tag: "music", thai: true, file: "assets/audio/music/north_02.ogg", source: "assets/audio/_sources/projects/north_02.scraft", desc: "ซึงดีดพริ้วหวานนำทาง สะล้อคลอหวานแผ่วเบา จังหวะสงบนุ่มนวลละมุนใจยามแอ่วดอย (74 BPM)" },
+        { id: "music.north_03", region: "north", name: "ภาคเหนือ 3 (สนุกๆ): ปอยหลวงม่วนใจ๋ / ฟ้อนเจิงสะบัดชัย", tag: "music", thai: true, fun: true, file: "assets/audio/music/north_03.ogg", source: "assets/audio/_sources/projects/north_03.scraft", desc: "🎉 จังหวะคึกคักเร้าใจ! กลองสะบัดชัยสะท้าน ปี่จุมและซึงรัวเร็วแบบงานบุญปอยหลวง สงกรานต์ล้านนา (128 BPM)" },
+
+        // --- 2. NORTHEAST (ภาคอีสาน) ---
+        { id: "music.northeast_01", region: "northeast", name: "ภาคอีสาน 1: แคนพิณลำเพลิน", tag: "music", thai: true, file: "assets/audio/music/northeast_01.ogg", source: "assets/audio/_sources/projects/northeast_01.scraft", desc: "เสียงแคนประสานคอร์ดครวญ คลอทำนองพิณโปร่งใส กล่อมท้องทุ่งรวงข้าวและที่ราบสูง (92 BPM)" },
+        { id: "music.northeast_02", region: "northeast", name: "ภาคอีสาน 2: ลำน้ำโขงยามเย็น", tag: "music", thai: true, file: "assets/audio/music/northeast_02.ogg", source: "assets/audio/_sources/projects/northeast_02.scraft", desc: "พิณสายหวานคลอเสียงเคาะไม้โปงลางนุ่มนวล บรรยากาศแสงทองสะท้อนแม่น้ำโขงแดนอีสาน (76 BPM)" },
+        { id: "music.northeast_03", region: "northeast", name: "ภาคอีสาน 3 (สนุกๆ): เซิ้งบั้งไฟม่วนซื่น / เต้ยสามช่า", tag: "music", thai: true, fun: true, file: "assets/audio/music/northeast_03.ogg", source: "assets/audio/_sources/projects/northeast_03.scraft", desc: "🎉 สนุกสนานโจ๊ะๆ! โปงลางสับระรัวเร็ว พิณโซโล่สดใส กลองหางตึงๆ ในงานบุญบั้งไฟและเทศกาลแห่เทียน (134 BPM)" },
+
+        // --- 3. CENTRAL (ภาคกลาง) ---
+        { id: "music.central_01", region: "central", name: "ภาคกลาง 1: สายน้ำเจ้าพระยา", tag: "music", thai: true, file: "assets/audio/music/central_01.ogg", source: "assets/audio/_sources/projects/central_01.scraft", desc: "ขิมเคาะกังวานระยิบระยับคู่เสียงขลุ่ยเพียงออล่องลม สายลมพัดผ่านคุ้งน้ำเจ้าพระยา (80 BPM)" },
+        { id: "music.central_02", region: "central", name: "ภาคกลาง 2: เวียงวังรัตนโกสินทร์", tag: "music", thai: true, file: "assets/audio/music/central_02.ogg", source: "assets/audio/_sources/projects/central_02.scraft", desc: "ระนาดเอกไม้แกร่งและขิมหวานล้ำ สง่างาม นุ่มลึก กลิ่นอายดนตรีไทยเดิมราชสำนัก (72 BPM)" },
+        { id: "music.central_03", region: "central", name: "ภาคกลาง 3 (สนุกๆ): รำวงสำราญใจ / งานวัดย้อนยุค", tag: "music", thai: true, fun: true, file: "assets/audio/music/central_03.ogg", source: "assets/audio/_sources/projects/central_03.scraft", desc: "🎉 จังหวะรำวงโป๊ม-โป๊ม-ชึ่ง ระนาดเอกสะบัดไหว ฉิ่งฉับและโทนกลอง สดใสรื่นเริงสไตล์งานวัดไทย (124 BPM)" },
+
+        // --- 4. EAST (ภาคตะวันออก) ---
+        { id: "music.east_01", region: "east", name: "ภาคตะวันออก 1: ลมทะเลบูรพา", tag: "music", thai: true, file: "assets/audio/music/east_01.ogg", source: "assets/audio/_sources/projects/east_01.scraft", desc: "ทำนองระนาดและขิม เคล้าเสียงระลอกคลื่นซัดหาดทรายขาวชายฝั่งอ่าวไทยและเกาะช้าง (78 BPM)" },
+        { id: "music.east_02", region: "east", name: "ภาคตะวันออก 2: สวนผลไม้เมืองจันท์", tag: "music", thai: true, file: "assets/audio/music/east_02.ogg", source: "assets/audio/_sources/projects/east_02.scraft", desc: "เสียงขลุ่ยและขิมสดใส ปลอดโปร่ง ร่มรื่นใต้ร่มเงาสวนผลไม้เมืองจันทบุรีและระยอง (84 BPM)" },
+        { id: "music.east_03", region: "east", name: "ภาคตะวันออก 3 (สนุกๆ): ระบำชาวเล / ฉลองเทศกาลผลไม้", tag: "music", thai: true, fun: true, file: "assets/audio/music/east_03.ogg", source: "assets/audio/_sources/projects/east_03.scraft", desc: "🎉 จังหวะกลองรำมะนาคึกคัก ระนาดเคาะกระโดดโลดเต้น สนุกสนานรับลมทะเลในเทศกาลผลไม้บูรพา (128 BPM)" },
+
+        // --- 5. WEST (ภาคตะวันตก) ---
+        { id: "music.west_01", region: "west", name: "ภาคตะวันตก 1: ทิวเขามอญคะเน", tag: "music", thai: true, file: "assets/audio/music/west_01.ogg", source: "assets/audio/_sources/projects/west_01.scraft", desc: "สำเนียงขลุ่ยมอญล่องลอยเหนือยอดเขาตะนาวศรี ป่าดงดิบและขุนเขาเมืองกาญจน์ (82 BPM)" },
+        { id: "music.west_02", region: "west", name: "ภาคตะวันตก 2: ธารน้ำตกแควน้อย", tag: "music", thai: true, file: "assets/audio/music/west_02.ogg", source: "assets/audio/_sources/projects/west_02.scraft", desc: "เสียงขลุ่ยไผ่สงบนิ่ง คลอเสียงเคาะไม้ไผ่ธรรมชาติและสายน้ำตกไหลรินเย็นฉ่ำใจ (75 BPM)" },
+        { id: "music.west_03", region: "west", name: "ภาคตะวันตก 3 (สนุกๆ): ระบำมอญรื่นเริง / กรับไผ่คะนอง", tag: "music", thai: true, fun: true, file: "assets/audio/music/west_03.ogg", source: "assets/audio/_sources/projects/west_03.scraft", desc: "🎉 กรับกระบอกไม้ไผ่รัวฉับๆ สนุกเร้าใจ กลองสองหน้าตีรับส่ง ขลุ่ยมอญเป่าพริ้วรื่นเริงแบบงานระบำพื้นบ้าน (130 BPM)" },
+
+        // --- 6. SOUTH (ภาคใต้) ---
+        { id: "music.south_01", region: "south", name: "ภาคใต้ 1: คลื่นลมอันดามัน", tag: "music", thai: true, file: "assets/audio/music/south_01.ogg", source: "assets/audio/_sources/projects/south_01.scraft", desc: "เสียงปี่ใต้หวานปนคมคาย ผสานจังหวะกลองทับและโหม่ง เสน่ห์มนต์ขลังดนตรีปักษ์ใต้ (108 BPM)" },
+        { id: "music.south_02", region: "south", name: "ภาคใต้ 2: ทะเลสิมิลันยามสงบ", tag: "music", thai: true, file: "assets/audio/music/south_02.ogg", source: "assets/audio/_sources/projects/south_02.scraft", desc: "เสียงปี่เป่าละมุนนุ่ม ท่วงทำนองสงบงามดั่งระลอกน้ำใสสีมรกตในหมู่เกาะสิมิลัน (78 BPM)" },
+        { id: "music.south_03", region: "south", name: "ภาคใต้ 3 (สนุกๆ): มโนราห์เริงระบำ / โนราห์แดนซ์", tag: "music", thai: true, fun: true, file: "assets/audio/music/south_03.ogg", source: "assets/audio/_sources/projects/south_03.scraft", desc: "🎉 ดุเดือดเร้าใจสุดขั้ว! ปี่ใต้แผดเสียงโลดแล่น กลองทับกระหน่ำสับรัว โหม่งฉิ่งจัดเต็มในลีลาระบำโนราห์ปักษ์ใต้ (138 BPM)" },
+
+        // --- THEME ---
+        { id: "music.theme", region: "theme", name: "เพลงธีมเปิดเกม: ลมไผ่แห่งสยาม (Theme Flute)", tag: "music", file: "assets/audio/music/theme.ogg", desc: "เพลงธีมเปิดเกม ทำนองขลุ่ยไม้ไผ่ก้องกังวาน" },
+
+        // --- THAI VEHICLES & LIFE ---
+        { id: "vehicle.tuktuk", name: "รถตุ๊กตุ๊ก (Bangkok Tuk-Tuk)", tag: "vehicle", thai: true, file: "assets/audio/sfx/tuktuk.ogg", source: "assets/audio/_sources/projects/tuktuk.scraft", desc: "เสียงเครื่องยนต์ 2 จังหวะสูบเดียว เร่งเครื่อง บึ้นๆ มีเสียงท่อโลหะเอกลักษณ์" },
+        { id: "vehicle.longtail_boat", name: "เรือหางยาว (Longtail Boat)", tag: "vehicle", thai: true, file: "assets/audio/sfx/longtail-boat.ogg", source: "assets/audio/_sources/projects/longtail-boat.scraft", desc: "เสียงเครื่องยนต์ดีเซลติดท้ายเรือรอบต่ำ ปะทะผิวน้ำพร้อมละอองน้ำซัดใบพัด" },
+        { id: "vehicle.motorcycle", name: "มอเตอร์ไซค์ (Motorcycle)", tag: "vehicle", thai: true, file: "assets/audio/sfx/motorcycle.ogg", source: "assets/audio/_sources/projects/motorcycle.scraft", desc: "เสียงมอเตอร์ไซค์ครอบครัววิ่งผ่านอย่างเป็นธรรมชาติ พร้อม Doppler shift" },
+        
+        // --- THAI CEREMONY & MILESTONES ---
+        { id: "event.temple_bell", name: "ระฆังวัดไทย (Temple Bell)", tag: "event", thai: true, file: "assets/audio/sfx/temple-bell.ogg", source: "assets/audio/_sources/projects/temple-bell.scraft", desc: "เสียงระฆังทองเหลืองวัดไทย กังวาน ลึกซึ้ง และมีฮาร์โมนิกของโลหะผสม" },
+        { id: "ui.milestone", name: "ฆ้องชัย (Ceremonial Gong)", tag: "ui", thai: true, file: "assets/audio/sfx/gong.ogg", source: "assets/audio/_sources/projects/gong.scraft", desc: "เสียงฆ้องมงคลสั่นกังวาน เล่นเมื่อเลื่อนยศเจ้าเมืองหรือประชากรถึงเป้าหมาย" },
+
+        // --- THAI UI & TOOLS ---
+        { id: "ui.click", name: "คลิกไม้ไผ่ (Bamboo Click)", tag: "ui", thai: true, file: "assets/audio/sfx/ui-click.ogg", source: "assets/audio/_sources/projects/ui-click.scraft", desc: "เสียงกรับไม้ไผ่ไทยกระทบกัน คมชัด ละมุนหู ไม่บาดหู เข้ากับธีม PhaiCity" },
+        { id: "ui.coin", name: "เหรียญบาท (Thai Baht Coins)", tag: "ui", thai: true, file: "assets/audio/sfx/ui-coin.ogg", source: "assets/audio/_sources/projects/ui-coin.scraft", desc: "เสียงเหรียญกษาปณ์บาทไทยกระทบกัน ใช้เมื่อเก็บภาษีหรือทำธุรกรรม" },
+        { id: "tool.pile_driver", name: "ตอกเสาเข็ม (Pile Driver)", tag: "ui", thai: true, file: "assets/audio/sfx/tool-pile-driver.ogg", source: "assets/audio/_sources/projects/tool-pile-driver.scraft", desc: "เสียงปั้นจั่นตอกเสาเข็มคอนกรีตลงดิน สำหรับไซต์ก่อสร้างตึกและโรงงาน" },
+        { id: "tool.tractor", name: "รถไถลูกรัง (Grader Tractor)", tag: "ui", thai: true, file: "assets/audio/sfx/tool-tractor.ogg", source: "assets/audio/_sources/projects/tool-tractor.scraft", desc: "เสียงเครื่องยนต์รถไถและเสียงกรวดลูกรังขูดเกลี่ยหน้าดิน" },
+
+        // --- THAI NATURE & AMBIENCE ---
+        { id: "amb.night_cicadas", name: "จักจั่นและจิ้งหรีดราตรี (Night Cicadas)", tag: "ambience", thai: true, file: "assets/audio/sfx/amb-night-cicadas.ogg", source: "assets/audio/_sources/projects/amb-night-cicadas.scraft", desc: "เสียงจักจั่นร้องระงมและจิ้งหรีดยามค่ำคืนในชนบทไทย" },
+        { id: "amb.rooster", name: "ไก่บ้านขัน (Morning Rooster)", tag: "ambience", thai: true, file: "assets/audio/sfx/rooster.ogg", source: "assets/audio/_sources/projects/rooster.scraft", desc: "เสียงไก่แจ้ไทยขันรับอรุณเป็นจังหวะยามเช้าตรู่ เอก-อี-เอ๊ก-เอ้ก" },
+        { id: "amb.market", name: "ตลาดไทย (Thai Market)", tag: "ambience", file: "assets/audio/sfx/amb-market.ogg", desc: "บรรยากาศตลาดสด ตลาดนัด และตลาดโต้รุ่งในประเทศไทย" },
+        { id: "amb.city", name: "บรรยากาศเมือง (Bangkok Street)", tag: "ambience", file: "assets/audio/sfx/amb-city.ogg", desc: "บรรยากาศการจราจรและถนนในกรุงเทพมหานคร" }
+      ];
+
+      const grid = document.getElementById('grid');
+      const search = document.getElementById('search');
+      let currentFilter = 'all';
+
+      function render() {
+        const query = search.value.toLowerCase().trim();
+        grid.innerHTML = '';
+        const filtered = SOUNDS_DATA.filter(s => {
+          if (currentFilter === 'fun' && !s.fun) return false;
+          if (currentFilter === 'thai' && !s.thai) return false;
+          if (['north', 'northeast', 'central', 'east', 'west', 'south'].includes(currentFilter) && s.region !== currentFilter) return false;
+          if (!['all', 'thai', 'fun', 'north', 'northeast', 'central', 'east', 'west', 'south'].includes(currentFilter) && s.tag !== currentFilter) return false;
+          if (query && !s.name.toLowerCase().includes(query) && !s.id.toLowerCase().includes(query) && !s.desc.toLowerCase().includes(query)) return false;
+          return true;
+        });
+
+        for (const item of filtered) {
+          const card = document.createElement('div');
+          card.className = `sound-card ${item.fun ? 'is-fun' : ''}`;
+          card.innerHTML = `
+            <div class="card-header">
+              <h3 class="card-title">${item.name}</h3>
+              <div class="tag-group">
+                ${item.fun ? '<span class="tag tag-fun">สนุกๆ</span>' : ''}
+                <span class="tag tag-${item.tag}">${item.tag}</span>
+              </div>
+            </div>
+            <p class="card-desc">${item.desc}</p>
+            <div class="card-meta">ID: ${item.id}</div>
+            <audio controls preload="none" src="${item.file}"></audio>
+            <div class="controls">
+              ${item.source ? `<span class="card-meta" style="font-size:11px">📁 Source: ${item.source.split('/').pop()}</span>` : ''}
+              ${item.source ? `<a class="source-link" href="${item.source}" download title="ดาวน์โหลดโปรเจกต์ SoundCraft สำหรับเปิดในแอป">ดาวน์โหลด .scraft</a>` : ''}
+            </div>
+          `;
+          grid.appendChild(card);
+        }
+      }
+
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          render();
+        });
+      });
+
+      search.addEventListener('input', render);
+      render();
+    </script>
+  </body>
+</html>

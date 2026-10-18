@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "name": "east_01",
+  "sample_rate": 44100,
+  "bit_depth": "Int16",
+  "frame_rate": "Fps30",
+  "timecode_start": 0,
+  "tempo": {
+    "tempos": [
+      {
+        "tick": 0,
+        "bpm": 78.0
+      }
+    ],
+    "meters": [
+      {
+        "tick": 0,
+        "numerator": 4,
+        "denominator": 4
+      }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "track_1",
+      "name": "East 01",
+      "channel_format": "Stereo",
+      "volume_db": 0.0,
+      "pan": 0.0,
+      "clips": [
+        {
+          "id": "clip_1",
+          "name": "east_01.wav",
+          "file": "east_01.wav",
+          "start_tick": 0,
+          "length_ticks": 62400
+        }
+      ]
+    }
+  ]
+}

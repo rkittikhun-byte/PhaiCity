@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "name": "ui-click",
+  "sample_rate": 44100,
+  "bit_depth": "Int16",
+  "frame_rate": "Fps30",
+  "timecode_start": 0,
+  "tempo": {
+    "tempos": [
+      {
+        "tick": 0,
+        "bpm": 120.0
+      }
+    ],
+    "meters": [
+      {
+        "tick": 0,
+        "numerator": 4,
+        "denominator": 4
+      }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "track_1",
+      "name": "Ui Click",
+      "channel_format": "Mono",
+      "volume_db": 0.0,
+      "pan": 0.0,
+      "clips": [
+        {
+          "id": "clip_1",
+          "name": "ui-click.wav",
+          "file": "ui-click.wav",
+          "start_tick": 0,
+          "length_ticks": 384
+        }
+      ]
+    }
+  ]
+}

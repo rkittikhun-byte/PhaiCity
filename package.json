@@ -19,6 +19,7 @@
     "dev": "webpack serve --mode development",
     "Dev": "webpack serve --mode development",
     "gallery": "webpack serve --mode development --open /model-gallery.html",
+    "sound": "webpack serve --mode development --open /sound-gallery.html",
     "production": "webpack serve --mode production",
     "textures:convert": "node src/render3d/dev/convert-textures.ts",
     "geo:national": "node scripts/geo/national.mjs",

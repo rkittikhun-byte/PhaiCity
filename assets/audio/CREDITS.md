@@ -51,3 +51,11 @@ Music has its own list, with each track's license: [music/CREDITS.md](music/CRED
 | `amb-rain.ogg` | "forest heavy rain loop.wav" by Victormaa (Freesound 671409) | [link](https://freesound.org/people/Victormaa/sounds/671409/) | CC0 |
 | `amb-waves.ogg` | "Ocean gentle waves on beach fizzing bubbles.wav" by jackmichaelking (Freesound 517945) | [link](https://freesound.org/people/jackmichaelking/sounds/517945/) | CC0 |
 | `ship-horn.ogg` | "Long Distant Foghorn.aiff" by Danjocross (Freesound 507471) | [link](https://freesound.org/people/Danjocross/sounds/507471/) | CC0 |
+| `tuktuk.ogg` | Bangkok Tuk-Tuk 2-stroke revving by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/tuktuk.scraft` | CC0 |
+| `longtail-boat.ogg` | Thai Longtail boat diesel chug & water spray by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/longtail-boat.scraft` | CC0 |
+| `motorcycle.ogg` | Thai motorcycle passing by by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/motorcycle.scraft` | CC0 |
+| `temple-bell.ogg` | Thai Buddhist temple bronze bell by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/temple-bell.scraft` | CC0 |
+| `tool-pile-driver.ogg` | Construction pile driver impact by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/tool-pile-driver.scraft` | CC0 |
+| `tool-tractor.ogg` | Rural laterite grader tractor by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/tool-tractor.scraft` | CC0 |
+| `amb-night-cicadas.ogg` | Thai countryside night cicadas & crickets by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/amb-night-cicadas.scraft` | CC0 |
+

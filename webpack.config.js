@@ -100,6 +100,16 @@ function injectGalleryBundle() {
   });
 }
 
+function injectSoundGalleryBundle() {
+  return new HtmlWebpackPlugin({
+    template: './sound-gallery.html',
+    filename: 'sound-gallery.html',
+    chunks: [],
+    inject: false,
+    hash: true,
+  });
+}
+
 function injectBuildIdIntoNameLicense(gitHash) {
   return new HtmlWebpackPlugin({
     gitHash,
@@ -209,6 +219,7 @@ function commonOptions() {
       copyStaticAssets(),
       injectBundleIntoHTML(buildId),
       injectGalleryBundle(),
+      injectSoundGalleryBundle(),
       injectGeoReviewBundle(),
       injectBuildIdIntoAbout(buildId),
       injectBuildIdIntoNameLicense(buildId),

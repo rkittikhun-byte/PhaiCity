@@ -8,6 +8,8 @@ TODO
 # Raw downloads and recordings (large, regenerated or kept outside git)
 data/geo/cache/
 assets/audio/_raw/
+tools/
+*.wav
 
 # Secrets (API keys, the server's settings); only *.env.example files belong in git
 .env

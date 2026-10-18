@@ -262,7 +262,11 @@ export function pickAmbientOneShot(stats: ViewStats, raining: boolean, random: (
     [stats.airport > 0, 0.05, "amb.airplane"],
     [raining, 0.15, "amb.thunder"],
     [share(stats.water) > 0.2, 0.05, "amb.seagull"],
-    [share(stats.woods) > 0.1, 0.03, "amb.rooster"],
+    [share(stats.water) > 0.1 && share(stats.developed) > 0.1, 0.04, "vehicle.longtail_boat"],
+    [share(stats.roads) > 0.1, 0.06, "vehicle.tuktuk"],
+    [share(stats.roads) > 0.05, 0.05, "vehicle.motorcycle"],
+    [share(stats.woods) > 0.1, 0.04, "amb.rooster"],
+    [share(stats.woods) > 0.15 && !raining, 0.08, "amb.night_cicadas"],
   ];
   for (const [fits, chance, id] of candidates) {
     if (fits && random() < chance) return id;

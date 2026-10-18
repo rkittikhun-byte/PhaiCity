@@ -60,6 +60,10 @@ export const SOUNDS: Record<string, SoundDef> = {
   "event.helicopter": { file: "helicopter.ogg", channel: "effects", volume: 0.45, maxDuration: 5, minGap: 20000 },
   "event.crowd": { file: "crowd.ogg", channel: "effects", volume: 0.4, maxDuration: 6, minGap: 20000 },
   "event.ship_horn": { file: "ship-horn.ogg", channel: "effects", volume: 0.45, minGap: 30000 },
+  "event.temple_bell": { file: "temple-bell.ogg", channel: "effects", volume: 0.6, maxDuration: 6, minGap: 10000 },
+  "vehicle.tuktuk": { file: "tuktuk.ogg", channel: "effects", volume: 0.5, maxDuration: 5, minGap: 8000 },
+  "vehicle.longtail_boat": { file: "longtail-boat.ogg", channel: "effects", volume: 0.55, maxDuration: 6, minGap: 10000 },
+  "vehicle.motorcycle": { file: "motorcycle.ogg", channel: "effects", volume: 0.45, maxDuration: 4, minGap: 5000 },
 
   // Ambience: looping beds and occasional one-shots
   "amb.nature": { file: "amb-nature.ogg", channel: "ambience", volume: 0.5, loop: true },
@@ -68,6 +72,7 @@ export const SOUNDS: Record<string, SoundDef> = {
   "amb.market": { file: "amb-market.ogg", channel: "ambience", volume: 0.3, loop: true },
   "amb.waves": { file: "amb-waves.ogg", channel: "ambience", volume: 0.4, loop: true },
   "amb.rain": { file: "amb-rain.ogg", channel: "ambience", volume: 0.45, loop: true },
+  "amb.night_cicadas": { file: "amb-night-cicadas.ogg", channel: "ambience", volume: 0.4, loop: true },
   "amb.seagull": { file: "seagull.ogg", channel: "ambience", volume: 0.4, maxDuration: 6, minGap: 30000 },
   "amb.rooster": { file: "rooster.ogg", channel: "ambience", volume: 0.35, minGap: 60000 },
   "amb.thunder": { file: "thunder.ogg", channel: "ambience", volume: 0.5, maxDuration: 8, minGap: 45000 },
