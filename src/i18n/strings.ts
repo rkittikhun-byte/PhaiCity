@@ -1336,10 +1336,6 @@ export const STRINGS: Record<string, Translation> = {
   "loading.step.city": { en: "Building the city and its simulation", th: "สร้างเมืองและระบบจำลอง" },
   "loading.step.world": { en: "Roads, trees and buildings in 3D", th: "ถนน ต้นไม้ และอาคารสามมิติ" },
   "loading.step.textures": { en: "Surfaces and materials", th: "พื้นผิวและวัสดุ" },
-  "loading.state.waiting": { en: "waiting", th: "รอ" },
-  "loading.state.loading": { en: "loading…", th: "กำลังโหลด…" },
-  "loading.state.done": { en: "done", th: "เสร็จ" },
-  "loading.state.failed": { en: "skipped", th: "ข้าม" },
   "loading.music": { en: "Music of the {region}", th: "เพลงภาค{region}" },
   "loading.music_theme": { en: "PhaiCity theme", th: "เพลงประจำเกม PhaiCity" },
 };

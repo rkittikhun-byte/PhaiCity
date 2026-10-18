@@ -1511,10 +1511,6 @@
 | `loading.step.city` | `src/loadingScreen.ts` | — | `Building the city and its simulation` | `สร้างเมืองและระบบจำลอง` |  |
 | `loading.step.world` | `src/loadingScreen.ts` | — | `Roads, trees and buildings in 3D` | `ถนน ต้นไม้ และอาคารสามมิติ` |  |
 | `loading.step.textures` | `src/loadingScreen.ts` | — | `Surfaces and materials` | `พื้นผิวและวัสดุ` | นับจำนวนที่โหลดแล้ว |
-| `loading.state.waiting` | `src/loadingScreen.ts` | — | `waiting` | `รอ` | สถานะ |
-| `loading.state.loading` | `src/loadingScreen.ts` | — | `loading…` | `กำลังโหลด…` |  |
-| `loading.state.done` | `src/loadingScreen.ts` | — | `done` | `เสร็จ` |  |
-| `loading.state.failed` | `src/loadingScreen.ts` | — | `skipped` | `ข้าม` | โหลดไม่ได้ เกมเล่นต่อโดยไม่มี |
 | `loading.music` | `src/loadingScreen.ts` | — | `Music of the {region}` | `เพลงภาค{region}` | {region} คือชื่อสั้นของภาค |
 | `loading.music_theme` | `src/loadingScreen.ts` | — | `PhaiCity theme` | `เพลงประจำเกม PhaiCity` | แผนที่ฝึกเล่น |
 
