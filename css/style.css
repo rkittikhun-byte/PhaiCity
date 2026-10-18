@@ -1095,11 +1095,16 @@ body.starting .loadingBar::after, #provincePicker .ppStage > .loadingBar::after 
 /* The map; the camera is the SVG viewBox */
 #provincePicker .ppSvg { width: 100%; height: 100%; }
 #provincePicker .ppSvg[data-mode="intro"] { pointer-events: none; }
-#provincePicker .ppProvinces { filter: drop-shadow(0 0 22px rgba(var(--ph-clay-300-rgb), 0.18)); }
+#provincePicker .ppProvinces { filter: drop-shadow(0 0 22px rgba(var(--ph-clay-300-rgb), 0.18)); transition: filter 1.6s ease; }
 #provincePicker .ppSvg.plain .ppProvinces { filter: drop-shadow(0 0 26px rgba(var(--ph-gold-400-rgb), 0.45)); }
 #provincePicker .ppProvince { stroke: var(--ph-sand-950); stroke-width: 0.8; vector-effect: non-scaling-stroke; cursor: pointer; fill-opacity: 0.92;
   transition: fill 0.9s ease, opacity 0.6s ease, filter 0.15s; }
-#provincePicker .ppSvg.plain .ppProvince { fill: url(#ppGold); stroke: rgba(var(--ph-gold-900-rgb), 0.55); fill-opacity: 1; }
+/* The opening scene's gold is one shape over the provinces (src/provincePicker.ts buildMap) that fades into the region
+   colours; hidden once faded, so its moving highlight costs nothing */
+#provincePicker .ppGoldOverlay { fill: url(#ppGold); stroke: rgba(var(--ph-gold-900-rgb), 0.55); stroke-width: 0.8;
+  vector-effect: non-scaling-stroke; pointer-events: none; opacity: 0; visibility: hidden;
+  transition: opacity 1.6s ease, visibility 0s linear 1.6s; }
+#provincePicker .ppSvg.plain .ppGoldOverlay { opacity: 1; visibility: visible; transition: opacity 1.6s ease, visibility 0s; }
 #provincePicker .ppProvince:hover, #provincePicker .ppProvince.hover { filter: brightness(1.3); }
 #provincePicker .ppProvince.dim { opacity: 0.12; pointer-events: none; }
 #provincePicker .ppProvince.selected { stroke: var(--ph-sand-0); stroke-width: 2.5; filter: brightness(1.3); }

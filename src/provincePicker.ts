@@ -652,6 +652,13 @@ function buildMap(): void {
     regionLabelLayer.appendChild(label);
   }
 
+  // The Golden Peninsula's gold lies over the provinces as one shape and fades away when the story moves on, rather
+  // than switching at once (owner, 18 Oct 2026): a gradient fill cannot transition into a flat one
+  provinceLayer.appendChild(svgElement("path", {
+    d: data.map.provinces.map(shape => shape.path).join(" "),
+    class: "ppGoldOverlay",
+    "aria-hidden": "true",
+  }));
   svg.append(goldDefinitions(countryBox()), provinceLayer, provinceLabelLayer, regionLabelLayer);
   view.stage.replaceChildren(svg);
   view.svg = svg;
