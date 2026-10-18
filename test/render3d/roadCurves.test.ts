@@ -77,12 +77,13 @@ describe('road curves', () => {
       // A laterite crossing is the laterite roads' own dirt (roadCurves.ts dirt)
       const name = level > 1 ? 'curves' : 'dirt';
       const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name)!;
-      const position = mesh.geometry.getAttribute('position');
-      // The patch's triangles and the kerbs', by how high they lie over the flat ground
+      const position = mesh.geometry.getAttribute('position'), index = mesh.geometry.getIndex()!;
+      // The patch's triangles and the kerbs', by how high they lie over the flat ground (corners shared by triangles)
       const patch: Array<Array<[number, number]>> = [], kerbs: Array<Array<[number, number]>> = [];
-      for (let i = 0; i < position.count; i += 3) {
-        const corners = [0, 1, 2].map((k): [number, number] => [position.getX(i + k), position.getZ(i + k)]);
-        const heights = [0, 1, 2].map((k) => position.getY(i + k));
+      for (let t = 0; t < index.count; t += 3) {
+        const at = [0, 1, 2].map((k) => index.getX(t + k));
+        const corners = at.map((i): [number, number] => [position.getX(i), position.getZ(i)]);
+        const heights = at.map((i) => position.getY(i));
         if (heights.every((y) => Math.abs(y - 0.185) < 1e-4)) patch.push(corners);
         if (heights.every((y) => Math.abs(y - 0.186) < 1e-4)) kerbs.push(corners);
       }
@@ -191,6 +192,27 @@ describe('road curves', () => {
     snapshot.values[21 * W + 30] = 66;
     curves.update([21 * W + 30]);
     expect(named('dirt')).not.toBe(road);
+    curves.dispose();
+  });
+
+  test('a road built on draws again only that road: the others are kept as they were built', () => {
+    // Owner, 19 Oct 2026: "อยากจะปรับ graphic ให้มันลื่นขึ้น"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) { snapshot.values[8 * W + x] = 66; snapshot.values[30 * W + x] = 66; }
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    const curves = new RoadCurves(snapshot, flat);
+    expect(curves.lastBuild.reused).toBe(0);
+    const pieces = curves.lastBuild.built;
+    expect(pieces).toBeGreaterThanOrEqual(4);
+    // The southern road one tile longer: only it is built again
+    snapshot.values[30 * W + 36] = 66;
+    curves.update([30 * W + 36]);
+    expect(curves.lastBuild.built).toBe(1);
+    expect(curves.lastBuild.reused).toBe(pieces - 1);
+    // ... and the ground moving under the northern road's tiles builds the pieces lying over them again
+    curves.update([], [8 * W + 30]);
+    expect(curves.lastBuild.built).toBeGreaterThanOrEqual(1);
+    expect(curves.lastBuild.reused).toBeGreaterThanOrEqual(1);
     curves.dispose();
   });
 
