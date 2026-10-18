@@ -123,22 +123,6 @@ export function plotTileOfCell(map: CellMap, cell: Pick<Cell, "x" | "z" | "nx" |
   return tile;
 }
 
-/** The cells a click on one paints (and the brush shows): its column across the plot's rows it lies in, from the
- * front of its plot to the back, and the columns beside it within tol (world units) */
-export function plotCells(layout: CellLayout, width: number, cell: Cell, tol: number): Cell[] {
-  const band = Math.floor(cell.row / PLOT_ROWS), u = layout.cellUnits, out: Cell[] = [];
-  const tx = Math.floor(cell.x / 10), tz = Math.floor(cell.z / 10);
-  for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
-    for (const index of layout.byTile.get((tz + dz) * width + tx + dx) ?? []) {
-      const other = layout.cells[index];
-      if (other.road !== cell.road || other.nx * cell.nx + other.nz * cell.nz <= 0.5 || Math.floor(other.row / PLOT_ROWS) !== band) continue;
-      if (Math.hypot(other.x - (cell.x + cell.nx * (other.row - cell.row) * u),
-                     other.z - (cell.z + cell.nz * (other.row - cell.row) * u)) <= tol) out.push(other);
-    }
-  }
-  return out;
-}
-
 /** The raster key of a point (world units) */
 export function rasterKey(map: CellMap, x: number, z: number): number {
   const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r);

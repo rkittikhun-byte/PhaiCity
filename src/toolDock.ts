@@ -301,13 +301,13 @@ export function installToolDock(doc: Document = document): void {
         renderModes(modesWrap, "road", doc);
       }
 
-      // Special handling for Zones: 4 direct tools (บ้าน, ร้านค้า, อุตสาหกรรม, รื้อถอน)
+      // Special handling for Zones: 4 direct tools (บ้าน, ร้านค้า, อุตสาหกรรม, ลบสี)
       if (currentCategory === "zones") {
         const zoneItems = [
           { tool: "residential", paintTool: "zone_residential", icon: "residential", title: "บ้าน (ที่อยู่อาศัย)" },
           { tool: "commercial", paintTool: "zone_commercial", icon: "commercial", title: "ร้านค้า (พาณิชย์)" },
           { tool: "industrial", paintTool: "zone_industrial", icon: "industrial", title: "โรงงาน (อุตสาหกรรม)" },
-          { tool: "zone_erase", paintTool: "zone_erase", icon: "bulldozer", title: "รื้อถอนผังเมือง" },
+          { tool: "zone_erase", paintTool: "zone_erase", icon: "zone_erase", title: "ลบสี (ยกเลิกผังเมือง)" },
         ];
 
         for (const item of zoneItems) {

@@ -20,6 +20,7 @@ export const TOOL_ICONS = [
   ['port', 'ท่าเรือ', 'Port', 'dodgerblue'],
   ['airport', 'สนามบิน', 'Airport', 'violet'],
   ['bulldozer', 'รื้อถอน', 'Bulldozer', 'salmon'],
+  ['zone_erase', 'ลบสี', 'Erase zoning', 'salmon'],
   ['query', 'ตรวจสอบ', 'Query', 'cyan'],
   ['gas', 'โรงไฟฟ้าก๊าซ', 'Gas power', '#6f9fc4'],
   ['hydro', 'เขื่อนไฟฟ้า', 'Hydro dam', '#2a7fd4'],

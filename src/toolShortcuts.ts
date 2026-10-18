@@ -125,9 +125,10 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 let iconFiles: Record<string, unknown> = {};
 const ICON_FILE = /^[\w-]+\.(png|svg|webp)$/;
 
-// Tools that wear another's icon: the zone brushes their zone's, the eraser the bulldozer's (src/plots.ts)
+// Tools that wear another's icon: the zone brushes their zone's; the eraser has its own, an eraser rubbing a painted
+// cell out, not the bulldozer's, which is what it was mistaken for (owner, 18 Oct 2026: "น่าจะมีปุ่มยกเลิกสีดี")
 const ICON_OF: Readonly<Record<string, string>> = {
-  zone_residential: "residential", zone_commercial: "commercial", zone_industrial: "industrial", zone_erase: "bulldozer",
+  zone_residential: "residential", zone_commercial: "commercial", zone_industrial: "industrial",
 };
 
 /** Where a tool's icon is (assets/icons/tools/, copied into the build as it is). */

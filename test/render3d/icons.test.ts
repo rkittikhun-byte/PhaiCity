@@ -10,7 +10,7 @@ import { GameTools } from '../../src/gameTools.js';
 import { MapGenerator } from '../../src/mapGenerator.js';
 
 // Every tool the game has (src/gameTools.js) wears an icon (owner, 15 Oct 2026: "ใส่ icon มาให้หมดเลย"); the zone brushes
-// and the eraser wear their zone's and the bulldozer's (src/toolShortcuts.ts ICON_OF), and "mine" is the mines' button
+// wear their zone's (src/toolShortcuts.ts ICON_OF), the zone eraser has its own, and "mine" is the mines' button
 const tools: string[] = TOOL_ICONS.map(([id]) => id);
 const colourOf = new Map<string, string>(TOOL_ICONS.map(([id, , , colour]) => [id, colour]));
 const directory = resolve('assets/icons/tools');

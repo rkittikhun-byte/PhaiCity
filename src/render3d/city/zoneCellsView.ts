@@ -6,7 +6,7 @@
 // brush is in hand; the cell under the brush picked out. It reads the map and never writes it.
 import { Color, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three';
 import { ownsLand, type LandMap } from '../../landBlocks.js';
-import { cellAt, cellsOf, plotCells, plotTileOfCell, type CellLayout, type CellMap } from '../../zoneCells.js';
+import { cellAt, cellsOf, plotTileOfCell, type CellLayout, type CellMap } from '../../zoneCells.js';
 import type { CityHeightField } from './heightfield.js';
 
 /** The zones' colours, as the zone buttons wear them */
@@ -93,8 +93,8 @@ export class ZoneCellsView {
       this.showArea(null, colour);
       return;
     }
-    // Highlight the exact road-snapped plot cells on the ground that a click will paint (game.js paintCellStroke)
-    const hoverKeys = plotCells(this.layout, this.map.width, rawCell, this.layout.cellUnits * 2.1).map((cell) => cell.key);
+    // Highlight the one cell on the ground that a click will paint (game.js paintCellStroke)
+    const hoverKeys = [rawCell.key];
     this.hoverGroup.visible = false;
     this.showArea(hoverKeys, colour);
   }

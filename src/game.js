@@ -47,7 +47,7 @@ import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlant
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
-import { cellsAlong, cellsOf, plotCells } from './zoneCells.ts';
+import { cellsAlong, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
@@ -963,18 +963,14 @@ Game.prototype.cellsInArea = function(from, to) {
   });
   if (!seedCells.length)
     return [];
-  // Expand every touched road column to its plot's whole depth (src/zoneCells.ts plotCells) so painted strips always
-  // form valid buildable plots
-  var isSmallClick = Math.hypot(ex - sx, ez - sz) < u * 1.5;
-  var alongTol = isSmallClick ? u * 2.1 : u * 0.65;
-  var outKeys = [], seen = {}, width = this.gameMap.width;
+  // Exactly the cells the rectangle reaches, row by row: a thin rectangle along a road paints one row of cells, a deeper
+  // one more rows (owner, 18 Oct 2026: "ให้วาดได้ทีละแถวเรียงๆ กันไป"), not the whole plot's depth as it once did
+  var outKeys = [], seen = {};
   seedCells.forEach(function(c) {
-    plotCells(layout, width, c, alongTol).forEach(function(other) {
-      if (!seen[other.key]) {
-        seen[other.key] = true;
-        outKeys.push(other.key);
-      }
-    });
+    if (!seen[c.key]) {
+      seen[c.key] = true;
+      outKeys.push(c.key);
+    }
   });
   return outKeys;
 };
@@ -1041,22 +1037,9 @@ Game.prototype.paintCellStroke = function(data) {
       }
     }
   }
-  // Expand each touched cell to all cells in its plot: the same road side within a plot's width and its plot's
-  // whole depth (src/zoneCells.ts plotCells)
-  var fullLotKeys = [];
-  var seenKey = {}, width = this.gameMap.width;
-  rawKeys.forEach(function(k) {
-    var idx = layout.byKey.get(k);
-    if (idx === undefined)
-      return;
-    plotCells(layout, width, layout.cells[idx], layout.cellUnits * 2.1).forEach(function(other) {
-      if (!seenKey[other.key]) {
-        seenKey[other.key] = true;
-        fullLotKeys.push(other.key);
-      }
-    });
-  });
-  this.paintCells(fullLotKeys.length ? fullLotKeys : rawKeys, data.x);
+  // Exactly the cells the mouse went over, one at a time (owner, 18 Oct 2026: "ให้วาดได้ทีละแถวเรียงๆ กันไป ถึงแม้จะลากยากไปขนาดไหน
+  // ก็ตาม"), not the whole plot's depth as it once painted: a drag along a road paints a row, the next drag the next row
+  this.paintCells(rawKeys, data.x);
 };
 
 
