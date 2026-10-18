@@ -172,8 +172,10 @@ export interface DrawnPath {
 export function drawnLine(path: DrawnPath, middleOf: (tile: number) => Point): Point[] {
   const middle = ([x, y]: readonly [number, number]): Point => [(x + 0.5) * 10, (y + 0.5) * 10];
   const ends = (): Point[] => [middleOf(path.tiles[0]), middleOf(path.tiles[path.tiles.length - 1])];
+  // A straight line from its first point to its last, which may be where it joined a road between tiles' middles
   const at = path.shape === "curve" && path.controls && path.controls.length >= 2 ? path.controls.map(middle) :
-    path.shape === "straight" ? ends() : null;
+    path.shape === "straight" ? (path.controls && path.controls.length >= 2 ?
+      [middle(path.controls[0]), middle(path.controls[path.controls.length - 1])] : ends()) : null;
   if (!at) return smoothLine(path.tiles.map(middleOf));
   let length = 0;
   for (let i = 1; i < at.length; i++) length += Math.hypot(at[i][0] - at[i - 1][0], at[i][1] - at[i - 1][1]);

@@ -314,14 +314,17 @@ export class RoadCurves {
       if (!p || !p.posed || ['residential', 'commercial', 'industrial'].includes(p.kind)) continue;
       const size = Math.max(p.footprint[0], p.footprint[1]);
       if (size < 3) continue;
-      const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn;
-      const x0 = i % width - 1, y0 = Math.floor(i / width) - 1, white = new Color(0xffffff);
+      const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
+      // As big as its tiles, but turned with it to face its road (owner, 18 Oct 2026: "ที่ว่าการอำเภอ ทำมันวาดเขียวๆ ไม่ขนาน
+      // กับถนน"): from the road's edge in front of it (game.js buildingPose: 0.6 before its front) back as deep as wide
+      const ground = p.ground(), side = size * 10, sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
+      const front = ground.depth / 2 + 0.6, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
       // A quad every half tile, so the lot lies on hills
-      for (let ty = 0; ty < size * 2; ty++) for (let tx = 0; tx < size * 2; tx++) {
-        const ax = (x0 + tx / 2) * 10, az = (y0 + ty / 2) * 10, bx = ax + 5, bz = az + 5;
-        if (ax < 0 || az < 0 || bx > width * 10 || bz > height * 10) continue;
-        this.flat([[ax, az], [bx, az], [bx, bz]], white, LOT_LIFT, out, colors);
-        this.flat([[ax, az], [bx, bz], [ax, bz]], white, LOT_LIFT, out, colors);
+      for (let row = 0; row < size * 2; row++) for (let column = 0; column < size * 2; column++) {
+        const u0 = -side / 2 + column * 5, v0 = front - side + row * 5, corners = [at(u0, v0), at(u0 + 5, v0), at(u0 + 5, v0 + 5), at(u0, v0 + 5)];
+        if (corners.some(([x, z]) => x < 0 || z < 0 || x > width * 10 || z > height * 10)) continue;
+        this.flat([corners[0], corners[1], corners[2]], white, LOT_LIFT, out, colors);
+        this.flat([corners[0], corners[2], corners[3]], white, LOT_LIFT, out, colors);
       }
     }
   }

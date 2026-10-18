@@ -62,7 +62,8 @@ describe("a district's frame", () => {
     const core = new CityCore({ map, seed: 5 });
     core.simulation.budget.setFunds(500000);
     expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 40, y: 26 }).accepted).toBe(true);
-    for (let x = 20; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40, stroke: 1 });
+    for (let x = 20; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40, stroke: 1, shape: "straight",
+      controls: [[19.6, 40], [79, 40]] } as any);
     expect(core.apply({ type: "tool", tool: "coal" as any, x: 30, y: 37 }).accepted).toBe(true);
     expect(core.apply({ type: "tool", tool: "landfill" as any, x: 50, y: 37 }).accepted).toBe(true);
     core.map.buildingPoses[37 * 96 + 50] = [500, 380, 1];
@@ -101,6 +102,8 @@ describe("a district's frame", () => {
     expect(again.map.roadPieces[5 * 160 + 5]).toBe(0);
     expect(again.map.roadPaths[1].tiles[0]).toBe(at(20, 40));
     expect(again.map.roadPaths[1].tiles[59]).toBe(at(79, 40));
+    // ... and its points, one where it joined a road between tiles' middles
+    expect(again.map.roadPaths[1].controls).toEqual([[19.6 + dx, 40 + dy], [79 + dx, 40 + dy]]);
     expect(again.map.rulerHouse).toMatchObject({ x: 40 + dx, y: 26 + dy });
     expect(again.map.town).toEqual({ x: 40 + dx, y: 26 + dy });
     // The land it owned is still its own, and the new land is not

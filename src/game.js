@@ -1848,7 +1848,10 @@ Game.prototype.handleToolPoint = function(data) {
   if (draft === null || draft.tool !== toolName || draft.mode !== mode)
     draft = this.lineDraft = {tool: toolName, mode: mode, points: [], from: null};
   var clicked = tile;
-  tile = this.snapTile(tile, toolName, draft).tile;
+  var snap = this.snapTile(tile, toolName, draft, this.cityView.pointAt ? this.cityView.pointAt(data.x, data.y) : null);
+  tile = snap.tile;
+  // ... and where on the road it joins it lands, exactly (roadDot)
+  draft.exact = (draft.exact || []).concat([snap.exact || null]);
   // Where the line starts, on the middle of the road it leaves from, for its preview
   if (draft.points.length === 0)
     draft.startPoint = this.linePoint(toolName, data.x, data.y);
@@ -1860,7 +1863,7 @@ Game.prototype.handleToolPoint = function(data) {
   var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
   // ... laid as drawn: one straight line, or the curve through its points (src/roadPieces.ts RoadPath)
   var shape = toolName === UPGRADE_TOOL ? null : {shape: mode === 'straight' ? 'straight' : 'curve',
-    controls: draft.points.map(function(p) { return [p.x, p.y]; })};
+    controls: exactControls(draft.points, draft.exact).map(function(p) { return [p.x, p.y]; })};
   var built = this.applyTiles(path, data.stroke, data.x, shape);
   if (built && modeGroupOf(toolName) === 'line')
     showCornerNote(strokeText(draft.clicks, built.laid, built.total, built.refused), STROKE_NOTE_MS);
@@ -1994,9 +1997,11 @@ Game.prototype.linePoint = function(toolName, x, y) {
     return point;
   // Where the click would really land (snapTile): on the middle line of the road it joins, at that road tile, or on
   // the tile a guideline moves it to, so the marker never shows a join the road would not make
-  var snap = this.snapTile(tile, toolName, this.lineDraft && this.lineDraft.tool === toolName ? this.lineDraft : null);
+  var snap = this.snapTile(tile, toolName, this.lineDraft && this.lineDraft.tool === toolName ? this.lineDraft : null, point);
   var middle = {x: snap.tile.x + 0.5, y: snap.tile.y + 0.5};
   if (snap.guide === 'road') {
+    if (snap.exact)
+      return snap.exact;
     var near = nearestOnLines(this.networkLines(toolName === 'rail'), middle.x * 10, middle.y * 10, 10);
     return near ? {x: near[0] / 10, y: near[1] / 10} : middle;
   }
@@ -2004,33 +2009,99 @@ Game.prototype.linePoint = function(toolName, x, y) {
 };
 
 
-// While a road or railway tool is in hand, a point on each tile of its kind within this many tiles of the mouse, on the
-// line's middle where a click may join it, its dead ends marked bigger (owner, 18 Oct 2026: "ตามถนน ควรจะมีระยะห่าง
-// แต่ละจุดที่ plot ลงไปได้ แบบชัดเจน ในระแวกที่เม้าชี้ไป"); worked out again only when the mouse's tile or the city changes
-var SNAP_DOT_REACH = 5;
+// While a road or railway tool is in hand, the points where a click may join a line of its kind within this many tiles
+// of the mouse: a tile apart along each line's middle, as evenly on a slanted road as a straight one (owner, 18 Oct 2026:
+// "ตามถนน ควรจะมีระยะห่าง แต่ละจุดที่ plot ลงไปได้ แบบชัดเจน ในระแวกที่เม้าชี้ไป", then "ทำไมมันเว้นจุดนึงน่ะ" of the
+// uneven points a staircase of tiles gave), and its dead ends marked bigger; worked out again only when the mouse's tile
+// or the city changes
+var SNAP_DOT_REACH = 5, DOT_STEP = 10;
 Game.prototype.snapDots = function(toolName, tile) {
   if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
     return null;
   var key = [toolName, tile.x, tile.y, this._edits].join('|');
   if (this._snapDots && this._snapDots.key === key)
     return this._snapDots.dots;
-  var isLine = this.lineKind(toolName), reach = SNAP_DOT_REACH;
-  var mx = (tile.x + 0.5) * 10, mz = (tile.y + 0.5) * 10, room = (reach + 2) * 10;
-  // Only the lines that come near the mouse
-  var near = this.networkLines(toolName === 'rail').filter(function(line) {
-    return line.some(function(p) { return Math.abs(p[0] - mx) < room && Math.abs(p[1] - mz) < room; });
+  var isLine = this.lineKind(toolName), reach = SNAP_DOT_REACH * 10;
+  var mx = (tile.x + 0.5) * 10, mz = (tile.y + 0.5) * 10;
+  var ends = [], dots = [];
+  this.networkLines(toolName === 'rail').forEach(function(line) {
+    if (line.length < 2 || !line.some(function(p) { return Math.abs(p[0] - mx) < reach + 20 && Math.abs(p[1] - mz) < reach + 20; }))
+      return;
+    // Its dead ends
+    [line[0], line[line.length - 1]].forEach(function(p) {
+      var x = Math.floor(p[0] / 10), y = Math.floor(p[1] / 10);
+      var beside = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(function(d) { return isLine(x + d[0], y + d[1]); }).length;
+      if (beside <= 1 && Math.hypot(p[0] - mx, p[1] - mz) <= reach)
+        ends.push({x: p[0] / 10, y: p[1] / 10, end: true});
+    });
+    // ... and a point every DOT_STEP along it from its start (roadDot)
+    dotsAlong(line, function(x, z) {
+      if (Math.hypot(x - mx, z - mz) <= reach)
+        dots.push({x: x / 10, y: z / 10, end: false});
+    });
   });
-  var dots = [];
-  for (var dy = -reach; dy <= reach; dy++) for (var dx = -reach; dx <= reach; dx++) {
-    var x = tile.x + dx, y = tile.y + dy;
-    if (Math.hypot(dx, dy) > reach + 0.5 || !isLine(x, y))
-      continue;
-    var beside = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(function(d) { return isLine(x + d[0], y + d[1]); }).length;
-    var on = nearestOnLines(near, (x + 0.5) * 10, (y + 0.5) * 10, 10);
-    dots.push({x: on ? on[0] / 10 : x + 0.5, y: on ? on[1] / 10 : y + 0.5, end: beside <= 1});
-  }
+  // A point at a dead end is its ring
+  dots = dots.filter(function(dot) {
+    return !ends.some(function(end) { return Math.hypot(end.x - dot.x, end.y - dot.y) < 0.5; });
+  }).concat(ends);
   this._snapDots = {key: key, dots: dots};
   return dots;
+};
+
+
+// Calls at(x, z) with each point a dot lies at along a line (world units): every DOT_STEP from its start
+var dotsAlong = function(line, at) {
+  var along = 0;
+  for (var i = 1; i < line.length; i++) {
+    var ax = line[i - 1][0], az = line[i - 1][1], dx = line[i][0] - ax, dz = line[i][1] - az, length = Math.hypot(dx, dz);
+    for (var s = Math.ceil(along / DOT_STEP) * DOT_STEP; s < along + length || (i === line.length - 1 && s <= along + length); s += DOT_STEP) {
+      var t = length ? (s - along) / length : 0;
+      at(ax + dx * t, az + dz * t);
+    }
+    along += length;
+  }
+};
+
+
+// Where a click joins a road (or railway) at a tile it snapped onto (snapTile), as the dots show (snapDots): a dead end's
+// very end, else the dot on the line through that tile nearest the mouse (point, in tiles); in tiles, or null
+Game.prototype.roadDot = function(toolName, tile, point) {
+  var lines = this.networkLines(toolName === 'rail');
+  var tx = (tile.x + 0.5) * 10, tz = (tile.y + 0.5) * 10;
+  var px = point ? point.x * 10 : tx, pz = point ? point.y * 10 : tz;
+  if (this.lineEndWay(toolName, tile) !== null) {
+    var end = null;
+    lines.forEach(function(line) {
+      [line[0], line[line.length - 1]].forEach(function(p) {
+        if (Math.hypot(p[0] - tx, p[1] - tz) <= 0.5)
+          end = {x: p[0] / 10, y: p[1] / 10};
+      });
+    });
+    if (end !== null)
+      return end;
+  }
+  // The dot nearest the mouse on a line passing the tile
+  var best = null;
+  lines.forEach(function(line) {
+    if (!nearestOnLines([line], tx, tz, 8))
+      return;
+    dotsAlong(line, function(x, z) {
+      var d = Math.hypot(x - px, z - pz);
+      if (Math.hypot(x - tx, z - tz) <= 15 && (best === null || d < best.d))
+        best = {x: x / 10, y: z / 10, d: d};
+    });
+  });
+  return best === null ? null : {x: best.x, y: best.y};
+};
+
+
+// A line's points for its drawn shape (src/roadPieces.ts controls), in tiles as their corners count: each clicked tile,
+// or the exact point where it joined a road (roadDot), half a tile back so its middle is that point
+var exactControls = function(points, exact) {
+  return points.map(function(p, i) {
+    var at = exact && exact[i];
+    return at ? {x: Math.round((at.x - 0.5) * 100) / 100, y: Math.round((at.y - 0.5) * 100) / 100} : {x: p.x, y: p.y};
+  });
 };
 
 
@@ -2060,13 +2131,18 @@ Game.prototype.lineKind = function(toolName) {
 // Where a click of a line tool lands with snapping on (src/drawPaths.ts): onto a road, railway or power line of its
 // kind within reach (snapReach), else along a straight or 45° line from the last point, else (a line's first point)
 // onto the guideline a block of plots from a straight road beside it; never moved further than reach. guide says which.
-Game.prototype.snapTile = function(tile, toolName, draft) {
+// Onto a road or railway it lands on a dot (roadDot) nearest the mouse (point, in tiles), exact, at that dot's tile
+Game.prototype.snapTile = function(tile, toolName, draft, point) {
   if (!snapOn())
     return {tile: tile, guide: null};
   var reach = this.snapReach();
-  var snapped = snapPoint(tile, this.lineKind(toolName), GRID_SPACING, reach, Math.max(END_SNAP_REACH, reach * 2));
-  if (snapped.guide === 'road')
-    return {tile: snapped.point, guide: 'road'};
+  var isLine = this.lineKind(toolName);
+  var snapped = snapPoint(tile, isLine, GRID_SPACING, reach, Math.max(END_SNAP_REACH, reach * 2));
+  if (snapped.guide === 'road') {
+    var exact = toolName === 'wire' ? null : this.roadDot(toolName, snapped.point, point || null);
+    var at = exact ? {x: Math.floor(exact.x), y: Math.floor(exact.y)} : null;
+    return {tile: at && isLine(at.x, at.y) ? at : snapped.point, guide: 'road', exact: exact};
+  }
   var points = draft ? draft.points : [];
   // A line started at a road's dead end goes on along its way (src/roadGeometry.ts smooth joints)
   var way = points.length === 1 ? this.lineEndWay(toolName, points[0]) : null;
@@ -2241,7 +2317,7 @@ Game.prototype.drawPreview = function(tile) {
     if (draft !== null && draft.points.length > 0) {
       var points = draft.points.concat([snap.tile]);
       tiles = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(points) : curvePath(points);
-      controls = toolName === UPGRADE_TOOL ? null : points;
+      controls = toolName === UPGRADE_TOOL ? null : exactControls(points, draft.exact);
       var start = points[0], leaving = points[1];
       angle = joinAngle({x: leaving.x - start.x, y: leaving.y - start.y}, draft.from, this.roadWayAt(start));
     } else if (snap.tile.x !== tile.x || snap.tile.y !== tile.y) {

@@ -52,7 +52,7 @@ export function readRoadPaths(saved: unknown): Record<number, RoadPath> {
     if (!path || !Array.isArray(path.tiles) || !path.tiles.every((i) => Number.isInteger(i))) continue;
     const read: RoadPath = { from: Number(path.from) || 0, to: Number(path.to) || 0, tiles: path.tiles.slice() };
     if ((LINE_SHAPES as readonly string[]).includes(path.shape as string)) read.shape = path.shape;
-    if (Array.isArray(path.controls) && path.controls.every((c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger))) {
+    if (Array.isArray(path.controls) && path.controls.every((c) => Array.isArray(c) && c.length === 2 && c.every(Number.isFinite))) {
       read.controls = path.controls.map(([x, y]) => [x, y]);
     }
     out[Number(key)] = read;

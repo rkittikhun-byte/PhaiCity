@@ -28,7 +28,7 @@ function slanted(): { snapshot: TileSnapshot; tiles: Array<[number, number]> } {
 }
 
 describe('road curves', () => {
-  test('a building stood against its road, drawn smaller than its tiles, lies on a lot of all of them', () => {
+  test('a building stood against its road, drawn smaller than its tiles, lies on a lot as big as them, turned with it', () => {
     // A road along row 20, and a civic 3 x 3 (the ruler's house's tiles 414-422) on rows 16-18 above it
     const W = 40, snapshot = new TileSnapshot(W, 40);
     for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
@@ -36,13 +36,19 @@ describe('road curves', () => {
     snapshot.flags[17 * W + 20] = ZONEBIT;
     snapshot.curves = true;
     const curves = new RoadCurves(snapshot, flat);
-    expect(snapshot.placement(17 * W + 20, 'central')?.posed).toBe(true);
+    const placed = snapshot.placement(17 * W + 20, 'central')!;
+    expect(placed.posed).toBe(true);
     const lot = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'lots');
     expect(lot).toBeDefined();
     lot!.geometry.computeBoundingBox();
     const box = lot!.geometry.boundingBox!;
-    // Its tiles, x 19-21 and rows 16-18, whole
-    expect([box.min.x, box.max.x, box.min.z, box.max.z]).toEqual([190, 220, 160, 190]);
+    // As big as its tiles, three across, turned with it to face the road (rotation 0 here, the road to the south): from
+    // the road's edge, just in front of it, three tiles back
+    const ground = placed.ground(), front = ground.z + ground.depth / 2 + 0.6;
+    expect(ground.rotation).toBeCloseTo(0);
+    for (const [got, want] of [[box.min.x, ground.x - 15], [box.max.x, ground.x + 15], [box.min.z, front - 30], [box.max.z, front]])
+      expect(got).toBeCloseTo(want, 4);
+    expect(front).toBeLessThan(205 - 3);
     curves.dispose();
   });
 

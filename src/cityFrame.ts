@@ -150,8 +150,9 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   if (typeof save.roadPieces === "string") out.roadPieces = encodePresetLayer(wideLayer(save.roadPieces));
   // ... and the tiles each was drawn along
   if (save.roadPaths && typeof save.roadPaths === "object") {
-    out.roadPaths = Object.fromEntries(Object.entries(save.roadPaths as Record<string, { tiles: number[] }>)
-      .map(([piece, path]) => [piece, { ...path, tiles: path.tiles.map(moved) }]));
+    out.roadPaths = Object.fromEntries(Object.entries(save.roadPaths as Record<string, { tiles: number[]; controls?: Array<[number, number]> }>)
+      .map(([piece, path]) => [piece, { ...path, tiles: path.tiles.map(moved),
+        ...(Array.isArray(path.controls) ? { controls: path.controls.map(([x, y]) => [x + dx, y + dy]) } : {}) }]));
   }
   // The ground's water: the new land full (the water works fill it to what it holds, src/waterManager.ts prepareGround)
   if (typeof save.groundwater === "string") out.groundwater = encodePresetLayer(layer(decoded(save.groundwater), null, 255));

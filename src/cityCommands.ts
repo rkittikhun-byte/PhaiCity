@@ -276,6 +276,9 @@ export function footprint(x: number, y: number, size: number): Array<{ x: number
   return tiles;
 }
 
+/** A line's point (src/roadPieces.ts controls) on a map size tiles across: a tile, or where a road was joined between
+ * tiles' middles, so as far as half a tile before the first */
+const onMap = (value: unknown, size: number): boolean => typeof value === "number" && Number.isFinite(value) && value >= -0.5 && value <= size - 0.5;
 const isInteger = (value: unknown, min: number, max: number): boolean =>
   typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
 
@@ -325,7 +328,7 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (c.part !== undefined && !isInteger(c.part, 0, 100000)) return "bad part";
       if (c.shape !== undefined && !isOneOf(LINE_SHAPES, c.shape)) return "bad shape";
       if (c.controls !== undefined && !(Array.isArray(c.controls) && c.controls.length >= 2 && c.controls.length <= 4 &&
-        c.controls.every((p) => Array.isArray(p) && p.length === 2 && isInteger(p[0], 0, width - 1) && isInteger(p[1], 0, height - 1)))) {
+        c.controls.every((p) => Array.isArray(p) && p.length === 2 && onMap(p[0], width) && onMap(p[1], height)))) {
         return "bad controls";
       }
       return null;

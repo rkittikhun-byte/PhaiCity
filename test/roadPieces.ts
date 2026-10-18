@@ -284,6 +284,26 @@ describe("road pieces", () => {
     }
   });
 
+  test("a road started on a dot of a slanted road starts at that very point on its middle line, and keeps it saved", () => {
+    // Owner, 18 Oct 2026: the dots along a road a tile apart, where a click lands exactly ("ทำไมมันเว้นจุดนึงน่ะ")
+    const core = newCity();
+    drawStraight(core, { x: 5, y: 50 }, { x: 60, y: 30 });
+    // A point on its middle line between tiles' middles, as game.js roadDot finds it, and the tile it lies on
+    const [road] = drawn(core).lines.map((line) => line.points);
+    const along = 0.37, p: Point = [road[0][0] + (road[road.length - 1][0] - road[0][0]) * along, road[0][1] + (road[road.length - 1][1] - road[0][1]) * along];
+    const start = { x: Math.floor(p[0] / 10), y: Math.floor(p[1] / 10) }, end = { x: start.x + 3, y: 12 };
+    draw(core, linePath(start, end), "road", { shape: "straight",
+      controls: [[Math.round((p[0] / 10 - 0.5) * 100) / 100, Math.round((p[1] / 10 - 0.5) * 100) / 100], [end.x, end.y]] });
+    const branch = drawn(core).lines.map((line) => line.points).find((line) => line !== drawn(core).lines[0].points &&
+      line.some(([x, z]) => Math.abs(x - (end.x + 0.5) * 10) < 0.01 && Math.abs(z - (end.y + 0.5) * 10) < 0.01))!;
+    const joined = Math.abs(branch[0][1] - (end.y + 0.5) * 10) < 0.01 ? branch[branch.length - 1] : branch[0];
+    expect(Math.hypot(joined[0] - p[0], joined[1] - p[1])).toBeLessThan(0.1);
+    // ... kept with the city
+    const again = newCity(JSON.parse(JSON.stringify(core.save())));
+    expect(again.map.roadPaths[2].controls[0]).toEqual(core.map.roadPaths[2].controls[0]);
+    expect(again.map.roadPaths[2].controls[0][0] % 1).not.toBe(0);
+  });
+
   test("the pieces are saved, and the next stroke is numbered on from them", () => {
     const core = newCity();
     drawCurve(core);
