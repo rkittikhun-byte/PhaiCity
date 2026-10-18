@@ -163,7 +163,7 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
     // A road or railway tool's small marker where it would start or end, on a road's middle line when near one
@@ -172,8 +172,17 @@ export class ToolOutline {
       const dot=new Mesh(new CircleGeometry(r0*.66,20).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));dot.position.set(x,y,z);dot.renderOrder=26;
       const ring=new Mesh(new RingGeometry(r0*.81,r0,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));ring.position.set(x,y+.02,z);ring.renderOrder=26;
       this.root.add(dot,ring);
+      // ... where the mouse is when a snap moves the click: a faint ring, dashed to where it lands (src/drawReadout.ts)
+      if(hover.cursorPoint)this.cursorLink(hover.cursorPoint,{x,z},r0);
+      // ... and the line's first point, A, ringed until the line is built
+      if(hover.lineStart){const ax=hover.lineStart.x*10,az=hover.lineStart.y*10,ay=(this.terrain?.enabled?this.terrain.sample(ax,az):0)+.78;
+        const pin=new Mesh(new RingGeometry(r0*1.15,r0*1.45,28).rotateX(-Math.PI/2),cityToolMaterial('#ffffff'));pin.position.set(ax,ay,az);pin.renderOrder=27;
+        this.root.add(pin);}
       if(!hover.path||hover.path.length<2)return;}
     if(hover.path&&hover.path.length>0){
+      // Red over the tiles it could not build on (src/game.js estimateTiles), so a line never comes out broken unseen
+      const blocked=(hover.blocked??[]).filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
+      if(blocked.length){const red=new Mesh(groundSquares(blocked,1,.12,.8,this.terrain),cityToolMaterial('#e0453a',true));red.renderOrder=27;this.root.add(red);}
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
       if(hover.line&&tiles.length>1&&(hover.drawMode==='rectangle'||hover.drawMode==='grid')){
@@ -244,6 +253,15 @@ export class ToolOutline {
       if(this.terrain?.enabled){const p=line.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+elevation(sx+p.getX(i),sz+p.getZ(i)));line.geometry.computeVertexNormals();}
       line.position.set(sx,.68,sz);line.renderOrder=26;this.root.add(line);
     }
+  }
+  /** A faint ring where the mouse is (tiles), and dashes from it to where the click lands (world units) */
+  private cursorLink(cursor:{x:number;y:number},land:{x:number;z:number},r0:number):void {
+    const cx=cursor.x*10,cz=cursor.y*10,ground=(x:number,z:number):number=>(this.terrain?.enabled?this.terrain.sample(x,z):0)+.74;
+    const faint=new Mesh(new RingGeometry(r0*.55,r0*.8,24).rotateX(-Math.PI/2),cityToolMaterial('#ffffff',true));faint.position.set(cx,ground(cx,cz),cz);faint.renderOrder=26;
+    this.root.add(faint);
+    const dx=land.x-cx,dz=land.z-cz,length=Math.hypot(dx,dz),dash=Math.max(.6,r0*.5),turn=Math.atan2(dx,dz);
+    for(let s=r0*.8;s+dash<length-r0;s+=dash*2){const x=cx+dx*(s+dash/2)/length,z=cz+dz*(s+dash/2)/length;
+      const piece=new Mesh(new BoxGeometry(.18,.04,dash),cityToolMaterial('#ffffff'));piece.position.set(x,ground(x,z),z);piece.rotation.y=turn;piece.renderOrder=26;this.root.add(piece);}
   }
   private clear():void {this.root.traverse(n=>{if(n instanceof Mesh)n.geometry.dispose();});this.root.clear();}
   dispose():void {this.clear();}

@@ -250,7 +250,8 @@ var mouseUpHandler = function(e) {
     var press = this._linePress;
     this._linePress = null;
     var dist = Math.hypot(c.x - press.x, c.y - press.y);
-    if (dist >= 14 && drawModeOf(this.toolName) === 'straight') {
+    // ... only from no line half drawn and over two tiles or more (src/game.js lineDragged); else it is a click
+    if (dist >= 14 && drawModeOf(this.toolName) === 'straight' && (!this.lineDragged || this.lineDragged(press, c))) {
       this.stroke += 1;
       this._emitEvent(Messages.TOOL_POINT, {x: press.x, y: press.y, stroke: this.stroke});
       this._emitEvent(Messages.TOOL_POINT, {x: c.x, y: c.y, stroke: this.stroke});
@@ -325,6 +326,11 @@ var canvasClickHandler = function(e) {
     return;
   }
   var clicks = this.isClickTool();
+  // PhaiCity: where the click is, not where the mouse last moved: a point of a line lands where it was clicked even
+  // when no move came before it (owner, 18 Oct 2026: "คลิกจุด A และ B มันควรจะเริ่มจากจุด A ไปถึง B")
+  var at = this.getRelativeCoordinates(e);
+  this.mouseX = at.x;
+  this.mouseY = at.y;
   if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
       this.mouseY === -1 || this._dragging)

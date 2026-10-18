@@ -278,6 +278,8 @@ body.toolDockReady #toolTray::before {
   animation: fc-pill-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 #activeToolPill[hidden] { display: none !important; }
+/* The corner note stands above the pill while a tool is in hand, with room for a line's numbers (src/drawReadout.ts) */
+body:has(#activeToolPill:not([hidden])) #cornerNote { bottom: 62px; max-width: 460px; border-radius: 10px; }
 
 @keyframes fc-pill-in {
   from { opacity: 0; transform: translateY(6px) scale(0.95); }

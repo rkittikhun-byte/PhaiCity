@@ -36,6 +36,12 @@ function toggle(element: HTMLElement, name: string, value: boolean): void {
   if (element.classList.contains(name) !== value) element.classList.toggle(name, value);
 }
 
+/** A card's or button's tooltip (src/hudTooltip.ts; owner, 18 Oct 2026: "แค่บอกว่า tool นี้ คืออะไร ราคาเท่าไหร่ พอ"): what it
+ * is, and its price when it has one */
+function tip(element: HTMLElement, name: string, price = ""): void {
+  attribute(element, "data-tip", price ? `${name} · ${price}` : name);
+}
+
 /**
  * Bottom dock and streamlined Fable-style interactive tray:
  * 1. Click category card on the dock
@@ -211,6 +217,7 @@ export function installToolDock(doc: Document = document): void {
       backCard.type = "button";
       backCard.className = "trayCard trayBackCard";
       backCard.setAttribute("aria-label", t("dock.back"));
+      tip(backCard, t("dock.back"));
       const bThumb = doc.createElement("div");
       bThumb.className = "cardThumb";
       bThumb.innerHTML = '<span style="font-size: 20px; font-weight: bold; color: var(--hud-text, #1d2925);">←</span>';
@@ -260,6 +267,7 @@ export function installToolDock(doc: Document = document): void {
 
         card.append(thumb, name);
         card.setAttribute("aria-label", t(`choice.${choice.tool}`));
+        tip(card, t(`choice.${choice.tool}`), price);
 
         card.addEventListener("click", () => {
           if (!available) return;
@@ -329,6 +337,7 @@ export function installToolDock(doc: Document = document): void {
           name.textContent = item.title;
 
           card.append(thumb, name);
+          tip(card, item.title, price);
 
           card.addEventListener("click", () => {
             if (!orig) return;
@@ -397,6 +406,7 @@ export function installToolDock(doc: Document = document): void {
 
         card.append(thumb, name);
         card.setAttribute("aria-label", TOOL_GROUP_LABELS.has(toolId) ? t(`dock.group.${toolId}`) : toolLabel(toolId).name);
+        tip(card, name.textContent ?? "", price);
 
         card.addEventListener("click", () => {
           if (orig.disabled) return;
@@ -444,6 +454,7 @@ export function installToolDock(doc: Document = document): void {
       const button = nav.get(category.id);
       if (!button) continue;
       button.querySelector<HTMLElement>(".catLabel")!.textContent = t(`dock.category.${category.id}`);
+      tip(button, t(`dock.category.${category.id}`));
       const highlighted = currentCategory === category.id && !tray.hidden;
       toggle(button, "current", highlighted);
       toggle(button, "hasTool", Boolean(armed && category.tools.includes(armed.dataset.tool ?? "")));

@@ -24,6 +24,7 @@ import { showDemandAndPeople, showServices, showTourism, showWaste } from './cit
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
+import { nextText, pixelsPerTile, pointText, showZoom, snapWhy, strokeText, tileHeight } from './drawReadout.ts';
 import { grownFrame, reframeSave } from './cityFrame.ts';
 import { DISTRICT_BLOCK, framePreset, freshFrame } from './geo/districtFrame.ts';
 import { Config } from './config.js';
@@ -51,7 +52,8 @@ import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
-import { curvePath, gridPath, joinAngle, linePath, rectanglePath, snapAlong, snapAngle, snapPoint } from './drawPaths.ts';
+import { curvePath, END_SNAP_REACH, GRID_SPACING, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
+  snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices } from './toolShortcuts.ts';
@@ -223,6 +225,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules, this.core.tools);
+  // A press dragged to its release draws a straight line at once only when no line is half drawn and it reaches two
+  // tiles: a click that slips a little is still a click (owner, 18 Oct 2026: "คลิกจุด A และ B มันควรจะเริ่มจากจุด A ไปถึง B")
+  var game = this;
+  this.inputStatus.lineDragged = function(from, to) {
+    if (game.lineDraft !== null && game.lineDraft.points.length > 0)
+      return false;
+    var a = game.cityView.tileAt(from.x, from.y), b = game.cityView.tileAt(to.x, to.y);
+    return a !== null && b !== null && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) >= 2;
+  };
   // The tool buttons show this province's prices
   this._planningFactor = 1;
   this.refreshPrices();
@@ -1663,6 +1674,11 @@ Game.prototype.placesBuilding = function() {
 
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
+  // How big a tile is on the screen, on the camera bar while a line tool is in hand (src/drawReadout.ts)
+  if (modeGroupOf(this.inputStatus.toolName) !== 'line')
+    showZoom(null);
+  else if (this.inputStatus.mouseX >= 0)
+    showZoom(pixelsPerTile(this.cityView, this.inputStatus.mouseX, this.inputStatus.mouseY));
   // The drawing tip shows again below while the mouse is on the map with a tool that draws by modes
   if (this.lineDraft === null)
     this.showDrawTip(null);
@@ -1748,6 +1764,8 @@ Game.prototype.calculateMouseForPaint = function() {
   var preview = this.drawPreview(tile);
   if (preview !== null && preview.tiles.length > 0) {
     hover.path = preview.tiles;
+    // ... red where it could not build (estimateTiles)
+    hover.blocked = preview.blocked && preview.blocked.length ? preview.blocked : null;
     hover.drawMode = preview.mode;
     // A road, railway or power line being drawn (including rectangle and grid road modes) uses road ribbons
     hover.line = preview.mode !== 'fill' && (preview.mode !== 'rectangle' || roadLevel > 0 || this.inputStatus.toolName === 'rail');
@@ -1760,6 +1778,10 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.straight = preview.mode === 'straight';
     hover.controls = preview.controls || null;
   }
+  // ... and where the mouse is when the click would land elsewhere, joined to where it lands (src/drawReadout.ts)
+  var readout = preview !== null ? preview.readout : null;
+  if (readout && (readout.raw.x !== readout.landed.x || readout.raw.y !== readout.landed.y))
+    hover.cursorPoint = {x: readout.raw.x + 0.5, y: readout.raw.y + 0.5};
   this.showDrawTip(preview);
   if (preview !== null) {
     if (this.lineDraft !== null)
@@ -1786,6 +1808,10 @@ Game.prototype.areaCentresFor = function(drag, size) {
 };
 
 
+// The points of a line drawn by clicks, by name, and how long the note after it stays (src/drawReadout.ts)
+var POINT_NAMES = ['A', 'B', 'C', 'D'];
+var STROKE_NOTE_MS = 9000;
+
 // A click of a tool that draws by clicks (src/drawModes.ts): a point of a line or a curve, which draws once it has all
 // its points and then goes on from its end, or a fill of painted zones
 Game.prototype.handleToolPoint = function(data) {
@@ -1811,15 +1837,20 @@ Game.prototype.handleToolPoint = function(data) {
   var draft = this.lineDraft;
   if (draft === null || draft.tool !== toolName || draft.mode !== mode)
     draft = this.lineDraft = {tool: toolName, mode: mode, points: [], from: null};
+  var clicked = tile;
   tile = this.snapTile(tile, toolName, draft).tile;
   // Where the line starts, on the middle of the road it leaves from, for its preview
   if (draft.points.length === 0)
     draft.startPoint = this.linePoint(toolName, data.x, data.y);
+  // ... and each point where it was clicked and where it was used, for the note after (src/drawReadout.ts)
+  draft.clicks = (draft.clicks || []).concat([{name: POINT_NAMES[draft.points.length] || '?', raw: clicked, used: tile}]);
   draft.points.push(tile);
   if (draft.points.length < needed)
     return;
   var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
-  this.applyTiles(path, data.stroke, data.x);
+  var built = this.applyTiles(path, data.stroke, data.x);
+  if (built && modeGroupOf(toolName) === 'line')
+    showCornerNote(strokeText(draft.clicks, built.laid, built.total, built.refused), STROKE_NOTE_MS);
   this.resetDraft();
 };
 
@@ -1944,34 +1975,62 @@ Game.prototype.buildingPose = function(size, x, y) {
 Game.prototype.linePoint = function(toolName, x, y) {
   if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || typeof this.cityView.pointAt !== 'function')
     return null;
-  var point = this.cityView.pointAt(x, y);
-  if (point === null)
-    return null;
-  var near = snapOn() ? nearestOnLines(this.networkLines(toolName === 'rail'), point.x * 10, point.y * 10, 14) : null;
-  return near ? {x: near[0] / 10, y: near[1] / 10} : point;
+  var point = this.cityView.pointAt(x, y), tile = this.cityView.tileAt(x, y);
+  if (point === null || tile === null || !snapOn())
+    return point;
+  // Where the click would really land (snapTile): on the middle line of the road it joins, at that road tile, or on
+  // the tile a guideline moves it to, so the marker never shows a join the road would not make
+  var snap = this.snapTile(tile, toolName, this.lineDraft && this.lineDraft.tool === toolName ? this.lineDraft : null);
+  var middle = {x: snap.tile.x + 0.5, y: snap.tile.y + 0.5};
+  if (snap.guide === 'road') {
+    var near = nearestOnLines(this.networkLines(toolName === 'rail'), middle.x * 10, middle.y * 10, 10);
+    return near ? {x: near[0] / 10, y: near[1] / 10} : middle;
+  }
+  return snap.tile.x !== tile.x || snap.tile.y !== tile.y ? middle : point;
+};
+
+
+// How far, in tiles, a click snaps (src/drawPaths.ts): about this many pixels on the screen round the mouse, so a
+// road's end is as easy to hit zoomed out as zoomed in (owner, 18 Oct 2026: "เกี่ยวกับการ zoom out/in ด้วยหรือป่าวนะ")
+var SNAP_PIXELS = 18;
+Game.prototype.snapReach = function() {
+  var view = this.cityView, x = this.inputStatus.mouseX, y = this.inputStatus.mouseY;
+  var at = function(px, py) { return typeof view.pointAt === 'function' ? view.pointAt(px, py) : view.tileAt(px, py); };
+  var here = x >= 0 ? at(x, y) : null, across = here ? at(x + SNAP_PIXELS, y) : null, down = here ? at(x, y + SNAP_PIXELS) : null;
+  if (!here || !across || !down)
+    return MIN_SNAP_REACH;
+  var tiles = Math.max(Math.hypot(across.x - here.x, across.y - here.y), Math.hypot(down.x - here.x, down.y - here.y));
+  return Math.max(MIN_SNAP_REACH, Math.min(MAX_SNAP_REACH, tiles));
+};
+
+
+// Whether a tile is of a line tool's kind: a railway, a power line, or a road
+Game.prototype.lineKind = function(toolName) {
+  var map = this.gameMap;
+  var kind = toolName === 'rail' ? function(v) { return v >= RAILBASE && v <= LASTRAIL; } :
+             toolName === 'wire' ? function(v) { return v >= POWERBASE && v <= LASTPOWER; } : isRoadTile;
+  return function(x, y) { return map.testBounds(x, y) && kind(map.getTileValue(x, y)); };
 };
 
 
 // Where a click of a line tool lands with snapping on (src/drawPaths.ts): onto a road, railway or power line of its
-// kind within a tile, else along a straight or 45° line from the last point, else (a line's first point) onto the
-// guideline a block of plots from a straight road beside it. guide says which.
+// kind within reach (snapReach), else along a straight or 45° line from the last point, else (a line's first point)
+// onto the guideline a block of plots from a straight road beside it; never moved further than reach. guide says which.
 Game.prototype.snapTile = function(tile, toolName, draft) {
   if (!snapOn())
     return {tile: tile, guide: null};
-  var map = this.gameMap;
-  var kind = toolName === 'rail' ? function(v) { return v >= RAILBASE && v <= LASTRAIL; } :
-             toolName === 'wire' ? function(v) { return v >= POWERBASE && v <= LASTPOWER; } : isRoadTile;
-  var snapped = snapPoint(tile, function(x, y) { return map.testBounds(x, y) && kind(map.getTileValue(x, y)); });
+  var reach = this.snapReach();
+  var snapped = snapPoint(tile, this.lineKind(toolName), GRID_SPACING, reach, Math.max(END_SNAP_REACH, reach * 2));
   if (snapped.guide === 'road')
     return {tile: snapped.point, guide: 'road'};
   var points = draft ? draft.points : [];
   // A line started at a road's dead end goes on along its way (src/roadGeometry.ts smooth joints)
   var way = points.length === 1 ? this.lineEndWay(toolName, points[0]) : null;
-  var along = way ? snapAlong(points[0], tile, way) : null;
+  var along = way ? snapAlong(points[0], tile, way, SNAP_DEGREES, reach) : null;
   if (along !== null)
     return {tile: along, guide: 'way'};
   if (points.length > 0) {
-    var angled = snapAngle(points[points.length - 1], tile);
+    var angled = snapAngle(points[points.length - 1], tile, SNAP_DEGREES, reach);
     return {tile: angled, guide: null};
   }
   return {tile: snapped.point, guide: snapped.guide};
@@ -2047,6 +2106,9 @@ Game.prototype.applyTiles = function(tiles, stroke, soundX) {
   var best = null;
   var refusal = null;
   var broke = false;
+  // A line tool: how many of its tiles end up of its kind, and why the others do not (src/drawReadout.ts)
+  var isLine = modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL ? this.lineKind(toolName) : null;
+  var laid = 0, total = 0, refused = {};
   tiles.forEach(function(tile) {
     if (!this.gameMap.testBounds(tile.x, tile.y))
       return;
@@ -2058,6 +2120,20 @@ Game.prototype.applyTiles = function(tiles, stroke, soundX) {
       broke = true;
     if (result !== null && result !== undefined && (best === null || result === tool.TOOLRESULT_OK))
       best = result;
+    if (isLine === null)
+      return;
+    total++;
+    if (isLine(tile.x, tile.y)) {
+      laid++;
+      return;
+    }
+    var why = !outcome.accepted ? (outcome.reason === OUTSIDE_PROVINCE ? t('tool.outside_province') :
+                                   outcome.reason === LAND_LOCKED ? t('land.note.locked') :
+                                   HOUSE_REASONS.indexOf(outcome.reason) !== -1 ? houseNote(outcome.reason, this.gameMap) :
+                                   t('draw.debug.cannot')) :
+              result === tool.TOOLRESULT_NO_MONEY ? t('draw.debug.no_money') :
+              result === tool.TOOLRESULT_NEEDS_BULLDOZE ? t('draw.debug.needs_bulldoze') : t('draw.debug.cannot');
+    refused[why] = (refused[why] || 0) + 1;
   }, this);
 
   if (best !== tool.TOOLRESULT_OK && refusal !== null) {
@@ -2069,6 +2145,8 @@ Game.prototype.applyTiles = function(tiles, stroke, soundX) {
   this.showToolResult(tool, broke ? tool.TOOLRESULT_NO_MONEY : best);
   this.gameAudio.toolUsed(toolName, best === null ? tool.TOOLRESULT_FAILED : best, soundX);
   this.refreshUndo();
+  return isLine === null ? null :
+    {laid: laid, total: total, refused: Object.keys(refused).map(function(why) { return [why, refused[why]]; })};
 };
 
 
@@ -2101,9 +2179,15 @@ Game.prototype.drawPreview = function(tile) {
   var guide = null;
   var angle = null;
   var controls = null;
+  var readout = null;
   if (POINTS_NEEDED[mode]) {
     var snap = this.snapTile(tile, toolName, draft);
     guide = snap.guide;
+    // The numbers beside the mouse (src/drawReadout.ts): where the next point is, where it lands and why
+    if (modeGroupOf(toolName) === 'line')
+      readout = {name: POINT_NAMES[draft !== null ? draft.points.length : 0] || '?', raw: tile, landed: snap.tile,
+                 why: snapWhy(tile, snap.tile, snap.guide, this.lineKind(toolName)),
+                 start: draft !== null && draft.points.length > 0 ? draft.points[0] : null};
     if (draft !== null && draft.points.length > 0) {
       var points = draft.points.concat([snap.tile]);
       tiles = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(points) : curvePath(points);
@@ -2125,8 +2209,9 @@ Game.prototype.drawPreview = function(tile) {
     }
     metres *= this.gameMap.tileSizeM || 10;
   }
-  this._preview = {key: key, tiles: tiles, cost: tiles.length > 0 ? this.estimateCost(tiles) : 0, mode: mode, step: step,
-                   metres: metres, angle: angle, guide: guide, controls: controls};
+  var estimate = tiles.length > 0 ? this.estimateTiles(tiles) : {cost: 0, blocked: []};
+  this._preview = {key: key, tiles: tiles, cost: estimate.cost, blocked: estimate.blocked, mode: mode, step: step,
+                   metres: metres, angle: angle, guide: guide, controls: controls, readout: readout};
   return this._preview;
 };
 
@@ -2134,6 +2219,28 @@ Game.prototype.drawPreview = function(tile) {
 // What the tool in hand would cost over these tiles, each tried on its own and put back (an estimate: tiles that
 // would join up may cost a little less)
 Game.prototype.estimateCost = function(tiles) {
+  return this.estimateTiles(tiles).cost;
+};
+
+
+// ... and, for a line tool, the tiles it could not build on: outside the province, land not bought, or what the tool
+// itself refuses, other than its own kind already there (owner, 18 Oct 2026: a road must never come out broken unseen)
+Game.prototype.estimateTiles = function(tiles) {
+  var map = this.gameMap, inside = canBuildIn(map);
+  var isLine = modeGroupOf(this.inputStatus.toolName) === 'line' && this.inputStatus.toolName !== UPGRADE_TOOL ?
+               this.lineKind(this.inputStatus.toolName) : null;
+  var blocked = [];
+  var cost = this.estimateCostOf(tiles, function(tile, ok) {
+    if (isLine === null || isLine(tile.x, tile.y))
+      return;
+    if (!ok || !inside(tile.x, tile.y) || !ownsLand(map, tile.x, tile.y))
+      blocked.push(tile);
+  });
+  return {cost: cost, blocked: blocked};
+};
+
+
+Game.prototype.estimateCostOf = function(tiles, each) {
   var tool = this.inputStatus.currentTool;
   var blockMaps = this.simulation.blockMaps;
   var total = 0;
@@ -2143,6 +2250,8 @@ Game.prototype.estimateCost = function(tiles) {
     tool.doTool(tile.x, tile.y, blockMaps);
     if (tool.result === tool.TOOLRESULT_OK)
       total += tool.totalCost();
+    if (each)
+      each(tile, tool.result === tool.TOOLRESULT_OK);
     tool.clear();
   }, this);
   return total;
@@ -2161,8 +2270,15 @@ Game.prototype.showDrawTip = function(preview) {
     tip.dataset.text = '';
     return;
   }
-  // Concise metric chips: angle, guide, length, cost (wordy step/cancel text omitted per user request)
-  var parts = [];
+  // Concise metric chips: where the points are (src/drawReadout.ts), angle, guide, length, cost (wordy step/cancel text
+  // omitted per user request)
+  var parts = [], map = this.gameMap, readout = preview.readout;
+  if (readout) {
+    if (readout.start)
+      parts.push(pointText('A', readout.start, tileHeight(map, readout.start)));
+    parts.push(nextText(readout.name, readout.raw, tileHeight(map, readout.raw), readout.landed, tileHeight(map, readout.landed),
+                        readout.why));
+  }
   if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
     parts.push('∠ ' + preview.angle + '°');
   if (preview.guide)
@@ -2172,6 +2288,8 @@ Game.prototype.showDrawTip = function(preview) {
                        t('draw.length', {metres: Math.round(preview.metres)})));
   if (preview.tiles.length > 0)
     parts.push(t('draw.cost', {count: preview.tiles.length, price: formatMoney(preview.cost)}));
+  if (preview.blocked && preview.blocked.length > 0)
+    parts.push(t('draw.debug.blocked', {count: preview.blocked.length}));
 
   var text = parts.join('\n');
   tip.hidden = text === '';

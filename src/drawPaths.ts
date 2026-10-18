@@ -94,11 +94,20 @@ export function gridPath(a: TilePoint, b: TilePoint, spacing = GRID_SPACING): Ti
 
 /** How near a straight or 45° line, in degrees, a line's end snaps onto it */
 export const SNAP_DEGREES = 7;
-/** How far, in tiles, a point moves to reach a road or a guideline */
+/** How far, in tiles, a point moves to reach a guideline */
 export const SNAP_REACH = 2;
+/** How far, in tiles, a click reaches for a road, and the most any snap moves it: about 18 pixels on the screen
+ * (src/game.js snapReach), so a road's end is as easy to hit zoomed out as zoomed in (owner, 18 Oct 2026: "มันไม่เริ่มจาก
+ * จุด A ไป B และยัง ขาดๆ หายๆ ด้วย ... เกี่ยวกับการ zoom out/in ด้วยหรือป่าวนะ") */
+export const MIN_SNAP_REACH = 1.5;
+export const MAX_SNAP_REACH = 4;
+/** ... and how far it reaches for a road's dead end, at least: a new line begun this near an end goes on from it (a
+ * road begun a tile or two off an end, not joined to it, is never what was meant: owner, 18 Oct 2026) */
+export const END_SNAP_REACH = 3;
 
-/** The end of a line from a moved onto the nearest multiple of 45° when the line is within SNAP_DEGREES of it. */
-export function snapAngle(a: TilePoint, b: TilePoint, degrees = SNAP_DEGREES): TilePoint {
+/** The end of a line from a moved onto the nearest multiple of 45° when the line is within SNAP_DEGREES of it, and the
+ * move is no more than reach tiles. */
+export function snapAngle(a: TilePoint, b: TilePoint, degrees = SNAP_DEGREES, reach = Infinity): TilePoint {
   const dx = b.x - a.x, dy = b.y - a.y;
   if (dx === 0 && dy === 0) return b;
   const angle = Math.atan2(dy, dx), step = Math.PI / 4;
@@ -107,38 +116,53 @@ export function snapAngle(a: TilePoint, b: TilePoint, degrees = SNAP_DEGREES): T
   const ux = Math.round(Math.cos(nearest)), uy = Math.round(Math.sin(nearest));
   // Along an axis keep the long side; along a diagonal, the steps both ways
   const length = ux !== 0 && uy !== 0 ? Math.round((Math.abs(dx) + Math.abs(dy)) / 2) : Math.max(Math.abs(dx), Math.abs(dy));
-  return { x: a.x + ux * length, y: a.y + uy * length };
+  const snapped = { x: a.x + ux * length, y: a.y + uy * length };
+  return Math.hypot(snapped.x - b.x, snapped.y - b.y) <= reach ? snapped : b;
 }
 
 /**
  * The next point of a line that starts at a road's dead end moved onto the road's own way on from that end (way: a
- * unit vector, in tiles), when the line is within SNAP_DEGREES of it and at least two tiles long, so a road drawn on
- * from an end goes on along it, and a curve's bend leaves it smoothly; null when it is not (src/roadGeometry.ts).
+ * unit vector, in tiles), when the line is within SNAP_DEGREES of it, at least two tiles long and the move no more than
+ * reach tiles, so a road drawn on from an end goes on along it, and a curve's bend leaves it smoothly; null when it is
+ * not (src/roadGeometry.ts).
  */
-export function snapAlong(a: TilePoint, b: TilePoint, way: { x: number; y: number }, degrees = SNAP_DEGREES): TilePoint | null {
+export function snapAlong(a: TilePoint, b: TilePoint, way: { x: number; y: number }, degrees = SNAP_DEGREES,
+                          reach = Infinity): TilePoint | null {
   const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
   if (length < 2) return null;
   const along = dx * way.x + dy * way.y;
   if (along <= 0 || Math.acos(Math.min(1, along / length)) > degrees * Math.PI / 180) return null;
-  return { x: Math.round(a.x + way.x * along), y: Math.round(a.y + way.y * along) };
+  const snapped = { x: Math.round(a.x + way.x * along), y: Math.round(a.y + way.y * along) };
+  return Math.hypot(snapped.x - b.x, snapped.y - b.y) <= reach ? snapped : null;
 }
 
 export type SnapGuide = "road" | "spacing" | "way" | null;
 
 /**
- * A clicked point moved onto a road within one tile, so the new line joins it; failing that, onto the guideline
- * GRID_SPACING tiles from a straight road running beside it (a road and three plots deep on each side between them),
- * when that is within SNAP_REACH tiles. isRoad answers for tiles on the map only.
+ * A clicked point moved onto a road within reach tiles (from its tile's middle to the road tile's, half a tile more),
+ * or onto a road's dead end within endReach, so the new line joins it: a dead end first, as a road is built on from
+ * its end, else the nearest; failing that, onto the guideline GRID_SPACING tiles from a straight road running beside it
+ * (a road and three plots deep on each side between them), when that is within SNAP_REACH tiles and reach. isRoad
+ * answers for tiles on the map only.
  */
 export function snapPoint(p: TilePoint, isRoad: (x: number, y: number) => boolean,
-                          spacing = GRID_SPACING): { point: TilePoint; guide: SnapGuide } {
+                          spacing = GRID_SPACING, reach = 1, endReach = reach): { point: TilePoint; guide: SnapGuide } {
   if (isRoad(p.x, p.y)) return { point: p, guide: "road" };
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    if (isRoad(p.x + dx, p.y + dy)) return { point: { x: p.x + dx, y: p.y + dy }, guide: "road" };
+  const around = Math.floor(Math.max(reach, endReach) + 0.5);
+  let road: { point: TilePoint; score: number } | null = null;
+  for (let dy = -around; dy <= around; dy++) for (let dx = -around; dx <= around; dx++) {
+    const x = p.x + dx, y = p.y + dy, distance = Math.hypot(dx, dy);
+    if (distance > Math.max(reach, endReach) + 0.5 || !isRoad(x, y)) continue;
+    const end = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([ex, ey]) => isRoad(x + ex, y + ey)).length <= 1;
+    if (distance > (end ? endReach : reach) + 0.5) continue;
+    const score = distance - (end ? 1 : 0);
+    if (!road || score < road.score) road = { point: { x, y }, score };
   }
-  // A straight road three tiles long, level with the point, spacing ± SNAP_REACH tiles away
+  if (road) return { point: road.point, guide: "road" };
+  // A straight road three tiles long, level with the point, spacing ± SNAP_REACH tiles away (no further than reach)
+  const shiftMost = Math.min(SNAP_REACH, Math.floor(reach));
   let best: { point: TilePoint; shift: number } | null = null;
-  for (let d = spacing - SNAP_REACH; d <= spacing + SNAP_REACH; d++) {
+  for (let d = spacing - shiftMost; d <= spacing + shiftMost; d++) {
     for (const sign of [-1, 1]) {
       const shift = (d - spacing) * sign;
       if (shift === 0 || (best && Math.abs(shift) >= best.shift)) continue;

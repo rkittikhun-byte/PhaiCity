@@ -35,6 +35,8 @@ export interface ToolHover {
   path?: readonly TilePoint[];
   /** Whether path is a line being drawn (a road, railway or power line), shown with a dashed middle. */
   line?: boolean;
+  /** ... and its tiles it could not build on (src/game.js estimateTiles), shown red */
+  blocked?: readonly TilePoint[] | null;
   /** A zone brush on a map painted a cell at a time (src/zoneCells.ts): where the mouse is, in tiles, to show the cell
    * under it instead of a tile */
   cellPoint?: { x: number; y: number } | null;
@@ -44,6 +46,8 @@ export interface ToolHover {
    * shown as a small marker rather than a tile; and where the line being drawn started */
   linePoint?: { x: number; y: number } | null;
   lineStart?: { x: number; y: number } | null;
+  /** ... and where the mouse is when the click would land elsewhere (a snap moved it, src/drawReadout.ts), in tiles */
+  cursorPoint?: { x: number; y: number } | null;
   /** The line is drawn in the straight mode: shown as one straight line from its start to its end */
   straight?: boolean;
   /** The points a line drawn by clicks bends through (straight, curve, S-curve), in tiles: its preview is that curve */

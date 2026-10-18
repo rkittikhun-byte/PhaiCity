@@ -517,9 +517,11 @@ export function cityLODDepthMaterial(base:MeshStandardMaterial): MeshDepthMateri
 export function cityToolMaterial(color: ColorRepresentation, fill = false): MeshStandardMaterial {
   return finishedMaterial(`city-tool-${fill}`, 'sign_thai', color, material => {
     material.userData.keepColorMap = true; material.map = null;
-    // A fill strong enough to read on any ground (owner, 15 Oct 2026: "rect ก่อนจะวางให้สีเข้มขึ้น")
-    material.transparent = fill; material.opacity = fill ? 0.45 : 0.95;
-    material.depthWrite = false; material.roughness = 1;
+    // A fill strong enough to read on any ground (owner, 15 Oct 2026: "rect ก่อนจะวางให้สีเข้มขึ้น"), drawn over everything
+    // on the map, after it, so no hill, road or tree hides any of it (owner, 18 Oct 2026: "rect ที่วาดแต่ละ tool ฉันอยากให้
+    // อยู่บนสุดของพื้นผิว map"); the outline's group sorts it last (overlay.ts ToolOutline)
+    material.transparent = true; material.opacity = fill ? 0.45 : 0.95;
+    material.depthWrite = false; material.depthTest = false; material.roughness = 1;
     material.polygonOffset = true; material.polygonOffsetFactor = -2;
     material.polygonOffsetUnits = -2;
   });
@@ -544,7 +546,8 @@ export function cityDrawMaterial(color: ColorRepresentation): MeshStandardMateri
   return finishedMaterial('city-draw', 'sign_thai', color, material => {
     material.userData.keepColorMap = true; material.map = null;
     material.transparent = true; material.opacity = 0.78;
-    material.depthWrite = false; material.roughness = 1;
+    // ... over everything on the map, as the tools' outlines are (cityToolMaterial)
+    material.depthWrite = false; material.depthTest = false; material.roughness = 1;
     material.emissive.set(color); material.emissiveIntensity = 0.45;
     material.polygonOffset = true; material.polygonOffsetFactor = -3;
     material.polygonOffsetUnits = -3;

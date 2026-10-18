@@ -6,7 +6,7 @@
 
 import type { TilePoint } from "../src/cityView";
 import {
-  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAlong, snapAngle, snapPoint,
+  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAlong, snapAngle, SNAP_DEGREES, snapPoint,
 } from "../src/drawPaths";
 
 /** Every step of a chain goes to a tile beside the last: never a diagonal, never a jump. */
@@ -81,6 +81,31 @@ describe("drawn lines", () => {
     expect(snapPoint({ x: 7, y: 2 }, isRoad)).toEqual({ point: { x: 7, y: 3 }, guide: "spacing" });
     expect(snapPoint({ x: 7, y: 17 }, isRoad)).toEqual({ point: { x: 7, y: 17 }, guide: null });
     expect(snapPoint({ x: 30, y: 30 }, isRoad).guide).toBeNull();
+  });
+
+  test("zoomed out a click reaches further for a road, its dead end first, and no snap moves it further than that", () => {
+    const roads = new Set(["5,10", "6,10", "7,10", "8,10", "9,10"]);
+    const isRoad = (x: number, y: number): boolean => roads.has(`${x},${y}`);
+    // Two tiles off the road's end: too far within a tile and a half, joined within two
+    expect(snapPoint({ x: 11, y: 11 }, isRoad, GRID_SPACING, 1.5)).toEqual({ point: { x: 11, y: 11 }, guide: null });
+    expect(snapPoint({ x: 11, y: 11 }, isRoad, GRID_SPACING, 2)).toEqual({ point: { x: 9, y: 10 }, guide: "road" });
+    // Nearer the road's middle than its end, but the end is near too: the end, as a road is built on from it
+    expect(snapPoint({ x: 9, y: 12 }, isRoad, GRID_SPACING, 2)).toEqual({ point: { x: 9, y: 10 }, guide: "road" });
+    expect(snapPoint({ x: 7, y: 12 }, isRoad, GRID_SPACING, 2)).toEqual({ point: { x: 7, y: 10 }, guide: "road" });
+    // The angle snaps move a point no further than the reach
+    expect(snapAngle({ x: 0, y: 0 }, { x: 20, y: 1 }, SNAP_DEGREES, 0.5)).toEqual({ x: 20, y: 1 });
+    expect(snapAngle({ x: 0, y: 0 }, { x: 40, y: 3 }, SNAP_DEGREES, 2)).toEqual({ x: 40, y: 3 });
+    expect(snapAngle({ x: 0, y: 0 }, { x: 40, y: 3 }, SNAP_DEGREES, 4)).toEqual({ x: 40, y: 0 });
+    expect(snapAlong({ x: 10, y: 10 }, { x: 18, y: 19 }, { x: 0.6, y: 0.8 }, SNAP_DEGREES, 1)).toBeNull();
+  });
+
+  test("a road's dead end reaches further than the rest of the road: a line begun near an end goes on from it", () => {
+    const roads = new Set(["5,10", "6,10", "7,10", "8,10", "9,10"]);
+    const isRoad = (x: number, y: number): boolean => roads.has(`${x},${y}`);
+    // Three tiles off the end: joined to it; three off the road's middle: not joined
+    expect(snapPoint({ x: 12, y: 11 }, isRoad, GRID_SPACING, 1.5, 3)).toEqual({ point: { x: 9, y: 10 }, guide: "road" });
+    expect(snapPoint({ x: 12, y: 12 }, isRoad, GRID_SPACING, 1.5, 3).guide).toBeNull();
+    expect(snapPoint({ x: 7, y: 13 }, isRoad, GRID_SPACING, 1.5, 3).guide).toBeNull();
   });
 
   test("a new line's angle: with the line before it, or with the road it leaves", () => {

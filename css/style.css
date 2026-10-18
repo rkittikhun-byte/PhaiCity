@@ -2049,6 +2049,13 @@ body:has(#cameraBar) #rulerGoals { max-height: calc(100% - 380px); }
 #cameraBar .cameraButton[data-camera="flat"] { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
 #cameraBar .cameraButton:disabled { opacity: 0.35; cursor: default; transform: none; background: transparent; }
 #cameraBar .cameraGap { width: 20px; height: 1px; margin: 3px 0; background: var(--hud-edge); }
+/* How big a tile is on the screen while a line tool is in hand, beside the bar's top (src/drawReadout.ts showZoom) */
+#cameraBar #zoomChip {
+  position: absolute; right: calc(100% + 6px); top: 6px; padding: 2px 7px; border: 1px solid var(--hud-edge);
+  border-radius: 6px; background: var(--hud-glass); box-shadow: var(--hud-shadow); color: var(--hud-text);
+  font: 400 9px/1.3 'Sarabun Thai', 'Open Sans', sans-serif; white-space: nowrap; pointer-events: none;
+}
+#cameraBar #zoomChip[hidden] { display: none; }
 body:has(#controls .toolButton.selected) #toolLevels { bottom: 84px; }
 @keyframes dockIn { from { transform: translate(-50%, 100%); } }
 /* While a task points at a tool, the tucked dock glows a little so the player looks there */

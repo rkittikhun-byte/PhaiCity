@@ -311,6 +311,23 @@
 | `draw.snap.road` | `src/game.js` | — | `Joins the line` | `ต่อกับเส้นเดิม` |  |
 | `draw.snap.spacing` | `src/game.js` | — | `7 tiles from the road beside: plots three deep on both sides` | `ห่างถนนข้างเคียง 7 ช่อง เขตลึก 3 ช่องพอดีทั้งสองฝั่ง` |  |
 | `draw.snap.way` | `src/game.js` | — | `Goes on along the line` | `ต่อตามแนวเส้นเดิม` | ลากต่อจากปลายถนนหรือรางเดิมไปตามทิศของมัน (Claude Code 18 ต.ค. 2026) |
+| `draw.debug.zoom` | `src/drawReadout.ts` | — | `1 tile = {px} px` | `1 ช่อง = {px} px` | ระดับซูม ที่แถบกล้อง ตอนถือเครื่องมือวาดเส้น (Claude Code 18 ต.ค. 2026) |
+| `draw.debug.point` | `src/drawReadout.ts` | — | `{name} ({x}, {y}, {z} m)` | `{name} ({x}, {y}, {z} ม.)` | ช่อง x, y และความสูงพื้น z ของจุดที่วาง |
+| `draw.debug.next` | `src/drawReadout.ts` | — | `{name}: mouse ({cx}, {cy}, {cz} m) → lands at ({x}, {y}, {z} m) · {why}` | `{name}: เมาส์ ({cx}, {cy}, {cz} ม.) → ลงที่ ({x}, {y}, {z} ม.) · {why}` | จุดถัดไป: ช่องใต้เมาส์ ช่องที่คลิกแล้วจะลงจริง และเหตุผล |
+| `draw.debug.why.on` | `src/drawReadout.ts` | — | `on the line` | `บนเส้นเดิม` |  |
+| `draw.debug.why.end` | `src/drawReadout.ts` | — | `joins a line's end` | `ต่อปลายเส้นเดิม` |  |
+| `draw.debug.why.road` | `src/drawReadout.ts` | — | `joins the line` | `ต่อเส้นเดิม` |  |
+| `draw.debug.why.spacing` | `src/drawReadout.ts` | — | `7 tiles from the road beside` | `แนวห่างถนนข้างเคียง 7 ช่อง` |  |
+| `draw.debug.why.angle` | `src/drawReadout.ts` | — | `onto a straight or 45° line` | `ดัดเข้าแนวตรงหรือ 45°` |  |
+| `draw.debug.why.way` | `src/drawReadout.ts` | — | `along the line it goes on from` | `ตามแนวเส้นเดิม` |  |
+| `draw.debug.why.none` | `src/drawReadout.ts` | — | `where clicked` | `ตรงจุดที่คลิก` |  |
+| `draw.debug.click` | `src/drawReadout.ts` | — | `{name} clicked ({cx}, {cy}), used ({x}, {y})` | `{name} คลิก ({cx}, {cy}) ใช้ ({x}, {y})` | สรุปหลังสร้างเส้นเสร็จ |
+| `draw.debug.laid` | `src/drawReadout.ts` | — | `laid {laid}/{total} tiles` | `วางได้ {laid}/{total} ช่อง` |  |
+| `draw.debug.refused` | `src/drawReadout.ts` | — | `{count} not laid: {why}` | `{count} ช่องวางไม่ได้: {why}` |  |
+| `draw.debug.no_money` | `src/drawReadout.ts` | — | `not enough money` | `เงินไม่พอ` |  |
+| `draw.debug.needs_bulldoze` | `src/drawReadout.ts` | — | `something in the way` | `มีสิ่งขวางอยู่` |  |
+| `draw.debug.cannot` | `src/drawReadout.ts` | — | `cannot be built there` | `สร้างตรงนั้นไม่ได้` |  |
+| `draw.debug.blocked` | `src/game.js` | — | `{count} tiles cannot be built (red)` | `สร้างไม่ได้ {count} ช่อง (สีแดง)` | ช่องที่เส้นนี้วางไม่ได้ ก่อนคลิก |
 | `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
 | `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |
