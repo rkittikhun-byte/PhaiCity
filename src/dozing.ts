@@ -54,8 +54,10 @@ export function dozeTile(map: DozeMap, tile: DozePoint, point: DozePoint | null,
 }
 
 /** The tiles a bulldozer dragged from one point to another goes over, each once: those under its way, and the line tiles
- * beside it that the road drawn smooth runs through */
-export function dozePath(map: DozeMap, from: DozePoint, to: DozePoint): DozePoint[] {
+ * beside it that the road drawn smooth runs through; where a line tile lies within reach of a bare tile (open: whether a
+ * tile value is bare land or trees) under the way, only the line tile, so a stroke along a road does not clear the trees
+ * beside it */
+export function dozePath(map: DozeMap, from: DozePoint, to: DozePoint, open: (value: number) => boolean = () => false): DozePoint[] {
   const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / SAMPLE_STEP)), tiles: DozePoint[] = [], seen = new Set<string>();
   const add = (x: number, y: number): void => {
     const key = `${x},${y}`;
@@ -63,10 +65,29 @@ export function dozePath(map: DozeMap, from: DozePoint, to: DozePoint): DozePoin
   };
   for (let k = 0; k <= steps; k++) {
     const point = { x: from.x + (to.x - from.x) * k / steps, y: from.y + (to.y - from.y) * k / steps };
-    add(Math.floor(point.x), Math.floor(point.y));
-    for (const tile of lineTilesNear(map, point, DOZE_PATH_REACH)) add(tile.x, tile.y);
+    const own = { x: Math.floor(point.x), y: Math.floor(point.y) }, near = lineTilesNear(map, point, DOZE_PATH_REACH);
+    if (near.length === 0 || !map.testBounds(own.x, own.y) || !open(map.getTileValue(own.x, own.y))) add(own.x, own.y);
+    for (const tile of near) add(tile.x, tile.y);
   }
   return tiles;
+}
+
+/** The tiles a bulldozer takes for the way the mouse went, as points in tiles: one tile for a click (or a drag shorter
+ * than a third of a tile), else those along the way (dozePath) */
+export function dozeStroke(map: DozeMap, points: readonly DozePoint[], open: (value: number) => boolean): DozePoint[] {
+  if (points.length === 0) return [];
+  let length = 0;
+  for (let i = 1; i < points.length; i++) length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+  const first = points[0], tile = { x: Math.floor(first.x), y: Math.floor(first.y) };
+  if (length < 0.35) return map.testBounds(tile.x, tile.y) ? [dozeTile(map, tile, first, open)] : [];
+  const out: DozePoint[] = [], seen = new Set<string>();
+  for (let i = 1; i < points.length; i++) {
+    for (const t of dozePath(map, points[i - 1], points[i], open)) {
+      const key = `${t.x},${t.y}`;
+      if (!seen.has(key) && map.testBounds(t.x, t.y)) { seen.add(key); out.push(t); }
+    }
+  }
+  return out;
 }
 
 /** The road tiles beside those just dozed that no road reaches now (none next to them, up, down, left or right): only a

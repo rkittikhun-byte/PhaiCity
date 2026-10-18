@@ -112,6 +112,8 @@ export const SPRITE_DYING = "Sprite dying";
 export const SPRITE_MOVED = "Sprite move";
 export const TAX_TOO_HIGH = "Tax too high";
 export const TOOL_AREA = "Tool area dragged";
+/** A path dragged with the bulldozer, taken when the mouse is released (src/dozing.ts) */
+export const TOOL_PATH = "Tool path dragged";
 export const TOOL_CLICKED = "Tool clicked";
 /** A click that places a point of a drawn line, or fills (src/drawModes.ts) */
 export const TOOL_POINT = "Tool point clicked";

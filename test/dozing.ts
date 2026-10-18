@@ -7,7 +7,7 @@
 
 import { BulldozerTool } from "../src/bulldozerTool.js";
 import { CityCore } from "../src/core/cityCore";
-import { dozePath, dozeTile, loneRoads, type DozePoint } from "../src/dozing";
+import { dozePath, dozeStroke, dozeTile, loneRoads, type DozePoint } from "../src/dozing";
 import { linePath } from "../src/drawPaths";
 import { GameMap } from "../src/gameMap.js";
 import { isOpenLand } from "../src/plots";
@@ -33,9 +33,11 @@ const roads = (map: any): string[] => {
 };
 
 describe("the bulldozer by dragging", () => {
-  test("it is a dragged tool, as a road was in the original", () => {
+  test("it is dragged and takes what the mouse went over when released, not tile by tile as it goes", () => {
     const tool = new (BulldozerTool as any)(new (GameMap as unknown as new (w: number, h: number) => any)(20, 20));
-    expect(tool.isDraggable).toBe(true);
+    // Its path is taken at the release (src/inputStatus.js pathDrag), so it is not one of the tools that act on each tile
+    expect(tool.dragsPath).toBe(true);
+    expect(tool.isDraggable).toBe(false);
   });
 
   test("a mouse wandering beside a slanted road, a tile off its line, still takes every tile of it and none is left alone", () => {
@@ -65,6 +67,29 @@ describe("the bulldozer by dragging", () => {
       return ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isRoadTile(map.getTileValue(x + dx, y + dy)));
     });
     expect(lone).toEqual([]);
+  });
+
+  test("the way the mouse went is worked out first and takes nothing until the stroke is laid; a click is one tile", () => {
+    const { core, a, b } = city();
+    const map = core.map as any, before = roads(map);
+    // Along the road drawn, a little off it, as a list of points in tiles: the tiles it will take are only listed
+    const way: DozePoint[] = [];
+    for (let k = 0; k <= 10; k++) way.push({ x: a.x + 0.5 + (b.x - a.x) * k / 10, y: a.y + 0.5 + (b.y - a.y) * k / 10 + 0.3 });
+    const tiles = dozeStroke(map, way, isOpenLand);
+    expect(roads(map)).toEqual(before);
+    // ... every one of the road's tiles between the first point and the last
+    const taken = new Set(tiles.map((t) => `${t.x},${t.y}`));
+    for (const key of before) {
+      const x = Number(key.split(",")[0]);
+      if (x > a.x + 1 && x < b.x - 1) expect(taken.has(key)).toBe(true);
+    }
+    // ... and the bare land or trees beside it, which the road tile within reach of the way stood for, are not
+    for (const t of tiles) expect(isRoadTile(map.getTileValue(t.x, t.y))).toBe(true);
+    // A click, or a drag shorter than a third of a tile, is one tile
+    expect(dozeStroke(map, [{ x: 30.5, y: 5.5 }, { x: 30.6, y: 5.5 }], isOpenLand)).toEqual([{ x: 30, y: 5 }]);
+    expect(dozeStroke(map, [], isOpenLand)).toEqual([]);
+    // ... off the map, none
+    expect(dozeStroke(map, [{ x: -3, y: 5 }], isOpenLand)).toEqual([]);
   });
 
   test("the mouse over bare land beside a road takes the road tile there; over a building it takes the building", () => {

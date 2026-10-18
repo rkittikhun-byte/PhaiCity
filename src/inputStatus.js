@@ -51,6 +51,8 @@ var InputStatus = EventEmitter(function(map, tileWidth, rules, tools) {
   // by a zone tool ({from, to} in canvas pixels) or null
   this.stroke = 0;
   this.areaDrag = null;
+  // ... and the way the mouse goes while the bulldozer is dragged ({points} in canvas pixels), or null
+  this.pathDrag = null;
 
   // Tool buttons
   this.toolName = null;
@@ -201,6 +203,12 @@ InputStatus.prototype.isAreaTool = function() {
 };
 
 
+// PhaiCity: the bulldozer, which takes the path the mouse went along when it is released (src/dozing.ts)
+InputStatus.prototype.isPathTool = function() {
+  return this.currentTool !== null && this.currentTool.dragsPath === true;
+};
+
+
 // PhaiCity: tools whose mode works by clicks: the points of a line or a curve, and a fill
 InputStatus.prototype.isClickTool = function() {
   return this.currentTool !== null && isClickMode(drawModeOf(this.toolName));
@@ -214,6 +222,18 @@ var mouseDownHandler = function(e) {
     $(this.canvasID).on('mouseup', this.mouseUpHandler);
     return;
   }
+  // The bulldozer: press, drag, and release takes what the mouse went over (a click is a drag of no length)
+  if (e.which === 1 && this.currentTool !== null && this.isPathTool() && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    var begin = this.getRelativeCoordinates(e);
+    this.mouseX = begin.x;
+    this.mouseY = begin.y;
+    this.stroke += 1;
+    this.pathDrag = {points: [{x: begin.x, y: begin.y}]};
+    $(this.canvasID).on('mouseup', this.mouseUpHandler);
+    e.preventDefault();
+    return;
+  }
+
   var area = this.isAreaTool();
   if (this.currentTool === null || this.isClickTool() || !(this.currentTool.isDraggable || area) ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey)
@@ -262,6 +282,15 @@ var mouseUpHandler = function(e) {
   }
   this._linePress = null;
 
+  // Releasing the mouse after dragging the bulldozer takes everything it went over
+  if (this.pathDrag !== null) {
+    var path = this.pathDrag;
+    this.pathDrag = null;
+    var end = this.getRelativeCoordinates(e);
+    path.points.push({x: end.x, y: end.y});
+    this._emitEvent(Messages.TOOL_PATH, {points: path.points, stroke: this.stroke});
+  }
+
   // Releasing the mouse lays the dragged area of zones
   if (this.areaDrag !== null) {
     var area = this.areaDrag;
@@ -284,6 +313,7 @@ var mouseLeaveHandler = function(e) {
     this._lastDragY = -1;
   }
   this.areaDrag = null;
+  this.pathDrag = null;
 
   $(this.canvasID).off('click');
 
@@ -299,6 +329,14 @@ var mouseMoveHandler = function(e) {
 
   if (this.areaDrag !== null) {
     this.areaDrag.to = {x: coords.x, y: coords.y};
+    return;
+  }
+
+  // The bulldozer's way: a point every few pixels, enough to follow the road drawn
+  if (this.pathDrag !== null) {
+    var points = this.pathDrag.points, previous = points[points.length - 1];
+    if (Math.hypot(coords.x - previous.x, coords.y - previous.y) >= 4)
+      points.push({x: coords.x, y: coords.y});
     return;
   }
 
@@ -331,7 +369,7 @@ var canvasClickHandler = function(e) {
   var at = this.getRelativeCoordinates(e);
   this.mouseX = at.x;
   this.mouseY = at.y;
-  if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() ||
+  if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() || this.isPathTool() ||
       e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
       this.mouseY === -1 || this._dragging)
     return;
@@ -427,6 +465,7 @@ InputStatus.prototype.clearTool = function() {
   // Forget the name too, or a click after Escape would still use the old tool
   this.toolName = null;
   this.areaDrag = null;
+  this.pathDrag = null;
   this.currentTool = null;
   this.toolWidth = 0;
   this.toolColour = '';

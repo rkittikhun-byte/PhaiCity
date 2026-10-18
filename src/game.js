@@ -55,7 +55,7 @@ import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
-import { dozePath, dozeTile, loneRoads } from './dozing.ts';
+import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
 import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices } from './toolShortcuts.ts';
@@ -472,6 +472,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // Listen for tool clicks
   this.inputStatus.addEventListener(Messages.TOOL_CLICKED, this.handleTool.bind(this));
   this.inputStatus.addEventListener(Messages.TOOL_AREA, this.handleToolArea.bind(this));
+  this.inputStatus.addEventListener(Messages.TOOL_PATH, this.handleToolPath.bind(this));
   // Lines, curves and fills drawn by clicks, and a right click that drops a line half drawn (src/drawModes.ts)
   this.lineDraft = null;
   this._edits = 0;
@@ -1444,23 +1445,11 @@ Game.prototype.handleTool = function(data) {
   if (pose !== null)
     tileCoords = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
   tileCoords = this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
-  if (toolName === 'bulldozer')
-    tileCoords = this.dozeTile(tileCoords, x, y);
 
   // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
   var last = this._strokeTile;
-  var mouse = typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null;
-  this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y, point: mouse};
-  var dozed = [tileCoords];
-  if (toolName === 'bulldozer') {
-    // The bulldozer goes over the way the mouse went, tile by tile (dozePath)
-    if (last && last.stroke === data.stroke && last.point && mouse) {
-      dozePath(this.gameMap, last.point, mouse).forEach(function(tile) {
-        dozed.push(tile);
-        this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
-      }, this);
-    }
-  } else if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
+  this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y};
+  if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
       Math.abs(last.x - tileCoords.x) + Math.abs(last.y - tileCoords.y) > 1) {
     var fill = toolName === UPGRADE_TOOL ? this.upgradeRoadPath([last, tileCoords]) : linePath(last, tileCoords);
     fill.slice(1, -1).forEach(function(tile) {
@@ -1502,11 +1491,6 @@ Game.prototype.handleTool = function(data) {
       command.shape = 'free';
     var outcome = this.applyCommand(command);
     result = outcome.toolResult;
-    if (toolName === 'bulldozer') {
-      loneRoads(this.gameMap, dozed).forEach(function(tile) {
-        this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
-      }, this);
-    }
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
     if (outcome.reason === NEEDS_ROAD_BESIDE) {
       showCornerNote(t('tool.needs_road'), OUTSIDE_NOTE_MS);
@@ -1728,6 +1712,14 @@ Game.prototype.calculateMouseForPaint = function() {
   if (this.inputStatus.toolName === 'bulldozer')
     tile = this.dozeTile(tile, this.inputStatus.mouseX, this.inputStatus.mouseY);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+  // The bulldozer being dragged shows, red, every tile it will take when the mouse is let go (dozeTiles)
+  var pathDrag = this.inputStatus.pathDrag;
+  if (pathDrag !== null) {
+    hover.path = this.dozeTiles(pathDrag.points);
+    hover.line = false;
+    hover.colour = OUTSIDE_COLOUR;
+    return hover;
+  }
   if (pose !== null)
     hover.pose = pose;
   // A building's outline is the building as it will stand: against its road, and at the size it is drawn, its real
@@ -2494,6 +2486,60 @@ Game.prototype.showDrawTip = function(preview) {
 
 
 // A zone tool's dragged area, released: a zone at each centre, all one stroke so they undo together
+// The tiles the bulldozer takes for the way the mouse went (canvas pixels, src/dozing.ts), worked out again only when
+// the mouse has gone further
+Game.prototype.dozeTiles = function(points) {
+  var last = points[points.length - 1], key = points.length + ',' + last.x + ',' + last.y + ',' + this._edits;
+  if (this._dozeCache && this._dozeCache.key === key)
+    return this._dozeCache.tiles;
+  var view = this.cityView;
+  var at = [];
+  points.forEach(function(p) {
+    var point = typeof view.pointAt === 'function' ? view.pointAt(p.x, p.y) : null;
+    if (point !== null)
+      at.push(point);
+  });
+  var tiles = dozeStroke(this.gameMap, at, isOpenLand);
+  this._dozeCache = {key: key, tiles: tiles};
+  return tiles;
+};
+
+
+// The bulldozer's mouse let go: it takes every tile it went over, one stroke so it undoes together, a road tile left alone
+// beside them too, with one sound and one note for the lot (owner, 18 Oct 2026: "ให้คลิก drag จนกว่า จะปล่อยเม้าส์ ถึงลบ")
+Game.prototype.handleToolPath = function(data) {
+  var toolName = this.inputStatus.toolName, tool = this.inputStatus.currentTool;
+  if (tool === null || toolName !== 'bulldozer')
+    return;
+  var tiles = this.dozeTiles(data.points);
+  this._dozeCache = null;
+  if (tiles.length === 0)
+    return;
+  var best = null, refusal = null;
+  var lay = function(tile) {
+    var outcome = this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
+    if (best === null || outcome.toolResult === tool.TOOLRESULT_OK)
+      best = outcome.toolResult;
+    if (refusal === null && !outcome.accepted)
+      refusal = outcome.reason;
+  }.bind(this);
+  tiles.forEach(lay);
+  loneRoads(this.gameMap, tiles).forEach(lay);
+  // Refused outside the province, on land not bought, or before the ruler's house stands: one note, whatever the tiles
+  if (refusal === OUTSIDE_PROVINCE)
+    showCornerNote(t('tool.outside_province'), OUTSIDE_NOTE_MS);
+  else if (refusal === LAND_LOCKED)
+    showCornerNote(t('land.note.locked'), OUTSIDE_NOTE_MS);
+  else if (HOUSE_REASONS.indexOf(refusal) !== -1)
+    showCornerNote(houseNote(refusal, this.gameMap), OUTSIDE_NOTE_MS);
+  var last = data.points[data.points.length - 1];
+  this.showToolResult(tool, best);
+  this.gameAudio.toolUsed(toolName, best, last.x);
+  this.refreshUndo();
+  this.refreshHouse();
+};
+
+
 Game.prototype.handleToolArea = function(data) {
   var toolName = this.inputStatus.toolName;
   var tool = this.inputStatus.currentTool;
