@@ -13,7 +13,8 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf } from "../src/zoneCells";
+import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf, PLOT_ROWS, plotTileOfCell } from "../src/zoneCells";
+import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
 /** A bare 16 m map whose zones go a cell at a time, with a straight road and a slanted one */
 function city() {
@@ -83,7 +84,9 @@ describe("zone cells", () => {
     const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "residential", cells: keys }).accepted).toBe(true);
     expect(plotOf(core.map, 15, 11)).toMatchObject({ kind: "residential", level: 0 });
-    expect(plotOf(core.map, 15, 12)).toBeNull();
+    // ... and the tile behind it: the cells go two plots deep, 32 m (owner, 18 Oct 2026), and no further
+    expect(plotOf(core.map, 15, 12)).toMatchObject({ kind: "residential", level: 0 });
+    expect(plotOf(core.map, 15, 13)).toBeNull();
     // ... and the jobs homes need: shops and factories across the road (z 70..104), as a player paints them
     const across = (x0: number, x1: number) => layout.cells.filter(c => c.x > x0 && c.x < x1 && c.z > 70 && c.z < 104).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "commercial", cells: across(100, 220) }).accepted).toBe(true);
@@ -152,6 +155,57 @@ describe("zone cells", () => {
     const core = city();
     expect(core.apply({ type: "tool", tool: "police", x: 40, y: 30 })).toMatchObject({ accepted: false, reason: NEEDS_ROAD_BESIDE });
     expect(core.apply({ type: "tool", tool: "police", x: 40, y: 8 }).accepted).toBe(true);
+  });
+
+  test("the cells go two plots deep, 32 m: the four rows nearest the road the tile beside it, the next four the tile behind", () => {
+    // Owner, 18 Oct 2026: "ช่องเขตลึก 32 ม."
+    const core = city(), layout = cellLayout(core.map);
+    const south = layout.cells.filter(c => c.x > 250 && c.x < 350 && c.z > 105 && c.z < 140 && Math.abs(c.nz - 1) < 0.01);
+    expect(new Set(south.map(c => c.row))).toEqual(new Set([0, 1, 2, 3, 4, 5, 6, 7]));
+    for (const cell of south) expect(Math.floor(plotTileOfCell(core.map, cell) / core.map.width)).toBe(cell.row < PLOT_ROWS ? 11 : 12);
+  });
+
+  test("a junction's corners go to one road, its rows running on to the other's edge, with no gaps (owner, 18 Oct 2026)", () => {
+    // A road along row 20 and one crossing it at a slant, two down for each one along
+    const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
+    map.tileSizeM = 16;
+    map.paintedZones = true;
+    map.cellZones = true;
+    const core = new CityCore({ map, seed: 3 });
+    core.simulation.budget.setFunds(50000);
+    for (let x = 2; x < 58; x++) core.apply({ type: "tool", tool: "road", x, y: 20 });
+    let x = 20, y = 4;
+    for (let step = 0; step < 12; step++) for (const [dx, dy] of [[0, 1], [0, 1], [1, 0]]) {
+      core.apply({ type: "tool", tool: "road", x, y });
+      x += dx; y += dy;
+    }
+    const layout = cellLayout(core.map), half = layout.cellUnits / 2;
+    const covered = (px: number, pz: number): number => layout.cells.filter((c) => {
+      const sin = Math.sin(c.angle), cos = Math.cos(c.angle), ox = px - c.x, oz = pz - c.z;
+      return Math.abs(ox * cos - oz * sin) <= half && Math.abs(ox * sin + oz * cos) <= half * (c.span ?? 1);
+    }).length;
+    // The ground round the junction from 4 to 16 world units off the roads' middles as drawn, a point a metre apart:
+    // each under a cell, and seldom under two (a point on the edge between two cells is under both)
+    const W = core.map.width, value = (i: number): number => core.map.getTileValue(i % W, Math.floor(i / W));
+    const drawn = roadLines(networkOf({ width: W, height: core.map.height, value, level: () => 1 }, false));
+    const junction = drawn.junctions.find((j) => j.arms.length === 4)!.at;
+    const offRoad = (px: number, pz: number): number => Math.min(...drawn.lines.map((line) => {
+      const near = nearestOnLines([line.points], px, pz, 100);
+      return near ? Math.hypot(near[0] - px, near[1] - pz) : Infinity;
+    }));
+    let points = 0, bare = 0, twice = 0;
+    for (let pz = junction[1] - 22; pz <= junction[1] + 22; pz += 0.625) for (let px = junction[0] - 22; px <= junction[0] + 22; px += 0.625) {
+      const off = offRoad(px, pz);
+      if (off < 4 || off > 16) continue;
+      points++;
+      const n = covered(px, pz);
+      if (n === 0) bare++;
+      if (n > 2) twice++;
+    }
+    expect(points).toBeGreaterThan(1000);
+    // ... where, with each road's rows meeting the other's on a jagged diagonal, 7% of it was bare
+    expect(bare / points).toBeLessThan(0.05);
+    expect(twice).toBe(0);
   });
 
   test("a map painted a tile at a time refuses cells", () => {

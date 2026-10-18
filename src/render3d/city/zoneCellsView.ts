@@ -6,7 +6,7 @@
 // brush is in hand; the cell under the brush picked out. It reads the map and never writes it.
 import { Color, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three';
 import { ownsLand, type LandMap } from '../../landBlocks.js';
-import { cellAt, cellsOf, plotTileOfCell, type CellLayout, type CellMap } from '../../zoneCells.js';
+import { cellAt, cellsOf, plotCells, plotTileOfCell, type CellLayout, type CellMap } from '../../zoneCells.js';
 import type { CityHeightField } from './heightfield.js';
 
 /** The zones' colours, as the zone buttons wear them */
@@ -93,16 +93,8 @@ export class ZoneCellsView {
       this.showArea(null, colour);
       return;
     }
-    // Highlight the exact 4-row-deep road-snapped lot cells on the ground that a click will paint
-    const u = this.layout.cellUnits;
-    const hoverKeys: number[] = [];
-    for (const other of this.layout.cells) {
-      if (other.road === rawCell.road && (other.nx * rawCell.nx + other.nz * rawCell.nz) > 0.5 &&
-          Math.hypot(other.x - (rawCell.x + rawCell.nx * (other.row - rawCell.row) * u),
-                     other.z - (rawCell.z + rawCell.nz * (other.row - rawCell.row) * u)) <= u * 2.1) {
-        hoverKeys.push(other.key);
-      }
-    }
+    // Highlight the exact road-snapped plot cells on the ground that a click will paint (game.js paintCellStroke)
+    const hoverKeys = plotCells(this.layout, this.map.width, rawCell, this.layout.cellUnits * 2.1).map((cell) => cell.key);
     this.hoverGroup.visible = false;
     this.showArea(hoverKeys, colour);
   }
@@ -146,6 +138,8 @@ export class ZoneCellsView {
     const matrix = new Matrix4(), turn = new Quaternion(), place = new Vector3(), up = new Vector3(0, 1, 0);
     const size = new Vector3(layout.cellUnits * FILL, 1, layout.cellUnits * FILL), colour = new Color();
     cells.forEach((cell, n) => {
+      // ... a cell a road cut short only as long as it is (src/zoneCells.ts span)
+      size.z = layout.cellUnits * FILL * (cell.span ?? 1);
       place.set(cell.x, this.height(cell.x, cell.z) + LIFT, cell.z);
       turn.setFromAxisAngle(up, cell.angle);
       mesh.setMatrixAt(n, matrix.compose(place, turn, size));

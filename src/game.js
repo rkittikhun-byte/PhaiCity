@@ -47,7 +47,7 @@ import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlant
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
-import { cellsAlong, cellsOf } from './zoneCells.ts';
+import { cellsAlong, cellsOf, plotCells } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
@@ -903,7 +903,7 @@ Game.prototype.buildingTile = function(tile, size) {
 
 
 // The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it or along the stroke
-// that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), expanded to full 4-row lot depth
+// that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), expanded to its plots' depth
 Game.prototype.cellsInArea = function(from, to) {
   var a = this.cityView.pointAt(from.x, from.y);
   var b = this.cityView.pointAt(to.x, to.y) || a;
@@ -952,19 +952,16 @@ Game.prototype.cellsInArea = function(from, to) {
   });
   if (!seedCells.length)
     return [];
-  // Expand every touched road column to all 4 rows deep (rows 0..3) so painted strips always form valid buildable plots
+  // Expand every touched road column to its plot's whole depth (src/zoneCells.ts plotCells) so painted strips always
+  // form valid buildable plots
   var isSmallClick = Math.hypot(ex - sx, ez - sz) < u * 1.5;
   var alongTol = isSmallClick ? u * 2.1 : u * 0.65;
-  var outKeys = [], seen = {};
+  var outKeys = [], seen = {}, width = this.gameMap.width;
   seedCells.forEach(function(c) {
-    layout.cells.forEach(function(other) {
-      if (other.road === c.road && (other.nx * c.nx + other.nz * c.nz) > 0.5 &&
-          Math.hypot(other.x - (c.x + c.nx * (other.row - c.row) * u),
-                     other.z - (c.z + c.nz * (other.row - c.row) * u)) <= alongTol) {
-        if (!seen[other.key]) {
-          seen[other.key] = true;
-          outKeys.push(other.key);
-        }
+    plotCells(layout, width, c, alongTol).forEach(function(other) {
+      if (!seen[other.key]) {
+        seen[other.key] = true;
+        outKeys.push(other.key);
       }
     });
   });
@@ -1033,23 +1030,18 @@ Game.prototype.paintCellStroke = function(data) {
       }
     }
   }
-  // Expand each touched cell to all cells in its road-fronting plot tile (all 4 rows deep along the road)
+  // Expand each touched cell to all cells in its plot: the same road side within a plot's width and its plot's
+  // whole depth (src/zoneCells.ts plotCells)
   var fullLotKeys = [];
-  var seenKey = {};
+  var seenKey = {}, width = this.gameMap.width;
   rawKeys.forEach(function(k) {
     var idx = layout.byKey.get(k);
     if (idx === undefined)
       return;
-    var c = layout.cells[idx];
-    // Include all cells on the same road side within 1 plot width (5 world units) and full depth (rows 0..3)
-    layout.cells.forEach(function(other) {
-      if (other.road === c.road && (other.nx * c.nx + other.nz * c.nz) > 0.5 &&
-          Math.hypot(other.x - (c.x + c.nx * (other.row - c.row) * layout.cellUnits),
-                     other.z - (c.z + c.nz * (other.row - c.row) * layout.cellUnits)) <= layout.cellUnits * 2.1) {
-        if (!seenKey[other.key]) {
-          seenKey[other.key] = true;
-          fullLotKeys.push(other.key);
-        }
+    plotCells(layout, width, layout.cells[idx], layout.cellUnits * 2.1).forEach(function(other) {
+      if (!seenKey[other.key]) {
+        seenKey[other.key] = true;
+        fullLotKeys.push(other.key);
       }
     });
   });
