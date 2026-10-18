@@ -255,6 +255,7 @@ variants); the map records the level, and the renderer only reads it.
 |---|---|
 | `gameMap.roadLevels` | `Uint8Array`, one byte a tile (`x + y * width`): 1 laterite, 2 asphalt, 3 concrete 2 lanes, 4 concrete 4 lanes, 5 concrete 6 lanes, 6 concrete 8 lanes, 7 motorway, 8 tollway; 0 or a missing array means laterite. Read it only for road tiles: other tiles may hold an old value. Never write it. |
 | `gameMap.roadPieces` | `Uint16Array`, two bytes a tile (added 18 Oct 2026, `src/roadPieces.ts`): the drawn line (one stroke of a road or rail tool) that laid each road or railway tile, newer lines higher; 0 for lines from before the pieces or from the map. Pass it to `networkOf` as `piece`, for roads and railways, so a line built on from another never moves it; a `JunctionShape` with `smooth` is two lines meeting end to end along one way (draw no plate there). Read it only for road and railway tiles. Never write it. |
+| `gameMap.roadPaths` | `{ [piece]: { from, to, tiles } }` (added 18 Oct 2026): the tiles each piece was drawn along, in order, and the older pieces it began and ended on. Pass it to `networkOf` as `path`, so a piece's line is cut from the line it was drawn as and never moves when some of its tiles are bulldozed. Never write it. |
 
 - R5's `roadLevel` choice becomes per tile: draw each road tile at its own level. A junction of two levels joins
   them at the wider one's edge. Bridges follow their level too.

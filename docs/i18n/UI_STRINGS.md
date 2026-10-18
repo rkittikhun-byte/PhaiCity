@@ -327,7 +327,11 @@
 | `draw.debug.no_money` | `src/drawReadout.ts` | — | `not enough money` | `เงินไม่พอ` |  |
 | `draw.debug.needs_bulldoze` | `src/drawReadout.ts` | — | `something in the way` | `มีสิ่งขวางอยู่` |  |
 | `draw.debug.cannot` | `src/drawReadout.ts` | — | `cannot be built there` | `สร้างตรงนั้นไม่ได้` |  |
-| `draw.debug.blocked` | `src/game.js` | — | `{count} tiles cannot be built (red)` | `สร้างไม่ได้ {count} ช่อง (สีแดง)` | ช่องที่เส้นนี้วางไม่ได้ ก่อนคลิก |
+| `draw.debug.blocked` | `src/game.js` | — | `{count} tiles cannot be built (red): {why}` | `สร้างไม่ได้ {count} ช่อง (สีแดง): {why}` | ช่องที่เส้นนี้วางไม่ได้ ก่อนคลิก และเหตุผล |
+| `draw.debug.blocked.outside` | `src/game.js` | — | `outside the province` | `นอกจังหวัด` |  |
+| `draw.debug.blocked.land` | `src/game.js` | — | `land not bought yet` | `ที่ดินยังไม่ได้ซื้อ` |  |
+| `draw.debug.blocked.building` | `src/game.js` | — | `a building's lot` | `ที่ของอาคาร` | อาคารบนแผนที่เมืองวาดเล็กกว่าที่ของมัน ขอบที่ดูว่างจึงยังเป็นของอาคาร |
+| `draw.debug.blocked.other` | `src/game.js` | — | `cannot be built there` | `สร้างตรงนั้นไม่ได้` |  |
 | `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
 | `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |

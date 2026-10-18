@@ -16,6 +16,8 @@ export interface CityMapReader {
   /** The drawn line each road tile was laid by (src/roadPieces.ts, RENDERER_SPEC 6G): the roads' lines are smoothed a
    * line at a time, so building on never moves an older road */
   readonly roadPieces?: Uint16Array | null;
+  /** ... and the tiles each piece was drawn along (src/roadPieces.ts RoadPath), which set its shape for good */
+  readonly roadPaths?: Readonly<Record<number, { from: number; to: number; tiles: readonly number[] }>> | null;
   /** What covers each open tile of a real-scale city map (scripts/geo/lib/landCover.mjs): 1 paddy, 2 field, 3 orchard,
    * 4 grass, 5 wetland, 6 village, 7 built-up; 0 none */
   readonly landCover?: Uint8Array | null;

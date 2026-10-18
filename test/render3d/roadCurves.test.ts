@@ -10,6 +10,7 @@ import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { networkOf } from '../../src/roadGeometry.js';
+import { ZONEBIT } from '../../src/tileFlags.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { visibleMeshes } from '../../src/render3d/util/geometry.js';
 
@@ -27,6 +28,58 @@ function slanted(): { snapshot: TileSnapshot; tiles: Array<[number, number]> } {
 }
 
 describe('road curves', () => {
+  test('a building stood against its road, drawn smaller than its tiles, lies on a lot of all of them', () => {
+    // A road along row 20, and a civic 3 x 3 (the ruler's house's tiles 414-422) on rows 16-18 above it
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    snapshot.curves = true;
+    const curves = new RoadCurves(snapshot, flat);
+    expect(snapshot.placement(17 * W + 20, 'central')?.posed).toBe(true);
+    const lot = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'lots');
+    expect(lot).toBeDefined();
+    lot!.geometry.computeBoundingBox();
+    const box = lot!.geometry.boundingBox!;
+    // Its tiles, x 19-21 and rows 16-18, whole
+    expect([box.min.x, box.max.x, box.min.z, box.max.z]).toEqual([190, 220, 160, 190]);
+    curves.dispose();
+  });
+
+
+  test('a crossing is one patch over both roads out past their edges, its corners rounded, kerbed where paved', () => {
+    // Owner, 18 Oct 2026: "จุดแยกของถนน มันควรจะมี graphic ที่สวยงามกว่านี้"
+    for (const level of [1, 3]) {
+      const W = 40, snapshot = new TileSnapshot(W, 40), levels = new Uint8Array(W * 40);
+      for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) { snapshot.values[i] = 66; levels[i] = level; }
+      snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
+      const curves = new RoadCurves(snapshot, flat);
+      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
+      const position = mesh.geometry.getAttribute('position');
+      // The patch's triangles and the kerbs', by how high they lie over the flat ground
+      const patch: Array<Array<[number, number]>> = [], kerbs: Array<Array<[number, number]>> = [];
+      for (let i = 0; i < position.count; i += 3) {
+        const corners = [0, 1, 2].map((k): [number, number] => [position.getX(i + k), position.getZ(i + k)]);
+        const heights = [0, 1, 2].map((k) => position.getY(i + k));
+        if (heights.every((y) => Math.abs(y - 0.185) < 1e-4)) patch.push(corners);
+        if (heights.every((y) => Math.abs(y - 0.186) < 1e-4)) kerbs.push(corners);
+      }
+      const under = ([px, pz]: [number, number]): boolean => patch.some(([a, b, c]) => {
+        const side = (p: [number, number], q: [number, number]): number => (q[0] - p[0]) * (pz - p[1]) - (q[1] - p[1]) * (px - p[0]);
+        const s1 = side(a, b), s2 = side(b, c), s3 = side(c, a);
+        return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
+      });
+      // The crossing (205, 205), each road's carriageway just past the other's edge, and the rounded corners
+      const half = level <= 1 ? 3.5 : 3.6, reach = level <= 1 ? 3.5 : 3.6 + 0.6;
+      for (const [dx, dz] of [[0, 0], [reach + 0.1, 0], [-reach - 0.1, 0], [0, reach + 0.1], [0, -reach - 0.1],
+        [reach + 0.1, half * 0.8], [half + 0.3, half + 0.3], [-half - 0.3, half + 0.3]]) expect(under([205 + dx, 205 + dz])).toBe(true);
+      // ... and not the ground beyond them
+      expect(under([205 + 3 * reach, 205 + 3 * reach])).toBe(false);
+      expect(kerbs.length > 0).toBe(level > 1);
+      curves.dispose();
+    }
+  });
+
   test('a staircase of road tiles becomes one smooth line close to them', () => {
     const { snapshot, tiles } = slanted();
     const curves = new RoadCurves(snapshot, flat);

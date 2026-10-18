@@ -66,6 +66,23 @@ export function curvePath(points: readonly TilePoint[]): TilePoint[] {
   return tiles.slice(0, MAX_PATH);
 }
 
+/** The lines of a grid across the rectangle from a to b, each whole and in order: its rows, then its columns (each a
+ * straight road of its own, so the grid is built as drawn: owner, 18 Oct 2026: "วาดแบบไหน จะได้แบบนั้น"). */
+export function gridLines(a: TilePoint, b: TilePoint, spacing = GRID_SPACING): TilePoint[][] {
+  const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+  const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+  const lines = (from: number, to: number): number[] => {
+    const at: number[] = [];
+    for (let v = from; v < to; v += spacing) at.push(v);
+    at.push(to);
+    return at;
+  };
+  const out: TilePoint[][] = [];
+  if (x1 > x0) for (const y of lines(y0, y1)) out.push(Array.from({ length: x1 - x0 + 1 }, (_, k) => ({ x: x0 + k, y })));
+  if (y1 > y0) for (const x of lines(x0, x1)) out.push(Array.from({ length: y1 - y0 + 1 }, (_, k) => ({ x, y: y0 + k })));
+  return out.length ? out : [[{ x: x0, y: y0 }]];
+}
+
 /** The tiles of a grid of lines across the rectangle from a to b: its edges, and a line every GRID_SPACING inside. */
 export function gridPath(a: TilePoint, b: TilePoint, spacing = GRID_SPACING): TilePoint[] {
   const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
