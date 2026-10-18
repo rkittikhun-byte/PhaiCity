@@ -10,6 +10,7 @@ import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
+import { lateriteColour } from '../../src/render3d/models/road/laterite.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { visibleMeshes } from '../../src/render3d/util/geometry.js';
@@ -166,6 +167,59 @@ describe('road curves', () => {
     const twin = again.root.children.find((child): child is InstancedMesh => child instanceof InstancedMesh && child.name === 'gravel')!;
     expect(Array.from(twin.instanceMatrix.array)).toEqual(Array.from(gravel.instanceMatrix.array));
     curves.dispose(); again.dispose();
+  });
+
+  test('a road stops square at its end, with no round plate', () => {
+    // Owner, 18 Oct 2026: "เอาวงกลมที่ปลายถนนออก"
+    for (const level of [1, 3]) {
+      const W = 40, snapshot = new TileSnapshot(W, 40), levels = new Uint8Array(W * 40);
+      for (let x = 5; x < 36; x++) { snapshot.values[20 * W + x] = 66; levels[20 * W + x] = level; }
+      snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
+      const curves = new RoadCurves(snapshot, flat);
+      const position = curves.root.children.filter((child): child is Mesh => child instanceof Mesh && ['dirt', 'curves'].includes(child.name))
+        .map((mesh) => mesh.geometry.getAttribute('position'));
+      const xs = position.flatMap((p) => Array.from({ length: p.count }, (_, i) => p.getX(i)));
+      // From the first tile's middle (55) back as far as it reaches either side, and every point at its end lies on one
+      // straight edge across it
+      const reach = roadReach(level), west = Math.min(...xs), east = Math.max(...xs);
+      expect(west).toBeCloseTo(55 - reach, 3);
+      expect(east).toBeCloseTo(355 + reach, 3);
+      expect(xs.filter((x) => x < 55 - reach + 0.5).every((x) => Math.abs(x - west) < 1e-3)).toBe(true);
+      curves.dispose();
+    }
+  });
+
+  test('two roads drawn end to end at a corner turn on a bend, and wheel tracks turn through a laterite junction', () => {
+    // Owner, 18 Oct 2026: "ร่องล้อเลี้ยวผ่านแยก ขอบมุมโค้งตามถนน และเอาวงกลมที่ปลายถนนออก"
+    const W = 40, snapshot = new TileSnapshot(W, 40), pieces = new Uint16Array(W * 40);
+    for (let x = 5; x <= 20; x++) { snapshot.values[20 * W + x] = 66; pieces[20 * W + x] = 1; }
+    for (let y = 21; y < 36; y++) { snapshot.values[y * W + 20] = 66; pieces[y * W + 20] = 2; }
+    snapshot.source = { roadPieces: pieces } as unknown as TileSnapshot['source'];
+    const curves = new RoadCurves(snapshot, flat);
+    const dirt = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    const position = dirt.geometry.getAttribute('position');
+    const points = Array.from({ length: position.count }, (_, i): [number, number] => [position.getX(i), position.getZ(i)]);
+    // The bend's middle, a quarter of the way in from where each road was cut short of the corner (205, 205), and none
+    // of the road out at the corner's sharp outside, where a square or a plate would reach
+    const along = 1.6 * roadReach(1);
+    expect(points.some(([x, z]) => Math.hypot(x - (205 - along / 4), z - (205 + along / 4)) < 0.05)).toBe(true);
+    expect(points.some(([x, z]) => x > 205 + 0.6 * roadReach(1) && z < 205 - 0.6 * roadReach(1))).toBe(false);
+    curves.dispose();
+
+    // A crossing of two laterite roads: across its middle the colour of tracks going straight on, darker than the patch
+    const cross = new TileSnapshot(W, 40);
+    for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) cross.values[i] = 66;
+    const junction = new RoadCurves(cross, flat);
+    const patch = junction.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    const at = patch.geometry.getAttribute('position'), colour = patch.geometry.getAttribute('color');
+    const tracks: number[] = [];
+    for (let i = 0; i < at.count; i++) {
+      if (Math.abs(at.getY(i) - 0.187) < 1e-4 && Math.abs(at.getX(i) - 205) < 0.6) tracks.push(colour.getX(i) + colour.getY(i) + colour.getZ(i));
+    }
+    expect(tracks.length).toBeGreaterThan(0);
+    const light = lateriteColour(0.6);
+    expect(Math.max(...tracks)).toBeLessThan(light.r + light.g + light.b);
+    junction.dispose();
   });
 
   test('a staircase of road tiles becomes one smooth line close to them', () => {
