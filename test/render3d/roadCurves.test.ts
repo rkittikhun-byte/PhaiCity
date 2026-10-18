@@ -169,6 +169,31 @@ describe('road curves', () => {
     curves.dispose(); again.dispose();
   });
 
+  test('a building changing lays its lot again but never draws the roads again; a road changing does', () => {
+    // Owner, 19 Oct 2026: the game stalled each time a building rose a stage, as every road in the city was drawn again
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    snapshot.curves = true;
+    const curves = new RoadCurves(snapshot, flat);
+    const named = (name: string): Mesh | undefined => curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name);
+    const road = named('dirt');
+    expect(road).toBeDefined();
+    // The ruler's house going up beside it, a stage at a time
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    curves.update([16 * W + 19, 17 * W + 20]);
+    expect(named('dirt')).toBe(road);
+    expect(named('lots')).toBeDefined();
+    // Ground raised far from any road leaves the roads alone too
+    curves.update([], [2 * W + 2]);
+    expect(named('dirt')).toBe(road);
+    // A road tile: the roads are drawn again
+    snapshot.values[21 * W + 30] = 66;
+    curves.update([21 * W + 30]);
+    expect(named('dirt')).not.toBe(road);
+    curves.dispose();
+  });
+
   test('a road stops square at its end, with no round plate', () => {
     // Owner, 18 Oct 2026: "เอาวงกลมที่ปลายถนนออก"
     for (const level of [1, 3]) {
