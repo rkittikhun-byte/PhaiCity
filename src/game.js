@@ -55,7 +55,8 @@ import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
-import { ERASE_TOOL, fillRegion, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
+import { dozePath, dozeTile, loneRoads } from './dozing.ts';
+import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices } from './toolShortcuts.ts';
 import { CIVIC, LASTPOWER, LASTRAIL, MINE, POWERBASE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
@@ -859,6 +860,14 @@ Game.prototype.handleDisasterWindowClosure = function(request) {
 };
 
 
+// The bulldozer takes the road, railway or power line drawn under the mouse, goes over the mouse's whole way and takes a
+// road tile left alone beside one it dozed (src/dozing.ts; owner, 18 Oct 2026). (x, y) are the mouse's pixels.
+Game.prototype.dozeTile = function(tile, x, y) {
+  var point = tile !== null && typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null;
+  return tile === null ? tile : dozeTile(this.gameMap, tile, point, isOpenLand);
+};
+
+
 // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts besideRoad): the tile a
 // building of size tiles at the mouse's tile goes to, the nearest whose tiles touch a road without covering one, so
 // it lands where its outline (turned against the road in the 3D view) showed; the tile itself elsewhere
@@ -1435,11 +1444,23 @@ Game.prototype.handleTool = function(data) {
   if (pose !== null)
     tileCoords = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
   tileCoords = this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
+  if (toolName === 'bulldozer')
+    tileCoords = this.dozeTile(tileCoords, x, y);
 
   // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
   var last = this._strokeTile;
-  this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y};
-  if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
+  var mouse = typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null;
+  this._strokeTile = {stroke: data.stroke, x: tileCoords.x, y: tileCoords.y, point: mouse};
+  var dozed = [tileCoords];
+  if (toolName === 'bulldozer') {
+    // The bulldozer goes over the way the mouse went, tile by tile (dozePath)
+    if (last && last.stroke === data.stroke && last.point && mouse) {
+      dozePath(this.gameMap, last.point, mouse).forEach(function(tile) {
+        dozed.push(tile);
+        this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
+      }, this);
+    }
+  } else if (last && last.stroke === data.stroke && toolName !== 'query' && toolName !== 'land' &&
       Math.abs(last.x - tileCoords.x) + Math.abs(last.y - tileCoords.y) > 1) {
     var fill = toolName === UPGRADE_TOOL ? this.upgradeRoadPath([last, tileCoords]) : linePath(last, tileCoords);
     fill.slice(1, -1).forEach(function(tile) {
@@ -1481,6 +1502,11 @@ Game.prototype.handleTool = function(data) {
       command.shape = 'free';
     var outcome = this.applyCommand(command);
     result = outcome.toolResult;
+    if (toolName === 'bulldozer') {
+      loneRoads(this.gameMap, dozed).forEach(function(tile) {
+        this.applyCommand({type: 'tool', tool: toolName, x: tile.x, y: tile.y, stroke: data.stroke});
+      }, this);
+    }
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
     if (outcome.reason === NEEDS_ROAD_BESIDE) {
       showCornerNote(t('tool.needs_road'), OUTSIDE_NOTE_MS);
@@ -1699,6 +1725,8 @@ Game.prototype.calculateMouseForPaint = function() {
   if (pose !== null)
     tile = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
   tile = this.buildingTile(tile, this.inputStatus.toolWidth - 0);
+  if (this.inputStatus.toolName === 'bulldozer')
+    tile = this.dozeTile(tile, this.inputStatus.mouseX, this.inputStatus.mouseY);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
   if (pose !== null)
     hover.pose = pose;

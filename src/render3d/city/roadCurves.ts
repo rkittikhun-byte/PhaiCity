@@ -306,8 +306,14 @@ export class RoadCurves {
    * building of the ruler's, a yard under a works, so what it takes up is what the map shows. Zones' plots show their
    * own cells.
    */
+  /** The corners of each lot (world units, round it), by every tile of the building it lies under */
+  private lotRects = new Map<number, Point[]>();
+  /** The lot a building's tile lies on, or null: for whatever shows that tile is taken (overlay.ts blocked) */
+  lotAt(index: number): readonly Point[] | null { return this.lotRects.get(index) ?? null; }
+
   private lots(lawn: number[], yard: number[], colors: number[]): void {
     const { width, height, values } = this.snapshot;
+    this.lotRects.clear();
     for (let i = 0; i < width * height; i++) {
       if (values[i] < 240) continue;
       const p = this.snapshot.placement(i, 'central');
@@ -316,12 +322,25 @@ export class RoadCurves {
       if (size < 3) continue;
       const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
       // As big as its tiles, but turned with it to face its road (owner, 18 Oct 2026: "ที่ว่าการอำเภอ ทำมันวาดเขียวๆ ไม่ขนาน
-      // กับถนน"): from the road's edge in front of it (game.js buildingPose: 0.6 before its front) back as deep as wide
+      // กับถนน"): from the road's edge in front of it (game.js buildingPose: 0.6 before its front) back as deep as wide ...
       const ground = p.ground(), side = size * 10, sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
       const front = ground.depth / 2 + 0.6, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
-      // A quad every half tile, so the lot lies on hills
-      for (let row = 0; row < size * 2; row++) for (let column = 0; column < size * 2; column++) {
-        const u0 = -side / 2 + column * 5, v0 = front - side + row * 5, corners = [at(u0, v0), at(u0 + 5, v0), at(u0 + 5, v0 + 5), at(u0, v0 + 5)];
+      // ... and reaching over every tile the building takes, which stand square to the map whatever way it is turned, so
+      // none lies bare beside it (owner, 18 Oct 2026: "สี่เหลี่ยมสีแดงๆ ... ไม่ติดกับสิ่งก่อสร้างอะไรเลย")
+      const x0 = i % width - 1, y0 = Math.floor(i / width) - 1;
+      let uMin = -side / 2, uMax = side / 2, vMin = front - side, vMax = front;
+      for (const [cx, cz] of [[x0, y0], [x0 + size, y0], [x0 + size, y0 + size], [x0, y0 + size]]) {
+        const dx = cx * 10 - ground.x, dz = cz * 10 - ground.z, u = cos * dx - sin * dz, v = sin * dx + cos * dz;
+        uMin = Math.min(uMin, u); uMax = Math.max(uMax, u); vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
+      }
+      const rect = [at(uMin, vMin), at(uMax, vMin), at(uMax, vMax), at(uMin, vMax)];
+      for (let ty = 0; ty < size; ty++) for (let tx = 0; tx < size; tx++) this.lotRects.set((y0 + ty) * width + x0 + tx, rect);
+      // A quad about every half tile, so the lot lies on hills
+      const columns = Math.ceil((uMax - uMin) / 5), rows = Math.ceil((vMax - vMin) / 5);
+      for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
+        const u0 = uMin + (uMax - uMin) * column / columns, u1 = uMin + (uMax - uMin) * (column + 1) / columns;
+        const v0 = vMin + (vMax - vMin) * row / rows, v1 = vMin + (vMax - vMin) * (row + 1) / rows;
+        const corners = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
         if (corners.some(([x, z]) => x < 0 || z < 0 || x > width * 10 || z > height * 10)) continue;
         this.flat([corners[0], corners[1], corners[2]], white, LOT_LIFT, out, colors);
         this.flat([corners[0], corners[2], corners[3]], white, LOT_LIFT, out, colors);

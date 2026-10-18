@@ -20,8 +20,10 @@ import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
 
+// PhaiCity: it works by dragging the mouse (owner, 18 Oct 2026: "รื้อถอน เอาแบบลากเม้าส์ ได้เลย"), every tile the mouse
+// passes over, as roads and power lines were laid in the original (src/inputStatus.js, src/game.js handleTool)
 var BulldozerTool = EventEmitter(ConnectingTool(function(map) {
-  this.init(10, map, true);
+  this.init(10, map, true, true);
 }));
 
 

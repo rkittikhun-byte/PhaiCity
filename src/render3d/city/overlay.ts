@@ -39,6 +39,32 @@ function groundSquares(tiles: readonly TilePoint[], cells: number, gap: number, 
   return geometry;
 }
 
+/** Four-cornered patches lying on the ground (corners in order round it), each cut into pieces about half a tile across so
+ * it follows the terrain, lifted above it */
+function groundQuads(quads: ReadonlyArray<readonly Point[]>, lift: number, terrain?: CityHeightField): BufferGeometry {
+  const positions: number[] = [];
+  const height = (x: number, z: number): number => (terrain?.enabled ? terrain.sample(x, z) : 0) + lift;
+  for (const [a, b, , d] of quads) {
+    const along = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5)), across = Math.max(1, Math.ceil(Math.hypot(d[0] - a[0], d[1] - a[1]) / 5));
+    const at = (s: number, t: number): [number, number, number] => {
+      const x = a[0] + (b[0] - a[0]) * s + (d[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * s + (d[1] - a[1]) * t;
+      return [x, height(x, z), z];
+    };
+    for (let row = 0; row < across; row++) for (let column = 0; column < along; column++) {
+      const p = at(column / along, row / across), q = at((column + 1) / along, row / across);
+      const r = at((column + 1) / along, (row + 1) / across), s = at(column / along, (row + 1) / across);
+      // Facing up whichever way round the corners come
+      const up = (q[2] - p[2]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[2] - p[2]);
+      const [first, second] = up >= 0 ? [[p, q, r], [p, r, s]] : [[p, r, q], [p, s, r]];
+      positions.push(...first.flat(), ...second.flat());
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 /** A dashed line down the middle of a drawn path: a short dash on every other tile, along the way the path goes. */
 function centreDashes(tiles: readonly TilePoint[], lift: number, terrain?: CityHeightField): BufferGeometry {
   const positions: number[] = [];
@@ -157,6 +183,8 @@ export class ToolOutline {
   snap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   /** Whether buildings are drawn at BUILDING_SCALE (a map painted a cell at a time), so the outline is that size too */
   scaledBuildings=false;
+  /** The lot a building's tile (y * width + x) lies on, its corners in world units (roadCurves.ts lotAt) */
+  lotOf:((index:number)=>readonly Point[]|null)|null=null;
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=25;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
@@ -195,7 +223,13 @@ export class ToolOutline {
     if(hover.path&&hover.path.length>0){
       // Red over the tiles it could not build on (src/game.js estimateTiles), so a line never comes out broken unseen
       const blocked=(hover.blocked??[]).filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
-      if(blocked.length){const red=new Mesh(groundSquares(blocked,1,.12,.8,this.terrain),cityToolMaterial('#e0453a',true));red.renderOrder=27;this.root.add(red);}
+      // ... a tile of a building as that building's whole lot, turned with its road as its lawn is (roadCurves.ts lots), not
+      // the tile's own square, which would lie off the lawn and beside the road at a slant (owner, 18 Oct 2026)
+      const lots=new Set<readonly Point[]>(),squares:TilePoint[]=[];
+      for(const t of blocked){const lot=this.lotOf?.(t.y*this.width+t.x)??null;if(lot)lots.add(lot);else squares.push(t);}
+      const redMaterial=cityToolMaterial('#e0453a',true);
+      if(squares.length){const red=new Mesh(groundSquares(squares,1,.12,.8,this.terrain),redMaterial);red.renderOrder=27;this.root.add(red);}
+      if(lots.size){const red=new Mesh(groundQuads([...lots],.8,this.terrain),redMaterial);red.renderOrder=27;this.root.add(red);}
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
       if(hover.line&&tiles.length>1&&(hover.drawMode==='rectangle'||hover.drawMode==='grid')){

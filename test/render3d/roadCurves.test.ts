@@ -43,12 +43,25 @@ describe('road curves', () => {
     lot!.geometry.computeBoundingBox();
     const box = lot!.geometry.boundingBox!;
     // As big as its tiles, three across, turned with it to face the road (rotation 0 here, the road to the south): from
-    // the road's edge, just in front of it, three tiles back
+    // the road's edge, just in front of it, three tiles back ...
     const ground = placed.ground(), front = ground.z + ground.depth / 2 + 0.6;
     expect(ground.rotation).toBeCloseTo(0);
-    for (const [got, want] of [[box.min.x, ground.x - 15], [box.max.x, ground.x + 15], [box.min.z, front - 30], [box.max.z, front]])
-      expect(got).toBeCloseTo(want, 4);
-    expect(front).toBeLessThan(205 - 3);
+    expect(box.max.z).toBeCloseTo(front, 4);
+    expect(box.max.z).toBeLessThan(205 - 3);
+    expect(box.min.x).toBeLessThanOrEqual(ground.x - 15 + 1e-4);
+    expect(box.max.x).toBeGreaterThanOrEqual(ground.x + 15 - 1e-4);
+    // ... and over every tile the building takes, whole (x 190-220, z 160-190), which the tiles' squares to the map reach
+    // out of a lot that is turned: none lies bare beside it, and the overlay shows the whole lot where one is taken
+    expect(box.min.x).toBeLessThanOrEqual(190 + 1e-4);
+    expect(box.max.x).toBeGreaterThanOrEqual(220 - 1e-4);
+    expect(box.min.z).toBeLessThanOrEqual(160 + 1e-4);
+    expect(box.max.z).toBeGreaterThanOrEqual(190 - 1e-4);
+    for (let k = 0; k < 9; k++) {
+      const rect = curves.lotAt((16 + Math.floor(k / 3)) * W + 19 + k % 3);
+      expect(rect).not.toBeNull();
+      expect(rect).toBe(curves.lotAt(17 * W + 20));
+    }
+    expect(curves.lotAt(20 * W + 20)).toBeNull();
     curves.dispose();
   });
 
