@@ -15,7 +15,7 @@ const STYLESHEETS = ["css/style.css", "css/tool-dock.css"];
 
 describe("css/theme.css", () => {
   it("is generated from the tokens (run `npm run theme:css` after changing src/theme/tokens.ts)", () => {
-    expect(read("css/theme.css")).toBe(themeCss());
+    expect(read("css/theme.css").replace(/\r\n/g, "\n")).toBe(themeCss());
   });
 
   it("comes before the stylesheets on every page", () => {
