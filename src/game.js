@@ -25,6 +25,7 @@ import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
 import { nextText, pixelsPerTile, pointText, showZoom, snapWhy, strokeText, tileHeight } from './drawReadout.ts';
+import { closeToolTray } from './toolDock.ts';
 import { grownFrame, reframeSave } from './cityFrame.ts';
 import { DISTRICT_BLOCK, framePreset, freshFrame } from './geo/districtFrame.ts';
 import { Config } from './config.js';
@@ -2105,6 +2106,8 @@ Game.prototype.resetDraft = function() {
 Game.prototype.cancelDraft = function() {
   this.resetDraft();
   this.inputStatus.clearTool();
+  // ... and the tool card left open goes too (owner, 18 Oct 2026: "ถ้าคลิกขวา ให้ยกเลิก tool และ ซ่อน card ที่เปิดค้างไว้")
+  closeToolTray();
 };
 
 

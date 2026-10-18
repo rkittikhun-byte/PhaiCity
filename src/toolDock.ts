@@ -48,6 +48,15 @@ function tip(element: HTMLElement, name: string, price = ""): void {
  * 2. Secondary tray appears with compact cards
  * 3. Clicking tool arms it and dismisses the tray immediately for uncluttered building.
  */
+/** What puts the tool card away, once the dock is installed */
+let trayCloser: (() => void) | null = null;
+
+/** Puts the open tool card away, as its close button does: a right click on the map, which also puts the tool in hand
+ * down (src/game.js cancelDraft; owner, 18 Oct 2026: "ถ้าคลิกขวา ให้ยกเลิก tool และ ซ่อน card ที่เปิดค้างไว้") */
+export function closeToolTray(): void {
+  trayCloser?.();
+}
+
 export function installToolDock(doc: Document = document): void {
   const controls = doc.getElementById("controls"), buttons = doc.getElementById("buttons");
   const categories = doc.getElementById("toolCategories");
@@ -142,6 +151,7 @@ export function installToolDock(doc: Document = document): void {
     hide(tray, true);
     refresh();
   };
+  trayCloser = () => { if (!tray.hidden || currentCategory !== null) closeTray(); };
 
   const openTray = (catId: string, group: string | null = null): void => {
     currentCategory = catId;

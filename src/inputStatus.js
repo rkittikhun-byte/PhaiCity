@@ -344,14 +344,14 @@ var canvasClickHandler = function(e) {
 
 
 var contextMenuHandler = function(e) {
-  if (this.currentTool === null)
-    return;
-  e.preventDefault();
+  if (this.currentTool !== null)
+    e.preventDefault();
   // A right drag that turned the camera is not a click
   var press = this._rightPress;
   this._rightPress = null;
   if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 6)
     return;
+  // A right click puts the tool in hand down and the tool card away, with or without a tool (src/game.js cancelDraft)
   this._emitEvent(Messages.TOOL_CANCEL);
 };
 
