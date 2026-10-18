@@ -56,6 +56,7 @@ import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
+import { edgeScroll } from './edgeScroll.ts';
 import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices } from './toolShortcuts.ts';
@@ -2662,6 +2663,26 @@ var tick = function() {
 };
 
 
+// With a line half drawn, the mouse near an edge of the screen slides the camera towards it, so the next point can be reached
+// when it lies beyond the screen or under a card (src/edgeScroll.ts; owner, 18 Oct 2026). Drags of a rectangle or of the
+// bulldozer keep their pixels, which a moving camera would spoil, so they do not slide.
+Game.prototype.edgeScrollView = function() {
+  var now = performance.now(), last = this._edgeTime || now;
+  this._edgeTime = now;
+  var input = this.inputStatus, draft = this.lineDraft, pan = panOf(this.cityView);
+  if (pan === null || draft === null || draft.points.length === 0 || input.mouseX < 0 || input.pathDrag !== null ||
+      input.areaDrag !== null)
+    return;
+  var canvas = document.querySelector(input.canvasID);
+  if (!canvas)
+    return;
+  var box = canvas.getBoundingClientRect();
+  var move = edgeScroll(input.mouseX, input.mouseY, box.width, box.height, (now - last) / 1000);
+  if (move.dx !== 0 || move.dy !== 0)
+    pan(move.dx, move.dy);
+};
+
+
 var commonAnimate = function() {
   if (this.dialogShowing) {
     nextFrame(this.animate);
@@ -2670,6 +2691,9 @@ var commonAnimate = function() {
 
   if (!this.isPaused)
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
+
+  // With a line half drawn and the mouse at the edge of the screen, the camera slides that way
+  this.edgeScrollView();
 
   // Run this once per animation frame (even when paused: you can still build when paused)
   this.mouse = this.calculateMouseForPaint();
