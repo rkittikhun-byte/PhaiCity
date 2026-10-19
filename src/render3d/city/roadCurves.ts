@@ -18,7 +18,8 @@ import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
 import { applyWorldUV } from '../util/geometry.js';
 import type { ModelOptions } from '../models/registry.js';
-import { groundHeight, RoadBuilder, SLEEPER_SIZE, UNDER_LIFT, type MeshData, type RoadBuild, type RoadMap, type RoadReply, type RoadRequest } from './roadBuild.js';
+import { assemble, groundHeight, PIECE_RANGE, RoadBuilder, SLEEPER_SIZE, UNDER_LIFT, type MeshData, type Piece, type PieceIndex, type RoadBuild,
+  type RoadMap, type RoadReply, type RoadRequest } from './roadBuild.js';
 
 export { smoothLine, type Point };
 
@@ -45,6 +46,8 @@ const LOT_LIFT = 0.03;
 /** ... laid in the buildings' own lawn (models/civic/builder.ts grass, a shade off so its material is the lots' own and
  * may be pulled over the ground), or bare concrete under a works */
 const LOT_GRASS = 0x8fbe6e, LOT_YARD = 0xb8b2a4, LOT_REPEAT_M = 4;
+/** How far round the changed roads (tiles) a sketch reads the map, so the lines it draws there are whole (sketch) */
+const SKETCH_MARGIN = 4;
 
 /** A worker that builds the roads' shapes off the page (road-worker.ts), as a browser's Worker is */
 export interface RoadWorkerLike {
@@ -52,6 +55,17 @@ export interface RoadWorkerLike {
   onmessage: ((event: { data: RoadReply }) => void) | null;
   onerror: ((event: unknown) => void) | null;
   terminate(): void;
+}
+
+/** A build on the scene: where its pieces lie (roadBuild.ts PieceIndex), which of them a sketch hides, its meshes (road,
+ * dirt, rails), its stones and sleepers, and its lines */
+interface ShownBuild {
+  pieces: PieceIndex;
+  hidden: Uint8Array;
+  meshes: Array<Mesh | null>;
+  gravel: InstancedMesh | null;
+  sleepers: InstancedMesh | null;
+  lines: DrawnCurveLine[];
 }
 
 interface DrawnCurveLine {
@@ -74,6 +88,17 @@ function lineBounds(points: Point[]): { minX: number; maxX: number; minZ: number
     if (p[1] > maxZ) maxZ = p[1];
   }
   return { minX, maxX, minZ, maxZ };
+}
+
+/** Whether a piece has a corner on one of the tiles */
+function pieceOn(piece: Piece, tiles: ReadonlySet<number>, width: number): boolean {
+  return [piece.road, piece.dirt, piece.rails].some((data) => {
+    if (!data) return false;
+    for (let v = 0; v < data.position.length; v += 3) {
+      if (tiles.has(Math.floor(data.position[v + 2] / 10) * width + Math.floor(data.position[v] / 10))) return true;
+    }
+    return false;
+  });
 }
 
 export class RoadCurves {
@@ -106,6 +131,15 @@ export class RoadCurves {
   /** The meshes of the roads and railways, and of the buildings' lots and driveways, each drawn again on its own */
   private roadMeshes: Array<Mesh | InstancedMesh> = [];
   private decorMeshes: Mesh[] = [];
+  /** The build shown, and the sketch over it of the roads changed since (sketch) */
+  private shown: ShownBuild | null = null;
+  private sketchMeshes: Array<Mesh | InstancedMesh> = [];
+  /** The road tiles changed that the build shown does not have yet: those of the request the worker is building, and
+   * those changed since it was sent */
+  private sending = new Set<number>();
+  private unsent = new Set<number>();
+  /** The map's tiles round the changed roads, the rest bare, for the sketch to read */
+  private masked: Uint16Array | null = null;
   /** The worker building the roads off the page, once one is asked for; null after it failed, when they are built on
    * the page again */
   private worker: RoadWorkerLike | null = null;
@@ -143,6 +177,9 @@ export class RoadCurves {
     });
     this.noteRoads(null);
     this.show(this.builder.build(this.roadMap(), this.terrain));
+    // The worker made and given the map as soon as the city has opened, not when the first road is drawn: loading its
+    // script and building every piece the first time took about 1.4 s, which the first road waited for (19 Oct 2026)
+    if (this.workerFactory) setTimeout(() => this.warm(), 0);
   }
 
   /**
@@ -153,7 +190,7 @@ export class RoadCurves {
   update(changed: readonly number[], raised: readonly number[] = []): void {
     if (!changed.length && !raised.length) return;
     const roads = this.noteRoads(changed), under = raised.filter((i) => this.roadNear[i]);
-    if (roads || under.length) this.rebuild(under);
+    if (roads.length || under.length) this.rebuild(under, roads);
     else this.rebuildDecor();
   }
 
@@ -164,9 +201,9 @@ export class RoadCurves {
     return (value | (this.snapshot.roadLevels?.[i] ?? 0) << 10 | (this.snapshot.roadPieces?.[i] ?? 0) << 14) >>> 0;
   }
 
-  /** Notes the changed tiles' roads (all of them for null), whether any differs, and then which tiles lie near one */
-  private noteRoads(changed: readonly number[] | null): boolean {
-    const { width, height } = this.snapshot, n = width * height;
+  /** Notes the changed tiles' roads (all of them for null), which of them differ, and then which tiles lie near one */
+  private noteRoads(changed: readonly number[] | null): number[] {
+    const { width, height } = this.snapshot, n = width * height, differ: number[] = [];
     let any = false;
     if (changed === null || this.roadState.length !== n) {
       this.roadState = new Uint32Array(n);
@@ -174,7 +211,7 @@ export class RoadCurves {
       any = true;
     } else for (const i of changed) {
       const key = this.roadKey(i);
-      if (key !== this.roadState[i]) { this.roadState[i] = key; any = true; }
+      if (key !== this.roadState[i]) { this.roadState[i] = key; any = true; differ.push(i); }
     }
     if (any) {
       this.roadNear = new Uint8Array(n);
@@ -187,7 +224,7 @@ export class RoadCurves {
         }
       }
     }
-    return any;
+    return differ;
   }
 
   /** The point of a road's middle line nearest (x, z) within reach, using AABB early rejection (TileSnapshot.roadSnap) */
@@ -235,7 +272,7 @@ export class RoadCurves {
 
   dispose(): void {
     this.worker?.terminate(); this.worker = null; this.workerFactory = null;
-    for (const meshes of [this.roadMeshes, this.decorMeshes]) this.drop(meshes);
+    for (const meshes of [this.roadMeshes, this.sketchMeshes, this.decorMeshes]) this.drop(meshes);
     this.roadMaterial.dispose(); this.railMaterial.dispose(); this.sleeperMaterial.dispose(); this.sleeperGeometry.dispose();
     this.dirtMaterial.dispose(); this.stoneGeometry.dispose(); this.stoneMaterial.dispose();
   }
@@ -250,17 +287,23 @@ export class RoadCurves {
     meshes.length = 0;
   }
 
-  /** Adds a mesh of the roads (or, decor, of the lots and driveways) to the scene */
-  private keep(mesh: Mesh | InstancedMesh, decor = false): void {
-    (decor ? this.decorMeshes : this.roadMeshes).push(mesh as Mesh);
+  /** Adds a mesh of the lots and driveways to the scene */
+  private keep(mesh: Mesh): void {
+    this.decorMeshes.push(mesh);
     this.root.add(mesh);
   }
 
   /** The roads and railways (built again only where they changed, or where the ground moved under the tiles given),
-   * then the lots and driveways along them */
-  private rebuild(raised: readonly number[]): void {
-    if (this.workerFactory) { this.request(raised); return; }
+   * then the lots and driveways along them; with a worker, the roads changed are sketched at once until it answers */
+  private rebuild(raised: readonly number[], roads: readonly number[] = []): void {
     this.builder.invalidate(raised, this.snapshot.width);
+    if (this.workerFactory) {
+      for (const i of roads) this.unsent.add(i);
+      this.request(raised);
+      // (nothing is left to sketch when the worker has failed and the roads were built here instead)
+      this.sketch();
+      return;
+    }
     this.show(this.builder.build(this.roadMap(), this.terrain));
   }
 
@@ -278,6 +321,19 @@ export class RoadCurves {
     if (this.waiting) { this.queued = [...(this.queued ?? []), ...raised]; return; }
     const worker = this.workerFor();
     if (!worker) { this.rebuild(raised); return; }
+    this.sending = this.unsent; this.unsent = new Set();
+    this.post(worker, raised, false);
+  }
+
+  /** The worker made and sent the map as the city opens, so its pieces are ready before any road is drawn */
+  private warm(): void {
+    if (this.requests || !this.workerFactory) return;
+    const worker = this.workerFor();
+    if (worker) this.post(worker, [], true);
+  }
+
+  /** Sends the worker a copy of the map, and of the ground when it changed since the worker last had it */
+  private post(worker: RoadWorkerLike, raised: readonly number[], quiet: boolean): void {
     const map = this.roadMap(), copy: RoadMap = { ...map, values: map.values.slice(), levels: map.levels?.slice() ?? null,
       pieces: map.pieces?.slice() ?? null };
     const grid = this.terrain.version !== this.sentGround ? this.terrain.grid() : null;
@@ -287,7 +343,7 @@ export class RoadCurves {
     if (grid) { transfer.push(grid.pads.buffer, grid.corners.buffer); if (grid.mask) transfer.push(grid.mask.buffer); }
     this.waiting = true;
     try {
-      worker.postMessage({ id: ++this.requests, map: copy, grid, invalidate: [...raised] }, transfer);
+      worker.postMessage({ id: ++this.requests, map: copy, grid, invalidate: [...raised], ...(quiet ? { quiet } : {}) }, transfer);
       if (grid) this.sentGround = this.terrain.version;
     } catch (error) {
       this.failed(error, raised);
@@ -309,12 +365,14 @@ export class RoadCurves {
     return this.worker;
   }
 
-  /** The worker's answer: its roads are shown, and what changed meanwhile is asked for next */
+  /** The worker's answer: its roads are shown (none after a quiet request), and what changed meanwhile is asked for
+   * next and sketched over them */
   private answered(reply: RoadReply): void {
     this.waiting = false;
-    if (!reply.build) { this.failed(reply.error, []); return; }
-    this.show(reply.build);
+    if (!reply.build && reply.error !== null) { this.failed(reply.error, []); return; }
+    if (reply.build) { this.sending = new Set(); this.show(reply.build); }
     if (this.queued) { const queued = this.queued; this.queued = null; this.request(queued); }
+    if (reply.build && this.workerFactory && this.sending.size + this.unsent.size) this.sketch();
   }
 
   /** The worker failed (or could not be loaded): the roads are built on the page from now on, starting afresh */
@@ -323,18 +381,28 @@ export class RoadCurves {
     console.warn('Roads are built on the page: the worker failed (' + message + ')');
     this.worker?.terminate();
     this.worker = null; this.workerFactory = null; this.waiting = false;
-    this.builder = new RoadBuilder();
+    this.builder = new RoadBuilder(); this.sending = new Set(); this.unsent = new Set();
     const queued = this.queued ?? []; this.queued = null;
     this.rebuild([...queued, ...raised]);
   }
 
   /** Shows a build: its lines for whatever goes along them, and its meshes, then the lots and driveways */
   private show(build: RoadBuild): void {
-    this.drop(this.roadMeshes);
+    this.drop(this.roadMeshes); this.drop(this.sketchMeshes);
     this.lastBuild.built = build.built; this.lastBuild.reused = build.reused;
     this.lines = build.lines.map((line) => ({ ...line, ...lineBounds(line.points) }));
-    const mesh = (data: MeshData | null, material: MeshStandardMaterial, name: string, shadow: boolean): void => {
-      if (!data) return;
+    const meshes = this.meshesOf(build, '', this.roadMeshes);
+    this.shown = { pieces: build.pieces, hidden: new Uint8Array(build.pieces.keys.length), lines: this.lines, ...meshes };
+    this.rebuildDecor();
+  }
+
+  /** A build's meshes on the scene, each named for what it draws (and suffix), kept in list: the road, dirt and rails
+   * meshes, the stones and the sleepers */
+  private meshesOf(build: RoadBuild, suffix: string, list: Array<Mesh | InstancedMesh>):
+    { meshes: Array<Mesh | null>; gravel: InstancedMesh | null; sleepers: InstancedMesh | null } {
+    const keep = (shown: Mesh | InstancedMesh): void => { list.push(shown); this.root.add(shown); };
+    const mesh = (data: MeshData | null, material: MeshStandardMaterial, name: string, shadow: boolean): Mesh | null => {
+      if (!data) return null;
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new BufferAttribute(data.position, 3));
       geometry.setAttribute('normal', new BufferAttribute(data.normal, 3));
@@ -342,23 +410,120 @@ export class RoadCurves {
       if (data.uv) geometry.setAttribute('uv', new BufferAttribute(data.uv, 2));
       geometry.setIndex(new BufferAttribute(data.index, 1));
       const shown = new Mesh(geometry, material);
-      shown.name = name; shown.receiveShadow = shadow;
-      this.keep(shown);
+      shown.name = name + suffix; shown.receiveShadow = shadow;
+      keep(shown);
+      return shown;
     };
-    const instances = (matrices: Float32Array, geometry: BufferGeometry, material: MeshStandardMaterial, name: string): void => {
-      if (!matrices.length) return;
+    const instances = (matrices: Float32Array, geometry: BufferGeometry, material: MeshStandardMaterial, name: string): InstancedMesh | null => {
+      if (!matrices.length) return null;
       const shown = new InstancedMesh(geometry, material, matrices.length / 16);
       shown.instanceMatrix.array.set(matrices);
       shown.instanceMatrix.needsUpdate = true;
-      shown.name = name; shown.receiveShadow = true;
-      this.keep(shown);
+      shown.name = name + suffix; shown.receiveShadow = true;
+      keep(shown);
+      return shown;
     };
-    mesh(build.road, this.roadMaterial, 'curves', true);
-    mesh(build.dirt, this.dirtMaterial, 'dirt', true);
-    instances(build.gravel, this.stoneGeometry, this.stoneMaterial, 'gravel');
-    mesh(build.rails, this.railMaterial, 'rails', false);
-    instances(build.sleepers, this.sleeperGeometry, this.sleeperMaterial, 'sleepers');
-    this.rebuildDecor();
+    const road = mesh(build.road, this.roadMaterial, 'curves', true);
+    const dirt = mesh(build.dirt, this.dirtMaterial, 'dirt', true);
+    const gravel = instances(build.gravel, this.stoneGeometry, this.stoneMaterial, 'gravel');
+    const rails = mesh(build.rails, this.railMaterial, 'rails', false);
+    const sleepers = instances(build.sleepers, this.sleeperGeometry, this.sleeperMaterial, 'sleepers');
+    return { meshes: [road, dirt, rails], gravel, sleepers };
+  }
+
+  /**
+   * The roads changed since the build shown, drawn at once while the worker builds them all (owner, 19 Oct 2026: a road
+   * showed a moment after it was drawn). The pieces of the build shown with a corner on a changed tile are hidden, and
+   * the roads round the changed tiles are built here as the worker will build them, from the map read only there
+   * (SKETCH_MARGIN tiles round them and round the pieces hidden): the pieces lying whole inside it, apart from those
+   * still shown, are drawn over the build until the worker's answer takes their place. That is a few milliseconds,
+   * where all the city's roads took 60-200 ms.
+   */
+  private sketch(): void {
+    this.drop(this.sketchMeshes);
+    const shown = this.shown, tiles = new Set([...this.sending, ...this.unsent]);
+    if (shown) this.lines = shown.lines;
+    if (!shown || !tiles.size) return;
+    const { width, height } = this.snapshot;
+    let x0 = width, y0 = height, x1 = -1, y1 = -1;
+    for (const i of tiles) {
+      const x = i % width, y = (i - x) / width;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    // The pieces shown on a changed tile hidden (those hidden by an earlier sketch stay so), the map read over them
+    const { keys, bounds } = shown.pieces, [bx0, bx1, bz0, bz1] = [x0 * 10, (x1 + 1) * 10, y0 * 10, (y1 + 1) * 10];
+    for (let n = 0; n < keys.length; n++) {
+      const minX = bounds[n * 4], maxX = bounds[n * 4 + 1], minZ = bounds[n * 4 + 2], maxZ = bounds[n * 4 + 3];
+      if (minX > bx1 || maxX < bx0 || minZ > bz1 || maxZ < bz0) continue;
+      if (!shown.hidden[n]) {
+        if (!this.shownOn(shown, n, tiles)) continue;
+        this.hide(shown, n);
+      }
+      x0 = Math.min(x0, Math.floor(minX / 10)); x1 = Math.max(x1, Math.floor(maxX / 10));
+      y0 = Math.min(y0, Math.floor(minZ / 10)); y1 = Math.max(y1, Math.floor(maxZ / 10));
+    }
+    x0 = Math.max(0, x0 - SKETCH_MARGIN); y0 = Math.max(0, y0 - SKETCH_MARGIN);
+    x1 = Math.min(width - 1, x1 + SKETCH_MARGIN); y1 = Math.min(height - 1, y1 + SKETCH_MARGIN);
+    const values = this.snapshot.values;
+    const masked = this.masked = this.masked?.length === values.length ? this.masked : new Uint16Array(values.length);
+    masked.fill(0);
+    for (let y = y0; y <= y1; y++) masked.set(values.subarray(y * width + x0, y * width + x1 + 1), y * width + x0);
+    const built = this.builder.pieces({ ...this.roadMap(), values: masked, area: [x0, y0, x1, y1] }, this.terrain, false);
+    // A piece cut short by the edge of the map read lies within a tile of it, and one still shown is left as it is; a
+    // line is drawn whole, a junction, bend or lone tile only by the tiles changed
+    const near = new Set<number>();
+    for (const i of tiles) {
+      const x = i % width, y = (i - x) / width;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) near.add((y + dy) * width + x + dx);
+    }
+    const inner = [x0 > 0 ? (x0 + 1) * 10 : -Infinity, x1 < width - 1 ? x1 * 10 : Infinity,
+      y0 > 0 ? (y0 + 1) * 10 : -Infinity, y1 < height - 1 ? y1 * 10 : Infinity];
+    const inside = (b: { minX: number; maxX: number; minZ: number; maxZ: number }): boolean =>
+      b.minX >= inner[0] && b.maxX <= inner[1] && b.minZ >= inner[2] && b.maxZ <= inner[3];
+    const showing = new Set<string>();
+    keys.forEach((key, n) => { if (!shown.hidden[n]) showing.add(key); });
+    const pieces = built.pieces.filter((piece) => inside(piece) && !showing.has(piece.key) &&
+      (piece.key[0] === 'L' || piece.key[0] === 'R' || pieceOn(piece, near, width)));
+    const lines = built.lines.map((line) => ({ ...line, ...lineBounds(line.points) }))
+      .filter((line) => inside(line) && line.points.some(([x, z]) => near.has(Math.floor(z / 10) * width + Math.floor(x / 10))));
+    if (pieces.length) this.meshesOf(assemble([], pieces, 0, 0), '_sketch', this.sketchMeshes);
+    // ... and whatever goes along the roads leaves the lines over a changed tile for the sketch's
+    const kept = shown.lines.filter((line) => line.maxX < bx0 || line.minX > bx1 || line.maxZ < bz0 || line.minZ > bz1 ||
+      !line.points.some(([x, z]) => tiles.has(Math.floor(z / 10) * width + Math.floor(x / 10))));
+    this.lines = [...kept, ...lines];
+  }
+
+  /** Whether a piece of the build shown has a corner on one of the tiles */
+  private shownOn(shown: ShownBuild, n: number, tiles: ReadonlySet<number>): boolean {
+    const width = this.snapshot.width;
+    return shown.meshes.some((mesh, k) => {
+      if (!mesh) return false;
+      const at = n * PIECE_RANGE + k * 4, first = shown.pieces.ranges[at + 2], count = shown.pieces.ranges[at + 3];
+      const position = mesh.geometry.getAttribute('position').array as Float32Array;
+      for (let v = first; v < first + count; v++) {
+        if (tiles.has(Math.floor(position[v * 3 + 2] / 10) * width + Math.floor(position[v * 3] / 10))) return true;
+      }
+      return false;
+    });
+  }
+
+  /** Hides a piece of the build shown until the next build: its triangles drawn as nothing, its stones and sleepers
+   * shrunk to nothing */
+  private hide(shown: ShownBuild, n: number): void {
+    shown.hidden[n] = 1;
+    const ranges = shown.pieces.ranges, at = n * PIECE_RANGE;
+    shown.meshes.forEach((mesh, k) => {
+      const first = ranges[at + k * 4], count = ranges[at + k * 4 + 1], index = mesh?.geometry.getIndex();
+      if (!index || !count) return;
+      (index.array as Uint32Array).fill(0, first, first + count);
+      index.addUpdateRange(first, count); index.needsUpdate = true;
+    });
+    for (const [instances, k] of [[shown.gravel, 12], [shown.sleepers, 14]] as const) {
+      const first = ranges[at + k], count = ranges[at + k + 1];
+      if (!instances || !count) continue;
+      instances.instanceMatrix.array.fill(0, first * 16, (first + count) * 16);
+      instances.instanceMatrix.addUpdateRange(first * 16, count * 16); instances.instanceMatrix.needsUpdate = true;
+    }
   }
 
   /** The buildings' lots, in their own lawn or yard, and the driveways from their roads: quick, so laid again whenever a
@@ -376,7 +541,7 @@ export class RoadCurves {
       const mesh = new Mesh(applyWorldUV(geometry, LOT_REPEAT_M * 10 / 16), material);
       mesh.geometry.computeVertexNormals();
       mesh.name = 'lots'; mesh.receiveShadow = true;
-      this.keep(mesh, true);
+      this.keep(mesh);
     }
     const positions: number[] = [], colors: number[] = [];
     this.driveways(positions, colors);
@@ -387,7 +552,7 @@ export class RoadCurves {
       geometry.computeVertexNormals();
       const mesh = new Mesh(geometry, this.roadMaterial);
       mesh.name = 'driveways'; mesh.receiveShadow = true;
-      this.keep(mesh, true);
+      this.keep(mesh);
     }
   }
 

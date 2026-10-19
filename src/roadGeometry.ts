@@ -156,6 +156,9 @@ export interface LineMap {
   /** The tiles a piece was drawn along, in order, and the older pieces it began and ended on (gameMap.roadPaths,
    * src/roadPieces.ts): its shape is worked out once from them, so bulldozing some of it never moves the rest */
   path?(piece: number): DrawnPath | null;
+  /** Only the tiles from (x0, y0) to (x1, y1), inclusive, are looked at for lines, which value must give as none outside
+   * them (src/render3d/city/roadCurves.ts sketch, which reads a few tiles of a big map) */
+  area?: readonly [number, number, number, number];
 }
 
 /** The tiles a piece was drawn along, how, and the older pieces it began and ended on (src/roadPieces.ts RoadPath) */
@@ -284,13 +287,16 @@ export function networkOf(map: LineMap, rail: boolean): Network {
   };
   const tileMiddle = (i: number): Point => [((i % width) + 0.5) * 10, (Math.floor(i / width) + 0.5) * 10];
   const covered = new Uint8Array(width * height);
-  const count = width * height;
+  // The tiles looked at, row by row: the whole map, or only the area given (LineMap area)
+  const [ax0, ay0, ax1, ay1] = map.area ?? [0, 0, width - 1, height - 1];
+  const first = ay0 * width + ax0, last = ay1 * width + ax1;
+  const next = (i: number): number => (i % width === ax1 ? i + width - (ax1 - ax0) : i + 1);
   // Junction tiles side by side (a new road laid beside an old one, or two roads meeting at a slant) are one junction
   // at their middle (owner, 14 Oct 2026: "ทำไมทางแยกมัน มีหลายเส้นแบบนี้"), so long as the knot is small.
   // Only true topological junctions/stops form knots — never 2-neighbour level transitions. A knot is one drawn line's
   // (src/roadPieces.ts): where a newer road touches an older one, the older keeps its own tiles' middles
   const knot = new Map<number, number>(), knots: number[][] = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = first; i <= last; i = next(i)) {
     if (!plain(map.value(i)) || !topoStop(i) || near(i).length <= 2 || knot.has(i)) continue;
     const members = [i], queue = [i];
     knot.set(i, knots.length);
@@ -404,7 +410,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     pushStretch(tiles);
   };
   const plated = new Set<number>();
-  for (let i = 0; i < count; i++) {
+  for (let i = first; i <= last; i = next(i)) {
     if (!plain(map.value(i))) continue;
     covered[i] = 1;
     if (!topoStop(i)) continue;
@@ -430,7 +436,7 @@ export function networkOf(map: LineMap, rail: boolean): Network {
     }
   }
   // Rings with no junction at all
-  for (let i = 0; i < count; i++) {
+  for (let i = first; i <= last; i = next(i)) {
     if (!plain(map.value(i)) || topoStop(i)) continue;
     for (const j of near(i)) if (!done.has(`${i}>${j}`)) walk(i, j);
   }

@@ -129,6 +129,16 @@ export function rasterKey(map: CellMap, x: number, z: number): number {
   return Math.floor(z / r) * width + Math.floor(x / r);
 }
 
+/** The two rasters a layout marks (the ground the roads take, the ground the cells cover), kept from one layout to the
+ * next and cleared: new ones, 7 MB each on a city map, cost a fault of the system's memory at the first mark on each
+ * page of them, half of the 0.3-0.6 s the cells took after each road drawn (19 Oct 2026) */
+let rasters: [Uint8Array, Uint8Array] | null = null;
+function rasterBits(bytes: number): [Uint8Array, Uint8Array] {
+  if (rasters?.[0].length !== bytes) rasters = [new Uint8Array(bytes), new Uint8Array(bytes)];
+  else { rasters[0].fill(0); rasters[1].fill(0); }
+  return rasters;
+}
+
 /** The cells along the map's roads. owns: whether the city may build on a tile (its land and its district) */
 export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
   const units = unitsPerMetre(map), cellUnits = CELL_M * units, rasterUnits = RASTER_M * units;
@@ -136,13 +146,23 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const real = realUnits(map.tileSizeM || 16);
   const rasterWidth = Math.ceil(map.width * 10 / rasterUnits), rasterHeight = Math.ceil(map.height * 10 / rasterUnits);
   // One bit a raster square: a 7.7 km map is 59 million of them
-  const bits = new Uint8Array(Math.ceil(rasterWidth * rasterHeight / 8));
+  const [bits, covers] = rasterBits(Math.ceil(rasterWidth * rasterHeight / 8));
   const taken = { get: (k: number): boolean => (bits[k >> 3] & (1 << (k & 7))) !== 0, set: (k: number): void => { bits[k >> 3] |= 1 << (k & 7); } };
   const keyOf = (x: number, z: number): number => {
     const rx = Math.floor(x / rasterUnits), rz = Math.floor(z / rasterUnits);
     return rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight ? -1 : rz * rasterWidth + rx;
   };
-  const value = (i: number): number => map.getTileValue(i % map.width, Math.floor(i / map.width));
+  // The tiles read once, and whether the city may build on each when first asked: the roads' lines below read each
+  // tile a few times, through the map about 1.5 million calls on a city map (19 Oct 2026: most of the 0.3-0.6 s the
+  // cells took after each road drawn)
+  const tiles = new Uint16Array(map.width * map.height), mayBuild = new Uint8Array(map.width * map.height);
+  for (let y = 0, i = 0; y < map.height; y++) for (let x = 0; x < map.width; x++, i++) tiles[i] = map.getTileValue(x, y);
+  const ownsAt = (x: number, y: number): boolean => {
+    const i = y * map.width + x;
+    if (!mayBuild[i]) mayBuild[i] = owns(x, y) ? 2 : 1;
+    return mayBuild[i] === 2;
+  };
+  const value = (i: number): number => tiles[i];
   const levels = map.roadLevels, pieces = map.roadPieces, paths = map.roadPaths;
   const roads = networkOf({ width: map.width, height: map.height, value, level: (i) => levels?.[i] ?? 1,
     piece: (i) => pieces?.[i] ?? 0, path: (piece) => paths?.[piece] ?? null }, false);
@@ -231,7 +251,6 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     return false;
   };
   // The ground the cells cover, a raster square at a time, for filling the gaps between them (below)
-  const covers = new Uint8Array(bits.length);
   const covered = (k: number): boolean => (covers[k >> 3] & (1 << (k & 7))) !== 0;
   const footprint = (x: number, z: number, sin: number, cos: number, halfV: number, mark: boolean): number => {
     // The raster squares whose middles lie on the cell, set (mark) or counted where already covered
@@ -264,7 +283,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       const x = cell.x + cos * u + sin * v, z = cell.z - sin * u + cos * v, spot = keyOf(x, z);
       const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
       if (spot < 0 || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
-          !cellGround(map.getTileValue(tx, ty)) || !owns(tx, ty) ||
+          !cellGround(tiles[ty * map.width + tx]) || !ownsAt(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) return false;
       // A road's tile is wider than the road drawn on it (taken above), so a cell may reach over its margin; a road
       // across one end of its row only, it may fit cut short (below)
@@ -287,7 +306,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     if (span < 1) created.span = span;
     const plotTileIdx = plotTileOfCell(map, created);
     if (plotTileIdx < 0) return false;
-    const pv = map.getTileValue(plotTileIdx % map.width, Math.floor(plotTileIdx / map.width));
+    const pv = tiles[plotTileIdx];
     if (!isOpenLand(pv) && plotKindOfValue(pv) === null) return false;
     const home = bucketOf(Math.floor(cell.x / cellUnits), Math.floor(cell.z / cellUnits));
     if (!bucket.has(home)) bucket.set(home, []);
@@ -366,14 +385,18 @@ export function layoutSignature(map: CellMap, owns: (x: number, y: number) => bo
   return hash;
 }
 
-const layouts = new WeakMap<object, { signature: number; layout: CellLayout }>();
+const layouts = new WeakMap<object, Array<{ signature: number; layout: CellLayout }>>();
+/** How many layouts of a map are kept: callers asking with different land (the buildings' poses with all of it, the
+ * view and the commands with the city's) would otherwise lay the cells again in turn */
+const KEPT_LAYOUTS = 3;
 
 /** The cells of a map, kept until its roads, buildings or land change */
 export function cellsOf(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
-  const signature = layoutSignature(map, owns), kept = layouts.get(map);
-  if (kept && kept.signature === signature) return kept.layout;
+  const signature = layoutSignature(map, owns), kept = layouts.get(map) ?? [];
+  const found = kept.find((entry) => entry.signature === signature);
+  if (found) return found.layout;
   const layout = cellLayout(map, owns);
-  layouts.set(map, { signature, layout });
+  layouts.set(map, [{ signature, layout }, ...kept].slice(0, KEPT_LAYOUTS));
   // Migrate any legacy 2 m saved cell keys into the 4 m layout by their 1 m raster world position
   if (map.zoneCells && map.zoneCells.size > 0) {
     let matched = 0;
@@ -513,6 +536,31 @@ export function readZoneCells(saved: unknown): Map<number, number> {
     if (Number.isInteger(key) && key >= 0 && Number.isInteger(code) && zoneOfCode(code)) cells.set(key, code);
   }
   return cells;
+}
+
+/**
+ * Whether syncCellPlots could change anything round these tiles: a plot on one of them or beside it, or a painted cell
+ * within reach tiles of them (a cell counts for a plot tile at most two tiles from its middle, plotTileOfCell). When
+ * neither, the cells need not be laid again to find nothing changes.
+ */
+export function paintNear(map: CellPlotMap, tiles: Iterable<number>, reach = 6): boolean {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const tile of tiles) {
+    const tx = tile % map.width, ty = (tile - tx) / map.width;
+    x0 = Math.min(x0, tx); y0 = Math.min(y0, ty); x1 = Math.max(x1, tx); y1 = Math.max(y1, ty);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = tx + dx, ny = ty + dy;
+      if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height || map.getTileFlags(nx, ny) & ZONE_BIT) continue;
+      if (plotKindOfValue(map.getTileValue(nx, ny)) !== null) return true;
+    }
+  }
+  if (!map.zoneCells?.size || x0 > x1) return false;
+  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r);
+  for (const key of map.zoneCells.keys()) {
+    const tx = Math.floor((key % width + 0.5) * r / 10), ty = Math.floor((Math.floor(key / width) + 0.5) * r / 10);
+    if (tx >= x0 - reach && tx <= x1 + reach && ty >= y0 - reach && ty <= y1 + reach) return true;
+  }
+  return false;
 }
 
 /** The share of a tile's cells one zone must cover for the tile to become that zone's plot */

@@ -27,7 +27,7 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
-import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, plotTileOfCell, syncCellPlots, zoneCode } from "./zoneCells";
+import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, syncCellPlots, zoneCode } from "./zoneCells";
 import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
@@ -385,6 +385,10 @@ export class CityCommands {
   private roadPiece: { stroke: string; piece: number } | null = null;
   /** ... and the tiles of that line in the order drawn, a path while each is beside the last and none comes twice */
   private roadPath: { stroke: string; path: RoadPath; valid: boolean } | null = null;
+  /** The tiles a stroke of a road, railway, canal or the bulldozer changed on a map painted a cell at a time, whose
+   * plots are worked out again once, when the stroke is done (settle), not after each of its tiles: the cells along
+   * every road of a city map are laid again each time, about 300 ms, so an 18-tile road held the game for 5 s */
+  private cellsPending: { stroke: string; tiles: Set<number> } | null = null;
 
   /** A road or railway stroke's next tile, kept so the line's shape is worked out once from them (src/roadPieces.ts) */
   private followPath(stroke: string, x: number, y: number, shape?: LineShape, controls?: Array<[number, number]>): void {
@@ -429,10 +433,27 @@ export class CityCommands {
     return this.city.map !== undefined && this.history.canUndo(this.city.cityTime?.() ?? 0);
   }
 
+  /**
+   * The plots round the tiles the stroke in hand changed, worked out from the painted cells (src/zoneCells.ts
+   * syncCellPlots), skipped when no painted cell or plot lies near them. The next command of another stroke, the next
+   * step of the simulation and a save call it first (cityCore.ts), so the same commands at the same steps still make
+   * the same city.
+   */
+  settle(): void {
+    const pending = this.cellsPending, city = this.city;
+    this.cellsPending = null;
+    const cellMap = city.map as unknown as (CellMap & CellPlotMap) | undefined;
+    if (!pending || !cellMap?.cellZones || !paintNear(cellMap, pending.tiles)) return;
+    const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
+    syncCellPlots(cellMap, layout, pending.tiles);
+  }
+
   apply(command: Command): CommandOutcome {
     const problem = commandProblem(command, this.city.width, this.city.height);
     if (problem) return { accepted: false, reason: problem };
     const city = this.city;
+    if (this.cellsPending && !(command.type === "tool" && command.stroke !== undefined &&
+      this.cellsPending.stroke === String(command.stroke))) this.settle();
 
     switch (command.type) {
       case "tool": {
@@ -495,8 +516,9 @@ export class CityCommands {
         const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;
         if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === CANAL_TOOL ||
           command.tool === "bulldozer") && before.length) {
-          const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
-          const touched = new Set<number>();
+          const stroke = command.stroke === undefined ? "" : String(command.stroke);
+          if (this.cellsPending?.stroke !== stroke) { this.settle(); this.cellsPending = { stroke, tiles: new Set() }; }
+          const touched = this.cellsPending!.tiles;
           for (const c of before) {
             const tileIdx = c.y * city.width + c.x;
             touched.add(tileIdx);
@@ -509,8 +531,9 @@ export class CityCommands {
               }
             }
           }
-          syncCellPlots(cellMap, layout, touched);
           cellMap.zoneCellsVersion = (cellMap.zoneCellsVersion ?? 0) + 1;
+          // A command of no stroke stands alone: its plots at once
+          if (command.stroke === undefined) this.settle();
         }
         // A canal dug, and the groundwater round any water that came or went (src/canals.ts)
         if (applied && map) this.afterWater(before, command.tool);
