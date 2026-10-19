@@ -13,6 +13,7 @@
 
 import { BuildingTool } from './buildingTool.js';
 import { BulldozerTool } from './bulldozerTool.js';
+import { CanalTool } from './canalTool.ts';
 import { EventEmitter } from './eventEmitter.js';
 import { QUERY_WINDOW_NEEDED } from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
@@ -72,6 +73,8 @@ function GameTools(map, rules) {
     police: new BuildingTool(500, TileValues.POLICESTATION, map, 3, false),
     port: new BuildingTool(3000, TileValues.PORT, map, 4, false),
     rail: new RailTool(map),
+    // PhaiCity: canals, dug by the same drawing modes as a road (src/canals.ts)
+    canal: new CanalTool(map),
     residential: new BuildingTool(100, TileValues.FREEZ, map, 3, false),
     road: new RoadTool(map),
     // PhaiCity: the road levels and the upgrade tool (src/roadLevels.ts)

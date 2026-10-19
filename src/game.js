@@ -78,6 +78,7 @@ import {
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
+import { isBridgeTile, isWaterTile } from './canals.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { installCameraBar } from './cameraModes.ts';
@@ -1398,7 +1399,7 @@ Game.prototype.handleMandatoryBudget = function() {
 var isContinuousTool = function(name) {
   if (!name) return false;
   return name.indexOf('road') === 0 || name === 'motorway' || name === 'tollway' ||
-         name === 'rail' || name === 'wire' || name === 'bulldozer' || name === 'query' ||
+         name === 'rail' || name === 'wire' || name === 'canal' || name === 'bulldozer' || name === 'query' ||
          name.indexOf('zone_') === 0 || name === 'residential' || name === 'commercial' || name === 'industrial';
 };
 
@@ -1757,6 +1758,9 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.roadWidth = roadReach(roadLevel, units) * 2;
   } else if (this.inputStatus.toolName === 'rail') {
     hover.roadWidth = 3.2 * (units || 1);
+  } else if (this.inputStatus.toolName === 'canal') {
+    // A canal's water between its walls (src/render3d/models/terrain/water.ts), whatever the size of the tiles
+    hover.roadWidth = 9.4;
   }
   var linePoint = this.linePoint(this.inputStatus.toolName, this.inputStatus.mouseX, this.inputStatus.mouseY);
   // ... and a dot on each road tile near the mouse, where a click may join it (snapDots)
@@ -1779,11 +1783,13 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.blocked = preview.blocked && preview.blocked.length ? preview.blocked : null;
     hover.drawMode = preview.mode;
     // A road, railway or power line being drawn (including rectangle and grid road modes) uses road ribbons
-    hover.line = preview.mode !== 'fill' && (preview.mode !== 'rectangle' || roadLevel > 0 || this.inputStatus.toolName === 'rail');
+    hover.line = preview.mode !== 'fill' && (preview.mode !== 'rectangle' || roadLevel > 0 || this.inputStatus.toolName === 'rail' ||
+                 this.inputStatus.toolName === 'canal');
     // ... in the colour of what it builds: laterite, asphalt, concrete, railway (owner, 14 Oct 2026)
     if (hover.line && hover.colour !== OUTSIDE_COLOUR) {
       hover.colour = roadLevel === 1 ? '#d9824a' : roadLevel === 2 ? '#4a4f52' : roadLevel > 2 ? '#9a978f' :
-                     this.inputStatus.toolName === 'rail' ? '#7a6f63' : DRAW_COLOUR;
+                     this.inputStatus.toolName === 'rail' ? '#7a6f63' :
+                     this.inputStatus.toolName === 'canal' ? 'steelblue' : DRAW_COLOUR;
     }
     // Every mode's preview is the very line it builds: the straight line or the curve through its points
     hover.straight = preview.mode === 'straight';
@@ -1994,7 +2000,7 @@ Game.prototype.buildingPose = function(size, x, y) {
 // Where a road or railway tool would start or end at the pointer (x, y on the view), in tiles: on the middle line of
 // one of its kind within a tile when there is one, else the ground under the pointer; null for other tools
 Game.prototype.linePoint = function(toolName, x, y) {
-  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || typeof this.cityView.pointAt !== 'function')
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || toolName === 'canal' || typeof this.cityView.pointAt !== 'function')
     return null;
   var point = this.cityView.pointAt(x, y), tile = this.cityView.tileAt(x, y);
   if (point === null || tile === null || !snapOn())
@@ -2020,7 +2026,7 @@ Game.prototype.linePoint = function(toolName, x, y) {
 // or the city changes
 var DOT_STEP = 10;
 Game.prototype.snapDots = function(toolName, tile) {
-  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || toolName === 'canal')
     return null;
   // As far as a click grabs (roadReach), so each dot in sight is one a click near it lands on
   var tiles = this.roadReach();
@@ -2140,11 +2146,13 @@ Game.prototype.roadReach = function() {
 };
 
 
-// Whether a tile is of a line tool's kind: a railway, a power line, or a road
+// Whether a tile is of a line tool's kind: a railway, a power line, water or a bridge over it for a canal
+// (src/canals.ts), or a road
 Game.prototype.lineKind = function(toolName) {
   var map = this.gameMap;
   var kind = toolName === 'rail' ? function(v) { return v >= RAILBASE && v <= LASTRAIL; } :
-             toolName === 'wire' ? function(v) { return v >= POWERBASE && v <= LASTPOWER; } : isRoadTile;
+             toolName === 'wire' ? function(v) { return v >= POWERBASE && v <= LASTPOWER; } :
+             toolName === 'canal' ? function(v) { return isWaterTile(v) || isBridgeTile(v); } : isRoadTile;
   return function(x, y) { return map.testBounds(x, y) && kind(map.getTileValue(x, y)); };
 };
 
@@ -2161,7 +2169,7 @@ Game.prototype.snapTile = function(tile, toolName, draft, point) {
   var roadReach = this.roadReach();
   var snapped = snapPoint(tile, isLine, GRID_SPACING, roadReach, Math.max(END_SNAP_REACH, roadReach));
   if (snapped.guide === 'road') {
-    var exact = toolName === 'wire' ? null : this.roadDot(toolName, snapped.point, point || null);
+    var exact = toolName === 'wire' || toolName === 'canal' ? null : this.roadDot(toolName, snapped.point, point || null);
     var at = exact ? {x: Math.floor(exact.x), y: Math.floor(exact.y)} : null;
     return {tile: at && isLine(at.x, at.y) ? at : snapped.point, guide: 'road', exact: exact};
   }
@@ -2182,7 +2190,7 @@ Game.prototype.snapTile = function(tile, toolName, draft, point) {
 // The way a road or railway goes on from its dead end at a tile, as it is drawn (its last stretch, src/roadGeometry.ts):
 // a unit vector in tiles, or null where no line of the tool's kind ends there alone
 Game.prototype.lineEndWay = function(toolName, tile) {
-  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || toolName === 'canal')
     return null;
   var x = (tile.x + 0.5) * 10, z = (tile.y + 0.5) * 10, found = null, count = 0;
   this.networkLines(toolName === 'rail').forEach(function(line) {
@@ -2686,7 +2694,8 @@ var commonAnimate = function() {
   // its zoning while roads are drawn (owner, 14 Oct 2026: "แต่ละช่อง เป็นไปตามแนวถนน")
   var toolName = this.inputStatus.toolName;
   var zoneGrid = this.gameMap.paintedZones === true && (showsZoneGrid(toolName) ||
-    this.gameMap.cellZones === true && modeGroupOf(toolName) === 'line' && toolName !== 'rail' && toolName !== 'wire');
+    this.gameMap.cellZones === true && modeGroupOf(toolName) === 'line' && toolName !== 'rail' && toolName !== 'wire' &&
+    toolName !== 'canal');
   if (zoneGrid !== this._zoneGrid && this.cityView.zoneGrid) {
     this._zoneGrid = zoneGrid;
     this.cityView.zoneGrid(zoneGrid);

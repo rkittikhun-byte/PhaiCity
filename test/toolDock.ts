@@ -14,7 +14,7 @@ describe('category, family and actual-tool navigation', () => {
     const originalButtons = html.match(/<div id="buttons">([\s\S]*?)<\/div>/)![1];
     const original = [...originalButtons.matchAll(/data-tool="([a-z_]+)"/g)].map(match => match[1]);
     const grouped = TOOL_CATEGORIES.flatMap(category => [...category.tools]);
-    expect(original).toHaveLength(21); expect(new Set(grouped).size).toBe(grouped.length);
+    expect(original).toHaveLength(22); expect(new Set(grouped).size).toBe(grouped.length);
     expect([...grouped].sort()).toEqual([...original].sort());
     expect(categoryForTool('coal')?.id).toBe('services');
     expect(categoryForTool('waterworks')?.id).toBe('services');

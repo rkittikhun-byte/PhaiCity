@@ -1,6 +1,7 @@
 # Canals (คลอง)
 
-Proposal, 19 Oct 2026. Nothing here is built yet; the owner decides whether to go ahead.
+Proposed 19 Oct 2026; the owner said go ahead with steps 1–3 the same day, and they are built (branch `claude/canals`).
+Step 4 (the smooth 3D canal) and step 5 wait.
 
 A canal tool beside the road and rail tools: the player draws a canal the way they draw a road (straight, curve,
 S-curve, free), and it becomes water on the map. Thai towns grew along their canals (irrigation, drainage, boats,
@@ -33,14 +34,23 @@ floating markets), so it suits the game, and most of what water already does in 
 
 ## Plan
 
-1. **Tool and command.** A `canal` tool in the roads group of the dock, after rail, priced by `provinceRules`
+Status: steps 1–3 done (`src/canals.ts`, `src/canalTool.ts`, `test/canals.ts`); 4 and 5 not started.
+
+1. **Tool and command.** *(done)* A `canal` tool in the roads group of the dock, after rail, priced by `provinceRules`
    (`TOOL_COSTS`, never a number in code), strings in `docs/i18n/UI_STRINGS.md`. It lays RIVER on clear land and
    woods, a bridge where it crosses a straight road or railway, and refuses buildings, corners and junctions. The
    stroke is one piece in `roadPieces` / `roadPaths` like a road, so draw modes, undo and saves need nothing new;
    `isCanalTile` joins `isRoadTile` / `isRailTile` where the kind is chosen.
-2. **Simulation.** Recompute groundwater after each canal stroke (and after the bulldozer fills one in). Keep the
+   *As built:* ฿40 a tile, ฿50 a road bridge, ฿100 a rail bridge (`CANAL_*` in `src/canals.ts`, `BASE_PRICES.canal`).
+   Canals keep no pieces: the dug tiles are enough for now, and step 4 can draw its centrelines from them as roads were
+   drawn before the pieces. The canal's water has the bulldoze bit, so the bulldozer fills it in; the land's own rivers
+   still cannot be bulldozed. In the game the canal draws like a power line did (line modes, snapping onto water, no
+   road dots); it waits for the ruler's house like the rail tool.
+2. **Simulation.** *(done: `WaterManager.refreshGround`, run at the next simulation step after `gameMap.groundChanged`;
+   the ground round new water fills by as much more as it now holds)* Recompute groundwater after each canal stroke (and after the bulldozer fills one in). Keep the
    price high enough that lining every street with canals for land value does not pay.
-3. **Remember canals.** A small `gameMap.canals` layer (saved, like `roadLevels`) so the 3D view, the city map and
+3. **Remember canals.** *(done: `gameMap.canals`, saved as `canals`, carried when a district frame grows; the
+   inspector says คลอง; the city maps' real canals are not marked yet)* A small `gameMap.canals` layer (saved, like `roadLevels`) so the 3D view, the city map and
    the inspector tell a canal from a river; the city maps' real canals can fill it too.
 4. **3D.** First the existing per-tile canal walls. Then a smooth canal along each piece's drawn path (walls, water
    and steps following the curve, the same way roads follow `roadPaths`), with the owner's road rules: one surface,

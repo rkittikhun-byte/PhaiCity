@@ -8,6 +8,7 @@
 // the city. Plain code: no DOM.
 
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
+import { isCanalAt } from "./canals.js";
 import { ownsLand } from "./landBlocks.js";
 import type { Fact } from "./objects/cityObject.js";
 import type { CityObjects } from "./objects/cityObjects.js";
@@ -168,7 +169,10 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
       sector: "central", facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect, path };
   }
   if (value >= RAILBASE && value <= LASTRAIL) return { title: { key: "object.kind.rail" }, facts: outside, rect };
-  if (value >= RIVER && value <= LASTRIVEDGE) return { title: { key: "object.kind.water" }, facts: outside, rect };
+  if (value >= RIVER && value <= LASTRIVEDGE) {
+    // ... a canal the player dug, or the land's own water (src/canals.ts)
+    return { title: { key: isCanalAt(map, x, y) ? "object.kind.canal" : "object.kind.water" }, facts: outside, rect };
+  }
   if (value >= TREEBASE && value <= LASTTREE || value >= WOODS && value < WOODS2) {
     return { title: { key: "object.kind.woods" }, facts: outside, rect };
   }

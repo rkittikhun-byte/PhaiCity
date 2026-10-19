@@ -12,7 +12,7 @@ export interface ToolCategory { id: string; icon: string; tools: readonly string
 export const TOOL_CATEGORIES: readonly ToolCategory[] = [
   { id: "city", icon: "ruler_house", tools: ["ruler_house", "land", "park", "stadium"] },
   { id: "zones", icon: "residential", tools: ["residential", "commercial", "industrial"] },
-  { id: "roads", icon: "road", tools: ["road", "rail", "bus_stop", "port"] },
+  { id: "roads", icon: "road", tools: ["road", "rail", "canal", "bus_stop", "port"] },
   { id: "services", icon: "coal", tools: ["coal", "waterworks", "landfill", "police", "primary_school", "health_centre"] },
   { id: "resources", icon: "mine", tools: ["farm", "mine"] },
   { id: "bulldoze", icon: "bulldozer", tools: ["bulldozer"] },

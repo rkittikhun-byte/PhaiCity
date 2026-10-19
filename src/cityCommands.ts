@@ -16,6 +16,7 @@
 // A new city builds its ruler's house before anything else (src/rulerHouse.ts, owner 13 Oct 2026): until it stands
 // only the house and the bulldozer are allowed; there is one house, and its next level needs the ruler's rank.
 
+import { CANAL_TOOL, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
@@ -30,7 +31,7 @@ import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, c
 import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
-import { ALLBITS, BIT_MASK } from "./tileFlags";
+import { ALLBITS, BIT_MASK, BULLBIT } from "./tileFlags";
 import { LASTRAIL, RAILBASE } from "./tileValues";
 import { UndoHistory } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
@@ -44,7 +45,7 @@ export const TOOL_NAMES = [
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
   "zone_residential", "zone_commercial", "zone_industrial", "zone_erase",
-  "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade",
+  "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade", "canal",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 
@@ -226,6 +227,12 @@ export interface CommandTarget {
   addBus?(x: number, y: number): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
   setStationKind?(x: number, y: number, kind: string): void;
+  /** Records a canal just dug at (x, y), and whether (x, y) was dug as one and is still its water or a bridge over it
+   * (src/canals.ts) */
+  setCanal?(x: number, y: number): void;
+  canalAt?(x: number, y: number): boolean;
+  /** Water came or went somewhere, so the ground's water is worked out again (src/waterManager.ts refreshGround) */
+  waterChanged?(): void;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -399,6 +406,24 @@ export class CityCommands {
 
   constructor(private readonly city: CommandTarget) {}
 
+  /** After a tool: the canal tool's new water is a canal, a bridge over a canal bulldozed back to water can be filled in
+   * again like the rest of it, and the ground's water is worked out again when water came or went */
+  private afterWater(before: ReadonlyArray<{ x: number; y: number; before: number }>, toolName: string): void {
+    const city = this.city, map = city.map!;
+    let changed = false;
+    for (const c of before) {
+      const raw = map.getTile(c.x, c.y).getRawValue(), wasWater = isWaterTile(c.before & BIT_MASK), water = isWaterTile(raw & BIT_MASK);
+      // The canal's water and the bridges it put over roads and railways it crossed
+      if (toolName === CANAL_TOOL && raw !== c.before) city.setCanal?.(c.x, c.y);
+      if (wasWater === water) continue;
+      changed = true;
+      if (water && toolName !== CANAL_TOOL && !(raw & BULLBIT) && city.canalAt?.(c.x, c.y)) {
+        map.setTile(c.x, c.y, raw & BIT_MASK, (raw & ALLBITS) | BULLBIT);
+      }
+    }
+    if (changed) city.waterChanged?.();
+  }
+
   /** Whether "undo" would take something back now. */
   canUndo(): boolean {
     return this.city.map !== undefined && this.history.canUndo(this.city.cityTime?.() ?? 0);
@@ -468,13 +493,15 @@ export class CityCommands {
         }
         // When a road or railway cuts through painted zoneCells / plots, clear painted cells on the road tiles and re-sync plots
         const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;
-        if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === "bulldozer") && before.length) {
+        if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === CANAL_TOOL ||
+          command.tool === "bulldozer") && before.length) {
           const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
           const touched = new Set<number>();
           for (const c of before) {
             const tileIdx = c.y * city.width + c.x;
             touched.add(tileIdx);
-            if (isRoadTile(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK) && cellMap.zoneCells) {
+            const now = map!.getTile(c.x, c.y).getRawValue() & BIT_MASK;
+            if ((isRoadTile(now) || isWaterTile(now)) && cellMap.zoneCells) {
               for (let cz = 0; cz < 4; cz++) {
                 for (let cx = 0; cx < 4; cx++) {
                   cellMap.zoneCells.delete((c.y * 4 + cz) * city.width * 4 + (c.x * 4 + cx));
@@ -485,6 +512,8 @@ export class CityCommands {
           syncCellPlots(cellMap, layout, touched);
           cellMap.zoneCellsVersion = (cellMap.zoneCellsVersion ?? 0) + 1;
         }
+        // A canal dug, and the groundwater round any water that came or went (src/canals.ts)
+        if (applied && map) this.afterWater(before, command.tool);
         if (applied && map && !tool.noUndo) {
           const changes = before.map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
             .filter((c) => c.after !== c.before);
@@ -500,6 +529,7 @@ export class CityCommands {
         for (const change of [...step.changes].reverse()) {
           map.setTile(change.x, change.y, change.before & BIT_MASK, change.before & ALLBITS);
         }
+        if (step.changes.some((c) => isWaterTile(c.before & BIT_MASK) !== isWaterTile(c.after & BIT_MASK))) city.waterChanged?.();
         city.budget.spend(-step.cost);
         return { accepted: true, undone: true };
       }

@@ -21,7 +21,8 @@ type ModeGroup = "line" | "paint";
 /** The clicks a clicked mode takes: the start and the end, and one or two bends between */
 export const POINTS_NEEDED: Readonly<Partial<Record<DrawMode, number>>> = { straight: 2, curve: 3, curve2: 4 };
 
-const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire"]);
+// ... and canals (src/canals.ts), dug the way a road is drawn
+const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire", "canal"]);
 const PAINT_TOOL_NAMES = new Set<string>([...Object.values(PAINT_TOOLS), ERASE_TOOL]);
 const GROUP_MODES: Readonly<Record<ModeGroup, readonly DrawMode[]>> = { line: LINE_MODES, paint: PAINT_MODES };
 // Zones are painted by dragging a rectangle over them (owner, 15 Oct 2026: "บ้าน ร้านค้า อุสาหกรรม การวาด ต้องเป็น drag แล้ว

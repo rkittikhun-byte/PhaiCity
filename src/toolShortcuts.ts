@@ -57,6 +57,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   industrial: "about.zone.ind",
   road: "about.infra.road_rail",
   rail: "about.infra.road_rail",
+  canal: "tool.hint.canal",
   wire: "about.infra.wire",
   park: "about.building.park",
   bulldozer: "tool.hint.bulldozer",

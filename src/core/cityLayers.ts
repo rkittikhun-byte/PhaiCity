@@ -14,6 +14,7 @@ import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
 import { levelsStanding } from "../buildingLevels.js";
+import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
@@ -49,6 +50,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.roadPieces = saved.roadPieces ? decodePresetLayerWide(saved.roadPieces, map.width, map.height) : null;
     // ... and the tiles each piece was drawn along, which set its shape for good
     map.roadPaths = readRoadPaths(saved.roadPaths);
+    // ... and the canals the player dug (src/canals.ts)
+    map.canals = saved.canals ? decodePresetLayer(saved.canals, map.width, map.height) : null;
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     map.heights = saved.heights || null;
     map.tileSizeM = saved.tileSizeM || null;
@@ -120,6 +123,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.roadLevels = map.roadLevels || newRoadLevels(map.width, map.height);
   map.roadPieces = map.roadPieces || newRoadPieces(map.width, map.height);
   map.roadPaths = map.roadPaths || {};
+  map.canals = map.canals || newCanals(map.width, map.height);
   map.civicKinds = map.civicKinds || {};
   map.wasteKinds = map.wasteKinds || {};
   map.policies = map.policies || [];
@@ -163,6 +167,11 @@ function piecesOnLines(map: Legacy): Set<number> {
   return pieces;
 }
 
+function encodeCanals(map: Legacy): string | undefined {
+  const kept = canalsKept(map);
+  return kept ? encodePresetLayer(kept) : undefined;
+}
+
 /** The records kept beside the tiles, as a save keeps them (run-length encoded like the map) */
 export function writeCityLayers(map: Legacy): Record<string, unknown> {
   return {
@@ -197,6 +206,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
     roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
     roadPaths: roadPathsKept(map.roadPaths, piecesOnLines(map)),
+    // ... and the canals the player dug, where they are still water or bridged (src/canals.ts)
+    canals: encodeCanals(map),
     // ... and whether its zones are painted tile by tile (src/plots.ts)
     paintedZones: map.paintedZones ? true : undefined,
     // ... and the size of its tiles, which sets the size of its land blocks (src/landBlocks.ts)
@@ -268,6 +279,10 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setBuildingLevel: (x: number, y: number, level: number) => { map.buildingLevels[y * map.width + x] = level; },
     setBuildingPose: (x: number, y: number, pose: [number, number, number]) => { map.buildingPoses[y * map.width + x] = pose; },
     addBus: (x: number, y: number) => { map.buses.push(y * map.width + x); },
+    // ... and the canals (src/canals.ts), after which the simulation works the ground's water out again
+    setCanal: (x: number, y: number) => { map.canals[y * map.width + x] = 1; },
+    canalAt: (x: number, y: number) => canalMarkStands(map, x, y),
+    waterChanged: () => { map.groundChanged = true; },
     isRailAt: (x: number, y: number) => {
       if (!map.testBounds(x, y)) return false;
       const value = map.getTileValue(x, y);

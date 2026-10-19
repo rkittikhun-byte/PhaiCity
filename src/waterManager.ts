@@ -164,6 +164,23 @@ export class WaterManager {
     for (let i = 0; i < this.stores.length; i++) this.stores[i] = Math.min(this.stores[i], this.full[i]);
   }
 
+  /**
+   * Works the natural levels out again after water came or went (a canal dug or filled in, src/canals.ts): the ground
+   * round new water fills by as much more as it now holds, and ground that holds less keeps no more than it holds.
+   */
+  refreshGround(heights: ArrayLike<number> | null): void {
+    const oldFull = this.full;
+    this.natural = computeGroundwater(this.map, heights);
+    this.full = fullStores(this.natural);
+    if (!this.stores || !oldFull || this.stores.length !== this.full.length) {
+      this.stores = this.full.slice();
+      return;
+    }
+    for (let i = 0; i < this.stores.length; i++) {
+      this.stores[i] = Math.min(this.full[i], this.stores[i] + Math.max(0, this.full[i] - oldFull[i]));
+    }
+  }
+
   save(saveData: Record<string, unknown>): void {
     if (this.stores) saveData.groundwater = encodePresetLayer(this.stores);
   }

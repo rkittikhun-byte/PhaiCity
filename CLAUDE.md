@@ -269,6 +269,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   Streets are named (`src/streetNames.ts`, from the map alone, not saved yet): roads, sois numbered odd and even along
   their road, แยก off a soi, numbered highways; the 3D view writes the names along the roads near the ground
   (`src/render3d/city/streetLabels.ts`, `streetName` in the view's setup, i18n `street.*`).
+- **Canals (คลอง, owner 19 Oct 2026):** `docs/CANALS.md`, `src/canals.ts`, `src/canalTool.ts`. A line tool in the
+  transport tray after rail, drawn by the road modes: clear land and woods become water (RIVER with the bulldoze bit, so
+  the bulldozer fills it in), a straight road or railway it crosses becomes a bridge, buildings and junctions are
+  refused. Water that comes or goes sets `gameMap.groundChanged` and the groundwater is worked out again
+  (`WaterManager.refreshGround`). The map remembers dug canals (`gameMap.canals`, saved); renderers read it.
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
   building, beside a road: until it stands only the roads, the house and the bulldozer work (`houseProblem` and
   `houseRoadProblem` in `CityCommands`, the dock greys the rest with `body.houseFirst`); cities saved before it are not

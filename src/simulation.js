@@ -466,6 +466,12 @@ var TAX_FREQUENCY = 48;
 
 
 var simulate = function(simData) {
+  // PhaiCity: water came or went (a canal dug or filled in, src/canals.ts), so the ground's water is worked out again
+  if (this._map.groundChanged) {
+    this._map.groundChanged = false;
+    this._waterManager.refreshGround(this._map.heights || null);
+  }
+
   this._phaseCycle &= 15;
   var speedIndex = this._speed - 1;
 

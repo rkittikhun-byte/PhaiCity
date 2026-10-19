@@ -154,6 +154,8 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
       .map(([piece, path]) => [piece, { ...path, tiles: path.tiles.map(moved),
         ...(Array.isArray(path.controls) ? { controls: path.controls.map(([x, y]) => [x + dx, y + dy]) } : {}) }]));
   }
+  // ... and the canals the player dug (src/canals.ts)
+  if (typeof save.canals === "string") out.canals = encodePresetLayer(layer(decoded(save.canals), null, 0));
   // The ground's water: the new land full (the water works fill it to what it holds, src/waterManager.ts prepareGround)
   if (typeof save.groundwater === "string") out.groundwater = encodePresetLayer(layer(decoded(save.groundwater), null, 255));
   if (save.mining) out.mining = { ...save.mining, ground: typeof save.mining.ground === "string" ?

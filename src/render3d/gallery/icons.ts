@@ -10,6 +10,7 @@ export const TOOL_ICONS = [
   ['industrial', 'โรงงาน', 'Industrial', 'yellow'],
   ['road', 'ถนน', 'Road', 'black'],
   ['rail', 'ทางรถไฟ', 'Rail', 'brown'],
+  ['canal', 'คลอง', 'Canal', 'steelblue'],
   ['wire', 'สายไฟ', 'Wire', 'khaki'],
   ['park', 'สวน', 'Park', 'darkgreen'],
   ['police', 'ตำรวจ', 'Police', 'darkblue'],
