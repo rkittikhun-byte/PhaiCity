@@ -82,7 +82,7 @@ import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from
 import { isBridgeTile, isWaterTile } from './canals.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
-import { focusDrawPoint, installEdgePan, setDrawingLine } from './drawAssist.ts';
+import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
@@ -581,8 +581,6 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.inspectCard = inspectElement ? new InspectCard(inspectElement) : null;
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
                   function(x, y) { self.inspectAtPixel(x, y); });
-  // ... and with a tool in hand the map slides when the mouse rests near the screen's edge (src/drawAssist.ts)
-  installEdgePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document);
   // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
   installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
   document.addEventListener('phaicity:active_tool_changed', function(event) {
@@ -2669,14 +2667,15 @@ var tick = function() {
 };
 
 
-// With a line half drawn, the mouse near an edge of the screen slides the camera towards it, so the next point can be reached
-// when it lies beyond the screen or under a card (src/edgeScroll.ts; owner, 18 Oct 2026). Drags of a rectangle or of the
+// With a tool in hand (owner, 19 Oct 2026; until then only with a line half drawn), the mouse near an edge of the screen
+// slides the camera towards it, so the next point can be reached when it lies beyond the screen or under a card
+// (src/edgeScroll.ts; owner, 18 Oct 2026). Drags of a rectangle or of the
 // bulldozer keep their pixels, which a moving camera would spoil, so they do not slide.
 Game.prototype.edgeScrollView = function() {
   var now = performance.now(), last = this._edgeTime || now;
   this._edgeTime = now;
-  var input = this.inputStatus, draft = this.lineDraft, pan = panOf(this.cityView);
-  if (pan === null || draft === null || draft.points.length === 0 || input.mouseX < 0 || input.pathDrag !== null ||
+  var input = this.inputStatus, pan = panOf(this.cityView);
+  if (pan === null || input.currentTool === null || input.mouseX < 0 || input.pathDrag !== null ||
       input.areaDrag !== null)
     return;
   var canvas = document.querySelector(input.canvasID);

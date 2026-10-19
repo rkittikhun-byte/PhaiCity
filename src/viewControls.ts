@@ -34,7 +34,7 @@ interface CameraLike {
   target?: { x: number; z: number };
 }
 
-export interface ViewLike {
+interface ViewLike {
   rotate?(degrees: number): void;
   resetView?(): void;
   pan?(dx: number, dy: number): void;
