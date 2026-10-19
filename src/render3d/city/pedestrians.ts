@@ -22,9 +22,10 @@ import type { CityHeightField } from './heightfield.js';
 import { halfWidth, roadReach, type Point } from '../../roadGeometry.js';
 import type { RegionId } from '../regional/types.js';
 import type { BlockMapReader } from './types.js';
+import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
 
-const MAX_PEDESTRIANS = 140;
+export const MAX_PEDESTRIANS = 140;
 const MAX_TAKRAW = 8;
 const MAX_VEHICLES = 16;
 let rngState = 0;
@@ -32,6 +33,8 @@ function fastSeed(seed: number): void { rngState = seed >>> 0; }
 function fastRng(): number { rngState = (Math.imul(rngState, 1664525) + 1013904223) >>> 0; return rngState / 4294967296; }
 /** Adult height in metres (1.68 m); multiplied by `size` (realUnits = 10/16 = 0.625 on 16 m city tiles -> 1.05 units). */
 export const HUMAN_HEIGHT_M = 1.68;
+/** The concept-sheet people are chibi, about 1.5 m: drawn a little larger so they stand as tall as the boxes did. */
+const PEOPLE_SCALE = 1.1;
 const LIMB_PIVOT_Y = 0.84;
 
 const lineLengthCache = new WeakMap<object, number>();
@@ -344,6 +347,10 @@ export class CityPedestrians {
   totalEmployed = 0;
   activeCommutersCount = 0;
   size = 1;
+  /** The concept-sheet people once their models have loaded (people3d.ts); until then the boxes walk. */
+  private people: PeopleDrawer | null = null;
+  private peopleRegion: RegionId = 'central';
+  private peopleEra: () => number = () => 1;
 
   constructor(
     private readonly snapshot: TileSnapshot,
@@ -410,6 +417,19 @@ export class CityPedestrians {
     };
   }
 
+  /** Draw the concept-sheet people from now on, for this region and the city's era as it is read each frame. */
+  usePeople(drawer: PeopleDrawer, region: RegionId, era: () => number): void {
+    this.people?.dispose();
+    this.people = drawer;
+    this.peopleRegion = region;
+    this.peopleEra = era;
+    for (const mesh of [this.shirtMesh, this.headMesh, this.strideAMesh, this.strideBMesh]) {
+      mesh.count = 0;
+      mesh.visible = false;
+    }
+    this.root.add(drawer.mesh);
+  }
+
   get households(): ReadonlyArray<Household> { return this.cachedHouseholds; }
   get workplaces(): ReadonlyArray<Workplace> { return this.cachedWorkplaces; }
   get employedCitizens(): ReadonlyArray<EmployedCitizen> { return this.cachedEmployed; }
@@ -424,8 +444,16 @@ export class CityPedestrians {
     shirtHex: number,
     poseType: 'walk' | 'jog' | 'stand' | 'kick' = 'walk',
     customSwing?: number,
+    who = slot,
+    role?: 'walk' | 'jog' | 'stand' | 'kick',
   ): void {
     const s = this.size * scaleMultiplier;
+    if (this.people) {
+      const activity: Activity = poseType;
+      this.people.place(slot, x, this.terrain.sample(x, z), z, heading, s * PEOPLE_SCALE, who, activity, phase,
+        poseType === 'kick', role ?? activity);
+      return;
+    }
     let swing = 0;
     let bob = 0;
 
@@ -733,8 +761,10 @@ export class CityPedestrians {
       this.strideAMesh.count = 0;
       this.strideBMesh.count = 0;
       this.takrawMesh.count = 0;
+      this.people?.finish(0);
       return;
     }
+    this.people?.useSheets(sheetsFor(this.peopleEra(), this.peopleRegion));
 
     const viewSpan = Math.min(340, Math.max(130, distance * 0.95));
     const walkSpeed = 0.85 * this.size;
@@ -803,7 +833,7 @@ export class CityPedestrians {
         const heading = Math.atan2(dx * dir, dz * dir);
         const phase = seconds * 6.2 * worker.speedVar + c * 2.1 + lineIdx;
 
-        this.placeWalker(count++, wx, wz, heading, phase, 0.96, worker.shirtColor, 'walk');
+        this.placeWalker(count++, wx, wz, heading, phase, 0.96, worker.shirtColor, 'walk', undefined, worker.id);
         this.activeCommutersCount++;
       }
 
@@ -845,7 +875,7 @@ export class CityPedestrians {
         const phase = seconds * 9.8 + j * 3.1 + lineIdx;
         const jogShirt = SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)];
 
-        this.placeWalker(count++, wx, wz, heading, phase, 0.98, jogShirt, 'jog');
+        this.placeWalker(count++, wx, wz, heading, phase, 0.98, jogShirt, 'jog', undefined, 50000 + lineIdx * 4 + j);
       }
     }
 
@@ -891,7 +921,8 @@ export class CityPedestrians {
         const pose: 'kick' | 'stand' = isKicking ? 'kick' : 'stand';
         const customSwing = isKicking ? -0.92 : isReceiving ? 0.35 : undefined;
         const shirt = court.shirts[p];
-        this.placeWalker(count++, player.x, player.z, player.heading, seconds * 3 + p * 2.1, 0.95, shirt, pose, customSwing);
+        this.placeWalker(count++, player.x, player.z, player.heading, seconds * 3 + p * 2.1, 0.95, shirt, pose, customSwing,
+          60000 + court.seed * 3 + p, 'kick');
       }
     }
 
@@ -905,28 +936,33 @@ export class CityPedestrians {
       const p1z = spot.cz - Math.cos(spot.angle) * 0.65 * this.size;
       const p2x = spot.cx + Math.sin(spot.angle) * 0.65 * this.size;
       const p2z = spot.cz + Math.cos(spot.angle) * 0.65 * this.size;
-      this.placeWalker(count++, p1x, p1z, facingA + Math.PI / 2, seconds * 0.8 + c, 0.95, spot.shirtA, 'stand');
-      this.placeWalker(count++, p2x, p2z, facingB + Math.PI / 2, seconds * 0.8 + c + 1.2, 0.93, spot.shirtB, 'stand');
+      this.placeWalker(count++, p1x, p1z, facingA + Math.PI / 2, seconds * 0.8 + c, 0.95, spot.shirtA, 'stand', undefined,
+        70000 + c * 2);
+      this.placeWalker(count++, p2x, p2z, facingB + Math.PI / 2, seconds * 0.8 + c + 1.2, 0.93, spot.shirtB, 'stand', undefined,
+        70001 + c * 2);
     }
 
     // 4. Waiting passengers at bus stops (รอรถเมล์/สองแถว)
     for (let s = 0; s < this.cachedTransitStops.length && count < MAX_PEDESTRIANS; s++) {
       const stop = this.cachedTransitStops[s];
       if (Math.abs(stop.wx - target.x) > viewSpan || Math.abs(stop.wz - target.z) > viewSpan) continue;
-      this.placeWalker(count++, stop.wx, stop.wz, stop.heading, seconds * 0.2 + s, 0.96, stop.shirt, 'stand', 0);
+      this.placeWalker(count++, stop.wx, stop.wz, stop.heading, seconds * 0.2 + s, 0.96, stop.shirt, 'stand', 0, 80000 + s);
     }
 
     // 5. Commercial shoppers outside shops
     for (let sp = 0; sp < this.cachedShopSpots.length && count < MAX_PEDESTRIANS; sp++) {
       const shop = this.cachedShopSpots[sp];
       if (Math.abs(shop.wx - target.x) > viewSpan || Math.abs(shop.wz - target.z) > viewSpan) continue;
-      this.placeWalker(count++, shop.wx, shop.wz, shop.heading, seconds * 0.6 + sp, 0.94, shop.shirt, 'stand');
+      this.placeWalker(count++, shop.wx, shop.wz, shop.heading, seconds * 0.6 + sp, 0.94, shop.shirt, 'stand', undefined,
+        90000 + sp);
     }
 
-    this.shirtMesh.count = count;
-    this.headMesh.count = count;
-    this.strideAMesh.count = count;
-    this.strideBMesh.count = count;
+    const boxes = this.people ? 0 : count;
+    this.people?.finish(count);
+    this.shirtMesh.count = boxes;
+    this.headMesh.count = boxes;
+    this.strideAMesh.count = boxes;
+    this.strideBMesh.count = boxes;
     this.takrawMesh.count = takrawCount;
     for (const mesh of [this.shirtMesh, this.headMesh, this.strideAMesh, this.strideBMesh]) {
       mesh.instanceMatrix.needsUpdate = true;
@@ -936,6 +972,8 @@ export class CityPedestrians {
   }
 
   dispose(): void {
+    this.people?.dispose();
+    this.people = null;
     this.shirtMesh.dispose();
     this.headMesh.dispose();
     this.strideAMesh.dispose();

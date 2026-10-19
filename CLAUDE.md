@@ -187,6 +187,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 - **Ruler rank (ยศเจ้าเมือง):** `src/rulerRank.ts` maps the game's city classes to หมื่น … เจ้าพระยา. A rank only
   rises (`keepHigherRank`), is saved as `rulerRank` (and `rank` in the city list), shows under the city name, and the
   congratulations window opens once per new rank (`game.processFrontEndMessage`).
+- **City era (ยุค, owner 19 Oct 2026):** `src/era.ts`. A city moves through five eras (farming village, market town,
+  factory town, modern city, future city); `gameMap.era` (1-5, set in `game.js` from the ruler's rank for now) is
+  what every renderer reads to draw the era's people and, next, its buildings.
+- **People (owner, 19 Oct 2026):** the concept-sheet characters are built in Blender in `art/people/` (Python
+  scripts, `.blend` sources, `PLAN.md`, `IMPORT.md`); `export_game.py` writes `assets/models/people/`, which
+  `src/render3d/city/people3d.ts` draws for `pedestrians.ts` (the era's sheet, the region's and the shared one).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side

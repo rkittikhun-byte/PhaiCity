@@ -95,6 +95,7 @@ import { Random } from './random.ts';
 import { RCI } from './rci.js';
 import { installRulerGoals } from './rulerGoals.ts';
 import { keepHigherRank, RANKS, rankForCityClass } from './rulerRank.ts';
+import { eraForRank } from './era.ts';
 import { SaveWindow } from './saveWindow.js';
 import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
@@ -214,6 +215,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The ruler's rank follows the city's size and is never lost (src/rulerRank.ts); older saves have none yet
   this.rulerRank = keepHigherRank(savedGame ? savedGame.rulerRank : null,
                                   rankForCityClass(this.simulation.evaluation.cityClass));
+  // The city's era follows the rank; renderers read it from the map (src/era.ts)
+  this.gameMap.era = eraForRank(this.rulerRank);
 
   this.rci = new RCI('RCIContainer', this.simulation);
   // The same demand, as percentages with the people in homes, shops and factories, in the status (src/cityStatus.ts)
@@ -1612,6 +1615,7 @@ Game.prototype.processFrontEndMessage = function(message) {
       var rank = keepHigherRank(this.rulerRank, rankForCityClass(milestone.cityClass));
       promoted = rank !== this.rulerRank;
       this.rulerRank = rank;
+      this.gameMap.era = eraForRank(rank);
       this.showRulerRank();
       // A higher rank may let the ruler's house rise a level
       this.refreshHouse();

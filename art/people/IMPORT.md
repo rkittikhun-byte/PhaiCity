@@ -4,6 +4,22 @@ For the AI session (or person) that imports the people later. Nothing here has b
 2026: build and keep first). Read the game's `CLAUDE.md`, `docs/3d/MODEL_SPEC.md` and `docs/3d/HOW_TO_MAKE_3D.md`
 first; this file only covers what is special about these models.
 
+
+## Done (19 Oct 2026)
+
+The people walk in the game now (owner: "ให้ใช้ 3d นี้เป็นคนวิ่งๆ ในเกมส์แทนเลย"):
+
+- `art/people/scripts/export_game.py` (Blender) writes `assets/models/people/<sheet>/<id>.glb` (no outline, about
+  1,700 triangles each), `clips.glb` and `index.json`. Run it again after rebuilding characters.
+- `src/render3d/city/people3d.ts` loads them, bakes the clips and draws every person in one `BatchedMesh` (a geometry
+  per part per character); `CityPedestrians` (`pedestrians.ts`) places people as before and hands them to it once
+  loaded (`usePeople`), the boxes until then. Walk, jog, stand and the takraw kick play the walk/walk_carry, run,
+  idle and takraw clips.
+- Who walks: the shared sheet, the sheet of the city's era and the region's sheet (`sheetsFor`). The era is
+  `gameMap.era` (`src/era.ts`), for now from the ruler's rank; buildings of each era will read the same value.
+- Tests: `test/render3d/people3d.test.ts`.
+- Not done yet: the other clips (bike, farming, sitting...) wait for places in the city to play them; a far LOD.
+
 ## What is here
 
 | Path | What |

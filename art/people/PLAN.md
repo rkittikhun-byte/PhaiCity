@@ -11,9 +11,9 @@ said "don't ask, just go": work through the checklist on your own and pace the p
 
 ## Now
 
-- 19 Oct 2026 07:50: **everything on the checklist is built** (75 characters, 21 clips, the library) and committed.
-  Waiting for the owner's review. Next steps only when the owner asks: polish what they point at, import into the
-  game (IMPORT.md).
+- 19 Oct 2026: all built, in the game repo at `art/people/`, and walking in the game (IMPORT.md "Done"). The era
+  variable is `gameMap.era` (`src/era.ts`). Next, when the owner asks: the activity clips at their places (farms,
+  sports grounds), and each era's buildings.
 
 ## Style (from the concept sheets)
 

@@ -1,0 +1,756 @@
+{
+ "note": "Made by art/people/scripts/export_game.py; do not edit by hand.",
+ "clips": "clips.glb",
+ "people": [
+  {
+   "id": "monk",
+   "sheet": "shared",
+   "kind": "man",
+   "th": "พระบิณฑบาต",
+   "swingArms": false,
+   "walker": true,
+   "file": "shared/monk.glb",
+   "triangles": 1324
+  },
+  {
+   "id": "schoolboy",
+   "sheet": "shared",
+   "kind": "boy",
+   "th": "นักเรียนชาย",
+   "swingArms": false,
+   "walker": true,
+   "file": "shared/schoolboy.glb",
+   "triangles": 1622
+  },
+  {
+   "id": "schoolgirl",
+   "sheet": "shared",
+   "kind": "girl",
+   "th": "นักเรียนหญิง",
+   "swingArms": false,
+   "walker": true,
+   "file": "shared/schoolgirl.glb",
+   "triangles": 1620
+  },
+  {
+   "id": "vendor_yoke",
+   "sheet": "shared",
+   "kind": "woman",
+   "th": "แม่ค้าหาบของ",
+   "swingArms": false,
+   "walker": true,
+   "file": "shared/vendor_yoke.glb",
+   "triangles": 2320
+  },
+  {
+   "id": "era1_farmer_sickle",
+   "sheet": "era1",
+   "kind": "man",
+   "th": "ชาวนาถือเคียว",
+   "swingArms": true,
+   "walker": true,
+   "file": "era1/era1_farmer_sickle.glb",
+   "triangles": 1712
+  },
+  {
+   "id": "era1_seedling_woman",
+   "sheet": "era1",
+   "kind": "woman",
+   "th": "หญิงถือต้นกล้า",
+   "swingArms": false,
+   "walker": true,
+   "file": "era1/era1_seedling_woman.glb",
+   "triangles": 1784
+  },
+  {
+   "id": "era1_net_fisher",
+   "sheet": "era1",
+   "kind": "man",
+   "th": "ชาวประมงถือแห",
+   "swingArms": false,
+   "walker": true,
+   "file": "era1/era1_net_fisher.glb",
+   "triangles": 1790
+  },
+  {
+   "id": "era1_boat_vendor",
+   "sheet": "era1",
+   "kind": "woman",
+   "th": "แม่ค้าพายเรือ",
+   "swingArms": false,
+   "walker": true,
+   "file": "era1/era1_boat_vendor.glb",
+   "triangles": 1726
+  },
+  {
+   "id": "era1_boy_rope",
+   "sheet": "era1",
+   "kind": "boy",
+   "th": "เด็กชายถือเชือก",
+   "swingArms": true,
+   "walker": true,
+   "file": "era1/era1_boy_rope.glb",
+   "triangles": 1720
+  },
+  {
+   "id": "era1_grandma_box",
+   "sheet": "era1",
+   "kind": "woman",
+   "th": "ยายถือหีบหมาก",
+   "swingArms": false,
+   "walker": true,
+   "file": "era1/era1_grandma_box.glb",
+   "triangles": 1648
+  },
+  {
+   "id": "era2_abacus_woman",
+   "sheet": "era2",
+   "kind": "woman",
+   "th": "แม่ค้าดีดลูกคิด",
+   "swingArms": false,
+   "walker": true,
+   "file": "era2/era2_abacus_woman.glb",
+   "triangles": 2276
+  },
+  {
+   "id": "era2_porter_sack",
+   "sheet": "era2",
+   "kind": "man",
+   "th": "กุลีแบกกระสอบ",
+   "swingArms": false,
+   "walker": true,
+   "file": "era2/era2_porter_sack.glb",
+   "triangles": 1784
+  },
+  {
+   "id": "era2_postman",
+   "sheet": "era2",
+   "kind": "man",
+   "th": "บุรุษไปรษณีย์",
+   "swingArms": true,
+   "walker": true,
+   "file": "era2/era2_postman.glb",
+   "triangles": 1554
+  },
+  {
+   "id": "era2_samlor_rider",
+   "sheet": "era2",
+   "kind": "man",
+   "th": "คนถีบสามล้อ",
+   "swingArms": false,
+   "walker": true,
+   "file": "era2/era2_samlor_rider.glb",
+   "triangles": 1472
+  },
+  {
+   "id": "era2_rail_worker",
+   "sheet": "era2",
+   "kind": "woman",
+   "th": "พนักงานรถไฟถือตะเกียง",
+   "swingArms": true,
+   "walker": true,
+   "file": "era2/era2_rail_worker.glb",
+   "triangles": 1914
+  },
+  {
+   "id": "era2_teacher_book",
+   "sheet": "era2",
+   "kind": "woman",
+   "th": "ครูถือหนังสือ",
+   "swingArms": false,
+   "walker": true,
+   "file": "era2/era2_teacher_book.glb",
+   "triangles": 1618
+  },
+  {
+   "id": "era3_factory_woman",
+   "sheet": "era3",
+   "kind": "woman",
+   "th": "สาวโรงงานถือปิ่นโต",
+   "swingArms": true,
+   "walker": true,
+   "file": "era3/era3_factory_woman.glb",
+   "triangles": 1666
+  },
+  {
+   "id": "era3_factory_man",
+   "sheet": "era3",
+   "kind": "man",
+   "th": "หนุ่มโรงงาน",
+   "swingArms": true,
+   "walker": true,
+   "file": "era3/era3_factory_man.glb",
+   "triangles": 1424
+  },
+  {
+   "id": "era3_moto_taxi",
+   "sheet": "era3",
+   "kind": "man",
+   "th": "วินมอเตอร์ไซค์",
+   "swingArms": false,
+   "walker": true,
+   "file": "era3/era3_moto_taxi.glb",
+   "triangles": 1454
+  },
+  {
+   "id": "era3_cashier",
+   "sheet": "era3",
+   "kind": "woman",
+   "th": "พนักงานแคชเชียร์",
+   "swingArms": true,
+   "walker": true,
+   "file": "era3/era3_cashier.glb",
+   "triangles": 1500
+  },
+  {
+   "id": "era3_builder",
+   "sheet": "era3",
+   "kind": "man",
+   "th": "คนงานก่อสร้าง",
+   "swingArms": true,
+   "walker": true,
+   "file": "era3/era3_builder.glb",
+   "triangles": 1558
+  },
+  {
+   "id": "era3_office_woman",
+   "sheet": "era3",
+   "kind": "woman",
+   "th": "พนักงานออฟฟิศถือแฟ้ม",
+   "swingArms": true,
+   "walker": true,
+   "file": "era3/era3_office_woman.glb",
+   "triangles": 1630
+  },
+  {
+   "id": "era4_office_woman",
+   "sheet": "era4",
+   "kind": "woman",
+   "th": "พนักงานออฟฟิศหญิง",
+   "swingArms": true,
+   "walker": true,
+   "file": "era4/era4_office_woman.glb",
+   "triangles": 1590
+  },
+  {
+   "id": "era4_office_man",
+   "sheet": "era4",
+   "kind": "man",
+   "th": "พนักงานออฟฟิศชาย",
+   "swingArms": true,
+   "walker": true,
+   "file": "era4/era4_office_man.glb",
+   "triangles": 1460
+  },
+  {
+   "id": "era4_delivery_rider",
+   "sheet": "era4",
+   "kind": "woman",
+   "th": "ไรเดอร์ส่งอาหาร",
+   "swingArms": false,
+   "walker": true,
+   "file": "era4/era4_delivery_rider.glb",
+   "triangles": 1660
+  },
+  {
+   "id": "era4_tourist",
+   "sheet": "era4",
+   "kind": "man",
+   "th": "นักท่องเที่ยวสะพายกล้อง",
+   "swingArms": true,
+   "walker": true,
+   "file": "era4/era4_tourist.glb",
+   "triangles": 1626
+  },
+  {
+   "id": "era4_uni_student",
+   "sheet": "era4",
+   "kind": "woman",
+   "th": "นักศึกษา",
+   "swingArms": true,
+   "walker": true,
+   "file": "era4/era4_uni_student.glb",
+   "triangles": 1622
+  },
+  {
+   "id": "era4_jogger",
+   "sheet": "era4",
+   "kind": "man",
+   "th": "คนวิ่งออกกำลังกาย",
+   "swingArms": true,
+   "walker": true,
+   "file": "era4/era4_jogger.glb",
+   "triangles": 1446
+  },
+  {
+   "id": "era4_homeless",
+   "sheet": "era4",
+   "kind": "man",
+   "th": "คนไร้บ้าน",
+   "swingArms": false,
+   "walker": false,
+   "file": null,
+   "triangles": 0
+  },
+  {
+   "id": "era5_tablet_woman",
+   "sheet": "era5",
+   "kind": "woman",
+   "th": "นักวางแผนถือแท็บเล็ต",
+   "swingArms": false,
+   "walker": true,
+   "file": "era5/era5_tablet_woman.glb",
+   "triangles": 1614
+  },
+  {
+   "id": "era5_delivery_robot",
+   "sheet": "era5",
+   "kind": "man",
+   "th": "หุ่นยนต์ส่งของ",
+   "swingArms": true,
+   "walker": false,
+   "file": null,
+   "triangles": 0
+  },
+  {
+   "id": "era5_engineer",
+   "sheet": "era5",
+   "kind": "man",
+   "th": "วิศวกรใส่แว่น",
+   "swingArms": true,
+   "walker": true,
+   "file": "era5/era5_engineer.glb",
+   "triangles": 1486
+  },
+  {
+   "id": "era5_astronaut",
+   "sheet": "era5",
+   "kind": "woman",
+   "th": "นักบินอวกาศ",
+   "swingArms": true,
+   "walker": true,
+   "file": "era5/era5_astronaut.glb",
+   "triangles": 1702
+  },
+  {
+   "id": "era5_robot_farmer",
+   "sheet": "era5",
+   "kind": "woman",
+   "th": "เกษตรกรกับหุ่นยนต์",
+   "swingArms": true,
+   "walker": true,
+   "file": "era5/era5_robot_farmer.glb",
+   "triangles": 1964
+  },
+  {
+   "id": "era5_vr_boy",
+   "sheet": "era5",
+   "kind": "boy",
+   "th": "เด็กชายใส่แว่น VR",
+   "swingArms": true,
+   "walker": true,
+   "file": "era5/era5_vr_boy.glb",
+   "triangles": 1510
+  },
+  {
+   "id": "north_lanna_woman",
+   "sheet": "north",
+   "kind": "woman",
+   "th": "สาวล้านนา",
+   "swingArms": true,
+   "walker": true,
+   "file": "north/north_lanna_woman.glb",
+   "triangles": 1654
+  },
+  {
+   "id": "north_umbrella_painter",
+   "sheet": "north",
+   "kind": "man",
+   "th": "ช่างเขียนร่มบ่อสร้าง",
+   "swingArms": false,
+   "walker": true,
+   "file": "north/north_umbrella_painter.glb",
+   "triangles": 1852
+  },
+  {
+   "id": "north_tea_picker",
+   "sheet": "north",
+   "kind": "woman",
+   "th": "สาวเก็บชา",
+   "swingArms": false,
+   "walker": true,
+   "file": "north/north_tea_picker.glb",
+   "triangles": 1926
+  },
+  {
+   "id": "north_akha_woman",
+   "sheet": "north",
+   "kind": "woman",
+   "th": "หญิงอาข่า",
+   "swingArms": true,
+   "walker": true,
+   "file": "north/north_akha_woman.glb",
+   "triangles": 3006
+  },
+  {
+   "id": "north_wood_carver",
+   "sheet": "north",
+   "kind": "man",
+   "th": "ช่างแกะสลักไม้",
+   "swingArms": false,
+   "walker": true,
+   "file": "north/north_wood_carver.glb",
+   "triangles": 1782
+  },
+  {
+   "id": "north_bus_driver",
+   "sheet": "north",
+   "kind": "man",
+   "th": "คนขับรถโดยสาร",
+   "swingArms": false,
+   "walker": true,
+   "file": "north/north_bus_driver.glb",
+   "triangles": 1582
+  },
+  {
+   "id": "north_sai_ua_vendor",
+   "sheet": "north",
+   "kind": "woman",
+   "th": "แม่ค้าไส้อั่ว",
+   "swingArms": false,
+   "walker": true,
+   "file": "north/north_sai_ua_vendor.glb",
+   "triangles": 1904
+  },
+  {
+   "id": "isan_sticky_rice_woman",
+   "sheet": "isan",
+   "kind": "woman",
+   "th": "แม่ถือกระติบข้าวเหนียว",
+   "swingArms": false,
+   "walker": true,
+   "file": "isan/isan_sticky_rice_woman.glb",
+   "triangles": 1908
+  },
+  {
+   "id": "isan_khaen_player",
+   "sheet": "isan",
+   "kind": "man",
+   "th": "หมอแคน",
+   "swingArms": false,
+   "walker": true,
+   "file": "isan/isan_khaen_player.glb",
+   "triangles": 1728
+  },
+  {
+   "id": "isan_silk_spinner",
+   "sheet": "isan",
+   "kind": "woman",
+   "th": "แม่สาวไหม",
+   "swingArms": false,
+   "walker": true,
+   "file": "isan/isan_silk_spinner.glb",
+   "triangles": 1684
+  },
+  {
+   "id": "isan_buffalo_boy",
+   "sheet": "isan",
+   "kind": "boy",
+   "th": "เด็กเลี้ยงควายถือเชือก",
+   "swingArms": true,
+   "walker": true,
+   "file": "isan/isan_buffalo_boy.glb",
+   "triangles": 1720
+  },
+  {
+   "id": "isan_papaya_salad",
+   "sheet": "isan",
+   "kind": "woman",
+   "th": "แม่ค้าส้มตำ",
+   "swingArms": false,
+   "walker": true,
+   "file": "isan/isan_papaya_salad.glb",
+   "triangles": 1706
+  },
+  {
+   "id": "isan_fish_trap_boy",
+   "sheet": "isan",
+   "kind": "boy",
+   "th": "หนุ่มถือไซ",
+   "swingArms": true,
+   "walker": true,
+   "file": "isan/isan_fish_trap_boy.glb",
+   "triangles": 1744
+  },
+  {
+   "id": "isan_grandma_box",
+   "sheet": "isan",
+   "kind": "woman",
+   "th": "ยายถือกล่องหมาก",
+   "swingArms": false,
+   "walker": true,
+   "file": "isan/isan_grandma_box.glb",
+   "triangles": 1576
+  },
+  {
+   "id": "central_boat_vendor",
+   "sheet": "central",
+   "kind": "woman",
+   "th": "แม่ค้าตลาดน้ำ",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_boat_vendor.glb",
+   "triangles": 1880
+  },
+  {
+   "id": "central_pole_boatman",
+   "sheet": "central",
+   "kind": "man",
+   "th": "คนถ่อเรือ",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_pole_boatman.glb",
+   "triangles": 1582
+  },
+  {
+   "id": "central_rice_harvester",
+   "sheet": "central",
+   "kind": "man",
+   "th": "ชาวนาเกี่ยวข้าว",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_rice_harvester.glb",
+   "triangles": 1760
+  },
+  {
+   "id": "central_abacus_woman",
+   "sheet": "central",
+   "kind": "woman",
+   "th": "แม่ค้าดีดลูกคิด",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_abacus_woman.glb",
+   "triangles": 2188
+  },
+  {
+   "id": "central_noodle_seller",
+   "sheet": "central",
+   "kind": "man",
+   "th": "คนขายก๋วยเตี๋ยวรถเข็น",
+   "swingArms": true,
+   "walker": true,
+   "file": "central/central_noodle_seller.glb",
+   "triangles": 1482
+  },
+  {
+   "id": "central_net_fisher",
+   "sheet": "central",
+   "kind": "man",
+   "th": "ชาวประมงถือแห",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_net_fisher.glb",
+   "triangles": 1700
+  },
+  {
+   "id": "central_malai_dancer",
+   "sheet": "central",
+   "kind": "woman",
+   "th": "หญิงชุดไทยถือพวงมาลัย",
+   "swingArms": false,
+   "walker": true,
+   "file": "central/central_malai_dancer.glb",
+   "triangles": 1834
+  },
+  {
+   "id": "east_durian_man",
+   "sheet": "east",
+   "kind": "man",
+   "th": "ชาวสวนทุเรียน",
+   "swingArms": false,
+   "walker": true,
+   "file": "east/east_durian_man.glb",
+   "triangles": 1828
+  },
+  {
+   "id": "east_rambutan_woman",
+   "sheet": "east",
+   "kind": "woman",
+   "th": "แม่ค้าเงาะ",
+   "swingArms": false,
+   "walker": true,
+   "file": "east/east_rambutan_woman.glb",
+   "triangles": 2018
+  },
+  {
+   "id": "east_gem_dealer",
+   "sheet": "east",
+   "kind": "man",
+   "th": "พ่อค้าพลอยจันทบุรี",
+   "swingArms": false,
+   "walker": true,
+   "file": "east/east_gem_dealer.glb",
+   "triangles": 1544
+  },
+  {
+   "id": "east_fish_woman",
+   "sheet": "east",
+   "kind": "woman",
+   "th": "แม่ค้าปลาทะเล",
+   "swingArms": false,
+   "walker": true,
+   "file": "east/east_fish_woman.glb",
+   "triangles": 1856
+  },
+  {
+   "id": "east_mechanic",
+   "sheet": "east",
+   "kind": "man",
+   "th": "ช่างนิคมอุตสาหกรรม",
+   "swingArms": true,
+   "walker": true,
+   "file": "east/east_mechanic.glb",
+   "triangles": 1644
+  },
+  {
+   "id": "east_incense_woman",
+   "sheet": "east",
+   "kind": "woman",
+   "th": "หญิงไหว้ศาลถือธูป",
+   "swingArms": false,
+   "walker": true,
+   "file": "east/east_incense_woman.glb",
+   "triangles": 1502
+  },
+  {
+   "id": "west_rod_fisher",
+   "sheet": "west",
+   "kind": "man",
+   "th": "คนตกปลา",
+   "swingArms": false,
+   "walker": true,
+   "file": "west/west_rod_fisher.glb",
+   "triangles": 1680
+  },
+  {
+   "id": "west_head_basket_woman",
+   "sheet": "west",
+   "kind": "woman",
+   "th": "หญิงทูนกระจาดบนหัว",
+   "swingArms": false,
+   "walker": true,
+   "file": "west/west_head_basket_woman.glb",
+   "triangles": 1914
+  },
+  {
+   "id": "west_loom_weaver",
+   "sheet": "west",
+   "kind": "woman",
+   "th": "หญิงทอผ้ากี่เอว",
+   "swingArms": false,
+   "walker": false,
+   "file": null,
+   "triangles": 0
+  },
+  {
+   "id": "west_ladder_man",
+   "sheet": "west",
+   "kind": "man",
+   "th": "ชายถือบันไดไม้ไผ่",
+   "swingArms": false,
+   "walker": true,
+   "file": "west/west_ladder_man.glb",
+   "triangles": 1764
+  },
+  {
+   "id": "west_water_jar_woman",
+   "sheet": "west",
+   "kind": "woman",
+   "th": "หญิงข้างโอ่งน้ำ",
+   "swingArms": true,
+   "walker": true,
+   "file": "west/west_water_jar_woman.glb",
+   "triangles": 1562
+  },
+  {
+   "id": "west_paddle_man",
+   "sheet": "west",
+   "kind": "man",
+   "th": "ชายถือพาย",
+   "swingArms": false,
+   "walker": true,
+   "file": "west/west_paddle_man.glb",
+   "triangles": 1724
+  },
+  {
+   "id": "south_roti_woman",
+   "sheet": "south",
+   "kind": "woman",
+   "th": "แม่ค้าโรตี",
+   "swingArms": false,
+   "walker": true,
+   "file": "south/south_roti_woman.glb",
+   "triangles": 1724
+  },
+  {
+   "id": "south_net_fisher",
+   "sheet": "south",
+   "kind": "man",
+   "th": "ชาวประมงใส่หมวกกะปิเยาะ",
+   "swingArms": false,
+   "walker": true,
+   "file": "south/south_net_fisher.glb",
+   "triangles": 1756
+  },
+  {
+   "id": "south_rubber_tapper",
+   "sheet": "south",
+   "kind": "woman",
+   "th": "คนกรีดยาง",
+   "swingArms": true,
+   "walker": true,
+   "file": "south/south_rubber_tapper.glb",
+   "triangles": 1720
+  },
+  {
+   "id": "south_longtail_driver",
+   "sheet": "south",
+   "kind": "man",
+   "th": "คนขับเรือหางยาว",
+   "swingArms": false,
+   "walker": true,
+   "file": "south/south_longtail_driver.glb",
+   "triangles": 1650
+  },
+  {
+   "id": "south_baba_woman",
+   "sheet": "south",
+   "kind": "woman",
+   "th": "สาวบาบ๋าชุดเคบายา",
+   "swingArms": true,
+   "walker": true,
+   "file": "south/south_baba_woman.glb",
+   "triangles": 1678
+  },
+  {
+   "id": "south_coconut_boy",
+   "sheet": "south",
+   "kind": "boy",
+   "th": "เด็กชายถือมะพร้าว",
+   "swingArms": false,
+   "walker": true,
+   "file": "south/south_coconut_boy.glb",
+   "triangles": 1616
+  },
+  {
+   "id": "south_korlae_painter",
+   "sheet": "south",
+   "kind": "woman",
+   "th": "ช่างเขียนลายเรือกอและ",
+   "swingArms": false,
+   "walker": true,
+   "file": "south/south_korlae_painter.glb",
+   "triangles": 1666
+  }
+ ]
+}

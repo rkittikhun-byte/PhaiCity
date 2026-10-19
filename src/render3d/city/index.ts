@@ -24,7 +24,9 @@ import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { CityBuses } from './buses.js';
-import { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
+import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
+import { loadPeople } from './people3d.js';
+import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
@@ -112,6 +114,11 @@ export class CityView3D implements CityView {
     this.curves=new RoadCurves(this.snapshot,this.terrain,!this.headless&&typeof Worker!=='undefined'?{worker:()=>browserRoadWorker() as unknown as RoadWorkerLike}:{});this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
     this.canals=new CityCanals(setup.map as unknown as ConstructorParameters<typeof CityCanals>[0],this.terrain,()=>this.snapshot.realUnits);
     this.pedestrians=new CityPedestrians(this.snapshot,this.terrain,this.sprites.size);
+    // The concept-sheet people (people3d.ts, art/people) take over from the boxes once their models load; who walks
+    // follows the city's era (gameMap.era, src/era.ts) and region
+    if(!this.headless&&typeof fetch!=='undefined'){const region=setup.region;const map=setup.map as {era?:unknown};
+      loadPeople(region,MAX_PEDESTRIANS).then(people=>{if(!people)return;if(this.disposed){people.dispose();return;}
+        this.pedestrians.usePeople(people,region,()=>mapEra(map));}).catch(error=>console.warn('PhaiCity: people models did not load',error));}
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
