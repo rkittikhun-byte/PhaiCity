@@ -7,7 +7,7 @@ import { LAND_COVER_STATES } from '../models/terrain/terrain.js';
 import { staircase as staircaseOf, staircaseVariant } from '../models/road/centreline.js';
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
-import { POWERBIT, ZONEBIT } from '../../tileFlags.js';
+import { BIT_MASK, POWERBIT, ZONEBIT } from '../../tileFlags.js';
 import { cellPlotPose, type CellMap } from '../../zoneCells.js';
 import { CIVIC, FARM, HARBOUR, MINE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
@@ -131,6 +131,8 @@ export class TileSnapshot implements CityMapReader {
   /** Whether newly grown or upgraded plots play through the 3D construction sequence (stage_1 -> stage_2 -> closed) */
   enableConstruction = false;
   private initialSync = true;
+  /** The map's count of tile changes when it was last gone over (src/gameMap.js changeCount), -1 before */
+  private seenChanges = -1;
   private nowSec = 0;
   readonly construction = new Map<number, { startSec: number; stage: 'stage_1' | 'stage_2' }>();
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
@@ -151,9 +153,21 @@ export class TileSnapshot implements CityMapReader {
   sync(map: CityMapReader): number[] {
     const changed: number[] = []; let zonesChanged = false;
     const rl = map.roadLevels;
+    // Called every frame: while no tile has changed since the last look (the map counts them), only a road's level can
+    // have, which the road tools keep beside the tiles, so the whole map is not gone over (about 26 ms a frame on a
+    // 480 x 480 city map before)
+    const count = map.changeCount ? map.changeCount() : -1;
+    if (count >= 0 && count === this.seenChanges && !this.initialSync) {
+      if (rl) for (let i = 0; i < rl.length; i++) if (rl[i] !== this.levelsCopy[i]) { this.levelsCopy[i] = rl[i]; changed.push(i); }
+      return changed;
+    }
+    this.seenChanges = count;
     const trackBuild = this.enableConstruction && !this.initialSync && this.paintedZones;
+    const raw = map.rawTileAt ? map.rawTileAt.bind(map) : null;
     for(let i=0;i<this.values.length;i++) {
-      const x=i%this.width,y=Math.floor(i/this.width),v=map.getTileValue(x,y),f=map.getTileFlags(x,y) & (ZONEBIT|POWERBIT);
+      let v: number, f: number;
+      if (raw) { const tile = raw(i); v = tile & BIT_MASK; f = tile & (ZONEBIT|POWERBIT); }
+      else { const x=i%this.width,y=Math.floor(i/this.width); v=map.getTileValue(x,y); f=map.getTileFlags(x,y) & (ZONEBIT|POWERBIT); }
       const lv = rl ? rl[i] : 0;
       if(v!==this.values[i]||f!==this.flags[i]||lv!==this.levelsCopy[i]) {
         if (trackBuild && v !== this.values[i]) {

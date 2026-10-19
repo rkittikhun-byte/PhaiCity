@@ -28,11 +28,19 @@ type TilePredicateKey = {[K in keyof Tile]: Tile[K] extends () => boolean ? K : 
 
 export class Tile {
 
+  /**
+   * How many times any tile's value or flags have changed (or a tile was made): whatever keeps a copy of the map,
+   * such as the 3D view, need not go over every tile again while this stays the same (GameMap changeCount,
+   * src/render3d/city/tileModels.ts TileSnapshot.sync). It only counts; the game never reads it.
+   */
+  static changes = 0;
+
   private value: number;
 
   constructor(value: number = DIRT, flags: number = 0) {
     this.validateArguments(value, flags, "Tile constructor");
     this.value = value | flags;
+    Tile.changes++;
   }
 
   getValue(): number {
@@ -55,7 +63,7 @@ export class Tile {
       return;
     }
 
-    this.value |= flags;
+    this.change(this.value | flags);
   }
 
   setValue(desiredValue: number) {
@@ -73,7 +81,7 @@ export class Tile {
     this.validateFlags(flags, "setFlags");
 
     const existingValue = this.value & ~TileFlags.ALLBITS;
-    this.value = existingValue | flags;
+    this.change(existingValue | flags);
   }
 
   removeFlags(flags: number) {
@@ -83,17 +91,27 @@ export class Tile {
       return;
     }
 
-    this.value &= ~flags;
+    this.change(this.value & ~flags);
   }
 
   setFrom(tile: Tile) {
-    this.value = tile.value;
+    this.change(tile.value);
   }
 
   set(value: number, flags: number) {
     this.validateArguments(value, flags, "set");
 
-    this.value = value | flags;
+    this.change(value | flags);
+  }
+
+  /** Every write goes through here, so Tile.changes counts each real change */
+  private change(next: number) {
+    if (next === this.value) {
+      return;
+    }
+
+    this.value = next;
+    Tile.changes++;
   }
 
   isAnimated(): boolean {

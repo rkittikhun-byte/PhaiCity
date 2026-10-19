@@ -11,6 +11,7 @@
 
 import { Group, InstancedMesh, Mesh, MeshStandardMaterial, type Material } from 'three';
 import { isBridgeTile, isWaterTile } from '../../canals.js';
+import { BIT_MASK } from '../../tileFlags.js';
 import { networkOf, roadLines, type Point } from '../../roadGeometry.js';
 import { buildCanals, canalDetailParts, cutAround, canalSurfaceMeshes, CANAL_PROVINCE_METRE, type CanalJunction,
   type CanalRun } from '../models/water/canal.js';
@@ -63,12 +64,18 @@ export function canalLand<T extends CityMapReader>(map: T): T {
     clear = { version, mask };
     return mask;
   };
+  // What a tile reads as: plain ground where a canal's water is, or woods beside one
+  const seen = (value: number, at: number): number =>
+    !at ? value : at === 1 && isWaterTile(value) ? 0 : value >= WOODS_FIRST && value <= WOODS_LAST ? 0 : value;
   Object.defineProperty(land, 'getTileValue', { value: (x: number, y: number): number => {
-    const value = map.getTileValue(x, y), mask = maskOf();
-    const at = mask ? mask[y * map.width + x] : 0;
-    if (!at) return value;
-    if (at === 1 && isWaterTile(value)) return 0;
-    return value >= WOODS_FIRST && value <= WOODS_LAST ? 0 : value;
+    const mask = maskOf();
+    return seen(map.getTileValue(x, y), mask ? mask[y * map.width + x] : 0);
+  } });
+  // ... and by index with its flags, as the view's quick look over the map reads them (TileSnapshot.sync)
+  const raw = map.rawTileAt?.bind(map);
+  if (raw) Object.defineProperty(land, 'rawTileAt', { value: (index: number): number => {
+    const tile = raw(index), mask = maskOf(), value = tile & BIT_MASK, shown = seen(value, mask ? mask[index] : 0);
+    return shown === value ? tile : (tile & ~BIT_MASK) | shown;
   } });
   let cover: { mask: Uint8Array; source: Uint8Array; out: Uint8Array } | null = null;
   Object.defineProperty(land, 'landCover', { get: (): Uint8Array | null | undefined => {

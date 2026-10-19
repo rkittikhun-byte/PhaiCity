@@ -140,6 +140,19 @@ GameMap.prototype.getTile = function(x, y, newTile) {
 };
 
 
+// How many times any tile has changed (src/tile.ts Tile.changes): whatever keeps a copy of the map, such as the 3D
+// view, skips going over every tile while this stays the same
+GameMap.prototype.changeCount = function() {
+  return Tile.changes;
+};
+
+
+// The value and flags of the tile at an index together, for readers going over the whole map
+GameMap.prototype.rawTileAt = function(index) {
+  return this._data[index].getRawValue();
+};
+
+
 GameMap.prototype.getTileValue = function(x, y) {
   if (arguments.length < 1)
     throw new Error('GameMap getTileValue called with too few arguments' + [].toString.apply(arguments));

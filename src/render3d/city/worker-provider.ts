@@ -10,3 +10,7 @@ export function browserPrototypeProvider():PrototypeProvider {
   worker.onerror=event=>{if(active)ready.push({key:active.key,parts:[],height:0,error:event.message});active=undefined;next();};
   return {request(r){queue.push(r);next();},take(){return ready.splice(0);},dispose(){disposed=true;queue.length=0;ready.length=0;worker.terminate();}};
 }
+/** The worker that builds the roads' shapes off the page (road-worker.ts, roadCurves.ts) */
+export function browserRoadWorker():Worker {
+  return new Worker(new URL('src/city-road-worker.js',document.baseURI),{type:'module'});
+}

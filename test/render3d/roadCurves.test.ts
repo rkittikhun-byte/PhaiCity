@@ -5,11 +5,13 @@
 // Roads and railways as smooth curves (src/render3d/city/roadCurves.ts): a road laid as a staircase of tiles is drawn
 // as one smooth line through them, junctions get a plate, and its tiles draw no model of their own.
 
-import { Mesh, Vector3 } from 'three';
+import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
-import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
+import { RoadCurves, type RoadWorkerLike } from '../../src/render3d/city/roadCurves.js';
+import { RoadWorkerState, type RoadRequest } from '../../src/render3d/city/roadBuild.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
+import { lateriteColour } from '../../src/render3d/models/road/laterite.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { visibleMeshes } from '../../src/render3d/util/geometry.js';
@@ -73,13 +75,16 @@ describe('road curves', () => {
       for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) { snapshot.values[i] = 66; levels[i] = level; }
       snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
       const curves = new RoadCurves(snapshot, flat);
-      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
-      const position = mesh.geometry.getAttribute('position');
-      // The patch's triangles and the kerbs', by how high they lie over the flat ground
+      // A laterite crossing is the laterite roads' own dirt (roadCurves.ts dirt)
+      const name = level > 1 ? 'curves' : 'dirt';
+      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name)!;
+      const position = mesh.geometry.getAttribute('position'), index = mesh.geometry.getIndex()!;
+      // The patch's triangles and the kerbs', by how high they lie over the flat ground (corners shared by triangles)
       const patch: Array<Array<[number, number]>> = [], kerbs: Array<Array<[number, number]>> = [];
-      for (let i = 0; i < position.count; i += 3) {
-        const corners = [0, 1, 2].map((k): [number, number] => [position.getX(i + k), position.getZ(i + k)]);
-        const heights = [0, 1, 2].map((k) => position.getY(i + k));
+      for (let t = 0; t < index.count; t += 3) {
+        const at = [0, 1, 2].map((k) => index.getX(t + k));
+        const corners = at.map((i): [number, number] => [position.getX(i), position.getZ(i)]);
+        const heights = at.map((i) => position.getY(i));
         if (heights.every((y) => Math.abs(y - 0.185) < 1e-4)) patch.push(corners);
         if (heights.every((y) => Math.abs(y - 0.186) < 1e-4)) kerbs.push(corners);
       }
@@ -111,22 +116,235 @@ describe('road curves', () => {
       sampleTile: (_tx: number, _tz: number, x: number, z: number) => x * 0.025 + z * 0.015,
       inside: () => true } as unknown as CityHeightField;
     const curves = new RoadCurves(snapshot, hill);
-    const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'curves')!;
-    const position = mesh.geometry.getAttribute('position'), colour = mesh.geometry.getAttribute('color');
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
-      expect(Number.isFinite(x + y + z + colour.getX(i) + colour.getY(i) + colour.getZ(i))).toBe(true);
-      expect(y - x * 0.025 - z * 0.015).toBeGreaterThan(0.129);
+    // Paved roads lie over the ground; laterite's shoulders fall away to just over it
+    for (const [name, over] of [['curves', 0.129], ['dirt', 0.039]] as const) {
+      const mesh = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name)!;
+      const position = mesh.geometry.getAttribute('position'), colour = mesh.geometry.getAttribute('color');
+      for (let i = 0; i < position.count; i++) {
+        const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+        expect(Number.isFinite(x + y + z + colour.getX(i) + colour.getY(i) + colour.getZ(i))).toBe(true);
+        expect(y - x * 0.025 - z * 0.015).toBeGreaterThan(over);
+      }
     }
     expect(snapshot.values).toEqual(savedValues);
     expect(levels).toEqual(savedLevels);
     curves.dispose();
   });
 
+  test('a laterite road is its gallery model across: a crown, wheel tracks, shoulders falling away, and gravel', () => {
+    // Owner, 18 Oct 2026: "เพิ่มรายละเอียด 3D (ผิวนูน กรวด ไหล่ทาง) ให้ถนนโค้งและจุดแยกในเกม"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    const curves = new RoadCurves(snapshot, flat);
+    const dirt = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    expect(dirt.geometry.getAttribute('uv')).toBeDefined();
+    // Across the road at x = 200 (its middle z = 205): the height at each distance from the middle
+    const position = dirt.geometry.getAttribute('position'), across = new Map<number, number>();
+    for (let i = 0; i < position.count; i++) {
+      if (Math.abs(position.getX(i) - 200) > 4) continue;
+      across.set(Math.round(Math.abs(position.getZ(i) - 205) * 100), position.getY(i));
+    }
+    const at = (d: number): number => across.get(Math.round(d * 100))!;
+    expect(at(0)).toBeGreaterThan(at(1.1));
+    expect(at(2.1)).toBeGreaterThan(at(1.45));
+    expect(at(3.5)).toBeLessThan(at(2.1));
+    // ... its crown under a junction's patch, its shoulder down to just over the land
+    expect(at(0)).toBeLessThan(0.185);
+    const outside = Math.max(...across.keys()) / 100;
+    expect(outside).toBeGreaterThan(3.5);
+    expect(at(outside)).toBeCloseTo(0.04, 4);
+    // Gravel along it, on the shoulders either side and none in the wheel tracks
+    const gravel = curves.root.children.find((child): child is InstancedMesh => child instanceof InstancedMesh && child.name === 'gravel')!;
+    expect(gravel.count).toBeGreaterThan(30);
+    const matrix = new Matrix4(), place = new Vector3(), sides = new Set<number>();
+    for (let n = 0; n < gravel.count; n++) {
+      gravel.getMatrixAt(n, matrix); place.setFromMatrixPosition(matrix);
+      expect(Math.abs(place.z - 205)).toBeGreaterThan(2.2);
+      expect(Math.abs(place.z - 205)).toBeLessThan(4);
+      sides.add(Math.sign(place.z - 205));
+    }
+    expect(sides.size).toBe(2);
+    // The same stones each time it is drawn
+    const again = new RoadCurves(snapshot, flat);
+    const twin = again.root.children.find((child): child is InstancedMesh => child instanceof InstancedMesh && child.name === 'gravel')!;
+    expect(Array.from(twin.instanceMatrix.array)).toEqual(Array.from(gravel.instanceMatrix.array));
+    curves.dispose(); again.dispose();
+  });
+
+  test('a building changing lays its lot again but never draws the roads again; a road changing does', () => {
+    // Owner, 19 Oct 2026: the game stalled each time a building rose a stage, as every road in the city was drawn again
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
+    snapshot.curves = true;
+    const curves = new RoadCurves(snapshot, flat);
+    const named = (name: string): Mesh | undefined => curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name);
+    const road = named('dirt');
+    expect(road).toBeDefined();
+    // The ruler's house going up beside it, a stage at a time
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    curves.update([16 * W + 19, 17 * W + 20]);
+    expect(named('dirt')).toBe(road);
+    expect(named('lots')).toBeDefined();
+    // Ground raised far from any road leaves the roads alone too
+    curves.update([], [2 * W + 2]);
+    expect(named('dirt')).toBe(road);
+    // A road tile: the roads are drawn again
+    snapshot.values[21 * W + 30] = 66;
+    curves.update([21 * W + 30]);
+    expect(named('dirt')).not.toBe(road);
+    curves.dispose();
+  });
+
+  test('a road built on draws again only that road: the others are kept as they were built', () => {
+    // Owner, 19 Oct 2026: "อยากจะปรับ graphic ให้มันลื่นขึ้น"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) { snapshot.values[8 * W + x] = 66; snapshot.values[30 * W + x] = 66; }
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    const curves = new RoadCurves(snapshot, flat);
+    expect(curves.lastBuild.reused).toBe(0);
+    const pieces = curves.lastBuild.built;
+    expect(pieces).toBeGreaterThanOrEqual(4);
+    // The southern road one tile longer: only it is built again
+    snapshot.values[30 * W + 36] = 66;
+    curves.update([30 * W + 36]);
+    expect(curves.lastBuild.built).toBe(1);
+    expect(curves.lastBuild.reused).toBe(pieces - 1);
+    // ... and the ground moving under the northern road's tiles builds the pieces lying over them again
+    curves.update([], [8 * W + 30]);
+    expect(curves.lastBuild.built).toBeGreaterThanOrEqual(1);
+    expect(curves.lastBuild.reused).toBeGreaterThanOrEqual(1);
+    curves.dispose();
+  });
+
+  test('in a worker the roads are built off the page: the old ones show until its answer, changes meanwhile wait', async () => {
+    // Owner, 19 Oct 2026: "มีวิธีการไหนไหม ที่จะบันทึก เป็น background"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[8 * W + x] = 66;
+    const ground = { sample: () => 0, sampleTile: () => 0, inside: () => true, version: 0,
+      grid: () => ({ width: W, height: 40, enabled: false, pads: new Float32Array(W * 40), corners: new Float32Array(41 * 41), mask: null }),
+    } as unknown as CityHeightField;
+    // A worker in the same thread, answering a moment later, as the browser's does
+    const state = new RoadWorkerState(), sent: RoadRequest[] = [];
+    const worker: RoadWorkerLike = { onmessage: null, onerror: null, terminate: () => undefined,
+      postMessage(message) { sent.push(message); setTimeout(() => this.onmessage!({ data: state.handle(message).reply }), 0); } };
+    const curves = new RoadCurves(snapshot, ground, { worker: () => worker });
+    const named = (name: string): Mesh | undefined => curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name);
+    // The first build is on the page, so the city opens with its roads
+    const first = named('dirt');
+    expect(first).toBeDefined();
+    expect(sent).toHaveLength(0);
+    // A road drawn: asked of the worker, the old roads showing meanwhile; a second change waits for the answer
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    curves.update([9 * W + 20]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].grid).not.toBeNull();
+    expect(named('dirt')).toBe(first);
+    for (let x = 5; x < 36; x++) snapshot.values[30 * W + x] = 66;
+    curves.update([30 * W + 5]);
+    expect(sent).toHaveLength(1);
+    // Both answered in turn, the ground sent only once, and all three roads drawn
+    for (let wait = 0; wait < 100 && curves.drawnLines.filter((line) => !line.rail).length < 3; wait++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sent).toHaveLength(2);
+    expect(sent[1].grid).toBeNull();
+    expect(named('dirt')).not.toBe(first);
+    expect(curves.drawnLines.filter((line) => !line.rail).length).toBeGreaterThanOrEqual(3);
+    curves.dispose();
+  });
+
+  test('when the worker fails the roads are built on the page again', async () => {
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[8 * W + x] = 66;
+    const ground = { ...flat, version: 0, grid: () => ({ width: W, height: 40, enabled: false, pads: new Float32Array(W * 40),
+      corners: new Float32Array(41 * 41), mask: null }) } as unknown as CityHeightField;
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const worker: RoadWorkerLike = { onmessage: null, onerror: null, terminate: jest.fn(),
+      postMessage() { setTimeout(() => this.onerror!({ message: 'city-road-worker.js 404' }), 0); } };
+    const curves = new RoadCurves(snapshot, ground, { worker: () => worker });
+    for (let x = 5; x < 36; x++) snapshot.values[30 * W + x] = 66;
+    curves.update([30 * W + 5]);
+    for (let wait = 0; wait < 100 && curves.drawnLines.length < 2; wait++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(worker.terminate).toHaveBeenCalled();
+    expect(curves.drawnLines.length).toBe(2);
+    // ... and from then on, at once
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    curves.update([9 * W + 20]);
+    expect(curves.drawnLines.length).toBeGreaterThanOrEqual(3);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    curves.dispose();
+  });
+
+  test("the worker's side hands its arrays over and says why when it cannot build", () => {
+    const W = 20, values = new Uint16Array(W * W);
+    for (let x = 2; x < 18; x++) values[10 * W + x] = 66;
+    const map = { width: W, height: W, values, levels: null, pieces: null, paths: null, realUnits: null };
+    const state = new RoadWorkerState();
+    expect(state.handle({ id: 1, map, grid: null, invalidate: [] }).reply.error).toMatch(/ground/);
+    const grid = { width: W, height: W, enabled: false, pads: new Float32Array(W * W), corners: new Float32Array(21 * 21), mask: null };
+    const { reply, transfer } = state.handle({ id: 2, map, grid, invalidate: [] });
+    expect(reply.id).toBe(2);
+    expect(reply.build!.lines).toHaveLength(1);
+    expect(transfer).toContain(reply.build!.dirt!.position.buffer);
+  });
+
+  test('a road stops square at its end, with no round plate', () => {
+    // Owner, 18 Oct 2026: "เอาวงกลมที่ปลายถนนออก"
+    for (const level of [1, 3]) {
+      const W = 40, snapshot = new TileSnapshot(W, 40), levels = new Uint8Array(W * 40);
+      for (let x = 5; x < 36; x++) { snapshot.values[20 * W + x] = 66; levels[20 * W + x] = level; }
+      snapshot.source = { roadLevels: levels } as unknown as TileSnapshot['source'];
+      const curves = new RoadCurves(snapshot, flat);
+      const position = curves.root.children.filter((child): child is Mesh => child instanceof Mesh && ['dirt', 'curves'].includes(child.name))
+        .map((mesh) => mesh.geometry.getAttribute('position'));
+      const xs = position.flatMap((p) => Array.from({ length: p.count }, (_, i) => p.getX(i)));
+      // From the first tile's middle (55) back as far as it reaches either side, and every point at its end lies on one
+      // straight edge across it
+      const reach = roadReach(level), west = Math.min(...xs), east = Math.max(...xs);
+      expect(west).toBeCloseTo(55 - reach, 3);
+      expect(east).toBeCloseTo(355 + reach, 3);
+      expect(xs.filter((x) => x < 55 - reach + 0.5).every((x) => Math.abs(x - west) < 1e-3)).toBe(true);
+      curves.dispose();
+    }
+  });
+
+  test('two roads drawn end to end at a corner turn on a bend, and wheel tracks turn through a laterite junction', () => {
+    // Owner, 18 Oct 2026: "ร่องล้อเลี้ยวผ่านแยก ขอบมุมโค้งตามถนน และเอาวงกลมที่ปลายถนนออก"
+    const W = 40, snapshot = new TileSnapshot(W, 40), pieces = new Uint16Array(W * 40);
+    for (let x = 5; x <= 20; x++) { snapshot.values[20 * W + x] = 66; pieces[20 * W + x] = 1; }
+    for (let y = 21; y < 36; y++) { snapshot.values[y * W + 20] = 66; pieces[y * W + 20] = 2; }
+    snapshot.source = { roadPieces: pieces } as unknown as TileSnapshot['source'];
+    const curves = new RoadCurves(snapshot, flat);
+    const dirt = curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    const position = dirt.geometry.getAttribute('position');
+    const points = Array.from({ length: position.count }, (_, i): [number, number] => [position.getX(i), position.getZ(i)]);
+    // The bend's middle, a quarter of the way in from where each road was cut short of the corner (205, 205), and none
+    // of the road out at the corner's sharp outside, where a square or a plate would reach
+    const along = 1.6 * roadReach(1);
+    expect(points.some(([x, z]) => Math.hypot(x - (205 - along / 4), z - (205 + along / 4)) < 0.05)).toBe(true);
+    expect(points.some(([x, z]) => x > 205 + 0.6 * roadReach(1) && z < 205 - 0.6 * roadReach(1))).toBe(false);
+    curves.dispose();
+
+    // A crossing of two laterite roads: across its middle the colour of tracks going straight on, darker than the patch
+    const cross = new TileSnapshot(W, 40);
+    for (let k = 5; k < 36; k++) for (const i of [20 * W + k, k * W + 20]) cross.values[i] = 66;
+    const junction = new RoadCurves(cross, flat);
+    const patch = junction.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === 'dirt')!;
+    const at = patch.geometry.getAttribute('position'), colour = patch.geometry.getAttribute('color');
+    const tracks: number[] = [];
+    for (let i = 0; i < at.count; i++) {
+      if (Math.abs(at.getY(i) - 0.187) < 1e-4 && Math.abs(at.getX(i) - 205) < 0.6) tracks.push(colour.getX(i) + colour.getY(i) + colour.getZ(i));
+    }
+    expect(tracks.length).toBeGreaterThan(0);
+    const light = lateriteColour(0.6);
+    expect(Math.max(...tracks)).toBeLessThan(light.r + light.g + light.b);
+    junction.dispose();
+  });
+
   test('a staircase of road tiles becomes one smooth line close to them', () => {
     const { snapshot, tiles } = slanted();
     const curves = new RoadCurves(snapshot, flat);
-    expect(curves.root.children.some(child => child instanceof Mesh && child.name === 'curves')).toBe(true);
+    expect(curves.root.children.some(child => child instanceof Mesh && child.name === 'dirt')).toBe(true);
     const near = curves.roadsNear(new Vector3(300, 0, 200));
     expect(near.length).toBeGreaterThan(20);
     // Every piece heads the same way, within a few degrees: no wiggles left from the steps

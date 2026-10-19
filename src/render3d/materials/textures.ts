@@ -4,6 +4,7 @@
 
 import { DataTexture, RepeatWrapping, RGBAFormat, SRGBColorSpace, Texture, TextureLoader } from 'three';
 import { TEXTURE_CATALOG, TextureAsset, TextureDefinition } from './catalog.js';
+import { countLoad } from '../../loadingProgress.js';
 
 const cache = new Map<string, Promise<Texture | null>>();
 type Channel = keyof TextureDefinition['maps'];
@@ -28,7 +29,8 @@ export function loadTexture(url: string, colorMap = false, asset?: TextureAsset)
       }, undefined, () => resolve(null));
     } catch { resolve(null); }
   });
-  cache.set(key, pending);
+  // Counted for the loading screen, which lists the surfaces as they arrive (src/loadingScreen.ts)
+  cache.set(key, countLoad('textures', pending));
   return pending;
 }
 

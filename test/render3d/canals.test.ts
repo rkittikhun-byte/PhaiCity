@@ -53,6 +53,11 @@ describe('canals in 3D', () => {
     const cover = (land as unknown as { landCover: Uint8Array }).landCover;
     expect([cover[5 * W + 10], cover[5 * W + 11], cover[5 * W + 12]]).toEqual([0, 0, 3]);
     expect(land.width).toBe(W);
+    // ... by index too, with its flags, as the view's quick look reads tiles (TileSnapshot.sync)
+    const flagged = { ...map, rawTileAt: (i: number) => map.values[i] | 0x2000 };
+    const quick = canalLand(flagged as unknown as TestMap);
+    expect(quick.rawTileAt!(5 * W + 10)).toBe(0x2000);
+    expect(quick.rawTileAt!(5 * W + 20)).toBe(WOODS | 0x2000);
     expect(besideCanal({ width: W, height: H, source: map }, 5 * W + 11)).toBe(true);
     expect(besideCanal({ width: W, height: H, source: map }, 5 * W + 12)).toBe(false);
   });

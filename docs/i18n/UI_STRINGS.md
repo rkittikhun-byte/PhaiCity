@@ -1474,6 +1474,57 @@
 | `street.highway` | `src/streetNames.ts` | — | `Highway {number}` | `ทางหลวง {number}` | ถนนของรัฐไปจังหวัดข้างเคียง |
 | `street.motorway` | `src/streetNames.ts` | — | `Motorway {number}` | `มอเตอร์เวย์ สาย {number}` | |
 | `street.tollway` | `src/streetNames.ts` | — | `Expressway {number}` | `ทางพิเศษ สาย {number}` | |
+| `dock.categories` | `src/game.js` | — | `Build categories` | `หมวดเครื่องมือก่อสร้าง` | |
+| `dock.choose_category` | `src/game.js` | — | `Choose a category to build` | `เลือกหมวดเพื่อเริ่มสร้าง` | |
+| `dock.active` | `src/game.js` | — | `In hand: {name}` | `กำลังใช้: {name}` | |
+| `dock.cancel` | `src/toolDock.ts` | — | `Put down the tool` | `วางเครื่องมือ` | |
+| `dock.close_tray` | `src/toolDock.ts` | — | `Close category tray` | `ปิดถาดหมวดเครื่องมือ` | |
+| `dock.close_choices` | `src/game.js` | — | `Close tool choices` | `ปิดแผงตัวเลือก` | |
+| `dock.house_first` | `src/toolDock.ts` | — | `Build the ruler's house first` | `สร้างที่ว่าการก่อน` | |
+| `dock.category.roads` | `src/toolDock.ts` | — | `Transport` | `ถนนและขนส่ง` | |
+| `dock.category.zones` | `src/toolDock.ts` | — | `Zones` | `เขตเมือง` | |
+| `dock.category.services` | `src/toolDock.ts` | — | `Services` | `บริการเมือง` | |
+| `dock.category.resources` | `src/toolDock.ts` | — | `Resources` | `เกษตรและแร่` | |
+| `dock.category.city` | `src/toolDock.ts` | — | `City & land` | `เมืองและที่ดิน` | |
+| `dock.category.bulldoze` | `src/toolDock.ts` | — | `Bulldoze` | `รื้อถอน` | |
+| `dock.category.info` | `src/toolDock.ts` | — | `Inspect` | `ตรวจสอบ` | |
+| `dock.group.coal` | `src/toolDock.ts` | — | `Power plant` | `โรงไฟฟ้า` | |
+| `dock.group.waterworks` | `src/toolDock.ts` | — | `Water supply` | `ประปา` | |
+| `dock.group.landfill` | `src/toolDock.ts` | — | `Waste & sewage` | `ขยะและน้ำเสีย` | |
+| `dock.group.police` | `src/toolDock.ts` | — | `Safety` | `ความปลอดภัย` | |
+| `dock.group.primary_school` | `src/toolDock.ts` | — | `Education` | `การศึกษา` | |
+| `dock.group.health_centre` | `src/toolDock.ts` | — | `Healthcare` | `สาธารณสุข` | |
+| `dock.group.bus_stop` | `src/toolDock.ts` | — | `Public transport` | `ขนส่งสาธารณะ` | |
+| `dock.group.port` | `src/toolDock.ts` | — | `Port & airport` | `ท่าเรือและสนามบิน` | |
+| `dock.group.farm` | `src/toolDock.ts` | — | `Farms & fishing` | `เกษตรและประมง` | |
+| `dock.group.mine` | `src/toolDock.ts` | — | `Mines & wells` | `เหมืองและบ่อน้ำมัน` | |
+| `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | |
+| `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | |
+| `dock.back` | `src/toolDock.ts` | — | `Back` | `ย้อนกลับ` | |
+| `wind.season.northeast_monsoon` | `src/game.js` | — | `Northeast Monsoon` | `มรสุมตะวันออกเฉียงเหนือ` | |
+| `wind.season.hot_season` | `src/game.js` | — | `Hot Season` | `ฤดูร้อน` | |
+| `wind.season.southwest_monsoon` | `src/game.js` | — | `Southwest Monsoon` | `มรสุมตะวันตกเฉียงใต้` | |
+| `wind.dir.sw` | `src/game.js` | — | `Southwest ↙` | `ทิศตะวันตกเฉียงใต้ ↙` | |
+| `wind.dir.ne` | `src/game.js` | — | `Northeast ↗` | `ทิศตะวันออกเฉียงเหนือ ↗` | |
+| `wind.dir.n` | `src/game.js` | — | `North ⬆` | `ทิศเหนือ ⬆` | |
+| `wind.hint.industrial` | `src/game.js` | — | `Wind: {season} blowing towards {dir}. Place industries downwind away from residential areas.` | `ทิศทางลม: {season} พัดไปทาง{dir} ควรวางเขตอุตสาหกรรมไว้ใต้ลมเพื่อเลี่ยงควันพิษเข้าบ้านเรือน` | |
+| `dock.hint.groundwater` | `src/game.js` | — | `Showing groundwater overlay: place pumps and water towers on high water reserves.` | `แสดงแหล่งน้ำใต้ดิน: ควรสร้างปั๊มน้ำและหอพักน้ำบนจุดที่มีน้ำบาดาลหนาแน่น` | |
+| `dock.hint.toxic` | `src/game.js` | — | `Showing toxic contamination: keep mines away from aquifers and residential zones.` | `แสดงแผนที่สารปนเปื้อน: ระวังอย่าสร้างเหมืองแร่ใกล้แหล่งน้ำใต้ดินและบ้านเรือน` | |
+| `loading.title` | `src/loadingScreen.ts` | — | `Preparing {city}` | `กำลังเตรียมเมือง {city}` | หน้าโหลดเมือง |
+| `loading.title_practice` | `src/loadingScreen.ts` | — | `Preparing a practice map` | `กำลังเตรียมแผนที่ฝึกเล่น` |  |
+| `loading.step.map` | `src/loadingScreen.ts` | — | `City map from real geography` | `แผนที่เมืองจากภูมิศาสตร์จริง` | สิ่งที่โหลด |
+| `loading.step.saved` | `src/loadingScreen.ts` | — | `Your saved city` | `เมืองที่บันทึกไว้` |  |
+| `loading.step.practice` | `src/loadingScreen.ts` | — | `Random practice map` | `แผนที่สุ่มสำหรับฝึกเล่น` |  |
+| `loading.step.heights` | `src/loadingScreen.ts` | — | `Ground heights` | `ความสูงของพื้นดิน` |  |
+| `loading.step.view` | `src/loadingScreen.ts` | — | `3D view` | `ระบบภาพสามมิติ` |  |
+| `loading.step.rules` | `src/loadingScreen.ts` | — | `Region and province rules` | `กติกาภาคและจังหวัด` |  |
+| `loading.step.resources` | `src/loadingScreen.ts` | — | `Province resources` | `ทรัพยากรของจังหวัด` |  |
+| `loading.step.ground` | `src/loadingScreen.ts` | — | `Land around the city` | `ผืนดินรอบเมือง` |  |
+| `loading.step.city` | `src/loadingScreen.ts` | — | `Building the city and its simulation` | `สร้างเมืองและระบบจำลอง` |  |
+| `loading.step.world` | `src/loadingScreen.ts` | — | `Roads, trees and buildings in 3D` | `ถนน ต้นไม้ และอาคารสามมิติ` |  |
+| `loading.step.textures` | `src/loadingScreen.ts` | — | `Surfaces and materials` | `พื้นผิวและวัสดุ` | นับจำนวนที่โหลดแล้ว |
+| `loading.music` | `src/loadingScreen.ts` | — | `Music of the {region}` | `เพลงภาค{region}` | {region} คือชื่อสั้นของภาค |
+| `loading.music_theme` | `src/loadingScreen.ts` | — | `PhaiCity theme` | `เพลงประจำเกม PhaiCity` | แผนที่ฝึกเล่น |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 

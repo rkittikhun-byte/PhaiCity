@@ -19,7 +19,7 @@ import { ToolOutline, ZoneGrid } from './overlay.js';
 import { SkyDome } from './sky.js';
 import { StreetLabels } from './streetLabels.js';
 import { ProvinceBackdropView } from './provinceBackdrop.js';
-import { RoadCurves } from './roadCurves.js';
+import { RoadCurves, type RoadWorkerLike } from './roadCurves.js';
 import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
@@ -28,7 +28,7 @@ import { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js'
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
-import { browserPrototypeProvider } from './worker-provider.js';
+import { browserPrototypeProvider, browserRoadWorker } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityMapReader, CityViewSetup } from './types.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
@@ -108,7 +108,8 @@ export class CityView3D implements CityView {
     // Plain roads and railways as smooth curves rather than tile by tile (roadCurves.ts; owner, 14 Oct 2026)
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
-    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
+    // ... built off the page in a worker after the first build, so drawing a road never stalls the game (roadCurves.ts)
+    this.curves=new RoadCurves(this.snapshot,this.terrain,!this.headless&&typeof Worker!=='undefined'?{worker:()=>browserRoadWorker() as unknown as RoadWorkerLike}:{});this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
     this.canals=new CityCanals(setup.map as unknown as ConstructorParameters<typeof CityCanals>[0],this.terrain,()=>this.snapshot.realUnits);
     this.pedestrians=new CityPedestrians(this.snapshot,this.terrain,this.sprites.size);
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
@@ -247,7 +248,7 @@ export class CityView3D implements CityView {
     {const house=this.setup.map.rulerHouse,sign=house?`${house.x},${house.y},${house.level},${(house.wings??[]).join(',')}`:'';
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
-    if(changed.length||raised.length){this.curves.update(raised.length?[...changed,...raised]:changed);this.foliage.invalidate();}
+    if(changed.length||raised.length){this.curves.update(changed,raised);this.foliage.invalidate();}
     if(raised.length)this.canals.invalidate();
     {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.foliage.invalidate();}}
     if(changed.length&&this.cells)this.cells.refresh();
