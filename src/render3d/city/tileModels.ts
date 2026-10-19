@@ -46,6 +46,10 @@ export function makeTileTable(): readonly TileResolution[] {
     for (let i = 0; i < size * size; i++) if (table[start+i].kind === 'debug') table[start+i] = { kind, id: null, footprint:[size,size], density:1 };
   // The extended 3 × 3s (water works, mines, farms, harbours, waste, stations) are generic buildings until registered
   for (let start = 956; start <= 1010; start += 9) for (let i=0;i<9;i++) if (table[start+i].kind==='debug') table[start+i] = { kind:'services', id:null, footprint:[3,3], density:1 };
+  // A demolition's dust (tiles 860-883, a bulldozer's or an explosion's) and a fire (56-63) have no model of their own: they
+  // show as the rubble they turn into, never as the white test box (owner, 19 Oct 2026: "มันมีกล่องสี่เหลี่ยมได้ยังไง")
+  for (const [from, to] of [[860, 883], [56, 63]] as const)
+    for (let value = from; value <= to; value++) if (table[value].kind === 'debug') table[value] = { ...table[44] };
   // PhaiCity: a bus or songthaew stop (src/transit.ts) shows a songthaew waiting until the stop has a model of its own
   table[1021] = { kind:'transport', id:'veh.songthaew', footprint:[1,1], density:0 };
   return Object.freeze(table.map(entry=>Object.freeze(entry)));

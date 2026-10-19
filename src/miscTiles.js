@@ -13,7 +13,7 @@
 
 import { Random } from './random.ts';
 import { TileUtils } from './tileUtils.js';
-import { DIRT, IZB, RADTILE } from "./tileValues.ts";
+import { DIRT, IZB, RADTILE, TINYEXP, TINYEXPLAST } from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
 
 var xDelta = [-1,  0,  1,  0 ];
@@ -73,6 +73,20 @@ var radiationFound = function(map, x, y, simData) {
 };
 
 
+// PhaiCity: a demolition's dust (a bulldozer's or an explosion's) settles into rubble when the scan comes by. The 2D view's
+// animation did this as it played the dust, so with the 3D view the dust stayed for good and showed as a box (owner,
+// 19 Oct 2026); the scan now ends it whatever draws the city.
+var isDemolitionDust = function(tile) {
+  var value = tile.getValue();
+  return value >= TINYEXP && value <= TINYEXPLAST;
+};
+
+
+var dustFound = function(map, x, y, simData) {
+  map.setTo(x, y, TileUtils.randomRubble());
+};
+
+
 var floodFound = function(map, x, y, simData) {
   simData.disasterManager.doFlood(x, y, simData.blockMaps);
 };
@@ -83,6 +97,7 @@ var MiscTiles = {
     mapScanner.addAction(TileUtils.isFire, fireFound, true);
     mapScanner.addAction(RADTILE, radiationFound, true);
     mapScanner.addAction(TileUtils.isFlood, floodFound, true);
+    mapScanner.addAction(isDemolitionDust, dustFound, true);
   }
 };
 
