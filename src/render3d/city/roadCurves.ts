@@ -620,11 +620,19 @@ export class RoadCurves {
       if (!p || ['terrain', 'road', 'rail', 'shore', 'debug', 'veg', 'park', 'power'].includes(p.kind)) continue;
       if (p.id?.endsWith('zone_empty')) continue;
       const size = Math.max(p.footprint[0], p.footprint[1]);
-      const near = this.nearest(p.x, p.z, size * 5 + 28);
+      // A building turned to its road keeps its driveway to that road, out of its front, whatever road is drawn nearer
+      // to it later (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"): the road is looked for in front of it
+      const posed = p.posed, fx = Math.sin(p.rotation), fz = Math.cos(p.rotation);
+      const lookX = posed ? p.x + fx * (size * 5 * (p.fill ?? 0.625) * 0.45 + 2) : p.x;
+      const lookZ = posed ? p.z + fz * (size * 5 * (p.fill ?? 0.625) * 0.45 + 2) : p.z;
+      const near = this.nearest(lookX, lookZ, size * 5 + 28);
       if (!near) continue;
 
       let nx = -near.tz, nz = near.tx;
       if (nx * (p.x - near.x) + nz * (p.z - near.z) < 0) { nx = -nx; nz = -nz; }
+      // ... and only a road its front faces: none to a road at its side
+      if (posed && nx * -fx + nz * -fz < 0.7) continue;
+      if (posed) { nx = -fx; nz = -fz; }
       const tx = near.tx, tz = near.tz;
       const dist = Math.hypot(p.x - near.x, p.z - near.z);
       const d0 = near.reach * 0.72;

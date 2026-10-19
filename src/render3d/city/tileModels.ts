@@ -389,6 +389,22 @@ export class TileSnapshot implements CityMapReader {
    * stood against its edge, along its curve (owner, 14 Oct 2026: "ทำไมที่ว่าการอำเภอ ไม่ snap กับถนน"). Its tiles are
    * the game's as before; only where it is drawn moves.
    */
+  /**
+   * The pose to keep for the building whose centre is tile index i, as game.js buildingPose writes it ([x, z, turn],
+   * gameMap.buildingPoses), when it has none yet: the way it stands now against its nearest road, so a road drawn later
+   * nearer to it never turns it (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"). Homes, shops and factories grow
+   * with their zones and are left alone; null when it is not a building standing against a road.
+   */
+  poseToKeep(i:number,region:RegionId='central'):[number,number,number]|null {
+    if((this.source as {buildingPoses?:Record<string,unknown>}|null)?.buildingPoses?.[i])return null;
+    const p=this.placement(i,region);
+    if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return null;
+    const size=Math.max(p.footprint[0],p.footprint[1]);
+    const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    // againstRoad moves a kept pose out by this much for a model drawn bigger: take it off again
+    const delta=size*5*BUILDING_SCALE*(factor-1),nx=-Math.sin(p.rotation),nz=-Math.cos(p.rotation);
+    return [Math.round((p.x-nx*delta)*100)/100,Math.round((p.z-nz*delta)*100)/100,Math.round(p.rotation*1000)/1000];
+  }
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
     const zoned=p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial';

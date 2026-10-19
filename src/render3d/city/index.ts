@@ -354,6 +354,9 @@ export class CityView3D implements CityView {
   /** Public pixel-delta adapter for the game's no-tool left drag. */
   pan(dx:number,dy:number):void {this.navigation.pan(dx,dy,this.height);}
   resetView():void {this.navigation.reset();}
+  buildingPoseOf(x:number,y:number):[number,number,number]|null{
+    if(x<0||y<0||x>=this.snapshot.width||y>=this.snapshot.height)return null;
+    return this.snapshot.poseToKeep(y*this.snapshot.width+x);}
   centreOn(x:number,y:number):void{this.navigation.centreOn(x,y);}shake():void{this.navigation.shake();}
   screenshotVisible():string{if(this.disposed)return '';this.render();return this.canvas.toDataURL('image/png');}
   screenshotMap():string {

@@ -117,6 +117,11 @@ export interface CityView {
    */
   pan?(dx: number, dy: number): void;
   /**
+   * 3D only, optional: how the building whose centre is tile (x, y) stands now against its road, [x, z, turn] in world
+   * units, when it has no pose kept with the city yet (game.js keepBuildingPoses), else null.
+   */
+  buildingPoseOf?(x: number, y: number): [number, number, number] | null;
+  /**
    * 3D only, optional: shows or hides the grid of tiles that can take painted zones (src/plots.ts), drawn along the
    * roads while a zone brush or a road tool is in hand, as Cities: Skylines shows its zone cells.
    */

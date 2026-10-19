@@ -231,6 +231,12 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.cityView = view3d ? createView3D(this, view3d) : null;
   if (this.cityView && this.cityView.relabelStreets)
     onLanguageChange(this.cityView.relabelStreets.bind(this.cityView));
+  // A building standing with no pose kept (put down before poses were kept, or not by the mouse) keeps the way it stands
+  // now, once the roads are drawn, so no road drawn later turns it (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก")
+  if (this.cityView && typeof this.cityView.buildingPoseOf === 'function') {
+    var keeper = this;
+    [3000, 10000, 30000].forEach(function(ms) { window.setTimeout(function() { keeper.keepBuildingPoses(); }, ms); });
+  }
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules, this.core.tools);
@@ -1962,6 +1968,28 @@ Game.prototype.networkLines = function(rail) {
                    levels: drawn.map(function(line) { return line.level; })};
   }
   return this[cache].lines;
+};
+
+
+// Every building's pose kept with the city (gameMap.buildingPoses, saved), taken from the 3D view for those that have none
+// yet: only where the building is drawn, never what the simulation does with it
+Game.prototype.keepBuildingPoses = function() {
+  var map = this.gameMap, view = this.cityView;
+  if (!map.cellZones || !view || typeof view.buildingPoseOf !== 'function')
+    return 0;
+  map.buildingPoses = map.buildingPoses || {};
+  var kept = 0;
+  for (var y = 0; y < map.height; y++)
+    for (var x = 0; x < map.width; x++) {
+      if (map.getTileValue(x, y) < BUILDING_TILES || !map.getTile(x, y).isZone() || map.buildingPoses[y * map.width + x])
+        continue;
+      var pose = view.buildingPoseOf(x, y);
+      if (pose) {
+        map.buildingPoses[y * map.width + x] = pose;
+        kept++;
+      }
+    }
+  return kept;
 };
 
 
