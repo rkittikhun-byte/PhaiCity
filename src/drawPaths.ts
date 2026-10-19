@@ -221,3 +221,26 @@ export function rectanglePath(a: TilePoint, b: TilePoint): TilePoint[] {
   }
   return tiles;
 }
+
+/**
+ * A line's staircase of tiles taken round the corner tiles it would cross that hold something else, where it can: at a
+ * corner of the staircase the tile may be swapped for the other corner of the same two-by-two, and the line still runs
+ * tile to tile. On a city map a building's tiles lie square on the map while its lot turns with its road, so a corner
+ * tile of the building may stick out past the lot beside a road drawn along it (owner, 20 Oct 2026: "ทำให้ช่องของอาคาร
+ * ตรงกับลานที่หมุนตามถนน ถนนที่วาดเลียดข้างลานจะได้ไม่ชนช่องที่ยื่นออกมา"); the road drawn smooth runs between the two
+ * corners either way. Plain code: blocked(x, y) says whether the line may not go on a tile.
+ */
+export function aroundCorners(path: readonly TilePoint[], blocked: (x: number, y: number) => boolean): TilePoint[] {
+  const out = path.map(t => ({ x: t.x, y: t.y }));
+  const taken = new Set(out.map(t => `${t.x},${t.y}`));
+  for (let i = 1; i < out.length - 1; i++) {
+    const before = out[i - 1], here = out[i], after = out[i + 1];
+    if (!blocked(here.x, here.y) || before.x === after.x || before.y === after.y) continue;
+    const other = { x: before.x + after.x - here.x, y: before.y + after.y - here.y };
+    if (taken.has(`${other.x},${other.y}`) || blocked(other.x, other.y)) continue;
+    taken.delete(`${here.x},${here.y}`);
+    taken.add(`${other.x},${other.y}`);
+    out[i] = other;
+  }
+  return out;
+}

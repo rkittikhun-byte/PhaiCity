@@ -53,7 +53,7 @@ import { placesBuilding } from './gameTools.js';
 import { layerPixels } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
-import { curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
+import { aroundCorners, curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
 import { edgeScroll } from './edgeScroll.ts';
@@ -1883,7 +1883,7 @@ Game.prototype.handleToolPoint = function(data) {
     setDrawingLine(true);
     return;
   }
-  var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
+  var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : this.lineAround(curvePath(draft.points), toolName);
   // ... laid as drawn: one straight line, or the curve through its points (src/roadPieces.ts RoadPath)
   var shape = toolName === UPGRADE_TOOL ? null : {shape: mode === 'straight' ? 'straight' : 'curve',
     controls: exactControls(draft.points, draft.exact).map(function(p) { return [p.x, p.y]; })};
@@ -2161,6 +2161,19 @@ Game.prototype.roadReach = function() {
 
 // Whether a tile is of a line tool's kind: a railway, a power line, water or a bridge over it for a canal
 // (src/canals.ts), or a road
+// A line's tiles taken round a building's corner tile where the staircase can step the other way (src/drawPaths.ts
+// aroundCorners): a building's tiles lie square while its lot turns with its road, so a corner may stick out beside a road
+// drawn along the lot (owner, 20 Oct 2026)
+Game.prototype.lineAround = function(path, toolName) {
+  if (modeGroupOf(toolName) !== 'line' || toolName === UPGRADE_TOOL)
+    return path;
+  var map = this.gameMap, ours = this.lineKind(toolName);
+  return aroundCorners(path, function(x, y) {
+    return map.testBounds(x, y) && !ours(x, y) && map.getTileValue(x, y) >= BUILDING_TILES;
+  });
+};
+
+
 Game.prototype.lineKind = function(toolName) {
   var map = this.gameMap;
   var kind = toolName === 'rail' ? function(v) { return v >= RAILBASE && v <= LASTRAIL; } :
@@ -2360,7 +2373,7 @@ Game.prototype.drawPreview = function(tile) {
                  start: draft !== null && draft.points.length > 0 ? draft.points[0] : null};
     if (draft !== null && draft.points.length > 0) {
       var points = draft.points.concat([snap.tile]);
-      tiles = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(points) : curvePath(points);
+      tiles = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(points) : this.lineAround(curvePath(points), toolName);
       controls = toolName === UPGRADE_TOOL ? null : exactControls(points, draft.exact);
       var start = points[0], leaving = points[1];
       angle = joinAngle({x: leaving.x - start.x, y: leaving.y - start.y}, draft.from, this.roadWayAt(start));

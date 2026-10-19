@@ -6,7 +6,7 @@
 
 import type { TilePoint } from "../src/cityView";
 import {
-  curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAlong, snapAngle, SNAP_DEGREES, snapPoint,
+  aroundCorners, curvePath, GRID_SPACING, gridPath, joinAngle, linePath, MAX_PATH, rectanglePath, snapAlong, snapAngle, SNAP_DEGREES, snapPoint,
 } from "../src/drawPaths";
 
 /** Every step of a chain goes to a tile beside the last: never a diagonal, never a jump. */
@@ -120,5 +120,26 @@ describe("drawn lines", () => {
     expect(rectanglePath({ x: 2, y: 2 }, { x: 0, y: 3 }).length).toBe(6);
     expect(rectanglePath({ x: 0, y: 0 }, { x: 99, y: 99 }).length).toBe(MAX_PATH);
     expect(linePath({ x: 0, y: 0 }, { x: 5000, y: 0 }).length).toBe(MAX_PATH);
+  });
+});
+
+describe('a line round a building corner (aroundCorners, owner 20 Oct 2026)', () => {
+  it('steps the other way round a corner tile that is taken, and keeps the line tile to tile', () => {
+    const path = linePath({ x: 0, y: 0 }, { x: 6, y: 3 });
+    // Take one corner tile of the staircase
+    const corner = path.find((_: TilePoint, i: number) => i > 0 && i < path.length - 1 &&
+      path[i - 1].x !== path[i + 1].x && path[i - 1].y !== path[i + 1].y)!;
+    const blocked = (x: number, y: number) => x === corner.x && y === corner.y;
+    const out = aroundCorners(path, blocked);
+    expect(out).toHaveLength(path.length);
+    expect(out.some((t: TilePoint) => blocked(t.x, t.y))).toBe(false);
+    for (let i = 1; i < out.length; i++) expect(Math.abs(out[i].x - out[i - 1].x) + Math.abs(out[i].y - out[i - 1].y)).toBe(1);
+    expect(out[0]).toEqual(path[0]);
+    expect(out[out.length - 1]).toEqual(path[path.length - 1]);
+  });
+
+  it('leaves a straight run alone: there is no other way round', () => {
+    const path = linePath({ x: 0, y: 0 }, { x: 5, y: 0 });
+    expect(aroundCorners(path, (x: number) => x === 2)).toEqual(path);
   });
 });
