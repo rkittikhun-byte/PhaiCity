@@ -185,13 +185,16 @@ export class ToolOutline {
   scaledBuildings=false;
   /** The lot a building's tile (y * width + x) lies on, its corners in world units (roadCurves.ts lotAt) */
   lotOf:((index:number)=>readonly Point[]|null)|null=null;
+  /** The stretches of drawn road and railway lying on these tiles (index y × width + x), as patches on the ground, and the
+   * tiles they cover: what the bulldozer's red shows instead of whole tiles (index.ts) */
+  roadStrips:((tiles:ReadonlySet<number>)=>{quads:Point[][];covered:ReadonlySet<number>})|null=null;
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=25;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'']);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
     // A dot on each road tile near the mouse where a click may join it, its dead ends ringed, all under the marker of
@@ -249,8 +252,16 @@ export class ToolOutline {
       if(hover.line&&tiles.length>1){const ghost=ghostRoad(tiles,.65,this.terrain,hover.lineStart,hover.linePoint,hover.straight===true,hover.controls,halfW);
         const band=new Mesh(ghost.band,cityDrawMaterial(hover.colour));band.renderOrder=25;
         const dashes=new Mesh(ghost.dashes,cityToolMaterial('#ffffff'));dashes.renderOrder=26;this.root.add(band,dashes);return;}
-      const band=new Mesh(groundSquares(tiles,1,hover.line?0:.3,.65,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=25;
-      this.root.add(band);
+      // The bulldozer's red follows the road it takes, as wide as the road, not the tiles' squares off it (owner, 20 Oct 2026:
+      // "รื้อถอน ทำไมเป็นช่องสี่เหลี่ยม ออกจากถนน เยอะมาก")
+      let squaresLeft=tiles;
+      if(hover.doze&&this.roadStrips){
+        const strips=this.roadStrips(new Set(tiles.map(t=>t.y*this.width+t.x)));
+        if(strips.quads.length){const red=new Mesh(groundQuads(strips.quads,.7,this.terrain),cityDrawMaterial(hover.colour));red.renderOrder=25;this.root.add(red);}
+        squaresLeft=tiles.filter(t=>!strips.covered.has(t.y*this.width+t.x));
+      }
+      if(squaresLeft.length){const band=new Mesh(groundSquares(squaresLeft,1,hover.line?0:.3,.65,this.terrain),cityDrawMaterial(hover.colour));band.renderOrder=25;
+        this.root.add(band);}
       if(hover.line){const dashes=new Mesh(centreDashes(tiles,.72,this.terrain),cityToolMaterial('#ffffff'));dashes.renderOrder=26;this.root.add(dashes);}
       return;
     }

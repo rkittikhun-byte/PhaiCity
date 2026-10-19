@@ -33,6 +33,17 @@ const roads = (map: any): string[] => {
 };
 
 describe("the bulldozer by dragging", () => {
+  test("a stroke along a road takes only the road, not the ground the mouse strays over beside it (owner, 20 Oct 2026)", () => {
+    const { core } = city();
+    const map = core.map;
+    // The mouse runs along the road a little to one side, over bare ground part of the way
+    const way: DozePoint[] = [];
+    for (let k = 0; k <= 20; k++) { const x = 10 + k, y = 12.5 + k / 2 + 1.2; way.push({ x, y }); }
+    const taken = dozeStroke(map, way, isOpenLand);
+    expect(taken.length).toBeGreaterThan(0);
+    for (const t of taken) expect(isRoadTile(map.getTileValue(t.x, t.y))).toBe(true);
+  });
+
   test("it is dragged and takes what the mouse went over when released, not tile by tile as it goes", () => {
     const tool = new (BulldozerTool as any)(new (GameMap as unknown as new (w: number, h: number) => any)(20, 20));
     // Its path is taken at the release (src/inputStatus.js pathDrag), so it is not one of the tools that act on each tile

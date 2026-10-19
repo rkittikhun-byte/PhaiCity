@@ -26,6 +26,8 @@ export interface ToolHover {
   tile: TilePoint;
   size: number;
   colour: string;
+  /** The bulldozer's dragged path: its road tiles are shown as the stretch of road they hold, not the tiles' squares */
+  doze?: boolean;
   /** While a zone tool drags an area: every tile the zones will cover. toolFootprint returns it. */
   area?: TileRect;
   /**

@@ -29,7 +29,8 @@ import { loadPeople } from './people3d.js';
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
-import { realUnits } from '../../roadGeometry.js';
+import { halfWidth, realUnits } from '../../roadGeometry.js';
+import { isLineTile } from '../../dozing.js';
 import { browserPrototypeProvider, browserRoadWorker } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityMapReader, CityViewSetup } from './types.js';
@@ -135,7 +136,20 @@ export class CityView3D implements CityView {
     const wide=(setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40;this.wideBed=wide;this.bedDrop=wide?.4:3.015;const spread=wide&&!setup.province?9:1;
     const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
-    this.outline.snap=this.snapshot.roadSnap;this.outline.lotOf=(index)=>this.curves.lotAt(index);this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);
+    this.outline.snap=this.snapshot.roadSnap;this.outline.lotOf=(index)=>this.curves.lotAt(index);
+    // The bulldozer's red as the stretch of road on the tiles it takes (overlay.ts roadStrips): each drawn line cut into steps
+    // of about a metre, a step kept where its middle lies on one of those tiles, as wide as the road
+    this.outline.roadStrips=(tiles)=>{const quads:[number,number][][]=[],covered=new Set<number>(),w=this.snapshot.width;
+      for(const line of this.curves.drawnLines){const hw=(line.rail?3.2*(this.snapshot.realUnits??1):halfWidth(line.level,this.snapshot.realUnits))*1.15;
+        for(let i=1;i<line.points.length;i++){const[ax,az]=line.points[i-1],[bx,bz]=line.points[i],len=Math.hypot(bx-ax,bz-az);if(len<1e-6)continue;
+          const nx=-(bz-az)/len*hw,nz=(bx-ax)/len*hw,steps=Math.max(1,Math.ceil(len/1.5));
+          for(let k=0;k<steps;k++){const t0=k/steps,t1=(k+1)/steps,mx=ax+(bx-ax)*(t0+t1)/2,mz=az+(bz-az)*(t0+t1)/2,key=Math.floor(mz/10)*w+Math.floor(mx/10);
+            if(!tiles.has(key))continue;covered.add(key);
+            const px=ax+(bx-ax)*t0,pz=az+(bz-az)*t0,qx=ax+(bx-ax)*t1,qz=az+(bz-az)*t1;
+            quads.push([[px-nx,pz-nz],[qx-nx,qz-nz],[qx+nx,qz+nz],[px+nx,pz+nz]]);}}}
+      // ... and a road tile of a slanted road's staircase that the smooth line only passes beside is part of that stretch too
+      for(const key of tiles)if(isLineTile(this.snapshot.values[key]&1023))covered.add(key);
+      return{quads,covered};};this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);
     this.scene.add(this.chunks.root,this.curves.root,this.canals.root,this.sprites.root,this.pedestrians.root,this.roadTraffic.root,this.foliage.root,this.outline.root,this.zones.root);
     // Street names along the roads (src/streetNames.ts), when the game says how to write them
     if(setup.streetName){this.streets=new StreetLabels(setup.map,setup.streetName,this.terrain,this.now);this.scene.add(this.streets.root);}

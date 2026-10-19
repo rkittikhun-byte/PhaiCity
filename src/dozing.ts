@@ -87,6 +87,9 @@ export function dozeStroke(map: DozeMap, points: readonly DozePoint[], open: (va
       if (!seen.has(key) && map.testBounds(t.x, t.y)) { seen.add(key); out.push(t); }
     }
   }
+  // A stroke along a road, railway or power line takes only the line: the bare ground and trees the mouse strays over
+  // beside it stay (owner, 20 Oct 2026: "ทำไมไม่รื้อถอนเฉพาะช่องที่เราเลือก ตามถนนเท่านั้น")
+  if (out.some(t => isLineTile(map.getTileValue(t.x, t.y)))) return out.filter(t => !open(map.getTileValue(t.x, t.y)));
   return out;
 }
 

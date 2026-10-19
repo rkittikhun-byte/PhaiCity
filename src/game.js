@@ -1708,6 +1708,7 @@ Game.prototype.calculateMouseForPaint = function() {
   if (pathDrag !== null) {
     hover.path = this.dozeTiles(pathDrag.points);
     hover.line = false;
+    hover.doze = true;
     hover.colour = OUTSIDE_COLOUR;
     return hover;
   }
