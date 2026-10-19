@@ -17,6 +17,9 @@ body.toolDockReady #controls {
   display: flex; align-items: center; gap: 4px; z-index: 25;
   transition: none; animation: none; overflow: visible;
 }
+/* Not before a city opens: the title page and the start screen are see-through, so the dock showed behind them
+   (game.js drops initialHidden when a city starts) */
+body.toolDockReady #controls.initialHidden { display: none; }
 body.toolDockReady #controls:is(:hover, :has(:focus-visible), :has(.toolButton.selected)) {
   transform: translateX(-50%) !important;
 }
