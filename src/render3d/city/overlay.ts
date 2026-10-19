@@ -232,7 +232,12 @@ export class ToolOutline {
       for(const t of blocked){const lot=this.lotOf?.(t.y*this.width+t.x)??null;if(lot)lots.add(lot);else squares.push(t);}
       const redMaterial=cityToolMaterial('#e0453a',true);
       if(squares.length){const red=new Mesh(groundSquares(squares,1,.12,.8,this.terrain),redMaterial);red.renderOrder=27;this.root.add(red);}
-      if(lots.size){const red=new Mesh(groundQuads([...lots],.8,this.terrain),redMaterial);red.renderOrder=27;this.root.add(red);}
+      if(lots.size){const red=new Mesh(groundQuads([...lots],.8,this.terrain),redMaterial);red.renderOrder=27;this.root.add(red);
+        // ... and the very tile the line would cross, in solid red: the building's tiles lie square on the map while its lot
+        // turns with its road, so the tile hit may stick out past the lot's edge, where the lot alone did not show it
+        // (owner, 20 Oct 2026: "มันมีส่วนไหนยื่นออกมารึ ทำไม มองไม่เห็น")
+        const hit=blocked.filter(t=>this.lotOf?.(t.y*this.width+t.x));
+        const solid=new Mesh(groundSquares(hit,1,.08,.85,this.terrain),cityToolMaterial('#c81e14'));solid.renderOrder=28;this.root.add(solid);}
       // A see-through band over every tile it would build on; a line also gets a dashed middle, as Cities: Skylines draws
       const tiles=hover.path.filter(t=>t.x>=0&&t.y>=0&&t.x<this.width&&t.y<this.height);
       if(hover.line&&tiles.length>1&&(hover.drawMode==='rectangle'||hover.drawMode==='grid')){
