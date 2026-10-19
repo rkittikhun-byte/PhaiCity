@@ -146,6 +146,7 @@ export class CityCore {
 
   /** One step of the simulation, then the city's time, which turns the months and runs the monthly systems */
   step(): void {
+    this.commands.settle();
     this.simulation._simulate(this.simulation._constructSimData());
     this.steps++;
     this.simulation._updateTime();
@@ -158,6 +159,7 @@ export class CityCore {
 
   /** The browser's loop: a step when the speed's time has passed by the clock, else only the time */
   tick(now: number = Date.now()): void {
+    this.commands.settle();
     const sim = this.simulation, speed = sim._speed;
     const threshold = speed === SimulationStatics.SPEED_FAST ? 10 : speed === SimulationStatics.SPEED_MED ? 50 : 100;
     if (!sim.budget.awaitingValues && speed !== SimulationStatics.SPEED_PAUSED && now - sim._lastTickTime >= threshold) {
@@ -170,6 +172,7 @@ export class CityCore {
 
   /** The city as a save keeps it, apart from what only the game knows (its name, the ruler's rank, the news …) */
   save(): Record<string, unknown> {
+    this.commands.settle();
     this.objects.scan(this.map, this.simulation._cityTime);
     const data: Record<string, unknown> = { ...writeCityLayers(this.map), objects: this.objects.toJSON() };
     Tools.save(data);

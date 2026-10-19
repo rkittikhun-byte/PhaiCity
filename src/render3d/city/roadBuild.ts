@@ -253,6 +253,8 @@ export interface RoadMap {
   paths: CityMapReader['roadPaths'];
   /** World units a metre on a real-scale city map (src/roadGeometry.ts realUnits), null on any other */
   realUnits: number | null;
+  /** Only these tiles (x0, y0, x1, y1) have roads, the rest of values being none (src/roadGeometry.ts LineMap area) */
+  area?: readonly [number, number, number, number];
 }
 
 /** A mesh's arrays: its corners, which way each faces, its triangles, and its corners' colours and texture places */
@@ -265,7 +267,8 @@ export interface MeshData {
 }
 
 /** The roads and railways as built: their lines, the three meshes, and the gravel's and sleepers' places (16 numbers
- * each, as a Matrix4's), with how many pieces were built and how many kept from before */
+ * each, as a Matrix4's), with how many pieces were built and how many kept from before, and where each piece lies in
+ * them */
 export interface RoadBuild {
   lines: Array<{ points: Point[]; rail: boolean; level: number }>;
   road: MeshData | null;
@@ -275,11 +278,24 @@ export interface RoadBuild {
   sleepers: Float32Array;
   built: number;
   reused: number;
+  pieces: PieceIndex;
 }
+
+/** Where each line, bend, junction and end of a build lies, so the page can hide some of them until the next build
+ * (roadCurves.ts sketch): each piece's key, its bounds (minX, maxX, minZ, maxZ), and PIECE_RANGE numbers a piece: for
+ * the road, dirt and rails meshes its first index, its count of indices, its first corner and its count of corners,
+ * then its first gravel stone and their count, and its first sleeper and their count */
+export interface PieceIndex {
+  keys: string[];
+  bounds: Float32Array;
+  ranges: Int32Array;
+}
+export const PIECE_RANGE = 16;
 
 /** Every array a build holds, to hand it to the page without copying */
 export function transferablesOf(build: RoadBuild): ArrayBuffer[] {
-  const out: ArrayBuffer[] = [build.gravel.buffer as ArrayBuffer, build.sleepers.buffer as ArrayBuffer];
+  const out: ArrayBuffer[] = [build.gravel.buffer as ArrayBuffer, build.sleepers.buffer as ArrayBuffer,
+    build.pieces.bounds.buffer as ArrayBuffer, build.pieces.ranges.buffer as ArrayBuffer];
   for (const mesh of [build.road, build.dirt, build.rails]) {
     if (!mesh) continue;
     for (const array of [mesh.position, mesh.normal, mesh.index, mesh.color, mesh.uv]) if (array) out.push(array.buffer as ArrayBuffer);
@@ -288,12 +304,14 @@ export function transferablesOf(build: RoadBuild): ArrayBuffer[] {
 }
 
 /** What the page asks the road worker for (road-worker.ts): the map to build from, the ground's numbers when they
- * changed since it last sent them, and the tiles whose ground moved under some road */
+ * changed since it last sent them, and the tiles whose ground moved under some road; quiet, only to have the pieces
+ * ready for the next request, with no build sent back (the page has just built the same) */
 export interface RoadRequest {
   id: number;
   map: RoadMap;
   grid: HeightGrid | null;
   invalidate: number[];
+  quiet?: boolean;
 }
 
 /** ... and what it answers: the build, or why there is none */
@@ -313,6 +331,10 @@ export class RoadWorkerState {
       if (request.grid) this.heights = new GridHeights(request.grid);
       if (!this.heights) throw new Error('no ground sent');
       this.builder.invalidate(request.invalidate, request.map.width);
+      if (request.quiet) {
+        this.builder.pieces(request.map, this.heights);
+        return { reply: { id: request.id, build: null, error: null }, transfer: [] };
+      }
       const build = this.builder.build(request.map, this.heights);
       return { reply: { id: request.id, build, error: null }, transfer: transferablesOf(build) };
     } catch (error) {
@@ -362,8 +384,10 @@ class Part {
   }
 }
 
-/** One line, bend, junction or end, built: its meshes' arrays, its gravel and sleepers, and where it lies */
-interface Piece {
+/** One line, bend, junction or end, built: what it was built from (its key: L a line, R a railway, B a bend, J a
+ * junction, l and r a lone tile's), its meshes' arrays, its gravel and sleepers, and where it lies */
+export interface Piece {
+  key: string;
   road: MeshData | null;
   dirt: MeshData | null;
   rails: MeshData | null;
@@ -378,6 +402,36 @@ function joinPlaces(lists: readonly Float32Array[]): Float32Array {
   let at = 0;
   for (const list of lists) { out.set(list, at); at += list.length; }
   return out;
+}
+
+/**
+ * The build of these pieces: their meshes joined, and where each piece lies in them (PieceIndex)
+ */
+export function assemble(lines: RoadBuild['lines'], pieces: readonly Piece[], built: number, reused: number): RoadBuild {
+  const ranges = new Int32Array(pieces.length * PIECE_RANGE), bounds = new Float32Array(pieces.length * 4);
+  const meshes = (['road', 'dirt', 'rails'] as const).map((kind, k) => {
+    let indices = 0, corners = 0;
+    pieces.forEach((piece, n) => {
+      const data = piece[kind], at = n * PIECE_RANGE + k * 4;
+      ranges[at] = indices; ranges[at + 2] = corners;
+      if (!data) return;
+      ranges[at + 1] = data.index.length; ranges[at + 3] = data.position.length / 3;
+      indices += data.index.length; corners += data.position.length / 3;
+    });
+    return merge(pieces.map((piece) => piece[kind]));
+  });
+  let stones = 0, sleepers = 0;
+  pieces.forEach((piece, n) => {
+    const at = n * PIECE_RANGE;
+    ranges[at + 12] = stones; ranges[at + 13] = piece.gravel.length / 16; stones += piece.gravel.length / 16;
+    ranges[at + 14] = sleepers; ranges[at + 15] = piece.sleepers.length / 16; sleepers += piece.sleepers.length / 16;
+    bounds.set([piece.minX, piece.maxX, piece.minZ, piece.maxZ], n * 4);
+  });
+  return {
+    lines, built, reused, road: meshes[0], dirt: meshes[1], rails: meshes[2],
+    gravel: joinPlaces(pieces.map((p) => p.gravel)), sleepers: joinPlaces(pieces.map((p) => p.sleepers)),
+    pieces: { keys: pieces.map((p) => p.key), bounds, ranges },
+  };
 }
 
 /** Joins the pieces' arrays of one mesh into one, each piece's triangles counted on from the pieces before it */
@@ -436,6 +490,15 @@ export class RoadBuilder {
   }
 
   build(map: RoadMap, heights: HeightSource): RoadBuild {
+    const { lines, pieces, built, reused } = this.pieces(map, heights);
+    return assemble(lines, pieces, built, reused);
+  }
+
+  /**
+   * The pieces of the map's roads and railways, each once, and their lines. prune false keeps the pieces built before
+   * that this map has not (for building bits of a map, roadCurves.ts sketch), else only this map's are kept.
+   */
+  pieces(map: RoadMap, heights: HeightSource, prune = true): { lines: RoadBuild['lines']; pieces: Piece[]; built: number; reused: number } {
     this.map = map; this.heights = heights; this.samples.clear();
     if (map.realUnits !== this.units) { this.cache.clear(); this.units = map.realUnits; }
     const used = new Map<string, Piece>(), out: Piece[] = [], lines: RoadBuild['lines'] = [];
@@ -444,13 +507,13 @@ export class RoadBuilder {
     const piece = (key: string, draw: () => void): void => {
       let done = used.get(key) ?? this.cache.get(key);
       if (done) reused++;
-      else { done = this.draw(draw); built++; }
+      else { done = this.draw(draw); done.key = key; built++; }
       if (!used.has(key)) { used.set(key, done); out.push(done); }
     };
     const { width, height } = map;
     for (const rail of [false, true]) {
       const network = networkOf({ width, height, value: (i) => map.values[i], level: (i) => map.levels?.[i] ?? 1,
-        piece: (i) => map.pieces?.[i] ?? 0, path: (p) => map.paths?.[p] ?? null }, rail);
+        piece: (i) => map.pieces?.[i] ?? 0, path: (p) => map.paths?.[p] ?? null, area: map.area }, rail);
       const { plates, junctions } = network;
       // One road where it runs on through a junction, the others ending at it (src/roadGeometry.ts roadLines)
       const drawn = roadLines(network);
@@ -537,12 +600,9 @@ export class RoadBuilder {
       }
     }
     // Only what this map still has is kept for next time
-    this.cache = used;
-    return {
-      lines, built, reused,
-      road: merge(out.map((p) => p.road)), dirt: merge(out.map((p) => p.dirt)), rails: merge(out.map((p) => p.rails)),
-      gravel: joinPlaces(out.map((p) => p.gravel)), sleepers: joinPlaces(out.map((p) => p.sleepers)),
-    };
+    if (prune) this.cache = used;
+    else for (const [key, done] of used) this.cache.set(key, done);
+    return { lines, pieces: out, built, reused };
   }
 
   /** Builds one piece: whatever draw writes into fresh parts, finished as arrays */
@@ -555,7 +615,7 @@ export class RoadBuilder {
     const extra: number[][] = [[], [], [], []];
     for (const list of [this.gravel, this.sleepers]) for (let i = 0; i < list.length; i += 16) { extra[0].push(list[i + 12]); extra[1].push(list[i + 14]); }
     return {
-      road: this.roadPart.finish(true, null), dirt: this.dirtPart.finish(true, DIRT_REPEAT_M * this.metre),
+      key: '', road: this.roadPart.finish(true, null), dirt: this.dirtPart.finish(true, DIRT_REPEAT_M * this.metre),
       rails: this.railPart.finish(false, null), gravel: Float32Array.from(this.gravel), sleepers: Float32Array.from(this.sleepers),
       minX: bound((p) => p.minX, extra[0], Math.min) - 1, maxX: bound((p) => p.maxX, extra[0], Math.max) + 1,
       minZ: bound((p) => p.minZ, extra[1], Math.min) - 1, maxZ: bound((p) => p.maxZ, extra[1], Math.max) + 1,

@@ -16,6 +16,8 @@ const LIFT = 0.22, FILL = 0.98;
 export class ZoneCellsView {
   readonly root = new Group();
   private layout: CellLayout | null = null;
+  /** Whether the map changed since the cells were laid */
+  private stale = true;
   private painted: InstancedMesh | null = null;
   private readonly hoverGroup = new Group();
   private readonly lotPad: Mesh;
@@ -65,23 +67,31 @@ export class ZoneCellsView {
     if (changed) this.drawPaint();
   }
 
-  /** The roads, the land or the buildings changed: lay the cells again */
+  /** The roads, the land or the buildings changed: the cells are laid again when next needed, for the paint or the
+   * brush (owner, 19 Oct 2026: laying every cell of a city map again after each road drawn held the game 0.3-0.7 s,
+   * with no paint to show and no brush in hand) */
   refresh(): void {
-    const map = this.map;
-    const inside = (x: number, y: number): boolean => !map.insideProvince || map.insideProvince[y * map.width + x] === 1;
-    const layout = cellsOf(map, (x, y) => ownsLand(map as unknown as LandMap, x, y) && inside(x, y));
-    if (layout !== this.layout) {
-      this.layout = layout;
-    }
+    this.stale = true;
     this.drawPaint();
+  }
+
+  /** The cells as the map has them now */
+  private laid(): CellLayout {
+    if (this.stale || !this.layout) {
+      const map = this.map;
+      const inside = (x: number, y: number): boolean => !map.insideProvince || map.insideProvince[y * map.width + x] === 1;
+      this.layout = cellsOf(map, (x, y) => ownsLand(map as unknown as LandMap, x, y) && inside(x, y));
+      this.stale = false;
+    }
+    return this.layout;
   }
 
   /** Each frame: the paint, if it changed, and the road-snapped lot under the brush, or every cell in
    * the rectangle it drags */
   update(point: { x: number; y: number } | null, colour: string | null, area: readonly number[] | null = null): void {
     if ((this.map.zoneCellsVersion ?? 0) !== this.version) this.drawPaint();
-    const rawCell = !area && point && this.layout && this.showing
-      ? cellAt(this.layout, this.map.width, point.x * 10, point.y * 10)
+    const rawCell = !area && point && this.showing
+      ? cellAt(this.laid(), this.map.width, point.x * 10, point.y * 10)
       : null;
     if (area && this.showing) {
       this.hoverGroup.visible = false;
@@ -105,8 +115,8 @@ export class ZoneCellsView {
     if (key === this.areaKey) return;
     this.areaKey = key;
     if (this.area) { this.root.remove(this.area); this.area.dispose(); this.area = null; }
-    if (!area || !this.layout) return;
-    const layout = this.layout;
+    if (!area) return;
+    const layout = this.laid();
     const cells = area.map((k) => layout.byKey.get(k)).filter((i): i is number => i !== undefined).map((i) => layout.cells[i]);
     if (!cells.length) return;
     if (colour) this.hoverMaterial.color.set(colour);
@@ -156,8 +166,9 @@ export class ZoneCellsView {
   private drawPaint(): void {
     this.version = this.map.zoneCellsVersion ?? 0;
     if (this.painted) { this.root.remove(this.painted); this.painted.dispose(); this.painted = null; }
-    const layout = this.layout, paint = this.map.zoneCells;
-    if (!layout || !paint || !paint.size) return;
+    const paint = this.map.zoneCells;
+    if (!paint || !paint.size) return;
+    const layout = this.laid();
     const isUnbuiltTile = (tileIdx: number): boolean => {
       if (tileIdx < 0) return true;
       const v = this.map.getTileValue(tileIdx % this.map.width, Math.floor(tileIdx / this.map.width));

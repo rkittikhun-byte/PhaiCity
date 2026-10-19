@@ -252,6 +252,65 @@ describe('road curves', () => {
     curves.dispose();
   });
 
+  test('a road changed shows at once, sketched as the worker builds it, until its answer takes the sketch\'s place', async () => {
+    // Owner, 19 Oct 2026: a road drawn on the Khon Kaen map showed only a moment later
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) { snapshot.values[8 * W + x] = 66; snapshot.values[30 * W + x] = 66; }
+    const ground = { ...flat, version: 0, grid: () => ({ width: W, height: 40, enabled: false, pads: new Float32Array(W * 40),
+      corners: new Float32Array(41 * 41), mask: null }) } as unknown as CityHeightField;
+    // A worker that answers when told to
+    const state = new RoadWorkerState(), waiting: RoadRequest[] = [];
+    const worker: RoadWorkerLike = { onmessage: null, onerror: null, terminate: () => undefined,
+      postMessage(message) { if (!message.quiet) waiting.push(message); else this.onmessage!({ data: state.handle(message).reply }); } };
+    const curves = new RoadCurves(snapshot, ground, { worker: () => worker });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const answer = (): void => { worker.onmessage!({ data: state.handle(waiting.shift()!).reply }); };
+    // What the roads draw: the corners of every triangle not hidden, and the stones and sleepers not shrunk away, the
+    // build's and the sketch's together
+    const drawn = (): string[] => {
+      const out: string[] = [];
+      for (const child of curves.root.children) {
+        if (child instanceof InstancedMesh) {
+          const matrix = new Matrix4(), place = new Vector3();
+          for (let n = 0; n < child.count; n++) {
+            child.getMatrixAt(n, matrix);
+            if (matrix.determinant() !== 0) out.push(`${child.name.replace('_sketch', '')} ${place.setFromMatrixPosition(matrix).toArray().map((v) => v.toFixed(3))}`);
+          }
+        } else if (child instanceof Mesh && !['lots', 'driveways'].includes(child.name)) {
+          const position = child.geometry.getAttribute('position'), index = child.geometry.getIndex()!;
+          for (let t = 0; t < index.count; t += 3) {
+            const at = [0, 1, 2].map((k) => index.getX(t + k));
+            if (at.every((i) => i === 0)) continue;
+            out.push(`${child.name.replace('_sketch', '')} ${at.map((i) => [position.getX(i), position.getY(i), position.getZ(i)].map((v) => v.toFixed(3))).sort().join(' ')}`);
+          }
+        }
+      }
+      return out.sort();
+    };
+    const named = (name: string): Mesh | undefined => curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name);
+    // A road from the northern one down to row 19, a junction where they meet: drawn at once, before the worker answers
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    curves.update(Array.from({ length: 11 }, (_, k) => (9 + k) * W + 20));
+    expect(waiting).toHaveLength(1);
+    expect(named('dirt_sketch')).toBeDefined();
+    expect(curves.drawnLines.some((line) => line.points.some(([x, z]) => Math.abs(x - 205) < 1 && Math.abs(z - 150) < 1))).toBe(true);
+    const sketched = drawn();
+    // ... the same as the worker then builds, which takes the sketch's place
+    answer();
+    expect(named('dirt_sketch')).toBeUndefined();
+    expect(drawn()).toEqual(sketched);
+    // A tile of the southern road bulldozed: its two halves at once, the same as the worker's
+    snapshot.values[30 * W + 20] = 0;
+    curves.update([30 * W + 20]);
+    const cut = drawn();
+    expect(cut).not.toEqual(sketched);
+    // ... and nothing goes along the old line over the tile bulldozed
+    expect(curves.drawnLines.some((line) => line.points.some(([x, z]) => Math.floor(x / 10) === 20 && Math.floor(z / 10) === 30))).toBe(false);
+    answer();
+    expect(drawn()).toEqual(cut);
+    curves.dispose();
+  });
+
   test('when the worker fails the roads are built on the page again', async () => {
     const W = 40, snapshot = new TileSnapshot(W, 40);
     for (let x = 5; x < 36; x++) snapshot.values[8 * W + x] = 66;
