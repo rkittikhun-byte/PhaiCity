@@ -6,8 +6,8 @@ said "don't ask, just go": work through the checklist on your own and pace the p
 
 - **Concept art** (read only, in the game repo): `D:/DesktopServer/www/phaicity/assets/concept/people_era{1..5}_v3.jpg`
   and `people_{north,isan,central,east,west,south}.jpg`.
-- Built first in `D:/DesktopServer/www/phaicity-art/people/` (its own git, now only an archive); since 19 Oct 2026
-  the source lives in the game repo at `art/people/` on main (owner: "merge เข้า main"). Work here from now on.
+- The source lives in the game repo at `art/people/` on main, its only copy (owner, 19 Oct 2026: "merge เข้า main",
+  then the first build folder was removed).
 
 ## Now
 
@@ -118,5 +118,4 @@ A recurring cron in the session (every hour at :17) restarts the work when the p
 - 5-hour window at 90% or more: finish the character in hand, commit, write "Now" above, end the turn; the cron
   resumes after the reset.
 - Weekly limit at 95%: commit, write "Now", delete the cron, stop until the owner says so.
-- Crons live only in the open session: if the app was closed, the owner restarts with "ทำต่อตาม PLAN.md ใน
-  phaicity-art/people".
+- Crons live only in the open session: if the app was closed, the owner restarts with "ทำต่อตาม art/people/PLAN.md".
