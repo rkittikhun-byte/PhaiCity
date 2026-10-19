@@ -22,6 +22,7 @@ import type { CityHeightField } from './heightfield.js';
 import { halfWidth, roadReach, type Point } from '../../roadGeometry.js';
 import type { RegionId } from '../regional/types.js';
 import type { BlockMapReader } from './types.js';
+import { besideCanal } from './canals.js';
 
 const MAX_PEDESTRIANS = 140;
 const MAX_TAKRAW = 8;
@@ -1244,6 +1245,7 @@ export class CityFoliage {
               if (tileX < 0 || tileY < 0 || tileX >= this.snapshot.width || tileY >= this.snapshot.height) continue;
               const tv = this.snapshot.getTileValue(tileX, tileY);
               if (tv !== 0 && !(tv >= 21 && tv <= 39)) continue;
+              if (besideCanal(this.snapshot, tileY * this.snapshot.width + tileX)) continue;
               const nearRoad = this.snapshot.roadSnap?.(tx, tz, 12);
               if (nearRoad && Math.hypot(tx - nearRoad.x, tz - nearRoad.z) < nearRoad.reach + 1.4 * this.size) continue;
               // Alternate Golden Shower (ต้นคูน 0), Rain Tree (จามจุรี 1), Flame Tree (หางนกยูง 2), Mango (3)
@@ -1272,6 +1274,8 @@ export class CityFoliage {
         const woods = v >= 21 && v <= 39;
         const cover = this.snapshot.source?.landCover?.[i] ?? 0;
         if (!woods && (v !== 0 || !hasLandCover)) continue;
+        // ... and none on a canal or its banks (canals.ts)
+        if (besideCanal(this.snapshot, i)) continue;
 
         const seed = tileSeed(tx, ty);
         const count = woods ? 3 : cover === 3 ? 2 : cover === 4 || cover === 5 || cover === 6 ? 1 : (seed % 4 === 0 ? 1 : 0);

@@ -20,6 +20,7 @@ import { SkyDome } from './sky.js';
 import { StreetLabels } from './streetLabels.js';
 import { ProvinceBackdropView } from './provinceBackdrop.js';
 import { RoadCurves } from './roadCurves.js';
+import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { CityBuses } from './buses.js';
@@ -29,7 +30,7 @@ import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
 import { browserPrototypeProvider } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
-import type { CityViewSetup } from './types.js';
+import type { CityMapReader, CityViewSetup } from './types.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
 export { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
 export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number;detailSwaps:number;dirtSwaps:number;pixelRatioChanges:number }
@@ -81,6 +82,8 @@ export class CityView3D implements CityView {
   private cameraPose:number[]=[];
   private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private buses?:CityBuses;private problems?:ProblemIcons;
   private bed:Mesh;private bedDrop:number;private wideBed:boolean;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
+  /** The dug canals, drawn along their lines; the rest of the view reads their tiles as ground (canals.ts) */
+  private canals:CityCanals;private land:CityMapReader;
   private darkMode=false;
   private dayNightMode:'auto'|'day'|'night'='auto';
   private readonly CYCLE_DURATION=180;
@@ -97,7 +100,8 @@ export class CityView3D implements CityView {
     this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:true,preserveDrawingBuffer:true});
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
-    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=setup.map;this.snapshot.enableConstruction=!this.headless;this.snapshot.sync(setup.map);this.snapshot.coverZones();
+    this.land=canalLand(setup.map);
+    this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=this.land;this.snapshot.enableConstruction=!this.headless;this.snapshot.sync(this.land);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;
     // A real-scale city map's things at their real size (tileModels.ts atRealSize, roadGeometry.ts realUnits)
     this.snapshot.realUnits=realUnits(setup.map.tileSizeM);this.sprites.size=Math.min(1,this.snapshot.realUnits??1);
@@ -105,6 +109,7 @@ export class CityView3D implements CityView {
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
     this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
+    this.canals=new CityCanals(setup.map as unknown as ConstructorParameters<typeof CityCanals>[0],this.terrain,()=>this.snapshot.realUnits);
     this.pedestrians=new CityPedestrians(this.snapshot,this.terrain,this.sprites.size);
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);
@@ -123,7 +128,7 @@ export class CityView3D implements CityView {
     const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
     this.outline.snap=this.snapshot.roadSnap;this.outline.lotOf=(index)=>this.curves.lotAt(index);this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);
-    this.scene.add(this.chunks.root,this.curves.root,this.sprites.root,this.pedestrians.root,this.roadTraffic.root,this.foliage.root,this.outline.root,this.zones.root);
+    this.scene.add(this.chunks.root,this.curves.root,this.canals.root,this.sprites.root,this.pedestrians.root,this.roadTraffic.root,this.foliage.root,this.outline.root,this.zones.root);
     // Street names along the roads (src/streetNames.ts), when the game says how to write them
     if(setup.streetName){this.streets=new StreetLabels(setup.map,setup.streetName,this.terrain,this.now);this.scene.add(this.streets.root);}
     // The whole province round a district's map, so the wheel zooms out over all of it (provinceBackdrop.ts)
@@ -236,13 +241,15 @@ export class CityView3D implements CityView {
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
-    this.resize();const synced=this.snapshot.sync(this.setup.map),built=this.snapshot.stepConstruction(this.seconds);
+    this.resize();const synced=this.snapshot.sync(this.land),built=this.snapshot.stepConstruction(this.seconds);
     const changed=built.length?[...new Set([...synced,...built])]:synced;
     // The ruler's house rises a level or takes a wing without its tiles changing: rebuild it when it does
     {const house=this.setup.map.rulerHouse,sign=house?`${house.x},${house.y},${house.level},${(house.wings??[]).join(',')}`:'';
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
     if(changed.length||raised.length){this.curves.update(raised.length?[...changed,...raised]:changed);this.foliage.invalidate();}
+    if(raised.length)this.canals.invalidate();
+    {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.foliage.invalidate();}}
     if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     // The camera stays over what stands under it, not over what it looks at, so it can come down and look across the
@@ -329,7 +336,7 @@ export class CityView3D implements CityView {
   screenshotVisible():string{if(this.disposed)return '';this.render();return this.canvas.toDataURL('image/png');}
   screenshotMap():string {
     if(this.disposed)return '';if(this.headless)return this.canvas.toDataURL('image/png');
-    this.chunks.dirty(this.snapshot.sync(this.setup.map));this.chunks.finishMapLOD();
+    this.chunks.dirty(this.snapshot.sync(this.land));this.chunks.finishMapLOD();
     const w=this.setup.map.width*10,h=this.setup.map.height*10,scale=Math.min(4096/Math.max(w,h),.8),width=Math.ceil(w*scale),height=Math.ceil(h*scale);
     const camera=new OrthographicCamera(-w/2,w/2,h/2,-h/2,1,10000);camera.position.set(w/2,4000,h/2);camera.up.set(0,0,-1);camera.lookAt(w/2,0,h/2);
     const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible,streets=this.streets?.root.visible??false;
@@ -344,7 +351,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

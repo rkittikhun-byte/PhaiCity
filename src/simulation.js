@@ -45,6 +45,7 @@ import {
 } from './policies.ts';
 import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
+import { canalLandValues, growCanals } from './canals.ts';
 import { Random } from './random.ts';
 import { RepairManager } from './repairManager.js';
 import { Residential } from './residential.js';
@@ -210,6 +211,9 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._mining.start(this.resources);
   this._waterManager.poison = this._mining;
   this._map.water = this._waterManager.view;
+  // ... and what the canals add to the land value (src/canals.ts), until their next month works it out again
+  this._canalLand = canalLandValues(this._map);
+  this._canalLandVersion = this._map.canalsVersion;
 
   this.init();
 });
@@ -513,6 +517,7 @@ var simulate = function(simData) {
         this._valves.transitTrade = this._transit.tradeFactor();
         this._miningMonth();
         this._farmingMonth();
+        this._canalsMonth();
         // ... and the tollways' tolls (src/roadLevels.ts), higher by the ruler's policy
         this.budget.tollFund += tollsThisMonth(this._map, this.blockMaps.trafficDensityMap) *
                                 (hasPolicy(this._map, 'higher_tolls') ? TOLL_RAISE : 1);
@@ -595,6 +600,21 @@ Simulation.prototype._simulate = function(simData) {
 };
 
 
+// PhaiCity: the canals grow a level every few months while they stand, by the city's people and the land value along
+// them (src/canals.ts, docs/CANALS.md), and what they add to the land value nearby is worked out again when they change
+Simulation.prototype._canalsMonth = function() {
+  var map = this._map, landValue = this.blockMaps.landValueMap;
+  var rose = growCanals(map, this._cityTime >> 2, this.evaluation.getPopulation(this._census),
+                        function(x, y) { return landValue.worldGet(x, y); });
+  if (rose)
+    map.canalsVersion = (map.canalsVersion || 0) + 1;
+  if (rose || this._canalLandVersion !== map.canalsVersion) {
+    this._canalLandVersion = map.canalsVersion;
+    this._canalLand = canalLandValues(map);
+  }
+};
+
+
 // PhaiCity: the province's tourism level, 0–5
 Simulation.prototype._tourismLevel = function() {
   var level = this.resources.tourism;
@@ -627,13 +647,16 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var green = hasPolicy(this._map, 'green_zoning') ? GREEN_LAND_VALUE : 0;
   // ... and the metro near its stations (src/transit.ts)
   var transit = this._transit;
+  // ... and the canals by their levels (src/canals.ts)
+  var canals = this._canalLand || null, width = this._map.width;
   // ... the house's reach in tiles a step of distance, longer on a map at real scale
   var step = BlockMapUtils.nearnessStep(this._map);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
                                               function(x, y) {
                                                 return (house ? houseLandValue(house, x, y, step) : 0) + green +
-                                                       transit.landValueAt(x, y);
+                                                       transit.landValueAt(x, y) +
+                                                       (canals ? canals[y * width + x] : 0);
                                               });
 };
 

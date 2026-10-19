@@ -10,7 +10,7 @@ import { CityCore } from "../src/core/cityCore";
 import { linePath } from "../src/drawPaths";
 import { GameMap } from "../src/gameMap.js";
 import { isRoadTile } from "../src/roadLevels";
-import { canalMarkStands, isCanalAt } from "../src/canals";
+import { CANAL_LAND_VALUE, CANAL_RISE_MONTHS, canalLandValues, canalMarkStands, canalTarget, growCanals, isCanalAt } from "../src/canals";
 import { BULLBIT } from "../src/tileFlags";
 import { DIRT, HBRIDGE, HRAIL, RIVER, VBRIDGE } from "../src/tileValues";
 
@@ -125,4 +125,72 @@ describe("canals", () => {
     const saved = newCity(JSON.parse(JSON.stringify(core.save())));
     expect(saved.map.canals[9 * SIZE + 20]).toBe(0);
   });
+
+  test("a road drawn across a canal bridges it rather than filling it in, and buildings never fill it", () => {
+    const core = newCity();
+    draw(core, { x: 15, y: 5 }, { x: 15, y: 20 }, "canal");
+    draw(core, { x: 5, y: 12 }, { x: 25, y: 12 }, "road");
+    expect(value(core, 15, 12)).toBe(HBRIDGE);
+    core.apply({ type: "tool", tool: "park", x: 15, y: 8 });
+    expect(value(core, 15, 8)).toBe(RIVER);
+  });
 });
+
+describe("canal levels", () => {
+  test("a new canal is a ditch and becomes an earth canal within three months, and no more in an empty town", () => {
+    const core = newCity();
+    draw(core, { x: 10, y: 5 }, { x: 10, y: 14 }, "canal");
+    expect(core.map.canals[9 * SIZE + 10]).toBe(1);
+    core.run(4 * 16 * (CANAL_RISE_MONTHS + 1));
+    expect(core.map.canals[9 * SIZE + 10]).toBe(2);
+    core.run(4 * 16 * 12);
+    expect(core.map.canals[9 * SIZE + 10]).toBe(2);
+  });
+
+  test("a canal earns its level from the city's people and the land value along it", () => {
+    expect(canalTarget(0, 0)).toBe(2);
+    expect(canalTarget(2000, 29)).toBe(2);
+    expect(canalTarget(2000, 30)).toBe(3);
+    expect(canalTarget(9999, 200)).toBe(3);
+    expect(canalTarget(10000, 60)).toBe(4);
+    expect(canalTarget(50000, 99)).toBe(4);
+    expect(canalTarget(50000, 100)).toBe(5);
+  });
+
+  test("its tiles rise one level every three months together, up to what it has earned, and never fall", () => {
+    const core = newCity();
+    draw(core, { x: 10, y: 5 }, { x: 10, y: 14 }, "canal");
+    const map = core.map, rich = () => 120;
+    const levels = (): number[] => [5, 9, 14].map((y) => map.canals[y * SIZE + 10]);
+    expect(growCanals(map, 1, 60000, rich)).toBe(false);
+    for (let month = 3, expected = 2; expected <= 5; month += 3, expected++) {
+      expect(growCanals(map, month, 60000, rich)).toBe(true);
+      expect(levels()).toEqual([expected, expected, expected]);
+    }
+    expect(growCanals(map, 18, 60000, rich)).toBe(false);
+    // A town that empties keeps its canal as it is
+    growCanals(map, 21, 0, () => 0);
+    expect(levels()).toEqual([5, 5, 5]);
+  });
+
+  test("a level adds to the land value nearby, in full close by and at half further out", () => {
+    const core = newCity();
+    draw(core, { x: 30, y: 20 }, { x: 30, y: 30 }, "canal");
+    const map = core.map;
+    expect(canalLandValues(map)).toBeNull();
+    for (let y = 20; y <= 30; y++) map.canals[y * SIZE + 30] = 4;
+    const bonus = canalLandValues(map)!;
+    expect(bonus[25 * SIZE + 32]).toBe(CANAL_LAND_VALUE[4]);
+    expect(bonus[25 * SIZE + 34]).toBe(CANAL_LAND_VALUE[4] / 2);
+    expect(bonus[25 * SIZE + 35]).toBe(0);
+  });
+
+  test("saves keep each tile's level", () => {
+    const core = newCity();
+    draw(core, { x: 10, y: 5 }, { x: 10, y: 14 }, "canal");
+    for (let y = 5; y <= 14; y++) core.map.canals[y * SIZE + 10] = 4;
+    const again = newCity(JSON.parse(JSON.stringify(core.save())));
+    expect(again.map.canals[9 * SIZE + 10]).toBe(4);
+  });
+});
+

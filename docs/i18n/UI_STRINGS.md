@@ -962,7 +962,7 @@
 | `autosave.full` | `src/autosave.ts` | — | `Autosave failed: storage is full. Delete an old city in “My cities” and try again.` | `บันทึกอัตโนมัติไม่สำเร็จ: พื้นที่บันทึกเต็ม ลบเมืองเก่าในหน้า “เมืองของฉัน” แล้วลองใหม่` | ชื่อหน้าตรงกับ `cities.title` |
 | `shortcut.tool` | `src/toolShortcuts.ts` | — | `{tool} (shortcut {key})` | `{tool} (ปุ่มลัด {key})` | tooltip ปุ่มเครื่องมือ (Claude Code 12 ต.ค. 2026) |
 | `tool.hint.bulldozer` | `src/toolShortcuts.ts` | — | `Clears buildings, trees and rubble to make room.` | `รื้อสิ่งก่อสร้าง ต้นไม้ หรือซากออก เพื่อเตรียมพื้นที่` | บรรทัดที่สองของ tooltip (เครื่องมืออื่นใช้คำอธิบายจากหน้า About) |
-| `tool.hint.canal` | `src/toolShortcuts.ts` | — | `Digs a canal, drawn like a road. It raises the land's value and the groundwater nearby, and roads it crosses become bridges. The bulldozer fills it in again.` | `ขุดคลอง วาดแบบเดียวกับถนน ทำให้ที่ดินและน้ำใต้ดินรอบ ๆ ดีขึ้น ถนนที่ตัดผ่านกลายเป็นสะพาน รถเกลี่ยดินถมกลับได้` | บรรทัดที่สองของ tooltip |
+| `tool.hint.canal` | `src/toolShortcuts.ts` | — | `Digs a canal, drawn like a road. It fills the groundwater nearby and grows through five levels as the town grows, raising the land's value; roads it crosses become bridges. The bulldozer fills it in again.` | `ขุดคลอง วาดแบบเดียวกับถนน เพิ่มน้ำใต้ดินรอบ ๆ และพัฒนาขึ้นเองห้าระดับตามเมือง ทำให้ที่ดินริมคลองมีราคา ถนนที่ตัดผ่านกลายเป็นสะพาน รถเกลี่ยดินถมกลับได้` | บรรทัดที่สองของ tooltip |
 | `tool.hint.query` | `src/toolShortcuts.ts` | — | `Click any tile to see what is there: land value, pollution, crime and more.` | `คลิกช่องใดก็ได้ เพื่อดูข้อมูลที่ดินช่องนั้น เช่น มูลค่า มลพิษ และอาชญากรรม` | |
 | `mainmenu.last_saved` | `src/mainMenuWindow.js` | — | `Last saved {when}. Leaving without saving loses anything since then.` | `บันทึกล่าสุดเมื่อ {when} ถ้าออกโดยไม่บันทึก สิ่งที่ทำหลังจากนั้นจะหายไป` | รวมบันทึกอัตโนมัติ (Claude Code 12 ต.ค. 2026) |
 | `mainmenu.never_saved` | `src/mainMenuWindow.js` | — | `This city has never been saved. Leaving without saving loses it.` | `เมืองนี้ยังไม่เคยบันทึก ถ้าออกโดยไม่บันทึก เมืองจะหายไป` | |
@@ -1396,6 +1396,14 @@
 | `object.kind.rail` | `src/inspect.ts` | — | `Railway` | `ทางรถไฟ` |  |
 | `object.kind.water` | `src/inspect.ts` | — | `Water` | `แหล่งน้ำ` |  |
 | `object.kind.canal` | `src/inspect.ts` | — | `Canal` | `คลอง` |  |
+| `object.fact.canal_level` | `src/inspect.ts` | — | `Level {level} of 5: {name}` | `ระดับ {level}/5: {name}` |  |
+| `object.fact.canal_soon` | `src/inspect.ts` | — | `Grows to an earth canal within three months` | `จะเป็นคลองดินภายในสามเดือน` |  |
+| `object.fact.canal_next` | `src/inspect.ts` | — | `Next level: {people} people and land value {value} along it` | `ระดับถัดไป: ประชากร {people} คน และราคาที่ดินริมคลอง {value}` |  |
+| `canal.level.1` | `src/inspect.ts` | — | `New ditch` | `คูขุดใหม่` | docs/CANALS.md |
+| `canal.level.2` | `src/inspect.ts` | — | `Earth canal` | `คลองดิน` |  |
+| `canal.level.3` | `src/inspect.ts` | — | `Lined canal` | `คลองดาดคอนกรีต` |  |
+| `canal.level.4` | `src/inspect.ts` | — | `Canal walk` | `คลองทางเดินริมน้ำ` |  |
+| `canal.level.5` | `src/inspect.ts` | — | `Canal of boats and gardens` | `คลองท่องเที่ยว` |  |
 | `object.kind.woods` | `src/inspect.ts` | — | `Woods` | `ป่าไม้` |  |
 | `object.kind.land` | `src/inspect.ts` | — | `Open land` | `ที่ว่าง` |  |
 | `object.cover.1` | `src/inspect.ts` | — | `Rice paddy` | `นาข้าว` | พื้นที่ปกคลุม (scripts/geo/lib/landCover.mjs) |

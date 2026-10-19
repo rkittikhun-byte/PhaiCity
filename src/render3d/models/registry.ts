@@ -23,6 +23,7 @@ import { createHospitalCivic, HOSPITAL_BUDGETS, HOSPITAL_KINDS, hospitalId } fro
 import { createWaste, WASTE_BUDGETS, WASTE_KINDS, wasteId } from './waste/waste.js';
 import { createWaterWorks, WATER_WORKS_ID, WATER_WORKS_TILES } from './water/water-works.js';
 import { createWaterTower, WATER_TOWER_ID, WATER_TOWER_TILES } from './water/water-tower.js';
+import { CANAL_PIECE_ID, CANAL_PIECE_LEVELS, createCanalPiece } from './water/canal.js';
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
 import { createPlot, PLOT_SPECS } from './plot/index.js';
@@ -120,6 +121,9 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R3' },
   [WATER_TOWER_ID]: { factory: createWaterTower, category: 'services', footprint: [1, 1], tiles: WATER_TOWER_TILES,
     budget: TRIANGLE_BUDGETS.prop, regionTier: 'R3' },
+  // Canals (docs/CANALS.md): the city draws them along their lines (city/canals.ts); a straight piece of each level here
+  [CANAL_PIECE_ID]: { factory: createCanalPiece, category: 'terrain', footprint: [2, 2], tiles: [],
+    budget: TRIANGLE_BUDGETS.special, regionTier: 'R3', ground: 'water', variants: CANAL_PIECE_LEVELS },
   // Rubbish and wastewater plants (RENDERER_SPEC 6I): the five kinds on tiles 992–1000, picked from gameMap.wasteKinds.
   ...Object.fromEntries(WASTE_KINDS.map(kind => [wasteId(kind), {
     factory: (options?: ModelOptions) => createWaste(kind, options), category: 'services', footprint: [3, 3], tiles: [],

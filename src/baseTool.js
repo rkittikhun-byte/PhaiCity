@@ -13,7 +13,7 @@
 
 import { MiscUtils } from './miscUtils.js';
 import { TileUtils } from './tileUtils.js';
-import { DIRT, HBRIDGE, LASTTINYEXP, TINYEXP, TREEBASE, WOODS2 } from "./tileValues.ts";
+import { DIRT, HBRIDGE, LASTTINYEXP, TINYEXP, TREEBASE, WATER_HIGH, WATER_LOW, WOODS2 } from "./tileValues.ts";
 import { WorldEffects } from './worldEffects.js';
 
 var init = function(cost, map, shouldAutoBulldoze, isDraggable) {
@@ -76,8 +76,10 @@ var doAutoBulldoze = function(x, y) {
   var tile = this._worldEffects.getTile(x, y);
   if (tile.isBulldozable()) {
     tile = TileUtils.normalizeRoad(tile.getValue());
+    // PhaiCity: a dug canal's water can be bulldozed (src/canals.ts), but only by the bulldozer itself: a road or a
+    // building beside it never fills it in on the way
     if ((tile >= TINYEXP && tile <= LASTTINYEXP) ||
-        (tile < HBRIDGE && tile !== DIRT)) {
+        (tile < HBRIDGE && tile !== DIRT && (tile < WATER_LOW || tile > WATER_HIGH))) {
       this.addBulldozeCost(tile, 1);
       this._worldEffects.setTile(x, y, DIRT);
     }

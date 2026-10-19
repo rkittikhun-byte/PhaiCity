@@ -17,6 +17,7 @@ import { CityHeightField } from './heightfield.js';
 import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
 import { TerrainDetail } from './terrain-detail.js';
+import { besideCanal } from './canals.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 type RoadPoint=readonly [number,number,number];
 /** The zones' paint (docs/CITY_SCALE.md), how much of it shows over the ground, and the gap that draws the grid */
@@ -266,7 +267,8 @@ export class ProvinceSurface {
         c.treeOutside[slot]=outside?1:0;
       }
       if(c.treeCount>startSlot)c.treeSlots.set(i,[startSlot,c.treeCount-startSlot]);
-    }else if(hasLandCover&&v===0&&!wet&&(!outside||tileSeed(x,y)%3===0)){
+    }else if(hasLandCover&&v===0&&!wet&&(!outside||tileSeed(x,y)%3===0)&&!besideCanal(this.snapshot,i)){
+      // (none on a canal or its banks, canals.ts)
       // Real-scale city landscape trees: orchards (3), villages (6), parks/meadows (4), wetlands (5), paddy dikes (1) & field borders (2)
       const seed=tileSeed(x,y),realScale=this.snapshot.realUnits??1;
       const count=cover===3?3:cover===6?2:cover===4||cover===5?(seed%3===0?2:1):cover===1||cover===2?(seed%5<2?1:0):(seed%4===0?1:0);

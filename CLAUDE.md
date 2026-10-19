@@ -273,7 +273,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   transport tray after rail, drawn by the road modes: clear land and woods become water (RIVER with the bulldoze bit, so
   the bulldozer fills it in), a straight road or railway it crosses becomes a bridge, buildings and junctions are
   refused. Water that comes or goes sets `gameMap.groundChanged` and the groundwater is worked out again
-  (`WaterManager.refreshGround`). The map remembers dug canals (`gameMap.canals`, saved); renderers read it.
+  (`WaterManager.refreshGround`). The map remembers dug canals and each tile's level (`gameMap.canals`, 0 none, 1–5,
+  saved): a canal grows a level every three months while it stands, by the city's people and the land value along it
+  (`growCanals`, `_canalsMonth`), and adds land value nearby. In 3D a canal is drawn along its smooth line with each
+  level's banks and things (`src/render3d/city/canals.ts`, `models/water/canal.ts`); the rest of the view reads its
+  tiles as ground (`canalLand`).
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
   building, beside a road: until it stands only the roads, the house and the bulldozer work (`houseProblem` and
   `houseRoadProblem` in `CityCommands`, the dock greys the rest with `body.houseFirst`); cities saved before it are not

@@ -206,7 +206,7 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
     roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
     roadPaths: roadPathsKept(map.roadPaths, piecesOnLines(map)),
-    // ... and the canals the player dug, where they are still water or bridged (src/canals.ts)
+    // ... and the canals the player dug and each one's level, where they are still water or bridged (src/canals.ts)
     canals: encodeCanals(map),
     // ... and whether its zones are painted tile by tile (src/plots.ts)
     paintedZones: map.paintedZones ? true : undefined,
@@ -280,9 +280,10 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setBuildingPose: (x: number, y: number, pose: [number, number, number]) => { map.buildingPoses[y * map.width + x] = pose; },
     addBus: (x: number, y: number) => { map.buses.push(y * map.width + x); },
     // ... and the canals (src/canals.ts), after which the simulation works the ground's water out again
-    setCanal: (x: number, y: number) => { map.canals[y * map.width + x] = 1; },
+    // (a new dig starts at the first level, src/canals.ts; canalsVersion tells the 3D view to draw them again)
+    setCanal: (x: number, y: number) => { map.canals[y * map.width + x] = 1; map.canalsVersion = (map.canalsVersion || 0) + 1; },
     canalAt: (x: number, y: number) => canalMarkStands(map, x, y),
-    waterChanged: () => { map.groundChanged = true; },
+    waterChanged: () => { map.groundChanged = true; map.canalsVersion = (map.canalsVersion || 0) + 1; },
     isRailAt: (x: number, y: number) => {
       if (!map.testBounds(x, y)) return false;
       const value = map.getTileValue(x, y);
