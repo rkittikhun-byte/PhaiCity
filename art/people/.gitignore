@@ -1,0 +1,5 @@
+__pycache__/
+*.blend1
+*.blend@
+# Per-character renders: ./run.sh makes them again; the *_sheet.png line-ups are kept.
+previews/*/
