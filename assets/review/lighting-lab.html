@@ -1,0 +1,281 @@
+<!doctype html>
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+     Review only (assets/review/): a lighting lab that compares the game's current look with the concept art's,
+     one step at a time, on a few models exported by `npm run art:export` (copied into ./lab/). Nothing in the game
+     reads this file. Open it with `npm run dev` at http://localhost:8080/assets/review/lighting-lab.html
+     (?step=0..6 picks a step; ?hud=0 hides the panel). -->
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lighting Lab</title>
+<style>
+  :root { --ink:#3b1e10; --panel:rgba(255,248,236,.92); --muted:#6b5a4a; }
+  html,body { margin:0; height:100%; overflow:hidden; font:13px/1.45 Tahoma, 'Leelawadee UI', sans-serif; color:var(--ink); }
+  body { background:#c8dde2; }
+  body.sand { background: radial-gradient(120% 120% at 100% 0%, #fcd691 0%, #f0cf97 35%, #e9c999 70%, #e2c094 100%); }
+  canvas { display:block; position:absolute; inset:0; }
+  #hud { position:absolute; left:16px; top:16px; width:300px; background:var(--panel); border:1px solid #d9c4a4;
+         border-radius:10px; padding:12px 14px; box-shadow:0 4px 16px rgba(60,30,10,.12); }
+  #hud h1 { font-size:15px; margin:0 0 6px; }
+  #hud ol { margin:6px 0; padding-left:20px; }
+  #hud li { cursor:pointer; padding:2px 0; color:var(--muted); }
+  #hud li.on { color:var(--ink); font-weight:bold; }
+  #stats { font-family:Consolas, monospace; font-size:12px; color:var(--muted); margin-top:6px; }
+  @media (max-width:520px){ #hud{ left:16px; right:16px; width:auto; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hud">
+  <h1>Lighting Lab: ปัจจุบัน → concept</h1>
+  <div>คลิกขั้นเพื่อดูผลสะสม (ขั้นหลังรวมขั้นก่อนหน้า)</div>
+  <ol id="steps" start="0"></ol>
+  <div id="stats"></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+
+const STEPS = [
+  'เหมือนเกมตอนนี้ (perspective 38°, PBR+HDRI, ACES, หมอกฟ้า)',
+  '+ กล้องไอโซเมตริก (orthographic 35°/45°)',
+  '+ พื้นหลังทราย, ไม่มี HDRI/หมอก, ไม่ tone map',
+  '+ แสงชุดใหม่: แดดอุ่นจากขวาหลัง, เงาม่วง',
+  '+ toon shading 3 ระดับ (ตัด texture)',
+  '+ เส้นขอบน้ำตาลเข้ม (post-process)',
+  '+ แผงสีใหม่ (แทนสีตาม materialKey)',
+];
+const params = new URLSearchParams(location.search);
+let step = Math.max(0, Math.min(6, Number(params.get('step') ?? 6)));
+if (params.get('hud') === '0') document.getElementById('hud').hidden = true;
+
+// --- The proposed palette (assets/review/palette_proposal.png), by the game's material keys -----------------
+const PALETTE = {
+  plaster_white: 0xf4e8c8, plaster_cream: 0xf7e5a9, concrete_raw: 0xcdb799, concrete_weathered: 0xb9ae9e,
+  brick_red: 0xc8643f, roof_clay_tile: 0xd87a47, roof_cement_tile: 0xb0806a, roof_metal_corrugated: 0xc9bba6,
+  roof_metal_rusty: 0xa9583a, roof_metal_sheet: 0x8e8a9a, roof_glazed_tile: 0x5f8f86, roof_wood_shingle: 0x845438,
+  thatch_grass: 0xe3ac5b, thatch_nipa: 0xc99550, bamboo_split: 0xd9b26a, bamboo_woven: 0xd2aa62,
+  wood_teak: 0x845438, wood_painted: 0x9c7a5a, glass_clear: 0x9ab1c2, glass_tinted: 0x6e7f9a,
+  asphalt: 0x64514a, sidewalk_tile: 0xcfc3ae, grass: 0xa59630, dirt_laterite: 0xd1874c, gravel_ballast: 0x9e8c7a,
+  water_river: 0x9ab1a2, foliage_tropical: 0xa8b930, fabric_canvas: 0xe16d41, stucco_ornament: 0xf4e8c8,
+};
+const OUTLINE = new THREE.Color(0x3b1e10);
+
+// --- Renderer, scene, cameras -------------------------------------------------------------------------------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = true;
+renderer.info.autoReset = false;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene();
+const persp = new THREE.PerspectiveCamera(38, 1, 0.5, 4000);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 2000);
+const target = new THREE.Vector3(0, 2, 0);
+let camera = persp;
+const VIEW = 64; // metres of world shown across the shorter side in the iso view
+
+// The game's lights (src/render3d/city/index.ts) ...
+const sun = new THREE.DirectionalLight(0xffe4bc, 3.3);
+const hemi = new THREE.HemisphereLight(0xd7edff, 0xb5a385, 1.25);
+// ... and the proposed ones: the sun's colour is what the lit side adds over the lavender ambient
+const ambient = new THREE.AmbientLight(0x99a3ff, Math.PI);
+scene.add(sun, sun.target, hemi, ambient);
+sun.castShadow = true; sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.06;
+const haze = new THREE.Color(0xc8dde2);
+let envTexture = null;
+new HDRLoader().load('../textures/sky/kloofendal_43d_clear_puresky_1k.hdr', t => {
+  const pmrem = new THREE.PMREMGenerator(renderer); envTexture = pmrem.fromEquirectangular(t).texture; t.dispose(); pmrem.dispose(); if (window.labReady) apply();
+});
+
+// --- The diorama: a block of land like the concept's, 5 x 4 tiles of 10 m -------------------------------------
+const W = 50, D = 40;
+const block = new THREE.Group(); scene.add(block);
+const flat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1 });
+const top = new THREE.Mesh(new THREE.BoxGeometry(W, 0.4, D), flat(0x748a4c)); top.position.y = -0.25; top.receiveShadow = true;
+top.userData.key = 'grass';
+const soil = new THREE.Mesh(new THREE.BoxGeometry(W, 9, D), flat(0xb9683e)); soil.position.y = -4.95; soil.receiveShadow = true; soil.castShadow = true;
+soil.userData.key = 'soil';
+const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + 2.4, 1.2, D + 2.4), flat(0x8a4a2a)); plinth.position.y = -9.9; plinth.castShadow = true; plinth.receiveShadow = true;
+plinth.userData.key = 'plinth';
+block.add(top, soil, plinth);
+// Under it all, the sand catches the diorama's shadow (lavender, as in the concept); invisible elsewhere
+const catcher = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ color: 0x323ca0, opacity: 0.65 }));
+catcher.position.y = -10.5; catcher.receiveShadow = true; scene.add(catcher);
+
+const LAYOUT = [
+  ['models/commercial/com.block_0_1@central.gltf', -10, -5, 0],
+  ['models/residential/res.house_0_0@northeast.gltf', 10, -15, 0],
+  ['models/residential/res.house_0_1@northeast.gltf', 20, -15, 0],
+  ['models/terrain/terrain.water-v0.gltf', 20, -5, 0],
+  ['models/terrain/terrain.water-v0.gltf', 20, 5, 0],
+  ['models/terrain/terrain.dirt-v0.gltf', 10, -5, 0],
+  ['models/terrain/terrain.dirt-v0.gltf', 10, 5, 0],
+  ['models/veg/veg.coconut.gltf', 7, -3, 0],
+  ['models/veg/veg.banana.gltf', 12, 6, 0],
+  ['models/veg/veg.mango.gltf', 8, 7, 0.6],
+  ['models/veg/veg.coconut.gltf', 24, -11, 1.2],
+  ...[-20, -10, 0, 10, 20].map(x => ['models/road/road.straight.gltf', x, 15, Math.PI / 2]),
+  ['models/veh/veh.songthaew@central.gltf', -12, 13.4, Math.PI / 2],
+  ['models/veh/veh.tuktuk.gltf', 3, 16.6, -Math.PI / 2],
+  ['models/veh/veh.motorbike.gltf', 12, 13.6, Math.PI / 2],
+  ['models/veh/veh.bus.gltf', -19, 16.6, -Math.PI / 2],
+];
+const loader = new GLTFLoader().setPath('lab/');
+const meshes = [];
+await Promise.all(LAYOUT.map(([file, x, z, r]) => loader.loadAsync(file).then(g => {
+  const o = g.scene; o.rotation.y = r; o.position.set(x, 0, z); block.add(o);
+})));
+block.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; meshes.push(o); } });
+
+// Each mesh keeps its original material, a toon copy and a palette toon copy, and a normals material for outlines
+const gradient = new THREE.DataTexture(new Uint8Array([70, 70, 70, 255, 150, 150, 150, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
+gradient.minFilter = gradient.magFilter = THREE.NearestFilter; gradient.needsUpdate = true;
+const BASE = { grass: 0x748a4c, soil: 0xb9683e, plinth: 0x8a4a2a };
+const LABPAL = { grass: 0xa59630, soil: 0xd78846, plinth: 0xb5653a };
+const alphaMaps = new Map();
+// A texture's alpha written into its green channel, which is what three.js reads from an alphaMap
+function alphaOf(map) {
+  if (alphaMaps.has(map)) return alphaMaps.get(map);
+  const img = map.image, cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext('2d'); g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, cv.width, cv.height);
+  for (let i = 0; i < d.data.length; i += 4) { const a = d.data[i + 3]; d.data[i] = d.data[i + 1] = d.data[i + 2] = a; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = map.flipY; t.wrapS = map.wrapS; t.wrapT = map.wrapT;
+  t.colorSpace = THREE.NoColorSpace; alphaMaps.set(map, t); return t;
+}
+const keyOf = (m) => m.userData?.materialKey ?? (m.name || '').split('#')[0];
+const toonOf = (m, palette, meshKey) => {
+  const t = new THREE.MeshToonMaterial({ color: m.color?.clone() ?? new THREE.Color(0xffffff), gradientMap: gradient,
+    side: m.side, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest });
+  // Leaves keep only their texture's alpha (as an alphaMap), so they take the flat palette colour like everything else
+  if (m.alphaTest > 0 && m.map) { t.alphaMap = alphaOf(m.map); if (!palette) t.color.multiplyScalar(0.8); }
+  if (m.emissive && m.emissiveIntensity > 0.5) { t.emissive = m.emissive.clone(); t.emissiveIntensity = m.emissiveIntensity; }
+  if (palette) {
+    const key = meshKey ?? keyOf(m);
+    const hex = meshKey ? LABPAL[meshKey] : PALETTE[key];
+    if (hex !== undefined) t.color.setHex(hex);
+  } else if (meshKey) t.color.setHex(BASE[meshKey]);
+  return t;
+};
+const normalsShader = (m) => new THREE.ShaderMaterial({
+  side: m.side,
+  uniforms: { map: { value: m.alphaTest > 0 ? m.map : null }, alphaTest: { value: m.alphaTest } },
+  vertexShader: `varying vec3 vN; varying vec2 vUv; void main(){ vUv=uv; vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D map; uniform float alphaTest; varying vec3 vN; varying vec2 vUv;
+    void main(){ if(alphaTest>0.0 && texture2D(map,vUv).a<alphaTest) discard; vec3 n=normalize(vN)*(gl_FrontFacing?1.0:-1.0); gl_FragColor=vec4(n*0.5+0.5,1.0); }`,
+});
+for (const mesh of meshes) {
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  const k = mesh.userData.key;
+  mesh.userData.mats = {
+    pbr: mesh.material,
+    toon: Array.isArray(mesh.material) ? mats.map(m => toonOf(m, false, k)) : toonOf(mesh.material, false, k),
+    pal: Array.isArray(mesh.material) ? mats.map(m => toonOf(m, true, k)) : toonOf(mesh.material, true, k),
+    normal: Array.isArray(mesh.material) ? mats.map(normalsShader) : normalsShader(mesh.material),
+  };
+}
+
+// --- Outline post-process: edges in the normals and the depth ----------------------------------------------
+const size = new THREE.Vector2();
+const colorRT = new THREE.WebGLRenderTarget(1, 1, { samples: 4 });
+const normalRT = new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1) });
+const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  uniforms: { tColor: { value: colorRT.texture }, tNormal: { value: normalRT.texture }, tDepth: { value: normalRT.depthTexture },
+    texel: { value: new THREE.Vector2() }, ink: { value: OUTLINE }, near: { value: 1 }, far: { value: 2000 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader: `uniform sampler2D tColor, tNormal, tDepth; uniform vec2 texel; uniform vec3 ink; uniform float near, far; varying vec2 vUv;
+    float d(vec2 o){ return mix(near, far, texture2D(tDepth, vUv+o*texel).r); }
+    vec3 n(vec2 o){ return texture2D(tNormal, vUv+o*texel).xyz*2.0-1.0; }
+    void main(){
+      vec4 c = texture2D(tColor, vUv);
+      float dc=d(vec2(0)); float dd=abs(d(vec2(1,1))-d(vec2(-1,-1)))+abs(d(vec2(1,-1))-d(vec2(-1,1)));
+      float nd=length(n(vec2(1,1))-n(vec2(-1,-1)))+length(n(vec2(1,-1))-n(vec2(-1,1)));
+      float edge = max(smoothstep(0.35,0.6,dd/max(1.0,dc*0.004)), smoothstep(0.45,0.9,nd));
+      if (texture2D(tDepth, vUv).r>=1.0 && edge<0.5) { gl_FragColor=linearToOutputTexel(c); return; }
+      gl_FragColor = linearToOutputTexel(vec4(mix(c.rgb, ink, edge*0.92), max(c.a, edge)));
+    }`,
+  transparent: true, depthTest: false, depthWrite: false,
+}));
+const quadScene = new THREE.Scene(); quadScene.add(quad);
+
+// --- Steps ------------------------------------------------------------------------------------------------------
+function frame() {
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h); renderer.getDrawingBufferSize(size);
+  colorRT.setSize(size.x, size.y); normalRT.setSize(size.x, size.y); quad.material.uniforms.texel.value.set(1 / size.x, 1 / size.y);
+  persp.aspect = w / h; persp.updateProjectionMatrix();
+  const a = w / h, half = VIEW / 2;
+  ortho.left = -half * Math.max(1, a); ortho.right = half * Math.max(1, a); ortho.top = half * Math.max(1, 1 / a); ortho.bottom = -half * Math.max(1, 1 / a);
+  ortho.updateProjectionMatrix();
+}
+function apply() {
+  // Camera: the game's default (heading 0, pitch 55°) or a true isometric view from the front corner
+  if (step >= 1) {
+    camera = ortho; const e = THREE.MathUtils.degToRad(35.26), az = THREE.MathUtils.degToRad(45), r = 400;
+    ortho.position.set(target.x + Math.sin(az) * Math.cos(e) * r, target.y + Math.sin(e) * r, target.z + Math.cos(az) * Math.cos(e) * r);
+    ortho.lookAt(target); ortho.near = 1; ortho.far = 1200; ortho.updateProjectionMatrix();
+  } else {
+    camera = persp; const p = THREE.MathUtils.degToRad(55), r = 105;
+    persp.position.set(target.x, target.y + Math.sin(p) * r, target.z + Math.cos(p) * r); persp.lookAt(target);
+  }
+  // Background, fog, environment and tone mapping
+  const sand = step >= 2;
+  document.body.classList.toggle('sand', sand);
+  scene.fog = sand ? null : new THREE.Fog(haze, 900, 5500);
+  scene.environment = sand ? null : envTexture;
+  renderer.setClearColor(sand ? 0x000000 : haze, sand ? 0 : 1);
+  renderer.toneMapping = sand ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  catcher.visible = sand && step >= 3;
+  // Lights: the game's (sun behind the camera, at sunAngle 0.35π) or the concept's (behind on the right)
+  const newLight = step >= 3;
+  hemi.visible = !newLight; ambient.visible = newLight;
+  if (newLight) {
+    sun.color.setHex(0xd8cf40); sun.intensity = Math.PI; // linear (0.68,0.62,0.03): lit = albedo, shade = albedo x lavender
+    sun.position.copy(target).add(new THREE.Vector3(0.62, 0.72, -0.32).multiplyScalar(300));
+    sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 2; renderer.shadowMap.type = THREE.PCFShadowMap;
+  } else {
+    sun.color.setHex(0xffe4bc); sun.intensity = 3.3;
+    const a = Math.PI * 0.35; sun.position.copy(target).add(new THREE.Vector3(Math.cos(a) * 260, Math.max(120, Math.sin(a) * 400), 160));
+    sun.shadow.mapSize.set(1024, 1024); renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
+  sun.target.position.copy(target);
+  const c = sun.shadow.camera, span = 85; Object.assign(c, { left: -span, right: span, top: span, bottom: -span, near: 1, far: 900 }); c.updateProjectionMatrix();
+  if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  // Materials
+  for (const m of meshes) m.material = step >= 6 ? m.userData.mats.pal : step >= 4 ? m.userData.mats.toon : m.userData.mats.pbr;
+  document.querySelectorAll('#steps li').forEach((li, i) => li.classList.toggle('on', i <= step));
+  window.labStep = step;
+}
+const list = document.getElementById('steps');
+STEPS.forEach((s, i) => { const li = document.createElement('li'); li.textContent = s; li.onclick = () => { step = i; apply(); }; list.append(li); });
+window.setStep = (n) => { step = n; apply(); };
+
+const stats = document.getElementById('stats');
+let times = [], last = performance.now();
+function render() {
+  const t0 = performance.now(); renderer.info.reset();
+  if (step >= 5) {
+    quad.material.uniforms.near.value = camera.near; quad.material.uniforms.far.value = camera.far;
+    renderer.setRenderTarget(colorRT); renderer.render(scene, camera);
+    const bg = scene.background; for (const m of meshes) m.material = m.userData.mats.normal;
+    const catcherVisible = catcher.visible; catcher.visible = false;
+    renderer.setRenderTarget(normalRT); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, camera);
+    catcher.visible = catcherVisible; for (const m of meshes) m.material = step >= 6 ? m.userData.mats.pal : m.userData.mats.toon;
+    renderer.setRenderTarget(null); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(quadScene, quadCam);
+  } else { renderer.setRenderTarget(null); renderer.render(scene, camera); }
+  const info = renderer.info.render; times.push(performance.now() - t0); if (times.length > 60) times.shift();
+  if (performance.now() - last > 500) { last = performance.now(); stats.textContent = `step ${step} · ${(times.reduce((a, b) => a + b, 0) / times.length).toFixed(2)} ms CPU/เฟรม · draw calls ${info.calls} · tris ${info.triangles}`; }
+  requestAnimationFrame(render);
+}
+addEventListener('resize', frame); frame(); apply(); render();
+window.labReady = true;
+</script>
+</body>
+</html>

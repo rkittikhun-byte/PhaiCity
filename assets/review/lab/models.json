@@ -1,0 +1,16 @@
+[
+ "models/residential/res.house_0_0@northeast.gltf",
+ "models/residential/res.house_0_1@northeast.gltf",
+ "models/commercial/com.block_0_1@central.gltf",
+ "models/commercial/com.block_0_3@central.gltf",
+ "models/veg/veg.coconut.gltf",
+ "models/veg/veg.banana.gltf",
+ "models/veg/veg.mango.gltf",
+ "models/road/road.straight.gltf",
+ "models/terrain/terrain.water-v0.gltf",
+ "models/terrain/terrain.dirt-v0.gltf",
+ "models/veh/veh.songthaew@central.gltf",
+ "models/veh/veh.bus.gltf",
+ "models/veh/veh.tuktuk.gltf",
+ "models/veh/veh.motorbike.gltf"
+]
