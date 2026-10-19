@@ -19,7 +19,7 @@ import { ToolOutline, ZoneGrid } from './overlay.js';
 import { SkyDome } from './sky.js';
 import { StreetLabels } from './streetLabels.js';
 import { ProvinceBackdropView } from './provinceBackdrop.js';
-import { RoadCurves } from './roadCurves.js';
+import { RoadCurves, type RoadWorkerLike } from './roadCurves.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { CityBuses } from './buses.js';
@@ -27,7 +27,7 @@ import { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js'
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
 import { realUnits } from '../../roadGeometry.js';
-import { browserPrototypeProvider } from './worker-provider.js';
+import { browserPrototypeProvider, browserRoadWorker } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityViewSetup } from './types.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
@@ -104,7 +104,8 @@ export class CityView3D implements CityView {
     // Plain roads and railways as smooth curves rather than tile by tile (roadCurves.ts; owner, 14 Oct 2026)
     this.snapshot.curves=true;
     this.terrain=new CityHeightField(this.snapshot,setup.map);
-    this.curves=new RoadCurves(this.snapshot,this.terrain);this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
+    // ... built off the page in a worker after the first build, so drawing a road never stalls the game (roadCurves.ts)
+    this.curves=new RoadCurves(this.snapshot,this.terrain,!this.headless&&typeof Worker!=='undefined'?{worker:()=>browserRoadWorker() as unknown as RoadWorkerLike}:{});this.snapshot.roadSnap=(x,z,reach)=>this.curves.nearest(x,z,reach);
     this.pedestrians=new CityPedestrians(this.snapshot,this.terrain,this.sprites.size);
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);

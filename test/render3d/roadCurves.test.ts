@@ -7,7 +7,8 @@
 
 import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
-import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
+import { RoadCurves, type RoadWorkerLike } from '../../src/render3d/city/roadCurves.js';
+import { RoadWorkerState, type RoadRequest } from '../../src/render3d/city/roadBuild.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
 import { lateriteColour } from '../../src/render3d/models/road/laterite.js';
@@ -214,6 +215,77 @@ describe('road curves', () => {
     expect(curves.lastBuild.built).toBeGreaterThanOrEqual(1);
     expect(curves.lastBuild.reused).toBeGreaterThanOrEqual(1);
     curves.dispose();
+  });
+
+  test('in a worker the roads are built off the page: the old ones show until its answer, changes meanwhile wait', async () => {
+    // Owner, 19 Oct 2026: "มีวิธีการไหนไหม ที่จะบันทึก เป็น background"
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[8 * W + x] = 66;
+    const ground = { sample: () => 0, sampleTile: () => 0, inside: () => true, version: 0,
+      grid: () => ({ width: W, height: 40, enabled: false, pads: new Float32Array(W * 40), corners: new Float32Array(41 * 41), mask: null }),
+    } as unknown as CityHeightField;
+    // A worker in the same thread, answering a moment later, as the browser's does
+    const state = new RoadWorkerState(), sent: RoadRequest[] = [];
+    const worker: RoadWorkerLike = { onmessage: null, onerror: null, terminate: () => undefined,
+      postMessage(message) { sent.push(message); setTimeout(() => this.onmessage!({ data: state.handle(message).reply }), 0); } };
+    const curves = new RoadCurves(snapshot, ground, { worker: () => worker });
+    const named = (name: string): Mesh | undefined => curves.root.children.find((child): child is Mesh => child instanceof Mesh && child.name === name);
+    // The first build is on the page, so the city opens with its roads
+    const first = named('dirt');
+    expect(first).toBeDefined();
+    expect(sent).toHaveLength(0);
+    // A road drawn: asked of the worker, the old roads showing meanwhile; a second change waits for the answer
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    curves.update([9 * W + 20]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].grid).not.toBeNull();
+    expect(named('dirt')).toBe(first);
+    for (let x = 5; x < 36; x++) snapshot.values[30 * W + x] = 66;
+    curves.update([30 * W + 5]);
+    expect(sent).toHaveLength(1);
+    // Both answered in turn, the ground sent only once, and all three roads drawn
+    for (let wait = 0; wait < 100 && curves.drawnLines.filter((line) => !line.rail).length < 3; wait++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(sent).toHaveLength(2);
+    expect(sent[1].grid).toBeNull();
+    expect(named('dirt')).not.toBe(first);
+    expect(curves.drawnLines.filter((line) => !line.rail).length).toBeGreaterThanOrEqual(3);
+    curves.dispose();
+  });
+
+  test('when the worker fails the roads are built on the page again', async () => {
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[8 * W + x] = 66;
+    const ground = { ...flat, version: 0, grid: () => ({ width: W, height: 40, enabled: false, pads: new Float32Array(W * 40),
+      corners: new Float32Array(41 * 41), mask: null }) } as unknown as CityHeightField;
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const worker: RoadWorkerLike = { onmessage: null, onerror: null, terminate: jest.fn(),
+      postMessage() { setTimeout(() => this.onerror!({ message: 'city-road-worker.js 404' }), 0); } };
+    const curves = new RoadCurves(snapshot, ground, { worker: () => worker });
+    for (let x = 5; x < 36; x++) snapshot.values[30 * W + x] = 66;
+    curves.update([30 * W + 5]);
+    for (let wait = 0; wait < 100 && curves.drawnLines.length < 2; wait++) await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(worker.terminate).toHaveBeenCalled();
+    expect(curves.drawnLines.length).toBe(2);
+    // ... and from then on, at once
+    for (let y = 9; y < 20; y++) snapshot.values[y * W + 20] = 66;
+    curves.update([9 * W + 20]);
+    expect(curves.drawnLines.length).toBeGreaterThanOrEqual(3);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    curves.dispose();
+  });
+
+  test("the worker's side hands its arrays over and says why when it cannot build", () => {
+    const W = 20, values = new Uint16Array(W * W);
+    for (let x = 2; x < 18; x++) values[10 * W + x] = 66;
+    const map = { width: W, height: W, values, levels: null, pieces: null, paths: null, realUnits: null };
+    const state = new RoadWorkerState();
+    expect(state.handle({ id: 1, map, grid: null, invalidate: [] }).reply.error).toMatch(/ground/);
+    const grid = { width: W, height: W, enabled: false, pads: new Float32Array(W * W), corners: new Float32Array(21 * 21), mask: null };
+    const { reply, transfer } = state.handle({ id: 2, map, grid, invalidate: [] });
+    expect(reply.id).toBe(2);
+    expect(reply.build!.lines).toHaveLength(1);
+    expect(transfer).toContain(reply.build!.dirt!.position.buffer);
   });
 
   test('a road stops square at its end, with no round plate', () => {

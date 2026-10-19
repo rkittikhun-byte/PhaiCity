@@ -18,7 +18,7 @@ import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
 import { applyWorldUV } from '../util/geometry.js';
 import type { ModelOptions } from '../models/registry.js';
-import { groundHeight, RoadBuilder, SLEEPER_SIZE, UNDER_LIFT, type MeshData, type RoadBuild } from './roadBuild.js';
+import { groundHeight, RoadBuilder, SLEEPER_SIZE, UNDER_LIFT, type MeshData, type RoadBuild, type RoadMap, type RoadReply, type RoadRequest } from './roadBuild.js';
 
 export { smoothLine, type Point };
 
@@ -45,6 +45,14 @@ const LOT_LIFT = 0.03;
 /** ... laid in the buildings' own lawn (models/civic/builder.ts grass, a shade off so its material is the lots' own and
  * may be pulled over the ground), or bare concrete under a works */
 const LOT_GRASS = 0x8fbe6e, LOT_YARD = 0xb8b2a4, LOT_REPEAT_M = 4;
+
+/** A worker that builds the roads' shapes off the page (road-worker.ts), as a browser's Worker is */
+export interface RoadWorkerLike {
+  postMessage(message: RoadRequest, transfer: Transferable[]): void;
+  onmessage: ((event: { data: RoadReply }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  terminate(): void;
+}
 
 interface DrawnCurveLine {
   points: Point[];
@@ -98,12 +106,29 @@ export class RoadCurves {
   /** The meshes of the roads and railways, and of the buildings' lots and driveways, each drawn again on its own */
   private roadMeshes: Array<Mesh | InstancedMesh> = [];
   private decorMeshes: Mesh[] = [];
+  /** The worker building the roads off the page, once one is asked for; null after it failed, when they are built on
+   * the page again */
+  private worker: RoadWorkerLike | null = null;
+  private workerFactory: (() => RoadWorkerLike) | null;
+  /** A request is out: what changed meanwhile waits (the tiles whose ground moved under a road), sent when it comes */
+  private waiting = false;
+  private queued: number[] | null = null;
+  private requests = 0;
+  /** The ground's version (heightfield.ts) the worker last had */
+  private sentGround = -1;
 
   /** World units a metre of a road's or a railway's cross-section: 1 on a map of 10 m tiles, less on a real-scale
    * city map's (owner, 15 Oct 2026: roads their real width, src/roadGeometry.ts) */
   private get metre(): number { return Math.min(1, this.snapshot.realUnits ?? 1); }
 
-  constructor(private readonly snapshot: TileSnapshot, private readonly terrain: CityHeightField) {
+  /**
+   * options.worker makes the worker that builds the roads off the page after the first build, which is built here so
+   * the city opens with its roads (owner, 19 Oct 2026: "บันทึก เป็น background"); without one, as in tests, every
+   * build is on the page.
+   */
+  constructor(private readonly snapshot: TileSnapshot, private readonly terrain: CityHeightField,
+    options: { worker?: () => RoadWorkerLike } = {}) {
+    this.workerFactory = options.worker ?? null;
     this.root.name = 'road_curves';
     this.snapshot.roadSnap = (x, z, reach) => this.nearest(x, z, reach);
     grain(this.roadMaterial); grain(this.dirtMaterial);
@@ -117,7 +142,7 @@ export class RoadCurves {
       dirt.needsUpdate = true;
     });
     this.noteRoads(null);
-    this.rebuild([]);
+    this.show(this.builder.build(this.roadMap(), this.terrain));
   }
 
   /**
@@ -209,6 +234,7 @@ export class RoadCurves {
   }
 
   dispose(): void {
+    this.worker?.terminate(); this.worker = null; this.workerFactory = null;
     for (const meshes of [this.roadMeshes, this.decorMeshes]) this.drop(meshes);
     this.roadMaterial.dispose(); this.railMaterial.dispose(); this.sleeperMaterial.dispose(); this.sleeperGeometry.dispose();
     this.dirtMaterial.dispose(); this.stoneGeometry.dispose(); this.stoneMaterial.dispose();
@@ -233,14 +259,73 @@ export class RoadCurves {
   /** The roads and railways (built again only where they changed, or where the ground moved under the tiles given),
    * then the lots and driveways along them */
   private rebuild(raised: readonly number[]): void {
+    if (this.workerFactory) { this.request(raised); return; }
     this.builder.invalidate(raised, this.snapshot.width);
     this.show(this.builder.build(this.roadMap(), this.terrain));
   }
 
   /** What the roads are built from, read from the map */
-  private roadMap(): Parameters<RoadBuilder['build']>[0] {
+  private roadMap(): RoadMap {
     const { width, height, values, roadLevels, roadPieces, roadPaths, realUnits } = this.snapshot;
     return { width, height, values, levels: roadLevels, pieces: roadPieces, paths: roadPaths, realUnits };
+  }
+
+  /**
+   * Asks the worker to build the roads: a copy of the map, and of the ground when it changed since the worker last had
+   * it. One request at a time; changes meanwhile wait for its answer, and the old roads show until then.
+   */
+  private request(raised: readonly number[]): void {
+    if (this.waiting) { this.queued = [...(this.queued ?? []), ...raised]; return; }
+    const worker = this.workerFor();
+    if (!worker) { this.rebuild(raised); return; }
+    const map = this.roadMap(), copy: RoadMap = { ...map, values: map.values.slice(), levels: map.levels?.slice() ?? null,
+      pieces: map.pieces?.slice() ?? null };
+    const grid = this.terrain.version !== this.sentGround ? this.terrain.grid() : null;
+    const transfer: Transferable[] = [copy.values.buffer];
+    if (copy.levels) transfer.push(copy.levels.buffer);
+    if (copy.pieces) transfer.push(copy.pieces.buffer);
+    if (grid) { transfer.push(grid.pads.buffer, grid.corners.buffer); if (grid.mask) transfer.push(grid.mask.buffer); }
+    this.waiting = true;
+    try {
+      worker.postMessage({ id: ++this.requests, map: copy, grid, invalidate: [...raised] }, transfer);
+      if (grid) this.sentGround = this.terrain.version;
+    } catch (error) {
+      this.failed(error, raised);
+    }
+  }
+
+  /** The worker, made the first time it is needed; null when there is none or it could not be made */
+  private workerFor(): RoadWorkerLike | null {
+    if (this.worker || !this.workerFactory) return this.worker;
+    try {
+      const worker = this.workerFactory();
+      worker.onmessage = ({ data }) => this.answered(data);
+      worker.onerror = (event) => this.failed(event, []);
+      this.worker = worker;
+    } catch (error) {
+      this.workerFactory = null;
+      console.warn('Roads are built on the page: no worker (' + String(error) + ')');
+    }
+    return this.worker;
+  }
+
+  /** The worker's answer: its roads are shown, and what changed meanwhile is asked for next */
+  private answered(reply: RoadReply): void {
+    this.waiting = false;
+    if (!reply.build) { this.failed(reply.error, []); return; }
+    this.show(reply.build);
+    if (this.queued) { const queued = this.queued; this.queued = null; this.request(queued); }
+  }
+
+  /** The worker failed (or could not be loaded): the roads are built on the page from now on, starting afresh */
+  private failed(error: unknown, raised: readonly number[]): void {
+    const message = error instanceof Error ? error.message : (error as { message?: string } | null)?.message ?? String(error);
+    console.warn('Roads are built on the page: the worker failed (' + message + ')');
+    this.worker?.terminate();
+    this.worker = null; this.workerFactory = null; this.waiting = false;
+    this.builder = new RoadBuilder();
+    const queued = this.queued ?? []; this.queued = null;
+    this.rebuild([...queued, ...raised]);
   }
 
   /** Shows a build: its lines for whatever goes along them, and its meshes, then the lots and driveways */

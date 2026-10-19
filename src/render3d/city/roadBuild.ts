@@ -287,6 +287,40 @@ export function transferablesOf(build: RoadBuild): ArrayBuffer[] {
   return out;
 }
 
+/** What the page asks the road worker for (road-worker.ts): the map to build from, the ground's numbers when they
+ * changed since it last sent them, and the tiles whose ground moved under some road */
+export interface RoadRequest {
+  id: number;
+  map: RoadMap;
+  grid: HeightGrid | null;
+  invalidate: number[];
+}
+
+/** ... and what it answers: the build, or why there is none */
+export interface RoadReply {
+  id: number;
+  build: RoadBuild | null;
+  error: string | null;
+}
+
+/** A worker's side: its builder, keeping the pieces between requests, and the ground's numbers last sent */
+export class RoadWorkerState {
+  private readonly builder = new RoadBuilder();
+  private heights: GridHeights | null = null;
+
+  handle(request: RoadRequest): { reply: RoadReply; transfer: ArrayBuffer[] } {
+    try {
+      if (request.grid) this.heights = new GridHeights(request.grid);
+      if (!this.heights) throw new Error('no ground sent');
+      this.builder.invalidate(request.invalidate, request.map.width);
+      const build = this.builder.build(request.map, this.heights);
+      return { reply: { id: request.id, build, error: null }, transfer: transferablesOf(build) };
+    } catch (error) {
+      return { reply: { id: request.id, build: null, error: String(error) }, transfer: [] };
+    }
+  }
+}
+
 /** One mesh of a piece, being written: its corners (and their colours) and its triangles */
 class Part {
   readonly position: number[] = [];

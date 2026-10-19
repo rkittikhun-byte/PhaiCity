@@ -2,6 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 import { Box3, Ray, Vector3 } from 'three';
+import type { HeightGrid } from './roadBuild.js';
 import type { CityMapReader } from './types.js';
 import { isWaterNeighbor, TileSnapshot, TILE_TABLE } from './tileModels.js';
 import { ZONEBIT } from '../../tileFlags.js';
@@ -56,6 +57,11 @@ export class CityHeightField {
     this.rebuild();
   }
   inside(x: number, y: number): boolean { return !this.mask || this.mask[y * this.snapshot.width + x] !== 0; }
+  /** A copy of the numbers the ground is sampled from, for building the roads in a worker (roadBuild.ts GridHeights) */
+  grid(): HeightGrid {
+    return { width: this.snapshot.width, height: this.snapshot.height, enabled: this.enabled, pads: this.pads.slice(),
+      corners: this.corners.slice(), mask: this.mask ? this.mask.slice() : null };
+  }
   /** A one-tile building, whose ground is levelled: a house, or a painted plot's building (src/plots.ts). */
   private isSingle(i:number):boolean {
     if((this.map as {cellZones?:boolean}).cellZones)return false;
