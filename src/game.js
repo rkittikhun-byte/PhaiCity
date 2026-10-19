@@ -82,6 +82,7 @@ import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from
 import { isBridgeTile, isWaterTile } from './canals.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
+import { focusDrawPoint, installEdgePan, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
@@ -580,6 +581,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.inspectCard = inspectElement ? new InspectCard(inspectElement) : null;
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
                   function(x, y) { self.inspectAtPixel(x, y); });
+  // ... and with a tool in hand the map slides when the mouse rests near the screen's edge (src/drawAssist.ts)
+  installEdgePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document);
   // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
   installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
   document.addEventListener('phaicity:active_tool_changed', function(event) {
@@ -1873,8 +1876,14 @@ Game.prototype.handleToolPoint = function(data) {
   // ... and each point where it was clicked and where it was used, for the note after (src/drawReadout.ts)
   draft.clicks = (draft.clicks || []).concat([{name: POINT_NAMES[draft.points.length] || '?', raw: clicked, used: tile}]);
   draft.points.push(tile);
-  if (draft.points.length < needed)
+  // The camera glides to the point when it was clicked near the edge or behind the cards, and the tool card steps
+  // aside while the line is half drawn (src/drawAssist.ts; owner, 19 Oct 2026)
+  var canvas = document.getElementById('MicropolisCanvas');
+  focusDrawPoint(this.cityView, tile.x, tile.y, data.x, data.y, canvas);
+  if (draft.points.length < needed) {
+    setDrawingLine(true);
     return;
+  }
   var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : curvePath(draft.points);
   // ... laid as drawn: one straight line, or the curve through its points (src/roadPieces.ts RoadPath)
   var shape = toolName === UPGRADE_TOOL ? null : {shape: mode === 'straight' ? 'straight' : 'curve',
@@ -2235,6 +2244,7 @@ Game.prototype.roadWayAt = function(tile) {
 
 Game.prototype.resetDraft = function() {
   this.lineDraft = null;
+  setDrawingLine(false);
   this._lastDraftHover = null;
   this._cellStroke = null;
   this._strokeTile = null;

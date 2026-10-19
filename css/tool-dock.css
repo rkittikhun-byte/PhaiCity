@@ -107,6 +107,10 @@ body.toolDockReady #toolTray {
   animation: fc-rise 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 body.toolDockReady #toolTray[hidden] { display: none !important; }
+/* While a road, railway or canal is half drawn the card steps down behind the dock, so it never hides where the
+   line goes, and comes back when the line is done or dropped (src/drawAssist.ts setDrawingLine; owner, 19 Oct 2026) */
+body.toolDockReady #toolTray { transition: translate 0.22s ease-out, opacity 0.22s ease-out; }
+body.toolDockReady.drawingLine #toolTray { translate: 0 72px; opacity: 0; pointer-events: none; }
 /* It rises from behind the dock and sinks back into it (src/motion.ts hide; owner, 18 Oct 2026: "ขึ้นมาแสดงแบบมี motion
    จากล่างขึ้นบน คลิกขวาก็ยุบลงไป"); `translate` moves it whatever its transform, on a phone too */
 body.toolDockReady #toolTray.motionLeave { animation: fc-sink 0.2s cubic-bezier(0.4, 0, 1, 1) forwards; pointer-events: none; }
