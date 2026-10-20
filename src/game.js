@@ -48,7 +48,7 @@ import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
-import { buildingAt, MOVE_TOOL, movePrice, moveProblem } from './moveTool.ts';
+import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
@@ -2357,12 +2357,32 @@ Game.prototype.moveClick = function(x, y, tile, stroke) {
   var outcome = place.problem !== null ? {accepted: false, reason: place.problem} :
     this.applyCommand({type: 'move', id: this.moving.id, x: place.x, z: place.z, rot: place.rot, stroke: stroke});
   if (!outcome.accepted) {
-    showCornerNote(t(outcome.reason === 'not enough money' ? 'move.note.money' : 'move.note.off_block'), OUTSIDE_NOTE_MS);
+    showCornerNote(this.moveNote(outcome.reason, place.building), OUTSIDE_NOTE_MS);
     return;
   }
   this.moving = null;
   this.writeDrawTip([]);
   this.refreshUndo();
+};
+
+
+// Why the building b may not be moved where the player asked (the move command's reason), in words
+Game.prototype.moveNote = function(reason, b) {
+  if (reason === MOVE_NO_MONEY)
+    return t('move.note.money');
+  if (reason === OUTSIDE_PROVINCE)
+    return t('tool.outside_province');
+  if (reason === LAND_LOCKED)
+    return t('land.note.locked');
+  if (reason === NEEDS_ROAD_BESIDE)
+    return t('tool.needs_road');
+  if (reason === NEEDS_ROAD)
+    return houseNote(reason, this.gameMap);
+  if (reason === NEEDS_WATER)
+    return t(b.tool === 'fishing' ? 'tool.needs_water_harbour' : 'tool.needs_water');
+  if (reason === NEEDS_RAIL)
+    return t('transit.note.needs_rail');
+  return t('move.note.blocked');
 };
 
 
@@ -2375,7 +2395,7 @@ Game.prototype.buildingStands = function(b) {
 
 // Where the building the move tool carries would go at the pointer (x, y on the view): along its road as a new one would
 // (buildingPose), else under the mouse with the turn it had and the turns the player gave it; its middle in metres and
-// its turn, the pose to draw its outline, and why it may not go there (src/moveTool.ts moveProblem), or null
+// its turn, the pose to draw its outline, why it may not go there and what it costs (src/cityCommands.ts quoteMove), or null
 Game.prototype.movePlace = function(x, y) {
   var map = this.gameMap, b = this.moving && map.buildings ? map.buildings.get(this.moving.id) : null;
   if (!b)
@@ -2389,19 +2409,20 @@ Game.prototype.movePlace = function(x, y) {
   }
   var perUnit = tileMetres(map) / 10;
   var mx = Math.round(pose[0] * perUnit * 100) / 100, mz = Math.round(pose[1] * perUnit * 100) / 100;
-  return {x: mx, z: mz, rot: Math.round(pose[2] * 1000) / 1000, pose: pose,
-          problem: moveProblem(b, mx, mz, map.width, tileMetres(map)), building: b, free: free};
+  var rot = Math.round(pose[2] * 1000) / 1000;
+  var quote = this.core.commands.quoteMove({type: 'move', id: b.id, x: mx, z: mz, rot: rot});
+  return {x: mx, z: mz, rot: rot, pose: pose, problem: quote.reason, cost: quote.cost, building: b, free: free};
 };
 
 
-// The move tool's outline: the building under the mouse to pick up, or the one it carries where it would go, red off
-// its block, with a tip of what a click does and costs
+// The move tool's outline: the building under the mouse to pick up, or the one it carries where it would go, on the
+// block it would stand on there, red where it may not go, with a tip of what a click does and costs
 Game.prototype.moveHover = function(tile) {
   var map = this.gameMap, game = this, colour = this.inputStatus.toolColour || 'yellow';
   var fill = realUnits(map.tileSizeM) ? BUILDING_SCALE : 1, units = 10 / tileMetres(map);
   var outline = function(b, pose, red) {
-    var hover = {tile: {x: b.tile % map.width, y: Math.floor(b.tile / map.width)}, size: b.size,
-                 colour: red ? OUTSIDE_COLOUR : colour, building: true, fill: fill};
+    var hover = {tile: pose !== null ? poseTile(pose, b.size) : {x: b.tile % map.width, y: Math.floor(b.tile / map.width)},
+                 size: b.size, colour: red ? OUTSIDE_COLOUR : colour, building: true, fill: fill};
     if (pose !== null)
       hover.pose = pose;
     return hover;
@@ -2416,8 +2437,8 @@ Game.prototype.moveHover = function(tile) {
   var place = this.movePlace(this.inputStatus.mouseX, this.inputStatus.mouseY);
   if (place === null)
     return null;
-  var tools = this.inputStatus.gameTools, tool = tools ? tools[place.building.tool] : null;
-  var tip = place.problem !== null ? [t('move.tip.off_block')] : [t('move.tip.place', {price: formatMoney(movePrice(tool))})];
+  var tip = [place.problem !== null ? this.moveNote(place.problem, place.building) :
+             t('move.tip.place', {price: formatMoney(place.cost)})];
   this.writeDrawTip(place.free ? tip.concat([t('move.tip.turn')]) : tip);
   return outline(place.building, place.pose, place.problem !== null);
 };

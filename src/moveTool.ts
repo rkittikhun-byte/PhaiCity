@@ -4,11 +4,12 @@
 
 // The move tool (ย้ายอาคาร, docs/METRE_DRAWING_PLAN.md 2.5), chosen above the bulldozer: a click picks a ruler's
 // building up, its outline then slides along its road with the mouse, and a second click puts it down there with the
-// "move" command (src/cityCommands.ts). A building stays on the block of tiles it stands on, as the simulation counts it
-// there, and a move costs a tenth of its price. The tool itself changes nothing; it only gives the mouse a tool to hold.
+// "move" command (src/cityCommands.ts). Off the block of tiles it stands on, it takes its tiles and everything the
+// simulation keeps by its centre tile to the block round its new middle, where a new one could be built, and a move costs a
+// tenth of its price. The tool itself changes nothing; it only gives the mouse a tool to hold.
 
 import { BaseTool } from "./baseTool.js";
-import { blockOf, type PlacedBuilding } from "./buildings/placedBuildings";
+import type { PlacedBuilding } from "./buildings/placedBuildings";
 
 /** The move tool's name, chosen above the bulldozer */
 export const MOVE_TOOL = "building_move";
@@ -36,11 +37,12 @@ export function movePrice(tool: { toolCost?: number; costFactor?: number } | und
   return Math.round((tool?.toolCost ?? 0) * (tool?.costFactor ?? 1) / 10);
 }
 
-/** Why a building may not be moved to the middle (x, z) metres: off the block it stands on; null when it may */
-export function moveProblem(b: PlacedBuilding, x: number, z: number, width: number, tileSizeM: number): "off its block" | null {
-  const { cx, cy } = blockOf(x, z, b.size, tileSizeM);
-  return cy * width + cx === b.tile ? null : "off its block";
-}
+/** Why a move is refused: no building of the ruler's stands with that id */
+export const NO_BUILDING = "no such building";
+/** ... something its new block would need cleared cannot be, or nothing may be cleared (auto-bulldoze off) */
+export const MOVE_BLOCKED = "something stands in the way";
+/** ... the city cannot pay for it */
+export const MOVE_NO_MONEY = "not enough money";
 
 /** The ruler's building standing (stands) whose block of tiles covers (x, y), if any */
 export function buildingAt(buildings: { all(): PlacedBuilding[] } | null | undefined, width: number, x: number, y: number,

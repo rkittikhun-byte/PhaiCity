@@ -15,7 +15,7 @@ import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
 import { RoadGraph } from "../roads/roadGraph.js";
 import { PlacedBuildings } from "../buildings/placedBuildings.js";
-import { readBuildingRecords, writeBuildings } from "../buildings/buildingRecords.js";
+import { carryKey, carryRecords, readBuildingRecords, writeBuildings } from "../buildings/buildingRecords.js";
 import { segmentTiles } from "../roads/roadRaster.js";
 import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
@@ -325,6 +325,19 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     },
     // ... and the festivals the province keeps, and the ruler's answers (src/festivals.ts)
     festivals: { get state() { return map.festivals; }, calendar: () => calendarOf(simulation) },
+    // ... and what is kept by a building's centre tile, carried along when the move command takes it to another block:
+    // its records, a landfill's fill (src/waste.ts), and the view's home with the ruler's house
+    carryBuilding: (from: number, to: number) => {
+      const house = map.rulerHouse, backs = [carryRecords(map, from, to)];
+      const fill = simulation._waste?.fill;
+      if (fill) backs.push(carryKey(fill, from, to));
+      const moved = map.rulerHouse !== house;
+      if (moved) hooks.houseBuilt?.(map.rulerHouse.x, map.rulerHouse.y);
+      return () => {
+        for (const back of backs.reverse()) back();
+        if (moved && map.rulerHouse) hooks.houseBuilt?.(map.rulerHouse.x, map.rulerHouse.y);
+      };
+    },
     setRulerHouse: (x: number, y: number) => {
       map.civicKinds[y * map.width + x] = HOUSE_KIND;
       map.rulerHouse = { x, y, level: 1, wings: [] };
