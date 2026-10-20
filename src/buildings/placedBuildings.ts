@@ -74,6 +74,10 @@ export class PlacedBuildings {
     if (this.byTile.get(b.tile) === b) this.byTile.delete(b.tile);
   }
 
+  get(id: number): PlacedBuilding | undefined {
+    return this.items.get(id);
+  }
+
   /** The building whose centre tile is this one, if any */
   atTile(tile: number): PlacedBuilding | undefined {
     return this.byTile.get(tile);

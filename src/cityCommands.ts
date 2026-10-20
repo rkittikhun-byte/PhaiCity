@@ -109,6 +109,12 @@ export type Command =
    * where it was put (gameMap.buildings, where the 3D view reads it).
    */
   | { type: "build"; tool: ToolName; x: number; z: number; rot: number; stroke?: number }
+  /**
+   * A building the player moves (docs/METRE_DRAWING_PLAN.md 2.5): slid along its road or turned, to the middle (metres)
+   * and turn the move tool showed, the building being gameMap.buildings' id. For now it stays on the block of tiles it
+   * stands on, as the simulation counts it there. A tenth of its price; undo puts it back, and the money.
+   */
+  | { type: "move"; id: number; x: number; z: number; rot: number; stroke?: number }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -380,6 +386,14 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (c.stroke !== undefined && !isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
       return null;
     }
+    case "move": {
+      if (!isInteger(c.id, 1, Number.MAX_SAFE_INTEGER)) return "bad building";
+      const metres = (n: unknown): boolean => typeof n === "number" && Number.isFinite(n) && n >= 0;
+      if (!metres(c.x) || !metres(c.z)) return "outside the map";
+      if (typeof c.rot !== "number" || !Number.isFinite(c.rot)) return "bad turn";
+      if (c.stroke !== undefined && !isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
+      return null;
+    }
     case "undo":
       return null;
     case "budget":
@@ -537,6 +551,25 @@ export class CityCommands {
       this.placing = null;
     }
   }
+  /** A building moved by the player (the "move" command), within the block it stands on, for a tenth of its price */
+  private move(command: Extract<Command, { type: "move" }>): CommandOutcome {
+    const city = this.city, map = city.map as unknown as BuildingMap | undefined;
+    const placed = map?.buildings, b = placed?.get(command.id);
+    if (!map || !placed || !b) return { accepted: false, reason: "no such building" };
+    const x = b.tile % map.width, y = Math.floor(b.tile / map.width), tool = city.tools[b.tool];
+    if (!tool || !map.getTile(x, y).isZone() && b.size > 1) return { accepted: false, reason: "no such building" };
+    const { cx, cy } = blockOf(command.x, command.z, b.size, tileMetres(map));
+    if (cy * map.width + cx !== b.tile) return { accepted: false, reason: "off its block" };
+    const cost = Math.round((tool.toolCost ?? 0) * (tool.costFactor ?? 1) / 10);
+    if (city.budget.totalFunds < cost) return { accepted: false, reason: "not enough money" };
+    city.budget.spend(cost);
+    placed.setPose(b.id, command.x, command.z, command.rot);
+    const time = city.cityTime?.() ?? 0;
+    this.history.record(command.stroke ?? null, [], cost, time);
+    (this.history.last()!.also ??= []).push(() => placed.restore(b));
+    return { accepted: true, toolResult: 0 };
+  }
+
   /** Where the build command in hand puts its building down, in metres */
   private placing: { x: number; z: number; rot: number } | null = null;
 
@@ -696,6 +729,8 @@ export class CityCommands {
         return this.road(command);
       case "build":
         return this.build(command);
+      case "move":
+        return this.move(command);
       case "undo": {
         const map = city.map;
         const step = map ? this.history.take(city.cityTime?.() ?? 0) : null;
