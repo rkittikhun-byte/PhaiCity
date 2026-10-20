@@ -144,7 +144,7 @@ export class TileSnapshot implements CityMapReader {
   private nowSec = 0;
   readonly construction = new Map<number, { startSec: number; stage: 'stage_1' | 'stage_2' }>();
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'roadGraph' | 'railGraph' | 'tileSizeM' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   get roadPieces(): Uint16Array | null { return this.source?.roadPieces ?? null; }

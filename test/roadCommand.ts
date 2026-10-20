@@ -32,7 +32,7 @@ describe("road command", () => {
     for (let x = 0; x <= 56; x++) expect(roadAt(core, x, 10)).toBe(true);
     expect(roadAt(core, 57, 10)).toBe(false);
     expect(graphOf(core).segments.size).toBe(1);
-    // The 3D view still draws it from its piece's path until it reads the graph (metre plan 1.4)
+    // ... and its piece keeps the line as drawn for when it is drawn from its tiles (bulldozed in part)
     const paths = Object.values((core.map as any).roadPaths as Record<string, { shape?: string; controls?: number[][] }>);
     expect(paths.some(p => p.shape === "straight" && p.controls?.[0][0] === 0 && p.controls?.[1][0] === 56)).toBe(true);
   });

@@ -503,7 +503,7 @@ function sliceAlong(line: Point[], a: Point, b: Point): Point[] {
  * A line whose end (0 its start, 1 its last point) meets another line: it goes on straight along its own way to where
  * it crosses it, or stops where it already has, a little before its end; to `fallback` if it never does near its end.
  */
-function meetLine(line: Point[], end: 0 | 1, other: Point[], fallback: Point): Point[] {
+export function meetLine(line: Point[], end: 0 | 1, other: Point[], fallback: Point): Point[] {
   const own = end === 1 ? line.slice() : [...line].reverse(), tip = own[own.length - 1];
   const back = wayAlong(own, own.length - 1, tip, 6, false), d: Point = [-back[0], -back[1]];
   const BEHIND = 20, AHEAD = 25, from: Point = [tip[0] - d[0] * BEHIND, tip[1] - d[1] * BEHIND];
@@ -527,7 +527,7 @@ function meetLine(line: Point[], end: 0 | 1, other: Point[], fallback: Point): P
 }
 
 /** The way along a line from a point on segment i, `reach` units forward (or back), as a unit vector */
-function wayAlong(line: Point[], i: number, from: Point, reach: number, forward: boolean): Point {
+export function wayAlong(line: Point[], i: number, from: Point, reach: number, forward: boolean): Point {
   let left = reach, [px, pz] = from;
   for (let k = forward ? i : i - 1; forward ? k < line.length : k >= 0; k += forward ? 1 : -1) {
     const [qx, qz] = line[k], d = Math.hypot(qx - px, qz - pz);

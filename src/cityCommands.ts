@@ -464,9 +464,11 @@ export class CityCommands {
     const isLine = rail ? isRailTile : isRoadTile;
     const whole = tiles.every((i) => isLine(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK));
     if (whole) {
-      const graph = (map as { roadGraph?: RoadGraph }).roadGraph ??= new RoadGraph();
-      const first = tiles[0];
-      const piece = city.roadPieceAt?.(first % width, Math.floor(first / width)) ?? 0;
+      // Railways in a graph of their own: a railway crossing a road is a level crossing, not a junction
+      const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
+      const graph = rail ? graphs.railGraph ??= new RoadGraph() : graphs.roadGraph ??= new RoadGraph();
+      // ... with the piece its stroke laid (none when every tile was a road already)
+      const piece = this.roadPiece?.stroke === `${command.stroke}:0` ? this.roadPiece.piece : 0;
       graph.add({ ...drawn, ...(piece ? { piece } : {}) });
     }
     if (!laid && !whole) return { accepted: false, reason: reason ?? "nothing laid" };

@@ -104,6 +104,8 @@ function crossing(p0: Vec, p1: Vec, q0: Vec, q1: Vec): [number, number] | null {
 export class RoadGraph {
   readonly nodes = new Map<number, RoadNode>();
   readonly segments = new Map<number, RoadSegment>();
+  /** Counts up each time a road is added or removed, so whatever draws the graph knows when to draw it again */
+  version = 0;
   private nextNode = 1;
   private nextSegment = 1;
   /** Segment ids by the buckets their bounds touch */
@@ -223,6 +225,7 @@ export class RoadGraph {
    * Old roads keep their shapes exactly.
    */
   add(road: DrawnRoad): AddResult {
+    this.version++;
     const split: AddResult["split"] = [];
     const a = this.endNode(road.from, split), b = this.endNode(road.to, split);
     if (a === b) return { segments: [], split };
@@ -282,6 +285,7 @@ export class RoadGraph {
   /** Removes a segment, and its nodes when nothing else meets there */
   remove(id: number): void {
     const s = this.segment(id);
+    this.version++;
     this.unindex(id);
     this.segments.delete(id);
     for (const n of [s.a, s.b]) if (this.segmentsAt(n).length === 0) this.nodes.delete(n);

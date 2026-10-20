@@ -4,6 +4,7 @@
 import type { DistrictPlace, ProvinceBackdrop } from './provinceBackdrop.js';
 import type { RegionId } from '../regional/types.js';
 import type { Street } from '../../streetNames.js';
+import type { RoadGraph } from '../../roads/roadGraph.js';
 export interface CityMapReader {
   readonly width: number; readonly height: number;
   readonly insideProvince?: Uint8Array | null;
@@ -23,6 +24,10 @@ export interface CityMapReader {
   rawTileAt?(index: number): number;
   /** ... and the tiles each piece was drawn along (src/roadPieces.ts RoadPath), which set its shape for good */
   readonly roadPaths?: Readonly<Record<number, { from: number; to: number; tiles: readonly number[] }>> | null;
+  /** The roads and railways as drawn, in metres (src/roads/roadGraph.ts, docs/METRE_DRAWING_PLAN.md): the view draws
+   * them exactly from these, and only the roads that are tiles alone from their tiles */
+  readonly roadGraph?: RoadGraph | null;
+  readonly railGraph?: RoadGraph | null;
   /** What covers each open tile of a real-scale city map (scripts/geo/lib/landCover.mjs): 1 paddy, 2 field, 3 orchard,
    * 4 grass, 5 wetland, 6 village, 7 built-up; 0 none */
   readonly landCover?: Uint8Array | null;

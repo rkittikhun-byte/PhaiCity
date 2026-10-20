@@ -12,6 +12,9 @@
 import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, Group, InstancedMesh, Mesh, MeshStandardMaterial, BoxGeometry, OctahedronGeometry, Vector3 } from 'three';
 import type { CityHeightField } from './heightfield.js';
 import { roadReach, smoothLine, type Point } from '../../roadGeometry.js';
+import { graphLines, type GraphLines } from '../../roads/graphLines.js';
+import type { RoadGraph } from '../../roads/roadGraph.js';
+import { CITY_TILE_M } from '../../units.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
@@ -150,6 +153,10 @@ export class RoadCurves {
   private requests = 0;
   /** The ground's version (heightfield.ts) the worker last had */
   private sentGround = -1;
+  /** Counts up whenever a road or railway tile changes, and the roads as drawn worked out for the last count and the
+   * graphs' versions (graphLines) */
+  private roadsVersion = 0;
+  private drawn: { key: string; graph: GraphLines | null; railGraph: GraphLines | null } | null = null;
 
   /** World units a metre of a road's or a railway's cross-section: 1 on a map of 10 m tiles, less on a real-scale
    * city map's (owner, 15 Oct 2026: roads their real width, src/roadGeometry.ts) */
@@ -190,7 +197,7 @@ export class RoadCurves {
   update(changed: readonly number[], raised: readonly number[] = []): void {
     if (!changed.length && !raised.length) return;
     const roads = this.noteRoads(changed), under = raised.filter((i) => this.roadNear[i]);
-    if (roads.length || under.length) this.rebuild(under, roads);
+    if (roads.length || under.length || this.drawn?.key !== this.drawnKey()) this.rebuild(under, roads);
     else this.rebuildDecor();
   }
 
@@ -214,6 +221,7 @@ export class RoadCurves {
       if (key !== this.roadState[i]) { this.roadState[i] = key; any = true; differ.push(i); }
     }
     if (any) {
+      this.roadsVersion++;
       this.roadNear = new Uint8Array(n);
       for (let i = 0; i < n; i++) {
         if (!this.roadState[i]) continue;
@@ -310,7 +318,29 @@ export class RoadCurves {
   /** What the roads are built from, read from the map */
   private roadMap(): RoadMap {
     const { width, height, values, roadLevels, roadPieces, roadPaths, realUnits } = this.snapshot;
-    return { width, height, values, levels: roadLevels, pieces: roadPieces, paths: roadPaths, realUnits };
+    const { graph, railGraph } = this.drawnRoads();
+    return { width, height, values, levels: roadLevels, pieces: roadPieces, paths: roadPaths, realUnits, graph, railGraph };
+  }
+
+  /** The map's road and rail graphs, which tell when the roads as drawn change */
+  private graphs(): { road: RoadGraph | null; rail: RoadGraph | null; size: number } {
+    const source = this.snapshot.source;
+    return { road: source?.roadGraph ?? null, rail: source?.railGraph ?? null, size: source?.tileSizeM || CITY_TILE_M };
+  }
+  private drawnKey(): string {
+    const { road, rail } = this.graphs();
+    return `${this.roadsVersion}:${road ? road.version : -1}:${rail ? rail.version : -1}`;
+  }
+
+  /** The roads and railways as drawn (src/roads/graphLines.ts), worked out again when a road tile or a graph changed */
+  private drawnRoads(): { graph: GraphLines | null; railGraph: GraphLines | null } {
+    const key = this.drawnKey();
+    if (this.drawn?.key === key) return this.drawn;
+    const { road, rail, size } = this.graphs(), { width, height, values } = this.snapshot, pieces = this.snapshot.roadPieces;
+    const map = { width, height, tileSizeM: size, value: (i: number) => values[i], piece: (i: number) => pieces?.[i] ?? 0 };
+    const lines = (graph: RoadGraph | null): GraphLines | null => (graph && graph.segments.size ? graphLines(graph, map, graph === rail) : null);
+    this.drawn = { key, graph: lines(road), railGraph: lines(rail) };
+    return this.drawn;
   }
 
   /**
