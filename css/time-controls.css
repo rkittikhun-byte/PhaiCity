@@ -57,3 +57,8 @@
 /* The speeds live in the bar now: not on the menu rail (its button stays for the P key) nor in the settings window */
 body #miscButtons #pauseRequest { display: none; }
 #speedSelect { display: none; }
+
+/* A window too narrow for the bar beside the tool dock at the bottom middle (src/toolDock.ts): the bar stands above it */
+@media (max-width: 1150px) {
+  #timeBar { bottom: 70px; }
+}
