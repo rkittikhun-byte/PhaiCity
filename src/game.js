@@ -49,7 +49,7 @@ import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlant
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { buildingAt, MOVE_TOOL, movePrice, moveProblem } from './moveTool.ts';
-import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { drawModeOf, isAreaMode, isPaintTool, isStraightMode, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
@@ -1925,7 +1925,7 @@ Game.prototype.calculateMouseForPaint = function() {
                      this.inputStatus.toolName === 'canal' ? 'steelblue' : DRAW_COLOUR;
     }
     // Every mode's preview is the very line it builds: the straight line or the curve through its points
-    hover.straight = preview.mode === 'straight';
+    hover.straight = isStraightMode(preview.mode);
     hover.controls = preview.controls || null;
   }
   // ... and where the mouse is when the click would land elsewhere, joined to where it lands (src/drawReadout.ts)
@@ -2016,7 +2016,7 @@ Game.prototype.handleToolPoint = function(data) {
   }
   var path = toolName === UPGRADE_TOOL ? this.upgradeRoadPath(draft.points) : this.lineAround(curvePath(draft.points), toolName);
   // ... laid as drawn: one straight line, or the curve through its points (src/roadPieces.ts RoadPath)
-  var shape = toolName === UPGRADE_TOOL ? null : {shape: mode === 'straight' ? 'straight' : 'curve',
+  var shape = toolName === UPGRADE_TOOL ? null : {shape: isStraightMode(mode) ? 'straight' : 'curve',
     controls: exactControls(draft.points, draft.exact).map(function(p) { return [p.x, p.y]; })};
   var built = this.applyTiles(path, data.stroke, data.x, shape);
   if (built && modeGroupOf(toolName) === 'line')
@@ -2138,6 +2138,16 @@ Game.prototype.metreToolPoint = function(data, toolName, mode, needed) {
   var built = this.applyRoads([{line: line}], data.stroke, data.x);
   if (built)
     showCornerNote(strokeText(draft.clicks, built.laid, built.total, built.refused), STROKE_NOTE_MS);
+  // A chain goes on from where this line ended (ต่อเนื่อง, docs/METRE_DRAWING_PLAN.md 1.5): the next click is the next
+  // line's end, which snaps along, square to or at 15° steps from this one, until Esc or a right click
+  if (mode === 'chain' && built && built.laid > 0) {
+    var end = line.to, dx = end[0] - line.from[0], dz = end[1] - line.from[1], len = Math.hypot(dx, dz) || 1;
+    this.lineDraft = {tool: toolName, mode: mode, points: [tileOf(end)], metres: [end], ways: [[dx / len, dz / len]], from: null,
+                      startPoint: {x: end[0] / size, y: end[1] / size},
+                      clicks: [{name: POINT_NAMES[0], raw: tileOf(end), used: tileOf(end)}]};
+    setDrawingLine(true);
+    return;
+  }
   this.resetDraft();
 };
 
