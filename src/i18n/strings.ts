@@ -274,6 +274,8 @@ export const STRINGS: Record<string, Translation> = {
   "draw.debug.blocked.land": { en: "land not bought yet", th: "ที่ดินยังไม่ได้ซื้อ" },
   "draw.debug.blocked.building": { en: "a building's lot", th: "ที่ของอาคาร" },
   "draw.debug.blocked.other": { en: "cannot be built there", th: "สร้างตรงนั้นไม่ได้" },
+  "draw.debug.blocked.close": { en: "too close alongside a road", th: "ชิดถนนเดิมเกินไป" },
+  "draw.too_close": { en: "Too close alongside a road: roads less than {metres} m apart would share their tiles", th: "ชิดถนนเดิมเกินไป: ถนนที่ห่างกันไม่ถึง {metres} ม. จะใช้ช่องร่วมกันเป็นถนนเดียว" },
   "draw.length_km": { en: "{km} km", th: "{km} กม." },
   "draw.cancel": { en: "Esc or right click to stop", th: "Esc หรือคลิกขวาเพื่อหยุด" },
   "house.wings_note": { en: "choose", th: "เลือก" },

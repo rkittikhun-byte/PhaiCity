@@ -11,7 +11,8 @@
 // runs in the road worker (src/render3d/city/road-worker.ts) as well as on the page.
 
 import { isAnyRail, isAnyRoad, isLineRail, isLineRoad, isPowerCrossing } from "../roadTiles";
-import { type JunctionArm, type JunctionShape, meetLine, type Point, type RoadLine, wayAlong } from "../roadGeometry";
+import { type JunctionArm, type JunctionShape, type LineMap, meetLine, networkOf, type Point, roadLines, type RoadLine, wayAlong }
+  from "../roadGeometry";
 import { TILE_UNITS, unitsPerMetre } from "../units";
 import type { RoadGraph } from "./roadGraph";
 import { segmentTiles } from "./roadRaster";
@@ -32,8 +33,7 @@ export interface GraphLines {
   runs: GraphRun[];
   /** The nodes the runs reach: id, x and z */
   nodes: Array<[number, number, number]>;
-  /** The tiles the drawn roads lie on that are their own (laid by their stroke), in increasing order: the lines read
-   * from the tiles leave them out */
+  /** The tiles the drawn roads' strokes laid, in increasing order: the lines read from the tiles leave them out */
   tiles: number[];
 }
 
@@ -70,9 +70,8 @@ function densify(points: Point[], step: number): Point[] {
 }
 
 /**
- * The map's drawn roads (rail false) or railways as the view draws them: each segment still whole on the map (every
- * tile it was laid on still a road or railway; one bulldozed in part is left to its tiles' lines), as points along it,
- * cut out of the tiles that keep their own model, and the tiles that are their own.
+ * The map's drawn roads (rail false) or railways as the view draws them: each stroke still whole on the map, as points
+ * along its segments, cut out of the tiles that keep their own model, and the tiles its strokes laid.
  */
 export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): GraphLines {
   const { width, height } = map, units = unitsPerMetre(map.tileSizeM);
@@ -93,13 +92,24 @@ export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): Grap
     const t = inA ? lo : hi;
     return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
   };
-  const runs: GraphRun[] = [], own = new Set<number>(), reached = new Set<number>();
+  const runs: GraphRun[] = [], reached = new Set<number>();
   const raster = { width, height, tileSizeM: map.tileSizeM };
-  for (const id of [...graph.segments.keys()].sort((p, q) => p - q)) {
-    const s = graph.segment(id), tiles = segmentTiles(graph, id, raster);
-    if (!tiles.length || !tiles.every((i) => any(map.value(i)))) continue;
-    const piece = s.piece ?? 0;
-    for (const i of tiles) if (map.piece(i) === piece) own.add(i);
+  // A stroke is drawn from the graph while every tile each of its segments lies on is still a road or railway (one
+  // bulldozed in part is left to its tiles' lines, src/roadGeometry.ts frozen), and then every tile it laid is the
+  // graph's; a segment of no stroke (drawn over roads already there) is theirs
+  const ids = [...graph.segments.keys()].sort((p, q) => p - q), whole = new Set<number>(), broken = new Set<number>();
+  for (const id of ids) {
+    const piece = graph.segment(id).piece ?? 0;
+    if (!piece) continue;
+    const tiles = segmentTiles(graph, id, raster);
+    if (tiles.length && tiles.every((i) => any(map.value(i)))) whole.add(piece); else broken.add(piece);
+  }
+  for (const piece of broken) whole.delete(piece);
+  const own: number[] = [];
+  if (whole.size) for (let i = 0; i < width * height; i++) if (whole.has(map.piece(i))) own.push(i);
+  for (const id of ids) {
+    const s = graph.segment(id), piece = s.piece ?? 0;
+    if (!whole.has(piece)) continue;
     const points = densify(graph.polyline(id, STEP / units).map(([x, z]): Point => [x * units, z * units]), STEP);
     const push = (run: Point[], a: number, b: number): void => {
       if (run.length < 2 || dist(run[0], run[run.length - 1]) < 0.01) return;
@@ -120,7 +130,7 @@ export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): Grap
     const n = graph.node(id);
     return [id, n.x * units, n.z * units];
   });
-  return { runs, nodes, tiles: [...own].sort((p, q) => p - q) };
+  return { runs, nodes, tiles: own };
 }
 
 /** The point of a line nearest p: the piece of it, how far along that, the point and how far off */
@@ -410,6 +420,25 @@ export function withGraph(tiles: DrawnLines, plates: Array<[number, number, numb
     }
   }
   return { lines, junctions, plates: kept, points: junctions.map((j) => j.at) };
+}
+
+/**
+ * Every road (rail false) or railway of a map as drawn: those of the graph exactly, and the others read from the tiles
+ * the graph's roads leave them (src/roadGeometry.ts networkOf, roadLines), joined (withGraph). What the 3D view draws
+ * (src/render3d/city/roadBuild.ts) and what a click snaps to (src/game.js networkLines).
+ */
+export function drawnRoads(map: LineMap, graph: GraphLines | null | undefined, rail: boolean):
+  DrawnLines & { plates: Array<[number, number, number]>; points: Point[] } {
+  let own: Uint8Array | null = null;
+  if (graph?.tiles.length) {
+    own = new Uint8Array(map.width * map.height);
+    for (const i of graph.tiles) own[i] = 1;
+  }
+  const value = map.value.bind(map);
+  const network = networkOf(own ? { ...map, value: (i) => (own![i] ? 0 : value(i)) } : map, rail);
+  const drawn = roadLines(network);
+  if (!graph?.runs.length) return { ...drawn, plates: network.plates, points: network.junctions };
+  return withGraph(drawn, network.plates, graph, { width: map.width, height: map.height, value }, rail);
 }
 
 /** A junction: smooth where two roads meet end to end going on along one way */

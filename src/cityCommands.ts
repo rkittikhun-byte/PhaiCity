@@ -22,6 +22,7 @@ import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { segmentTiles } from "./roads/roadRaster";
+import { linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits } from "./units";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
@@ -93,10 +94,12 @@ export type Command =
    * A road or railway drawn in metres (docs/METRE_DRAWING_PLAN.md 1.3): from one end to the other, a curve through its
    * two inner control points (x east, z south, metres from the map's corner). It is laid on the tiles its middle line
    * passes (src/roads/roadRaster.ts) as the tool lays a tile, and kept as drawn in the map's road graph
-   * (src/roads/roadGraph.ts) once every one of those tiles is a road; a stroke undoes with the tiles.
+   * (src/roads/roadGraph.ts) once every one of those tiles is a road; a stroke undoes with the tiles. Priced by the
+   * metre (src/roads/roadDraw.ts linePrice). part: which line of the stroke it is (a grid's rows and columns); the
+   * roads of one line drawn freely, one after another, are one drawn line.
    */
   | { type: "road"; tool: ToolName; from: [number, number]; to: [number, number]; c1?: [number, number];
-      c2?: [number, number]; stroke: number }
+      c2?: [number, number]; stroke: number; part?: number }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -358,6 +361,7 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (!point(c.from) || !point(c.to)) return "bad ends";
       if ((c.c1 === undefined) !== (c.c2 === undefined)) return "a curve needs both control points";
       if (c.c1 !== undefined && (!point(c.c1) || !point(c.c2))) return "bad controls";
+      if (c.part !== undefined && !isInteger(c.part, 0, 10000)) return "bad part";
       return null;
     }
     case "undo":
@@ -451,13 +455,18 @@ export class CityCommands {
     // middle is its point
     const inTiles = (p: [number, number]): [number, number] =>
       [Math.round((p[0] / size - 0.5) * 100) / 100, Math.round((p[1] / size - 0.5) * 100) / 100];
-    const shape: LineShape = command.c1 ? "curve" : "straight";
-    const controls = (command.c1 && command.c2 ? [command.from, command.c1, command.c2, command.to] : [command.from, command.to])
-      .map(inTiles);
+    // ... a line drawn freely, road after road in one line of a stroke, keeps its tiles smoothed
+    const line = `${command.stroke}:${command.part ?? 0}`, more = this.roadPath?.stroke === line && this.roadPath.path.tiles.length > 0;
+    const shape: LineShape = more ? "free" : command.c1 ? "curve" : "straight";
+    const controls = more ? undefined : (command.c1 && command.c2 ? [command.from, command.c1, command.c2, command.to] :
+      [command.from, command.to]).map(inTiles);
     let laid = 0, reason: string | undefined;
+    const costs: number[] = [];
     for (const i of tiles) {
-      const x = i % width, y = (i - x) / width;
-      const out = this.apply({ type: "tool", tool: command.tool, x, y, stroke: command.stroke, shape, controls });
+      const x = i % width, y = (i - x) / width, funds = city.budget.totalFunds;
+      const out = this.apply({ type: "tool", tool: command.tool, x, y, stroke: command.stroke, part: command.part, shape,
+        ...(controls ? { controls } : {}) });
+      costs.push(funds - city.budget.totalFunds);
       if (out.accepted && out.toolResult === 0) laid++;
       else if (!out.accepted && reason === undefined) reason = out.reason;
     }
@@ -468,8 +477,16 @@ export class CityCommands {
       const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
       const graph = rail ? graphs.railGraph ??= new RoadGraph() : graphs.roadGraph ??= new RoadGraph();
       // ... with the piece its stroke laid (none when every tile was a road already)
-      const piece = this.roadPiece?.stroke === `${command.stroke}:0` ? this.roadPiece.piece : 0;
+      const piece = this.roadPiece?.stroke === line ? this.roadPiece.piece : 0;
       graph.add({ ...drawn, ...(piece ? { piece } : {}) });
+      // Priced by the metre: the tiles' costs put right to the road's length (undone with the stroke)
+      const each = Math.round((tool.toolCost ?? 0) * (tool.costFactor ?? 1));
+      const length = made.reduce((sum, id) => sum + draft.length(id), 0);
+      const spent = costs.reduce((sum, cost) => sum + cost, 0), price = linePrice(each, size, length, costs);
+      if (price !== spent) {
+        city.budget.spend(price - spent);
+        this.history.record(command.stroke, [], price - spent, city.cityTime?.() ?? 0);
+      }
     }
     if (!laid && !whole) return { accepted: false, reason: reason ?? "nothing laid" };
     return { accepted: true, toolResult: whole ? 0 : null, ...(whole ? {} : { reason: reason ?? "partly laid" }) };

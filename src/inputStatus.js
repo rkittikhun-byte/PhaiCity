@@ -109,6 +109,8 @@ var toolOutputID = '#toolOutput';
 
 var keyDownHandler = function(e) {
   var handled = false;
+  // Shift held: a road or railway goes just where it is clicked, snapping to nothing (docs/METRE_DRAWING_PLAN.md 3)
+  this.shiftHeld = e.shiftKey;
 
   switch (e.keyCode) {
     case 38:
@@ -146,6 +148,7 @@ var keyDownHandler = function(e) {
 
 
 var keyUpHandler = function(e) {
+  this.shiftHeld = e.shiftKey;
   switch (e.keyCode) {
     case 38:
     case 87:
@@ -260,6 +263,11 @@ var mouseDownHandler = function(e) {
 
 
 var mouseUpHandler = function(e) {
+  // A road or railway drawn freely is laid as far as the mouse was let go (src/game.js handleTool)
+  if (this._dragging && this.currentTool !== null && drawModeOf(this.toolName) === 'free') {
+    var release = this.getRelativeCoordinates(e);
+    this._emitEvent(Messages.TOOL_CLICKED, {x: release.x, y: release.y, stroke: this.stroke, release: true});
+  }
   this._dragging = false;
   this._lastDragX = -1;
   this._lastDragY = -1;
@@ -323,6 +331,7 @@ var mouseLeaveHandler = function(e) {
 
 
 var mouseMoveHandler = function(e) {
+  this.shiftHeld = e.shiftKey;
   var coords = this.getRelativeCoordinates(e);
   this.mouseX = coords.x;
   this.mouseY = coords.y;
@@ -369,14 +378,15 @@ var canvasClickHandler = function(e) {
   var at = this.getRelativeCoordinates(e);
   this.mouseX = at.x;
   this.mouseY = at.y;
+  // ... a point of a line clicked with Shift held too, where it lands just where clicked
   if (this.currentTool === null || (this.currentTool.isDraggable && !clicks) || this.isAreaTool() || this.isPathTool() ||
-      e.which !== 1 || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
+      e.which !== 1 || (e.shiftKey && !clicks) || e.altKey || e.ctrlKey || e.metaKey || this.mouseX === -1 ||
       this.mouseY === -1 || this._dragging)
     return;
 
   this.stroke += 1;
   this._emitEvent(clicks ? Messages.TOOL_POINT : Messages.TOOL_CLICKED,
-                  {x: this.mouseX, y: this.mouseY, stroke: this.stroke});
+                  {x: this.mouseX, y: this.mouseY, stroke: this.stroke, free: e.shiftKey});
   e.preventDefault();
 };
 

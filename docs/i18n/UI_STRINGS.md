@@ -333,6 +333,8 @@
 | `draw.debug.blocked.land` | `src/game.js` | — | `land not bought yet` | `ที่ดินยังไม่ได้ซื้อ` |  |
 | `draw.debug.blocked.building` | `src/game.js` | — | `a building's lot` | `ที่ของอาคาร` | อาคารบนแผนที่เมืองวาดเล็กกว่าที่ของมัน ขอบที่ดูว่างจึงยังเป็นของอาคาร |
 | `draw.debug.blocked.other` | `src/game.js` | — | `cannot be built there` | `สร้างตรงนั้นไม่ได้` |  |
+| `draw.debug.blocked.close` | `src/game.js` | — | `too close alongside a road` | `ชิดถนนเดิมเกินไป` | ถนนที่วาดขนานชิดถนนเดิมใกล้กว่าหนึ่งช่อง จะใช้ช่องร่วมกัน (Claude Code 20 ต.ค. 2026) |
+| `draw.too_close` | `src/game.js` | — | `Too close alongside a road: roads less than {metres} m apart would share their tiles` | `ชิดถนนเดิมเกินไป: ถนนที่ห่างกันไม่ถึง {metres} ม. จะใช้ช่องร่วมกันเป็นถนนเดียว` | ตอนคลิกวางถนนที่ชิดถนนเดิม จุดสุดท้ายจะถูกยกเลิกให้คลิกใหม่ |
 | `draw.length_km` | `src/game.js` | — | `{km} km` | `{km} กม.` |  |
 | `draw.cancel` | `src/game.js` | — | `Esc or right click to stop` | `Esc หรือคลิกขวาเพื่อหยุด` |  |
 | `house.wings_note` | `src/toolLevels.ts` | — | `choose` | `เลือก` | แทนราคาในช่องส่วนต่อเติม |

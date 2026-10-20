@@ -52,6 +52,19 @@ describe("power along the roads", () => {
     expect(power.powerGridMap.worldGet(29, 2)).toBe(1);
   });
 
+  test("power runs along a road drawn in metres at a slant, its tiles a chain side to side (metre plan 1.5)", () => {
+    // Along the tiles of a road drawn from (3, 2) to (100, 35) tiles, in metres on 16 m tiles, the power coming in at its start
+    const map = (MapGenerator as any).fromPresetCells(120, 40, new Uint8Array(120 * 40));
+    map.tileSizeM = 16;
+    const core = new CityCore({ map, seed: 11 });
+    core.simulation.budget.setFunds(100000);
+    expect(core.apply({ type: "road", tool: "road", from: [3.5 * 16, 2.5 * 16], to: [100.5 * 16, 35.5 * 16], stroke: 1 }).toolResult).toBe(0);
+    const power = new PowerManager(map);
+    power.addSource(3, 2);
+    power.doPowerScan({ plantPower: 1000, nuclearPowerPop: 0 });
+    expect(power.powerGridMap.worldGet(100, 35)).toBe(1);
+  });
+
   test("without a plant the road carries nothing", () => {
     const core = city();
     expect(core.apply({ type: "tool", tool: "residential", x: 105, y: 18 }).accepted).toBe(true);

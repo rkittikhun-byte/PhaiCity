@@ -10,9 +10,9 @@
 import { Color, Euler, Matrix4, Quaternion, ShapeUtils, Vector2, Vector3 } from 'three';
 import { lateriteColour, LATERITE_EDGE } from '../models/road/laterite.js';
 import { RAIL_INTERFACE } from '../models/road/interfaces.js';
-import { halfWidth, nearestOnLines, networkOf, REAL_WIDTH_M, roadLines, roadReach, shoulderOf, type JunctionArm, type JunctionShape, type Point } from '../../roadGeometry.js';
+import { halfWidth, nearestOnLines, REAL_WIDTH_M, roadReach, shoulderOf, type JunctionArm, type JunctionShape, type Point } from '../../roadGeometry.js';
 import { junctionLayout } from './roadJunctions.js';
-import { withGraph, type GraphLines } from '../../roads/graphLines.js';
+import { drawnRoads, type GraphLines } from '../../roads/graphLines.js';
 import type { CityMapReader } from './types.js';
 
 const LIFT = 0.15, OUTSIDE_SHADE = 0.62;
@@ -517,20 +517,12 @@ export class RoadBuilder {
     };
     const { width, height } = map;
     for (const rail of [false, true]) {
-      // The roads as drawn (the graph) where there are any, the lines read from the tiles on the rest of the map
-      const graph = rail ? map.railGraph : map.graph;
-      let own: Uint8Array | null = null;
-      if (graph?.tiles.length) { own = new Uint8Array(width * height); for (const i of graph.tiles) own[i] = 1; }
-      const network = networkOf({ width, height, value: own ? (i) => (own![i] ? 0 : map.values[i]) : (i) => map.values[i],
-        level: (i) => map.levels?.[i] ?? 1, piece: (i) => map.pieces?.[i] ?? 0, path: (p) => map.paths?.[p] ?? null,
-        area: map.area }, rail);
-      let { plates, junctions } = network;
-      // One road where it runs on through a junction, the others ending at it (src/roadGeometry.ts roadLines)
-      let drawn: { lines: ReturnType<typeof roadLines>['lines']; junctions: JunctionShape[] } = roadLines(network);
-      if (graph?.runs.length) {
-        const joined = withGraph(drawn, plates, graph, { width, height, value: (i) => map.values[i] }, rail);
-        drawn = joined; plates = joined.plates; junctions = joined.points;
-      }
+      // The roads as drawn (the graph) where there are any, and the lines read from the tiles on the rest of the map,
+      // one road where it runs on through a junction, the others ending at it (src/roads/graphLines.ts drawnRoads)
+      const drawn = drawnRoads({ width, height, value: (i) => map.values[i], level: (i) => map.levels?.[i] ?? 1,
+        piece: (i) => map.pieces?.[i] ?? 0, path: (p) => map.paths?.[p] ?? null, area: map.area },
+        rail ? map.railGraph : map.graph, rail);
+      const { plates, points: junctions } = drawn;
       const stops: Point[] = plates.map(([x, z]): Point => [x, z]);
       if (rail) {
         const by = RAIL_INTERFACE.ballastWidth / 2 * this.metre;
