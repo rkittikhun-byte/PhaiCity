@@ -12,9 +12,12 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
 
 ## Now
 
-- 20 Oct 2026: pipeline done; era 1 built in all six regions (24 kinds each). Eras 2-5 are being written by
-  sub-agents, one file each (`scripts/buildings/era<n>.py`, helpers in `scripts/lib/era<n>_parts.py`); the main
-  session reviews and commits them. Next: check each era's sheets, then buildings-library.blend, README, IMPORT.
+- 20 Oct 2026: **all built.** Five eras x six regions x 24 kinds = 720 buildings in 30 sets, rebuilt together after
+  the last kit fixes (no errors; about 70 one-tile or lot buildings are 5-30% over the soft triangle budget, for the
+  import's LOD to take). Era 1 by the main session, eras 2-5 by sub-agents (`era<n>.py` + `lib/era<n>_parts.py`),
+  every sheet reviewed against the concepts. `previews/all_eras_northeast.png` shows the five eras side by side.
+- Next, when the owner asks: import into the game (IMPORT.md), and the owner's decisions listed there (whether
+  buildings change with the era; one model per service kind or per era).
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 
@@ -98,16 +101,16 @@ fix, rebuild, commit. Previews are for checking only; the owner asked not to be 
 
 - [x] Pipeline: palette, mesh, kit (walls, roofs, windows, stairs, railings), props, studio, export, sheets
 - [x] era1: 14 zone buildings (six regions)
-- [ ] era2: 14 zone buildings
-- [ ] era3: 14 zone buildings
-- [ ] era4: 14 zone buildings
-- [ ] era5: 14 zone buildings
-- [ ] era1-5: 10 services each (ruler_house, school, hospital, police, fire, water_works, power_plant, waste,
+- [x] era2: 14 zone buildings (six regions)
+- [x] era3: 14 zone buildings (six regions)
+- [x] era4: 14 zone buildings (six regions)
+- [x] era5: 14 zone buildings (six regions)
+- [x] era1-5: 10 services each (ruler_house, school, hospital, police, fire, water_works, power_plant, waste,
       station, market)
 - [x] Asset browsing: every building in a set .blend is a collection marked as an asset (no single library file:
       30 sets of about 5 MB would make it too big)
 - [x] IMPORT.md, README.md (Thai)
-- [ ] Final check of every era's sheets against the concepts, summary for the owner (Thai)
+- [x] Final check of every era's sheets against the concepts, summary for the owner (Thai)
 
 ## Resuming (usage limits)
 
