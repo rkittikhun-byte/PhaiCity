@@ -1,0 +1,1 @@
+# One building id per line: edited by hand in Blender, never rebuilt by scripts/build.py.

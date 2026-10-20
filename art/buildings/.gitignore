@@ -1,0 +1,9 @@
+__pycache__/
+*.blend1
+*.blend@
+# Per-building renders: ./run.sh makes them again; the *_sheet.png line-ups are kept.
+previews/*/
+# Built files: ./run.sh makes them again from the scripts (about 5 MB a set .blend, 20 MB a set of glbs). A set
+# edited by hand in Blender (LOCKED.txt) is added with git add -f.
+blend/
+glb/
