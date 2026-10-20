@@ -4,7 +4,8 @@
 
 // The rules that make each region and province play differently (ONLINE_PLAN 5.2): how much the people want homes,
 // shops and factories, what building costs, how much the factories pollute, how much a power plant gives, the dry
-// season (when the water works give less and no rain fills the ground) and disasters that come with the seasons. They are data, not code: data/province-rules.json today, the server's
+// season (when the water works give less and no rain fills the ground) and disasters that come with the seasons, and
+// the weather of each month (src/weather.ts). They are data, not code: data/province-rules.json today, the server's
 // database once the game is online, edited from an admin page. Three layers, each only saying what it changes:
 // the game's defaults, then the region's, then the province's.
 //
@@ -19,6 +20,35 @@ export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "r
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
   "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade", "canal"] as const;
 export type CostTool = typeof TOOL_COSTS[number];
+
+/**
+ * A region's or province's climate (data/province-rules.json "weather"): twelve numbers a list, January first, and
+ * the chance a storm floods.
+ */
+export interface Climate {
+  /** The chance a month is wet (rain or a storm), 0–1 */
+  rain: number[];
+  /** Of the wet months, the share that are storms, 0–1 */
+  storm: number[];
+  /** Of the dry months, the share that are foggy, 0–1 */
+  fog: number[];
+  /** Smoke in the air from burning fields and forests, 0–1 */
+  smoke: number[];
+  /** The chance a storm month floods low land beside the water, 0–1 (only while disasters are switched on) */
+  flood: number;
+}
+
+export const CLIMATE_LISTS = ["rain", "storm", "fog", "smoke"] as const;
+
+/** The game's own climate (DEFAULT_RULES), before the region's: Thailand's monsoon on the central plains. A practice
+ * map has this. */
+export const DEFAULT_CLIMATE: Climate = {
+  rain: [0.05, 0.08, 0.18, 0.35, 0.75, 0.82, 0.82, 0.88, 0.92, 0.75, 0.25, 0.05],
+  storm: [0, 0, 0.3, 0.35, 0.25, 0.15, 0.15, 0.35, 0.4, 0.25, 0.1, 0],
+  fog: [0.25, 0.15, 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0.15, 0.3],
+  smoke: [0, 0.05, 0.1, 0.05, 0, 0, 0, 0, 0, 0, 0, 0],
+  flood: 0.15,
+};
 
 export const ZONES = ["residential", "commercial", "industrial"] as const;
 export type Zone = typeof ZONES[number];
@@ -54,6 +84,8 @@ export interface Rules {
   /** No rain fills the ground in these months, and the water works give less. */
   drought: Drought;
   seasons: Season[];
+  /** The weather month by month: the chances of rain, storms, fog and smoke, and of a storm's flood (src/weather.ts) */
+  weather: Climate;
 }
 
 /** What one layer changes; anything left out comes from the layer below. */
@@ -65,6 +97,8 @@ export interface RulesPatch {
   powerPlantOutput?: number;
   drought?: Drought;
   seasons?: Season[];
+  /** Any of the climate's lists or its flood chance; the rest comes from the layer below */
+  weather?: Partial<Climate>;
 }
 
 export interface RulesData {
@@ -81,12 +115,14 @@ export const DEFAULT_RULES: Rules = {
   powerPlantOutput: 1,
   drought: { months: [], share: 0 },
   seasons: [],
+  weather: DEFAULT_CLIMATE,
 };
 
 // The range each kind of number may take
 const MULTIPLIER = { min: 0.1, max: 5 };
 const CLEAR_WOODS = { min: 0, max: 100 };
 const DROUGHT_SHARE = { min: 0, max: 0.9 };
+const SHARE = { min: 0, max: 1 };
 
 const REGION_IDS = ["north", "northeast", "central", "east", "west", "south"];
 const PROVINCE_ID = /^TH-\d{2}$/;
@@ -146,6 +182,30 @@ export function checkPatch(raw: unknown, where: string, problems: string[]): Rul
           break;
         }
         patch.drought = { months: [...new Set(months)].sort((a, b) => a - b), share: d.share };
+        break;
+      }
+      case "weather": {
+        const w = value as Record<string, unknown> | null;
+        if (typeof w !== "object" || w === null || Array.isArray(w)) {
+          problems.push(`${where}.weather: not an object`);
+          break;
+        }
+        const climate: Partial<Climate> = {};
+        for (const [name, entry] of Object.entries(w)) {
+          if ((CLIMATE_LISTS as readonly string[]).includes(name)) {
+            if (Array.isArray(entry) && entry.length === 12 && entry.every((v) => isNumberIn(v, SHARE))) {
+              climate[name as typeof CLIMATE_LISTS[number]] = [...entry];
+            } else {
+              problems.push(`${where}.weather.${name}: must list 12 months, each 0–1`);
+            }
+          } else if (name === "flood") {
+            if (isNumberIn(entry, SHARE)) climate.flood = entry;
+            else problems.push(`${where}.weather.flood: must be 0–1`);
+          } else if (!name.startsWith("_")) {
+            problems.push(`${where}.weather.${name}: unknown`);
+          }
+        }
+        patch.weather = climate;
         break;
       }
       case "seasons":
@@ -222,6 +282,8 @@ function apply(rules: Rules, patch: RulesPatch | undefined): Rules {
     drought: patch.drought ?? rules.drought,
     // A province that lists seasons replaces its region's list
     seasons: patch.seasons ?? rules.seasons,
+    // ... but its weather only the lists it gives
+    weather: { ...rules.weather, ...patch.weather },
   };
 }
 

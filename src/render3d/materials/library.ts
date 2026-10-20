@@ -284,6 +284,28 @@ export function eraBuildingMaterial(windows: boolean): MeshStandardMaterial {
     });
 }
 
+/**
+ * How wet the city is after rain, 0–1 (src/render3d/city/weather.ts): what faces the sky turns darker and glossier.
+ * One value for every city material, which the view sets as the weather changes (setCityWetness).
+ */
+const cityWeatherUniforms = { cityWet: { value: 0 } };
+export function setCityWetness(wet: number): void { cityWeatherUniforms.cityWet.value = Math.min(1, Math.max(0, wet)); }
+/** Adds the wet look to a city shader once (a material may pass through more than one of the patches below) */
+function addCityWetness(shader: { uniforms: Record<string, unknown>; fragmentShader: string }): void {
+  Object.assign(shader.uniforms, cityWeatherUniforms);
+  if (shader.fragmentShader.includes('cityWetness')) return;
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+uniform float cityWet;`)
+    .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      if (cityWet > 0.001) {
+        float cityWetness = cityWet * smoothstep(0.35, 0.9, inverseTransformDirection(normal, viewMatrix).y);
+        diffuseColor.rgb *= 1.0 - 0.32 * cityWetness;
+        #ifdef STANDARD
+          roughnessFactor *= 1.0 - 0.55 * cityWetness;
+        #endif
+      }`);
+}
+
 /** Instanced tiling pieces project texture coordinates after their instance transform. */
 function configureCityWorldUV(material: MeshStandardMaterial): void {
   if (material.onBeforeCompile === material.userData.cityUVWrapper) return;
@@ -291,6 +313,7 @@ function configureCityWorldUV(material: MeshStandardMaterial): void {
   const program = material.customProgramCacheKey();
   const wrapper: typeof material.onBeforeCompile = (shader, renderer) => {
     original.call(material, shader, renderer);
+    if (material.userData.materialKey !== 'water_river') addCityWetness(shader);
     shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
       #ifdef USE_INSTANCING
         vec3 cityP = (instanceMatrix * vec4(position, 1.0)).xyz;
@@ -384,6 +407,8 @@ function configureCityLOD(material: Material, coarse: boolean): void {
   material.onBeforeCompile = (shader, renderer) => {
     original.call(material, shader, renderer);
     Object.assign(shader.uniforms, provinceMask, cityWindUniforms);
+    // Rain wets the ground, roofs and leaves, not the water
+    if (material.userData.materialKey !== 'water_river') addCityWetness(shader);
     if (sway) shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>${CITY_SWAY}`);
     shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround; uniform vec3 cityWind; uniform float cityTime;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;

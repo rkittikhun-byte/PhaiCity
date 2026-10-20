@@ -5,10 +5,12 @@
 // The time bar (owner, 20 Oct 2026: "แยกปุ่ม control เวลาออกมาเลย"): a glass card at the bottom left of the city with
 // the date and the game's speeds, pause and 1x 2x 3x, in place of the pause on the menu rail and the speeds in the
 // settings window. Each speed is the game's `speed` command (src/cityCommands.ts), so a saved or replayed city keeps it.
-// P still pauses and resumes (the rail's hidden button, src/menuRail.ts).
+// P still pauses and resumes (the rail's hidden button, src/menuRail.ts). The clock's icon is the sky: the sun or the moon
+// when it is clear, else the month's weather, whose word follows the hour (src/weather.ts; owner, 20 Oct 2026).
 
 import { onLanguageChange, t } from "./i18n/index";
 import { clockText, sunHours } from "./dayClock";
+import { type Climate, thaiSeason, type Weather } from "./weather";
 
 /** The simulation's speeds (src/simulation.js Simulation.SPEED_*): paused, slow, medium, fast */
 export const TIME_SPEEDS = [0, 1, 2, 3] as const;
@@ -22,8 +24,47 @@ export interface TimeGame {
   applyCommand(command: { type: "speed"; speed: number }): unknown;
   /** The time of day (src/dayClock.ts), and the calendar's month for its sunrise and sunset */
   dayClock?: { text(): string; night(month: number): boolean };
-  simulation?: { getDate(): { month: number } };
+  simulation?: { getDate(): { month: number }; rules?: { weather?: Climate } | null };
+  /** The map, whose month's weather the bar shows (src/weather.ts) */
+  gameMap?: { weather?: Weather | null };
 }
+
+/** The clock's icon: the sun or the moon in a clear sky, else the weather's */
+export type SkyIcon = "sun" | "moon" | "cloud" | "rain" | "storm" | "fog" | "smoke";
+/** Smoke from burning fields that turns a clear day's word to haze */
+export const HAZE_SHOWN = 0.35;
+
+/** The clock's icon and the weather's word (a string key) */
+export function skyOf(weather: Weather | null | undefined, night: boolean): { icon: SkyIcon; word: string } {
+  const kind = weather?.kind ?? "sunny";
+  if (kind === "sunny") {
+    if ((weather?.smoke ?? 0) >= HAZE_SHOWN) return { icon: "smoke", word: "weather.kind.smoke" };
+    return night ? { icon: "moon", word: "weather.kind.clear" } : { icon: "sun", word: "weather.kind.sunny" };
+  }
+  return { icon: kind === "overcast" ? "cloud" : kind, word: `weather.kind.${kind}` };
+}
+
+/** The weather's tooltip: the season and the weather, and what it does to the city this month */
+export function weatherTip(weather: Weather | null | undefined, month: number, climate: Climate | undefined,
+    night: boolean): string {
+  const lines = [`${t(`weather.season.${thaiSeason(month, climate)}`)} · ${t(skyOf(weather, night).word)}`,
+    t(`weather.effect.${weather?.kind ?? "sunny"}`)];
+  if ((weather?.smoke ?? 0) >= HAZE_SHOWN) lines.push(t("weather.effect.smoke"));
+  return lines.join("\n");
+}
+
+/** The sky's icons, one shown at a time (css/time-controls.css) */
+const SKY_ICONS = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<g class="sky sky-sun"><circle class="timeSun" cx="12" cy="12" r="4.5"/><path class="timeSun" d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g>'
+  + '<g class="sky sky-moon"><path class="timeMoon" d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></g>'
+  + '<g class="sky sky-cloud"><path class="timeCloud" d="M7 18h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 18z"/></g>'
+  + '<g class="sky sky-rain"><path class="timeCloud" d="M7 14h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 14z"/>'
+  + '<path class="timeDrop" d="M8.5 16.5l-1 3M12.5 16.5l-1 3M16.5 16.5l-1 3"/></g>'
+  + '<g class="sky sky-storm"><path class="timeCloud timeDark" d="M7 13h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 13z"/>'
+  + '<path class="timeBolt" d="M12.8 13.5l-2.6 4.3h3l-1.8 4"/></g>'
+  + '<g class="sky sky-fog"><path class="timeFog" d="M4 8h16M2.5 12h19M4 16h16M6 20h12"/></g>'
+  + '<g class="sky sky-smoke"><circle class="timeSun" cx="12" cy="8.5" r="4"/><path class="timeFog" d="M3 15h18M5 19h14"/></g>'
+  + '</svg>';
 
 /** The speed the game runs at now: 0 while paused */
 export function currentSpeed(game: TimeGame): TimeSpeed {
@@ -51,14 +92,17 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
   const bar = doc.createElement("div");
   bar.id = "timeBar";
   bar.setAttribute("role", "toolbar");
-  // The clock: a sun by day, a moon by night, and the hour (src/dayClock.ts)
+  // The clock: the sky's icon (a sun by day, a moon by night, or the weather) and the hour (src/dayClock.ts) ...
   const clock = doc.createElement("span");
   clock.className = "timeClock";
-  clock.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="timeSun" cx="12" cy="12" r="4.5"/>'
-    + '<path class="timeSun" d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>'
-    + '<path class="timeMoon" d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg><span class="timeHour"></span>';
+  clock.dataset.sky = "sun";
+  clock.innerHTML = `${SKY_ICONS}<span class="timeHour"></span>`;
   const hour = clock.querySelector(".timeHour") as HTMLElement;
   if (game.dayClock) bar.append(clock);
+  // ... and the month's weather in a word, with the season and what it does when pointed at
+  const weather = doc.createElement("span");
+  weather.className = "timeWeather";
+  if (game.gameMap) bar.append(weather);
   const date = doc.createElement("span");
   date.className = "timeDate";
   bar.append(date);
@@ -105,21 +149,34 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
     const source = doc.getElementById("date");
     const text = source?.textContent ?? "";
     if (date.textContent !== text) date.textContent = text;
+    const month = game.simulation?.getDate().month ?? 0, night = game.dayClock?.night(month) ?? false;
     if (game.dayClock) {
-      const month = game.simulation?.getDate().month ?? 0, now = game.dayClock.text();
+      const now = game.dayClock.text();
       if (hour.textContent !== now) hour.textContent = now;
-      clock.classList.toggle("night", game.dayClock.night(month));
+      clock.classList.toggle("night", night);
       if (month !== shownMonth) {
         shownMonth = month;
         const sun = sunHours(month);
         clock.title = t("time.sun", { rise: clockText(sun.rise), set: clockText(sun.set) });
       }
     }
+    // The sky: its icon, the weather's word, and its tooltip when the weather, the night or the month changes
+    const now = game.gameMap?.weather ?? null, sky = skyOf(now, night);
+    const sign = `${sky.icon}|${sky.word}|${now?.kind}|${month}`;
+    if (sign !== shownSky) {
+      shownSky = sign;
+      clock.dataset.sky = sky.icon;
+      weather.dataset.kind = now?.kind ?? "sunny";
+      weather.textContent = t(sky.word);
+      weather.title = weatherTip(now, month, game.simulation?.rules?.weather, night);
+      weather.setAttribute("aria-label", weather.title);
+    }
   };
   let shownMonth = -1;
+  let shownSky = "";
   label();
   refresh();
-  onLanguageChange(() => { label(); shownMonth = -1; refresh(); });
+  onLanguageChange(() => { label(); shownMonth = -1; shownSky = ""; refresh(); });
   // P on the rail, the settings window and loading a city change the speed too, and the clock moves: look a few times
   // a second
   setInterval(refresh, 250);

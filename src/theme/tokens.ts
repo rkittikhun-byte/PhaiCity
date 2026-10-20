@@ -98,6 +98,21 @@ export const SCENE = {
   outline: { colour: 0x3b1e10, strength: 0.92 },
   /** Haze and sky: warm sand, never the old pale blue. */
   sky: { haze: 0xe9c999, zenith: 0xf6d9a4, horizon: 0xfcd691 },
+  /**
+   * The weather (src/weather.ts, src/render3d/city/weather.ts): what the clear day's sky, haze and light turn to, by
+   * how much cloud, rain, fog and smoke there is. Clouds and storms go the way of the shadows, lavender, never cold grey;
+   * fog and smoke the way of the sand. Read by the renderer now, before the rest of SCENE is adopted.
+   */
+  weather: {
+    /** Fair-weather clouds, and the clouds and haze of an overcast day */
+    cloud: RAMPS.sand[50], overcastSky: RAMPS.lavender[300], overcastHaze: RAMPS.lavender[200],
+    /** A storm's sky and haze */
+    stormSky: RAMPS.lavender[700], stormHaze: RAMPS.lavender[500],
+    /** Morning fog, and the smoke of burning fields */
+    fog: RAMPS.sand[100], smoke: RAMPS.sand[400],
+    /** The streaks of rain, and a flash of lightning */
+    rain: RAMPS.water[100], flash: RAMPS.gold[50],
+  },
 } as const;
 
 // --- css/theme.css --------------------------------------------------------------------------------------------------

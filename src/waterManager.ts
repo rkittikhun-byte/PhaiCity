@@ -8,8 +8,9 @@
 // - a works gives as much as the groundwater under it allows (src/groundwater.ts), less in a month of the province's
 //   dry season, and the towers on the pipes make up some of what the dry season takes;
 // - each zone the next scan reaches takes one share when a road with water touches it, until the supply runs out;
-// - once a month the rain fills the ground again (not in a dry month) and each works draws from the ground around it
-//   as much as the city took, so a works pumped hard runs its ground low.
+// - once a month the rain fills the ground again, as much as the month's weather brings (src/weather.ts: in a dry
+//   month only rain or a storm, a little), and each works draws from the ground around it as much as the city took,
+//   so a works pumped hard runs its ground low.
 // No DOM, jQuery or window here (CLAUDE.md, "Online plan" rule 3), and nothing random.
 
 import { BlockMap } from "./blockMap";
@@ -23,6 +24,7 @@ import { POWERBIT } from "./tileFlags";
 import {
   WATER_TOWER, WATER_WORKS,
 } from "./tileValues";
+import { rainRecharge, type Weather } from "./weather";
 
 /** Zones a water works serves with full ground under it */
 export const WORKS_SUPPLY = 80;
@@ -103,6 +105,9 @@ export class WaterManager {
   saving = 0;
   /** How much faster the rain fills the ground: the ruler's green zoning (src/policies.ts) */
   recharge = 1;
+  /** The month's weather (src/weather.ts), which the simulation sets; without it the rain falls as it always did,
+   * every month but the dry season's */
+  weather: Weather | null = null;
   /** Zones the water reaching the pipes can serve this cycle */
   supply = 0;
   readonly view: WaterView;
@@ -302,14 +307,16 @@ export class WaterManager {
     this.supply = Math.floor((works + Math.min(lost, stored)) * (1 - this.festivalUse) * (1 + this.saving));
   }
 
-  /** A month of the ground: the rain fills it (not in a dry month), and each works draws as much as was used. */
+  /** A month of the ground: the month's rain fills it, and each works draws as much as was used. */
   private updateGround(month: number): void {
     const { stores, natural, full } = this;
     if (!stores || !natural || !full) return;
     const { width, height } = this.map;
     // The share of the last supply the zones took: every works pumped that share of what it could
     const taken = this.supply > 0 ? Math.min(1, this.used / this.supply) : 0;
-    if (!this.isDryMonth(month)) rechargeGroundwater(stores, natural, this.recharge);
+    const dry = this.isDryMonth(month);
+    const rain = this.weather ? rainRecharge(this.weather, dry) : dry ? 0 : 1;
+    if (rain > 0) rechargeGroundwater(stores, natural, this.recharge * rain);
 
     let low: Source | null = null;
     for (const source of this.sources) {

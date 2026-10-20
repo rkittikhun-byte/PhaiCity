@@ -1,24 +1,45 @@
 {
-  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when no rain fills the ground) is 0-0.9. Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
+  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when only rain or a storm fills the ground, a little) is 0-0.9. weather (src/weather.ts) lists twelve numbers 0-1 for each month, January first: rain, the chance the month is wet; storm, the share of wet months that are storms (heavy rain); fog, the share of dry months that are foggy; smoke, the haze of burning fields and forests; and flood, the chance a storm month floods low land beside the water (only while disasters are on). Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
   "version": 1,
   "regions": {
     "north": {
       "_note": "Tourism: shops are wanted. Thick forest: clearing woods costs more.",
       "demand": { "commercial": 1.4 },
       "clearWoodsCost": 5,
-      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 }
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 },
+      "weather": {
+        "rain": [0.04, 0.06, 0.15, 0.35, 0.75, 0.82, 0.85, 0.9, 0.88, 0.6, 0.15, 0.05],
+        "storm": [0, 0, 0.3, 0.4, 0.3, 0.15, 0.15, 0.3, 0.3, 0.15, 0.05, 0],
+        "fog": [0.45, 0.25, 0.05, 0, 0, 0, 0, 0, 0.05, 0.1, 0.3, 0.5],
+        "smoke": [0.1, 0.35, 0.55, 0.4, 0.05, 0, 0, 0, 0, 0, 0, 0.05],
+        "flood": 0.12
+      }
     },
     "northeast": {
       "_note": "Cheap land and farm industry. Droughts: a long dry season for the water works, fires in the hot season.",
       "cost": { "residential": 0.6, "commercial": 0.6, "industrial": 0.6 },
       "demand": { "industrial": 1.3 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.4 },
+      "weather": {
+        "rain": [0.03, 0.08, 0.2, 0.35, 0.75, 0.85, 0.8, 0.9, 0.92, 0.6, 0.12, 0.03],
+        "storm": [0, 0, 0.35, 0.4, 0.3, 0.15, 0.15, 0.35, 0.45, 0.2, 0.1, 0],
+        "fog": [0.3, 0.15, 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0.2, 0.35],
+        "smoke": [0.05, 0.2, 0.3, 0.15, 0, 0, 0, 0, 0, 0, 0, 0.02],
+        "flood": 0.15
+      },
       "seasons": [{ "disaster": "fire", "months": [3, 4, 5], "chancePerMonth": 0.25 }]
     },
     "central": {
       "_note": "Trade: shops are wanted. Floods in the rainy season.",
       "demand": { "commercial": 1.4 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
+      "weather": {
+        "rain": [0.05, 0.08, 0.18, 0.35, 0.75, 0.82, 0.82, 0.88, 0.92, 0.75, 0.25, 0.05],
+        "storm": [0, 0, 0.3, 0.35, 0.25, 0.15, 0.15, 0.3, 0.4, 0.3, 0.1, 0],
+        "fog": [0.2, 0.1, 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0.1, 0.25],
+        "smoke": [0.05, 0.1, 0.15, 0.05, 0, 0, 0, 0, 0, 0, 0, 0.05],
+        "flood": 0.2
+      },
       "seasons": [{ "disaster": "flood", "months": [9, 10, 11], "chancePerMonth": 0.3 }]
     },
     "east": {
@@ -26,23 +47,86 @@
       "demand": { "industrial": 1.4 },
       "cost": { "port": 0.5 },
       "industryPollution": 1.5,
-      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 }
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 },
+      "weather": {
+        "rain": [0.05, 0.12, 0.25, 0.4, 0.82, 0.9, 0.9, 0.92, 0.92, 0.75, 0.25, 0.05],
+        "storm": [0, 0, 0.3, 0.35, 0.3, 0.3, 0.3, 0.4, 0.4, 0.3, 0.15, 0],
+        "fog": [0.1, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.1],
+        "smoke": [0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "flood": 0.15
+      }
     },
     "west": {
       "_note": "Hydropower: power plants give more. Little flat land: roads and rail cost more.",
       "powerPlantOutput": 1.5,
       "cost": { "road": 1.5, "rail": 1.5 },
-      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 }
+      "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
+      "weather": {
+        "rain": [0.03, 0.05, 0.15, 0.35, 0.7, 0.75, 0.78, 0.85, 0.9, 0.65, 0.15, 0.03],
+        "storm": [0, 0, 0.3, 0.35, 0.25, 0.15, 0.15, 0.3, 0.35, 0.2, 0.05, 0],
+        "fog": [0.35, 0.2, 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0.2, 0.35],
+        "smoke": [0.05, 0.2, 0.3, 0.15, 0, 0, 0, 0, 0, 0, 0, 0],
+        "flood": 0.1
+      }
     },
     "south": {
       "_note": "Tourism and seaports. Storms at the end of the year.",
       "demand": { "commercial": 1.3 },
       "cost": { "port": 0.5 },
       "drought": { "months": [2, 3, 4], "share": 0.15 },
+      "weather": {
+        "rain": [0.6, 0.3, 0.2, 0.3, 0.55, 0.55, 0.55, 0.6, 0.65, 0.85, 0.95, 0.9],
+        "storm": [0.15, 0.05, 0.2, 0.3, 0.2, 0.15, 0.15, 0.15, 0.2, 0.3, 0.5, 0.4],
+        "fog": [0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05],
+        "smoke": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "flood": 0.25
+      },
       "seasons": [{ "disaster": "tornado", "months": [10, 11, 12], "chancePerMonth": 0.25 }]
     }
   },
   "provinces": {
-    "_note": "Changes for one province over its region, e.g. \"TH-83\": { \"demand\": { \"commercial\": 1.6 } } for Phuket. A province that lists seasons replaces its region's list."
+    "_note": "Changes for one province over its region, e.g. \"TH-83\": { \"demand\": { \"commercial\": 1.6 } } for Phuket. A province that lists seasons replaces its region's list; one that lists weather replaces only the lists it gives.",
+    "TH-85": {
+      "_note": "Ranong, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    },
+    "TH-82": {
+      "_note": "Phang Nga, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    },
+    "TH-83": {
+      "_note": "Phuket, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    },
+    "TH-81": {
+      "_note": "Krabi, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    },
+    "TH-92": {
+      "_note": "Trang, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    },
+    "TH-91": {
+      "_note": "Satun, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
+      "weather": {
+        "rain": [0.2, 0.12, 0.25, 0.5, 0.88, 0.92, 0.92, 0.92, 0.95, 0.88, 0.6, 0.3],
+        "storm": [0.05, 0.05, 0.25, 0.3, 0.35, 0.35, 0.35, 0.35, 0.4, 0.3, 0.2, 0.1]
+      }
+    }
   }
 }

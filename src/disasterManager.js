@@ -33,7 +33,8 @@ var DisasterManager = EventEmitter(function(map, spriteManager, gameLevel) {
 var DisChance = [479, 239, 59];
 
 // seasonalRisks (PhaiCity, src/provinceRules.ts): the disasters this month's season brings to the province, each with
-// its chance this cycle. Like every other random disaster, they only come while disasters are switched on.
+// its chance this cycle, and a storm's flood, which comes on low land beside the water (lowLand, src/weather.ts). Like
+// every other random disaster, they only come while disasters are switched on.
 DisasterManager.prototype.doDisasters = function(census, seasonalRisks) {
   if (this._floodCount)
       this._floodCount--;
@@ -51,7 +52,7 @@ DisasterManager.prototype.doDisasters = function(census, seasonalRisks) {
     if (risks[i].disaster === 'fire')
       this.setFire(40, false); // a dry spell: the first thing that will burn catches, woods included
     else if (risks[i].disaster === 'flood')
-      this.makeFlood();
+      this.makeFlood(risks[i].lowLand === true);
     else if (risks[i].disaster === 'tornado')
       this._spriteManager.makeTornado();
   }
@@ -193,7 +194,12 @@ DisasterManager.prototype.makeFire = function() {
 var Dx = [ 0, 1, 0, -1];
 var Dy = [-1, 0, 1, 0];
 
-DisasterManager.prototype.makeFlood = function() {
+// PhaiCity: lowLand, a storm's flood: on a map that knows its heights, only land that lies no more than a few metres
+// above the water beside it floods
+var LOW_LAND_RISE_M = 2;
+
+DisasterManager.prototype.makeFlood = function(lowLand) {
+  var heights = lowLand ? this._map.heights : null;
   for (var i = 0; i < 300; i++) {
     var x = Random.getRandom(this._map.width - 1);
     var y = Random.getRandom(this._map.height - 1);
@@ -212,6 +218,9 @@ DisasterManager.prototype.makeFlood = function() {
 
         var tile = this._map.getTile(xx, yy);
         tileValue = tile.getValue();
+
+        if (heights && heights[yy * this._map.width + xx] - heights[y * this._map.width + x] > LOW_LAND_RISE_M)
+          continue;
 
         if (tile === TileValues.DIRT || (tile.isBulldozable() && tile.isCombustible)) {
           this._map.setTile(xx, yy, TileValues.FLOOD, 0);

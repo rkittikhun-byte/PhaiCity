@@ -18,9 +18,25 @@
 #timeBar .timeClock svg { width: 17px; height: 17px; }
 #timeBar .timeClock .timeSun { fill: none; stroke: var(--ph-gold-600); stroke-width: 2; stroke-linecap: round; }
 #timeBar .timeClock circle.timeSun { fill: var(--ph-gold-300); }
-#timeBar .timeClock .timeMoon { display: none; fill: var(--ph-sand-300); stroke: var(--ph-sand-600); stroke-width: 1.5; }
-#timeBar .timeClock.night .timeSun { display: none; }
-#timeBar .timeClock.night .timeMoon { display: block; }
+#timeBar .timeClock .timeMoon { fill: var(--ph-sand-300); stroke: var(--ph-sand-600); stroke-width: 1.5; }
+/* The sky's icons (src/timeControls.ts SkyIcon): one at a time, by the clock's data-sky */
+#timeBar .timeClock .sky { display: none; }
+#timeBar .timeClock[data-sky="sun"] .sky-sun, #timeBar .timeClock[data-sky="moon"] .sky-moon,
+#timeBar .timeClock[data-sky="cloud"] .sky-cloud, #timeBar .timeClock[data-sky="rain"] .sky-rain,
+#timeBar .timeClock[data-sky="storm"] .sky-storm, #timeBar .timeClock[data-sky="fog"] .sky-fog,
+#timeBar .timeClock[data-sky="smoke"] .sky-smoke { display: inline; }
+#timeBar .timeClock .timeCloud { fill: var(--ph-sand-50); stroke: var(--ph-sand-600); stroke-width: 1.5; stroke-linejoin: round; }
+#timeBar .timeClock .timeCloud.timeDark { fill: var(--ph-lavender-300); stroke: var(--ph-lavender-700); }
+#timeBar .timeClock .timeDrop { fill: none; stroke: var(--ph-water-500); stroke-width: 1.8; stroke-linecap: round; }
+#timeBar .timeClock .timeBolt { fill: var(--ph-gold-400); stroke: var(--ph-gold-700); stroke-width: 1.2; stroke-linejoin: round; }
+#timeBar .timeClock .timeFog { fill: none; stroke: var(--ph-sand-500); stroke-width: 1.8; stroke-linecap: round; }
+#timeBar .timeClock .sky-smoke circle.timeSun { opacity: 0.7; }
+/* The month's weather in a word beside the clock (its tooltip says the season and what it does) */
+#timeBar .timeWeather {
+  margin: 0 8px 0 -4px; color: var(--hud-text); font: 400 12px/1.2 'Sarabun Thai', 'Open Sans', sans-serif;
+  white-space: nowrap; cursor: default;
+}
+#timeBar .timeWeather[data-kind="storm"] { color: var(--ph-lavender-700); }
 #timeBar .timeDate {
   min-width: 72px; margin-right: 6px; color: var(--hud-text); font: 400 12px/1.2 'Sarabun Thai', 'Open Sans', sans-serif;
   white-space: nowrap;
