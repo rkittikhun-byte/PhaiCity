@@ -236,8 +236,9 @@ describe('the 3D view through the lens', () => {
       expect(f.view.effects).toEqual({ ao: false, bloom: false, tiltShift: false });
       f.setGpu(3); const log: string[] = [];
       let effects = JSON.stringify(f.view.effects), ratio = f.renderer.getPixelRatio(), budget = f.view.chunks.drawBudget;
-      for (let i = 0; i < 20000 && !f.view.effects.ao; i++) {
-        f.frames(1);
+      // Frames 40 ms apart, so the minutes of waiting take fewer paints (the card's timer, not the gaps, says there is room)
+      for (let i = 0; i < 8000 && !f.view.effects.ao; i++) {
+        f.frames(1, 40);
         const e = JSON.stringify(f.view.effects); if (e !== effects) { log.push(`effects ${Object.entries(f.view.effects).filter(([, on]) => on).map(([k]) => k).join('+')}`); effects = e; }
         if (f.renderer.getPixelRatio() !== ratio) { ratio = f.renderer.getPixelRatio(); log.push(`ratio ${ratio}`); }
         if (f.view.chunks.drawBudget !== budget) { budget = f.view.chunks.drawBudget; log.push(`budget ${budget}`); }
