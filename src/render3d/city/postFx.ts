@@ -164,14 +164,14 @@ void main() {
 /** The contact shadows blurred one way, only across points at about the same distance */
 const AO_BLUR = `
 uniform sampler2D tInput;
-uniform vec2 step;
+uniform vec2 blurStep;
 varying vec2 vUv;
 void main() {
   vec2 centre = texture2D(tInput, vUv).rg;
   float z = centre.g, tolerance = z * 0.04 + 0.2, sum = centre.r, weights = 1.0;
   for (int i = 1; i <= 3; i++) {
     float g = i == 1 ? 0.8 : i == 2 ? 0.5 : 0.25;
-    vec2 a = texture2D(tInput, vUv + step * float(i)).rg, b = texture2D(tInput, vUv - step * float(i)).rg;
+    vec2 a = texture2D(tInput, vUv + blurStep * float(i)).rg, b = texture2D(tInput, vUv - blurStep * float(i)).rg;
     float wa = g * max(0.0, 1.0 - abs(a.g - z) / tolerance), wb = g * max(0.0, 1.0 - abs(b.g - z) / tolerance);
     sum += a.r * wa + b.r * wb; weights += wa + wb;
   }
@@ -336,7 +336,7 @@ export class CityPost implements CityPostLike {
     this.ao = pass(AO, { tDepth: { value: null }, depthTexel: { value: new Vector2() }, aoSize: { value: new Vector2() },
       unproject: { value: new Vector2(1, 1) }, projScale: { value: 1 }, cameraNear: { value: 1 }, cameraFar: { value: 1000 },
       radius: { value: 2 }, intensity: { value: 6 }, maxDistance: { value: 4000 } });
-    this.aoBlurMaterial = pass(AO_BLUR, { tInput: { value: null }, step: { value: new Vector2() } });
+    this.aoBlurMaterial = pass(AO_BLUR, { tInput: { value: null }, blurStep: { value: new Vector2() } });
     this.composite = new ShaderMaterial({ vertexShader: VERTEX, fragmentShader: COMPOSITE, blending: NoBlending,
       depthTest: false, depthWrite: false, uniforms: {
         tScene: { value: null }, tAo: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tBlurMore: { value: null },
@@ -406,8 +406,8 @@ export class CityPost implements CityPostLike {
       u.radius.value = look.ao.radius; u.maxDistance.value = look.fog ? look.fog.far : camera.far;
       this.draw(this.ao, this.aoRaw);
       const b = this.aoBlurMaterial.uniforms;
-      b.tInput.value = this.aoRaw.texture; (b.step.value as Vector2).set(1 / hw, 0); this.draw(this.aoBlurMaterial, this.aoBlur);
-      b.tInput.value = this.aoBlur.texture; (b.step.value as Vector2).set(0, 1 / hh); this.draw(this.aoBlurMaterial, this.aoRaw);
+      b.tInput.value = this.aoRaw.texture; (b.blurStep.value as Vector2).set(1 / hw, 0); this.draw(this.aoBlurMaterial, this.aoBlur);
+      b.tInput.value = this.aoBlur.texture; (b.blurStep.value as Vector2).set(0, 1 / hh); this.draw(this.aoBlurMaterial, this.aoRaw);
       c.tAo.value = this.aoRaw.texture; c.aoStrength.value = look.ao.strength; (c.aoTint.value as Color).copy(look.ao.tint);
       c.fogNear.value = look.fog ? look.fog.near : 1e9; c.fogFar.value = look.fog ? look.fog.far : 2e9;
     }
