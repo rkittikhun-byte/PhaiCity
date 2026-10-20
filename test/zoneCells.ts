@@ -125,7 +125,9 @@ describe("zone cells", () => {
     expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 7 }).accepted).toBe(true);
     core.run(16 * 8);
     expect(whys().has("power")).toBe(false);
-    for (const why of PLOT_WHY) expect([why, hasKey(`object.fact.why.${why}`)]).toEqual([why, true]);
+    // ... and the level checklist (src/plotChecklist.ts) names each reason in both languages
+    const words: Record<string, string> = { none: "plot.status.growing", top: "plot.status.top", quiet: "plot.name.crowd" };
+    for (const why of PLOT_WHY) expect([why, hasKey(words[why] ?? `plot.name.${why}`)]).toEqual([why, true]);
   });
 
   test("a road laid over painted cells clears the cells on its tiles (docs/METRE_DRAWING_PLAN.md 0.1)", () => {

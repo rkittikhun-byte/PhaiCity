@@ -5,8 +5,9 @@
 // Game windows open beside the card that opened them instead of in the middle of the screen, and the city stays
 // in view around them (owner, 12 Oct 2026). A window opened from the menu sits right of the icon strip, level with
 // its icon; one opened from inside another window takes that window's place; one that opens by itself or from a key
-// goes beside its home (data-anchor in index.html: its menu icon, or the tools for the inspect window). Windows with
-// no home, such as a new rank's congratulations, stay in the middle.
+// goes beside its home (data-anchor in index.html: its menu icon, or the tools for the inspect window), or under it
+// when its home is in the top bar (the era card under the era in the city's status). Windows with no home, such as a
+// new rank's congratulations, stay in the middle.
 
 const GAP_PX = 10;
 const MARGIN_PX = 12;
@@ -16,7 +17,7 @@ const CARDS = "#infobar, #miscButtons, #RCIContainer, #controls, #rulerGoals, #n
 
 export interface Box { left: number; top: number; width: number; height: number }
 export interface Size { width: number; height: number }
-export interface Place { left: number; top: number; from: "left" | "right" | "below" }
+export interface Place { left: number; top: number; from: "left" | "right" | "below" | "above" }
 
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(value, high));
 
@@ -39,6 +40,10 @@ export function besidePosition(card: Box, size: Size, view: Size): Place {
   if (Math.abs(middle - view.width / 2) < view.width * 0.15 && card.top > view.height / 2) {
     return onScreen(middle - size.width / 2, card.top - GAP_PX - size.height, size, view, "below");
   }
+  // A card in the top bar (the city's status) gets its window under it, from its left edge
+  if (card.top + card.height < view.height * 0.15) {
+    return onScreen(card.left, card.top + card.height + GAP_PX, size, view, "above");
+  }
   const onLeft = middle < view.width / 2;
   const left = onLeft ? card.left + card.width + GAP_PX : card.left - GAP_PX - size.width;
   return onScreen(left, card.top, size, view, onLeft ? "left" : "right");
@@ -50,7 +55,7 @@ export function replacingPosition(other: Box, from: Place["from"], size: Size, v
     // Over the same place: centred, with the same bottom
     return onScreen(other.left + other.width / 2 - size.width / 2, other.top + other.height - size.height, size, view, from);
   }
-  const left = from === "left" ? other.left : other.left + other.width - size.width;
+  const left = from === "left" || from === "above" ? other.left : other.left + other.width - size.width;
   return onScreen(left, other.top, size, view, from);
 }
 
@@ -103,7 +108,7 @@ function keepFitted(win: HTMLElement): void {
 
 /** Moves a window that has just been shown beside the card that opened it, or leaves it in the middle. */
 export function placeWindow(win: HTMLElement): void {
-  win.classList.remove("docked", "dockFromLeft", "dockFromRight", "dockFromBelow");
+  win.classList.remove("docked", "dockFromLeft", "dockFromRight", "dockFromBelow", "dockFromAbove");
   win.style.left = "";
   win.style.top = "";
   win.style.maxHeight = "";
@@ -126,11 +131,14 @@ export function placeWindow(win: HTMLElement): void {
     : anchorBox(card!);
   const place = replacing
     ? replacingPosition(beside, replacing.classList.contains("dockFromRight") ? "right"
-      : replacing.classList.contains("dockFromBelow") ? "below" : "left", size, view)
+      : replacing.classList.contains("dockFromBelow") ? "below" : replacing.classList.contains("dockFromAbove") ? "above"
+      : "left", size, view)
     : besidePosition(beside, size, view);
   win.style.left = `${place.left}px`;
   win.style.top = `${place.top}px`;
-  win.dataset.wantedTop = String(Math.round(beside.top));
-  win.classList.add(place.from === "left" ? "dockFromLeft" : place.from === "right" ? "dockFromRight" : "dockFromBelow");
+  // (one under the top bar keeps to its place below it as it grows)
+  win.dataset.wantedTop = String(place.from === "above" ? place.top : Math.round(beside.top));
+  win.classList.add(place.from === "left" ? "dockFromLeft" : place.from === "right" ? "dockFromRight"
+    : place.from === "above" ? "dockFromAbove" : "dockFromBelow");
   keepFitted(win);
 }

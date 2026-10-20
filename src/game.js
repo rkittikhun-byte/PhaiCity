@@ -651,9 +651,10 @@ Game.prototype.inspectTile = function(x, y) {
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
                          cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
                          language: getLanguage(), satisfaction: this.satisfactionContext()}, x, y);
-  // Clicking empty land/woods/water while an object/road card is already open closes the card cleanly
+  // Clicking empty land/woods/water while an object/road card is already open closes the card cleanly (an empty
+  // painted plot is not plain ground: it has its checklist)
   var isPlainGround = found && ['object.kind.land', 'object.kind.woods', 'object.kind.water'].indexOf(found.title.key) !== -1 &&
-                      (!found.facts || found.facts.every(function(f) { return f.key.indexOf('object.fact.why.') !== 0; }));
+                      !found.checklist;
   if (found && !(this.inspectCard.isOpen && isPlainGround))
     this.inspectCard.open(found);
   else

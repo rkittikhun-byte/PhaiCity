@@ -7,6 +7,7 @@
 
 import { hasKey } from "../src/i18n/index";
 import { homePeople, inspectAt } from "../src/inspect";
+import { plotTile } from "../src/plots";
 import { CityObjects } from "../src/objects/cityObjects";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
 import { CZB, POLICESTATION } from "../src/tileValues";
@@ -102,5 +103,25 @@ describe("the inspector", () => {
     expect(look(20, 3)!.title.key).toBe("object.kind.land");
     expect(look(40, 3)).toBeNull();
     for (const found of [road, look(15, 15)!, look(20, 3)!]) for (const key of keysOf(found)) expect(hasKey(key)).toBe(true);
+  });
+
+  test("a painted plot shows its level checklist in place of the lines on its level, power and water", () => {
+    const { map, look } = city();
+    map.paintedZones = true;
+    for (let x = 0; x < 30; x++) map.put(x, 12, ROADS);
+    map.put(5, 11, plotTile("residential", 2), POWERBIT);
+    map.put(8, 11, plotTile("commercial", 0));
+    const home = look(5, 11)!;
+    expect(home.title.key).toBe("object.kind.home");
+    expect(home.checklist).toMatchObject({ kind: "residential", level: 2, target: 3 });
+    expect(home.checklist!.rows.slice(0, 2).map(row => [row.check, row.ok])).toEqual([["road", true], ["power", true]]);
+    const keys = home.facts.map(f => f.key);
+    for (const gone of ["object.fact.level", "object.fact.powered", "object.fact.unpowered"]) expect(keys).not.toContain(gone);
+    expect(home.facts.find(f => f.key === "object.fact.people")?.params).toEqual({ people: homePeople(2, 1, true) });
+    // An empty plot is named for what it waits to grow, with what its first building needs: here power
+    const empty = look(8, 11)!;
+    expect(empty.title.key).toBe("object.kind.plot.commercial");
+    expect(empty.checklist).toMatchObject({ level: 0, target: 1, state: "power" });
+    for (const found of [home, empty]) for (const key of keysOf(found)) expect(hasKey(key)).toBe(true);
   });
 });
