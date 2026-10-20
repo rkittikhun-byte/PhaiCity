@@ -350,7 +350,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   (`src/festivalCard.ts`) lets the ruler hold one grandly, modestly or not at all, a `festival` command whose answer
   stands for later years; unanswered, it is held modestly. It brings visitors, cheer (the era score's living) and land
   value near the venue, and costs money, rubbish and krathong dirt in the water, Songkran's water, traffic and, while
-  disasters are on, fire. It is saved as `festivals`, and the 3D view dresses the town (`src/render3d/city/festivals3d.ts`).
+  disasters are on, fire. It is saved as `festivals`, its year's cost is a budget line (`budget.festivalCost`), the auto player answers the
+  card, and the 3D view dresses the town (`src/render3d/city/festivals3d.ts`).
 - **Rubbish and wastewater (owner, 13 Oct 2026):** `docs/WASTE.md`, `src/waste.ts`. Five kinds on one 3×3 of tiles
   (992–1000, `gameMap.wasteKinds`, saved; RENDERER_SPEC 6I), chosen above the rubbish button: landfill, incinerator,
   recycling plant, waste power plant, wastewater plant. Each month people and visitors make rubbish, which the working
