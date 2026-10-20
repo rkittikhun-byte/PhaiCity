@@ -52,6 +52,16 @@ export function snapWhy(raw: TilePoint, landed: TilePoint, guide: string | null,
 const metres = (z: number | null): string => (z === null ? "–" : z.toFixed(1));
 
 /** A point's name and its tile and height: "A (224, 263, 165.2 ม.)" */
+/** The angle (whole degrees, 0-90) a line going (dx, dz) meets a road whose way is the unit vector `way` at */
+export function meetAngle(way: readonly [number, number] | readonly number[], dx: number, dz: number): number {
+  return Math.round(Math.acos(Math.min(1, Math.abs(way[0] * dx + way[1] * dz) / Math.hypot(dx, dz))) * 180 / Math.PI);
+}
+
+/** The way a line going (dx, dz) heads, in whole degrees clockwise from north (-z): east 90, south 180, west 270 */
+export function headingOf(dx: number, dz: number): number {
+  return Math.round((Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360) % 360;
+}
+
 export function pointText(name: string, tile: TilePoint, z: number | null): string {
   return t("draw.debug.point", { name, x: tile.x, y: tile.y, z: metres(z) });
 }

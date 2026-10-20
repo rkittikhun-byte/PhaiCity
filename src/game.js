@@ -25,7 +25,7 @@ import { showDemandAndPeople, showEra, showServices, showTourism, showWaste } fr
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
-import { nextText, pixelsPerTile, pointText, showZoom, snapWhy, strokeText, tileHeight } from './drawReadout.ts';
+import { headingOf, meetAngle, nextText, pixelsPerTile, pointText, showZoom, snapWhy, strokeText, tileHeight } from './drawReadout.ts';
 import { closeToolTray } from './toolDock.ts';
 import { grownFrame, reframeSave } from './cityFrame.ts';
 import { DISTRICT_BLOCK, framePreset, freshFrame } from './geo/districtFrame.ts';
@@ -2832,7 +2832,7 @@ Game.prototype.drawPreview = function(tile) {
             fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
   }
   var guide = null;
-  var angle = null;
+  var angle = null, endAngle = null, heading = null;
   var controls = null;
   var readout = null;
   // A road or railway drawn in metres: the very line the road command lays, its tiles as the command works them out
@@ -2858,12 +2858,24 @@ Game.prototype.drawPreview = function(tile) {
         });
         lineMetres = lineLength(line);
         close = alongside(line, this.metreLines(toolName).metres, size);
-        // The angle it leaves the road it starts on at
+        // The angle it leaves the road it starts on at, else the way it heads (docs/METRE_DRAWING_PLAN.md, step 1's
+        // leftovers: an angle in every mode) ...
         var way = draft.ways[0], dx = (line.c1 || line.to)[0] - line.from[0], dz = (line.c1 || line.to)[1] - line.from[1];
         if (way && Math.hypot(dx, dz) > 0)
-          angle = Math.round(Math.acos(Math.min(1, Math.abs(way[0] * dx + way[1] * dz) / Math.hypot(dx, dz))) * 180 / Math.PI);
+          angle = meetAngle(way, dx, dz);
+        else if (Math.hypot(dx, dz) > 0)
+          heading = headingOf(dx, dz);
+        // ... and the angle it meets the road its end lands on at
+        var ex = line.to[0] - (line.c2 || line.from)[0], ez = line.to[1] - (line.c2 || line.from)[1];
+        if (at.way && Math.hypot(ex, ez) > 0)
+          endAngle = meetAngle(at.way, ex, ez);
       }
     }
+  } else if (mode === 'free' && metre && this._freeRoad && this.inputStatus.mouseX >= 0) {
+    // A road drawn freely: the way its last piece heads
+    var here = this.metrePoint(toolName, this.inputStatus.mouseX, this.inputStatus.mouseY, true), last = this._freeRoad.last;
+    if (here !== null && Math.hypot(here.m[0] - last[0], here.m[1] - last[1]) > 0)
+      heading = headingOf(here.m[0] - last[0], here.m[1] - last[1]);
   } else if (POINTS_NEEDED[mode]) {
     var snap = this.snapTile(tile, toolName, draft);
     guide = snap.guide;
@@ -2902,7 +2914,8 @@ Game.prototype.drawPreview = function(tile) {
   }
   this._preview = {key: key, tiles: tiles, cost: estimate.cost, blocked: estimate.blocked, blockedWhy: estimate.why, mode: mode,
                    step: step,
-                   metres: metres, angle: angle, guide: guide, controls: controls, readout: readout};
+                   metres: metres, angle: angle, endAngle: endAngle, heading: heading, guide: guide, controls: controls,
+                   readout: readout};
   return this._preview;
 };
 
@@ -2979,6 +2992,10 @@ Game.prototype.showDrawTip = function(preview) {
   }
   if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
     parts.push('∠ ' + preview.angle + '°');
+  if (preview.heading !== null && preview.heading !== undefined)
+    parts.push(t('draw.heading', {degrees: preview.heading}));
+  if (preview.endAngle !== null && preview.endAngle !== undefined)
+    parts.push(t('draw.angle_end', {degrees: preview.endAngle}));
   if (preview.guide)
     parts.push(t('draw.snap.' + preview.guide));
   if (preview.metres > 0)

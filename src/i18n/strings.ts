@@ -245,6 +245,8 @@ export const STRINGS: Record<string, Translation> = {
   "draw.mode.fill.hint": { en: "Click to paint the whole stretch of empty cells along the road", th: "คลิกเพื่อระบายช่องว่างทั้งแนวที่ติดกัน" },
   "draw.mode.whole": { en: "Whole road", th: "ทั้งเส้น" },
   "draw.mode.whole.hint": { en: "Click a road to raise it all, junction to junction", th: "คลิกถนนเพื่ออัปเกรดทั้งเส้น จากแยกถึงแยก" },
+  "draw.heading": { en: "Heading {degrees}°", th: "ทิศ {degrees}°" },
+  "draw.angle_end": { en: "∠ end {degrees}°", th: "∠ ปลาย {degrees}°" },
   "draw.step.straight.0": { en: "Click the start", th: "คลิกจุดเริ่ม" },
   "draw.step.straight.1": { en: "Click the end", th: "คลิกจุดปลาย" },
   "draw.step.curve.0": { en: "Click the start", th: "คลิกจุดเริ่ม" },

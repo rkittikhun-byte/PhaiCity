@@ -5,7 +5,7 @@
 // The numbers shown while a line is drawn (src/drawReadout.ts): how big a tile is on the screen, each point's tile and
 // height, why a click lands where it does, and what a built line laid.
 
-import { pixelsPerTile, pointText, snapWhy, strokeText, tileHeight } from "../src/drawReadout";
+import { headingOf, meetAngle, pixelsPerTile, pointText, snapWhy, strokeText, tileHeight } from "../src/drawReadout";
 import { setLanguage } from "../src/i18n/index";
 
 describe("the drawing readout", () => {
@@ -42,5 +42,20 @@ describe("the drawing readout", () => {
     const text = strokeText([{ name: "A", raw: { x: 11, y: 11 }, used: { x: 9, y: 10 } },
       { name: "B", raw: { x: 30, y: 20 }, used: { x: 30, y: 20 } }], 28, 30, [["ที่ดินยังไม่ได้ซื้อ", 2]]);
     expect(text).toBe("A คลิก (11, 11) ใช้ (9, 10) · B คลิก (30, 20) ใช้ (30, 20) · วางได้ 28/30 ช่อง · 2 ช่องวางไม่ได้: ที่ดินยังไม่ได้ซื้อ");
+  });
+
+  test("the angle a road meets another at, and the way one heads when it starts on none", () => {
+    // Across a road running east: square; along it: none, whichever way
+    expect(meetAngle([1, 0], 0, 5)).toBe(90);
+    expect(meetAngle([1, 0], -3, 0)).toBe(0);
+    expect(meetAngle([1, 0], 4, 4)).toBe(45);
+    expect(meetAngle([1, 0], -4, 4)).toBe(45);
+    // North is -z (up the map), clockwise
+    expect(headingOf(0, -1)).toBe(0);
+    expect(headingOf(1, 0)).toBe(90);
+    expect(headingOf(0, 1)).toBe(180);
+    expect(headingOf(-1, 0)).toBe(270);
+    expect(headingOf(-1, -1e-9)).toBe(270);
+    expect(headingOf(1, -1)).toBe(45);
   });
 });

@@ -304,6 +304,8 @@
 | `draw.mode.fill.hint` | `src/drawModes.ts` | — | `Click to paint the whole stretch of empty cells along the road` | `คลิกเพื่อระบายช่องว่างทั้งแนวที่ติดกัน` |  |
 | `draw.mode.whole` | `src/drawModes.ts` | — | `Whole road` | `ทั้งเส้น` | เครื่องมืออัปเกรดถนน |
 | `draw.mode.whole.hint` | `src/drawModes.ts` | — | `Click a road to raise it all, junction to junction` | `คลิกถนนเพื่ออัปเกรดทั้งเส้น จากแยกถึงแยก` |  |
+| `draw.heading` | `src/game.js` | — | `Heading {degrees}°` | `ทิศ {degrees}°` | องศาจากทิศเหนือตามเข็มนาฬิกา เมื่อถนนไม่ได้เริ่มจากถนนเดิม |
+| `draw.angle_end` | `src/game.js` | — | `∠ end {degrees}°` | `∠ ปลาย {degrees}°` | มุมที่ปลายถนนชนถนนที่ไปต่อ |
 | `draw.step.straight.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` | ป้ายข้างเมาส์ระหว่างวาด |
 | `draw.step.straight.1` | `src/game.js` | — | `Click the end` | `คลิกจุดปลาย` |  |
 | `draw.step.curve.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` |  |
