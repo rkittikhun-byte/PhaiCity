@@ -5,7 +5,7 @@
 // The ruler's buildings where they were put down, in metres (docs/METRE_DRAWING_PLAN.md 4.2, step 2.1): each one's
 // middle, its turn and its size, as the player saw it before the click, kept beside the tiles the simulation reads. Its
 // tiles are worked out from it, the square block of its size round the tile its middle lies on (blockOf), never moved
-// to another place; the 3D view stands its model there, read from here (step 2.4, tileModels.ts againstRoad). Homes,
+// to another place but by the move command (src/cityCommands.ts move); the 3D view stands its model there, read from here (step 2.4, tileModels.ts againstRoad). Homes,
 // shops and factories grow on their zones and are not here. Plain code, no DOM: metres from the map's corner, x east, z south.
 
 /** A building put down by the player */
@@ -69,10 +69,13 @@ export class PlacedBuildings {
     this.changes++;
   }
 
-  /** Keeps where a building is drawn and its turn (metres, radians) */
-  setPose(id: number, x: number, z: number, rot: number): void {
+  /** Keeps where a building is drawn and its turn (metres, radians), and its new centre tile when the move command took
+   * it to another block */
+  setPose(id: number, x: number, z: number, rot: number, tile?: number): void {
     const b = this.items.get(id);
-    if (b) this.restore({ ...b, x: round(x, 2), z: round(z, 2), rot: round(rot, 4) });
+    if (!b) return;
+    if (tile !== undefined && tile !== b.tile) this.remove(id);
+    this.restore({ ...b, x: round(x, 2), z: round(z, 2), rot: round(rot, 4), tile: tile ?? b.tile });
   }
 
   remove(id: number): void {

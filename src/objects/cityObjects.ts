@@ -33,10 +33,19 @@ export class CityObjects {
    * is stamped with `now` (city time); one that is gone is dropped.
    */
   scan(city: CityReader, now: number): { added: Building[]; removed: Building[] } {
-    const found = new Map<number, Building>(), added: Building[] = [];
-    const keep = (fresh: Building): Building => {
+    const found = new Map<number, Building>(), added: Building[] = [], moved = new Set<Building>();
+    // A ruler's building the move command took to another block is the same building on a new centre tile: it keeps
+    // when it went up, and is neither new nor gone
+    const byRecord = new Map<number, Building>();
+    for (const b of this.byId.values()) if (b.placed) byRecord.set(b.placed.id, b);
+    const keep = (fresh: Building, record?: { id: number }): Building => {
       const old = this.byId.get(fresh.id);
       if (old && old.kind === fresh.kind && old.size === fresh.size) { found.set(old.id, old); return old; }
+      const was = record ? byRecord.get(record.id) : undefined;
+      if (was && was.id !== fresh.id && was.kind === fresh.kind && was.size === fresh.size) {
+        fresh.built = was.built; found.set(fresh.id, fresh); moved.add(was);
+        return fresh;
+      }
       fresh.built = now; found.set(fresh.id, fresh); added.push(fresh);
       return fresh;
     };
@@ -46,7 +55,7 @@ export class CityObjects {
       const x = record.tile % city.width, y = Math.floor(record.tile / city.width);
       if (x < 0 || y < 0 || x >= city.width || y >= city.height) continue;
       const fresh = buildingAt(city, x, y);
-      if (fresh && fresh.size === record.size) keep(fresh).placed = record;
+      if (fresh && fresh.size === record.size) keep(fresh, record).placed = record;
     }
     // ... and what grows on the tiles: homes, shops, factories and the stops (every building on a map with no list)
     for (let y = 0; y < city.height; y++) for (let x = 0; x < city.width; x++) {
@@ -54,7 +63,7 @@ export class CityObjects {
       const fresh = buildingAt(city, x, y);
       if (fresh) keep(fresh).placed = null;
     }
-    const removed = [...this.byId.values()].filter(b => found.get(b.id) !== b);
+    const removed = [...this.byId.values()].filter(b => found.get(b.id) !== b && !moved.has(b));
     this.byId = found;
     this.cover.fill(0);
     for (const building of found.values()) {
