@@ -131,7 +131,7 @@ simulation (ไฟวิ่งตามถนน น้ำตามถนน จ
 | **WebGPU** (`WebGPURenderer` + TSL ใน three.js 0.186 ที่มีอยู่แล้ว) มี WebGL2 สำรอง | วาดเมือง, compute shader คัดของที่มองไม่เห็นบน GPU | ของบนจอได้มากขึ้นหลายเท่า เงาและแสงสวยขึ้น | ขั้นแยก หลังขั้น 2: ต้องเขียน shader ที่แก้ด้วย `onBeforeCompile` ใหม่เป็น TSL ทั้งหมด |
 | **BatchedMesh / instancing ทั้งเมือง** | อาคารยุคและต้นไม้ทั้งหมดเป็น draw call ไม่กี่ครั้ง | 60 fps บนโน้ตบุ๊กการ์ดออนบอร์ด | ทำต่อจากการนำเข้าอาคารยุค |
 | **LOD + impostor** | อาคารไกลเป็นรุ่นเบา/ภาพแบน | เห็นทั้งเมืองได้โดยไม่ช้า | หลังขั้น 2 |
-| **Post-processing** (SSAO, bloom, tilt-shift, TAA) | แสงเงาแบบ diorama ตาม concept | ภาพระดับเกมขายจริง | ทำได้เลยบน WebGL, ย้ายไป WebGPU ทีหลัง |
+| **Post-processing** (SSAO, bloom, tilt-shift, TAA) | แสงเงาแบบ diorama ตาม concept | ภาพระดับเกมขายจริง | **ทำแล้ว 20 ต.ค. 2026** บน WebGL (`src/render3d/city/postFx.ts`, เงานุ่มตามมุม แสงเรือง เบลอขอบ FXAA; ระดับ อัตโนมัติ/ต่ำ/กลาง/สูง; RENDERER_SPEC §8A) ย้ายไป WebGPU ทีหลัง |
 | **IndexedDB + CompressionStream** | เซฟแทน localStorage (จำกัด ~5 MB) บีบอัด gzip ในเบราว์เซอร์ | เมืองใหญ่เซฟได้ไม่หาย เซฟเร็ว | ขั้น 1.6 (เซฟ version 5) |
 | **rbush + robust-predicates** | ดัชนีพื้นที่และจุดตัดแบบแม่น | ดูด/ชน/เลือกเร็วและไม่พลาดที่มุมแคบ | ขั้น 1.1 |
 | **Pointer Events + แตะ/ปากกา** | วาดด้วยนิ้วบนแท็บเล็ต | เล่นบน iPad/แท็บเล็ตได้ | ขั้น 1.5 |
