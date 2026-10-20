@@ -477,6 +477,32 @@ export function cellAt(layout: CellLayout, width: number, x: number, z: number):
   return nearest;
 }
 
+/** How far from the mouse the round brush paints (metres): two cells either way */
+export const BRUSH_RADIUS_M = 8;
+
+/** The cells whose middles lie within radius (world units) of a stroke from one point to another (world units), the
+ * round brush's (docs/METRE_DRAWING_PLAN.md 3.2), in the order of their keys */
+export function cellsNear(layout: CellLayout, width: number, from: Point | null, to: Point, radius: number): number[] {
+  const [ax, az] = from ?? to, [bx, bz] = to, dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+  const keys = new Set<number>(), reach = Math.ceil(radius / unitsOfTile(1)) + 1;
+  const steps = Math.max(1, Math.ceil(Math.sqrt(l2) / unitsOfTile(1)));
+  const seen = new Set<number>();
+  for (let k = 0; k <= steps; k++) {
+    const tx = tileOfUnits(ax + dx * k / steps), tz = tileOfUnits(az + dz * k / steps);
+    for (let oz = -reach; oz <= reach; oz++) for (let ox = -reach; ox <= reach; ox++) {
+      const tile = (tz + oz) * width + tx + ox;
+      if (seen.has(tile)) continue;
+      seen.add(tile);
+      for (const index of layout.byTile.get(tile) ?? []) {
+        const cell = layout.cells[index];
+        const t = l2 ? Math.max(0, Math.min(1, ((cell.x - ax) * dx + (cell.z - az) * dz) / l2)) : 0;
+        if (Math.hypot(ax + dx * t - cell.x, az + dz * t - cell.z) <= radius) keys.add(cell.key);
+      }
+    }
+  }
+  return [...keys].sort((p, q) => p - q);
+}
+
 /** The cells a stroke from one point to another (world units) passes over, in order, each once */
 export function cellsAlong(layout: CellLayout, width: number, from: Point | null, to: Point): number[] {
   const keys: number[] = [], seen = new Set<number>();

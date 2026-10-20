@@ -296,6 +296,8 @@
 | `draw.mode.grid.hint` | `src/drawModes.ts` | — | `Drag a rectangle: roads round it and every 7 tiles across it` | `ลากเป็นสี่เหลี่ยม ได้ถนนรอบกรอบและทุก 7 ช่องในกรอบ` |  |
 | `draw.mode.brush` | `src/drawModes.ts` | — | `Brush` | `ระบาย` |  |
 | `draw.mode.brush.hint` | `src/drawModes.ts` | — | `Drag over the cells to paint` | `ลากผ่านช่องที่จะระบาย` |  |
+| `draw.mode.circle` | `src/drawModes.ts` | — | `Round brush` | `แปรงกลม` | ระบายทุกช่องในรัศมี 8 ม. |
+| `draw.mode.circle.hint` | `src/drawModes.ts` | — | `Drag to paint every cell within 8 m` | `ลากเพื่อระบายทุกช่องในรัศมี 8 เมตร` |  |
 | `draw.mode.rectangle` | `src/drawModes.ts` | — | `Rectangle` | `สี่เหลี่ยม` |  |
 | `draw.mode.rectangle.hint` | `src/drawModes.ts` | — | `Drag a rectangle to paint every cell in it` | `ลากเป็นสี่เหลี่ยม ระบายทุกช่องในกรอบ` |  |
 | `draw.mode.fill` | `src/drawModes.ts` | — | `Fill` | `เติม` |  |

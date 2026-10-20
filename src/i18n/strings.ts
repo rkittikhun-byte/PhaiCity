@@ -237,6 +237,8 @@ export const STRINGS: Record<string, Translation> = {
   "draw.mode.grid.hint": { en: "Drag a rectangle: roads round it and every 7 tiles across it", th: "ลากเป็นสี่เหลี่ยม ได้ถนนรอบกรอบและทุก 7 ช่องในกรอบ" },
   "draw.mode.brush": { en: "Brush", th: "ระบาย" },
   "draw.mode.brush.hint": { en: "Drag over the cells to paint", th: "ลากผ่านช่องที่จะระบาย" },
+  "draw.mode.circle": { en: "Round brush", th: "แปรงกลม" },
+  "draw.mode.circle.hint": { en: "Drag to paint every cell within 8 m", th: "ลากเพื่อระบายทุกช่องในรัศมี 8 เมตร" },
   "draw.mode.rectangle": { en: "Rectangle", th: "สี่เหลี่ยม" },
   "draw.mode.rectangle.hint": { en: "Drag a rectangle to paint every cell in it", th: "ลากเป็นสี่เหลี่ยม ระบายทุกช่องในกรอบ" },
   "draw.mode.fill": { en: "Fill", th: "เติม" },

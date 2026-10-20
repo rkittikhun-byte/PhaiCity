@@ -5,8 +5,8 @@
 // How the tool in hand draws (โหมดวาด, owner 13 Oct 2026, docs/ZONE_PAINT.md), as Cities: Skylines' tool modes do:
 // roads, railways and power lines draw a straight line between two clicks, a curve bent by one or two clicks more,
 // follow the mouse freely, or lay a grid across a dragged rectangle (src/drawPaths.ts); the zone brushes of a map with
-// painted zones (src/plots.ts) paint under the mouse, fill a dragged rectangle, or fill a whole stretch of empty land
-// along a road. The mode is chosen in a row of the tool levels card (src/toolLevels.ts) and remembered in this browser.
+// painted zones (src/plots.ts) paint under the mouse, paint every cell a round brush a few metres across passes over
+// (docs/METRE_DRAWING_PLAN.md 3.2), fill a dragged rectangle, or fill a whole stretch of empty land along a road. The mode is chosen in a row of the tool levels card (src/toolLevels.ts) and remembered in this browser.
 // The game does the drawing (src/game.js); this only knows the modes.
 
 import { t } from "./i18n/index";
@@ -14,7 +14,7 @@ import { ERASE_TOOL, PAINT_TOOLS } from "./plots";
 import { ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 
 export const LINE_MODES = ["straight", "curve", "curve2", "free", "grid"] as const;
-export const PAINT_MODES = ["brush", "rectangle", "fill"] as const;
+export const PAINT_MODES = ["brush", "circle", "rectangle", "fill"] as const;
 export type DrawMode = typeof LINE_MODES[number] | typeof PAINT_MODES[number];
 type ModeGroup = "line" | "paint";
 
@@ -121,6 +121,7 @@ const ICONS: Readonly<Record<DrawMode, string>> = {
   free: '<path d="M2 12c2-6 4 2 6-3s3-5 6-6"/>',
   grid: '<path d="M2 2h12v12H2zM6.7 2v12M11.3 2v12M2 6.7h12M2 11.3h12"/>',
   brush: '<path d="M10 2 14 6 7 13H3V9z"/><path d="M8.5 3.5l4 4"/>',
+  circle: '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2 1.5"/><circle cx="8" cy="8" r="1"/>',
   rectangle: '<path d="M2.5 3.5h11v9h-11z" stroke-dasharray="2 1.5"/>',
   fill: '<path d="M3 8 8 3l5 5-5 5z"/><path d="M13.5 10.5c.8 1.2 1 2 1 2.5a1 1 0 0 1-2 0c0-.5.2-1.3 1-2.5z"/>',
 };

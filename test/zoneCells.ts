@@ -13,7 +13,8 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey, tileRasterKeys } from "../src/zoneCells";
+import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsNear, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey,
+  tileRasterKeys } from "../src/zoneCells";
 import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
 /** A bare 16 m map whose zones go a cell at a time, with a straight road and a slanted one */
@@ -263,6 +264,26 @@ describe("zone cells", () => {
       const distances = near.map((c) => Math.abs((bx - ax) * (c.z - az) - (bz - az) * (c.x - ax)) / length);
       // Every first-row cell the same way from the drawn line, whatever the tiles under it
       expect(Math.max(...distances) - Math.min(...distances)).toBeLessThan(0.05);
+    });
+
+    test("the round brush paints every cell within its metres of where the mouse went (3.2)", () => {
+      const core = metreCity(), layout = cellLayout(core.map as any), radius = BRUSH_RADIUS_M * U;
+      // A point beside the road, then a stroke along it
+      const at: [number, number] = [600 * U, (410 + 12) * U];
+      const one = cellsNear(layout, 80, null, at, radius);
+      expect(one.length).toBeGreaterThan(4);
+      for (const key of one) {
+        const c = layout.cells[layout.byKey.get(key)!];
+        expect(Math.hypot(c.x - at[0], c.z - at[1])).toBeLessThanOrEqual(radius);
+      }
+      // ... and none left out
+      const outside = layout.cells.filter((c) => Math.hypot(c.x - at[0], c.z - at[1]) <= radius).map((c) => c.key).sort((p, q) => p - q);
+      expect(one).toEqual(outside);
+      const stroke = cellsNear(layout, 80, [300 * U, 360 * U], [900 * U, 490 * U], radius);
+      expect(stroke.length).toBeGreaterThan(one.length * 5);
+      // Painted by the command, every one of them
+      expect(core.apply({ type: "zoneCells", zone: "residential", cells: stroke }).accepted).toBe(true);
+      expect(stroke.every((key) => (core.map as any).zoneCells.get(key) === 1)).toBe(true);
     });
 
     test("a road drawn across it, one built on from its end and a part raised a level leave its cells where they were", () => {

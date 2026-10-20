@@ -49,7 +49,7 @@ import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { buildingAt, MOVE_TOOL, movePrice, moveProblem } from './moveTool.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
-import { cellsAlong, cellsOf } from './zoneCells.ts';
+import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
 import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapToRoads, snapWay } from './roads/roadDraw.ts';
@@ -1090,10 +1090,17 @@ Game.prototype.paintCellStroke = function(data) {
   var last = this._cellStroke && this._cellStroke.stroke === data.stroke ? this._cellStroke.point : null;
   this._cellStroke = {stroke: data.stroke, point: world};
   var layout = this.cellLayout();
+  var mode = drawModeOf(this.inputStatus.toolName);
+  // The round brush: every cell within a few metres of where the mouse went (docs/METRE_DRAWING_PLAN.md 3.2)
+  if (mode === 'circle') {
+    var round = cellsNear(layout, this.gameMap.width, last, world, BRUSH_RADIUS_M * unitsPerMetre(tileMetres(this.gameMap)));
+    if (round.length)
+      this.paintCells(round, data.x);
+    return;
+  }
   var rawKeys = cellsAlong(layout, this.gameMap.width, last, world);
   if (!rawKeys.length)
     return;
-  var mode = drawModeOf(this.inputStatus.toolName);
   // In 'fill' (เติม) mode, fill the entire contiguous side of this road stretch
   if (mode === 'fill') {
     var firstIdx = layout.byKey.get(rawKeys[0]);
@@ -1845,6 +1852,10 @@ Game.prototype.calculateMouseForPaint = function() {
         this._cellDragCells = this.cellsInArea(cellDrag.from, cellDrag.to);
       }
       hover.cellKeys = this._cellDragCells;
+    } else if (hover.cellPoint && drawModeOf(this.inputStatus.toolName) === 'circle') {
+      // ... and with the round brush every cell it would paint there
+      hover.cellKeys = cellsNear(this.cellLayout(), cityMap.width, null, [hover.cellPoint.x * 10, hover.cellPoint.y * 10],
+                                 BRUSH_RADIUS_M * unitsPerMetre(tileMetres(cityMap)));
     }
     return hover;
   }
