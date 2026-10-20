@@ -372,10 +372,10 @@ export class CityView3D implements CityView {
     this.weather.update((this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
     this.updateDayNight();
     // The month's festivals, read from the map (src/festivals.ts): lanterns along the roads, krathong on the water, sky
-    // lanterns and rockets, lit by the hour
+    // lanterns and rockets, lit by the hour, moving in real seconds as the weather does, so a paused festival still shows
     {const festive=this.setup.map as unknown as FestivalViewMap;if(this.festivals||festive.festivals?.held?.length){
       if(!this.festivals){this.festivals=new CityFestivals(festive,this.terrain,this.sprites.size,this.snapshot.realUnits);this.scene.add(this.festivals.root);}
-      this.festivals.update(this.curves.drawnLines,Math.max(0,this.lastNightFactor),this.seconds,{x:this.wind.x,y:this.wind.y});}}
+      this.festivals.update(this.curves.drawnLines,Math.max(0,this.lastNightFactor),(start-this.created)/1000,{x:this.wind.x,y:this.wind.y});}}
     this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
     // ... wet ground, roofs and roads after rain
     setCityWetness(this.look.wet);this.weather.wetRoads(this.curves.root);

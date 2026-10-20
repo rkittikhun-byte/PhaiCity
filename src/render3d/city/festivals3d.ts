@@ -9,8 +9,8 @@
 // - at Loy Krathong, krathong with their candles drifting along the canals and rivers near the town;
 // - at Yi Peng, sky lanterns rising into the night sky and drifting with the wind;
 // - at Bun Bang Fai, rockets going up from beside the town on trails of smoke.
-// A grand festival has more of each. A month passes in a few seconds, so the town stays dressed until the first night
-// after the festival began is over (at most a few minutes), and then the lights fade. No temple or palace ornaments,
+// A grand festival has more of each. A month passes in a few seconds, so each festival's look stays until the first night
+// after it began is over (at most a few minutes), and then fades; the bunting along the roads is the newest festival's. No temple or palace ornaments,
 // no images: lanterns, flags, krathong and rockets only.
 // Light on the graphics card: every kind of thing is one instanced mesh (seven draws in all), placed again only when
 // the festivals or the roads change; only the moving things (krathong, sky lanterns, smoke) are moved each frame, a few
@@ -103,6 +103,8 @@ export class CityFestivals {
   /** What was placed for, and when */
   private placedFor = '';
   private placedAt = -Infinity;
+  /** The road lines placed along: they are built again (in a worker) after the city opens and as roads are drawn */
+  private placedLines: ReadonlyArray<FestivalLine> | null = null;
   private readonly lantern: InstancedMesh;
   private readonly flag: InstancedMesh;
   private readonly krathongBase: InstancedMesh;
@@ -160,16 +162,17 @@ export class CityFestivals {
     }
     this.root.visible = true;
     const sign = [...this.shows.values()].map((s) => `${s.id}:${s.scale}`).sort().join(',');
-    if (sign !== this.placedFor || seconds - this.placedAt >= REPLACE_SECONDS) this.place(lines, sign, seconds);
-    const strength = this.strength(seconds);
-    if (Math.abs(strength - this.strengthShown) > 0.01) this.drawBunting(strength);
+    if (sign !== this.placedFor || seconds - this.placedAt >= REPLACE_SECONDS ||
+      (lines !== this.placedLines && seconds - this.placedAt >= 1)) this.place(lines, sign, seconds);
+    const look = this.touches(seconds);
+    if (Math.abs(look.strength.bunting - this.strengthShown) > 0.01) this.drawBunting(look.strength.bunting);
     this.lanternMaterial.color.setScalar(0.75 + 0.6 * night);
     this.flameMaterial.color.set(F.candle).multiplyScalar(0.7 + 0.8 * night);
     const dt = Math.min(0.1, Math.max(0, seconds - this.lastSeconds));
     this.lastSeconds = seconds;
-    this.drawKrathong(strength, seconds, dt);
-    this.drawSky(strength, night, seconds, wind);
-    this.drawRockets(strength, seconds);
+    this.drawKrathong(look.strength.krathong, seconds, dt);
+    this.drawSky(look.sky, look.strength.sky, night, seconds, wind);
+    this.drawRockets(look.rockets, look.strength.rockets, seconds);
   }
 
   /** Which festivals are shown: those held, and those held lately until the first night after they began is over */
@@ -177,11 +180,8 @@ export class CityFestivals {
     const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && FESTIVAL_TOUCHES[h.id]);
     for (const h of held) {
       const show = this.shows.get(h.id);
-      if (!show) {
-        // A new festival's dressing takes the place of the last one's
-        for (const old of this.shows.values()) if (old.leaving === null && !held.some((x) => x.id === old.id)) old.leaving = seconds;
-        this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, sawNight: night > 0.5, leaving: null });
-      } else if (show.leaving === null) show.scale = h.scale;
+      if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, sawNight: night > 0.5, leaving: null });
+      else if (show.leaving === null) show.scale = h.scale;
     }
     for (const show of [...this.shows.values()]) {
       if (night > 0.5) show.sawNight = true;
@@ -193,41 +193,48 @@ export class CityFestivals {
     }
   }
 
-  /** How much of the dressing shows, 0–1: it fades in when the festival begins and out when it ends */
-  private strength(seconds: number): number {
-    let most = 0;
-    for (const show of this.shows.values()) {
-      const rise = Math.min(1, Math.max(0, (seconds - show.since) / FADE_IN));
-      const fall = show.leaving === null ? 1 : Math.max(0, 1 - (seconds - show.leaving) / FADE_OUT);
-      most = Math.max(most, rise * fall);
-    }
-    return most;
+  /** How much of a festival's look shows, 0–1: it fades in when the festival begins and out when it ends */
+  private strengthOf(show: Show, seconds: number): number {
+    const rise = Math.min(1, Math.max(0, (seconds - show.since) / FADE_IN));
+    const fall = show.leaving === null ? 1 : Math.max(0, 1 - (seconds - show.leaving) / FADE_OUT);
+    return rise * fall;
   }
 
-  private touches(): { bunting: { kind: Bunting; colours: readonly number[]; share: number } | null; krathong: number;
-      sky: number; rockets: number } {
+  /**
+   * What is drawn and how strongly. The bunting along the roads is the newest festival's (two begun together, as Loy
+   * Krathong and Yi Peng, share it: lanterns over flags, as many as the grander asks), so Khon Kaen's silk banners take
+   * the place of Loy Krathong's lanterns; the krathong, sky lanterns and rockets each last their own festival's time.
+   */
+  private touches(seconds: number): { bunting: { kind: Bunting; colours: readonly number[]; share: number } | null;
+      krathong: number; sky: number; rockets: number; strength: { bunting: number; krathong: number; sky: number; rockets: number } } {
+    const all = [...this.shows.values()], on = all.filter((show) => show.leaving === null), pool = on.length ? on : all;
+    const newest = pool.length ? Math.max(...pool.map((show) => show.since)) : 0;
     let kind: Bunting | null = null, colours: readonly number[] = [], most = 0, krathong = 0, sky = 0, rockets = 0;
-    for (const show of this.shows.values()) {
-      const touch = FESTIVAL_TOUCHES[show.id], share = show.scale === 'grand' ? 1 : MODEST_SHARE;
-      // Lanterns win over flags where two festivals share a month, and the grandest says how many
-      if (kind === null || (touch.bunting === 'lantern' && kind === 'flag')) { kind = touch.bunting; colours = touch.colours; }
-      most = Math.max(most, share);
-      if (touch.krathong) krathong = Math.max(krathong, Math.round(MAX_KRATHONG * share));
-      if (touch.sky) sky = Math.max(sky, Math.round(MAX_SKY_LANTERNS * share));
-      if (touch.rockets) rockets = Math.max(rockets, show.scale === 'grand' ? MAX_ROCKETS : 1);
+    const strength = { bunting: 0, krathong: 0, sky: 0, rockets: 0 };
+    for (const show of all) {
+      const touch = FESTIVAL_TOUCHES[show.id], share = show.scale === 'grand' ? 1 : MODEST_SHARE, shows = this.strengthOf(show, seconds);
+      if (pool.includes(show) && show.since === newest) {
+        if (kind === null || (touch.bunting === 'lantern' && kind === 'flag')) { kind = touch.bunting; colours = touch.colours; }
+        most = Math.max(most, share);
+        strength.bunting = Math.max(strength.bunting, shows);
+      }
+      if (touch.krathong) { krathong = Math.max(krathong, Math.round(MAX_KRATHONG * share)); strength.krathong = Math.max(strength.krathong, shows); }
+      if (touch.sky) { sky = Math.max(sky, Math.round(MAX_SKY_LANTERNS * share)); strength.sky = Math.max(strength.sky, shows); }
+      if (touch.rockets) { rockets = Math.max(rockets, show.scale === 'grand' ? MAX_ROCKETS : 1); strength.rockets = Math.max(strength.rockets, shows); }
     }
-    return { bunting: kind === null ? null : { kind, colours, share: most }, krathong, sky, rockets };
+    return { bunting: kind === null ? null : { kind, colours, share: most }, krathong, sky, rockets, strength };
   }
 
   /** Where the venue is (the ruler's house, else the town), and the bunting along the roads near it, and the water */
   private place(lines: ReadonlyArray<FestivalLine>, sign: string, seconds: number): void {
     this.placedFor = sign;
     this.placedAt = seconds;
+    this.placedLines = lines;
     this.strengthShown = -1;
     const at = this.map.rulerHouse ?? this.map.town ?? { x: this.map.width / 2, y: this.map.height / 2 };
     const vx = (at.x + 0.5) * 10, vz = (at.y + 0.5) * 10;
     this.venue = { x: vx, z: vz };
-    const { bunting } = this.touches();
+    const look = this.touches(seconds), bunting = look.bunting;
     // Bunting every few metres along both sides of the roads near the venue, the nearest first
     const s = this.size, spacing = 9 * s, out: { d: number; x: number; z: number; turn: number; side: number }[] = [];
     for (const line of lines) {
@@ -266,7 +273,7 @@ export class CityFestivals {
     }
     // ... the nearest first, so a town by a river floats its krathong at its own landing
     water.sort((a, b) => Math.hypot(a % width - tx, Math.floor(a / width) - ty) - Math.hypot(b % width - tx, Math.floor(b / width) - ty));
-    const wanted = this.touches().krathong;
+    const wanted = look.krathong;
     const wet = new Set(water);
     if (this.krathong.length !== wanted || !this.krathong.every((k) => wet.has(k.tile))) {
       this.krathong = [];
@@ -341,8 +348,8 @@ export class CityFestivals {
   }
 
   /** Yi Peng's lanterns: let go round the venue after dark, rising and drifting with the wind, smaller as they go */
-  private drawSky(strength: number, night: number, seconds: number, wind: { x: number; y: number }): void {
-    const wanted = this.touches().sky, venue = this.venue, s = this.size;
+  private drawSky(wanted: number, strength: number, night: number, seconds: number, wind: { x: number; y: number }): void {
+    const venue = this.venue, s = this.size;
     const dusk = Math.min(1, Math.max(0, (night - 0.35) / 0.4));
     if (!wanted || !venue || dusk <= 0) { this.skyLantern.count = 0; return; }
     const life = 80, rise = 2.2 * s, drift = 0.9 * s, len = Math.hypot(wind.x, wind.y) || 1;
@@ -362,8 +369,8 @@ export class CityFestivals {
   }
 
   /** Bun Bang Fai's rockets: up from the fields beside the town on a leaning trail of smoke, one after another */
-  private drawRockets(strength: number, seconds: number): void {
-    const wanted = this.touches().rockets, venue = this.venue, s = this.size;
+  private drawRockets(wanted: number, strength: number, seconds: number): void {
+    const venue = this.venue, s = this.size;
     if (!wanted || !venue) { this.rocket.count = 0; this.smoke.count = 0; return; }
     const cycle = 11, climb = 6, height = 220 * s;
     let puffs = 0, heads = 0;

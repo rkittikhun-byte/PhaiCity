@@ -115,16 +115,34 @@ describe('the festivals in the 3D view', () => {
     view.dispose();
   });
 
-  test("a new festival's dressing takes the place of the last one's", () => {
+  test('roads drawn after the festival began (a city just opened builds its lines in a worker) are dressed too', () => {
+    const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest' }]);
+    const view = new CityFestivals(map, ground);
+    view.update([], 0, 1);
+    expect(view.counts().flags).toBe(0);
+    view.update(lines, 0, 2.5);
+    expect(view.counts().flags).toBeGreaterThan(0);
+    view.dispose();
+  });
+
+  test("a new festival's bunting takes the road, while the last one's krathong stay on the water through their night", () => {
     const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'modest' }]);
     const view = new CityFestivals(map, ground);
-    view.update(lines, 0, 1);
+    view.update(lines, 1, 1);
+    // Khon Kaen's silk festival comes the month after Loy Krathong, in the same night
     map.festivals.held = [{ id: 'silk', scale: 'modest' }];
-    view.update(lines, 0, 5);
-    view.update(lines, 0, 9);
-    expect(view.shown).toEqual(['silk']);
+    view.update(lines, 1, 5);
+    view.update(lines, 1, 9);
+    expect(view.shown.sort()).toEqual(['loy_krathong', 'silk']);
     expect(view.counts().flags).toBeGreaterThan(0);
     expect(view.counts().lanterns).toBe(0);
+    expect(view.counts().krathong).toBeGreaterThan(0);
+    // Morning: Loy Krathong's night is over and its krathong go; the silk banners stay while the silk festival is held
+    view.update(lines, 0, 30);
+    view.update(lines, 0, 35);
+    expect(view.shown).toEqual(['silk']);
+    expect(view.counts().krathong).toBe(0);
+    expect(view.counts().flags).toBeGreaterThan(0);
     view.dispose();
   });
 });
