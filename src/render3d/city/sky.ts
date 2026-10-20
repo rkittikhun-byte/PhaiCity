@@ -4,7 +4,9 @@
 // The sky over the city (owner 13 Oct 2026, after Cities: Skylines' views): a dome round the camera, deep blue
 // overhead and pale at the horizon, with soft clouds that drift with the game's seconds. It draws behind everything,
 // takes no fog and no light, and is only scenery. The weather (src/weather.ts, weather.ts here) spreads the clouds over
-// the sky and darkens them, and the clouds take the light of the hour (setClouds).
+// the sky and darkens them, and the clouds take the light of the hour (setClouds). The sun shows where it stands, a
+// disc brighter than white in a halo that widens and warms as it sinks, so the diorama lens (postFx.ts) makes it glow;
+// the clouds and the haze below the horizon hide it (setSun).
 import { BackSide, Color, Mesh, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
 
 const VERTEX = `
@@ -24,6 +26,9 @@ uniform float time;
 uniform float cover;
 uniform float gloom;
 uniform vec3 cloudColour;
+uniform vec3 sunDirection;
+uniform vec3 sunColour;
+uniform float sunHalo;
 varying vec3 vDirection;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -39,6 +44,9 @@ void main() {
   vec3 d = normalize(vDirection);
   float up = max(d.y, 0.0);
   vec3 sky = mix(horizon, zenith, pow(up, 0.55));
+  // The sun: a small disc and its halo, wider the lower it stands (sunHalo)
+  float toSun = max(dot(d, sunDirection), 0.0);
+  sky += sunColour * (smoothstep(0.99978, 0.99988, toSun) * 6.0 + pow(toSun, mix(900.0, 140.0, sunHalo)) * 1.6 + pow(toSun, 9.0) * 0.18 * sunHalo);
   // Clouds on a plane high above: flatter and thinner towards the horizon
   vec2 uv = d.xz / (d.y + 0.12) * 1.6 + vec2(time * 0.004, time * 0.0015);
   // ... more of them, and closer together, the cloudier the weather; darker underneath in a storm
@@ -60,6 +68,7 @@ export class SkyDome {
       uniforms: {
         zenith: { value: new Color(0x4f8fd0) }, horizon: { value: new Color(0xd5e6ef) }, haze: { value: haze.clone() },
         time: { value: 0 }, cover: { value: 0 }, gloom: { value: 0 }, cloudColour: { value: new Color(1, 1, 1) },
+        sunDirection: { value: new Vector3(0, 1, 0) }, sunColour: { value: new Color(0, 0, 0) }, sunHalo: { value: 0 },
       },
     });
     this.mesh = new Mesh(new SphereGeometry(radius, 32, 16), this.material);
@@ -81,6 +90,13 @@ export class SkyDome {
     this.material.uniforms.cover.value = cover;
     this.material.uniforms.gloom.value = gloom;
     this.material.uniforms.cloudColour.value.copy(colour);
+  }
+  /** The sun: the way to it (need not be of unit length), its colour and brightness (black hides it), and how low it
+   * stands (0 high, 1 on the horizon), which widens its halo */
+  setSun(direction: Vector3, colour: Color, low: number): void {
+    this.material.uniforms.sunDirection.value.copy(direction).normalize();
+    this.material.uniforms.sunColour.value.copy(colour);
+    this.material.uniforms.sunHalo.value = Math.min(1, Math.max(0, low));
   }
   dispose(): void { this.mesh.geometry.dispose(); this.material.dispose(); }
 }

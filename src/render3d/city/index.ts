@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 import { ACESFilmicToneMapping, Color, DirectionalLight, Fog, HemisphereLight, OrthographicCamera,
-  Mesh, PlaneGeometry, PCFSoftShadowMap, PMREMGenerator, Scene, SRGBColorSpace, WebGLRenderer, WebGLRenderTarget } from 'three';
+  Mesh, PlaneGeometry, PCFSoftShadowMap, PMREMGenerator, Scene, SRGBColorSpace, Vector2, Vector3, WebGLRenderer, WebGLRenderTarget } from 'three';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { CityView, ToolHover, TilePoint, TileRect } from '../../cityView.js';
 import { DAY_SKY_URL } from '../materials/catalog.js';
@@ -38,15 +38,37 @@ import { isLineTile } from '../../dozing.js';
 import { browserPrototypeProvider, browserRoadWorker } from './worker-provider.js';
 import type { PrototypeProvider } from './prototypes.js';
 import type { CityMapReader, CityViewSetup } from './types.js';
+import { CityPost, lensLikely, postSupported, type CityPostLike, type PostLook } from './postFx.js';
+import { EffectLadder, LEVEL_PIXEL_RATIO, NO_EFFECTS, isGraphicsQuality, middleInterval, type FrameSample, type GraphicsQuality, type PostEffects } from './quality.js';
+import { GpuTimer } from './gpuTimer.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
 export { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
-export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number;detailSwaps:number;dirtSwaps:number;pixelRatioChanges:number }
+export type { GraphicsQuality, PostEffects } from './quality.js';
+export interface CityMetrics { frameMs:number;intervalMs:number;drawCalls:number;triangles:number;pendingChunks:number;pendingModels:number;unknownTiles:number;rebuildMs:number;firstFrameMs:number;detailSwaps:number;dirtSwaps:number;pixelRatioChanges:number;
+  /** The graphics card's time for a frame where the browser can time it (gpuTimer.ts), else null */
+  gpuMs:number|null;
+  /** How often the adaptive quality gave up or took back an effect of the diorama lens (quality.ts) */
+  effectChanges:number }
 export interface CityViewDependencies {
   canvas?:HTMLCanvasElement; rendererFactory?:(canvas:HTMLCanvasElement)=>WebGLRenderer;
   provider?:PrototypeProvider;now?:()=>number;headless?:boolean;
   /** A native-resolution benchmark can cap supersampling independently of the host display. */
   pixelRatioLimit?:number;
+  /** The diorama lens (postFx.ts); without one the view makes its own where the browser can draw it, never headless */
+  postFactory?:(renderer:WebGLRenderer)=>CityPostLike|null;
+  /** The graphics card's frame timer (gpuTimer.ts), for tests: a stand-in that reports a time */
+  gpuTimer?:{ms:number|null;begin():void;end():void;poll():void;reset():void;dispose():void}|null;
 }
+/** The view's graphics setting (src/graphicsQuality.ts saves the player's) */
+const DEFAULT_QUALITY:GraphicsQuality='auto';
+const tDrawSize=new Vector2();
+const tSunWay=new Vector3();
+const cSunHigh=new Color(SCENE.post.sunHigh),cSunLow=new Color(SCENE.post.sunLow);
+const cGlowDay=new Color(SCENE.post.glowDay),cGlowTwilight=new Color(SCENE.post.glowTwilight),cGlowNight=new Color(SCENE.post.glowNight);
+const tSunColour=new Color();
+const clamp01=(value:number):number=>Math.min(1,Math.max(0,value));
+const smooth=(edge0:number,edge1:number,value:number):number=>{const t=clamp01((value-edge0)/(edge1-edge0));return t*t*(3-2*t);};
+const lerp=(a:number,b:number,t:number):number=>a+(b-a)*t;
 
 const cDayHaze = new Color(0xc8dde2);
 const cNightHaze = new Color(0x121722);
@@ -86,7 +108,7 @@ const tHorizon = new Color();
 /** No animation loop or game state mutations: the game owns paint(), including while paused. */
 export class CityView3D implements CityView {
   readonly kind='3d' as const;readonly scene=new Scene();readonly navigation:CityCamera;readonly chunks:CityChunks;
-  readonly metrics:CityMetrics={frameMs:0,intervalMs:0,drawCalls:0,triangles:0,pendingChunks:0,pendingModels:0,unknownTiles:0,rebuildMs:0,firstFrameMs:0,detailSwaps:0,dirtSwaps:0,pixelRatioChanges:0};
+  readonly metrics:CityMetrics={frameMs:0,intervalMs:0,drawCalls:0,triangles:0,pendingChunks:0,pendingModels:0,unknownTiles:0,rebuildMs:0,firstFrameMs:0,detailSwaps:0,dirtSwaps:0,pixelRatioChanges:0,gpuMs:null,effectChanges:0};
   readonly canvas:HTMLCanvasElement;readonly renderer:WebGLRenderer;
   readonly terrain:CityHeightField;
   readonly pixelRatioLimit:number;
@@ -114,6 +136,14 @@ export class CityView3D implements CityView {
   private lastNightFactor=-1;
   /** The month's weather as the view shows it (weather.ts), read from the map, and the look last lit by */
   private weather:CityWeather;private look:WeatherLook;private litLook=new Float32Array(6).fill(-1);
+  /** How far the sun is in its rising or setting (0-1), for the glow of the low sun */
+  private twilight=0;
+  /** The diorama lens (postFx.ts), null where it cannot be drawn (headless, no WebGL 2): then the view draws straight
+   * to the screen; which of its effects are on (quality.ts), how they look this frame, and the card's frame timer */
+  private post:CityPostLike|null=null;private ladder=new EffectLadder(DEFAULT_QUALITY);private gpuTimer:CityViewDependencies['gpuTimer']=null;
+  private postLook:PostLook={ao:{strength:0,radius:2,tint:new Color(SCENE.post.contactShadow)},bloom:{threshold:1,knee:.5,strength:0,spread:.6,tint:new Color()},
+    tilt:{strength:0,focus:.5,band:.36},vignette:{strength:0,tint:new Color(SCENE.post.vignette)},fog:null};
+  private fogRange={near:0,far:0};
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
     this.pixelRatioLimit=Math.max(1,Math.min(1.25,dependencies.pixelRatioLimit??1.25));
@@ -122,7 +152,9 @@ export class CityView3D implements CityView {
     this.canvas=dependencies.canvas??document.createElement('canvas');this.canvas.id='MicropolisCanvas';
     this.canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;';
     // Construct WebGL and the worker before appending: startup failures leave no orphan canvas for the 2D fallback.
-    this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:true,preserveDrawingBuffer:true});
+    // Where the diorama lens will draw (postFx.ts) it smooths the edges itself, so the canvas takes no samples of its own,
+    // which on integrated graphics cost as much as the whole lens
+    this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:!lensLikely(),preserveDrawingBuffer:true});
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
     // The era buildings (eraBuildings.ts, art/buildings) load on the page; everything else stays with the worker
@@ -196,6 +228,12 @@ export class CityView3D implements CityView {
     this.renderer.setPixelRatio(Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit));
     this.renderer.outputColorSpace=SRGBColorSpace;this.renderer.toneMapping=ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=PCFSoftShadowMap;
+    // The diorama lens where the browser can draw it (postFx.ts), never in a headless test unless one stands in for it;
+    // with it the frame takes several draws, so their counts add up over the frame (render)
+    try{this.post=dependencies.postFactory?dependencies.postFactory(this.renderer):!this.headless&&postSupported(this.renderer)?new CityPost(this.renderer):null;}
+    catch(error){console.warn('PhaiCity: the diorama lens could not start',error);this.post=null;}
+    if(this.post){this.post.setEffects(this.ladder.effects);if(this.renderer.info)this.renderer.info.autoReset=false;}
+    this.gpuTimer=dependencies.gpuTimer!==undefined?dependencies.gpuTimer:this.post&&!this.headless?GpuTimer.create(this.renderer.getContext?.()):null;
     setup.container.append(this.canvas);this.resize();this.bindMouse();
     if(typeof ResizeObserver!=='undefined'){this.resizeObserver=new ResizeObserver(()=>{if(!this.disposed){this.resize();this.render();}});this.resizeObserver.observe(setup.container);}
     if(!this.headless)this.loadSky();
@@ -206,6 +244,7 @@ export class CityView3D implements CityView {
     const wasDark=this.darkMode;
     this.darkMode=nightFactor>0.5;
     if(sunAngle!==undefined)this.sunAngle=sunAngle;
+    this.twilight=twilight;
     // ... and the weather's look, which only the colours below follow
     const w=this.look,l=this.litLook;
     const weatherMoved=Math.abs(w.cloud-l[0])+Math.abs(w.storm-l[1])+Math.abs(w.fog-l[2])+Math.abs(w.smoke-l[3])+Math.abs(w.flash-l[4])>=0.004;
@@ -283,6 +322,55 @@ export class CityView3D implements CityView {
     this.updateDayNight();
     this.render();
     return this.darkMode;
+  }
+  /** The player's graphics setting (src/graphicsQuality.ts): which effects of the diorama lens are on, and in Auto
+   * whether the frame times may change them (quality.ts). Applies at once, also while the game is paused. */
+  setQuality(quality:GraphicsQuality):void {
+    if(this.disposed||!isGraphicsQuality(quality))return;
+    this.ladder.set(quality);this.post?.setEffects(this.ladder.effects);
+    // The resolution goes to what the setting allows; the adaptive quality may lower it again from there
+    const limit=this.ratioLimit();if(this.renderer.getPixelRatio()!==limit){this.renderer.setPixelRatio(limit);this.metrics.pixelRatioChanges++;}
+    this.lastQualityChange=this.now();this.fastSince=null;this.frameTimes=[];this.intervals=[];this.qualityFrames=0;this.gpuTimer?.reset();
+    this.render();
+  }
+  get quality():GraphicsQuality{return this.ladder.quality;}
+  /** The effects of the diorama lens drawn now: none without it */
+  get effects():PostEffects{return this.post?this.ladder.effects:{...NO_EFFECTS};}
+  /** The most the view's resolution may rise over the screen's, by the setting */
+  private ratioLimit():number{return Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit,LEVEL_PIXEL_RATIO[this.ladder.quality]);}
+  /** How the diorama lens looks this frame, by the hour, the weather and the camera (postFx.ts PostLook) */
+  private updatePostLook():PostLook {
+    const look=this.postLook,w=this.look,night=clamp01(this.lastNightFactor),twilight=clamp01(this.twilight)*(1-night*.6),n=this.navigation;
+    const overcast=clamp01((w.cloud-.2)/.8);
+    // Contact shadows: strongest under a grey sky, when no sun shadows show the shapes; softer by night, when the
+    // lamps light the streets; thinning in fog and smoke. They reach a few metres round a point near the street, a
+    // block's width over the whole city, so the city keeps the concept's dark lavender corners at every height
+    look.ao.strength=(.78+.17*overcast)*(1-.35*night)*(1-.55*w.fog)*(1-.3*w.smoke);
+    look.ao.radius=Math.min(40,Math.max(1.5,n.distance*.035));
+    // The glow: by day only what outshines the sun (the sun itself, glints off water and glass), warmer and lower at
+    // sunrise and sunset, and by night every lamp, window and lantern; wider and stronger in fog and rain, as lights
+    // look through wet air; a flash of lightning raises the bar, so the whole city does not glow with it
+    const b=look.bloom;
+    b.threshold=lerp(lerp(1.7,.58,night),1,twilight*.8)+w.flash*2.5;b.knee=Math.max(.25,b.threshold*.4);
+    b.strength=lerp(lerp(.16,1.8,night),.55,twilight*.7)*(1+.5*w.fog+.3*w.rain+.25*w.smoke);
+    b.spread=Math.min(.9,lerp(.55,.78,night)+.12*w.fog+.08*w.rain);
+    b.tint.copy(cGlowDay).lerp(cGlowNight,night).lerp(cGlowTwilight,twilight*.8);
+    // The tilt-shift: a model seen from above, so it fades as the camera comes down to look along the street, and in
+    // the 2D map, which stays sharp
+    const pitch=n.pitch*180/Math.PI;
+    look.tilt.strength=n.flat?0:smooth(12,40,pitch)*(1-.45*smooth(70,85,pitch))*smooth(8,45,n.distance)*.75;
+    look.vignette.strength=.2*look.tilt.strength/.75;
+    // The haze the contact shadows fade into
+    this.fogRange.near=this.fog.near;this.fogRange.far=this.fog.far;look.fog=this.scene.fog?this.fogRange:null;
+    return look;
+  }
+  /** The sun in the sky (sky.ts setSun): where render() puts the light, its disc hidden behind clouds, fog and smoke */
+  private updateSun():void {
+    const a=this.sunAngle,elevation=Math.sin(a),w=this.look,overcast=clamp01((w.cloud-.2)/.8);
+    tSunWay.set(Math.cos(a)*260,elevation*400,160);
+    const low=1-clamp01(elevation/.5),shows=clamp01(1-.92*overcast)*(1-.75*w.fog)*(1-.5*w.smoke)*smooth(-.08,.04,elevation);
+    tSunColour.copy(cSunHigh).lerp(cSunLow,low).multiplyScalar(shows);
+    this.sky.setSun(tSunWay,tSunColour,low);
   }
   get width():number{return this.setup.container.clientWidth;}
   get height():number{return this.setup.container.clientHeight;}
@@ -367,7 +455,7 @@ export class CityView3D implements CityView {
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
     // The month's weather (src/weather.ts), read from the map and eased in, in real seconds so a paused storm still rains
     this.weather.update((this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
-    this.updateDayNight();
+    this.updateDayNight();this.updateSun();
     this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
     // ... wet ground, roofs and roads after rain
     setCityWetness(this.look.wet);this.weather.wetRoads(this.curves.root);
@@ -391,18 +479,34 @@ export class CityView3D implements CityView {
     this.metrics.pendingChunks=this.chunks.pendingChunks;this.metrics.unknownTiles=this.chunks.unknownTiles;this.metrics.rebuildMs=this.chunks.rebuildMs;
     this.metrics.pendingModels=this.chunks.pendingModels;
     this.metrics.detailSwaps=this.chunks.detailSwaps;this.metrics.dirtSwaps=this.chunks.dirtSwaps;
-    if(this.metrics.frameMs<9){if(this.fastSince===null)this.fastSince=start;}else this.fastSince=null;
+    // The frame's cost: the processor's time, or the graphics card's where it is longer and the browser can time it
+    this.gpuTimer?.poll();const gpu=this.gpuTimer?.ms??null;this.metrics.gpuMs=gpu;const cost=Math.max(this.metrics.frameMs,gpu??0);
+    if(cost<9){if(this.fastSince===null)this.fastSince=start;}else this.fastSince=null;
     // Adapt only after navigation settles, using fresh samples at each quality level.
     if(!this.headless&&++this.qualityFrames%30===0&&this.frameTimes.length===120&&!this.metrics.pendingChunks&&!this.metrics.pendingModels
       &&start-this.lastMotion>=1000&&start-this.lastQualityChange>=3000){
-      const ratio=this.renderer.getPixelRatio(),limit=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit);
+      const ratio=this.renderer.getPixelRatio(),limit=this.ratioLimit();
       const realScale=(this.snapshot.realUnits??1)<1,minRatio=1,minBudget=realScale?180:60;
-      let nextRatio=ratio,nextBudget=this.chunks.drawBudget;
-      if(this.metrics.frameMs>22){if(ratio>minRatio)nextRatio=Math.max(minRatio,ratio-.25);else nextBudget=Math.max(minBudget,nextBudget-12);}
-      else if(this.fastSince!==null&&start-this.fastSince>=10000&&start-this.lastQualityChange>=10000){
+      let nextRatio=ratio,nextBudget=this.chunks.drawBudget,effect:'drop'|'raise'|null=null;
+      // In Auto the diorama lens's effects go first when frames are slow, the costliest first (quality.ts), and come
+      // back last when they are fast, once the draw budget and the resolution are full again
+      const ladder=this.post?this.ladder:null,sample:FrameSample={now:start,cpuMs:this.metrics.frameMs,gpuMs:gpu,intervalMs:middleInterval(this.intervals)};
+      ladder?.measure(sample);
+      const slowEffects=ladder?.slow(sample)??false,full=nextBudget>=this.chunks.maxDrawBudget&&ratio>=limit;
+      const room=ladder&&full&&!slowEffects?ladder.room(sample):false;
+      if(slowEffects)effect='drop';
+      else if(cost>22){if(ratio>minRatio)nextRatio=Math.max(minRatio,ratio-.25);else nextBudget=Math.max(minBudget,nextBudget-12);}
+      else if(this.fastSince!==null&&start-this.fastSince>=10000&&start-this.lastQualityChange>=10000&&!full){
         if(nextBudget<this.chunks.maxDrawBudget)nextBudget=Math.min(this.chunks.maxDrawBudget,nextBudget+6);else if(ratio<limit)nextRatio=Math.min(limit,ratio+.25);
       }
-      if(nextRatio!==ratio||nextBudget!==this.chunks.drawBudget){
+      else if(room)effect='raise';
+      if(!slowEffects)ladder?.settled();
+      if(effect&&ladder){
+        if(effect==='drop')ladder.drop(sample);else ladder.raise(sample);
+        this.post?.setEffects(ladder.effects);this.metrics.effectChanges++;
+        this.lastQualityChange=start;this.fastSince=null;this.frameTimes=[];this.intervals=[];this.qualityFrames=0;this.render();
+      }
+      else if(nextRatio!==ratio||nextBudget!==this.chunks.drawBudget){
         this.chunks.drawBudget=nextBudget;this.lastQualityChange=start;this.fastSince=null;this.frameTimes=[];this.intervals=[];this.qualityFrames=0;
         if(nextRatio!==ratio){this.renderer.setPixelRatio(nextRatio);this.metrics.pixelRatioChanges++;this.render();}
       }
@@ -420,7 +524,20 @@ export class CityView3D implements CityView {
     if(Math.abs(c.left-(-span))>3){
       c.left=-span;c.right=span;c.top=span;c.bottom=-span;c.near=1;c.far=900;c.updateProjectionMatrix();
     }
-    this.renderer.render(this.scene,this.navigation.camera);
+    // Through the diorama lens where it can be drawn (postFx.ts), at Low only to smooth the edges and map the light to
+    // the screen; else straight to the screen as before. The graphics card's timer round either (gpuTimer.ts)
+    if(this.post)this.renderer.info.reset?.();
+    this.gpuTimer?.begin();
+    if(this.post){
+      const size=this.renderer.getDrawingBufferSize?.(tDrawSize)??tDrawSize.set(this.width*this.renderer.getPixelRatio(),this.height*this.renderer.getPixelRatio());
+      try{this.post.setSize(size.x,size.y);this.post.render(this.scene,this.navigation.camera,this.updatePostLook());}
+      catch(error){
+        // A card that cannot draw the lens after all keeps the city, drawn straight to the screen
+        console.warn('PhaiCity: the diorama lens failed and is off',error);this.post.dispose();this.post=null;this.renderer.info.autoReset=true;
+        this.renderer.setRenderTarget(null);this.renderer.render(this.scene,this.navigation.camera);
+      }
+    }else this.renderer.render(this.scene,this.navigation.camera);
+    this.gpuTimer?.end();
   }
   tileAt(x:number,y:number):TilePoint|null{return pickTile(this.navigation.camera,x,y,this.width,this.height,this.setup.map.width,this.setup.map.height,this.terrain);}
   visibleTiles():TileRect|null{return visibleTileRect(this.navigation.camera,this.width,this.height,this.setup.map.width,this.setup.map.height,this.navigation.camera.far,this.terrain);}
@@ -450,7 +567,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.weather.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

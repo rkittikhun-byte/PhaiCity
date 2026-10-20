@@ -644,6 +644,17 @@
                 <label class="soundSlider"><span data-i18n="sound.ui">Buttons</span> <input type="range" min="0" max="100" step="5" data-sound-channel="ui"></label>
                 <label><input type="checkbox" id="soundMuted"> <span data-i18n="sound.mute_all">Mute all</span></label>
               </fieldset>
+              <!-- Graphics apply immediately and are kept for this browser (src/graphicsQuality.ts), so OK and Cancel do not affect them -->
+              <fieldset id="graphicsSettings" class="padding10">
+                <legend data-i18n="graphics.title">Graphics</legend>
+                <div class="graphicsChoices">
+                  <input type="radio" name="graphicsQuality" id="graphicsAuto" value="auto" checked="checked"><label for="graphicsAuto" data-i18n="graphics.auto">Auto</label>
+                  <input type="radio" name="graphicsQuality" id="graphicsLow" value="low"><label for="graphicsLow" data-i18n="graphics.low">Low</label>
+                  <input type="radio" name="graphicsQuality" id="graphicsMedium" value="medium"><label for="graphicsMedium" data-i18n="graphics.medium">Medium</label>
+                  <input type="radio" name="graphicsQuality" id="graphicsHigh" value="high"><label for="graphicsHigh" data-i18n="graphics.high">High</label>
+                </div>
+                <p class="graphicsHint" data-i18n="graphics.hint">Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.</p>
+              </fieldset>
             </div>
             <button id="settingsCancel" data-i18n="settings.btn.cancel" class="cancel">Cancel</button>
             <input type="submit" id="settingsOK" data-i18n-value="settings.btn.ok" class="dialogOK" value="OK">

@@ -16,6 +16,7 @@ import $ from "jquery";
 import { attachGameAudio } from './audio/gameAudio.ts';
 import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
+import { bindGraphicsQuality } from './graphicsQuality.ts';
 import { BaseTool } from './baseTool.js';
 import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
@@ -263,6 +264,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   }
   if (this.cityView === null)
     this.cityView = createCityView2D('canvasContainer', this.gameMap, this.tileSet, spriteSheet);
+  // The player's graphics setting (src/graphicsQuality.ts), kept for this browser: what the 3D view's diorama lens draws
+  bindGraphicsQuality(this.cityView);
   this.inputStatus = new InputStatus(this.gameMap, tileSet.tileWidth, this.simulation.rules, this.core.tools);
   // A press dragged to its release draws a straight line at once only when no line is half drawn and it reaches two
   // tiles: a click that slips a little is still a click (owner, 18 Oct 2026: "คลิกจุด A และ B มันควรจะเริ่มจากจุด A ไปถึง B")

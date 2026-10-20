@@ -138,7 +138,8 @@ describe('steady adaptive quality',()=>{
       // Fresh, fast samples prevent the old 24 ms frames from causing another downgrade.
       for(let frame=0;frame<150;frame++){f.advance();f.paint();}expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
       f.advance(10000);for(let frame=0;frame<30;frame++){f.advance();f.paint();if((f.renderer.setPixelRatio as jest.Mock).mock.calls.length>1)break;}
-      expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);expect(f.renderer.getPixelRatio()).toBe(2);
+      // ... back up to the view's 1.25 cap over a 2× screen (index.ts pixelRatioLimit)
+      expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);expect(f.renderer.getPixelRatio()).toBe(1.25);
     }finally{f.view.dispose();}
   });
   it('keeps protecting frame time at DPR 1 by lowering the draw budget, with the same cooldown',()=>{
@@ -153,8 +154,9 @@ describe('steady adaptive quality',()=>{
   it('cannot lower again within three seconds even when 120 fresh samples are already ready',()=>{
     const f=viewFixture();try{
       for(let frame=0;frame<150;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
-      for(let frame=0;frame<120;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
-      for(let frame=0;frame<30;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);
+      for(let frame=0;frame<120;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);expect(f.view.chunks.drawBudget).toBe(180);
+      // From 1.25 one step reaches the screen's own resolution, so the next lowering is the draw budget's
+      for(let frame=0;frame<30;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);expect(f.view.chunks.drawBudget).toBe(168);
     }finally{f.view.dispose();}
   });
 });
