@@ -128,7 +128,7 @@ describe('roads as drawn in 3D', () => {
     curves.dispose();
   });
 
-  test('a drawn road bulldozed in part is drawn from its tiles again, and a railway is kept in a graph of its own', () => {
+  test('a drawn road bulldozed in part is cut there and both parts are still drawn as drawn, and a railway is kept in a graph of its own', () => {
     const core = city();
     core.apply({ type: 'road', tool: 'road', from: [8, 168], to: [904, 168], stroke: 1 });
     core.apply({ type: 'road', tool: 'rail', from: [8, 488], to: [904, 488], stroke: 2 });
@@ -140,10 +140,17 @@ describe('roads as drawn in 3D', () => {
     expect(graphLines(map.roadGraph, units, false).runs).toHaveLength(1);
     expect(graphLines(map.railGraph, units, true).runs).toHaveLength(1);
     core.apply({ type: 'tool', tool: 'bulldozer', x: 30, y: 10 });
-    expect(graphLines(map.roadGraph, units, false).runs).toHaveLength(0);
+    // The bulldozer cuts the drawn road (src/roads/roadCut.ts): its two parts are still the graph's
+    expect(graphLines(map.roadGraph, units, false).runs).toHaveLength(2);
     const curves = new RoadCurves(snapshotOf(core), flat);
-    // ... its two halves drawn from their tiles, the railway from its graph
-    expect(curves.drawnLines.filter((l) => !l.rail)).toHaveLength(2);
+    // ... its two parts drawn from where they were drawn to the cleared tile's edges, the railway from its graph
+    const roads = curves.drawnLines.filter((l) => !l.rail);
+    expect(roads).toHaveLength(2);
+    const ends = roads.flatMap((l) => [l.points[0], l.points[l.points.length - 1]]).map(([x]) => x / U).sort((p, q) => p - q);
+    expect(ends[0]).toBeCloseTo(8, 1);
+    expect(ends[1]).toBeCloseTo(480 - 0.25, 1);
+    expect(ends[2]).toBeCloseTo(496 + 0.25, 1);
+    expect(ends[3]).toBeCloseTo(904, 1);
     const rails = curves.drawnLines.filter((l) => l.rail);
     expect(rails).toHaveLength(1);
     expect(near(rails[0].points[0], [8 * U, 488 * U]) || near(rails[0].points[rails[0].points.length - 1], [8 * U, 488 * U])).toBe(true);
