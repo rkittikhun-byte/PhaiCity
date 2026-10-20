@@ -23,7 +23,7 @@ import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { segmentTiles } from "./roads/roadRaster";
 import { linePrice } from "./roads/roadDraw";
-import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
+import { tileMetres, tileOfUnits } from "./units";
 import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
@@ -105,7 +105,7 @@ export type Command =
    * A building put down in metres (docs/METRE_DRAWING_PLAN.md 2.1): its middle (x east, z south, metres from the map's
    * corner) and its turn (radians), as its outline showed it. Its tiles are the block round the tile its middle lies on
    * (src/buildings/placedBuildings.ts blockOf), never another place, laid as the tool lays a building, and it is kept
-   * where it was put (gameMap.buildings, and its pose for the 3D view).
+   * where it was put (gameMap.buildings, where the 3D view reads it).
    */
   | { type: "build"; tool: ToolName; x: number; z: number; rot: number; stroke?: number }
   | { type: "undo" }
@@ -519,18 +519,17 @@ export class CityCommands {
   }
 
   /** A building put down in metres (the "build" command): laid on the block round the tile its middle lies on, as the
-   * tool lays it, its pose kept for the 3D view, and kept as put down (gameMap.buildings) until undone */
+   * tool lays it, and kept as put down (gameMap.buildings, which the 3D view reads) until undone */
   private build(command: Extract<Command, { type: "build" }>): CommandOutcome {
     const city = this.city, map = city.map, tool = city.tools[command.tool];
     if (!map || !tool) return { accepted: false, reason: `no ${command.tool} tool` };
     if (!placesBuilding(command.tool, tool)) return { accepted: false, reason: "not a building" };
-    const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null }), units = unitsPerMetre(metres);
+    const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
     const { cx, cy } = blockOf(command.x, command.z, size, metres);
     if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { accepted: false, reason: "outside the map" };
     const before = this.history.last(), changed = before?.changes.length ?? 0;
-    const pose: [number, number, number] = [Math.round(command.x * units * 100) / 100, Math.round(command.z * units * 100) / 100,
-      Math.round(command.rot * 1000) / 1000];
-    const out = this.apply({ type: "tool", tool: command.tool, x: cx, y: cy, pose,
+    // No pose for the 3D view: it reads where the building stands from gameMap.buildings (step 2.4)
+    const out = this.apply({ type: "tool", tool: command.tool, x: cx, y: cy,
       ...(command.stroke !== undefined ? { stroke: command.stroke } : {}) });
     if (!out.accepted || out.toolResult !== 0) return out;
     const placed = (map as { buildings?: PlacedBuildings }).buildings ??= new PlacedBuildings();

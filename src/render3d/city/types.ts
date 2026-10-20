@@ -28,6 +28,9 @@ export interface CityMapReader {
    * them exactly from these, and only the roads that are tiles alone from their tiles */
   readonly roadGraph?: RoadGraph | null;
   readonly railGraph?: RoadGraph | null;
+  /** The ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts): the view stands each
+   * model at its middle and turn, by its centre tile */
+  readonly buildings?: { atTile(tile: number): { readonly x: number; readonly z: number; readonly rot: number } | undefined } | null;
   /** What covers each open tile of a real-scale city map (scripts/geo/lib/landCover.mjs): 1 paddy, 2 field, 3 orchard,
    * 4 grass, 5 wetland, 6 village, 7 built-up; 0 none */
   readonly landCover?: Uint8Array | null;

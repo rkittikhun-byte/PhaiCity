@@ -30,7 +30,7 @@ describe("buildings put down in metres", () => {
     expect(blockOf(10.2 * 16, 7.9 * 16, 1, 16)).toEqual({ left: 10, top: 7, cx: 10, cy: 7 });
   });
 
-  test("a police station put down in metres stands on the block under its middle, kept to the centimetre with its pose", () => {
+  test("a police station put down in metres stands on the block under its middle, kept to the centimetre", () => {
     const core = city();
     const out = core.apply({ type: "build", tool: "police", x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
     expect(out).toMatchObject({ accepted: true, toolResult: 0 });
@@ -39,8 +39,8 @@ describe("buildings put down in metres", () => {
     expect([cx, cy]).toEqual([20, 15]);
     expect(core.map.getTile(cx, cy).isZone()).toBe(true);
     expect(placed(core).all()).toEqual([{ id: 1, tool: "police", x: 330.4, z: 251.7, rot: 0.5, size: 3, tile: 15 * 60 + 20 }]);
-    // ... and the 3D view's pose for it, in world units (10 a 16 m tile)
-    expect((core.map as any).buildingPoses[15 * 60 + 20]).toEqual([206.5, 157.31, 0.5]);
+    // ... which the 3D view reads (step 2.4): no pose of its own beside it
+    expect((core.map as any).buildingPoses[15 * 60 + 20]).toBeUndefined();
   });
 
   test("a building whose block is taken is refused there, not moved to another", () => {

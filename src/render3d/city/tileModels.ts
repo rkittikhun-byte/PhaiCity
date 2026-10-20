@@ -21,6 +21,7 @@ import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
 import { isAnyRoad } from '../../roadTiles.js';
+import { tileMetres, unitsPerMetre } from '../../units.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -144,7 +145,7 @@ export class TileSnapshot implements CityMapReader {
   private nowSec = 0;
   readonly construction = new Map<number, { startSec: number; stage: 'stage_1' | 'stage_2' }>();
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'roadGraph' | 'railGraph' | 'tileSizeM' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'roadGraph' | 'railGraph' | 'buildings' | 'tileSizeM' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   get roadPieces(): Uint16Array | null { return this.source?.roadPieces ?? null; }
@@ -423,7 +424,7 @@ export class TileSnapshot implements CityMapReader {
    * with their zones and are left alone; null when it is not a building standing against a road.
    */
   poseToKeep(i:number,region:RegionId='central'):[number,number,number]|null {
-    if((this.source as {buildingPoses?:Record<string,unknown>}|null)?.buildingPoses?.[i])return null;
+    if((this.source as {buildingPoses?:Record<string,unknown>}|null)?.buildingPoses?.[i]||this.placedPose(i))return null;
     const p=this.placement(i,region);
     if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return null;
     const size=Math.max(p.footprint[0],p.footprint[1]);
@@ -431,6 +432,14 @@ export class TileSnapshot implements CityMapReader {
     // againstRoad moves a kept pose out by this much for a model drawn bigger: take it off again
     const delta=size*5*BUILDING_SCALE*(factor-1),nx=-Math.sin(p.rotation),nz=-Math.cos(p.rotation);
     return [Math.round((p.x-nx*delta)*100)/100,Math.round((p.z-nz*delta)*100)/100,Math.round(p.rotation*1000)/1000];
+  }
+  /** The middle and turn of the building put down in metres whose centre tile is i (gameMap.buildings), in world
+   * units, as a kept pose reads: [x, z, turn]; null when none was */
+  private placedPose(i:number):[number,number,number]|null {
+    const b=this.source?.buildings?.atTile(i);
+    if(!b)return null;
+    const units=unitsPerMetre(tileMetres(this.source!));
+    return [b.x*units,b.z*units,b.rot];
   }
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
@@ -441,8 +450,9 @@ export class TileSnapshot implements CityMapReader {
       !zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
     const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
     const scale=BUILDING_SCALE*factor;
-    // Where the player slid it along its road, kept with the city (src/game.js buildingPose)
-    const kept=(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
+    // Where the player put it down in metres (gameMap.buildings), else the pose kept with the city for one put down
+    // before that (src/game.js buildingPose, keepBuildingPoses)
+    const kept=this.placedPose(p.index)??(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
     if(kept){
       const rot=kept[2],nx=-Math.sin(rot),nz=-Math.cos(rot),delta=size*5*BUILDING_SCALE*(factor-1);
       return p.againstRoad(kept[0]+nx*delta,kept[1]+nz*delta,rot,scale);
