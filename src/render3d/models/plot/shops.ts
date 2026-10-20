@@ -161,7 +161,7 @@ export function shophouse(b: PlotBuilder): Record<string, unknown> {
       if (b.random() < 0.8 && !(arcade && f === 0)) {
         if (arcade || land === 3) b.ac(x + 0.6, y - 0.55, front + 0.17); else b.ac(x, y - 0.45, front + 0.17);
       }
-      b.framed(1.2, 1.4, x, y, back, trim(i), { facing: -1, mullion: true });
+      b.backWindow(1.2, 1.4, x, y, back, trim(i));
     }
     if (style.balcony) {
       b.tone(timber(i), unit - 0.3, 0.12, 0.78, x, first + 0.06, front + 0.39);
