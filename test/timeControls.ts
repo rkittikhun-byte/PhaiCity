@@ -4,7 +4,9 @@
 
 // The time bar (src/timeControls.ts; owner, 20 Oct 2026): pause and 1x 2x 3x, each the game's speed command.
 
-import { currentSpeed, setSpeed } from "../src/timeControls";
+import { hasKey } from "../src/i18n/index";
+import { currentSpeed, HAZE_SHOWN, setSpeed, skyOf, weatherTip } from "../src/timeControls";
+import { WEATHER_KINDS, type Weather, type WeatherKind } from "../src/weather";
 
 function game() {
   const commands: { type: "speed"; speed: number }[] = [];
@@ -30,5 +32,22 @@ describe("time bar", () => {
     setSpeed(g, 1, noPage);
     expect(g.commands.map(c => c.speed)).toEqual([3, 0, 1]);
     expect(g.commands.every(c => c.type === "speed")).toBe(true);
+  });
+
+  test("the clock shows the sky: the sun or moon when clear, else the weather, and haze when the fields burn", () => {
+    const w = (kind: WeatherKind, smoke = 0): Weather => ({ kind, rain: 0, cloud: 0, fog: 0, smoke, seed: 1 });
+    expect(skyOf(w("sunny"), false)).toEqual({ icon: "sun", word: "weather.kind.sunny" });
+    expect(skyOf(w("sunny"), true)).toEqual({ icon: "moon", word: "weather.kind.clear" });
+    expect(skyOf(w("sunny", HAZE_SHOWN), false)).toEqual({ icon: "smoke", word: "weather.kind.smoke" });
+    expect(skyOf(w("overcast"), true).icon).toBe("cloud");
+    expect(skyOf(w("storm"), false)).toEqual({ icon: "storm", word: "weather.kind.storm" });
+    expect(skyOf(null, false).icon).toBe("sun");
+    for (const kind of WEATHER_KINDS) {
+      expect(hasKey(skyOf(w(kind), false).word)).toBe(true);
+      expect(hasKey(`weather.effect.${kind}`)).toBe(true);
+      // The season and the weather, then what it does
+      expect(weatherTip(w(kind), 7, undefined, false).split("\n")).toHaveLength(2);
+    }
+    expect(weatherTip(w("sunny", 0.5), 2, undefined, false).split("\n")).toHaveLength(3);
   });
 });

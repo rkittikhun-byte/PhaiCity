@@ -3,7 +3,8 @@
  */
 // The sky over the city (owner 13 Oct 2026, after Cities: Skylines' views): a dome round the camera, deep blue
 // overhead and pale at the horizon, with soft clouds that drift with the game's seconds. It draws behind everything,
-// takes no fog and no light, and is only scenery.
+// takes no fog and no light, and is only scenery. The weather (src/weather.ts, weather.ts here) spreads the clouds over
+// the sky and darkens them, and the clouds take the light of the hour (setClouds).
 import { BackSide, Color, Mesh, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
 
 const VERTEX = `
@@ -20,6 +21,9 @@ uniform vec3 zenith;
 uniform vec3 horizon;
 uniform vec3 haze;
 uniform float time;
+uniform float cover;
+uniform float gloom;
+uniform vec3 cloudColour;
 varying vec3 vDirection;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -37,9 +41,11 @@ void main() {
   vec3 sky = mix(horizon, zenith, pow(up, 0.55));
   // Clouds on a plane high above: flatter and thinner towards the horizon
   vec2 uv = d.xz / (d.y + 0.12) * 1.6 + vec2(time * 0.004, time * 0.0015);
-  float cover = smoothstep(0.52, 0.78, fbm(uv)) * smoothstep(0.0, 0.18, d.y);
+  // ... more of them, and closer together, the cloudier the weather; darker underneath in a storm
+  float clouds = smoothstep(0.52 - cover * 0.5, 0.78 - cover * 0.42, fbm(uv)) * smoothstep(0.0, 0.18, d.y);
   float shade = 0.82 + 0.18 * fbm(uv * 2.3 + 7.0);
-  sky = mix(sky, vec3(shade), cover * 0.85);
+  vec3 cloud = cloudColour * mix(shade, shade * shade * 0.75, gloom);
+  sky = mix(sky, cloud, clouds * mix(0.85, 0.97, cover));
   // Below the horizon only haze, which the fog meets
   sky = mix(haze, sky, smoothstep(-0.02, 0.06, d.y));
   gl_FragColor = vec4(sky, 1.0);
@@ -53,7 +59,7 @@ export class SkyDome {
       vertexShader: VERTEX, fragmentShader: FRAGMENT, side: BackSide, depthWrite: false, depthTest: true, fog: false,
       uniforms: {
         zenith: { value: new Color(0x4f8fd0) }, horizon: { value: new Color(0xd5e6ef) }, haze: { value: haze.clone() },
-        time: { value: 0 },
+        time: { value: 0 }, cover: { value: 0 }, gloom: { value: 0 }, cloudColour: { value: new Color(1, 1, 1) },
       },
     });
     this.mesh = new Mesh(new SphereGeometry(radius, 32, 16), this.material);
@@ -69,6 +75,12 @@ export class SkyDome {
     this.material.uniforms.zenith.value.copy(zenith);
     this.material.uniforms.horizon.value.copy(horizon);
     this.material.uniforms.haze.value.copy(haze);
+  }
+  /** The weather's clouds: how much of the sky they cover and how dark they are (0–1), and their colour in this light */
+  setClouds(cover: number, gloom: number, colour: Color): void {
+    this.material.uniforms.cover.value = cover;
+    this.material.uniforms.gloom.value = gloom;
+    this.material.uniforms.cloudColour.value.copy(colour);
   }
   dispose(): void { this.mesh.geometry.dispose(); this.material.dispose(); }
 }

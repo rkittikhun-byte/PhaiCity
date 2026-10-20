@@ -6,8 +6,11 @@ import { ACESFilmicToneMapping, Color, DirectionalLight, Fog, HemisphereLight, O
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { CityView, ToolHover, TilePoint, TileRect } from '../../cityView.js';
 import { DAY_SKY_URL } from '../materials/catalog.js';
-import { cityBedMaterial, getMaterial, setCityWind, setNightMode, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
+import { cityBedMaterial, getMaterial, setCityWetness, setCityWind, setNightMode, tint, updateRoadSignals, updateCommercialDisplays, updateTransportClock } from '../materials/library.js';
 import { seasonWind } from '../../wind.js';
+import type { Weather } from '../../weather.js';
+import { SCENE } from '../../theme/tokens.js';
+import { CityWeather, type WeatherLook } from './weather.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
 import { groundAt, pickTile, visibleTileRect } from './picking.js';
@@ -63,6 +66,16 @@ const cZenithTwilight = new Color(0x2c3b68);
 const cHorizonDay = new Color(0xd5e6ef);
 const cHorizonNight = new Color(0x151c2d);
 const cHorizonTwilight = new Color(0xfb8b51);
+// The weather's colours (src/theme/tokens.ts SCENE.weather), mixed over the clear day's by how much of each there is
+const cCloud = new Color(SCENE.weather.cloud);
+const cOvercastSky = new Color(SCENE.weather.overcastSky);
+const cOvercastHaze = new Color(SCENE.weather.overcastHaze);
+const cStormSky = new Color(SCENE.weather.stormSky);
+const cStormHaze = new Color(SCENE.weather.stormHaze);
+const cFog = new Color(SCENE.weather.fog);
+const cSmoke = new Color(SCENE.weather.smoke);
+const cFlash = new Color(SCENE.weather.flash);
+const tWeather = new Color();
 const tHaze = new Color();
 const tSky = new Color();
 const tGnd = new Color();
@@ -99,6 +112,8 @@ export class CityView3D implements CityView {
   /** The sun's place from the game's clock, null until the game sends one (setSunAngle) */
   private clockAngle:number|null=null;
   private lastNightFactor=-1;
+  /** The month's weather as the view shows it (weather.ts), read from the map, and the look last lit by */
+  private weather:CityWeather;private look:WeatherLook;private litLook=new Float32Array(6).fill(-1);
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
     this.pixelRatioLimit=Math.max(1,Math.min(1.25,dependencies.pixelRatioLimit??1.25));
@@ -174,6 +189,9 @@ export class CityView3D implements CityView {
     this.fogNear=city?900:2400;this.fogFar=city?5500:7000;this.fog=new Fog(haze,this.fogNear,this.fogFar);
     this.scene.background=haze;this.scene.fog=this.fog;this.sky=new SkyDome(9000,haze);this.scene.add(this.sky.mesh);
     this.scene.add(this.hemi,this.sun,this.sun.target);
+    // The weather (src/weather.ts): rain round the camera, lightning softer for a player who asks for less motion
+    this.weather=new CityWeather(typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches);this.look=this.weather.look;
+    this.scene.add(this.weather.root);
     this.sun.castShadow=true;this.sun.shadow.mapSize.set(1024,1024);this.sun.shadow.bias=-.00035;this.sun.shadow.normalBias=.06;
     this.renderer.setPixelRatio(Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,this.pixelRatioLimit));
     this.renderer.outputColorSpace=SRGBColorSpace;this.renderer.toneMapping=ACESFilmicToneMapping;
@@ -188,10 +206,20 @@ export class CityView3D implements CityView {
     const wasDark=this.darkMode;
     this.darkMode=nightFactor>0.5;
     if(sunAngle!==undefined)this.sunAngle=sunAngle;
-    if(Math.abs(nightFactor-this.lastNightFactor)<0.002&&wasDark===this.darkMode)return;
-    this.lastNightFactor=nightFactor;
+    // ... and the weather's look, which only the colours below follow
+    const w=this.look,l=this.litLook;
+    const weatherMoved=Math.abs(w.cloud-l[0])+Math.abs(w.storm-l[1])+Math.abs(w.fog-l[2])+Math.abs(w.smoke-l[3])+Math.abs(w.flash-l[4])>=0.004;
+    const nightMoved=Math.abs(nightFactor-this.lastNightFactor)>=0.002||wasDark!==this.darkMode;
+    if(!nightMoved&&!weatherMoved)return;
+    this.lastNightFactor=nightFactor;l[0]=w.cloud;l[1]=w.storm;l[2]=w.fog;l[3]=w.smoke;l[4]=w.flash;
+    // How much daylight the weather's colours keep, how overcast it is (a fair day's few clouds leave the sky as it
+    // was) and how dark under the clouds
+    const day=1-0.85*nightFactor,overcast=Math.min(1,Math.max(0,(w.cloud-0.2)/0.8)),gloom=Math.min(1,w.cloud*w.cloud*0.7+w.storm*0.6);
 
     tHaze.copy(cDayHaze).lerp(cNightHaze,nightFactor).lerp(cTwilightHaze,twilight*0.65);
+    // The haze greys under cloud and darkens in a storm, pales in fog and browns in the smoke of burning fields
+    tHaze.lerp(tWeather.copy(cOvercastHaze).lerp(cStormHaze,w.storm).multiplyScalar(day),Math.min(1,overcast*0.6+w.storm*0.3));
+    tHaze.lerp(tWeather.copy(cFog).multiplyScalar(day),w.fog*0.85).lerp(tWeather.copy(cSmoke).multiplyScalar(day),w.smoke*0.6);
     this.fog.color.copy(tHaze);this.scene.background=tHaze;
 
     tSky.copy(cHemiSkyDay).lerp(cHemiSkyNight,nightFactor).lerp(cHemiSkyTwilight,twilight*0.7);
@@ -200,17 +228,28 @@ export class CityView3D implements CityView {
     // A night dark enough to read as night, the city still to be made out and its lit windows standing out (owner,
     // 20 Oct 2026: "ค่อยๆ มืดค่ำ ... เหมือนกับของจริง")
     this.hemi.intensity=(1.25*(1-nightFactor)+0.38*nightFactor)+twilight*0.2;
-    // ... the daylight sky's light on every surface (the HDRI, loadSky) goes down with the sun
-    this.scene.environmentIntensity=1-0.85*nightFactor;
+    // ... duller under the clouds, and for a moment bright with lightning
+    this.hemi.intensity=this.hemi.intensity*(1-0.35*gloom)+w.flash*2.5;this.hemi.color.lerp(cFlash,w.flash*0.8);
+    // ... the daylight sky's light on every surface (the HDRI, loadSky) goes down with the sun, and the clouds
+    this.scene.environmentIntensity=(1-0.85*nightFactor)*(1-0.45*gloom);
 
     tSun.copy(cSunDay).lerp(cSunNight,nightFactor).lerp(cSunTwilight,twilight*0.85);
-    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.3,3.3*(1-nightFactor)+0.45*nightFactor);
+    // ... and the sun goes behind the clouds, into the fog and dim in the smoke
+    const sunShows=Math.max(0.1,1-0.85*Math.min(1,Math.max(0,(w.cloud-0.35)/0.6))-0.3*w.fog-0.35*w.smoke);
+    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.3*sunShows,(3.3*(1-nightFactor)+0.45*nightFactor)*sunShows);
 
     tZenith.copy(cZenithDay).lerp(cZenithNight,nightFactor).lerp(cZenithTwilight,twilight*0.75);
     tHorizon.copy(cHorizonDay).lerp(cHorizonNight,nightFactor).lerp(cHorizonTwilight,twilight*0.85);
+    // The sky under the weather's clouds, and the clouds themselves in the hour's light
+    tZenith.lerp(tWeather.copy(cOvercastSky).lerp(cStormSky,w.storm).multiplyScalar(day),overcast*0.85).lerp(cFlash,w.flash*0.4);
+    tHorizon.lerp(tWeather.copy(cOvercastHaze).lerp(cStormHaze,w.storm).multiplyScalar(day),overcast*0.7).lerp(cFlash,w.flash*0.3);
+    // ... whitened by fog and browned by smoke, as the haze is
+    tZenith.lerp(tWeather.copy(cFog).multiplyScalar(day),w.fog*0.75).lerp(tWeather.copy(cSmoke).multiplyScalar(day),w.smoke*0.45);
+    tHorizon.lerp(tWeather.copy(cFog).multiplyScalar(day),w.fog*0.9).lerp(tWeather.copy(cSmoke).multiplyScalar(day),w.smoke*0.65);
     this.sky.setColors(tZenith,tHorizon,tHaze);
+    this.sky.setClouds(overcast,gloom,tWeather.copy(cCloud).lerp(cOvercastSky,gloom*0.6).multiplyScalar(Math.max(0.08,1-0.9*nightFactor)).lerp(cFlash,w.flash*0.6));
 
-    setNightMode(this.darkMode, nightFactor);
+    if(nightMoved)setNightMode(this.darkMode, nightFactor);
 
     if(wasDark!==this.darkMode){
       this.bed.material=this.wideBed?cityBedMaterial(this.darkMode?0x1b222e:0x7a9150):tint('dirt_laterite',this.darkMode?0x1a2028:0x4c5543);
@@ -326,13 +365,21 @@ export class CityView3D implements CityView {
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
+    // The month's weather (src/weather.ts), read from the map and eased in, in real seconds so a paused storm still rains
+    this.weather.update((this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
     this.updateDayNight();
+    this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
+    // ... wet ground, roofs and roads after rain
+    setCityWetness(this.look.wet);this.weather.wetRoads(this.curves.root);
     this.sky.update(this.navigation.camera.position,this.seconds);
     // The 2D view looks from far above, past the sky and the haze: a clear map
     this.sky.mesh.visible=!this.navigation.flat;this.scene.fog=this.navigation.flat?null:this.fog;
     // The haze keeps its distance from the camera, so the whole map seen from high up stays clear, and further over a
     // whole province, so its far side still shows
     const hazeOut=this.province?2:1;this.fog.near=this.fogNear+this.navigation.distance*.9*hazeOut;this.fog.far=this.fogFar+this.navigation.distance*1.5*hazeOut;
+    // ... and closes in with fog, rain and smoke, toward a few times the camera's distance, so it shows from any height
+    {const w=this.look,thick=1-(1-Math.min(1,w.fog*1.4))*(1-0.45*w.rain)*(1-0.55*w.smoke),d=this.navigation.distance;
+      this.fog.near+=(d*0.2-this.fog.near)*thick;this.fog.far+=(d*2.2-this.fog.far)*thick;}
     // The season's wind sways the trees (src/wind.ts); it eases in rather than jumping when the month turns
     {const wind=seasonWind(this.setup.date().month,this.setup.windLevel??2),ease=Math.min(1,dt*.5);
       this.wind.x+=(wind.x-this.wind.x)*ease;this.wind.y+=(wind.y-this.wind.y)*ease;this.wind.strength+=(wind.strength-this.wind.strength)*ease;
@@ -394,7 +441,7 @@ export class CityView3D implements CityView {
     const target=new WebGLRenderTarget(width,height),pixels=new Uint8Array(width*height*4),previous=this.renderer.getRenderTarget(),outline=this.outline.root.visible,zones=this.zones.root.visible,streets=this.streets?.root.visible??false;
     target.texture.colorSpace=SRGBColorSpace;
     try {
-      this.outline.root.visible=false;this.zones.root.visible=false;if(this.streets)this.streets.root.visible=false;if(this.province)this.province.root.visible=false;this.sky.mesh.visible=false;this.scene.fog=null;
+      this.outline.root.visible=false;this.zones.root.visible=false;if(this.streets)this.streets.root.visible=false;if(this.province)this.province.root.visible=false;this.sky.mesh.visible=false;this.scene.fog=null;this.weather.root.visible=false;
       // Map snapshots use the complete low-detail province, not only the nearby detailed chunks.
       this.chunks.mapLOD(true);this.renderer.setRenderTarget(target);this.renderer.render(this.scene,camera);this.renderer.readRenderTargetPixels(target,0,0,width,height,pixels);
       const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)return this.screenshotVisible();
@@ -403,7 +450,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.weather.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}
