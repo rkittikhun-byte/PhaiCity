@@ -129,6 +129,14 @@ export function rasterKey(map: CellMap, x: number, z: number): number {
   return Math.floor(z / r) * width + Math.floor(x / r);
 }
 
+/** The raster keys of every point within tile (tx, ty): the keys a cell whose middle lies on that tile can have */
+export function tileRasterKeys(map: CellMap, tx: number, ty: number): number[] {
+  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r), keys: number[] = [];
+  const x0 = Math.floor(tx * 10 / r), x1 = Math.ceil((tx + 1) * 10 / r), z0 = Math.floor(ty * 10 / r), z1 = Math.ceil((ty + 1) * 10 / r);
+  for (let rz = z0; rz < z1; rz++) for (let rx = x0; rx < x1; rx++) keys.push(rz * width + rx);
+  return keys;
+}
+
 /** The two rasters a layout marks (the ground the roads take, the ground the cells cover), kept from one layout to the
  * next and cleared: new ones, 7 MB each on a city map, cost a fault of the system's memory at the first mark on each
  * page of them, half of the 0.3-0.6 s the cells took after each road drawn (19 Oct 2026) */

@@ -13,7 +13,7 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf, PLOT_ROWS, plotTileOfCell } from "../src/zoneCells";
+import { CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey, tileRasterKeys } from "../src/zoneCells";
 import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
 /** A bare 16 m map whose zones go a cell at a time, with a straight road and a slanted one */
@@ -126,6 +126,26 @@ describe("zone cells", () => {
     core.run(16 * 8);
     expect(whys().has("power")).toBe(false);
     for (const why of PLOT_WHY) expect([why, hasKey(`object.fact.why.${why}`)]).toEqual([why, true]);
+  });
+
+  test("a road laid over painted cells clears the cells on its tiles (docs/METRE_DRAWING_PLAN.md 0.1)", () => {
+    const core = city(), map = core.map;
+    // A 16 m tile holds 16 x 16 keys of the 1 m raster, among them its middle's
+    const keys = tileRasterKeys(map, 20, 12);
+    expect(keys.length).toBe(256);
+    expect(keys).toContain(rasterKey(map, 205, 125));
+    expect(keys).not.toContain(rasterKey(map, 215, 125));
+    // Homes painted along the road's south side, then a road along it over them on row 11, tiles 18..23
+    const painted = cellsOf(map).cells.filter(c => c.x > 150 && c.x < 260 && c.z > 106 && c.z < 140).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: "residential", cells: painted }).accepted).toBe(true);
+    const under = new Set<number>();
+    for (let x = 18; x <= 23; x++) for (const key of tileRasterKeys(map, x, 11)) under.add(key);
+    const kept = () => [...(map as any).zoneCells.keys()].filter((key: number) => under.has(key));
+    expect(kept().length).toBeGreaterThan(10);
+    for (let x = 18; x <= 23; x++) core.apply({ type: "tool", tool: "road", x, y: 11, stroke: 7 });
+    expect(kept()).toEqual([]);
+    // ... and the cells beside it, off the new road's tiles, stay painted
+    expect([...(map as any).zoneCells.keys()].filter((key: number) => painted.includes(key)).length).toBeGreaterThan(0);
   });
 
   test("painting cells costs a share of the zone's price; clearing is free; the cells stay with the city", () => {

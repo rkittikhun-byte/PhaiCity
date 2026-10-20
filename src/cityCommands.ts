@@ -27,7 +27,7 @@ import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } f
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
-import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, syncCellPlots, zoneCode } from "./zoneCells";
+import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, syncCellPlots, tileRasterKeys, zoneCode } from "./zoneCells";
 import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
@@ -523,12 +523,10 @@ export class CityCommands {
             const tileIdx = c.y * city.width + c.x;
             touched.add(tileIdx);
             const now = map!.getTile(c.x, c.y).getRawValue() & BIT_MASK;
+            // The cells whose middles lie on the tile, by their keys on the 1 m raster (zoneCells.ts rasterKey); four a
+            // side, as here before 20 Oct 2026, missed every key on a 16 m tile (docs/METRE_DRAWING_PLAN.md 0.1)
             if ((isRoadTile(now) || isWaterTile(now)) && cellMap.zoneCells) {
-              for (let cz = 0; cz < 4; cz++) {
-                for (let cx = 0; cx < 4; cx++) {
-                  cellMap.zoneCells.delete((c.y * 4 + cz) * city.width * 4 + (c.x * 4 + cx));
-                }
-              }
+              for (const key of tileRasterKeys(cellMap, c.x, c.y)) cellMap.zoneCells.delete(key);
             }
           }
           cellMap.zoneCellsVersion = (cellMap.zoneCellsVersion ?? 0) + 1;
