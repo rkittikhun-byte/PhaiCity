@@ -17,6 +17,7 @@ import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { besideRoad } from "../cityCommands.js";
 import { isRoadTile } from "../roadLevels.js";
 import { cellsOf } from "../zoneCells.js";
+import { serviceProblem } from "../services.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
@@ -272,8 +273,11 @@ export class AutoPlayer {
       for (const [side, tools] of ERA_ASKS) {
         const f = factors?.[side];
         if (!f || f.value >= f.target || budget.totalFunds <= (this.options.reserve ?? 3000)) continue;
+        // (only those the district office is high enough for: place() buys land when a building finds no room)
+        const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null);
+        if (!allowed.length) continue;
         const n = this.asked++;
-        tools.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
+        allowed.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
       }
       // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
       // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
