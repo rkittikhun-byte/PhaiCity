@@ -8,6 +8,7 @@
 
 import { reframeSave } from "../src/cityFrame";
 import { CityCore } from "../src/core/cityCore";
+import { writeCityLayers } from "../src/core/cityLayers";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Storage } from "../src/storage.js";
@@ -58,15 +59,27 @@ describe("the roads as drawn in a save", () => {
     expect(JSON.stringify(again.map.roadGraph.toJSON())).toBe(JSON.stringify((core.map as any).roadGraph.toJSON()));
   });
 
-  test("a stroke that lost a tile some other way is saved as its tiles alone; the others are kept", () => {
+  test("a stroke that lost a tile some other way (a tornado between steps) is cut there when saved: both parts kept", () => {
     const core = city();
     core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
     core.apply({ type: "road", tool: "road", from: [8, 488], to: [904, 488], stroke: 2 });
     core.map.setTile(30, 10, 0, 0);
     const { saved, again } = saveAndOpen(core);
-    expect(saved.roads.segments).toHaveLength(1);
-    expect([...again.map.roadGraph.segments.values()].map((s: any) => s.piece)).toEqual([2]);
+    expect(saved.roads.segments).toHaveLength(3);
+    expect([...again.map.roadGraph.segments.values()].map((s: any) => s.piece).sort()).toEqual([1, 1, 2]);
+    expect(JSON.stringify(again.map.roadGraph.toJSON())).toBe(JSON.stringify((core.map as any).roadGraph.toJSON()));
     expect(Object.keys(saved.roadPaths).sort()).toEqual(["1", "2"]);
+  });
+
+  test("a stroke whose tile is lost while the save is written with no step between is still saved as its tiles alone", () => {
+    // (the cut is the core's, before a save; a save written straight from the layers, as the district frame does, keeps
+    // only whole strokes)
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    core.apply({ type: "road", tool: "road", from: [8, 488], to: [904, 488], stroke: 2 });
+    core.map.setTile(30, 10, 0, 0);
+    const layers = writeCityLayers(core.map);
+    expect((layers.roads as any).segments).toHaveLength(1);
   });
 
   test("a save from before the roads were kept in metres is given its graphs once, from the lines its roads were drawn as", () => {

@@ -21,7 +21,7 @@ import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
-import { cutTile } from "./roads/roadCut";
+import { cutTile, LostTiles } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
@@ -644,6 +644,29 @@ export class CityCommands {
   /** Whether "undo" would take something back now. */
   canUndo(): boolean {
     return this.city.map !== undefined && this.history.canUndo(this.city.cityTime?.() ?? 0);
+  }
+
+  /** Where tiles under the roads drawn in metres were lost other than by a command (src/roads/roadCut.ts LostTiles) */
+  private readonly lostTiles = new LostTiles();
+
+  /**
+   * The roads and railways drawn in metres cut where a flood, a tornado, an earthquake or want of upkeep took a tile of
+   * them, as the bulldozer cuts them, so the rest stays where it was drawn (src/roads/roadCut.ts LostTiles); whether
+   * any was cut. The core calls it after each step of the simulation and before a save, so the same commands at the
+   * same steps still make the same city.
+   */
+  cutLost(): boolean {
+    const map = this.city.map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null;
+      tileSizeM?: number | null; getTile(x: number, y: number): { getRawValue(): number }; changeCount?(): number } | undefined;
+    if (!map) return false;
+    const width = this.city.width, raster = { width, height: this.city.height, tileSizeM: tileMetres(map) };
+    let cut = false;
+    for (const [graph, kind] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail]] as const) {
+      if (!graph?.segments.size) continue;
+      const isKind = (i: number): boolean => kind(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK);
+      cut = this.lostTiles.cut(graph, raster, isKind, map.changeCount?.()) || cut;
+    }
+    return cut;
   }
 
   /**
