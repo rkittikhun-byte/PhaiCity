@@ -169,6 +169,31 @@ DisasterManager.prototype.setFire = function(times, zonesOnly) {
 };
 
 
+// PhaiCity: a fire within radius tiles of (x, y), where a festival's sky lanterns or rockets come down (src/festivals.ts):
+// the first thing that will burn of a few tries catches, as setFire's. Returns where, or null when nothing caught.
+DisasterManager.prototype.setFireNear = function(x, y, radius) {
+  for (var i = 0; i < 20; i++) {
+    var fx = x - radius + Random.getRandom(2 * radius);
+    var fy = y - radius + Random.getRandom(2 * radius);
+
+    if (!this._map.testBounds(fx, fy))
+      continue;
+
+    var tile = this._map.getTile(fx, fy);
+    if (tile.isZone())
+      continue;
+
+    var value = tile.getValue();
+    if (value > TileValues.TREEBASE && value < TileValues.LASTZONE) {
+      this._map.setTo(fx, fy, TileUtils.randomFire());
+      this._emitEvent(Messages.FIRE_REPORTED, {showable: true, x: fx, y: fy});
+      return {x: fx, y: fy};
+    }
+  }
+  return null;
+};
+
+
 // User initiated plane crash
 DisasterManager.prototype.makeCrash = function() {
   var s = this._spriteManager.getSprite(SPRITE_AIRPLANE);

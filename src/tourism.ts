@@ -13,14 +13,18 @@
 //   dearer living, so a little less demand for homes.
 // The whole country travels at New Year (January) and Songkran (April) (owner, 13 Oct 2026): every province, even one
 // without tourism, has more visitors and people coming home, with more traffic and rubbish; at Songkran the water
-// fights use up some of the water supply in the middle of the dry season.
+// fights use up some of the water supply in the middle of the dry season. The festivals are the ruler's to hold now,
+// modestly, grandly or not at all, and a region and a province keep festivals of their own (src/festivals.ts): the
+// simulation tells tourismMonth which are held this month and how; without that, the country's own are held modestly.
 // A pure function of the city's census: no DOM, no randomness, so a server replays it (CLAUDE.md, "Online plan").
+
+import { FESTIVAL_SPECS, type FestivalId, type FestivalVisit, NATIONAL_FESTIVALS } from "./festivals";
 
 /** How strongly each month draws visitors, January first: the cool dry high season, the hot months, the rains */
 export const TOURISM_SEASON: readonly number[] = [1.4, 1.4, 1.0, 1.0, 0.6, 0.6, 0.6, 0.6, 0.6, 1.0, 1.4, 1.4];
 /** Visitors a month at each tourism level, in an ordinary month, to a well-known and pleasant city */
 export const VISITORS_AT_LEVEL: readonly number[] = [0, 150, 350, 700, 1200, 2000];
-export type FestivalId = "new_year" | "songkran";
+export type { FestivalId, FestivalVisit };
 
 export interface Festival {
   id: FestivalId;
@@ -34,11 +38,12 @@ export interface Festival {
   waterUse: number;
 }
 
-/** The festivals the whole country travels for: New Year (counted in January) and Songkran (13–15 April) */
-export const FESTIVALS: readonly Festival[] = [
-  { id: "new_year", month: 0, draw: 1.5, homecoming: 200, waterUse: 0 },
-  { id: "songkran", month: 3, draw: 1.6, homecoming: 300, waterUse: 0.15 },
-];
+/** The festivals the whole country keeps (src/festivals.ts): New Year (counted in January), Songkran (13–15 April) and
+ * Loy Krathong (November's full moon), each as held modestly */
+export const FESTIVALS: readonly Festival[] = NATIONAL_FESTIVALS.map((id) => {
+  const spec = FESTIVAL_SPECS[id];
+  return { id, month: spec.month - 1, draw: spec.draw, homecoming: spec.homecoming, waterUse: spec.waterUse };
+});
 
 export function festivalIn(month: number): Festival | null {
   return FESTIVALS.find((festival) => festival.month === ((month % 12) + 12) % 12) ?? null;
@@ -89,25 +94,37 @@ export interface TourismMonth {
   shopsWanted: number;
   /** Visitors over the city's population, 0–1: dearer living for the people */
   pressure: number;
-  /** The festival this month, if any */
+  /** The festival this month, if any (the first the city holds) */
   festival: FestivalId | null;
+  /** Every festival the city holds this month */
+  festivals: FestivalId[];
+  /** The share of the water supply the month's festivals use up (Songkran's water fights) */
+  waterUse: number;
 }
 
 export const NO_TOURISM: TourismMonth = {
   level: 0, visitors: 0, wanted: 0, appeal: 0, pollutionPenalty: 0, crimePenalty: 0, income: 0, season: 1, busy: 0,
-  shopsWanted: 0, pressure: 0, festival: null,
+  shopsWanted: 0, pressure: 0, festival: null, festivals: [], waterUse: 0,
 };
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
 /**
  * One month of visitors. month is 0–11, as the game counts it. inProvince: the city is one of the country's
- * provinces, so the festivals come to it too (a practice map has none).
+ * provinces, so the festivals come to it too (a practice map has none). held: the festivals held this month and how
+ * (src/festivals.ts festivalVisits); without it, the country's own festival of the month, held modestly.
  */
-export function tourismMonth(level: number, census: TourismCensus, month: number, inProvince = true): TourismMonth {
+export function tourismMonth(level: number, census: TourismCensus, month: number, inProvince = true,
+                             held?: readonly FestivalVisit[]): TourismMonth {
   const lvl = clamp(Math.round(level), 0, VISITORS_AT_LEVEL.length - 1);
-  const festival = inProvince ? festivalIn(month) : null;
-  if (lvl === 0 && !festival) return NO_TOURISM;
+  const national = festivalIn(month);
+  const visits: readonly FestivalVisit[] = !inProvince ? [] : held ??
+    (national ? [{ id: national.id, draw: national.draw, homecoming: national.homecoming, waterUse: national.waterUse, quiet: false }] : []);
+  if (lvl === 0 && !visits.length) return NO_TOURISM;
+  // Several festivals in a month (Loy Krathong and Yi Peng) add their draws; a quiet one draws nobody but some coming home
+  const festival = visits.length ? { draw: 1 + visits.reduce((sum, v) => sum + Math.max(0, v.draw - 1), 0),
+    homecoming: visits.reduce((sum, v) => sum + v.homecoming, 0) } : null;
+  const shown = visits.filter((v) => !v.quiet).map((v) => v.id);
   const pollutionPenalty = Math.max(0, census.pollutionAverage - 40) / 60;
   const crimePenalty = Math.max(0, census.crimeAverage - 40) / 80;
   const appeal = clamp(0.6 + Math.min(census.landValueAverage, 200) / 200 * 0.4 +
@@ -132,7 +149,9 @@ export function tourismMonth(level: number, census: TourismCensus, month: number
     busy: capacity > 0 ? visitors / capacity : 0,
     shopsWanted: wanted / VISITORS_PER_SHOP * SHOP_WANT_SHARE,
     pressure: clamp(visitors / (Math.max(1, census.totalPop) * 10), 0, 1),
-    festival: festival?.id ?? null,
+    festival: shown[0] ?? null,
+    festivals: shown,
+    waterUse: visits.reduce((sum, v) => sum + v.waterUse, 0),
   };
 }
 
@@ -149,9 +168,9 @@ export function touristTrips(month: TourismMonth): number {
   return Math.max(month.festival ? 1 : 0, Math.round(2 * month.busy));
 }
 
-/** The share of the water supply this month's festival uses up (src/waterManager.ts). */
+/** The share of the water supply this month's festivals use up (src/waterManager.ts). */
 export function festivalWaterUse(month: TourismMonth): number {
-  return FESTIVALS.find((festival) => festival.id === month.festival)?.waterUse ?? 0;
+  return month.waterUse ?? 0;
 }
 
 /** The share of their demand homes keep when living gets dearer, 0.9–1 (src/valves.js). */

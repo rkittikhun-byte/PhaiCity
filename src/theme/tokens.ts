@@ -128,6 +128,28 @@ export const SCENE = {
     /** The picture's darker edge */
     vignette: RAMPS.lavender[800],
   },
+  /**
+   * The festivals (src/festivals.ts, src/render3d/city/festivals3d.ts): paper lanterns and flags along the roads near the
+   * ruler's house, krathong on the water, Yi Peng's sky lanterns and Bun Bang Fai's rockets. Warm thatch-and-clay light,
+   * never neon. Read by the renderer now.
+   */
+  festival: {
+    /** Paper lanterns, lit at night (New Year, Loy Krathong, Yi Peng) */
+    lanterns: [RAMPS.clay[400], RAMPS.gold[300], RAMPS.chili[400], RAMPS.gold[100]],
+    /** Yi Peng's sky lanterns as they rise */
+    skyLantern: RAMPS.gold[200],
+    /** A krathong's banana-leaf float, and its candle */
+    krathong: RAMPS.rice[600], candle: RAMPS.gold[100],
+    /** Songkran's flags: water and white */
+    songkran: [RAMPS.water[300], RAMPS.sand[0], RAMPS.water[500]],
+    /** Bun Bang Fai's bright flags, and its rockets' smoke and flame */
+    rocketFlags: [RAMPS.chili[400], RAMPS.gold[400], RAMPS.rice[400], RAMPS.clay[500]],
+    smoke: RAMPS.sand[100], flame: RAMPS.gold[300],
+    /** The silk festival's banners, in silk's colours */
+    silk: [RAMPS.lavender[400], RAMPS.clay[500], RAMPS.gold[500], RAMPS.chili[500]],
+    /** The vegetarian festival's yellow flags */
+    vegetarian: [RAMPS.gold[300], RAMPS.gold[400]],
+  },
 } as const;
 
 // --- css/theme.css --------------------------------------------------------------------------------------------------

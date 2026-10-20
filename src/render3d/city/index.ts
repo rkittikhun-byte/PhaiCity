@@ -32,6 +32,7 @@ import { loadPeople } from './people3d.js';
 import { EraModels, eraPrototypeProvider, loadEraIndex } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
+import { CityFestivals, type FestivalViewMap } from './festivals3d.js';
 import type { CellMap } from '../../zoneCells.js';
 import { halfWidth, realUnits } from '../../roadGeometry.js';
 import { isLineTile } from '../../dozing.js';
@@ -144,6 +145,8 @@ export class CityView3D implements CityView {
   private postLook:PostLook={ao:{strength:0,radius:2,tint:new Color(SCENE.post.contactShadow)},bloom:{threshold:1,knee:.5,strength:0,spread:.6,tint:new Color()},
     tilt:{strength:0,focus:.5,band:.36},vignette:{strength:0,tint:new Color(SCENE.post.vignette)},fog:null};
   private fogRange={near:0,far:0};
+  /** The festivals' lanterns, krathong, sky lanterns and rockets (festivals3d.ts), made when the first is held */
+  private festivals?:CityFestivals;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
     this.pixelRatioLimit=Math.max(1,Math.min(1.25,dependencies.pixelRatioLimit??1.25));
@@ -456,6 +459,11 @@ export class CityView3D implements CityView {
     // The month's weather (src/weather.ts), read from the map and eased in, in real seconds so a paused storm still rains
     this.weather.update((this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
     this.updateDayNight();this.updateSun();
+    // The month's festivals, read from the map (src/festivals.ts): lanterns along the roads, krathong on the water, sky
+    // lanterns and rockets, lit by the hour, moving in real seconds as the weather does, so a paused festival still shows
+    {const festive=this.setup.map as unknown as FestivalViewMap;if(this.festivals||festive.festivals?.held?.length){
+      if(!this.festivals){this.festivals=new CityFestivals(festive,this.terrain,this.sprites.size,this.snapshot.realUnits);this.scene.add(this.festivals.root);}
+      this.festivals.update(this.curves.drawnLines,Math.max(0,this.lastNightFactor),(start-this.created)/1000,{x:this.wind.x,y:this.wind.y});}}
     this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
     // ... wet ground, roofs and roads after rain
     setCityWetness(this.look.wet);this.weather.wetRoads(this.curves.root);
@@ -567,7 +575,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

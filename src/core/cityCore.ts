@@ -22,6 +22,7 @@ import { cellsOf, syncCellPlots } from "../zoneCells.js";
 import { ownsLand } from "../landBlocks.js";
 import { eraMonth } from "../eraScore.js";
 import type { Era } from "../era.js";
+import { festivalMonth, type FestivalNews } from "../festivals.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -45,7 +46,10 @@ export type CoreEvent =
   /** The era score reached the transition: the city's buildings begin to take the next era's look (src/eraScore.ts) */
   | { type: "eraDawn"; era: Era }
   /** The era score reached 1: the city is in a new era */
-  | { type: "era"; era: Era };
+  | { type: "era"; era: Era }
+  /** A festival held this month, one coming next month the ruler is asked about, a fire its lanterns or rockets set
+   * (src/festivals.ts) */
+  | FestivalNews;
 type Listener<T extends CoreEvent["type"]> = (event: Extract<CoreEvent, { type: T }>) => void;
 
 /** A command the city accepted, and the step it came at: replaying them makes the same city */
@@ -128,6 +132,10 @@ export class CityCore {
       for (const news of eraMonth(core.map, core.simulation, core.objects, eraLevels)) {
         core.emit(news.type === "era" ? { type: "era", era: news.era } : { type: "eraDawn", era: news.era });
       }
+    } });
+    // The province's festivals, held as the ruler answered, and the next month's asked about (docs/GAME_DESIGN.md 5)
+    this.addSystem({ name: "festivals", monthly: core => {
+      for (const news of festivalMonth(core.map, core.simulation)) core.emit(news);
     } });
     this.simulation.addEventListener(Messages.DATE_UPDATED, (date: { month: number; year: number }) => {
       for (const system of this.systems) system.monthly?.(this);

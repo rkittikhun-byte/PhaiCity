@@ -53,6 +53,7 @@ import { Road } from './road.js';
 import { SpriteManager } from './spriteManager.js';
 import { Stadia } from './stadia.js';
 import { festivalWaterUse, livingCostFactor, NO_TOURISM, shopRubbish, tourismMonth, touristTrips } from './tourism.ts';
+import { calendarOf, festivalLandValue, festivalsRun, festivalTraffic, festivalVisits, festivalWaste } from './festivals.ts';
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
@@ -662,12 +663,15 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var canals = this._canalLand || null, width = this._map.width;
   // ... the house's reach in tiles a step of distance, longer on a map at real scale
   var step = BlockMapUtils.nearnessStep(this._map);
+  // ... and the festivals held round the ruler's house, for a few months after (src/festivals.ts)
+  var map = this._map;
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
                                               function(x, y) {
                                                 return (house ? houseLandValue(house, x, y, step) : 0) + green +
                                                        transit.landValueAt(x, y) +
-                                                       (canals ? canals[y * width + x] : 0);
+                                                       (canals ? canals[y * width + x] : 0) +
+                                                       festivalLandValue(map, x, y, step);
                                               });
 };
 
@@ -714,7 +718,8 @@ Simulation.prototype._weatherMonth = function() {
                 Math.min(FIELD_SMOKE_MOST, farms * FIELD_SMOKE_PER_FARM) : 0;
   var weather = nextWeather(previous, climate, month, this._cityTime >> 2, burning);
   this._map.weather = weather;
-  this._traffic.weatherLoad = weatherTraffic(weather);
+  // ... and the month's festivals, which bring more cars (src/festivals.ts)
+  this._traffic.weatherLoad = weatherTraffic(weather) * festivalTraffic(this._map);
   this._waterManager.weather = weather;
 
   var wet = weather.kind === 'rain' || weather.kind === 'storm';
@@ -754,7 +759,10 @@ Simulation.prototype._wasteFound = function(map, x, y, simData) {
 // take what they can and recycling's sales go to the year's taxes; at most once a year each, the news when rubbish lies
 // in the streets or a big town's sewage goes untreated, and when a landfill fills up
 Simulation.prototype._wasteMonth = function() {
-  var month = this._waste.month(peopleOf(this._census), this._tourism.visitors || 0, this._mining.ground);
+  // ... with what the month's festivals leave, krathong in the rivers and canals among it (src/festivals.ts)
+  var people = peopleOf(this._census);
+  var month = this._waste.month(people, this._tourism.visitors || 0, this._mining.ground,
+                                festivalWaste(this._map, calendarOf(this), people));
   this.budget.wasteFund += month.sales;
   this._emitEvent(Messages.WASTE_UPDATED, month);
   month.filled.forEach(function(site) {
@@ -885,12 +893,16 @@ Simulation.prototype._servicesMonth = function() {
 // A month's visitors (src/tourism.ts): more with the ruler's house's culture court, fewer with a visitors' fee, which
 // takes a share of what they spend, and fewer where the town's sewage dirties the water (src/waste.ts)
 Simulation.prototype._visitors = function(month) {
-  var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince());
+  // ... the festivals as the ruler holds them (src/festivals.ts), the country's own held modestly before the core has
+  // worked out a month of them (a simulation run without the core)
+  var visit = tourismMonth(this._tourismLevel(), this._census, month, this._inProvince(),
+                           festivalVisits(this._map, calendarOf(this)));
   var fee = this.budget.touristFee || 0;
   var court = hasWing(this._map, 'culture_court');
   var sewage = this._waste.sewage;
   // ... and fewer at a Songkran without water fights (src/policies.ts)
-  var dry = visit.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? SONGKRAN_VISITORS : 1;
+  var dry = (visit.festivals || []).indexOf('songkran') !== -1 && hasPolicy(this._map, 'songkran_saving') ?
+            SONGKRAN_VISITORS : 1;
   // ... and more by train and high-speed rail (src/transit.ts)
   var rail = this._transit.visitorFactor();
   // ... and fewer in a storm or the rain (src/weather.ts)
@@ -908,7 +920,8 @@ Simulation.prototype._visitors = function(month) {
 Simulation.prototype._setTourism = function(month) {
   this._tourism = month;
   // A water-wise Songkran uses none of the supply (src/policies.ts)
-  this._waterManager.festivalUse = month.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? 0 :
+  this._waterManager.festivalUse = (month.festivals || []).indexOf('songkran') !== -1 &&
+                                   hasPolicy(this._map, 'songkran_saving') ? 0 :
                                    festivalWaterUse(month);
   this._valves.touristShops = month.shopsWanted;
   this._valves.livingCost = livingCostFactor(month);
@@ -923,7 +936,8 @@ Simulation.prototype._tourismMonth = function() {
   var visit = this._visitors(month);
   this._setTourism(visit);
   this.budget.tourismFund += visit.income;
-  if (visit.festival === 'songkran')
+  // Songkran's news, unless the festivals' own news tells how the ruler held it (src/festivals.ts)
+  if (visit.festival === 'songkran' && !festivalsRun(this._map))
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.SONGKRAN});
   else if (visit.festival === 'new_year')
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NEW_YEAR_HOLIDAYS});

@@ -1,0 +1,51 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. */
+
+/* The festival card (src/festivalCard.ts, docs/GAME_DESIGN.md section 5): frosted glass under the top bar, the city
+   running behind it, asking the ruler how to hold next month's festival. Colours from the theme (docs/STYLE_GUIDE.md). */
+body #festivalCard {
+  position: fixed; top: 92px; left: 50%; z-index: 16; width: 340px; max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 200px); overflow-y: auto; box-sizing: border-box; padding: 10px 12px 10px;
+  transform: translateX(-50%); font: 400 11px/1.45 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
+  background: var(--hud-glass-strong); color: var(--hud-text); border: 1px solid var(--hud-edge); border-radius: 14px;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); box-shadow: var(--hud-shadow);
+  animation: festivalIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+body #festivalCard[hidden] { display: none; }
+body #festivalCard.motionLeave { animation: festivalOut 0.2s ease-in forwards; }
+@keyframes festivalIn { from { opacity: 0; transform: translate(-50%, -10px); } }
+@keyframes festivalOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+body #festivalCard .festivalHeader {
+  display: flex; align-items: center; gap: 8px; height: auto; padding: 0; background: transparent; background-image: none;
+  color: var(--hud-dim); font-family: inherit;
+}
+body #festivalCard .festivalTitle { flex: 1; color: var(--hud-dim); font-size: 10px; }
+body #festivalCard .festivalClose {
+  flex: none; width: 22px; height: 22px; min-height: 0; padding: 0; border: none; border-radius: 50%;
+  background: none; color: var(--hud-text); box-shadow: none; cursor: pointer;
+}
+body #festivalCard .festivalClose:hover { background: var(--ph-accent-soft); }
+body #festivalCard .festivalOne + .festivalOne { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ph-line); }
+body #festivalCard .festivalName { color: var(--ph-gold-deep); font-size: 15px; line-height: 1.3; }
+body #festivalCard .festivalAsk { margin: 2px 0 6px; }
+body #festivalCard .festivalChoices { display: flex; flex-direction: column; gap: 4px; }
+body #festivalCard .festivalChoice {
+  /* height: auto over the page's old button { height: 19px } (css/style.css) */
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; height: auto; min-height: 0; margin: 0;
+  padding: 5px 8px; border: 1px solid var(--ph-line); border-radius: 9px; background: var(--ph-glass);
+  color: var(--hud-text); font: inherit; text-align: left; box-shadow: none; cursor: pointer;
+}
+body #festivalCard .festivalChoice:hover { border-color: var(--ph-accent); background: var(--ph-accent-soft); }
+body #festivalCard .festivalChoice[aria-pressed="true"] {
+  border-color: var(--ph-accent); background: var(--ph-accent-soft); box-shadow: inset 3px 0 0 var(--ph-accent);
+}
+body #festivalCard .festivalChoice:focus-visible { outline: 2px solid var(--ph-accent); outline-offset: 1px; }
+body #festivalCard .festivalChoiceTop { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+body #festivalCard .festivalPrice { color: var(--ph-accent-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body #festivalCard .festivalGain { color: var(--hud-dim); font-size: 10px; line-height: 1.35; }
+body #festivalCard .festivalShort { color: var(--ph-danger); font-size: 10px; }
+body #festivalCard .festivalCosts { margin: 6px 0 0; color: var(--hud-dim); font-size: 10px; }
+body #festivalCard .festivalNote { margin: 8px 0 0; color: var(--hud-dim); font-size: 9px; line-height: 1.35; }
+@media (prefers-reduced-motion: reduce) {
+  body #festivalCard, body #festivalCard.motionLeave { animation: none; }
+}

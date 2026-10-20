@@ -159,4 +159,16 @@ Notification.prototype.goodText = function(text) {
 };
 
 
+// ... and bad news of its own (a festival's fire, src/festivalCard.ts), with where it happened when it knows
+Notification.prototype.badText = function(text, x, y) {
+  this._element.removeClass('neutral');
+  this._element.removeClass('good');
+  this._element.addClass('bad');
+  if (x !== undefined && y !== undefined)
+    this._displayLink(text, x, y);
+  else
+    this._displayText(text);
+};
+
+
 export { Notification };

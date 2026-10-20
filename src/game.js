@@ -98,6 +98,7 @@ import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
+import { installFestivalCard } from './festivalCard.ts';
 import { NagWindow } from './nagWindow.js';
 import { Notification } from './notification.js';
 import { QueryWindow } from './queryWindow.js';
@@ -562,6 +563,21 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   });
   this._notificationBar = new Notification('#notifications', this.cityView, Text.messageText[Messages.WELCOME],
                                            this.newsLog);
+
+  // The province's festivals (src/festivalCard.ts, docs/GAME_DESIGN.md 5): a month before each the ruler is asked how
+  // to hold it, as a command, and the news says how it was held
+  this.festivalCard = installFestivalCard({
+    on: function(type, listener) { return self.core.on(type, listener); },
+    choiceOf: function(id) { return (self.gameMap.festivals && self.gameMap.festivals.choices[id]) || 'modest'; },
+    funds: function() { return self.simulation.budget.totalFunds; },
+    choose: function(id, scale) { return self.applyCommand({type: 'festival', id: id, scale: scale}).accepted; },
+    news: function(text, good, at) {
+      if (good)
+        self._notificationBar.goodText(text);
+      else
+        self._notificationBar.badText(text, at ? at.x : undefined, at ? at.y : undefined);
+    }
+  });
 
   this.congratsWindow = new CongratsWindow(opacityLayerID, 'congratsWindow');
   this.congratsWindow.addEventListener(Messages.CONGRATS_WINDOW_CLOSED, this.genericDialogClosure);
