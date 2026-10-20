@@ -64,7 +64,7 @@ def studio(width=16.0, height=16.0, centre=(0.0, 0.0, 4.0), res=(900, 900)):
     scene.world = world
     # Sand ground.
     mesh = bpy.data.meshes.new('ground')
-    s = 600
+    s = 3000
     mesh.from_pydata([(-s, -s, 0), (s, -s, 0), (s, s, 0), (-s, s, 0)], [], [(0, 1, 2, 3)])
     ground = bpy.data.objects.new('ground', mesh)
     mat = bpy.data.materials.new('studio_sand')
