@@ -104,8 +104,10 @@ fix, rebuild, commit. Previews are for checking only; the owner asked not to be 
 - [ ] era5: 14 zone buildings
 - [ ] era1-5: 10 services each (ruler_house, school, hospital, police, fire, water_works, power_plant, waste,
       station, market)
-- [ ] buildings-library.blend: every building as an asset
-- [ ] IMPORT.md, README.md (Thai), final check against the concepts, summary for the owner (Thai)
+- [x] Asset browsing: every building in a set .blend is a collection marked as an asset (no single library file:
+      30 sets of about 5 MB would make it too big)
+- [x] IMPORT.md, README.md (Thai)
+- [ ] Final check of every era's sheets against the concepts, summary for the owner (Thai)
 
 ## Resuming (usage limits)
 
