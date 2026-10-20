@@ -55,6 +55,14 @@ export interface AddResult {
   split: { old: number; into: [number, number] }[];
 }
 
+/** Where a graph stood, to take it back to (RoadGraph mark, undo): the ids it was to give next, and the segments it had
+ * then that were split or removed since */
+export interface RoadMark {
+  readonly nodes: number;
+  readonly segments: number;
+  readonly removed: RoadSegment[];
+}
+
 /** An end this near a node joins it (metres) */
 export const MERGE_M = 0.5;
 /** A crossing this near a segment's end is taken as that end's node rather than splitting it into a stub (metres) */
@@ -125,6 +133,8 @@ export class RoadGraph {
   version = 0;
   private nextNode = 1;
   private nextSegment = 1;
+  /** The mark whose removed segments are being kept (mark) */
+  private watched: RoadMark | null = null;
   /** Segment ids by the buckets their bounds touch */
   private buckets = new Map<number, Set<number>>();
   private bucketsOf = new Map<number, number[]>();
@@ -303,9 +313,34 @@ export class RoadGraph {
   remove(id: number): void {
     const s = this.segment(id);
     this.version++;
+    this.keep(s);
     this.unindex(id);
     this.segments.delete(id);
     for (const n of [s.a, s.b]) if (this.segmentsAt(n).length === 0) this.nodes.delete(n);
+  }
+
+  /**
+   * Where the graph stands now, to take it back to with undo: everything added from now on has a higher id (ids only
+   * count up), and each segment it has now that is split or removed is kept in the mark, until the next mark.
+   */
+  mark(): RoadMark {
+    this.watched = { nodes: this.nextNode, segments: this.nextSegment, removed: [] };
+    return this.watched;
+  }
+
+  /** The graph taken back to a mark: what was added since gone, what was split or removed since back as it was */
+  undo(mark: RoadMark): void {
+    this.version++;
+    for (const id of [...this.segments.keys()]) {
+      if (id < mark.segments) continue;
+      this.unindex(id);
+      this.segments.delete(id);
+    }
+    for (const id of [...this.nodes.keys()]) if (id >= mark.nodes) this.nodes.delete(id);
+    for (const s of mark.removed) this.put({ ...s });
+    this.nextNode = mark.nodes;
+    this.nextSegment = mark.segments;
+    if (this.watched === mark) this.watched = null;
   }
 
   /** The graph as plain data, in id order, for saves (JSON) */
@@ -361,6 +396,7 @@ export class RoadGraph {
     if ((1 - t) * len <= END_M) return s.b;
     const p = controls(this, s), [head, tail] = splitBezier(p, t);
     const mid = this.newNode(head[3]);
+    this.keep(s);
     this.unindex(id);
     this.segments.delete(id);
     const first: RoadSegment = { ...s, id: this.nextSegment++, b: mid };
@@ -411,6 +447,14 @@ export class RoadGraph {
       if (dist(this.pointAt(id, m1), point) < dist(this.pointAt(id, m2), point)) hi = m2; else lo = m1;
     }
     return (lo + hi) / 2;
+  }
+
+  /** A segment the graph had at the mark watched, kept as it was before it goes */
+  private keep(s: RoadSegment): void {
+    const mark = this.watched;
+    if (mark && s.id < mark.segments && !mark.removed.some((r) => r.id === s.id)) {
+      mark.removed.push({ ...s, ...(s.c1 ? { c1: [s.c1[0], s.c1[1]] as Vec } : {}), ...(s.c2 ? { c2: [s.c2[0], s.c2[1]] as Vec } : {}) });
+    }
   }
 
   private put(s: RoadSegment): void {

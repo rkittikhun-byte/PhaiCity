@@ -37,7 +37,7 @@ import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK, BULLBIT } from "./tileFlags";
 import { LASTRAIL, RAILBASE } from "./tileValues";
-import { UndoHistory } from "./undoHistory";
+import { UndoHistory, type UndoStep } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
 
 export const TOOL_NAMES = [
@@ -406,6 +406,8 @@ export function commandProblem(command: unknown, width: number, height: number):
 
 export class CityCommands {
   private readonly history = new UndoHistory();
+  /** The graph the latest stroke of road commands drew in, marked for undo before its first road (road) */
+  private graphMark: { stroke: number; graph: RoadGraph; step: UndoStep } | null = null;
   /** The drawn line the latest stroke of a road tool lays (src/roadPieces.ts) */
   private roadPiece: { stroke: string; piece: number } | null = null;
   /** ... and the tiles of that line in the order drawn, a path while each is beside the last and none comes twice */
@@ -476,6 +478,14 @@ export class CityCommands {
       // Railways in a graph of their own: a railway crossing a road is a level crossing, not a junction
       const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
       const graph = rail ? graphs.railGraph ??= new RoadGraph() : graphs.roadGraph ??= new RoadGraph();
+      // ... taken back whole with its stroke's tiles on undo (docs/METRE_DRAWING_PLAN.md 1.7): marked where the graph
+      // stood before the stroke's first road
+      const marked = this.graphMark;
+      if (!marked || marked.stroke !== command.stroke || marked.graph !== graph || marked.step !== this.history.last()) {
+        const mark = graph.mark();
+        const step = this.history.attach(command.stroke, () => graph.undo(mark), city.cityTime?.() ?? 0);
+        this.graphMark = { stroke: command.stroke, graph, step };
+      }
       // ... with the piece its stroke laid (none when every tile was a road already)
       const piece = this.roadPiece?.stroke === line ? this.roadPiece.piece : 0;
       graph.add({ ...drawn, ...(piece ? { piece } : {}) });
@@ -634,6 +644,9 @@ export class CityCommands {
         for (const change of [...step.changes].reverse()) {
           map.setTile(change.x, change.y, change.before & BIT_MASK, change.before & ALLBITS);
         }
+        // ... and the roads as drawn with them (src/roads/roadGraph.ts)
+        for (const back of [...(step.also ?? [])].reverse()) back();
+        this.graphMark = null;
         if (step.changes.some((c) => isWaterTile(c.before & BIT_MASK) !== isWaterTile(c.after & BIT_MASK))) city.waterChanged?.();
         city.budget.spend(-step.cost);
         return { accepted: true, undone: true };

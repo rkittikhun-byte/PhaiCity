@@ -22,6 +22,9 @@ export interface UndoStep {
   cost: number;
   /** The simulation's cityTime when the step was made (4 a month). */
   time: number;
+  /** What else the step changed, each taken back by its function on undo, last first: the roads as drawn
+   * (src/roads/roadGraph.ts mark) */
+  also?: Array<() => void>;
 }
 
 /** How many steps are kept. */
@@ -49,6 +52,26 @@ export class UndoHistory {
     }
     this.steps.push({ stroke, changes: changes.map((c) => ({ ...c })), cost, time });
     if (this.steps.length > UNDO_STEPS) this.steps.shift();
+  }
+
+  /** Adds something else a stroke changes, taken back on undo by calling back(): to the stroke's step, or a step of
+   * its own when it has none yet. */
+  attach(stroke: number | null, back: () => void, time: number): UndoStep {
+    const last = this.steps[this.steps.length - 1];
+    if (stroke !== null && last && last.stroke === stroke) {
+      (last.also ??= []).push(back);
+      last.time = time;
+      return last;
+    }
+    const step: UndoStep = { stroke, changes: [], cost: 0, time, also: [back] };
+    this.steps.push(step);
+    if (this.steps.length > UNDO_STEPS) this.steps.shift();
+    return step;
+  }
+
+  /** The step undo would take next, if any */
+  last(): UndoStep | undefined {
+    return this.steps[this.steps.length - 1];
   }
 
   /** Whether the last step can still be undone at this time. */

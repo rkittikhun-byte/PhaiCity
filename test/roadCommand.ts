@@ -102,3 +102,73 @@ describe("road command", () => {
     expect(again.funds).toBe(first.funds);
   });
 });
+
+describe("undoing a road drawn in metres (metre plan 1.7)", () => {
+  const json = (core: CityCore): string => JSON.stringify((core.map as any).roadGraph?.toJSON() ?? null);
+  const tiles = (core: CityCore): number => {
+    let hash = 0;
+    for (let y = 0; y < 40; y++) for (let x = 0; x < 60; x++) hash = (hash * 31 + core.map.getTileValue(x, y)) >>> 0;
+    return hash;
+  };
+
+  test("undo takes a road back whole: its tiles, its money and the graph as it was, the road it crossed whole again", () => {
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    const graph1 = json(core), tiles1 = tiles(core), funds1 = core.simulation.budget.totalFunds;
+    core.apply({ type: "road", tool: "road", from: [40, 600], to: [880, 40], c1: [300, 0], c2: [600, 640], stroke: 2 });
+    expect(graphOf(core).segments.size).toBeGreaterThan(3);
+    expect(core.apply({ type: "undo" }).undone).toBe(true);
+    expect(json(core)).toBe(graph1);
+    expect(tiles(core)).toBe(tiles1);
+    expect(core.simulation.budget.totalFunds).toBe(funds1);
+    // ... and the first one too, back to no roads at all
+    expect(core.apply({ type: "undo" }).undone).toBe(true);
+    expect(graphOf(core).segments.size).toBe(0);
+    expect(graphOf(core).nodes.size).toBe(0);
+    // A road drawn again after undo takes the ids the first had (its stroke's piece is a new one)
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 3 });
+    const again = graphOf(core);
+    expect([...again.nodes.values()].map((n) => [n.id, n.x, n.z])).toEqual([[1, 8, 168], [2, 904, 168]]);
+    expect([...again.segments.keys()]).toEqual([1]);
+  });
+
+  test("a road drawn freely, road after road in one stroke, is undone as one, and a bulldozed tile between does not upset it", () => {
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    const graph1 = json(core);
+    core.apply({ type: "road", tool: "road", from: [100, 40], to: [120, 300], stroke: 2 });
+    core.apply({ type: "road", tool: "road", from: [120, 300], to: [200, 500], stroke: 2 });
+    core.apply({ type: "road", tool: "road", from: [200, 500], to: [400, 520], stroke: 2 });
+    core.apply({ type: "tool", tool: "bulldozer", x: 50, y: 10, stroke: 3 });
+    core.apply({ type: "road", tool: "road", from: [600, 40], to: [600, 600], stroke: 1 });
+    // The last road (stroke 1 again), the bulldozer, then the free one, each its own step
+    expect(core.apply({ type: "undo" }).undone).toBe(true);
+    expect(core.apply({ type: "undo" }).undone).toBe(true);
+    expect(core.apply({ type: "undo" }).undone).toBe(true);
+    expect(json(core)).toBe(graph1);
+  });
+
+  test("undo in a replay comes out the same", () => {
+    const play = (log?: { step: number; command: any }[]) => {
+      const core = city();
+      const orders = log ?? [
+        { step: 0, command: { type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 } },
+        { step: 2, command: { type: "road", tool: "road", from: [312, 8], to: [312, 600], stroke: 2 } },
+        { step: 4, command: { type: "undo" } },
+        { step: 6, command: { type: "road", tool: "road", from: [500, 8], to: [520, 600], stroke: 3 } },
+      ];
+      let next = 0;
+      for (let step = 0; step < 40; step++) {
+        while (next < orders.length && orders[next].step === core.steps) core.apply(orders[next++].command);
+        core.step();
+      }
+      return { core, graph: json(core), tiles: tiles(core) };
+    };
+    const first = play(), again = play(first.core.log);
+    expect(again.graph).toBe(first.graph);
+    expect(again.tiles).toBe(first.tiles);
+    // The first road split by the third, the second gone
+    expect(graphOf(first.core).segments.size).toBe(4);
+    expect([...graphOf(first.core).nodes.values()].some((n) => n.x === 312)).toBe(false);
+  });
+});
