@@ -113,6 +113,19 @@ def end_gable_dress(p, rect, z, rise, region, left_end, right_end, over=0.6, ove
     return p
 
 
+def fringe(p, xa, xb, y, z, out=-1, seed=7, step=0.18):
+    """The shaggy edge of a grass roof along X from xa to xb at (y, z): a rolled edge and tufts hanging below it
+    (regions.thatch_fringe for one eave only, so a terrace's bays line theirs up). out: -1 the front, 1 the back."""
+    p.rod(Vector((xa, y, z - 0.12)), Vector((xb, y, z - 0.12)), 0.15, 'thatch', seg=6)
+    n = max(1, int((xb - xa) / step))
+    for i in range(n):
+        x = xa + (xb - xa) * (i + 0.5) / n
+        ln = 0.25 + ((i * 37 + seed * 11) % 10) / 40
+        p.box((step * 0.85, 0.05, ln), ('thatch_dark', 'thatch', 'thatch_light')[(i + seed) % 3],
+              T(x, y + out * 0.06, z - 0.2 - ln / 2))
+    return p
+
+
 def sidewalk(b, y_front, mat='paving', kerb='concrete_light', z=0.08):
     """A bay's strip of sidewalk from the plot's front edge to its front wall, flush with the next bay's."""
     x0 = -b.width / 2
