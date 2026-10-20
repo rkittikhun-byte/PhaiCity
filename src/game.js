@@ -2231,8 +2231,9 @@ Game.prototype.networkLines = function(rail) {
     var value = function(i) { return map.getTileValue(i % map.width, Math.floor(i / map.width)); };
     var piece = function(i) { return pieces ? pieces[i] : 0; };
     var graph = rail ? map.railGraph : map.roadGraph;
+    var level = function(i) { return levels ? levels[i] || 1 : 1; };
     var drawnGraph = graph && graph.segments.size ? graphLines(graph, {width: map.width, height: map.height,
-      tileSizeM: tileMetres(map), value: value, piece: piece}, rail) : null;
+      tileSizeM: tileMetres(map), value: value, piece: piece, level: level}, rail) : null;
     // The lines as the 3D view draws them, one where a road runs on through a junction, so a building stands against
     // the road it sees and a click joins the road it sees
     var drawn = drawnRoads({width: map.width, height: map.height, value: value,

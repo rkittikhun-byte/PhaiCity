@@ -44,6 +44,9 @@ export interface GraphMap {
   readonly tileSizeM: number;
   value(i: number): number;
   piece(i: number): number;
+  /** Each road tile's level (gameMap.roadLevels), which the road upgrade tool raises; without it a road is drawn at the
+   * level it was drawn at */
+  level?(i: number): number;
 }
 
 /** Points along a drawn road this far apart at most (world units), so its ribbon follows the ground */
@@ -77,20 +80,18 @@ export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): Grap
   const { width, height } = map, units = unitsPerMetre(map.tileSizeM);
   const any = rail ? isAnyRail : isAnyRoad;
   const plain = rail ? isLineRail : (v: number): boolean => isLineRoad(v) || isPowerCrossing(v);
-  const plainAt = (p: Point): boolean => {
+  const tileAt = (p: Point): number => {
     const tx = Math.floor(p[0] / TILE_UNITS), ty = Math.floor(p[1] / TILE_UNITS);
-    return tx >= 0 && ty >= 0 && tx < width && ty < height && plain(map.value(ty * width + tx));
+    return tx >= 0 && ty >= 0 && tx < width && ty < height ? ty * width + tx : -1;
   };
-  // Where a road passes from a plain tile into one that is not (or back), to a hundredth of a unit
-  const edge = (a: Point, b: Point): Point => {
-    const inA = plainAt(a);
+  // Where a road passes from a to b out of what `same` holds for, to a hundredth of a unit: the last point it holds for
+  const edge = (a: Point, b: Point, same: (p: Point) => boolean): Point => {
     let lo = 0, hi = 1;
     for (let k = 0; k < 24; k++) {
       const m = (lo + hi) / 2;
-      if (plainAt([a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m]) === inA) lo = m; else hi = m;
+      if (same([a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m])) lo = m; else hi = m;
     }
-    const t = inA ? lo : hi;
-    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    return [a[0] + (b[0] - a[0]) * lo, a[1] + (b[1] - a[1]) * lo];
   };
   const runs: GraphRun[] = [], reached = new Set<number>();
   const raster = { width, height, tileSizeM: map.tileSizeM };
@@ -111,20 +112,35 @@ export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): Grap
     const s = graph.segment(id), piece = s.piece ?? 0;
     if (!whole.has(piece)) continue;
     const points = densify(graph.polyline(id, STEP / units).map(([x, z]): Point => [x * units, z * units]), STEP);
-    const push = (run: Point[], a: number, b: number): void => {
+    const push = (run: Point[], level: number, a: number, b: number): void => {
       if (run.length < 2 || dist(run[0], run[run.length - 1]) < 0.01) return;
-      runs.push({ points: run, level: s.level, piece, a, b });
+      runs.push({ points: run, level, piece, a, b });
       if (a >= 0) reached.add(a);
       if (b >= 0) reached.add(b);
     };
-    let run: Point[] | null = null, start = -1;
+    // Each point's level: none off a plain tile (a bridge, a crossing keeps its own model), its own tile's level (raised
+    // by the upgrade tool), and on a tile of another road it crosses, the level it comes with
+    const levelAt = (p: Point, current: number): number => {
+      const i = tileAt(p);
+      if (i < 0 || !plain(map.value(i))) return 0;
+      if (rail || !map.level) return s.level;
+      return map.piece(i) === piece ? Math.max(1, map.level(i)) : current || s.level;
+    };
+    // ... cut into runs where it changes
+    let run: Point[] | null = null, start = -1, level = 0;
     points.forEach((p, k) => {
-      const ok = plainAt(p);
-      if (ok && !run) { run = k === 0 ? [p] : [edge(points[k - 1], p), p]; start = k === 0 ? s.a : -1; }
-      else if (ok && run) run.push(p);
-      else if (!ok && run) { run.push(edge(points[k - 1], p)); push(run, start, -1); run = null; }
+      const now = levelAt(p, level);
+      if (run && now === level) { run.push(p); return; }
+      let from: Point | null = null;
+      if (k > 0 && (run || now)) {
+        const was = level;
+        from = edge(points[k - 1], p, (q) => levelAt(q, was) === was);
+      }
+      if (run) { run.push(from!); push(run, level, start, -1); run = null; }
+      if (now) { run = from ? [from, p] : [p]; start = from ? -1 : s.a; }
+      level = now;
     });
-    if (run) push(run, start, s.b);
+    if (run) push(run, level, start, s.b);
   }
   const nodes = [...reached].sort((p, q) => p - q).map((id): [number, number, number] => {
     const n = graph.node(id);

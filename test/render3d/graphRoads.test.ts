@@ -162,6 +162,26 @@ describe('roads as drawn in 3D', () => {
     curves.dispose();
   });
 
+  test("a drawn road upgraded is drawn at its tiles' level, a part upgraded as a part of its own", () => {
+    const core = city();
+    core.apply({ type: 'road', tool: 'road', from: [8, 168], to: [904, 168], stroke: 1 });
+    const map = core.map as any;
+    // The upgrade tool raises its tiles 20 to 39 (owner, 13 Oct 2026: a road one level up for the difference)
+    for (let x = 20; x < 40; x++) expect(core.apply({ type: 'tool', tool: 'road_upgrade', x, y: 10 }).accepted).toBe(true);
+    expect(map.roadLevels[10 * 60 + 25]).toBeGreaterThan(1);
+    const lines = graphLines(map.roadGraph, { width: 60, height: 40, tileSizeM: 16,
+      value: (i: number) => map.getTileValue(i % 60, Math.floor(i / 60)), piece: (i: number) => map.roadPieces[i],
+      level: (i: number) => map.roadLevels[i] }, false);
+    expect(lines.runs.map((r) => r.level)).toEqual([1, map.roadLevels[10 * 60 + 25], 1]);
+    // ... cut at the edges of tiles 20 and 39, the road whole from end to end
+    expect(lines.runs[1].points[0][0]).toBeCloseTo(200, 1);
+    expect(lines.runs[1].points[lines.runs[1].points.length - 1][0]).toBeCloseTo(400, 1);
+    const curves = new RoadCurves(snapshotOf(core), flat);
+    const levels = curves.drawnLines.filter((l) => !l.rail).map((l) => l.level).sort();
+    expect(levels).toEqual([1, 1, map.roadLevels[10 * 60 + 25]]);
+    curves.dispose();
+  });
+
   test('a road drawn end to end from another meets it without a gap at their node', () => {
     const core = city();
     core.apply({ type: 'road', tool: 'road', from: [8, 168], to: [400, 168], stroke: 1 });

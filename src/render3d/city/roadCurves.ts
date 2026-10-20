@@ -337,7 +337,9 @@ export class RoadCurves {
     const key = this.drawnKey();
     if (this.drawn?.key === key) return this.drawn;
     const { road, rail, size } = this.graphs(), { width, height, values } = this.snapshot, pieces = this.snapshot.roadPieces;
-    const map = { width, height, tileSizeM: size, value: (i: number) => values[i], piece: (i: number) => pieces?.[i] ?? 0 };
+    const levels = this.snapshot.roadLevels;
+    const map = { width, height, tileSizeM: size, value: (i: number) => values[i], piece: (i: number) => pieces?.[i] ?? 0,
+      level: (i: number) => levels?.[i] ?? 1 };
     const lines = (graph: RoadGraph | null): GraphLines | null => (graph && graph.segments.size ? graphLines(graph, map, graph === rail) : null);
     this.drawn = { key, graph: lines(road), railGraph: lines(rail) };
     return this.drawn;
