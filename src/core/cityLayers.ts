@@ -14,6 +14,7 @@ import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
 import { RoadGraph } from "../roads/roadGraph.js";
+import { PlacedBuildings } from "../buildings/placedBuildings.js";
 import { segmentTiles } from "../roads/roadRaster.js";
 import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
@@ -22,7 +23,7 @@ import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
-import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
+import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, TINYEXP, TINYEXPLAST, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
  * src/gameTools.js), so they are typed loosely here. */
@@ -58,6 +59,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts, docs/METRE_DRAWING_PLAN.md)
     map.roadGraph = readGraph(saved.roads);
     map.railGraph = readGraph(saved.rails);
+    // ... and the ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts)
+    map.buildings = saved.buildings ? PlacedBuildings.fromJSON(saved.buildings) : null;
     // ... and the canals the player dug (src/canals.ts)
     map.canals = saved.canals ? decodePresetLayer(saved.canals, map.width, map.height) : null;
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
@@ -250,6 +253,12 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
     roads: graphKept(map, map.roadGraph, false),
     rails: graphKept(map, map.railGraph, true),
+    // ... and the ruler's buildings where they were put down, those still standing
+    buildings: map.buildings && map.buildings.size ? map.buildings.toJSON((b: { tile: number; size: number }) => {
+      const x = b.tile % map.width, y = Math.floor(b.tile / map.width), value = map.testBounds(x, y) ? map.getTileValue(x, y) : 0;
+      // (a bulldozed one's tiles blow up first, TINYEXP on)
+      return b.size > 1 ? map.getTile(x, y).isZone() : value >= 240 && !(value >= TINYEXP && value <= TINYEXPLAST);
+    }) : undefined,
     // ... and the canals the player dug and each one's level, where they are still water or bridged (src/canals.ts)
     canals: encodeCanals(map),
     // ... and whether its zones are painted tile by tile (src/plots.ts)

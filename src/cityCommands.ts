@@ -23,7 +23,8 @@ import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { segmentTiles } from "./roads/roadRaster";
 import { linePrice } from "./roads/roadDraw";
-import { tileMetres, tileOfUnits } from "./units";
+import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
+import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
@@ -100,6 +101,13 @@ export type Command =
    */
   | { type: "road"; tool: ToolName; from: [number, number]; to: [number, number]; c1?: [number, number];
       c2?: [number, number]; stroke: number; part?: number }
+  /**
+   * A building put down in metres (docs/METRE_DRAWING_PLAN.md 2.1): its middle (x east, z south, metres from the map's
+   * corner) and its turn (radians), as its outline showed it. Its tiles are the block round the tile its middle lies on
+   * (src/buildings/placedBuildings.ts blockOf), never another place, laid as the tool lays a building, and it is kept
+   * where it was put (gameMap.buildings, and its pose for the 3D view).
+   */
+  | { type: "build"; tool: ToolName; x: number; z: number; rot: number; stroke?: number }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -364,6 +372,14 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (c.part !== undefined && !isInteger(c.part, 0, 10000)) return "bad part";
       return null;
     }
+    case "build": {
+      if (!isOneOf(TOOL_NAMES, c.tool)) return `unknown tool ${String(c.tool)}`;
+      const metres = (n: unknown): boolean => typeof n === "number" && Number.isFinite(n) && n >= 0;
+      if (!metres(c.x) || !metres(c.z)) return "outside the map";
+      if (typeof c.rot !== "number" || !Number.isFinite(c.rot)) return "bad turn";
+      if (c.stroke !== undefined && !isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
+      return null;
+    }
     case "undo":
       return null;
     case "budget":
@@ -502,6 +518,29 @@ export class CityCommands {
     return { accepted: true, toolResult: whole ? 0 : null, ...(whole ? {} : { reason: reason ?? "partly laid" }) };
   }
 
+  /** A building put down in metres (the "build" command): laid on the block round the tile its middle lies on, as the
+   * tool lays it, its pose kept for the 3D view, and kept as put down (gameMap.buildings) until undone */
+  private build(command: Extract<Command, { type: "build" }>): CommandOutcome {
+    const city = this.city, map = city.map, tool = city.tools[command.tool];
+    if (!map || !tool) return { accepted: false, reason: `no ${command.tool} tool` };
+    if (!placesBuilding(command.tool, tool)) return { accepted: false, reason: "not a building" };
+    const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null }), units = unitsPerMetre(metres);
+    const { cx, cy } = blockOf(command.x, command.z, size, metres);
+    if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { accepted: false, reason: "outside the map" };
+    const before = this.history.last(), changed = before?.changes.length ?? 0;
+    const pose: [number, number, number] = [Math.round(command.x * units * 100) / 100, Math.round(command.z * units * 100) / 100,
+      Math.round(command.rot * 1000) / 1000];
+    const out = this.apply({ type: "tool", tool: command.tool, x: cx, y: cy, pose,
+      ...(command.stroke !== undefined ? { stroke: command.stroke } : {}) });
+    if (!out.accepted || out.toolResult !== 0) return out;
+    const placed = (map as { buildings?: PlacedBuildings }).buildings ??= new PlacedBuildings();
+    const building = placed.add({ tool: command.tool, x: command.x, z: command.z, rot: command.rot, size, tile: cy * city.width + cx });
+    // ... and taken away again with its tiles on undo
+    const step = this.history.last();
+    if (step && (step !== before || step.changes.length > changed)) (step.also ??= []).push(() => placed.remove(building.id));
+    return out;
+  }
+
   /** After a tool: the canal tool's new water is a canal, a bridge over a canal bulldozed back to water can be filled in
    * again like the rest of it, and the ground's water is worked out again when water came or went */
   private afterWater(before: ReadonlyArray<{ x: number; y: number; before: number }>, toolName: string): void {
@@ -637,6 +676,8 @@ export class CityCommands {
       }
       case "road":
         return this.road(command);
+      case "build":
+        return this.build(command);
       case "undo": {
         const map = city.map;
         const step = map ? this.history.take(city.cityTime?.() ?? 0) : null;

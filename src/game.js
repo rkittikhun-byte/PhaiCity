@@ -53,6 +53,7 @@ import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine 
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
 import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
+import { blockOf } from './buildings/placedBuildings.ts';
 import { layerPixels } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
@@ -961,6 +962,14 @@ Game.prototype.buildingTile = function(tile, size) {
 };
 
 
+// The tile a building posed at pose ([x, z, turn], world units) is put down at: the centre of the block of size tiles
+// round the tile its middle lies on (src/buildings/placedBuildings.ts blockOf)
+var poseTile = function(pose, size) {
+  var block = blockOf(pose[0], pose[1], size, 10);
+  return {x: block.cx, y: block.cy};
+};
+
+
 // The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it or along the stroke
 // that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), expanded to its plots' depth
 Game.prototype.cellsInArea = function(from, to) {
@@ -1491,9 +1500,10 @@ Game.prototype.handleTool = function(data) {
   // A building on a map painted a cell at a time goes where its outline showed: slid along the road a cell at a time,
   // its tiles the nearest beside the road
   var pose = this.buildingPose(this.inputStatus.toolWidth - 0, x, y);
-  if (pose !== null)
-    tileCoords = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
-  tileCoords = this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
+  // ... its tiles the block round the tile its middle lies on, where its outline showed it (docs/METRE_DRAWING_PLAN.md
+  // 2.1), never another place
+  tileCoords = pose !== null ? poseTile(pose, this.inputStatus.toolWidth - 0) :
+               this.buildingTile(tileCoords, this.inputStatus.toolWidth - 0);
 
   // A drag that skipped tiles (a quick mouse) fills the gap, so a road or a stroke of paint never breaks
   var last = this._strokeTile;
@@ -1533,8 +1543,12 @@ Game.prototype.handleTool = function(data) {
     result = tool.TOOLRESULT_OK;
   } else {
     var command = {type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y, stroke: data.stroke};
-    if (pose !== null)
-      command.pose = pose;
+    // A building against its road is put down in metres where its outline stood (src/cityCommands.ts build)
+    if (pose !== null) {
+      var perUnit = tileMetres(this.gameMap) / 10;
+      command = {type: 'build', tool: toolName, x: Math.round(pose[0] * perUnit * 100) / 100,
+                 z: Math.round(pose[1] * perUnit * 100) / 100, rot: pose[2], stroke: data.stroke};
+    }
     // A road or railway drawn freely follows the mouse, its tiles smoothed (src/roadPieces.ts RoadPath)
     if (modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL)
       command.shape = 'free';
@@ -1755,9 +1769,7 @@ Game.prototype.calculateMouseForPaint = function() {
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
   var pose = this.buildingPose(this.inputStatus.toolWidth - 0, this.inputStatus.mouseX, this.inputStatus.mouseY);
-  if (pose !== null)
-    tile = {x: Math.floor(pose[0] / 10), y: Math.floor(pose[1] / 10)};
-  tile = this.buildingTile(tile, this.inputStatus.toolWidth - 0);
+  tile = pose !== null ? poseTile(pose, this.inputStatus.toolWidth - 0) : this.buildingTile(tile, this.inputStatus.toolWidth - 0);
   if (this.inputStatus.toolName === 'bulldozer')
     tile = this.dozeTile(tile, this.inputStatus.mouseX, this.inputStatus.mouseY);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
@@ -2297,6 +2309,21 @@ Game.prototype.buildingPose = function(size, x, y) {
       var nx = -tz, nz = tx;
       if (nx * (px - rx) + nz * (pz - rz) < 0) { nx = -nx; nz = -nz; }
       var gap = roadReach(best.level, realUnits(map.tileSizeM)) + 0.6 + size * 5 * BUILDING_SCALE;
+      // ... stood back from it a metre at a time while its block would cover a road's tiles or stand beside none (a road
+      // at a slant), so the outline is where it goes (poseTile)
+      var metre = unitsPerMetre(tileMetres(map)), isRoad = function(tx, ty) {
+        return map.testBounds(tx, ty) && isRoadTile(map.getTileValue(tx, ty));
+      };
+      for (var back = 0; back <= 24; back++) {
+        var block = blockOf(rx + nx * (gap + back * metre), rz + nz * (gap + back * metre), size, 10), clear = true;
+        for (var ty = block.top; ty < block.top + size && clear; ty++)
+          for (var tx = block.left; tx < block.left + size && clear; tx++)
+            clear = map.testBounds(tx, ty) && !isRoad(tx, ty);
+        if (clear && besideRoad(map.width, map.height, isRoad, block.cx, block.cy, size)) {
+          gap += back * metre;
+          break;
+        }
+      }
       return [Math.round((rx + nx * gap) * 100) / 100, Math.round((rz + nz * gap) * 100) / 100,
               Math.round(Math.atan2(-nx, -nz) * 1000) / 1000];
     }
