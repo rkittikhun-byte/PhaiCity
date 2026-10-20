@@ -273,6 +273,17 @@ export function vertexFinish(key: MaterialKey): MeshStandardMaterial {
   });
 }
 
+/** The era buildings' look (art/buildings, city/eraBuildings.ts): the flat colours of the concept sheets baked in their
+ * vertices and shaded flat, as the models carry no normals; their windows lit at night like every emissive_window. */
+export function eraBuildingMaterial(windows: boolean): MeshStandardMaterial {
+  // White, so the vertex colours show as they are
+  return finishedMaterial(`era-building-${windows ? 'windows' : 'body'}`, windows ? 'emissive_window' : 'stucco_ornament', new Color(1, 1, 1),
+    material => {
+      material.vertexColors = true; material.flatShading = true; material.roughness = 0.9;
+      material.userData.vertexFinish = true; material.userData.eraBuilding = windows ? 'windows' : 'body';
+    });
+}
+
 /** Instanced tiling pieces project texture coordinates after their instance transform. */
 function configureCityWorldUV(material: MeshStandardMaterial): void {
   if (material.onBeforeCompile === material.userData.cityUVWrapper) return;

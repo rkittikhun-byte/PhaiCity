@@ -18,6 +18,8 @@ import { Placement, type PlacementFields } from './placement.js';
 import { roadReach } from '../../roadGeometry.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
+import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
+import { mapEra } from '../../era.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -307,7 +309,7 @@ export class TileSnapshot implements CityMapReader {
     if(v!==MINE&&v!==FARM&&v!==HARBOUR&&v!==STATION)return null;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const rotation=v===HARBOUR?this.portRotation(x,y,3):FACING_ROTATION[this.roadSide(x,y,3)];
-    let id='ind.block_0_0',kind='industrial',height=9,color=0xc7a473;
+    let id='ind.block_0_0',kind='industrial',height=9,color=0xc7a473,eraKind:string|undefined;
     if(v===MINE){
       const mk=this.source?.mineKinds?.[i]??'limestone_quarry';
       id=mk==='oil_gas_well'||mk==='salt_works'?'ind.block_1_2':mk==='gem_mine'?'ind.block_0_2':'ind.block_0_3';
@@ -317,12 +319,12 @@ export class TileSnapshot implements CityMapReader {
     }else if(v===HARBOUR){
       id='ind.block_0_1';kind='transport';height=9;color=0x9aa8aa;
     }else if(v===STATION){
-      const sk=this.source?.stationKinds?.[i]??'train_station';
+      const sk=this.source?.stationKinds?.[i]??'train_station';eraKind=`station.${sk}`;
       id=sk==='hsr_station'?'com.block_3_3':sk==='metro_station'?'com.block_2_2':'civic.vocational_college';
       kind='transport';height=10;color=0x9aa8aa;
     }
     if(!registry[id])return null;
-    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind,footprint:[3,3],height,color,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind,eraKind,footprint:[3,3],height,color,
       water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
         variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
   }
@@ -335,7 +337,7 @@ export class TileSnapshot implements CityMapReader {
     const rotation=FACING_ROTATION[lotFacing(this,lot)],cx=(x+LOT_SIZE/2)*10,cz=(y+LOT_SIZE/2)*10;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const state=this.construction.get(i)?.stage??'closed';
-    return new Placement({index:i,x:cx,z:cz,id,kind:lot.kind,footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
+    return new Placement({index:i,x:cx,z:cz,id,kind:lot.kind,eraKind:plotEraKind(lot.kind,lot.level,true),footprint:[LOT_SIZE,LOT_SIZE],height:(PLOT_HEIGHTS[lot.kind][lot.level]??20)*scale,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[lot.kind],water:false,rotation,scale,
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state,
         waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
@@ -349,10 +351,33 @@ export class TileSnapshot implements CityMapReader {
     const rotation=FACING_ROTATION[plotFacing(this,x,y)];
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
     const state=this.construction.get(i)?.stage??'closed';
-    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id,kind:plot.kind,eraKind:plotEraKind(plot.kind,plot.level,false),footprint:[1,1],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation,scale:1,
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:plot.value,state,
         waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
+  }
+  /** The era models once their index has loaded (eraBuildings.ts); null keeps every building procedural */
+  eraModels:EraModels|null=null;
+  /** The era a building on tile i is drawn in: the map's own record for that tile when it keeps one (`buildingEras`,
+   * 1-5), else the city's era (src/era.ts) */
+  eraOf(i:number):number {
+    const map=this.source as {era?:unknown;buildingEras?:ArrayLike<number>|null}|null;
+    const own=map?.buildingEras?.[i]??0;
+    return own>=1&&own<=5?own:mapEra(map);
+  }
+  /** A building drawn with its era's model when there is one for it (eraBuildings.ts): its id becomes `era.<n>.<kind>`,
+   * its height the model's, and on a map that is not real-scale it is drawn at 10/16, as the model's tile is 16 m */
+  private toEra(p:Placement|null):Placement|null {
+    if(!p||!this.eraModels||p.index<0)return p;
+    const state=p.options.state;
+    if(state==='stage_1'||state==='stage_2')return p;
+    const era=this.eraOf(p.index),kind=eraKindFor(p.id,p.eraKind,era);
+    if(!kind)return p;
+    const height=this.eraModels.height(era,p.options.region??'central',kind);
+    if(height===null)return p;
+    p.id=eraModelId(era,kind);p.height=height;p.options={...p.options,seed:0,variant:0,state:'closed'};
+    if(!this.realUnits){p.scale*=BUILDING_SCALE;p.fill=(p.fill??1)*BUILDING_SCALE;}
+    return p;
   }
   /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
    * only the far view's ground, so nothing covers the curve */
@@ -363,7 +388,7 @@ export class TileSnapshot implements CityMapReader {
   placement(i:number,region:RegionId):Placement|null {
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
-    const p=this.narrowBridge(this.atRealSize(this.placementOf(i,region,this.values[i])));
+    const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
   }
   /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */

@@ -16,8 +16,8 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   the last kit fixes (no errors; about 70 one-tile or lot buildings are 5-30% over the soft triangle budget, for the
   import's LOD to take). Era 1 by the main session, eras 2-5 by sub-agents (`era<n>.py` + `lib/era<n>_parts.py`),
   every sheet reviewed against the concepts. `previews/all_eras_northeast.png` shows the five eras side by side.
-- Next, when the owner asks: import into the game (IMPORT.md), and the owner's decisions listed there (whether
-  buildings change with the era; one model per service kind or per era).
+- 20 Oct 2026: imported into the game on main (IMPORT.md "Done"); `era-buildings.html` shows every set. Waiting on
+  the owner: how a city moves between eras a little at a time and how buildings level up.
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 

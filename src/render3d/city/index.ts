@@ -26,6 +26,7 @@ import { LayerOverlay } from './layerOverlay.js';
 import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
 import { loadPeople } from './people3d.js';
+import { EraModels, eraPrototypeProvider, loadEraIndex } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import type { CellMap } from '../../zoneCells.js';
@@ -79,6 +80,8 @@ export class CityView3D implements CityView {
   private snapshot:TileSnapshot;private sprites=new CitySprites();private pedestrians:CityPedestrians;private roadTraffic:CityRoadTraffic;private foliage:CityFoliage;private outline:ToolOutline;private zones:ZoneGrid;
   private sun=new DirectionalLight(0xffe4bc,3.3);private hemi=new HemisphereLight(0xd7edff,0xb5a385,1.25);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
+  /** The era the buildings are drawn in (eraBuildings.ts) */
+  private shownEra=0;
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
@@ -103,6 +106,9 @@ export class CityView3D implements CityView {
     this.renderer=dependencies.rendererFactory?.(this.canvas)??new WebGLRenderer({canvas:this.canvas,antialias:true,preserveDrawingBuffer:true});
     let provider:PrototypeProvider;
     try{provider=dependencies.provider??browserPrototypeProvider();}catch(error){this.renderer.dispose();throw error;}
+    // The era buildings (eraBuildings.ts, art/buildings) load on the page; everything else stays with the worker
+    const eraModels=!this.headless&&typeof fetch!=='undefined';
+    if(eraModels)provider=eraPrototypeProvider(provider);
     this.land=canalLand(setup.map);
     this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=this.land;this.snapshot.enableConstruction=!this.headless;this.snapshot.sync(this.land);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;
@@ -120,6 +126,9 @@ export class CityView3D implements CityView {
     if(!this.headless&&typeof fetch!=='undefined'){const region=setup.region;const map=setup.map as {era?:unknown};
       loadPeople(region,MAX_PEDESTRIANS).then(people=>{if(!people)return;if(this.disposed){people.dispose();return;}
         this.pedestrians.usePeople(people,region,()=>mapEra(map));}).catch(error=>console.warn('PhaiCity: people models did not load',error));}
+    // ... and once their index is in, every building of an era with a model is drawn with it (TileSnapshot.toEra)
+    if(eraModels)loadEraIndex().then(index=>{if(!index||this.disposed)return;this.snapshot.eraModels=new EraModels(index);
+      this.shownEra=mapEra(this.land as {era?:unknown});this.chunks.refreshAll();}).catch(error=>console.warn('PhaiCity: era buildings did not load',error));
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
@@ -263,6 +272,8 @@ export class CityView3D implements CityView {
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
+    // A city that reaches a new era draws its buildings in that era's look (eraBuildings.ts)
+    if(this.snapshot.eraModels){const era=mapEra(this.land as {era?:unknown});if(era!==this.shownEra){this.shownEra=era;this.chunks.refreshAll();}}
     this.resize();const synced=this.snapshot.sync(this.land),built=this.snapshot.stepConstruction(this.seconds);
     const changed=built.length?[...new Set([...synced,...built])]:synced;
     // The ruler's house rises a level or takes a wing without its tiles changing: rebuild it when it does

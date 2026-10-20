@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 import { Box3, BufferAttribute, BufferGeometry, MeshStandardMaterial, Sphere, Vector3 } from 'three';
-import { MaterialKey, getMaterial, tint, vertexFinish, roadConcrete, paintedSteel, polishedStone,
+import { MaterialKey, getMaterial, tint, vertexFinish, eraBuildingMaterial, roadConcrete, paintedSteel, polishedStone,
   roadCurbMaterial, railwaySignalMaterial, bambooCulmMaterial, contaminationGlow, commercialLEDMaterial, observationDeckMaterial,
   serviceConcreteMaterial, stadiumCrowdMaterial, stadiumFloodlightMaterial, powerDomeGlowMaterial,
   transportCraneMaterial, transportRadarMaterial, vehicleMaterial, vehicleDisplayMaterial, VehicleMaterialKey, citySurfaceMaterial } from '../materials/library.js';
@@ -19,6 +19,7 @@ export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandar
 function material(d:MaterialDescription):MeshStandardMaterial {
   const u=d.data,key=d.key as MaterialKey;
   if(u.provinceSurface)return citySurfaceMaterial();
+  if(u.eraBuilding)return eraBuildingMaterial(u.eraBuilding==='windows');
   if(u.vehicleDisplay)return vehicleDisplayMaterial();
   if(u.vehicleMaterial)return vehicleMaterial(u.vehicleMaterial,d.color);
   if(u.hospitalAtlas)return hospitalAtlas();

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PhaiCity · สิ่งก่อสร้างตามยุค</title>
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Sarabun, "Noto Sans Thai", system-ui, sans-serif; color: var(--ph-sand-900);
+        background: var(--ph-sand-50); }
+      header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between;
+        padding: 16px 20px 12px; border-bottom: 1px solid var(--ph-sand-200); }
+      h1 { margin: 0; font-size: 22px; font-weight: 600; }
+      .eyebrow { font-size: 12px; color: var(--ph-sand-600); letter-spacing: .04em; }
+      .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+      label { display: grid; gap: 4px; font-size: 12px; color: var(--ph-sand-700); }
+      select, button { font: inherit; color: var(--ph-sand-900); background: var(--ph-sand-0); border: 1px solid var(--ph-sand-300);
+        border-radius: 6px; padding: 7px 10px; }
+      button { cursor: pointer; }
+      button[aria-pressed="true"] { background: var(--ph-clay-500); border-color: var(--ph-clay-600); color: var(--ph-sand-0); }
+      a { color: var(--ph-clay-700); }
+      main { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 120px); }
+      nav { padding: 12px; border-right: 1px solid var(--ph-sand-200); overflow-y: auto; max-height: calc(100vh - 120px); }
+      nav h2 { font-size: 12px; font-weight: 600; color: var(--ph-sand-600); margin: 12px 4px 6px; }
+      nav button { display: block; width: 100%; text-align: left; margin: 0 0 4px; padding: 6px 10px; font-size: 14px; }
+      .stage { position: relative; min-height: 480px; }
+      .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .readout { position: absolute; left: 12px; bottom: 10px; font-size: 13px; color: var(--ph-sand-800);
+        background: rgba(var(--ph-sand-0-rgb), .85); border-radius: 6px; padding: 6px 10px; }
+      footer { font-size: 12px; color: var(--ph-sand-600); padding: 10px 20px; border-top: 1px solid var(--ph-sand-200); }
+      @media (max-width: 720px) { main { grid-template-columns: 1fr; } nav { max-height: 220px; border-right: 0; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div><div class="eyebrow">PhaiCity / 3D</div>
+        <h1 data-th="สิ่งก่อสร้างตามยุค" data-en="Era buildings">สิ่งก่อสร้างตามยุค</h1></div>
+      <div class="controls">
+        <label><span data-th="ยุค" data-en="Era">ยุค</span><select id="era">
+          <option value="1" data-th="1 หมู่บ้านเกษตร" data-en="1 Farming village">1 หมู่บ้านเกษตร</option>
+          <option value="2" data-th="2 เมืองตลาด" data-en="2 Market town">2 เมืองตลาด</option>
+          <option value="3" data-th="3 เมืองโรงงาน" data-en="3 Factory town">3 เมืองโรงงาน</option>
+          <option value="4" data-th="4 เมืองสมัยใหม่" data-en="4 Modern city">4 เมืองสมัยใหม่</option>
+          <option value="5" data-th="5 เมืองอนาคต" data-en="5 Future city">5 เมืองอนาคต</option>
+        </select></label>
+        <label><span data-th="ภาค" data-en="Region">ภาค</span><select id="region">
+          <option value="north" data-th="เหนือ" data-en="North">เหนือ</option>
+          <option value="northeast" selected data-th="อีสาน" data-en="Northeast">อีสาน</option>
+          <option value="central" data-th="กลาง" data-en="Central">กลาง</option>
+          <option value="east" data-th="ตะวันออก" data-en="East">ตะวันออก</option>
+          <option value="west" data-th="ตะวันตก" data-en="West">ตะวันตก</option>
+          <option value="south" data-th="ใต้" data-en="South">ใต้</option>
+        </select></label>
+        <label><span data-th="เวลา" data-en="Time">เวลา</span><select id="time">
+          <option value="day" data-th="กลางวัน" data-en="Day">กลางวัน</option>
+          <option value="night" data-th="กลางคืน" data-en="Night">กลางคืน</option>
+        </select></label>
+        <label>ภาษา / Language<select id="language"><option value="th">ไทย</option><option value="en">English</option></select></label>
+        <a href="index.html" data-th="เปิดเกม ↗" data-en="Open game ↗">เปิดเกม ↗</a>
+      </div>
+    </header>
+    <main>
+      <nav id="kinds" aria-label="แบบสิ่งก่อสร้าง"></nav>
+      <div class="stage" id="stage"><p class="readout" id="readout" role="status"></p></div>
+    </main>
+    <footer data-th="ลากเพื่อหมุน · ล้อเมาส์เพื่อซูม · คลิกขวาลากเพื่อเลื่อน · โมเดลจาก art/buildings (Blender) ขนาดจริง 1 ช่อง = 16 ม."
+      data-en="Drag to orbit · wheel to zoom · right-drag to pan · models from art/buildings (Blender), real size, 1 tile = 16 m">ลากเพื่อหมุน · ล้อเมาส์เพื่อซูม · คลิกขวาลากเพื่อเลื่อน · โมเดลจาก art/buildings (Blender) ขนาดจริง 1 ช่อง = 16 ม.</footer>
+    <footer>PhaiCity · GPL v3 · Draco decoder (Apache 2.0) · <a href="assets/CREDITS.md">Credits</a><br>
+      Modified from micropolisJS by Graeme McCutcheon, adapted from Micropolis. See LICENSE and COPYING.</footer>
+    <noscript>กรุณาเปิด JavaScript / Enable JavaScript.</noscript>
+  </body>
+</html>

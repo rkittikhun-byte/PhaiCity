@@ -1,0 +1,3030 @@
+{
+ "buildings": {
+  "era1": {
+   "central": {
+    "factory_1": {
+     "height": 6.47,
+     "triangles": 4451
+    },
+    "factory_2": {
+     "height": 4.5,
+     "triangles": 4497
+    },
+    "factory_3": {
+     "height": 7.47,
+     "triangles": 4497
+    },
+    "factory_4": {
+     "height": 8.87,
+     "triangles": 10212
+    },
+    "fire": {
+     "height": 13.58,
+     "triangles": 15982
+    },
+    "home_1": {
+     "height": 6.79,
+     "triangles": 4499
+    },
+    "home_2": {
+     "height": 8.26,
+     "triangles": 4472
+    },
+    "home_3": {
+     "height": 8.12,
+     "triangles": 4333
+    },
+    "home_4": {
+     "height": 8.71,
+     "triangles": 4656
+    },
+    "home_5": {
+     "height": 10.9,
+     "triangles": 10387
+    },
+    "hospital": {
+     "height": 9.47,
+     "triangles": 15311
+    },
+    "market": {
+     "height": 12.25,
+     "triangles": 15855
+    },
+    "police": {
+     "height": 11.8,
+     "triangles": 15958
+    },
+    "power_plant": {
+     "height": 9.77,
+     "triangles": 15998
+    },
+    "ruler_house": {
+     "height": 10.35,
+     "triangles": 14713
+    },
+    "school": {
+     "height": 9.46,
+     "triangles": 15342
+    },
+    "shop_1": {
+     "height": 6.12,
+     "triangles": 4493
+    },
+    "shop_2": {
+     "height": 7.04,
+     "triangles": 4494
+    },
+    "shop_3": {
+     "height": 7.07,
+     "triangles": 4440
+    },
+    "shop_4": {
+     "height": 8.67,
+     "triangles": 4469
+    },
+    "shop_5": {
+     "height": 8.21,
+     "triangles": 10827
+    },
+    "station": {
+     "height": 7.77,
+     "triangles": 10550
+    },
+    "waste": {
+     "height": 6.81,
+     "triangles": 15986
+    },
+    "water_works": {
+     "height": 7.47,
+     "triangles": 15997
+    }
+   },
+   "east": {
+    "factory_1": {
+     "height": 6.17,
+     "triangles": 4424
+    },
+    "factory_2": {
+     "height": 5.18,
+     "triangles": 4499
+    },
+    "factory_3": {
+     "height": 7.11,
+     "triangles": 4500
+    },
+    "factory_4": {
+     "height": 8.87,
+     "triangles": 10312
+    },
+    "fire": {
+     "height": 13.4,
+     "triangles": 15357
+    },
+    "home_1": {
+     "height": 6.83,
+     "triangles": 4484
+    },
+    "home_2": {
+     "height": 7.99,
+     "triangles": 4436
+    },
+    "home_3": {
+     "height": 7.85,
+     "triangles": 4260
+    },
+    "home_4": {
+     "height": 8.42,
+     "triangles": 4747
+    },
+    "home_5": {
+     "height": 10.72,
+     "triangles": 10298
+    },
+    "hospital": {
+     "height": 9.11,
+     "triangles": 15132
+    },
+    "market": {
+     "height": 11.52,
+     "triangles": 15806
+    },
+    "police": {
+     "height": 11.64,
+     "triangles": 15744
+    },
+    "power_plant": {
+     "height": 9.35,
+     "triangles": 15999
+    },
+    "ruler_house": {
+     "height": 9.95,
+     "triangles": 14467
+    },
+    "school": {
+     "height": 9.21,
+     "triangles": 15100
+    },
+    "shop_1": {
+     "height": 5.93,
+     "triangles": 4496
+    },
+    "shop_2": {
+     "height": 6.75,
+     "triangles": 4453
+    },
+    "shop_3": {
+     "height": 6.97,
+     "triangles": 4443
+    },
+    "shop_4": {
+     "height": 8.31,
+     "triangles": 4432
+    },
+    "shop_5": {
+     "height": 8.21,
+     "triangles": 10789
+    },
+    "station": {
+     "height": 7.41,
+     "triangles": 10278
+    },
+    "waste": {
+     "height": 6.83,
+     "triangles": 15444
+    },
+    "water_works": {
+     "height": 7.11,
+     "triangles": 15997
+    }
+   },
+   "north": {
+    "factory_1": {
+     "height": 8.16,
+     "triangles": 4433
+    },
+    "factory_2": {
+     "height": 4.5,
+     "triangles": 4481
+    },
+    "factory_3": {
+     "height": 7.46,
+     "triangles": 4481
+    },
+    "factory_4": {
+     "height": 8.87,
+     "triangles": 11000
+    },
+    "fire": {
+     "height": 14.18,
+     "triangles": 15748
+    },
+    "home_1": {
+     "height": 8.15,
+     "triangles": 4469
+    },
+    "home_2": {
+     "height": 8.57,
+     "triangles": 4444
+    },
+    "home_3": {
+     "height": 8.71,
+     "triangles": 4906
+    },
+    "home_4": {
+     "height": 9.05,
+     "triangles": 5857
+    },
+    "home_5": {
+     "height": 10.49,
+     "triangles": 13484
+    },
+    "hospital": {
+     "height": 9.46,
+     "triangles": 15106
+    },
+    "market": {
+     "height": 10.99,
+     "triangles": 15825
+    },
+    "police": {
+     "height": 12.48,
+     "triangles": 15665
+    },
+    "power_plant": {
+     "height": 9.55,
+     "triangles": 15999
+    },
+    "ruler_house": {
+     "height": 11.13,
+     "triangles": 17950
+    },
+    "school": {
+     "height": 9.21,
+     "triangles": 15274
+    },
+    "shop_1": {
+     "height": 8.16,
+     "triangles": 4431
+    },
+    "shop_2": {
+     "height": 8.26,
+     "triangles": 4234
+    },
+    "shop_3": {
+     "height": 7.86,
+     "triangles": 4247
+    },
+    "shop_4": {
+     "height": 9.35,
+     "triangles": 4278
+    },
+    "shop_5": {
+     "height": 8.21,
+     "triangles": 10786
+    },
+    "station": {
+     "height": 7.76,
+     "triangles": 10499
+    },
+    "waste": {
+     "height": 7.33,
+     "triangles": 15999
+    },
+    "water_works": {
+     "height": 7.46,
+     "triangles": 15997
+    }
+   },
+   "northeast": {
+    "factory_1": {
+     "height": 5.7,
+     "triangles": 4456
+    },
+    "factory_2": {
+     "height": 5.74,
+     "triangles": 4500
+    },
+    "factory_3": {
+     "height": 5.87,
+     "triangles": 4500
+    },
+    "factory_4": {
+     "height": 8.87,
+     "triangles": 8972
+    },
+    "fire": {
+     "height": 12.7,
+     "triangles": 15998
+    },
+    "home_1": {
+     "height": 5.74,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 7.77,
+     "triangles": 4448
+    },
+    "home_3": {
+     "height": 7.5,
+     "triangles": 4286
+    },
+    "home_4": {
+     "height": 8.71,
+     "triangles": 4367
+    },
+    "home_5": {
+     "height": 8.84,
+     "triangles": 10351
+    },
+    "hospital": {
+     "height": 9.71,
+     "triangles": 15275
+    },
+    "market": {
+     "height": 9.23,
+     "triangles": 15860
+    },
+    "police": {
+     "height": 11.01,
+     "triangles": 15867
+    },
+    "power_plant": {
+     "height": 7.93,
+     "triangles": 15999
+    },
+    "ruler_house": {
+     "height": 11.23,
+     "triangles": 15069
+    },
+    "school": {
+     "height": 9.21,
+     "triangles": 15260
+    },
+    "shop_1": {
+     "height": 5.74,
+     "triangles": 4496
+    },
+    "shop_2": {
+     "height": 5.73,
+     "triangles": 4475
+    },
+    "shop_3": {
+     "height": 6.97,
+     "triangles": 4448
+    },
+    "shop_4": {
+     "height": 7.07,
+     "triangles": 4460
+    },
+    "shop_5": {
+     "height": 8.21,
+     "triangles": 10828
+    },
+    "station": {
+     "height": 6.17,
+     "triangles": 8746
+    },
+    "waste": {
+     "height": 6.39,
+     "triangles": 15999
+    },
+    "water_works": {
+     "height": 5.87,
+     "triangles": 15997
+    }
+   },
+   "south": {
+    "factory_1": {
+     "height": 6.15,
+     "triangles": 4498
+    },
+    "factory_2": {
+     "height": 6.15,
+     "triangles": 4500
+    },
+    "factory_3": {
+     "height": 6.15,
+     "triangles": 3276
+    },
+    "factory_4": {
+     "height": 10.38,
+     "triangles": 9036
+    },
+    "fire": {
+     "height": 12.16,
+     "triangles": 15998
+    },
+    "home_1": {
+     "height": 10.38,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 6.31,
+     "triangles": 4460
+    },
+    "home_3": {
+     "height": 6.25,
+     "triangles": 4453
+    },
+    "home_4": {
+     "height": 6.64,
+     "triangles": 4021
+    },
+    "home_5": {
+     "height": 10.9,
+     "triangles": 10441
+    },
+    "hospital": {
+     "height": 10.45,
+     "triangles": 15364
+    },
+    "market": {
+     "height": 10.37,
+     "triangles": 15999
+    },
+    "police": {
+     "height": 10.54,
+     "triangles": 15916
+    },
+    "power_plant": {
+     "height": 10.37,
+     "triangles": 15999
+    },
+    "ruler_house": {
+     "height": 10.54,
+     "triangles": 15266
+    },
+    "school": {
+     "height": 10.51,
+     "triangles": 15999
+    },
+    "shop_1": {
+     "height": 6.15,
+     "triangles": 4494
+    },
+    "shop_2": {
+     "height": 6.15,
+     "triangles": 4470
+    },
+    "shop_3": {
+     "height": 6.97,
+     "triangles": 4497
+    },
+    "shop_4": {
+     "height": 6.15,
+     "triangles": 4470
+    },
+    "shop_5": {
+     "height": 10.38,
+     "triangles": 10992
+    },
+    "station": {
+     "height": 10.23,
+     "triangles": 6434
+    },
+    "waste": {
+     "height": 10.49,
+     "triangles": 15999
+    },
+    "water_works": {
+     "height": 10.23,
+     "triangles": 15997
+    }
+   },
+   "west": {
+    "factory_1": {
+     "height": 6.17,
+     "triangles": 4464
+    },
+    "factory_2": {
+     "height": 6.03,
+     "triangles": 4500
+    },
+    "factory_3": {
+     "height": 7.11,
+     "triangles": 4500
+    },
+    "factory_4": {
+     "height": 8.87,
+     "triangles": 10352
+    },
+    "fire": {
+     "height": 13.4,
+     "triangles": 15996
+    },
+    "home_1": {
+     "height": 6.03,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 6.02,
+     "triangles": 4483
+    },
+    "home_3": {
+     "height": 7.85,
+     "triangles": 4267
+    },
+    "home_4": {
+     "height": 8.42,
+     "triangles": 5022
+    },
+    "home_5": {
+     "height": 10.87,
+     "triangles": 10341
+    },
+    "hospital": {
+     "height": 9.11,
+     "triangles": 15320
+    },
+    "market": {
+     "height": 11.52,
+     "triangles": 15838
+    },
+    "police": {
+     "height": 11.64,
+     "triangles": 15935
+    },
+    "power_plant": {
+     "height": 9.35,
+     "triangles": 15999
+    },
+    "ruler_house": {
+     "height": 9.95,
+     "triangles": 14720
+    },
+    "school": {
+     "height": 9.21,
+     "triangles": 15355
+    },
+    "shop_1": {
+     "height": 6.03,
+     "triangles": 4496
+    },
+    "shop_2": {
+     "height": 6.75,
+     "triangles": 4493
+    },
+    "shop_3": {
+     "height": 6.97,
+     "triangles": 4440
+    },
+    "shop_4": {
+     "height": 8.31,
+     "triangles": 4469
+    },
+    "shop_5": {
+     "height": 8.21,
+     "triangles": 10816
+    },
+    "station": {
+     "height": 7.41,
+     "triangles": 10970
+    },
+    "waste": {
+     "height": 6.29,
+     "triangles": 15999
+    },
+    "water_works": {
+     "height": 7.11,
+     "triangles": 15997
+    }
+   }
+  },
+  "era2": {
+   "central": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4114
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4358
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4490
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10984
+    },
+    "fire": {
+     "height": 15.42,
+     "triangles": 15983
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4407
+    },
+    "home_2": {
+     "height": 10.74,
+     "triangles": 4399
+    },
+    "home_3": {
+     "height": 10.74,
+     "triangles": 4381
+    },
+    "home_4": {
+     "height": 10.42,
+     "triangles": 4429
+    },
+    "home_5": {
+     "height": 11.13,
+     "triangles": 10479
+    },
+    "hospital": {
+     "height": 11.9,
+     "triangles": 15839
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15907
+    },
+    "police": {
+     "height": 11.9,
+     "triangles": 15973
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15964
+    },
+    "ruler_house": {
+     "height": 13.19,
+     "triangles": 15802
+    },
+    "school": {
+     "height": 13.36,
+     "triangles": 15354
+    },
+    "shop_1": {
+     "height": 11.36,
+     "triangles": 4383
+    },
+    "shop_2": {
+     "height": 10.46,
+     "triangles": 4369
+    },
+    "shop_3": {
+     "height": 10.46,
+     "triangles": 4636
+    },
+    "shop_4": {
+     "height": 13.66,
+     "triangles": 4666
+    },
+    "shop_5": {
+     "height": 13.79,
+     "triangles": 10454
+    },
+    "station": {
+     "height": 8.76,
+     "triangles": 15989
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 15988
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 16000
+    }
+   },
+   "east": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4495
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4494
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4493
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10963
+    },
+    "fire": {
+     "height": 15.26,
+     "triangles": 15393
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4368
+    },
+    "home_2": {
+     "height": 10.4,
+     "triangles": 4366
+    },
+    "home_3": {
+     "height": 10.4,
+     "triangles": 4340
+    },
+    "home_4": {
+     "height": 10.1,
+     "triangles": 4429
+    },
+    "home_5": {
+     "height": 10.75,
+     "triangles": 10443
+    },
+    "hospital": {
+     "height": 11.46,
+     "triangles": 15769
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15931
+    },
+    "police": {
+     "height": 11.46,
+     "triangles": 15887
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15922
+    },
+    "ruler_house": {
+     "height": 12.63,
+     "triangles": 15629
+    },
+    "school": {
+     "height": 12.83,
+     "triangles": 15201
+    },
+    "shop_1": {
+     "height": 11.03,
+     "triangles": 4360
+    },
+    "shop_2": {
+     "height": 10.2,
+     "triangles": 4384
+    },
+    "shop_3": {
+     "height": 10.2,
+     "triangles": 4595
+    },
+    "shop_4": {
+     "height": 13.4,
+     "triangles": 4589
+    },
+    "shop_5": {
+     "height": 13.52,
+     "triangles": 10432
+    },
+    "station": {
+     "height": 8.5,
+     "triangles": 15989
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 15378
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 15995
+    }
+   },
+   "north": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4500
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4500
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4480
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10978
+    },
+    "fire": {
+     "height": 16.07,
+     "triangles": 15379
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4373
+    },
+    "home_2": {
+     "height": 10.78,
+     "triangles": 4376
+    },
+    "home_3": {
+     "height": 10.78,
+     "triangles": 4376
+    },
+    "home_4": {
+     "height": 10.56,
+     "triangles": 4405
+    },
+    "home_5": {
+     "height": 11.06,
+     "triangles": 10431
+    },
+    "hospital": {
+     "height": 11.6,
+     "triangles": 15744
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15891
+    },
+    "police": {
+     "height": 11.6,
+     "triangles": 15937
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15965
+    },
+    "ruler_house": {
+     "height": 12.51,
+     "triangles": 15561
+    },
+    "school": {
+     "height": 12.79,
+     "triangles": 15304
+    },
+    "shop_1": {
+     "height": 11.44,
+     "triangles": 4357
+    },
+    "shop_2": {
+     "height": 10.8,
+     "triangles": 4362
+    },
+    "shop_3": {
+     "height": 10.8,
+     "triangles": 4444
+    },
+    "shop_4": {
+     "height": 14.0,
+     "triangles": 4292
+    },
+    "shop_5": {
+     "height": 14.09,
+     "triangles": 10324
+    },
+    "station": {
+     "height": 8.84,
+     "triangles": 15973
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 15133
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 16000
+    }
+   },
+   "northeast": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4442
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4398
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4480
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10985
+    },
+    "fire": {
+     "height": 14.6,
+     "triangles": 15994
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4383
+    },
+    "home_2": {
+     "height": 9.2,
+     "triangles": 4390
+    },
+    "home_3": {
+     "height": 9.2,
+     "triangles": 4359
+    },
+    "home_4": {
+     "height": 8.99,
+     "triangles": 4343
+    },
+    "home_5": {
+     "height": 9.46,
+     "triangles": 10480
+    },
+    "hospital": {
+     "height": 9.97,
+     "triangles": 15884
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15910
+    },
+    "police": {
+     "height": 10.13,
+     "triangles": 15995
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15965
+    },
+    "ruler_house": {
+     "height": 10.82,
+     "triangles": 15752
+    },
+    "school": {
+     "height": 11.11,
+     "triangles": 15280
+    },
+    "shop_1": {
+     "height": 9.87,
+     "triangles": 4424
+    },
+    "shop_2": {
+     "height": 9.27,
+     "triangles": 4413
+    },
+    "shop_3": {
+     "height": 9.27,
+     "triangles": 4394
+    },
+    "shop_4": {
+     "height": 12.48,
+     "triangles": 4199
+    },
+    "shop_5": {
+     "height": 12.56,
+     "triangles": 10530
+    },
+    "station": {
+     "height": 8.5,
+     "triangles": 16000
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 16000
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 16000
+    }
+   },
+   "south": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4495
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4398
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4493
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10985
+    },
+    "fire": {
+     "height": 14.09,
+     "triangles": 15709
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4390
+    },
+    "home_2": {
+     "height": 8.29,
+     "triangles": 4380
+    },
+    "home_3": {
+     "height": 8.29,
+     "triangles": 4378
+    },
+    "home_4": {
+     "height": 8.2,
+     "triangles": 4172
+    },
+    "home_5": {
+     "height": 10.27,
+     "triangles": 10515
+    },
+    "hospital": {
+     "height": 10.54,
+     "triangles": 15873
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15936
+    },
+    "police": {
+     "height": 10.39,
+     "triangles": 15881
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15964
+    },
+    "ruler_house": {
+     "height": 10.22,
+     "triangles": 15734
+    },
+    "school": {
+     "height": 10.41,
+     "triangles": 15296
+    },
+    "shop_1": {
+     "height": 9.49,
+     "triangles": 4417
+    },
+    "shop_2": {
+     "height": 10.38,
+     "triangles": 4428
+    },
+    "shop_3": {
+     "height": 10.5,
+     "triangles": 4228
+    },
+    "shop_4": {
+     "height": 13.88,
+     "triangles": 4385
+    },
+    "shop_5": {
+     "height": 10.68,
+     "triangles": 10665
+    },
+    "station": {
+     "height": 10.38,
+     "triangles": 15732
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 15988
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 16000
+    }
+   },
+   "west": {
+    "factory_1": {
+     "height": 8.2,
+     "triangles": 4493
+    },
+    "factory_2": {
+     "height": 11.46,
+     "triangles": 4500
+    },
+    "factory_3": {
+     "height": 18.88,
+     "triangles": 4491
+    },
+    "factory_4": {
+     "height": 27.31,
+     "triangles": 10985
+    },
+    "fire": {
+     "height": 15.26,
+     "triangles": 15990
+    },
+    "home_1": {
+     "height": 8.0,
+     "triangles": 4407
+    },
+    "home_2": {
+     "height": 10.4,
+     "triangles": 4413
+    },
+    "home_3": {
+     "height": 10.4,
+     "triangles": 4386
+    },
+    "home_4": {
+     "height": 10.1,
+     "triangles": 4408
+    },
+    "home_5": {
+     "height": 10.75,
+     "triangles": 10475
+    },
+    "hospital": {
+     "height": 11.46,
+     "triangles": 15894
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15936
+    },
+    "police": {
+     "height": 11.46,
+     "triangles": 15977
+    },
+    "power_plant": {
+     "height": 33.09,
+     "triangles": 15965
+    },
+    "ruler_house": {
+     "height": 12.63,
+     "triangles": 15895
+    },
+    "school": {
+     "height": 12.83,
+     "triangles": 15360
+    },
+    "shop_1": {
+     "height": 11.03,
+     "triangles": 4394
+    },
+    "shop_2": {
+     "height": 10.2,
+     "triangles": 4369
+    },
+    "shop_3": {
+     "height": 10.2,
+     "triangles": 4583
+    },
+    "shop_4": {
+     "height": 13.4,
+     "triangles": 4569
+    },
+    "shop_5": {
+     "height": 13.52,
+     "triangles": 10481
+    },
+    "station": {
+     "height": 8.5,
+     "triangles": 15992
+    },
+    "waste": {
+     "height": 23.99,
+     "triangles": 16000
+    },
+    "water_works": {
+     "height": 16.36,
+     "triangles": 16000
+    }
+   }
+  },
+  "era3": {
+   "central": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4489
+    },
+    "factory_2": {
+     "height": 9.26,
+     "triangles": 4490
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4442
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10869
+    },
+    "fire": {
+     "height": 18.87,
+     "triangles": 16000
+    },
+    "home_1": {
+     "height": 9.0,
+     "triangles": 4403
+    },
+    "home_2": {
+     "height": 9.72,
+     "triangles": 4317
+    },
+    "home_3": {
+     "height": 10.79,
+     "triangles": 4142
+    },
+    "home_4": {
+     "height": 16.89,
+     "triangles": 4292
+    },
+    "home_5": {
+     "height": 22.89,
+     "triangles": 10633
+    },
+    "hospital": {
+     "height": 22.87,
+     "triangles": 15789
+    },
+    "market": {
+     "height": 14.07,
+     "triangles": 15910
+    },
+    "police": {
+     "height": 11.13,
+     "triangles": 15982
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 14.5,
+     "triangles": 15772
+    },
+    "school": {
+     "height": 13.74,
+     "triangles": 15984
+    },
+    "shop_1": {
+     "height": 9.0,
+     "triangles": 4394
+    },
+    "shop_2": {
+     "height": 11.99,
+     "triangles": 4309
+    },
+    "shop_3": {
+     "height": 15.23,
+     "triangles": 4146
+    },
+    "shop_4": {
+     "height": 20.65,
+     "triangles": 4346
+    },
+    "shop_5": {
+     "height": 22.23,
+     "triangles": 10971
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 14532
+    },
+    "waste": {
+     "height": 9.5,
+     "triangles": 15366
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 15996
+    }
+   },
+   "east": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4487
+    },
+    "factory_2": {
+     "height": 9.26,
+     "triangles": 4490
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4439
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10836
+    },
+    "fire": {
+     "height": 18.65,
+     "triangles": 15996
+    },
+    "home_1": {
+     "height": 9.0,
+     "triangles": 4405
+    },
+    "home_2": {
+     "height": 9.47,
+     "triangles": 4265
+    },
+    "home_3": {
+     "height": 10.54,
+     "triangles": 4142
+    },
+    "home_4": {
+     "height": 16.74,
+     "triangles": 4296
+    },
+    "home_5": {
+     "height": 22.74,
+     "triangles": 10554
+    },
+    "hospital": {
+     "height": 22.33,
+     "triangles": 15757
+    },
+    "market": {
+     "height": 13.53,
+     "triangles": 15875
+    },
+    "police": {
+     "height": 11.13,
+     "triangles": 15996
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 14.5,
+     "triangles": 15636
+    },
+    "school": {
+     "height": 13.74,
+     "triangles": 15837
+    },
+    "shop_1": {
+     "height": 9.0,
+     "triangles": 4375
+    },
+    "shop_2": {
+     "height": 11.74,
+     "triangles": 4305
+    },
+    "shop_3": {
+     "height": 15.0,
+     "triangles": 4147
+    },
+    "shop_4": {
+     "height": 20.31,
+     "triangles": 4346
+    },
+    "shop_5": {
+     "height": 21.63,
+     "triangles": 10925
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 13408
+    },
+    "waste": {
+     "height": 9.5,
+     "triangles": 14910
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 15996
+    }
+   },
+   "north": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4472
+    },
+    "factory_2": {
+     "height": 9.26,
+     "triangles": 4491
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4430
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10870
+    },
+    "fire": {
+     "height": 19.33,
+     "triangles": 15996
+    },
+    "home_1": {
+     "height": 9.0,
+     "triangles": 4401
+    },
+    "home_2": {
+     "height": 10.07,
+     "triangles": 4301
+    },
+    "home_3": {
+     "height": 10.8,
+     "triangles": 4142
+    },
+    "home_4": {
+     "height": 17.58,
+     "triangles": 4284
+    },
+    "home_5": {
+     "height": 23.58,
+     "triangles": 10609
+    },
+    "hospital": {
+     "height": 21.39,
+     "triangles": 15792
+    },
+    "market": {
+     "height": 12.59,
+     "triangles": 15890
+    },
+    "police": {
+     "height": 11.76,
+     "triangles": 15996
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 15.39,
+     "triangles": 15663
+    },
+    "school": {
+     "height": 14.67,
+     "triangles": 15990
+    },
+    "shop_1": {
+     "height": 9.0,
+     "triangles": 4391
+    },
+    "shop_2": {
+     "height": 12.0,
+     "triangles": 4305
+    },
+    "shop_3": {
+     "height": 15.3,
+     "triangles": 4124
+    },
+    "shop_4": {
+     "height": 20.22,
+     "triangles": 4346
+    },
+    "shop_5": {
+     "height": 20.47,
+     "triangles": 10973
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 14433
+    },
+    "waste": {
+     "height": 9.5,
+     "triangles": 16000
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 15996
+    }
+   },
+   "northeast": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4487
+    },
+    "factory_2": {
+     "height": 9.26,
+     "triangles": 4491
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4441
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10874
+    },
+    "fire": {
+     "height": 17.82,
+     "triangles": 15342
+    },
+    "home_1": {
+     "height": 9.0,
+     "triangles": 4415
+    },
+    "home_2": {
+     "height": 9.0,
+     "triangles": 4274
+    },
+    "home_3": {
+     "height": 9.45,
+     "triangles": 4222
+    },
+    "home_4": {
+     "height": 16.11,
+     "triangles": 4273
+    },
+    "home_5": {
+     "height": 22.11,
+     "triangles": 10576
+    },
+    "hospital": {
+     "height": 19.22,
+     "triangles": 15798
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15918
+    },
+    "police": {
+     "height": 11.13,
+     "triangles": 15996
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 13.94,
+     "triangles": 15810
+    },
+    "school": {
+     "height": 13.23,
+     "triangles": 15992
+    },
+    "shop_1": {
+     "height": 9.0,
+     "triangles": 4437
+    },
+    "shop_2": {
+     "height": 10.65,
+     "triangles": 4336
+    },
+    "shop_3": {
+     "height": 14.05,
+     "triangles": 4160
+    },
+    "shop_4": {
+     "height": 19.75,
+     "triangles": 4385
+    },
+    "shop_5": {
+     "height": 18.22,
+     "triangles": 10973
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 11184
+    },
+    "waste": {
+     "height": 9.5,
+     "triangles": 12998
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 15828
+    }
+   },
+   "south": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4490
+    },
+    "factory_2": {
+     "height": 10.24,
+     "triangles": 4491
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4435
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10873
+    },
+    "fire": {
+     "height": 17.19,
+     "triangles": 16000
+    },
+    "home_1": {
+     "height": 10.22,
+     "triangles": 4420
+    },
+    "home_2": {
+     "height": 9.0,
+     "triangles": 4319
+    },
+    "home_3": {
+     "height": 9.45,
+     "triangles": 4200
+    },
+    "home_4": {
+     "height": 16.11,
+     "triangles": 4294
+    },
+    "home_5": {
+     "height": 22.14,
+     "triangles": 10576
+    },
+    "hospital": {
+     "height": 19.15,
+     "triangles": 15792
+    },
+    "market": {
+     "height": 10.72,
+     "triangles": 15920
+    },
+    "police": {
+     "height": 11.13,
+     "triangles": 15996
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 13.37,
+     "triangles": 15804
+    },
+    "school": {
+     "height": 12.72,
+     "triangles": 15992
+    },
+    "shop_1": {
+     "height": 10.24,
+     "triangles": 4434
+    },
+    "shop_2": {
+     "height": 10.65,
+     "triangles": 4325
+    },
+    "shop_3": {
+     "height": 14.05,
+     "triangles": 4529
+    },
+    "shop_4": {
+     "height": 19.75,
+     "triangles": 4318
+    },
+    "shop_5": {
+     "height": 15.5,
+     "triangles": 10764
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 11548
+    },
+    "waste": {
+     "height": 10.51,
+     "triangles": 13890
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 16000
+    }
+   },
+   "west": {
+    "factory_1": {
+     "height": 9.0,
+     "triangles": 4489
+    },
+    "factory_2": {
+     "height": 9.26,
+     "triangles": 4491
+    },
+    "factory_3": {
+     "height": 21.17,
+     "triangles": 4430
+    },
+    "factory_4": {
+     "height": 31.38,
+     "triangles": 10869
+    },
+    "fire": {
+     "height": 18.65,
+     "triangles": 15996
+    },
+    "home_1": {
+     "height": 9.0,
+     "triangles": 4419
+    },
+    "home_2": {
+     "height": 9.47,
+     "triangles": 4314
+    },
+    "home_3": {
+     "height": 10.54,
+     "triangles": 4142
+    },
+    "home_4": {
+     "height": 16.74,
+     "triangles": 4285
+    },
+    "home_5": {
+     "height": 22.74,
+     "triangles": 10627
+    },
+    "hospital": {
+     "height": 22.33,
+     "triangles": 15798
+    },
+    "market": {
+     "height": 13.53,
+     "triangles": 15914
+    },
+    "police": {
+     "height": 11.13,
+     "triangles": 15996
+    },
+    "power_plant": {
+     "height": 38.87,
+     "triangles": 13188
+    },
+    "ruler_house": {
+     "height": 14.5,
+     "triangles": 15793
+    },
+    "school": {
+     "height": 13.74,
+     "triangles": 15992
+    },
+    "shop_1": {
+     "height": 9.0,
+     "triangles": 4424
+    },
+    "shop_2": {
+     "height": 11.74,
+     "triangles": 4333
+    },
+    "shop_3": {
+     "height": 15.0,
+     "triangles": 4147
+    },
+    "shop_4": {
+     "height": 20.31,
+     "triangles": 4346
+    },
+    "shop_5": {
+     "height": 21.63,
+     "triangles": 10971
+    },
+    "station": {
+     "height": 11.13,
+     "triangles": 13624
+    },
+    "waste": {
+     "height": 9.5,
+     "triangles": 14762
+    },
+    "water_works": {
+     "height": 25.8,
+     "triangles": 15996
+    }
+   }
+  },
+  "era4": {
+   "central": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4224
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2308
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4498
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10999
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 12180
+    },
+    "home_1": {
+     "height": 9.59,
+     "triangles": 4498
+    },
+    "home_2": {
+     "height": 11.11,
+     "triangles": 4497
+    },
+    "home_3": {
+     "height": 14.1,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 32.47,
+     "triangles": 4447
+    },
+    "home_5": {
+     "height": 114.55,
+     "triangles": 10821
+    },
+    "hospital": {
+     "height": 44.4,
+     "triangles": 14494
+    },
+    "market": {
+     "height": 14.1,
+     "triangles": 8338
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 12972
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 10691
+    },
+    "ruler_house": {
+     "height": 26.52,
+     "triangles": 15252
+    },
+    "school": {
+     "height": 20.28,
+     "triangles": 11872
+    },
+    "shop_1": {
+     "height": 6.75,
+     "triangles": 4500
+    },
+    "shop_2": {
+     "height": 16.22,
+     "triangles": 4497
+    },
+    "shop_3": {
+     "height": 35.48,
+     "triangles": 4330
+    },
+    "shop_4": {
+     "height": 77.3,
+     "triangles": 4500
+    },
+    "shop_5": {
+     "height": 28.55,
+     "triangles": 9090
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 7704
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 9652
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 10642
+    }
+   },
+   "east": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4500
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2376
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10999
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 12212
+    },
+    "home_1": {
+     "height": 9.34,
+     "triangles": 4494
+    },
+    "home_2": {
+     "height": 10.72,
+     "triangles": 4500
+    },
+    "home_3": {
+     "height": 13.96,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 32.19,
+     "triangles": 4419
+    },
+    "home_5": {
+     "height": 114.11,
+     "triangles": 10827
+    },
+    "hospital": {
+     "height": 43.96,
+     "triangles": 14526
+    },
+    "market": {
+     "height": 14.1,
+     "triangles": 7966
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 12632
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 11527
+    },
+    "ruler_house": {
+     "height": 25.74,
+     "triangles": 14980
+    },
+    "school": {
+     "height": 19.82,
+     "triangles": 11532
+    },
+    "shop_1": {
+     "height": 6.46,
+     "triangles": 3818
+    },
+    "shop_2": {
+     "height": 16.05,
+     "triangles": 4500
+    },
+    "shop_3": {
+     "height": 35.16,
+     "triangles": 4500
+    },
+    "shop_4": {
+     "height": 77.01,
+     "triangles": 4500
+    },
+    "shop_5": {
+     "height": 27.83,
+     "triangles": 8718
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 7332
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 9684
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 10674
+    }
+   },
+   "north": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4296
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2448
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10982
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 12252
+    },
+    "home_1": {
+     "height": 9.96,
+     "triangles": 4481
+    },
+    "home_2": {
+     "height": 10.99,
+     "triangles": 4481
+    },
+    "home_3": {
+     "height": 14.84,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 32.73,
+     "triangles": 4436
+    },
+    "home_5": {
+     "height": 114.25,
+     "triangles": 10807
+    },
+    "hospital": {
+     "height": 44.1,
+     "triangles": 14566
+    },
+    "market": {
+     "height": 14.63,
+     "triangles": 8007
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 12713
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 10715
+    },
+    "ruler_house": {
+     "height": 25.07,
+     "triangles": 15201
+    },
+    "school": {
+     "height": 19.94,
+     "triangles": 11613
+    },
+    "shop_1": {
+     "height": 7.27,
+     "triangles": 4500
+    },
+    "shop_2": {
+     "height": 16.87,
+     "triangles": 4481
+    },
+    "shop_3": {
+     "height": 35.6,
+     "triangles": 4402
+    },
+    "shop_4": {
+     "height": 77.52,
+     "triangles": 4500
+    },
+    "shop_5": {
+     "height": 27.32,
+     "triangles": 8759
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 7373
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 9724
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 10714
+    }
+   },
+   "northeast": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4364
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2328
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10915
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 10920
+    },
+    "home_1": {
+     "height": 8.71,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 9.4,
+     "triangles": 4500
+    },
+    "home_3": {
+     "height": 13.38,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 31.19,
+     "triangles": 4451
+    },
+    "home_5": {
+     "height": 112.62,
+     "triangles": 10823
+    },
+    "hospital": {
+     "height": 42.47,
+     "triangles": 13234
+    },
+    "market": {
+     "height": 13.17,
+     "triangles": 7678
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 11148
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 10663
+    },
+    "ruler_house": {
+     "height": 23.27,
+     "triangles": 13448
+    },
+    "school": {
+     "height": 18.3,
+     "triangles": 9952
+    },
+    "shop_1": {
+     "height": 5.79,
+     "triangles": 3198
+    },
+    "shop_2": {
+     "height": 15.4,
+     "triangles": 4500
+    },
+    "shop_3": {
+     "height": 34.03,
+     "triangles": 4374
+    },
+    "shop_4": {
+     "height": 75.98,
+     "triangles": 4500
+    },
+    "shop_5": {
+     "height": 25.56,
+     "triangles": 8430
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 6948
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 8488
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 9382
+    }
+   },
+   "south": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4500
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2328
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10635
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 11372
+    },
+    "home_1": {
+     "height": 10.23,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 8.38,
+     "triangles": 4256
+    },
+    "home_3": {
+     "height": 12.94,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 30.44,
+     "triangles": 4451
+    },
+    "home_5": {
+     "height": 111.48,
+     "triangles": 10822
+    },
+    "hospital": {
+     "height": 41.33,
+     "triangles": 13686
+    },
+    "market": {
+     "height": 12.14,
+     "triangles": 7446
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 11420
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 10739
+    },
+    "ruler_house": {
+     "height": 21.36,
+     "triangles": 14232
+    },
+    "school": {
+     "height": 17.14,
+     "triangles": 9992
+    },
+    "shop_1": {
+     "height": 10.23,
+     "triangles": 3414
+    },
+    "shop_2": {
+     "height": 14.89,
+     "triangles": 4500
+    },
+    "shop_3": {
+     "height": 33.18,
+     "triangles": 4500
+    },
+    "shop_4": {
+     "height": 75.2,
+     "triangles": 4500
+    },
+    "shop_5": {
+     "height": 23.81,
+     "triangles": 8734
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 6616
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 9052
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 9762
+    }
+   },
+   "west": {
+    "factory_1": {
+     "height": 7.45,
+     "triangles": 4500
+    },
+    "factory_2": {
+     "height": 9.92,
+     "triangles": 2448
+    },
+    "factory_3": {
+     "height": 20.0,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 21.6,
+     "triangles": 10999
+    },
+    "fire": {
+     "height": 20.45,
+     "triangles": 12180
+    },
+    "home_1": {
+     "height": 9.34,
+     "triangles": 4500
+    },
+    "home_2": {
+     "height": 10.72,
+     "triangles": 4500
+    },
+    "home_3": {
+     "height": 13.96,
+     "triangles": 4500
+    },
+    "home_4": {
+     "height": 32.19,
+     "triangles": 4418
+    },
+    "home_5": {
+     "height": 114.11,
+     "triangles": 10815
+    },
+    "hospital": {
+     "height": 43.96,
+     "triangles": 14494
+    },
+    "market": {
+     "height": 14.1,
+     "triangles": 8618
+    },
+    "police": {
+     "height": 41.8,
+     "triangles": 13252
+    },
+    "power_plant": {
+     "height": 42.0,
+     "triangles": 11971
+    },
+    "ruler_house": {
+     "height": 25.74,
+     "triangles": 15672
+    },
+    "school": {
+     "height": 19.82,
+     "triangles": 12152
+    },
+    "shop_1": {
+     "height": 6.46,
+     "triangles": 3414
+    },
+    "shop_2": {
+     "height": 16.05,
+     "triangles": 4500
+    },
+    "shop_3": {
+     "height": 35.16,
+     "triangles": 4500
+    },
+    "shop_4": {
+     "height": 77.01,
+     "triangles": 4498
+    },
+    "shop_5": {
+     "height": 27.83,
+     "triangles": 9370
+    },
+    "station": {
+     "height": 19.42,
+     "triangles": 7984
+    },
+    "waste": {
+     "height": 50.0,
+     "triangles": 9652
+    },
+    "water_works": {
+     "height": 31.0,
+     "triangles": 10642
+    }
+   }
+  },
+  "era5": {
+   "central": {
+    "factory_1": {
+     "height": 6.75,
+     "triangles": 4496
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4482
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4497
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10994
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 12624
+    },
+    "home_1": {
+     "height": 8.75,
+     "triangles": 4483
+    },
+    "home_2": {
+     "height": 9.47,
+     "triangles": 4477
+    },
+    "home_3": {
+     "height": 12.07,
+     "triangles": 4450
+    },
+    "home_4": {
+     "height": 38.63,
+     "triangles": 4390
+    },
+    "home_5": {
+     "height": 138.28,
+     "triangles": 10659
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15987
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15997
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 16000
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15983
+    },
+    "ruler_house": {
+     "height": 14.55,
+     "triangles": 16000
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 15999
+    },
+    "shop_1": {
+     "height": 6.75,
+     "triangles": 4497
+    },
+    "shop_2": {
+     "height": 10.8,
+     "triangles": 4498
+    },
+    "shop_3": {
+     "height": 34.05,
+     "triangles": 4452
+    },
+    "shop_4": {
+     "height": 87.76,
+     "triangles": 4402
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10967
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 10092
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 11938
+    },
+    "water_works": {
+     "height": 8.9,
+     "triangles": 15999
+    }
+   },
+   "east": {
+    "factory_1": {
+     "height": 6.6,
+     "triangles": 4497
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4436
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10993
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 12656
+    },
+    "home_1": {
+     "height": 8.75,
+     "triangles": 4428
+    },
+    "home_2": {
+     "height": 9.47,
+     "triangles": 4455
+    },
+    "home_3": {
+     "height": 12.07,
+     "triangles": 4423
+    },
+    "home_4": {
+     "height": 38.38,
+     "triangles": 4412
+    },
+    "home_5": {
+     "height": 138.05,
+     "triangles": 10669
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15946
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15999
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 16000
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15953
+    },
+    "ruler_house": {
+     "height": 14.55,
+     "triangles": 16000
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 16000
+    },
+    "shop_1": {
+     "height": 6.45,
+     "triangles": 4494
+    },
+    "shop_2": {
+     "height": 10.8,
+     "triangles": 4497
+    },
+    "shop_3": {
+     "height": 33.76,
+     "triangles": 4446
+    },
+    "shop_4": {
+     "height": 87.5,
+     "triangles": 4393
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10928
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 10952
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 12038
+    },
+    "water_works": {
+     "height": 8.9,
+     "triangles": 16000
+    }
+   },
+   "north": {
+    "factory_1": {
+     "height": 7.26,
+     "triangles": 4497
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4483
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10993
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 13484
+    },
+    "home_1": {
+     "height": 9.81,
+     "triangles": 4462
+    },
+    "home_2": {
+     "height": 10.46,
+     "triangles": 4480
+    },
+    "home_3": {
+     "height": 13.12,
+     "triangles": 4406
+    },
+    "home_4": {
+     "height": 39.01,
+     "triangles": 4384
+    },
+    "home_5": {
+     "height": 138.19,
+     "triangles": 10575
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15978
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15980
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 16000
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15942
+    },
+    "ruler_house": {
+     "height": 15.26,
+     "triangles": 15981
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 16000
+    },
+    "shop_1": {
+     "height": 7.27,
+     "triangles": 4498
+    },
+    "shop_2": {
+     "height": 11.8,
+     "triangles": 4499
+    },
+    "shop_3": {
+     "height": 34.28,
+     "triangles": 4442
+    },
+    "shop_4": {
+     "height": 88.1,
+     "triangles": 4383
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10934
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 10952
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 12218
+    },
+    "water_works": {
+     "height": 8.9,
+     "triangles": 16000
+    }
+   },
+   "northeast": {
+    "factory_1": {
+     "height": 6.6,
+     "triangles": 4497
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4487
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10997
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 10756
+    },
+    "home_1": {
+     "height": 8.4,
+     "triangles": 4489
+    },
+    "home_2": {
+     "height": 9.03,
+     "triangles": 4487
+    },
+    "home_3": {
+     "height": 11.71,
+     "triangles": 4468
+    },
+    "home_4": {
+     "height": 37.49,
+     "triangles": 4406
+    },
+    "home_5": {
+     "height": 138.05,
+     "triangles": 10810
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15994
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15999
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 16000
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15979
+    },
+    "ruler_house": {
+     "height": 13.82,
+     "triangles": 16000
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 16000
+    },
+    "shop_1": {
+     "height": 5.74,
+     "triangles": 4498
+    },
+    "shop_2": {
+     "height": 10.37,
+     "triangles": 4499
+    },
+    "shop_3": {
+     "height": 32.73,
+     "triangles": 4452
+    },
+    "shop_4": {
+     "height": 86.57,
+     "triangles": 4404
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10974
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 9528
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 10794
+    },
+    "water_works": {
+     "height": 8.9,
+     "triangles": 16000
+    }
+   },
+   "south": {
+    "factory_1": {
+     "height": 10.23,
+     "triangles": 4497
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4486
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10997
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 12024
+    },
+    "home_1": {
+     "height": 10.23,
+     "triangles": 4491
+    },
+    "home_2": {
+     "height": 10.24,
+     "triangles": 4489
+    },
+    "home_3": {
+     "height": 11.67,
+     "triangles": 4467
+    },
+    "home_4": {
+     "height": 36.81,
+     "triangles": 4406
+    },
+    "home_5": {
+     "height": 138.05,
+     "triangles": 10699
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15981
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15999
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 16000
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15970
+    },
+    "ruler_house": {
+     "height": 13.02,
+     "triangles": 16000
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 16000
+    },
+    "shop_1": {
+     "height": 10.24,
+     "triangles": 4498
+    },
+    "shop_2": {
+     "height": 10.24,
+     "triangles": 4499
+    },
+    "shop_3": {
+     "height": 31.95,
+     "triangles": 4452
+    },
+    "shop_4": {
+     "height": 85.87,
+     "triangles": 4404
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10950
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 10468
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 11358
+    },
+    "water_works": {
+     "height": 10.22,
+     "triangles": 16000
+    }
+   },
+   "west": {
+    "factory_1": {
+     "height": 6.6,
+     "triangles": 4497
+    },
+    "factory_2": {
+     "height": 25.33,
+     "triangles": 4484
+    },
+    "factory_3": {
+     "height": 15.75,
+     "triangles": 4499
+    },
+    "factory_4": {
+     "height": 28.41,
+     "triangles": 10997
+    },
+    "fire": {
+     "height": 18.83,
+     "triangles": 12040
+    },
+    "home_1": {
+     "height": 8.75,
+     "triangles": 4486
+    },
+    "home_2": {
+     "height": 9.47,
+     "triangles": 4487
+    },
+    "home_3": {
+     "height": 12.07,
+     "triangles": 4466
+    },
+    "home_4": {
+     "height": 38.38,
+     "triangles": 4398
+    },
+    "home_5": {
+     "height": 138.05,
+     "triangles": 10665
+    },
+    "hospital": {
+     "height": 38.97,
+     "triangles": 15989
+    },
+    "market": {
+     "height": 16.2,
+     "triangles": 15999
+    },
+    "police": {
+     "height": 18.02,
+     "triangles": 15998
+    },
+    "power_plant": {
+     "height": 30.59,
+     "triangles": 15986
+    },
+    "ruler_house": {
+     "height": 14.55,
+     "triangles": 16000
+    },
+    "school": {
+     "height": 15.0,
+     "triangles": 16000
+    },
+    "shop_1": {
+     "height": 6.03,
+     "triangles": 4498
+    },
+    "shop_2": {
+     "height": 10.8,
+     "triangles": 4499
+    },
+    "shop_3": {
+     "height": 33.76,
+     "triangles": 4442
+    },
+    "shop_4": {
+     "height": 87.5,
+     "triangles": 4383
+    },
+    "shop_5": {
+     "height": 20.75,
+     "triangles": 10975
+    },
+    "station": {
+     "height": 17.35,
+     "triangles": 10812
+    },
+    "waste": {
+     "height": 13.37,
+     "triangles": 12078
+    },
+    "water_works": {
+     "height": 8.9,
+     "triangles": 16000
+    }
+   }
+  }
+ },
+ "kinds": {
+  "factory_1": {
+   "tiles": 1
+  },
+  "factory_2": {
+   "tiles": 1
+  },
+  "factory_3": {
+   "tiles": 1
+  },
+  "factory_4": {
+   "tiles": 2
+  },
+  "fire": {
+   "tiles": 3
+  },
+  "home_1": {
+   "tiles": 1
+  },
+  "home_2": {
+   "tiles": 1
+  },
+  "home_3": {
+   "tiles": 1
+  },
+  "home_4": {
+   "tiles": 1
+  },
+  "home_5": {
+   "tiles": 2
+  },
+  "hospital": {
+   "tiles": 3
+  },
+  "market": {
+   "tiles": 3
+  },
+  "police": {
+   "tiles": 3
+  },
+  "power_plant": {
+   "tiles": 3
+  },
+  "ruler_house": {
+   "tiles": 3
+  },
+  "school": {
+   "tiles": 3
+  },
+  "shop_1": {
+   "tiles": 1
+  },
+  "shop_2": {
+   "tiles": 1
+  },
+  "shop_3": {
+   "tiles": 1
+  },
+  "shop_4": {
+   "tiles": 1
+  },
+  "shop_5": {
+   "tiles": 2
+  },
+  "station": {
+   "tiles": 3
+  },
+  "waste": {
+   "tiles": 3
+  },
+  "water_works": {
+   "tiles": 3
+  }
+ },
+ "tileMetres": 16,
+ "version": 1
+}

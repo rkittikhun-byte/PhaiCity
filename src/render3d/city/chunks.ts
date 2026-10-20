@@ -75,6 +75,13 @@ export class CityChunks {
     }
     this.batchesDirty=true;
   }
+  /** Every chunk built again, for a change that reaches every building at once: the era models arriving or the city
+   * moving to a new era (eraBuildings.ts) */
+  refreshAll():void {
+    for(const chunk of this.chunks){chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);}
+    this.surfaces?.dirty(Array.from({length:this.snapshot.width*this.snapshot.height},(_,i)=>i));
+    this.batchesDirty=true;
+  }
   private coarseMatrix(p:Placement):Matrix4 {
     const zone=p.footprint[0]>1, protoH=this.prototypes.get(prototypeKey(p))?.height;
     const rawH=zone?(protoH!==undefined?protoH*(p.height/Math.max(1,protoH)):p.height):p.id?.startsWith('plot.')||p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial'?p.height:p.kind==='veg'?1:p.id==='terrain.woods'?5:p.water?.06:Math.max(.06,p.kind==='debug'?4:.12);

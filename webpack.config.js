@@ -110,6 +110,17 @@ function injectSoundGalleryBundle() {
   });
 }
 
+// Every era building by era and region (art/buildings, src/render3d/gallery/era-buildings.ts)
+function injectEraBuildingsBundle() {
+  return new HtmlWebpackPlugin({
+    template: './era-buildings.html',
+    filename: 'era-buildings.html',
+    chunks: ['era-buildings'],
+    inject: true,
+    hash: true,
+  });
+}
+
 function injectBuildIdIntoNameLicense(gitHash) {
   return new HtmlWebpackPlugin({
     gitHash,
@@ -196,6 +207,7 @@ function commonOptions() {
       'city-model-worker': './src/render3d/city/model-worker.ts',
       'city-road-worker': './src/render3d/city/road-worker.ts',
       'geo-review': './src/geoReview/geoReview.ts',
+      'era-buildings': './src/render3d/gallery/era-buildings.ts',
     },
     resolve: {
       extensions: ADD_TS_EXTENSIONS_TO_WEPACK,
@@ -224,6 +236,7 @@ function commonOptions() {
       injectGeoReviewBundle(),
       injectBuildIdIntoAbout(buildId),
       injectBuildIdIntoNameLicense(buildId),
+      injectEraBuildingsBundle(),
     ],
   };
 

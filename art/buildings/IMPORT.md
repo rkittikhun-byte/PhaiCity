@@ -1,8 +1,35 @@
 # How to bring these buildings into the PhaiCity game
 
-For the AI session (or person) that imports the era buildings later. Nothing here is in the game yet (owner, 20 Oct
-2026: build every era first). Read the game's `CLAUDE.md`, `docs/3d/MODEL_SPEC.md`, `docs/3d/RENDERER_SPEC.md` and
-`art/people/IMPORT.md` (how the people went in) first; this file only covers what is special about these models.
+For the AI session (or person) that works on the era buildings in the game. Read the game's `CLAUDE.md`,
+`docs/3d/MODEL_SPEC.md`, `docs/3d/RENDERER_SPEC.md` and `art/people/IMPORT.md` first; this file only covers what is
+special about these models.
+
+## Done (20 Oct 2026)
+
+The era buildings are in the game (owner: "นำเข้าเกมส์ ใน main เลย"):
+
+- `scripts/export_game.py` (Blender) writes `assets/models/buildings/era<n>/<region>/<kind>.glb` and `index.json`:
+  each building merged into `body` and `windows` meshes with the palette in vertex colours, no normals (drawn flat
+  shaded), Draco compressed (about 600 KB a set, 17 MB in all), thinned to the game's budget (about 4,500 triangles a
+  one-tile building, 11,000 a lot, 16,000 a service: props to a fifth at most, the building to about a third). Run it
+  again after rebuilding sets: `blender -b --factory-startup -P art/buildings/scripts/export_game.py -- [era1 ...]
+  [--region R]`.
+- `src/render3d/city/eraBuildings.ts`: which era model a placement takes (`eraKindFor`, `plotEraKind`), the index, and
+  `eraPrototypeProvider`, which loads `era.*` models on the page (GLTFLoader with the Draco decoder in `assets/draco/`)
+  and passes every other model to the worker. `TileSnapshot.toEra` (tileModels.ts) swaps a building's id once the
+  index has loaded; the city view refreshes every chunk when the index arrives and when the city's era changes.
+  Material: `eraBuildingMaterial` (library.ts), flat-shaded vertex colours; windows are `emissive_window` and glow at
+  night.
+- Which era: the city's (`gameMap.era`, src/era.ts) for now. The owner will decide how a city changes era a little at
+  a time and how buildings level up (owner, 20 Oct 2026); a map that keeps `buildingEras` (1-5 a tile) is already
+  followed tile by tile (`TileSnapshot.eraOf`).
+- Mapping: painted plots and lots by kind and level (one-tile homes and shops up to level 4, factories 3; lots are
+  home_5, shop_5, factory_4); schools, hospitals, the ruler's house, police, fire, water works and rubbish (not the
+  wastewater plant) always; a power plant only when it is the era's sort (lignite to era 3, gas from era 4, nuclear in
+  era 5; solar, wind and dams keep their own models); a train station in eras 2-3, a metro or high-speed station in
+  4-5. The `market` kind has no game building yet. Construction stages keep the procedural scaffolding.
+- `era-buildings.html` (`src/render3d/gallery/era-buildings.ts`): every era building by era, region and day or night.
+- Tests: `test/render3d/eraBuildings.test.ts`.
 
 ## What is here
 

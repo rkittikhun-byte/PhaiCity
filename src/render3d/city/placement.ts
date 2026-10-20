@@ -17,6 +17,9 @@ export interface PlacementFields {
   footprint: readonly [number, number]; height: number; color: number; kind: string; water: boolean;
   scale: number; powered: boolean;
   baseY?: number; outside?: boolean; fill?: number;
+  /** What its building is among the era models when the model id alone does not say (eraBuildings.ts eraKindFor):
+   * a painted plot's or lot's kind and level (home_3, shop_5 ...) or a station's kind (station.metro_station) */
+  eraKind?: string;
 }
 
 const size = new Vector3();
@@ -32,6 +35,7 @@ export class Placement implements PlacementFields {
   /** How much of its tiles it covers as drawn, across and up: 1 fills them; less when it is drawn at its real size on
    * a real-scale city map (10/16 of a 16 m tile, TileSnapshot.atRealSize) or smaller against its road */
   declare fill?: number;
+  declare eraKind?: string;
   /** How wide its model is drawn across the way it runs (its own x), as a share: a bridge on a real-scale city map is
    *  as narrow as the road or railway drawn up to it (TileSnapshot.narrowBridge); 1 or none, as built */
   declare across?: number;

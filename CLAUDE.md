@@ -193,6 +193,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 - **People (owner, 19 Oct 2026):** the concept-sheet characters are built in Blender in `art/people/` (Python
   scripts, `.blend` sources, `PLAN.md`, `IMPORT.md`); `export_game.py` writes `assets/models/people/`, which
   `src/render3d/city/people3d.ts` draws for `pedestrians.ts` (the era's sheet, the region's and the shared one).
+- **Era buildings (owner, 20 Oct 2026):** every home, shop, factory and service in the look of the city's era and
+  region, built in Blender in `art/buildings/` (5 eras x 6 regions x 24 kinds, real metres; `PLAN.md`, `IMPORT.md`),
+  exported by `art/buildings/scripts/export_game.py` to `assets/models/buildings/` (Draco; decoder in `assets/draco/`)
+  and drawn by `src/render3d/city/eraBuildings.ts` in place of the procedural models (`TileSnapshot.toEra`), in
+  `gameMap.era` for now. `era-buildings.html` shows them all.
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side
