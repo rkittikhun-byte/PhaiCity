@@ -6,6 +6,8 @@
 // Copies the sound effects listed in scripts/audio/sfx-manifest.json from the raw downloads
 // (Kenney packs and Freesound previews, default assets/audio/_raw) into assets/audio/sfx/,
 // and rewrites assets/audio/CREDITS.md from the same list. Refuses any source that is not CC0.
+// PhaiCity's own sounds ("own" in the manifest) are made straight into assets/audio/sfx/ by
+// assets/audio/_sources/generate_soundscapes.py from their projects; they are kept as they are and credited.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,12 +60,26 @@ function freesoundSource(id) {
   };
 }
 
+function ownSource(item) {
+  const project = `assets/audio/_sources/projects/${item.file.replace(/\.ogg$/, '')}.scraft`;
+  if (!fs.existsSync(path.join(ROOT, project))) fail(`${item.file}: no source project ${project}`);
+  if (!fs.existsSync(path.join(OUT_DIR, item.file))) {
+    fail(`${item.file} is missing; make it with python assets/audio/_sources/generate_soundscapes.py`);
+  }
+  return { credit: `${item.own} by PhaiCity Craftsman`, link: `Source project in \`${project}\`` };
+}
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const rows = [];
 const files = new Set();
 for (const item of manifest.files) {
   if (files.has(item.file)) fail(`Duplicate output file ${item.file}`);
   files.add(item.file);
+  if (item.own) {
+    const own = ownSource(item);
+    rows.push(`| \`${item.file}\` | ${own.credit} | ${own.link} | CC0 |`);
+    continue;
+  }
   const source = item.kenney ? kenneySource(item.kenney) : freesoundSource(String(item.freesound));
   if (!fs.existsSync(source.from)) fail(`Missing source file ${source.from}`);
   fs.copyFileSync(source.from, path.join(OUT_DIR, item.file));

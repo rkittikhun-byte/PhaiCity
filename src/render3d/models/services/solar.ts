@@ -10,6 +10,8 @@ import { PowerPlantBuilder } from './power-builder.js';
 import type { ModelOptions } from '../registry.js';
 
 const TILT = 0.36; // ~21 degrees southward tilt
+/** These plants stand on the coal plant's tiles, which are power.coal's; gameMap.powerKinds picks them (RENDERER_SPEC 6D) */
+const KIND_TILES: readonly number[] = [];
 
 function addTiltedBox(
   b: PowerPlantBuilder,
@@ -92,7 +94,7 @@ export function createSolar(options: ModelOptions = {}) {
     b.shopSign('โรงไฟฟ้าพลังงานแสงอาทิตย์', 7.4, 1.05, 11.8, 2.9, 16.32);
   });
 
-  return b.finishPlant('power.solar', 750, { boilerHeight: 8 });
+  return b.finishPlant('power.solar', 750, { boilerHeight: 8 }, KIND_TILES);
 }
 
 /**
@@ -129,7 +131,7 @@ export function createWind(options: ModelOptions = {}) {
     b.hall(7.5, 5.0, 4.0, 11.5, 13.6);
     b.shopSign('โรงไฟฟ้าพลังงานลม', 6.8, 1.05, 11.5, 2.9, 16.22);
   });
-  return b.finishPlant('power.wind', 750, { boilerHeight: 36 });
+  return b.finishPlant('power.wind', 750, { boilerHeight: 36 }, KIND_TILES);
 }
 
 /**
@@ -163,7 +165,7 @@ export function createGas(options: ModelOptions = {}) {
     b.hall(7.5, 5.0, 4.2, 12, 13.2);
     b.shopSign('โรงไฟฟ้าก๊าซธรรมชาติ', 7.0, 1.05, 12, 3.0, 15.82);
   });
-  return b.finishPlant('power.gas', 750, { boilerHeight: 28 });
+  return b.finishPlant('power.gas', 750, { boilerHeight: 28 }, KIND_TILES);
 }
 
 /**
@@ -194,5 +196,5 @@ export function createHydro(options: ModelOptions = {}) {
     b.shopSign('โรงไฟฟ้าพลังน้ำ', 6.5, 1.05, 0, 5.8, 8.6);
   });
   b.switchyard(-13.5, 11.5);
-  return b.finishPlant('power.hydro', 750, { boilerHeight: 16 });
+  return b.finishPlant('power.hydro', 750, { boilerHeight: 16 }, KIND_TILES);
 }

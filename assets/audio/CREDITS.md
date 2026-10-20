@@ -9,19 +9,19 @@ Music has its own list, with each track's license: [music/CREDITS.md](music/CRED
 
 | File | Source | Link | License |
 |---|---|---|---|
-| `ui-click.ogg` | "wood block.wav" by calaudio (Freesound 53403) | [link](https://freesound.org/people/calaudio/sounds/53403/) | CC0 |
+| `ui-click.ogg` | Thai bamboo click by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/ui-click.scraft` | CC0 |
 | `ui-select.ogg` | Kenney, Interface Sounds: `select_001.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-open.ogg` | Kenney, Interface Sounds: `open_001.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-close.ogg` | Kenney, Interface Sounds: `close_001.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-error.ogg` | Kenney, Interface Sounds: `error_004.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-save.ogg` | Kenney, Interface Sounds: `confirmation_002.ogg` | [link](https://kenney.nl) | CC0 |
-| `ui-coin.ogg` | Kenney, RPG Audio: `handleCoins.ogg` | [link](https://kenney.nl) | CC0 |
+| `ui-coin.ogg` | Baht coins by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/ui-coin.scraft` | CC0 |
 | `ui-switch.ogg` | Kenney, Interface Sounds: `switch_002.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-toggle.ogg` | Kenney, Interface Sounds: `toggle_002.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-notify-neutral.ogg` | Kenney, Interface Sounds: `bong_001.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-notify-bad.ogg` | Kenney, Interface Sounds: `error_006.ogg` | [link](https://kenney.nl) | CC0 |
 | `ui-notify-good.ogg` | Kenney, Interface Sounds: `confirmation_001.ogg` | [link](https://kenney.nl) | CC0 |
-| `gong.ogg` | "gong.WAV" by BOSS MUSIC (Freesound 121800) | [link](https://freesound.org/people/BOSS%20MUSIC/sounds/121800/) | CC0 |
+| `gong.ogg` | Thai bronze gong by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/gong.scraft` | CC0 |
 | `tool-zone.ogg` | Kenney, RPG Audio: `chop.ogg` | [link](https://kenney.nl) | CC0 |
 | `tool-road.ogg` | Kenney, RPG Audio: `dropLeather.ogg` | [link](https://kenney.nl) | CC0 |
 | `tool-rail.ogg` | Kenney, RPG Audio: `metalClick.ogg` | [link](https://kenney.nl) | CC0 |
@@ -44,7 +44,7 @@ Music has its own list, with each track's license: [music/CREDITS.md](music/CRED
 | `amb-nature.ogg` | "rainforest.mp3" by skipjack2001 (Freesound 68065) | [link](https://freesound.org/people/skipjack2001/sounds/68065/) | CC0 |
 | `amb-industrial.ogg` | Kenney, Sci-Fi Sounds: `spaceEngineLow_001.ogg` | [link](https://kenney.nl) | CC0 |
 | `seagull.ogg` | "seagull.wav" by speakingmusic (Freesound 586831) | [link](https://freesound.org/people/speakingmusic/sounds/586831/) | CC0 |
-| `rooster.ogg` | "Rooster Crow 1" by BenjaminNelan (Freesound 435508) | [link](https://freesound.org/people/BenjaminNelan/sounds/435508/) | CC0 |
+| `rooster.ogg` | Village rooster crow by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/rooster.scraft` | CC0 |
 | `airplane.ogg` | "Low Airplane Fly By" by Snipperbes (Freesound 145365) | [link](https://freesound.org/people/Snipperbes/sounds/145365/) | CC0 |
 | `amb-city.ogg` | "Street Ambience, Bangkok, Thailand (Feb 22, 2019)" by marc.om (Freesound 804846) | [link](https://freesound.org/people/marc.om/sounds/804846/) | CC0 |
 | `amb-market.ogg` | "Thailand market ext covered busy.flac" by kyles (Freesound 177695) | [link](https://freesound.org/people/kyles/sounds/177695/) | CC0 |
@@ -58,4 +58,3 @@ Music has its own list, with each track's license: [music/CREDITS.md](music/CRED
 | `tool-pile-driver.ogg` | Construction pile driver impact by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/tool-pile-driver.scraft` | CC0 |
 | `tool-tractor.ogg` | Rural laterite grader tractor by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/tool-tractor.scraft` | CC0 |
 | `amb-night-cicadas.ogg` | Thai countryside night cicadas & crickets by PhaiCity Craftsman | Source project in `assets/audio/_sources/projects/amb-night-cicadas.scraft` | CC0 |
-

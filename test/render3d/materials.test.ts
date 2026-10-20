@@ -118,7 +118,12 @@ describe('headless fallback and lazy loading', () => {
     setNightMode(true);
     const window = tint('emissive_window', '#ffedc0');
     const sign = thaiSign('ร้านน้ำชา', '#edddbb', '#244433', [4, 1], { lit: true });
-    expect(window.emissiveIntensity).toBe(2.5); expect(sign.emissiveIntensity).toBe(1.6);
+    // Full night (owner, 17 Oct 2026: the windows glow a warm gold up to 2.6)
+    expect(window.emissiveIntensity).toBe(2.6); expect(sign.emissiveIntensity).toBe(2.0);
+    // ... at dusk, half as bright, and a window made then glows as much as those made before
+    setNightMode(true, 0.5);
+    expect(window.emissiveIntensity).toBeCloseTo(1.3); expect(sign.emissiveIntensity).toBeCloseTo(1.0);
+    expect(tint('emissive_window', '#ffeec1').emissiveIntensity).toBeCloseTo(1.3);
     setNightMode(false);
     expect(window.emissiveIntensity).toBe(0.15); expect(sign.emissiveIntensity).toBe(0.3);
     expect(() => thaiSign('ป้าย', 0xffffff, 0x000000, [0, 1])).toThrow(RangeError);

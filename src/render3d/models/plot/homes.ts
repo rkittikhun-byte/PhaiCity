@@ -42,7 +42,7 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
       b.tone(trim(i), 1.25, 0.08, 0.7, x - 1.0, plinth + 2.62, front + 0.35);
     }
     b.lamp(edge(i) + 0.3, plinth + 2.3, front + 0.25);
-    b.framed(0.95, 1.1, x - 0.45, plinth + 0.95, back, trim(i), { facing: -1, mullion: true });
+    b.backWindow(0.95, 1.1, x - 0.45, plinth + 0.95, back, trim(i));
     b.tone(0x4b4239, 0.82, 2.05, 0.05, x + 0.55, plinth + 1.025, back - 0.025);
   }));
   b.feature('upper-floor', () => xs.forEach((x, i) => {
@@ -63,7 +63,7 @@ export function townhouse(b: PlotBuilder): Record<string, unknown> {
       if (s.windowFret) b.take(b.dress(kit.ornaments.fretwork({ width: 2.0, height: 0.3, seed, color: colors[i].trim, detail: 'low' })), x - 0.7, y + 1.95, front + 0.1);
     }
     if (s.ventPanel) for (let n = 0; n < 3; n++) b.tone(trim(i), 0.9, 0.06, 0.06, x + (units === 3 ? -0.25 : 1.3), top - 0.5 + n * 0.12, front + 0.04);
-    b.framed(1.15, 1.15, x, y, back, trim(i), { facing: -1, mullion: true });
+    b.backWindow(1.15, 1.15, x, y, back, trim(i));
   }));
   b.feature('front-yards-and-gates', () => {
     const pave = [0x8f8a80, 0xb3afa6, 0xc9c6bf, 0xd8d3c8][land];

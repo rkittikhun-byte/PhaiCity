@@ -24,7 +24,8 @@ function detailFixture(kind:'radius'|'budget'|'dirt') {
   chunks.chunks[0].batches=batches;if(kind==='budget')chunks.drawBudget=1;
   const target=new Vector3(200,0,80),distance=kind==='budget'?400:154;
   chunks.update(null,target,distance);const flips=batches.map(()=>0),previous=batches.map(b=>b.selected);
-  return{chunks,batches,flips,previous,target,distance,step(frame:number){time+=16;target.x=200+(frame%2)*2;chunks.update(null,target,distance);
+  // The chunks measure batches again only once the camera has moved 3 m (CityChunks.update), so each step moves 4 m
+  return{chunks,batches,flips,previous,target,distance,step(frame:number){time+=16;target.x=200+(frame%2)*4;chunks.update(null,target,distance);
     batches.forEach((b,i)=>{if(b.selected!==previous[i])flips[i]++;previous[i]=b.selected;});},update(x:number,ms=16){time+=ms;target.x=x;chunks.update(null,target,distance);},dispose(){chunks.dispose();}};
 }
 
@@ -45,7 +46,7 @@ function viewFixture(cost=24) {
 }
 
 describe('steady detail during camera motion',()=>{
-  it.each(['radius','budget','dirt'] as const)('does not churn at the %s boundary over 200 two-metre steps',kind=>{
+  it.each(['radius','budget','dirt'] as const)('does not churn at the %s boundary over 200 four-metre steps',kind=>{
     const f=detailFixture(kind);try{for(let frame=0;frame<200;frame++)f.step(frame);
       console.log(`Motion ${kind}: total swaps=${f.flips.reduce((a,b)=>a+b,0)}, max per batch=${Math.max(...f.flips)}`);
       expect(Math.max(...f.flips)).toBeLessThanOrEqual(1);
@@ -53,7 +54,7 @@ describe('steady detail during camera motion',()=>{
   });
   it('keeps detail through the 25 m margin and fades it out beyond that margin',()=>{
     const f=detailFixture('radius');try{
-      f.update(202,100);for(let i=0;i<4;i++)f.update(202,100);
+      f.update(205,100);for(let i=0;i<4;i++)f.update(205,100);
       const b=f.batches[0];expect(b.fade).toBe(1);f.update(180);expect(b.selected).toBe(true);
       f.update(170);expect(b.selected).toBe(false);expect(b.fade).toBeGreaterThan(0);expect(b.fade).toBeLessThan(1);expect(b.group.visible).toBe(true);
       const mesh=b.group.children[0] as InstancedMesh;expect(mesh.instanceColor!.getX(0)).toBeCloseTo(b.fade);
@@ -96,7 +97,7 @@ describe('steady detail during camera motion',()=>{
   it('keeps the dirt ground constant while fading only its decoration',()=>{
     const f=detailFixture('dirt');try{
       const b=f.batches[0],proto=f.chunks.prototypes.get(b.key)!;proto.parts.unshift({...proto.parts[0],ground:true});
-      f.update(202);expect(b.calls).toBe(1);expect(b.group.children).toHaveLength(1);expect(b.fade).toBeGreaterThan(0);
+      f.update(205);expect(b.calls).toBe(1);expect(b.group.children).toHaveLength(1);expect(b.fade).toBeGreaterThan(0);
     }finally{f.dispose();}
   });
 });
@@ -138,7 +139,8 @@ describe('steady adaptive quality',()=>{
       // Fresh, fast samples prevent the old 24 ms frames from causing another downgrade.
       for(let frame=0;frame<150;frame++){f.advance();f.paint();}expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
       f.advance(10000);for(let frame=0;frame<30;frame++){f.advance();f.paint();if((f.renderer.setPixelRatio as jest.Mock).mock.calls.length>1)break;}
-      expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);expect(f.renderer.getPixelRatio()).toBe(2);
+      // ... back up to the cap, 1.25 whatever the screen's own ratio (78642f9: smooth on a notebook's graphics)
+      expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);expect(f.renderer.getPixelRatio()).toBe(1.25);
     }finally{f.view.dispose();}
   });
   it('keeps protecting frame time at DPR 1 by lowering the draw budget, with the same cooldown',()=>{
@@ -152,9 +154,12 @@ describe('steady adaptive quality',()=>{
   });
   it('cannot lower again within three seconds even when 120 fresh samples are already ready',()=>{
     const f=viewFixture();try{
+      // From the cap of 1.25 the first step down is to a ratio of 1, the lowest, so the next lowers the draw budget
       for(let frame=0;frame<150;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
-      for(let frame=0;frame<120;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
-      for(let frame=0;frame<30;frame++)f.paint();expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(2);
+      expect(f.renderer.getPixelRatio()).toBe(1);expect(f.view.chunks.drawBudget).toBe(180);
+      for(let frame=0;frame<120;frame++)f.paint();expect(f.view.chunks.drawBudget).toBe(180);
+      for(let frame=0;frame<30;frame++)f.paint();expect(f.view.chunks.drawBudget).toBe(168);
+      expect(f.renderer.setPixelRatio).toHaveBeenCalledTimes(1);
     }finally{f.view.dispose();}
   });
 });

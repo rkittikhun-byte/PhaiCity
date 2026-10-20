@@ -84,7 +84,7 @@ describe('16B automotive kit', () => {
     try {
       setNightMode(false); const day = front.emissiveIntensity;
       setNightMode(true); expect(front.emissiveIntensity).toBeGreaterThan(day * 10);
-      expect(rear.emissiveIntensity).toBe(1.5); expect(rear.emissive.getHex()).toBe(0xde252b);
+      expect(rear.emissiveIntensity).toBe(2.2); expect(rear.emissive.getHex()).toBe(0xde252b);
     } finally { setNightMode(false); }
   });
   it.each(ids)('%s exposes headlight and tail-light lenses ahead of the painted body', id => {

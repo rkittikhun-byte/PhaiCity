@@ -80,9 +80,12 @@ export class PowerPlantBuilder extends ServiceBuilder {
       }
     });
   }
-  finishPlant(id: string, center: number, metadata: Record<string, unknown> = {}) {
+  /** The plant's root on the 4 × 4 round its centre tile; `tiles` are those it is drawn for, none for a kind picked
+   * from gameMap.powerKinds on another plant's tiles (RENDERER_SPEC 6D) */
+  finishPlant(id: string, center: number, metadata: Record<string, unknown> = {},
+    tiles: readonly number[] = Array.from({ length: 16 }, (_, i) => center - 5 + i)) {
     this.flushSigns();
-    const root = this.finish(id, 'services', [4, 4], Array.from({ length: 16 }, (_, i) => center - 5 + i), this.options);
+    const root = this.finish(id, 'services', [4, 4], [...tiles], this.options);
     root.add(...this.anchors);
     Object.assign(root.userData, { centerTile: center, components: this.components, structuralBodies: this.structuralBodies,
       palette: this.palette, entranceFacing: '+Z', ...metadata });

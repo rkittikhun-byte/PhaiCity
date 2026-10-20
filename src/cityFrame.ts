@@ -167,6 +167,8 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   }
   // ... and the canals the player dug (src/canals.ts)
   if (typeof save.canals === "string") out.canals = encodePresetLayer(layer(decoded(save.canals), null, 0));
+  // ... and each building's era (src/eraScore.ts), the new land's none until it is built on
+  if (typeof save.buildingEras === "string") out.buildingEras = encodePresetLayer(layer(decoded(save.buildingEras), null, 0));
   // The ground's water: the new land full (the water works fill it to what it holds, src/waterManager.ts prepareGround)
   if (typeof save.groundwater === "string") out.groundwater = encodePresetLayer(layer(decoded(save.groundwater), null, 255));
   if (save.mining) out.mining = { ...save.mining, ground: typeof save.mining.ground === "string" ?

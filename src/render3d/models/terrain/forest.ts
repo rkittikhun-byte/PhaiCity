@@ -17,37 +17,63 @@ function pick(list: readonly WeightedTree[], rng: () => number): WeightedTree {
   return list[list.length - 1];
 }
 
-/** Dedicated forest LOD: preserve species silhouette while spending 80–260 triangles per tree. */
-function simplifiedTree(kind: TreeKind, rng: () => number, options: ModelOptions, detail = 1): PlantBuilder {
+/** Triangles a tree's parts have so far */
+function triangles(b: PlantBuilder): number {
+  return b.parts.reduce((sum, { geometry }) => sum + (geometry.index ? geometry.index.count : geometry.getAttribute('position').count) / 3, 0);
+}
+
+/**
+ * Dedicated forest LOD: keeps each species' silhouette within `allowance` triangles, building the trunk first and
+ * spending what it leaves on leaves, so a woods tile with its five trees, ground and edges stays within a ground
+ * piece's 1,500 (MODEL_SPEC 4) whichever species it draws.
+ */
+function simplifiedTree(kind: TreeKind, rng: () => number, options: ModelOptions, allowance: number): PlantBuilder {
   const b = new PlantBuilder(), bark = tint('wood_teak', 0x83715b), leaf = tint('foliage_tropical', regionalLeafColor(options.region));
-  const palm = ['coconut', 'oil_palm', 'sugar_palm'].includes(kind), bamboo = kind === 'bamboo';
+  const palm = ['coconut', 'oil_palm', 'sugar_palm'].includes(kind), bamboo = kind === 'bamboo', small = allowance < 200;
   const trunkTop = palm ? 6.5 : kind === 'pine' ? 8 : 5;
   const crown = point(kind === 'coconut' ? 0.45 : 0, trunkTop, 0);
   if (bamboo) {
-    for (let culm = 0; culm < (detail === 1 ? 5 : 3); culm++) {
+    for (let culm = 0; culm < (small ? 3 : 5); culm++) {
       const angle = culm * 2.4, x = Math.cos(angle) * 0.4, z = Math.sin(angle) * 0.4;
       b.taper([point(x, 0, z), point(x * 1.2, 4, z * 1.2), point(x * 2.6, 7.6, z * 2.6)], 0.075, bark, 3, 3);
     }
   } else if (kind === 'banana') {
-    for (let stem = 0; stem < 5; stem++) b.taper([point((stem - 2) * 0.35, 0, (stem % 2 - 0.5) * 0.2),
-      point((stem - 2) * 0.45, 4 + stem * 0.35, (stem % 2 - 0.5) * 0.3)], 0.16, bark, 3, 4);
+    const stems = small ? 3 : 5;
+    for (let stem = 0; stem < stems; stem++) b.taper([point((stem - (stems - 1) / 2) * 0.35, 0, (stem % 2 - 0.5) * 0.2),
+      point((stem - (stems - 1) / 2) * 0.45, 4 + stem * 0.35, (stem % 2 - 0.5) * 0.3)], 0.16, bark, 3, 4);
   } else b.taper([point(0, 0, 0), point(kind === 'coconut' ? -0.3 : 0.05, trunkTop * 0.5, 0), crown],
     kind === 'oil_palm' ? 0.42 : 0.18, bark, 4, 4);
-  if (palm) for (let frond = 0; frond < (detail === 1 ? 10 : 8); frond++) {
-    const frondCount = detail === 1 ? 10 : 8;
-    const angle = frond * Math.PI * 2 / frondCount + rng() * 0.1, tip = crown.clone().add(point(Math.cos(angle) * 2.2, -1.2, Math.sin(angle) * 2.2));
-    const curve = b.taper([crown, crown.clone().add(point(Math.cos(angle) * 1.1, 0.7, Math.sin(angle) * 1.1)), tip], 0.045, bark, 2, 3);
-    for (let pair = 0; pair < 6; pair++) for (const side of [-1, 1]) {
-      const center = kind === 'sugar_palm' ? curve.getPointAt(0.4 + pair * 0.1) : curve.getPointAt((pair + 1) / 7);
-      const a = angle + side * (kind === 'sugar_palm' ? (pair + 1) * 0.18 : 0.75);
-      b.leaf(center, point(Math.cos(a), -0.25, Math.sin(a)), kind === 'sugar_palm' ? 1.1 : 0.95, 0.28, leaf, angle);
+  if (kind === 'mangrove') for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    b.taper([point(0, 2.3, 0), point(Math.cos(a) * 0.7, 1, Math.sin(a) * 0.7),
+      point(Math.cos(a) * 1.2, 0.02, Math.sin(a) * 1.2)], 0.09, bark, 3, 3);
+  }
+  if (kind === 'rubber' && !small) {
+    b.tube([point(-0.16, 1.4, 0.16), point(0.16, 1.1, 0.18)], 0.025, bark, 1, 3);
+    b.ellipsoid(point(0, 0.9, 0.22), point(0.13, 0.08, 0.13), bark, 4, 3);
+  }
+  const left = allowance - triangles(b);
+  if (palm) {
+    // Each frond is a stalk of 12 triangles and pairs of leaflets of 2 each
+    const fronds = small ? 4 : 7, pairs = Math.max(1, Math.min(6, Math.floor((left - fronds * 12) / (fronds * 4))));
+    for (let frond = 0; frond < fronds; frond++) {
+      const angle = frond * Math.PI * 2 / fronds + rng() * 0.1, tip = crown.clone().add(point(Math.cos(angle) * 2.2, -1.2, Math.sin(angle) * 2.2));
+      const curve = b.taper([crown, crown.clone().add(point(Math.cos(angle) * 1.1, 0.7, Math.sin(angle) * 1.1)), tip], 0.045, bark, 2, 3);
+      for (let pair = 0; pair < pairs; pair++) for (const side of [-1, 1]) {
+        const center = kind === 'sugar_palm' ? curve.getPointAt(0.4 + pair * 0.5 / Math.max(1, pairs - 1)) : curve.getPointAt((pair + 1) / (pairs + 1));
+        const a = angle + side * (kind === 'sugar_palm' ? (pair + 1) * 1.08 / pairs : 0.75);
+        b.leaf(center, point(Math.cos(a), -0.25, Math.sin(a)), kind === 'sugar_palm' ? 1.1 : 0.95, 0.28, leaf, angle);
+      }
     }
   } else if (kind === 'banana') {
-    for (let i = 0; i < 22; i++) b.leaf(point((i % 5 - 2) * 0.4, 4.0 + (i % 4) * 0.4, (i % 3 - 1) * 0.25),
+    // Two-segment leaves of up to 4 triangles
+    const leaves = Math.max(4, Math.min(22, Math.floor(left / 4)));
+    for (let i = 0; i < leaves; i++) b.leaf(point((i % 5 - 2) * 0.4, 4.0 + (i % 4) * 0.4, (i % 3 - 1) * 0.25),
       point(Math.cos(i * 1.8), 0.35, Math.sin(i * 1.8)), 2.1, 0.85, leaf, i, -0.25, 2, i % 3 === 0);
   } else {
+    // A card is 2 triangles, and every twelfth brings a branch of 6
     const umbrella = ['rain_tree', 'tamarind', 'mangrove'].includes(kind);
-    const cards = Math.round((kind === 'pine' ? 150 : bamboo ? 120 : 160) * Math.max(0.75, detail));
+    const cards = Math.max(8, Math.min(kind === 'pine' ? 150 : bamboo ? 120 : 160, Math.floor(bamboo ? left / 2 : (left - 6) / 2.5)));
     for (let i = 0; i < cards; i++) {
       const t = (i + 0.5) / cards, angle = i * 2.399963;
       const radius = kind === 'eucalyptus' ? 1.25 : kind === 'durian' || kind === 'pine' ? 2.2 * t : umbrella ? 2.45 * Math.sqrt(t) : 1.95 * Math.sqrt(t);
@@ -59,17 +85,12 @@ function simplifiedTree(kind: TreeKind, rng: () => number, options: ModelOptions
         leaf, rng() * Math.PI, 0.1, 1, false, i % 2 === 0);
     }
   }
-  if (kind === 'mangrove') for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2;
-    b.taper([point(0, 2.3, 0), point(Math.cos(a) * 0.7, 1, Math.sin(a) * 0.7),
-      point(Math.cos(a) * 1.2, 0.02, Math.sin(a) * 1.2)], 0.09, bark, 3, 3);
-  }
-  if (kind === 'rubber' && detail === 1) {
-    b.tube([point(-0.16, 1.4, 0.16), point(0.16, 1.1, 0.18)], 0.025, bark, 1, 3);
-    b.ellipsoid(point(0, 0.9, 0.22), point(0.13, 0.08, 0.13), bark, 4, 3);
-  }
   return b;
 }
+
+/** Each tree's triangles: the four round the edge and the smaller one in the middle, with the ground and the edges of
+ * a woods joined on all four sides (322) inside 1,500 */
+const TREE_ALLOWANCE = { corner: 250, middle: 125 };
 
 export function createWoods(options: ModelOptions = {}) {
   const b = new TerrainBuilder(options), rng = seededRng(options.seed), mask = mask4(options.variant), waterMask = mask4(options.waterMask);
@@ -78,7 +99,7 @@ export function createWoods(options: ModelOptions = {}) {
   const cells = [[-2.4, -2.4], [2.4, -2.4], [-2.4, 2.4], [2.4, 2.4], [0, 0]];
   for (let index = 0; index < cells.length; index++) {
     const species = pick(mix, rng), kind = species.id.slice(4) as TreeKind;
-    const tree = simplifiedTree(kind, rng, options, index === 4 ? 0.5 : 1), size = 0.85 + rng() * 0.3;
+    const tree = simplifiedTree(kind, rng, options, index === 4 ? TREE_ALLOWANCE.middle : TREE_ALLOWANCE.corner), size = 0.85 + rng() * 0.3;
     tree.transformPlant(index === 0 ? 12 : index === 4 ? 6.5 : 8.5, size, rng() * Math.PI * 2, (rng() - 0.5) * 0.04, (rng() - 0.5) * 0.04);
     const bounds = new Box3(); tree.parts.forEach(part => { part.geometry.computeBoundingBox(); bounds.union(part.geometry.boundingBox!); });
     const extent = Math.max(Math.abs(bounds.min.x), bounds.max.x, Math.abs(bounds.min.z), bounds.max.z);

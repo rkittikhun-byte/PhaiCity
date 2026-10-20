@@ -171,6 +171,14 @@ export class PlotBuilder extends CommercialBuilder {
     if (o.grille) this.bars(w, h, x, y, z + f * (d + 0.03), Math.max(2, Math.round(w / 0.32)), o.grille);
   }
 
+  /** A window on a back wall (-Z) at z, its bottom at y, which the game's camera seldom sees close: a plate of the
+   * frame's colour with its glass on it, 14 triangles for the 72 of a framed one with a mullion (a 1-tile house
+   * keeps to 3,000, MODEL_SPEC 4) */
+  backWindow(w: number, h: number, x: number, y: number, z: number, color: number): void {
+    this.tone(color, w + 0.16, h + 0.16, 0.04, x, y + h / 2, z - 0.02);
+    this.pane(w, h, x, y + h / 2, z - 0.045, this.glass, Math.PI);
+  }
+
   /** An eaves gutter along X at zGutter, and downpipes at the given X down the wall line zPipe, each with an offset
    * back to the wall and, when it reaches the ground, a shoe. */
   gutter(w: number, x: number, y: number, zGutter: number, zPipe: number, color: number, pipes: readonly number[], bottom = 0.25): void {

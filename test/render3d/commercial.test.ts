@@ -93,7 +93,7 @@ describe('Prompt 10–11 commercial lots', () => {
   it('lights only the hotel name cell in a cached atlas and validates invalid inputs', () => {
     const entries = [{ text: 'โรงแรมลานลม', lit: true }, { text: 'ยินดีต้อนรับ' }], a = thaiSignAtlas(entries), b = thaiSignAtlas(entries);
     expect(a.material).toBe(b.material); expect(a.rects).toEqual(b.rects); expect(isLibraryMaterial(a.material)).toBe(true);
-    try { setNightMode(true); expect(a.material.emissiveIntensity).toBe(1.6); setNightMode(false); expect(a.material.emissiveIntensity).toBe(0.3); }
+    try { setNightMode(true); expect(a.material.emissiveIntensity).toBe(2.0); setNightMode(false); expect(a.material.emissiveIntensity).toBe(0.3); }
     finally { setNightMode(false); }
     expect(() => thaiSignAtlas([])).toThrow(RangeError);
     expect(() => thaiSignAtlas([{ text: 'ให้เช่า', size: [0, 1] }])).toThrow(RangeError);
