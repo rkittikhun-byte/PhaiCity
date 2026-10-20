@@ -1476,6 +1476,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 10.65,
+     "triangles": 1268
+    },
+    "bay1_mid": {
+     "height": 10.02,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 10.02,
+     "triangles": 1284
+    },
+    "bay1_one": {
+     "height": 10.02,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 10.65,
+     "triangles": 1274
+    },
+    "bay2_left": {
+     "height": 14.05,
+     "triangles": 1222
+    },
+    "bay2_mid": {
+     "height": 13.42,
+     "triangles": 1278
+    },
+    "bay2_mid2": {
+     "height": 13.7,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 13.65,
+     "triangles": 1272
+    },
+    "bay2_right": {
+     "height": 14.05,
+     "triangles": 1236
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4487
@@ -1519,6 +1559,14 @@
     "hospital": {
      "height": 19.22,
      "triangles": 15798
+    },
+    "house12_1": {
+     "height": 5.74,
+     "triangles": 3354
+    },
+    "house12_2": {
+     "height": 8.71,
+     "triangles": 3296
     },
     "market": {
      "height": 10.72,
@@ -2952,6 +3000,56 @@
   }
  },
  "kinds": {
+  "bay1_left": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_mid": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_mid2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_one": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_right": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_left": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_mid": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_mid2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_one": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_right": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
   "factory_1": {
    "tiles": 1
   },
@@ -2984,6 +3082,16 @@
   },
   "hospital": {
    "tiles": 3
+  },
+  "house12_1": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 12.0
+  },
+  "house12_2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 12.0
   },
   "market": {
    "tiles": 3
