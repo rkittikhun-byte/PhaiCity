@@ -1,0 +1,33 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. */
+
+/* The time bar at the bottom left of the city (src/timeControls.ts; owner, 20 Oct 2026): the date and the game's
+   speeds on a glass card like the camera bar's. Colours from the theme (docs/STYLE_GUIDE.md). */
+#timeBar {
+  position: absolute; left: 64px; bottom: 12px; z-index: 13; display: flex; align-items: center; gap: 4px;
+  width: max-content; height: auto; box-sizing: border-box;
+  padding: 5px 6px 5px 12px; border: 1px solid var(--hud-edge); border-radius: 14px;
+  background: var(--hud-glass); box-shadow: var(--hud-shadow);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3);
+  animation: motionFromLeft 0.45s 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+#timeBar .timeDate {
+  min-width: 72px; margin-right: 6px; color: var(--hud-text); font: 400 12px/1.2 'Sarabun Thai', 'Open Sans', sans-serif;
+  white-space: nowrap;
+}
+#timeBar .timeButton {
+  width: auto; min-width: 34px; height: 30px; padding: 0 6px; border: 1px solid transparent; border-radius: 9px; background: transparent;
+  color: var(--hud-text); font: 400 13px/1 'Sarabun Thai', 'Open Sans', sans-serif; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+#timeBar .timeButton:hover { background: rgba(var(--ph-sand-0-rgb), 0.55); transform: scale(1.06); }
+#timeBar .timeButton.selected { border-color: rgba(var(--ph-gold-600-rgb), 0.9); background: rgba(var(--ph-gold-100-rgb), 0.85); }
+#timeBar .timeButton svg { width: 16px; height: 16px; vertical-align: middle; }
+#timeBar .timeButton svg path { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+/* While paused the date dims and the pause button stands out */
+#timeBar.paused .timeDate { opacity: 0.55; }
+#timeBar.paused .timeButton[data-speed="0"] { border-color: rgba(var(--ph-clay-600-rgb), 0.9); background: rgba(var(--ph-clay-100-rgb), 0.85); }
+
+/* The speeds live in the bar now: not on the menu rail (its button stays for the P key) nor in the settings window */
+body #miscButtons #pauseRequest { display: none; }
+#speedSelect { display: none; }

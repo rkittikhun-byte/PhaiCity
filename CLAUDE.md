@@ -153,6 +153,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     button (its list slides down under the bar), ⌂ back to the starting view (3D only, a smooth flight) and sound
     (a click slides out the master volume, a second click mutes, `wireSoundControl` in `src/audio/index.ts`). News
     shows under the bar for a few seconds, then fades (`src/notification.js`).
+  - The time bar at the bottom left (`src/timeControls.ts`, `css/time-controls.css`; owner, 20 Oct 2026): the date and
+    pause, 1x, 2x, 3x as `speed` commands; the rail's pause button (kept hidden for the P key) and the settings
+    window's speeds are hidden.
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
     Twenty-one buttons, the last buying land (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`; no power line since 15 Oct 2026: power

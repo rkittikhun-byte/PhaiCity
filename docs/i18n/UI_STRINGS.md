@@ -1349,6 +1349,11 @@
 | `era.symbol.clean_power` | `src/cityStatus.ts` | — | `half the power clean` | `ไฟฟ้าสะอาดครึ่งหนึ่ง` | แสงอาทิตย์ ลม น้ำ |
 | `era.dawn` | `src/game.js` | — | `The city is entering a new era, {era}: its buildings begin to change` | `เมืองเริ่มเข้าสู่ยุค{era} ตึกบางหลังเริ่มเปลี่ยนโฉม` | ข่าวเมื่อคะแนนยุคถึง 80% |
 | `congrats.era` | `src/game.js` | — | `{name} has entered a new era: {era}!` | `{name} เข้าสู่ยุคใหม่: {era}!` | หน้าต่างยินดีเมื่อคะแนนยุคถึง 100% |
+| `time.bar` | `src/timeControls.ts` | — | `Game time` | `เวลาในเกม` | แถบเวลามุมล่างซ้าย (เจ้าของโปรเจกต์ 20 ต.ค. 2026: "แยกปุ่ม control เวลาออกมาเลย") |
+| `time.speed.0` | `src/timeControls.ts` | — | `Pause or go on (P)` | `หยุดหรือเล่นต่อ (P)` |  |
+| `time.speed.1` | `src/timeControls.ts` | — | `Slow: a month in about 8 seconds` | `ช้า: 1 เดือนประมาณ 8 วินาที` |  |
+| `time.speed.2` | `src/timeControls.ts` | — | `Normal: a month in about 4 seconds` | `ปกติ: 1 เดือนประมาณ 4 วินาที` |  |
+| `time.speed.3` | `src/timeControls.ts` | — | `Fast: a month in about 2 seconds` | `เร็ว: 1 เดือนประมาณ 2 วินาที` |  |
 | `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
 | `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |

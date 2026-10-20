@@ -85,6 +85,7 @@ import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
+import { installTimeControls } from './timeControls.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
@@ -605,6 +606,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
                   function(x, y) { self.inspectAtPixel(x, y); });
   // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
   installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
+  // The date and the game's speeds at the bottom left (src/timeControls.ts)
+  installTimeControls(this);
   document.addEventListener('phaicity:active_tool_changed', function(event) {
     self.updateContextualOverlay(event.detail && event.detail.tool);
   });
