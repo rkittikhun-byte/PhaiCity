@@ -6,7 +6,8 @@
 // เงินก่อน หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี"), to see a city's money and growth over the years and check a change to
 // the game's balance. It plays through commands as a person does (src/cityCommands.ts): the district office, a power
 // plant and water works beside the roads near the town, zones painted along the roads nearest the town (homes, shops
-// and factories mixed), then each year the services its people ask for and more zones while money allows. No DOM.
+// and factories mixed), then each year the services its people ask for and more zones while money allows, and it
+// answers the festival card a month before each festival as a sensible ruler would (answerFestivals). No DOM.
 
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
@@ -18,6 +19,7 @@ import { besideRoad } from "../cityCommands.js";
 import { isRoadTile } from "../roadLevels.js";
 import { cellsOf } from "../zoneCells.js";
 import { serviceProblem } from "../services.js";
+import type { FestivalNews, FestivalScale } from "../festivals.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
@@ -193,6 +195,26 @@ const MORE_WATER_USED = 0.9;
 /** Factories stand this far from the town's middle at least (world units, 10 a tile), the power plants further */
 const FACTORIES_FROM = 100;
 const PLANT_FROM = 24;
+/** A festival that would leave the treasury less than this is not held: money is tight, and a fire or a flood may come
+ *  before the year's taxes (src/festivals.ts) */
+const FESTIVAL_KEEP = 250;
+
+/** The festival card's question (src/festivals.ts festivalAhead): which festival, how it stands, its prices now */
+type FestivalAsk = Extract<FestivalNews, { type: "festivalAhead" }>;
+
+/**
+ * How a sensible ruler holds a festival, by its prices now [modest, grand], the treasury, whether the era score finds the
+ * people's living short of the era's aim (src/eraScore.ts), which a festival's cheer lifts, and the treasury's reserve:
+ * grandly while the treasury would still be over its reserve after paying for it and living is short; not at all when
+ * money is tight, the treasury left with less than FESTIVAL_KEEP; else modestly. A treasury that cannot pay even the
+ * modest price answers modestly too: the temples and the people then hold it themselves, which lets nobody down, where
+ * a festival not held would (src/festivals.ts festivalMonth).
+ */
+export function festivalAnswer(costs: readonly [number, number], funds: number, livingShort: boolean, reserve: number): FestivalScale {
+  const [modest, grand] = costs;
+  if (livingShort && funds - grand >= reserve) return "grand";
+  return funds >= modest && funds - modest < FESTIVAL_KEEP ? "none" : "modest";
+}
 
 export class AutoPlayer {
   /** What it did, a line each, with the year */
@@ -202,8 +224,12 @@ export class AutoPlayer {
   private next = 0;
   /** How many buildings the era score asked for */
   private asked = 0;
+  /** The festivals the news asked about at the last month's turn, answered after the step (answerFestivals) */
+  private readonly asks: FestivalAsk[] = [];
 
-  constructor(private readonly core: CityCore, private readonly options: PlayerOptions) {}
+  constructor(private readonly core: CityCore, private readonly options: PlayerOptions) {
+    core.on("festivalAhead", (ask) => { this.asks.push(ask); });
+  }
 
   /** The first buildings and zones of a new city */
   start(): void {
@@ -226,6 +252,7 @@ export class AutoPlayer {
           fire: Math.round(budget.firePercent * 100), police: Math.round(budget.policePercent * 100), yearEnd: true });
         this.note(`budget window: ฿${budget.totalFunds}`);
       }
+      if (this.asks.length) this.answerFestivals();
     }
     this.year++;
     const population = sim.evaluation.cityPop;
@@ -318,6 +345,28 @@ export class AutoPlayer {
         works: sim._census.waterWorksPop ?? 0 },
       demand: [valves.resValve ?? 0, valves.comValve ?? 0, valves.indValve ?? 0], plots,
     };
+  }
+
+  /**
+   * The festival card answered for the festivals the news asked about (festivalAnswer), by the treasury now and the era
+   * score; each answer is the real `festival` command, standing for the years after until the next one changes it
+   */
+  private answerFestivals(): void {
+    const core = this.core, reserve = this.options.reserve ?? 3000;
+    const living = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors?.living;
+    const short = living !== undefined && living.value < living.target;
+    // Festivals asked about together are paid together
+    let funds = core.simulation.budget.totalFunds;
+    for (const ask of this.asks.splice(0)) {
+      const [modest, grand] = ask.costs, scale = festivalAnswer(ask.costs, funds, short, reserve);
+      const price = scale === "grand" ? grand : scale === "modest" && funds >= modest ? modest : 0;
+      funds -= price;
+      if (scale === ask.scale) continue;
+      if (core.apply({ type: "festival", id: ask.id, scale }).accepted) {
+        // (asked during the year being played, which playYear counts once its steps are done)
+        this.note(`festival ${ask.id} ${scale} (฿${price}, treasury ฿${core.simulation.budget.totalFunds}${short ? ", living short" : ""})`, this.year + 1);
+      }
+    }
   }
 
   /** Buying land for a building that found no room, so a failure there does not buy again */
@@ -469,5 +518,5 @@ export class AutoPlayer {
     return painted;
   }
 
-  private note(text: string): void { this.log.push(`year ${this.year}: ${text}`); }
+  private note(text: string, year = this.year): void { this.log.push(`year ${year}: ${text}`); }
 }

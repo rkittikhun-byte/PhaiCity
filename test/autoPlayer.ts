@@ -5,16 +5,17 @@
 // The auto player (src/core/autoPlayer.ts): it builds a town through commands and plays it for years, and its yearly
 // accounts hold every baht the treasury gained or lost, so a change to the game's balance can be read line by line.
 
-import { AutoPlayer, yearAccounts } from "../src/core/autoPlayer";
+import { AutoPlayer, festivalAnswer, yearAccounts } from "../src/core/autoPlayer";
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
 
-/** A bare 16 m map painted a cell at a time, with a road through the town and a crossing road */
-function town() {
+/** A bare 16 m map painted a cell at a time, with a road through the town and a crossing road; with a province's
+ *  resources it keeps the country's festivals (src/festivals.ts calendarOf), else none */
+function town(resources?: Record<string, number>) {
   const map = (MapGenerator as any).fromPresetCells(80, 60, new Uint8Array(80 * 60), null);
   Object.assign(map, { tileSizeM: 16, paintedZones: true, cellZones: true, town: { x: 40, y: 30 } });
-  const core = new CityCore({ map, seed: 5 });
+  const core = new CityCore({ map, seed: 5, ...(resources ? { resources } : {}) });
   core.simulation.budget.setFunds(30000);
   for (let x = 2; x < 78; x++) core.apply({ type: "tool", tool: "road", x, y: 28 });
   for (let y = 4; y < 56; y++) core.apply({ type: "tool", tool: "road", x: 40, y });
@@ -22,24 +23,58 @@ function town() {
 }
 
 describe("the auto player", () => {
-  test("builds a town that grows, and each year's accounts are what the treasury gained or lost", () => {
+  test.each([["a practice town", undefined], ["a province's town (it holds festivals)", { tourism: 3 }]])(
+    "builds %s that grows, and each year's accounts are what the treasury gained or lost", (_name, resources) => {
     Random.seed(5);
-    const core = town();
+    const core = town(resources);
     const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 3000, paintEachYear: 1000 });
     player.start();
     expect(core.map.rulerHouse).toBeTruthy();
     expect(player.log.some((line) => line.includes("coal at"))).toBe(true);
-    let funds = core.simulation.budget.totalFunds, checked = 0;
+    let funds = core.simulation.budget.totalFunds, checked = 0, festivals = 0;
     for (let n = 0; n < 4; n++) {
       const year = player.playYear();
       // Gained by the year's end, less what was built and painted through the year (nothing is charged while no one lives
-      // in the city, as at its start)
+      // in the city, as at its start); the festivals, paid in their months, are among the costs
       expect(year.funds).toBe(funds + (year.accounts.charged ? year.accounts.net : 0) - year.built);
       if (year.accounts.charged) checked++;
+      festivals += year.accounts.costs.festivals;
       funds = year.funds;
     }
     expect(checked).toBeGreaterThan(0);
+    expect(festivals > 0).toBe(resources !== undefined);
     expect(core.simulation.evaluation.cityPop).toBeGreaterThan(0);
+  });
+
+  test("answers the festival card as a sensible ruler: grandly with money to spare and living short, not when money is tight", () => {
+    const reserve = 3000;
+    // Living short of the era's aim, and the treasury still over its reserve after a grand one
+    expect(festivalAnswer([400, 2400], 5400, true, reserve)).toBe("grand");
+    expect(festivalAnswer([400, 2400], 5399, true, reserve)).toBe("modest");
+    // ... living at its aim needs no grand one
+    expect(festivalAnswer([400, 2400], 50000, false, reserve)).toBe("modest");
+    // Money tight: paying would leave the treasury nearly empty
+    expect(festivalAnswer([400, 2400], 600, true, reserve)).toBe("none");
+    expect(festivalAnswer([400, 2400], 400, false, reserve)).toBe("none");
+    expect(festivalAnswer([400, 2400], 650, false, reserve)).toBe("modest");
+    // ... but a treasury that cannot pay at all answers modestly: the people then hold it themselves, letting nobody down
+    expect(festivalAnswer([400, 2400], 399, true, reserve)).toBe("modest");
+    expect(festivalAnswer([400, 2400], 0, false, reserve)).toBe("modest");
+  });
+
+  test("answers through the festival command, and a festival not held costs the year nothing", () => {
+    Random.seed(5);
+    const core = town({ tourism: 3 });
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 3000, paintEachYear: 1000 });
+    player.start();
+    // A treasury that could pay for Songkran but be left nearly empty
+    core.simulation.budget.setFunds(350);
+    const year = player.playYear();
+    const answers = core.log.filter((logged) => logged.command.type === "festival").map((logged) => logged.command);
+    expect(answers).toEqual([{ type: "festival", id: "songkran", scale: "none" }, { type: "festival", id: "loy_krathong", scale: "none" }]);
+    expect(player.log.filter((line) => line.includes("festival songkran none"))).toHaveLength(1);
+    expect(core.map.festivals?.choices).toEqual({ songkran: "none", loy_krathong: "none" });
+    expect(year.accounts.costs.festivals).toBe(0);
   });
 
   test("reads every line of the budget's year", () => {
