@@ -302,6 +302,8 @@
 | `draw.mode.rectangle.hint` | `src/drawModes.ts` | — | `Drag a rectangle to paint every cell in it` | `ลากเป็นสี่เหลี่ยม ระบายทุกช่องในกรอบ` |  |
 | `draw.mode.fill` | `src/drawModes.ts` | — | `Fill` | `เติม` |  |
 | `draw.mode.fill.hint` | `src/drawModes.ts` | — | `Click to paint the whole stretch of empty cells along the road` | `คลิกเพื่อระบายช่องว่างทั้งแนวที่ติดกัน` |  |
+| `draw.mode.whole` | `src/drawModes.ts` | — | `Whole road` | `ทั้งเส้น` | เครื่องมืออัปเกรดถนน |
+| `draw.mode.whole.hint` | `src/drawModes.ts` | — | `Click a road to raise it all, junction to junction` | `คลิกถนนเพื่ออัปเกรดทั้งเส้น จากแยกถึงแยก` |  |
 | `draw.step.straight.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` | ป้ายข้างเมาส์ระหว่างวาด |
 | `draw.step.straight.1` | `src/game.js` | — | `Click the end` | `คลิกจุดปลาย` |  |
 | `draw.step.curve.0` | `src/game.js` | — | `Click the start` | `คลิกจุดเริ่ม` |  |

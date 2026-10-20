@@ -51,6 +51,7 @@ import { buildingAt, MOVE_TOOL, movePrice, moveProblem } from './moveTool.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
+import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
 import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
@@ -1957,7 +1958,8 @@ Game.prototype.handleToolPoint = function(data) {
   }
   var mode = drawModeOf(toolName);
   if (mode === 'fill') {
-    this.applyTiles(fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
+    this.applyTiles(toolName === UPGRADE_TOOL ? this.upgradeLineTiles(tile, data.x, data.y) :
+                    fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
     this.resetDraft();
     return;
   }
@@ -2206,6 +2208,16 @@ Game.prototype.estimateGrid = function(drag) {
 
 // Shortest path along existing 4-connected road tiles from points[0] to points[last] for UPGRADE_TOOL, so upgrading a
 // slanted or curved road hits every tile of its staircase rather than skipping elbows with a Bresenham line
+// The upgrade tool's whole-road mode (docs/METRE_DRAWING_PLAN.md, step 1's leftovers): the road under the mouse from
+// junction to junction (src/roads/wholeRoad.ts), as {x, y} tiles
+Game.prototype.upgradeLineTiles = function(tile, x, y) {
+  var map = this.gameMap, size = tileMetres(map), width = map.width;
+  var point = typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null;
+  var at = point !== null ? [point.x * size, point.y * size] : [(tile.x + 0.5) * size, (tile.y + 0.5) * size];
+  return wholeRoadTiles(map, at[0], at[1], tile.x, tile.y).map(function(i) { return {x: i % width, y: Math.floor(i / width)}; });
+};
+
+
 Game.prototype.upgradeRoadPath = function(points) {
   if (!points || points.length < 2)
     return points || [];
@@ -2816,7 +2828,8 @@ Game.prototype.drawPreview = function(tile) {
       tiles = mode === 'grid' ? gridPath(from, to) : rectanglePath(from, to);
     }
   } else if (mode === 'fill') {
-    tiles = fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
+    tiles = toolName === UPGRADE_TOOL ? this.upgradeLineTiles(tile, this.inputStatus.mouseX, this.inputStatus.mouseY) :
+            fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
   }
   var guide = null;
   var angle = null;

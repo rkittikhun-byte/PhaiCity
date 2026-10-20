@@ -16,6 +16,9 @@ import { ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 export const LINE_MODES = ["straight", "curve", "curve2", "free", "grid"] as const;
 export const PAINT_MODES = ["brush", "circle", "rectangle", "fill"] as const;
 export type DrawMode = typeof LINE_MODES[number] | typeof PAINT_MODES[number];
+/** The upgrade tool draws as the roads do, and may also take a whole road from junction to junction at a click ("fill",
+ * docs/METRE_DRAWING_PLAN.md step 1's leftovers); its mode is its own, so the road tools never take that one */
+export const UPGRADE_MODES: readonly DrawMode[] = [...LINE_MODES, "fill"];
 type ModeGroup = "line" | "paint";
 
 /** The clicks a clicked mode takes: the start and the end, and one or two bends between */
@@ -45,13 +48,13 @@ export const isPaintTool = (tool: string | null | undefined): boolean => modeGro
  * drawn over open land as in Cities: Skylines (owner, 14 Oct 2026: "การวาดถนน ทำไมมันเป็นช่องแบบนี้นะ") */
 export const showsZoneGrid = (tool: string | null | undefined): boolean => isPaintTool(tool);
 
-function loadModes(): Record<ModeGroup, DrawMode> {
-  const modes = { ...DEFAULTS };
+function loadModes(): Record<ModeGroup | "upgrade", DrawMode> {
+  const modes: Record<ModeGroup | "upgrade", DrawMode> = { ...DEFAULTS, upgrade: DEFAULTS.line };
   try {
     const saved = JSON.parse(globalThis.localStorage?.getItem(STORAGE_KEY) ?? "null") as Record<string, unknown> | null;
-    for (const group of ["line", "paint"] as const) {
+    for (const group of ["line", "paint", "upgrade"] as const) {
       const mode = saved?.[group];
-      if (typeof mode === "string" && (GROUP_MODES[group] as readonly string[]).includes(mode)) modes[group] = mode as DrawMode;
+      if (typeof mode === "string" && (allowed(group) as readonly string[]).includes(mode)) modes[group] = mode as DrawMode;
     }
   } catch {
     // No storage here (a private window, tests): the defaults
@@ -59,25 +62,35 @@ function loadModes(): Record<ModeGroup, DrawMode> {
   return modes;
 }
 
+/** The modes of a group of tools, or the upgrade tool's own */
+function allowed(group: ModeGroup | "upgrade"): readonly DrawMode[] {
+  return group === "upgrade" ? UPGRADE_MODES : GROUP_MODES[group];
+}
+
+/** Where a tool's mode is kept: its group's, or the upgrade tool's own */
+function keptAs(tool: string | null | undefined): ModeGroup | "upgrade" | null {
+  return tool === UPGRADE_TOOL ? "upgrade" : modeGroupOf(tool);
+}
+
 const current = loadModes();
 
 /** The mode the tool draws in, or null for a tool without modes. */
 export function drawModeOf(tool: string | null | undefined): DrawMode | null {
-  const group = modeGroupOf(tool);
-  return group ? current[group] : null;
+  const kept = keptAs(tool);
+  return kept ? current[kept] : null;
 }
 
 /** The modes a tool may draw in (none for most tools). */
 export function modesFor(tool: string | null | undefined): readonly DrawMode[] {
-  const group = modeGroupOf(tool);
-  return group ? GROUP_MODES[group] : [];
+  const kept = keptAs(tool);
+  return kept ? allowed(kept) : [];
 }
 
 /** Chooses the mode of the tool's group, and remembers it in this browser. */
 export function setDrawMode(tool: string, mode: DrawMode): void {
-  const group = modeGroupOf(tool);
-  if (!group || !GROUP_MODES[group].includes(mode)) return;
-  current[group] = mode;
+  const kept = keptAs(tool);
+  if (!kept || !allowed(kept).includes(mode)) return;
+  current[kept] = mode;
   try {
     globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(current));
   } catch {
@@ -126,6 +139,9 @@ const ICONS: Readonly<Record<DrawMode, string>> = {
   fill: '<path d="M3 8 8 3l5 5-5 5z"/><path d="M13.5 10.5c.8 1.2 1 2 1 2.5a1 1 0 0 1-2 0c0-.5.2-1.3 1-2.5z"/>',
 };
 
+/** The upgrade tool's whole road: a road between two junctions */
+const WHOLE_ICON = '<path d="M2 12 14 4"/><circle cx="2" cy="12" r="1.8"/><circle cx="14" cy="4" r="1.8"/><path d="M6 9.3 10 6.7" stroke-width="3"/>';
+
 /** The modes row of the tool levels card: one small button a mode, the one in use marked. */
 export function renderModes(row: HTMLElement, tool: string | null, doc: Document = document): void {
   const modes = modesFor(tool);
@@ -142,10 +158,13 @@ export function renderModes(row: HTMLElement, tool: string | null, doc: Document
     button.type = "button";
     button.className = `modeButton${mode === drawModeOf(tool) ? " current" : ""}`;
     button.dataset.mode = mode;
-    button.setAttribute("aria-label", t(`draw.mode.${mode}`));
-    button.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${ICONS[mode]}</svg>`;
+    // The upgrade tool's fill takes a whole road
+    const label = tool === UPGRADE_TOOL && mode === "fill" ? "draw.mode.whole" : `draw.mode.${mode}`;
+    button.setAttribute("aria-label", t(label));
+    button.title = t(`${label}.hint`);
+    button.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${tool === UPGRADE_TOOL && mode === "fill" ? WHOLE_ICON : ICONS[mode]}</svg>`;
     const name = doc.createElement("span");
-    name.textContent = t(`draw.mode.${mode}`);
+    name.textContent = t(label);
     button.appendChild(name);
     button.addEventListener("click", () => {
       setDrawMode(tool, mode);
