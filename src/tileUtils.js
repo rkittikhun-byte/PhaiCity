@@ -12,6 +12,7 @@
  */
 
 import { Random } from './random.ts';
+import { isDriveableValue } from './roadTiles.ts';
 import { Tile } from './tile.ts';
 import { ANIMBIT, BULLBIT } from "./tileFlags.ts";
 import * as TileValues from "./tileValues.ts";
@@ -42,10 +43,8 @@ var isCommercialZone = function(tile) {
 };
 
 
-var isDriveable = unwrapTile(function(tile) {
-  return (tile >= TileValues.ROADBASE && tile <= TileValues.LASTROAD) ||
-         (tile >= TileValues.RAILHPOWERV && tile <= TileValues.LASTRAIL);
-});
+// Roads and railways (src/roadTiles.ts isDriveableValue)
+var isDriveable = unwrapTile(isDriveableValue);
 
 
 var isFire = unwrapTile(function(tile) {

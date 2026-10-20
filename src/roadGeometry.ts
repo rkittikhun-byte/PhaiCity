@@ -12,17 +12,10 @@ import { isCityTileSize, unitsPerMetre } from "./units";
 
 export type Point = [number, number];
 
-/** A plain road or railway tile, which lies on a smooth line rather than drawing its own tile (bridges, crossings and
- * power lines over a road keep their tiles) */
-export const isLineRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 77 && v !== 78;
-export const isLineRail = (v: number): boolean => v >= 226 && v <= 236;
-/** ... and a road tile with a power line over it (77, 78), which the road's line runs on through: only the wires keep
- * their tile's model (owner, 15 Oct 2026, a picture of a road widening into a block at each pole) */
-export const isPowerCrossing = (v: number): boolean => v === 77 || v === 78;
-/** Any road or railway tile, which a line runs up to */
-export const isAnyRoad = (v: number): boolean => v >= 64 && v <= 206 || v === 237 || v === 238 || v >= 828 && v <= 832 ||
-  v >= 948 && v <= 951 || v === 239;
-export const isAnyRail = (v: number): boolean => v >= 224 && v <= 238 || v === 221 || v === 222;
+/** Which tiles lie on a smooth line, have a power line over them, or are any road or railway a line runs up to: every
+ * road test lives in src/roadTiles.ts */
+export { isAnyRail, isAnyRoad, isLineRail, isLineRoad, isPowerCrossing } from "./roadTiles";
+import { isAnyRail, isAnyRoad, isLineRail, isLineRoad, isPowerCrossing } from "./roadTiles";
 
 /** Half the width of each road level's carriageway (1 laterite … 8 tollway), and its shoulders, in world units */
 export const HALF_WIDTH = [3.5, 3.5, 3.5, 3.6, 4.2, 4.6, 4.9, 4.9, 4.9];

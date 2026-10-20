@@ -21,7 +21,7 @@ import { GROUNDWATER_LOW, NOT_ENOUGH_WATER } from "./messages";
 import { PLOT_SHARE } from "./plots";
 import { POWERBIT } from "./tileFlags";
 import {
-  HBRDG0, HBRDG3, HRAILROAD, POWERBASE, ROADBASE, VBRDG0, VBRDG3, VRAILROAD, WATER_TOWER, WATER_WORKS,
+  WATER_TOWER, WATER_WORKS,
 } from "./tileValues";
 
 /** Zones a water works serves with full ground under it */
@@ -65,11 +65,9 @@ interface Source {
   powered: boolean;
 }
 
-/** Whether a tile carries a water main: every kind of road, bridge and level crossing. */
-export function carriesWater(value: number): boolean {
-  return (value >= ROADBASE && value < POWERBASE) || value === HRAILROAD || value === VRAILROAD ||
-    (value >= HBRDG0 && value <= HBRDG3) || (value >= VBRDG0 && value <= VBRDG3);
-}
+/** Whether a tile carries a water main: every kind of road, bridge and level crossing (src/roadTiles.ts) */
+export { carriesWater } from "./roadTiles";
+import { carriesWater } from "./roadTiles";
 
 /** What the last full scan found on a zone's tiles: water; none, but the zone needs none at its size; or none, and it
  * is held back or shrinking for want of it (the renderer's no-water icon) */

@@ -20,6 +20,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
+import { isAnyRoad } from '../../roadTiles.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -61,7 +62,8 @@ export const tileSeed = (x: number, y: number): number => {
   let h = Math.imul(x | 0, 0x45d9f3b) ^ Math.imul(y | 0, 0x27d4eb2d);
   h = Math.imul(h ^ h >>> 16, 0x45d9f3b); return (h ^ h >>> 16) >>> 0;
 };
-export const isRoad = (v: number): boolean => v >= 64 && v <= 206 || v === 237 || v === 238 || v >= 828 && v <= 832 || v >= 948 && v <= 951 || v === 239;
+/** Any road tile a line runs up to (src/roadTiles.ts isAnyRoad) */
+export const isRoad = isAnyRoad;
 /** A road tile drawn from its neighbours alone: not a bridge, a crossing or a drawbridge. */
 export const isPlainRoad = (v: number): boolean => v >= 66 && v <= 206 && v !== 77 && v !== 78;
 export const isRail = (v: number): boolean => v >= 224 && v <= 238 || v === 221 || v === 222;

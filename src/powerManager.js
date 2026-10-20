@@ -19,7 +19,8 @@ import { fuelShare, plantFuel, plantPower, plantSmokes, powerKindAt } from './po
 import { NOT_ENOUGH_POWER } from './messages.ts';
 import { Random } from './random.ts';
 import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
-import { HBRDG0, HBRDG_END, HRAILROAD, LASTROAD, NUCLEAR, POWERPLANT, ROADBASE, VBRDG0, VBRDG3, VRAILROAD } from "./tileValues.ts";
+import { NUCLEAR, POWERPLANT } from "./tileValues.ts";
+import { conductsPower } from "./roadTiles.ts";
 
 // PhaiCity: the plants on the coal plant's tiles are of five kinds now, each with its own power (src/powerPlants.ts)
 var NUCLEAR_POWER_STRENGTH = 2000;
@@ -62,10 +63,8 @@ PowerManager.prototype.clearPowerStack = function() {
 // PhaiCity: power runs along the roads, as water does (owner, 15 Oct 2026: "ไฟฟ้าไม่ต้องปักเสาเลย มีถนน แล้วก็มีไฟเลย
 // ได้ไหม แต่ต้องสร้างเครื่องกำเนิดไฟ"): every road tile carries it, from a plant beside a road to the zones beside it, and
 // takes none of the plant's power on the way (a district's roads are thousands of tiles)
-var isRoadTile = function(value) {
-  return value >= ROADBASE && value <= LASTROAD || value === HRAILROAD || value === VRAILROAD ||
-         value >= HBRDG0 && value <= HBRDG_END || value >= VBRDG0 && value <= VBRDG3;
-};
+// (src/roadTiles.ts conductsPower: roads, level crossings and opening bridges)
+var isRoadTile = conductsPower;
 
 
 PowerManager.prototype.testForConductive = function(pos, testDir) {

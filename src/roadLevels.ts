@@ -14,7 +14,6 @@
 // No DOM, nothing random.
 
 import { BaseTool } from "./baseTool.js";
-import { POWERBASE, ROADBASE } from "./tileValues";
 
 export const ROAD_LEVELS = ["laterite", "asphalt", "concrete2", "concrete4", "concrete6", "concrete8", "motorway",
   "tollway"] as const;
@@ -54,9 +53,9 @@ export const TOLLWAY_LEVEL = 8;
 /** Baht a tollway tile takes a month for each unit of the traffic on it (the traffic map's 0–240) */
 export const TOLL_PER_TRAFFIC = 0.002;
 
-export function isRoadTile(value: number): boolean {
-  return value >= ROADBASE && value < POWERBASE;
-}
+/** A road tile as the tools and the road levels see it (src/roadTiles.ts, where every kind of road test lives) */
+export { isRoadTile } from "./roadTiles";
+import { isRoadTile } from "./roadTiles";
 
 interface LevelMap {
   readonly width: number;
