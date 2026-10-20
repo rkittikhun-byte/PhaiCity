@@ -6,7 +6,9 @@
 // 3D view writes them.
 
 import { hasKey, t } from "../src/i18n/index";
-import { findStreets, labelSpots, ROAD_MIN_TILES, Street, STREET_NAMES, streetLabel } from "../src/streetNames";
+import { findStreets, labelSpots, onDrawnRoad, ROAD_MIN_TILES, Street, STREET_NAMES, streetLabel } from "../src/streetNames";
+import { RoadGraph } from "../src/roads/roadGraph";
+import { segmentTiles } from "../src/roads/roadRaster";
 
 const ROAD = 66;
 
@@ -128,6 +130,26 @@ describe("street names", () => {
     expect(streetLabel(road, "en").params.name).toBe("Si Chan Road");
     expect(label(soi)).toBe(`ซอยศรีจันทร์ ${soi.number}`);
     expect(streetLabel(soi, "en")).toEqual({ key: "street.soi", params: { name: "Si Chan", number: soi.number } });
+  });
+
+  test("on a road drawn in metres a name lies on the road as drawn, along it, not on its tiles' staircase", () => {
+    // A slanted road drawn in metres on a 16 m map, laid on the tiles its line passes (src/roads/roadRaster.ts)
+    const graph = new RoadGraph(), from: [number, number] = [20.5, 40.25], to: [number, number] = [620.25, 300.5];
+    const [id] = graph.add({ from, to, level: 1 }).segments;
+    const tiles = new Set(segmentTiles(graph, id, { width: 40, height: 30, tileSizeM: 16 }));
+    const map = grid(40, 30, set => { for (const i of tiles) set(i % 40, Math.floor(i / 40)); });
+    const road = findStreets(map).find(s => s.tiles.length > 20)!;
+    const spots = labelSpots(road, 40).map(spot => onDrawnRoad(spot, graph, 16));
+    expect(spots.length).toBeGreaterThan(0);
+    const dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz), way = Math.atan2(dz, dx);
+    for (const spot of spots) {
+      // On the line (metres), and along it either way
+      expect(Math.abs((spot.x * 16 - from[0]) * dz - (spot.y * 16 - from[1]) * dx) / len).toBeLessThan(1e-3);
+      expect(Math.abs(Math.sin(spot.angle - way))).toBeLessThan(1e-6);
+    }
+    // ... and where no road was drawn in metres, as before
+    const plain = labelSpots(road, 40);
+    expect(plain.map(spot => onDrawnRoad(spot, null, 16))).toEqual(plain);
   });
 
   test("the same roads always read the same, and every label key is translated", () => {
