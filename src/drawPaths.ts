@@ -119,8 +119,9 @@ export const SNAP_REACH = 2;
 export const MIN_SNAP_REACH = 1.5;
 export const MAX_SNAP_REACH = 4;
 /** ... and how far it reaches for a road's dead end, at least: a new line begun this near an end goes on from it (a
- * road begun a tile or two off an end, not joined to it, is never what was meant: owner, 18 Oct 2026) */
-export const END_SNAP_REACH = 3;
+ * road begun a tile off an end, not joined to it, is never what was meant: owner, 18 Oct 2026); no further, as a road
+ * clicked two tiles off was moved onto another (owner, 20 Oct 2026: "บอกแล้วไง ห้ามขยับ") */
+export const END_SNAP_REACH = 1.5;
 
 /** The end of a line from a moved onto the nearest multiple of 45° when the line is within SNAP_DEGREES of it, and the
  * move is no more than reach tiles. */

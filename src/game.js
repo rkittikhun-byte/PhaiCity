@@ -2164,8 +2164,9 @@ var exactControls = function(points, exact) {
 var SNAP_PIXELS = 18;
 // ... and a click grabs a road, railway or power line (a dot on it) within this many pixels, the same as dots show:
 // whatever dot is in sight, a click near it lands on it (owner, 18 Oct 2026: "ปุ่ม snap กับจุด ไม่ยอมจับหลายถนน" → "คลิกใกล้
-// จุดต้องดูดเสมอ"), in tiles at least ROAD_REACH_MIN and at most ROAD_REACH_MAX
-var ROAD_PIXELS = 120, ROAD_REACH_MIN = 2, ROAD_REACH_MAX = 12;
+// จุดต้องดูดเสมอ"), in tiles at least ROAD_REACH_MIN and at most ROAD_REACH_MAX. Only as far as a click that means a
+// road: a road clicked beside one 2 tiles off was moved onto it (owner, 20 Oct 2026: "บอกแล้วไง ห้ามขยับ")
+var ROAD_PIXELS = 44, ROAD_REACH_MIN = 0.75, ROAD_REACH_MAX = 6;
 Game.prototype.reachTiles = function(pixels, min, max) {
   var view = this.cityView, x = this.inputStatus.mouseX, y = this.inputStatus.mouseY;
   var at = function(px, py) { return typeof view.pointAt === 'function' ? view.pointAt(px, py) : view.tileAt(px, py); };
@@ -2222,12 +2223,16 @@ Game.prototype.snapTile = function(tile, toolName, draft, point) {
   var isLine = this.lineKind(toolName);
   var roadReach = this.roadReach();
   var snapped = snapPoint(tile, isLine, GRID_SPACING, roadReach, Math.max(END_SNAP_REACH, roadReach));
+  var points = draft ? draft.points : [];
   if (snapped.guide === 'road') {
     var exact = toolName === 'wire' || toolName === 'canal' ? null : this.roadDot(toolName, snapped.point, point || null);
     var at = exact ? {x: Math.floor(exact.x), y: Math.floor(exact.y)} : null;
-    return {tile: at && isLine(at.x, at.y) ? at : snapped.point, guide: 'road', exact: exact};
+    var landing = at && isLine(at.x, at.y) ? at : snapped.point, last = points.length ? points[points.length - 1] : null;
+    // ... but never back onto the point the line is drawn from: a line going on from a road's end landed on that end
+    // again, a line no tiles long that could not be built (owner, 20 Oct 2026: "ทำวาดถนนตรงนี้ไม่ได้?")
+    if (!last || Math.hypot(landing.x - last.x, landing.y - last.y) > 1.5)
+      return {tile: landing, guide: 'road', exact: exact};
   }
-  var points = draft ? draft.points : [];
   // A line started at a road's dead end goes on along its way (src/roadGeometry.ts smooth joints)
   var way = points.length === 1 ? this.lineEndWay(toolName, points[0]) : null;
   var along = way ? snapAlong(points[0], tile, way, SNAP_DEGREES, reach) : null;
