@@ -160,6 +160,12 @@ const SERVICES: ReadonlyArray<[number, string]> = [[300, "police_box"], [300, "f
   [30000, "university"], [40000, "primary_school"], [40000, "community_hospital"], [60000, "police_hq"],
   [80000, "regional_hospital"], [100000, "university"]];
 
+/** What the era score (src/eraScore.ts) finds short, and what is built for it while it is below its aim, the first that
+ * the district office is high enough for and that finds room: one a side a year */
+const ERA_ASKS: ReadonlyArray<["health" | "education", string[]]> = [
+  ["health", ["provincial_hospital", "community_hospital", "health_centre"]],
+  ["education", ["secondary_school", "primary_school", "kindergarten"]]];
+
 /** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go */
 const CAPS: ReadonlyArray<[string, string, number, number]> = [["resCap", "stadium", -20, -12],
   ["indCap", "port", 30, 12], ["comCap", "airport", 30, -20]];
@@ -190,6 +196,8 @@ export class AutoPlayer {
   private year = 0;
   private built = 0;
   private next = 0;
+  /** How many buildings the era score asked for */
+  private asked = 0;
 
   constructor(private readonly core: CityCore, private readonly options: PlayerOptions) {}
 
@@ -257,6 +265,15 @@ export class AutoPlayer {
         const [, tool] = SERVICES[this.next];
         if (!this.place(tool, x + ((this.next * 7) % 41) - 20, y + ((this.next * 11) % 41) - 20)) break;
         this.next++;
+      }
+      // ... and more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
+      // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health)
+      const factors = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
+      for (const [side, tools] of ERA_ASKS) {
+        const f = factors?.[side];
+        if (!f || f.value >= f.target || budget.totalFunds <= (this.options.reserve ?? 3000)) continue;
+        const n = this.asked++;
+        tools.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
       }
       // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
       // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
