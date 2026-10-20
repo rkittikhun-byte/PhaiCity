@@ -2,7 +2,8 @@
 
 งานลำดับที่ 3 ใน `docs/TOOLS_PLAN.md` (เจ้าของตกลง 13 ต.ค. 2026)
 - ทุกอย่างมีได้ก็ต้องมีเสีย: อาคารที่ถูกที่สุดก็มีผลเสียมากที่สุด
-- อาคารใหม่ใช้ไทล์ชุดเดียวกัน (992–1000) แผนที่จดชนิดไว้ใน `gameMap.wasteKinds` และบันทึกกับเมืองเป็น `wasteKinds`
+- อาคารใหม่ใช้ไทล์ชุดเดียวกัน (992–1000) แผนที่จดชนิดไว้ใน `gameMap.wasteKinds` ซึ่งเซฟเก็บไว้กับอาคารใน
+  `buildings` (ตั้งแต่ 20 ต.ค. 2026, `src/buildings/buildingRecords.ts`)
 
 โค้ดอยู่ที่ `src/waste.ts` ทดสอบที่ `test/waste.ts`
 
@@ -64,7 +65,7 @@
 ## ภาพ
 
 - แผนที่เมืองมีสีของอาคารขยะเอง
-- ภาพ 3 มิติมีโมเดลจริงครบทั้ง 5 ชนิดแล้ว (`waste.<kind>` เลือกจาก `gameMap.wasteKinds`, RENDERER_SPEC 6I, `docs/3d/MODEL_STATUS.md`)
+- ภาพ 3 มิติมีโมเดลจริงครบทั้ง 5 ชนิดแล้ว (`waste.<kind>` เลือกจาก `gameMap.wasteKinds`, RENDERER_SPEC 6I, ดูได้ใน `model-gallery.html`)
 
 ## ต่อไป
 
