@@ -464,6 +464,97 @@ samples paid for all of it: every level is faster than the renderer was. At 1080
 frames a second on this card (12 ms over the new city, 15–17 ms over the town); at 2400×1331 it does not, and Auto
 then gives up the effects and lowers the resolution.
 
+## 8B. A big town: the benchmark, levels of detail and pools (added 21 Oct 2026)
+
+`docs/METRE_DRAWING_PLAN.md` section 6: "BatchedMesh / instancing ทั้งเมือง" and "LOD + impostor". A real city has
+thousands of plots; the era buildings (`eraBuildings.ts`, about 4,500 triangles a one-tile building) were drawn whole
+wherever the chunks chose detail, each kind in each chunk with draws of its own, and the frame went far past 16.7 ms.
+
+**The benchmark** (`src/render3d/city/bench.ts`). Open `index.html?khonkaen&bench`: the view then loads the bench and
+puts `phaicityBench` on the page. `await phaicityBench.run({plots: 3000})` (or run it and read `status` and `results`)
+grows a town round the town centre into a stand-in of the map the view reads (`benchLand`), never the game's map, so
+nothing of it can be saved: a grid of asphalt streets every 8 tiles over the open land, then 3,000 painted plots on the
+nearest open land within reach of a road (shops thicker near the centre, factories toward the edge, levels 1–4,
+factories 1–3, one even 2 × 2 in eight a lot). Same map and seed, same town. It holds the game's frames, sets 1920 ×
+1080 at pixel ratio 1 and Medium, waits until every chunk and model has come in and the detail has settled, and
+measures frames it draws itself through a message channel (so it works in a hidden window): triangles and draw calls
+of every pass from the renderer, the graphics card's time (`gpuTimer.ts`) and the processor's time for `paint` alone.
+Poses: `usual` (the starting view, 240 units, 55°, over the town centre) and `wide` (the whole town, 2.3 × its radius:
+931 units for this town); `d1200` and the like are a distance. `breakdown()` takes one part of the view out at a time
+(by its layer) for what it costs; `compare()` measures the levels of detail on and off by turns; `plots: 0` measures the
+city as it is.
+
+**Where it went** (before this work: the renderer as it was, the same machine):
+
+| Scene | Pose | Draw calls | Triangles | Card ms |
+|---|---|---|---|---|
+| New Khon Kaen city | usual | 81 | 4.46 M | 11.4–13.3 |
+| New city | 1,200 units out | 94 | 4.30 M | 17.5 |
+| Town of 3,000 era-1 plots | usual | 531 | 19.6 M | 32.5 |
+| Town | wide | 854 | 28.1 M | 33.5 |
+
+Over the town the era buildings were 17.5 M of the 19.6 M triangles at the usual view (24.4 M of 28.1 M wide) and 423
+of the 531 draws; the processor took about 46 ms a frame (22 ms in `CityChunks.update`, which sorted the 4,000
+batches near the camera again every frame, and 21 ms in the renderer). Over the new city the trees were most of it:
+the street and land trees round the camera (`CityFoliage`, 2.0 M, drawn whether in sight or not) and the far ground's
+trees (`province-surface.ts`, 1.65 M), then the roads (0.5 M).
+
+**What changed**
+
+- **Pools** (`pools.ts`). The chunks still choose which batches get detail, by the same budget (a pooled batch counts
+  its parts, as before) and fade them in and out as before; a model with levels of detail or a shadow caster of its own
+  (every era building, once the simplifier has loaded) then draws all its chosen batches across the city together: one
+  instanced mesh per level and part, and one per part for the sun's shadow. Each time the camera moves or a batch comes,
+  goes or fades, the pool fills its meshes again: each building at its level, only those whose sphere is in the camera's
+  frustum (the shadow's against the sun's shadow camera), nearest first so the depth test spares what stands behind.
+  A batch's group stands in the scene only while it is drawn, and a pooled one's never.
+- **Levels of detail** (`lod.ts`). Made once per model as it loads, by meshoptimizer's simplifier (MIT; a lazily
+  loaded chunk of its own; a dependency of the game since this change). The era buildings are flat shaded, so every
+  plank, groove and frame shows as a line of light and shade however shallow: the levels keep every crease (vertices
+  split where faces turn more than 20°, which the simplifier keeps as it keeps the edges between colours) and are made
+  within 4, 12 and 36 cm; a last level that may smooth creases is drawn only from where a feature of half a metre is
+  under a pixel too (`LOD_FEATURE`). A level that saves under a fifth is left out. A level of error *e* world units is
+  drawn from *e* × pixelsPerUnit / 1 pixel on (pixelsPerUnit = the drawing's height ÷ 2 tan 19°; 1,568 at 1080 lines),
+  measured from the camera to the model's nearest point, with 6 % hysteresis: no point of a building moves on the
+  screen by more than a pixel when it changes level, so the swap is not dithered. Era-1 one-tile buildings: 4,500 →
+  about 2,000–3,200 triangles (36 cm, creases kept) → 230–530 (the last level); lots 9,000–10,800 → 3,400–6,200 →
+  640–1,240.
+- **Shadows.** Each era model has a caster of its own for the sun's pass, simplified within 25 cm with no care for
+  creases or colours, which a depth map never sees: the finest shadow map is 1,024 texels over 170 units, 0.27 m a
+  texel. The window panes, which lie on the walls inside the body's shadow, cast none.
+- **Trees.** The street and land trees round the camera are drawn only when in its sight (`CityFoliage.cull`, sorted
+  again as it moves). The far ground's trees take a light tree (each puff an octahedron once instead of subdivided:
+  72 triangles instead of 288) in each 32 × 32-tile chunk from where its largest puff moves by under a pixel
+  (`LIGHT_TREE_ERROR`, 0.79 of a tree's units): about 1,600 units out at 1,080 lines (2,000 at 1.25×) for a chunk of
+  woods, so with the trees fading out past 1,050 units from what the camera looks at it helps only zoomed far out, and
+  there it took a quarter of the triangles but hardly any of the card's time on this machine.
+- **The processor.** `CityChunks.dirty` no longer marks the batches for sorting when nothing changed (the view calls it
+  every frame); the sort works out each batch's rank once rather than in every comparison; each frame goes over only
+  the batches drawn or fading (`active`) rather than all 23,000 of a real-scale map.
+
+**After** (21 Oct 2026, the same machine and setup, shared with other sessions' builds and tests, so ±2–3 ms; "off" is
+`compare()` with the levels of detail and pools off, everything else as now):
+
+| Scene | Pose | Draw calls | Triangles | Card ms | Processor ms |
+|---|---|---|---|---|---|
+| Town | usual, off | 427 | 19.5 M | 25–27 | 19–26 |
+| Town | usual | 152 | 4.5 M | 14–19 | 7–15 |
+| Town | wide, off | 683 | 27.9 M | 30–33 | 21 |
+| Town | wide | 131 | 5.3 M | 14–17 | 4–12 |
+| New city | usual | 81 | 3.1 M | 10–12 | 3–12 |
+| New city | 1,200 units out | 94 | 3.2 M (4.3 M off) | 9–14 | 4–13 |
+
+At the usual view about 400 of the 500 buildings in sight are still whole, as they are nearer than any level allows;
+they are most of what is left (2.5 M triangles, about 8 ms of the card). Wide, every building is at its last level. Near
+the camera nothing changed: frozen frames of the town with the levels on and off differ in 0.02 % of the pixels at the
+usual view (the shadows' casters), in about 3 % wide (single pixels where creases under a pixel are smoothed away).
+
+**Risks and limits.** Simplifying an era model takes some tens of milliseconds on the page, as its file arrives (a
+worker could take it later). A pool's meshes are as big as the batches it draws; a batch changing level costs the pool a fill, so a
+moving camera fills the pools every frame (under a millisecond for 3,000 buildings here). The procedural models, roads
+and people have no levels yet. Raising the draw budget, now that pooled batches cost far less than they count, would
+give more of a big city detail in place of far boxes; not done, so the look is the same.
+
 ## 9. What stays 2D for now
 
 - **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game does not create it; the

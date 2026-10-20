@@ -8,14 +8,18 @@ import { MaterialKey, getMaterial, tint, vertexFinish, eraBuildingMaterial, road
   transportCraneMaterial, transportRadarMaterial, vehicleMaterial, vehicleDisplayMaterial, VehicleMaterialKey, citySurfaceMaterial } from '../materials/library.js';
 import { hospitalAtlas, thaiSign, thaiSignAtlas } from '../materials/signs.js';
 import type { ModelOptions } from '../models/registry.js';
+import type { LodGeometry, LodLevel } from './lod.js';
 export interface MaterialDescription { key:MaterialKey|VehicleMaterialKey; name:string; color:number; data:Record<string,any> }
 export interface SerializedPart { attributes:Record<string,{array:Float32Array;size:number}>;index:Uint32Array|null;material:MaterialDescription;ground?:boolean;
   castShadow?:boolean;receiveShadow?:boolean;
   bounds?:{min:[number,number,number];max:[number,number,number];center:[number,number,number];radius:number} }
-export interface SerializedPrototype { key:string; parts:SerializedPart[]; height:number; error?:string }
+/** A prototype's lighter copies for far away (lod.ts): each level's error (the model's units) and its parts, null where
+ * a part is gone at that level; and its parts for the sun's shadow alone (makeShadow) */
+export interface SerializedPrototype { key:string; parts:SerializedPart[]; height:number; error?:string; lods?:LodLevel[]; shadow?:(LodGeometry|null)[] }
 export interface PrototypeRequest {key:string;id:string;options:ModelOptions}
 export interface PrototypeProvider { request(request:PrototypeRequest):void; take():SerializedPrototype[]; dispose():void }
-export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial;ground?:boolean;castShadow?:boolean;receiveShadow?:boolean}[];height:number }
+export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial;ground?:boolean;castShadow?:boolean;receiveShadow?:boolean}[];height:number;
+  lods?:{error:number;parts:(BufferGeometry|null)[]}[];shadow?:(BufferGeometry|null)[] }
 function material(d:MaterialDescription):MeshStandardMaterial {
   const u=d.data,key=d.key as MaterialKey;
   if(u.provinceSurface)return citySurfaceMaterial();
@@ -38,8 +42,13 @@ function material(d:MaterialDescription):MeshStandardMaterial {
   if(d.name.startsWith('contamination-glow:'))return contaminationGlow();
   return u.tinted?tint(key,d.color):getMaterial(key);
 }
+function lodGeometry(p:LodGeometry):BufferGeometry {
+  const geometry=new BufferGeometry();for(const[name,a]of Object.entries(p.attributes))geometry.setAttribute(name,new BufferAttribute(a.array,a.size));
+  geometry.setIndex(new BufferAttribute(p.index,1));geometry.computeBoundingBox();geometry.computeBoundingSphere();return geometry;
+}
 export function decodePrototype(value:SerializedPrototype):Prototype {
-  return {height:value.height,parts:value.parts.map(p=>{
+  return {height:value.height,lods:value.lods?.map(l=>({error:l.error,parts:l.parts.map(p=>p?lodGeometry(p):null)})),
+    shadow:value.shadow?.map(p=>p?lodGeometry(p):null),parts:value.parts.map(p=>{
     const geometry=new BufferGeometry();for(const[name,a]of Object.entries(p.attributes))geometry.setAttribute(name,new BufferAttribute(a.array,a.size));
     if(p.index)geometry.setIndex(new BufferAttribute(p.index,1));
     if(p.bounds){geometry.boundingBox=new Box3(new Vector3(...p.bounds.min),new Vector3(...p.bounds.max));geometry.boundingSphere=new Sphere(new Vector3(...p.bounds.center),p.bounds.radius);}

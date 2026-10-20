@@ -1,7 +1,7 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
-import { BoxGeometry, Color, DynamicDrawUsage, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, PlaneGeometry, Vector3 } from 'three';
+import { BoxGeometry, type BufferGeometry, type Camera, Color, DynamicDrawUsage, Frustum, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, PlaneGeometry, Vector3 } from 'three';
 import { cityLODDepthMaterial, cityLODMaterial, cityWorldMaterial, getMaterial, getPreviewGround } from '../materials/library.js';
 import { CHUNK_TILES, Placement } from './types.js';
 import { TileSnapshot, prototypeKey } from './tileModels.js';
@@ -10,7 +10,11 @@ import type { RegionId } from '../regional/types.js';
 import type { TileRect } from '../../cityView.js';
 import type { CityHeightField } from './heightfield.js';
 import { ProvinceSurface } from './province-surface.js';
-interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number }
+import { frustumOf, ModelPool, poolPlacements, type PoolPlacements } from './pools.js';
+interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number;
+  /** The pool that draws it with the other batches of its model when the model has levels of detail (pools.ts, lod.ts),
+   * and what the pool keeps of its placements */
+  pool?:ModelPool; pooled?:PoolPlacements }
 interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
 const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),color=new Color();
 /** The fewest tiles a frame scans for their models, however slow the frame (CityChunks.update) */
@@ -27,12 +31,24 @@ export class CityChunks {
   private lastUpdate:number;
   readonly columns:number;unknownTiles=0;rebuildMs=0;detailCalls=0;
   drawBudget=180;detailSwaps=0;dirtSwaps=0;
-  private allBatches:Batch[]=[];
+  /** The batches drawn or fading (selected, or fade above 0): the only ones each frame goes over after choosing, of the
+   * tens of thousands a real-scale city map has */
+  private readonly active=new Set<Batch>();
   private lastCandidateTarget=new Vector3(-9999,-9999,-9999);
   private lastCandidateDistance=-9999;
-  private cachedCandidates:{b:Batch;range:number}[]=[];
+  private cachedCandidates:{b:Batch;range:number;order:number}[]=[];
   private batchesDirty=true;
   readonly surfaces?:ProvinceSurface;
+  /** Levels of detail (lod.ts, pools.ts): whether a model with lighter levels has its batches drawn together by distance;
+   * the camera, how many pixels a world unit one unit from it takes on the screen (0: every model whole) and the sun's
+   * shadow camera, which the view sets; the sun's shadow frustum, whose pass alone draws the pools' shadows; each model's
+   * pool, and how often the pools were filled again */
+  lodOn=true;camera:Camera|null=null;pixelsPerUnit=0;shadowCamera:Camera|null=null;shadowFrustum:(()=>unknown)|null=null;
+  readonly pools=new Map<string,ModelPool>();poolFills=0;
+  private readonly poolRoot=new Group();private lodWas=true;private lastPixels=0;
+  private readonly poolView={frustum:null as Frustum|null,eye:new Vector3(NaN,NaN,NaN),shadow:null as Frustum|null,pixelsPerUnit:0};
+  private readonly viewFrustum=new Frustum();private readonly sunFrustum=new Frustum();
+  private readonly lastView=new Float32Array(16);private readonly lastSun=new Float32Array(16);
   constructor(readonly snapshot:TileSnapshot,readonly region:RegionId,private provider:PrototypeProvider,private now:()=>number,readonly terrain?:CityHeightField) {
     const n=snapshot.width*snapshot.height;this.columns=Math.ceil(snapshot.width/CHUNK_TILES);
     this.lastUpdate=this.now();this.waterGeometry=this.geometry.clone();
@@ -54,6 +70,7 @@ export class CityChunks {
     }
     for(let y=0;y<snapshot.height;y+=CHUNK_TILES)for(let x=0;x<snapshot.width;x+=CHUNK_TILES)
       this.chunks.push({id:this.chunks.length,x,y,cursor:0,dirty:true,placements:[],batches:[],version:0});
+    this.poolRoot.name='city/pools';this.root.add(this.poolRoot);
   }
   dirty(indices:readonly number[]):void {
     this.surfaces?.dirty(indices);
@@ -73,7 +90,9 @@ export class CityChunks {
         this.finish(chunk,wasVisible);
       }
     }
-    this.batchesDirty=true;
+    // Only a change sorts the batches by distance again: the view calls this every frame, mostly with nothing, and over
+    // a town of thousands of plots the sort took some 20 ms a frame
+    if(ids.size)this.batchesDirty=true;
   }
   /** Every chunk built again, for a change that reaches every building at once: the era models arriving or the city
    * moving to a new era (eraBuildings.ts) */
@@ -108,9 +127,8 @@ export class CityChunks {
     this.coarseDirty=true;
   }
   private clear(chunk:Chunk):void {
-    for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
+    for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}this.leavePool(batch);this.active.delete(batch);batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
     chunk.batches=[];
-    this.allBatches=[];
     this.batchesDirty=true;
   }
   private showCoarse(p:Placement,show:boolean):void {
@@ -127,19 +145,21 @@ export class CityChunks {
   private finish(chunk:Chunk,wasVisible?:Set<string>):void {
     const groups=new Map<string,Placement[]>();
     for(const p of chunk.placements)if(p.id){const key=prototypeKey(p),g=groups.get(key)??[];g.push(p);groups.set(key,g);}
-    chunk.batches=Array.from(groups,([key,placements])=>({key,placements,group:new Group(),calls:0,selected:false,fade:0}));
+    // (every batch with the same fields from the start, so the loops over them stay quick)
+    chunk.batches=Array.from(groups,([key,placements])=>({key,placements,group:new Group(),calls:0,selected:false,fade:0,pool:undefined,pooled:undefined}));
     for(const b of chunk.batches){
       const proto=wasVisible&&(wasVisible.has(b.key)||['residential','commercial','industrial','services','transport'].includes(b.placements[0].kind))?this.prototypes.get(b.key):undefined;
       if(proto){
-        b.selected=true;b.fade=1;this.instantiate(b,proto);b.group.visible=true;
+        b.selected=true;b.fade=1;this.instantiate(b,proto);b.group.visible=true;this.active.add(b);
         for(const p of b.placements){this.showCoarse(p,false);this.coarseFade(p,1);}
+        // A batch is in the scene only while it is drawn (update), and a pooled one's pool draws it (pools.ts): the
+        // renderer and the shadow pass go over every object in the scene each frame, and a town has tens of thousands
+        if(!b.pool)this.root.add(b.group);
       } else {
         b.group.visible=false;
       }
-      this.root.add(b.group);
     }
     chunk.dirty=false;
-    this.allBatches=[];
     this.batchesDirty=true;
   }
   private cell(chunk:Chunk,n:number):void {
@@ -154,27 +174,57 @@ export class CityChunks {
     if(this.solid.instanceColor)this.solid.instanceColor.needsUpdate=true;
     this.surfaces?.finish();
   }
+  /** A part's instanced mesh for a batch over `geometry` (the part's own or a lighter level's), its own copy so its
+   * per-instance attributes are its own, with room for every placement of the batch */
+  private partMesh(batch:Batch,part:Prototype['parts'][number],geometry:BufferGeometry):InstancedMesh {
+    const g=geometry.clone(),count=batch.placements.length;
+    g.setAttribute('cityOutside',new InstancedBufferAttribute(new Float32Array(count),1));g.setAttribute('cityTerrain',new InstancedBufferAttribute(new Float32Array(count*4),4));g.setAttribute('cityBridgeDepth',new InstancedBufferAttribute(new Float32Array(count),1));
+    const mesh=new InstancedMesh(g,cityLODMaterial(part.material),count);mesh.customDepthMaterial=cityLODDepthMaterial(mesh.material as typeof part.material);
+    mesh.instanceColor=new InstancedBufferAttribute(new Float32Array(count*3).fill(1),3).setUsage(DynamicDrawUsage);
+    mesh.castShadow=part.castShadow??true;mesh.receiveShadow=part.receiveShadow??true;
+    return mesh;
+  }
+  /** Puts the batch's placements `members` (indices into its placements, the first n) into a mesh, in that order */
+  private fill(mesh:InstancedMesh,batch:Batch,members:ArrayLike<number>,n:number):void {
+    const g=mesh.geometry,province=g.getAttribute('cityOutside') as InstancedBufferAttribute,slopes=g.getAttribute('cityTerrain') as InstancedBufferAttribute,bridgeDepth=g.getAttribute('cityBridgeDepth') as InstancedBufferAttribute;
+    for(let i=0;i<n;i++){const p=batch.placements[members[i]],base=p.baseY??0;p.modelMatrix(matrix);mesh.setMatrixAt(i,matrix);mesh.instanceColor!.setX(i,batch.fade);
+      province.setX(i,p.outside?1:0);
+      bridgeDepth.setX(i,this.terrain?.enabled&&isBridge(p)&&Number.isFinite(this.terrain.water[p.index])?Math.max(0,base-this.terrain.water[p.index]):0);
+      if(this.terrain?.enabled&&(p.kind==='road'||p.kind==='rail'||p.id==='terrain.dirt')&&!isBridge(p)){
+        const x=Math.floor(p.x/10),y=Math.floor(p.z/10);slopes.setXYZW(i,this.terrain.corner(x,y)-base,this.terrain.corner(x+1,y)-base,this.terrain.corner(x,y+1)-base,this.terrain.corner(x+1,y+1)-base);
+      }else slopes.setXYZW(i,0,0,0,0);
+    }
+    mesh.count=n;mesh.visible=n>0;mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor!.needsUpdate=true;province.needsUpdate=true;slopes.needsUpdate=true;bridgeDepth.needsUpdate=true;
+    mesh.computeBoundingSphere();if(mesh.boundingSphere){let extent=0;for(let i=0;i<n*4;i++)extent=Math.max(extent,Math.abs(slopes.array[i]));for(let i=0;i<n;i++)extent=Math.max(extent,bridgeDepth.array[i]);mesh.boundingSphere.radius+=extent;}
+  }
   private instantiate(batch:Batch,prototype:Prototype):void {
-    for(const part of prototype.parts){
-      // Dirt uses the same continuous ground at every distance; only grass and stones change detail.
-      if((batch.placements[0].id==='terrain.dirt'||this.surfaces)&&part.ground)continue;
-      const geometry=part.geometry.clone(),count=batch.placements.length;
-      const province=new InstancedBufferAttribute(new Float32Array(count),1),slopes=new InstancedBufferAttribute(new Float32Array(count*4),4),bridgeDepth=new InstancedBufferAttribute(new Float32Array(count),1);
-      geometry.setAttribute('cityOutside',province);geometry.setAttribute('cityTerrain',slopes);geometry.setAttribute('cityBridgeDepth',bridgeDepth);
-      const mesh=new InstancedMesh(geometry,cityLODMaterial(part.material),count);mesh.customDepthMaterial=cityLODDepthMaterial(mesh.material as typeof part.material);
-      mesh.instanceColor=new InstancedBufferAttribute(new Float32Array(batch.placements.length*3).fill(1),3).setUsage(DynamicDrawUsage);
-      for(let i=0;i<batch.placements.length;i++)mesh.instanceColor.setX(i,batch.fade);
-      mesh.castShadow=part.castShadow??true;mesh.receiveShadow=part.receiveShadow??true;
-      for(let i=0;i<batch.placements.length;i++){const p=batch.placements[i],base=p.baseY??0;p.modelMatrix(matrix);mesh.setMatrixAt(i,matrix);
-        province.setX(i,p.outside?1:0);
-        if(this.terrain?.enabled&&isBridge(p)&&Number.isFinite(this.terrain.water[p.index]))bridgeDepth.setX(i,Math.max(0,base-this.terrain.water[p.index]));
-        if(this.terrain?.enabled&&(p.kind==='road'||p.kind==='rail'||p.id==='terrain.dirt')&&!isBridge(p)){
-          const x=Math.floor(p.x/10),y=Math.floor(p.z/10);slopes.setXYZW(i,this.terrain.corner(x,y)-base,this.terrain.corner(x+1,y)-base,this.terrain.corner(x,y+1)-base,this.terrain.corner(x+1,y+1)-base);
-        }
-      }
-      mesh.computeBoundingSphere();if(mesh.boundingSphere){let extent=0;for(const value of slopes.array)extent=Math.max(extent,Math.abs(value));for(const value of bridgeDepth.array)extent=Math.max(extent,value);mesh.boundingSphere.radius+=extent;}
-      batch.group.add(mesh);
-    }batch.calls=batch.group.children.length;
+    // Dirt uses the same continuous ground at every distance; only grass and stones change detail.
+    const drawn=prototype.parts.map((_,j)=>j).filter(j=>!((batch.placements[0].id==='terrain.dirt'||this.surfaces)&&prototype.parts[j].ground));
+    // A model with levels of detail or a shadow of its own (an era building) is drawn with every other batch of it, by
+    // its pool (pools.ts)
+    if(this.lodOn&&(prototype.lods?.length||prototype.shadow)&&drawn.length){
+      let pool=this.pools.get(batch.key);
+      if(!pool){pool=new ModelPool(prototype,drawn,frustum=>this.shadowFrustum?.()===frustum);this.pools.set(batch.key,pool);this.poolRoot.add(pool.root);}
+      batch.pool=pool;batch.pooled=poolPlacements(batch.placements,prototype);pool.members.add(batch);pool.dirty=true;
+      batch.group.removeFromParent();batch.calls=pool.calls;return;
+    }
+    const all=Int32Array.from({length:batch.placements.length},(_,i)=>i);
+    for(const j of drawn){const mesh=this.partMesh(batch,prototype.parts[j],prototype.parts[j].geometry);batch.group.add(mesh);this.fill(mesh,batch,all,all.length);}
+    batch.calls=batch.group.children.length;
+    if(batch.group.visible&&batch.group.parent!==this.root)this.root.add(batch.group);
+  }
+  /** A batch out of its pool, which draws without it from the next fill */
+  private leavePool(batch:Batch):void {
+    if(!batch.pool)return;
+    batch.pool.members.delete(batch);batch.pool.dirty=true;batch.pool=undefined;batch.pooled=undefined;batch.calls=0;
+  }
+  /** Every batch of a model with levels of detail built again, the other way, when they are turned on or off */
+  private relevel():void {
+    for(const chunk of this.chunks)for(const b of chunk.batches){
+      const proto=this.prototypes.get(b.key);if(!b.pool&&!(b.calls&&(proto?.lods?.length||proto?.shadow)))continue;
+      this.leavePool(b);b.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});b.group.clear();b.calls=0;
+    }
+    this.batchesDirty=true;
   }
   update(visible:TileRect|null,target:Vector3,distance:number):void {
     // Reserve one millisecond of the four-millisecond slice for batch selection / GPU buffer handoff.
@@ -189,6 +239,8 @@ export class CityChunks {
     for(const{c:chunk}of work){while(chunk.cursor<256&&(scanned<MIN_CELLS||this.now()<coarseDeadline)){this.cell(chunk,chunk.cursor++);scanned++;}
       if(chunk.cursor===256)this.finish(chunk);if(scanned>=MIN_CELLS&&this.now()>=coarseDeadline)break;}
     // Province terrain and worker handoff each get a slice while distant chunks are still being built.
+    // ... the far ground's trees light where the camera is far enough (province-surface.ts, lod.ts)
+    if(this.surfaces&&this.camera){this.surfaces.eye.setFromMatrixPosition(this.camera.matrixWorld);this.surfaces.pixelsPerUnit=this.lodOn?this.pixelsPerUnit:0;}
     this.surfaces?.update(target,distance,this.now,Math.max(start+2,this.now()+.5));
     // Decode small transferred buffers incrementally; heavy factories never run on the UI thread.
     this.pendingResults.push(...this.provider.take());
@@ -209,16 +261,16 @@ export class CityChunks {
     if(moved){
       this.lastCandidateTarget.copy(target);this.lastCandidateDistance=distance;this.batchesDirty=false;
       const nearby=this.chunks.filter(c=>Math.abs(c.x*10+80-target.x)<radius+margin+114&&Math.abs(c.y*10+80-target.z)<radius+margin+114);
-      const candidates:{b:Batch;range:number}[]=[];
+      const candidates:{b:Batch;range:number;order:number}[]=[];
       for(const c of nearby){
         for(const b of c.batches){
           let range=Infinity;
           for(const p of b.placements){const d=Math.hypot(p.x-target.x,p.z-target.z);if(d<range)range=d;}
-          candidates.push({b,range});
+          // ... its kind's rank worked out once, not in every comparison of the sort (thousands of batches in a big town)
+          candidates.push({b,range,order:range+chunkRank(b.placements[0])-(b.selected?margin:0)});
         }
       }
-      candidates.sort((a,b)=>a.range+chunkRank(a.b.placements[0])-(a.b.selected?margin:0)
-        -b.range-chunkRank(b.b.placements[0])+(b.b.selected?margin:0));
+      candidates.sort((a,b)=>a.order-b.order);
       this.cachedCandidates=candidates;
     }
     const candidates=this.cachedCandidates;
@@ -233,20 +285,33 @@ export class CityChunks {
         if(b.calls&&preferredCalls+b.calls<=this.drawBudget){preferred.add(b);preferredCalls+=b.calls;}
       }
     }
-    if(this.allBatches.length===0)this.allBatches=this.chunks.flatMap(c=>c.batches);
-    const all=this.allBatches,dt=Math.max(0,Math.min(100,start-this.lastUpdate));this.lastUpdate=start;
-    const select=(b:Batch,show:boolean):void=>{if(b.selected!==show){this.detailSwaps++;if(b.placements[0].id==='terrain.dirt')this.dirtSwaps++;b.selected=show;}};
-    for(const b of all)if(b.selected&&!preferred.has(b))select(b,false);
+    const active=this.active,dt=Math.max(0,Math.min(100,start-this.lastUpdate));this.lastUpdate=start;
+    const select=(b:Batch,show:boolean):void=>{if(b.selected!==show){this.detailSwaps++;if(b.placements[0].id==='terrain.dirt')this.dirtSwaps++;b.selected=show;if(show)active.add(b);}};
+    for(const b of active)if(b.selected&&!preferred.has(b))select(b,false);
     // Outgoing batches finish fading before their draw calls are lent to incoming detail.
     let reserved=0;
-    for(const b of all)reserved+=b.selected||b.fade>0?b.calls:0;
+    for(const b of active)reserved+=b.selected||b.fade>0?b.calls:0;
     for(const{b}of candidates)if(preferred.has(b)&&!b.selected&&reserved+(b.fade>0?0:b.calls)<=this.drawBudget){reserved+=b.fade>0?0:b.calls;select(b,true);}
     let calls=0;
-    for(const b of all){
+    for(const b of active){
       const fade=Math.max(0,Math.min(1,b.fade+(b.selected?dt:-dt)/350));
       if(fade!==b.fade){b.fade=fade;for(const child of b.group.children){const mesh=child as InstancedMesh;for(let i=0;i<mesh.count;i++)mesh.instanceColor!.setX(i,fade);mesh.instanceColor!.needsUpdate=true;}
-        for(const p of b.placements){this.showCoarse(p,fade<1);this.coarseFade(p,fade);}}
-      b.group.visible=b.selected||b.fade>0;if(b.group.visible)calls+=b.calls;
+        for(const p of b.placements){this.showCoarse(p,fade<1);this.coarseFade(p,fade);}
+        if(b.pool)b.pool.dirty=true;}
+      const shown=b.selected||b.fade>0;
+      if(shown!==b.group.visible){if(b.pool)b.pool.dirty=true;else if(shown)this.root.add(b.group);else this.root.remove(b.group);}
+      b.group.visible=shown;if(b.group.visible)calls+=b.calls;else active.delete(b);
+    }
+    // The pools fill again when a batch of theirs came, went or faded, or the camera or the sun's shadow moved: each
+    // building at its level of detail, and only those in sight (pools.ts)
+    if(this.lodOn!==this.lodWas){this.lodWas=this.lodOn;this.relevel();}
+    if(this.pools.size){
+      const view=this.poolView,camera=this.camera;
+      let moved=Math.abs(this.pixelsPerUnit-this.lastPixels)>this.lastPixels*.01;if(moved)this.lastPixels=this.pixelsPerUnit;
+      if(camera){moved=frustumOf(camera,this.viewFrustum,this.lastView)||moved;view.frustum=this.viewFrustum;view.eye.setFromMatrixPosition(camera.matrixWorld);}
+      if(this.shadowCamera){moved=frustumOf(this.shadowCamera,this.sunFrustum,this.lastSun)||moved;view.shadow=this.sunFrustum;}
+      view.pixelsPerUnit=this.lodOn?this.pixelsPerUnit:0;
+      for(const pool of this.pools.values())if(moved||pool.dirty){pool.refill(view);this.poolFills++;}
     }
     if(this.coarseDirty){this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;this.ground.instanceMatrix.needsUpdate=true;
       this.solidDetail.needsUpdate=true;this.waterDetail.needsUpdate=true;if(this.solid.instanceColor)this.solid.instanceColor.needsUpdate=true;this.coarseDirty=false;}
@@ -273,12 +338,13 @@ export class CityChunks {
     return roads.sort((a,b)=>Math.hypot(a.x-target.x,a.z-target.z)-Math.hypot(b.x-target.x,b.z-target.z)).slice(0,64);
   }
   mapLOD(show:boolean):void {
+    this.poolRoot.visible=!show;
     if(this.surfaces)this.surfaces.terrainDetail.root.visible=!show;
     for(const chunk of this.chunks)for(const batch of chunk.batches)if(batch.selected||batch.fade>0){batch.group.visible=!show;batch.placements.forEach(p=>{this.showCoarse(p,show||batch.fade<1);this.coarseFade(p,show?0:batch.fade);});}
     this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;
     this.solidDetail.needsUpdate=true;this.waterDetail.needsUpdate=true;
   }
-  dispose():void {this.provider.dispose();this.chunks.forEach(c=>this.clear(c));this.surfaces?.dispose();for(const p of this.prototypes.values())p.parts.forEach(part=>part.geometry.dispose());this.prototypes.clear();this.solid.dispose();this.water.dispose();this.ground.dispose();this.geometry.dispose();this.waterGeometry.dispose();this.groundGeometry.dispose();this.root.clear();this.coarse.clear();this.hidden.clear();this.chunks.length=0;this.requested.clear();this.failed.clear();this.pendingResults.length=0;}
+  dispose():void {this.provider.dispose();this.chunks.forEach(c=>this.clear(c));this.pools.forEach(pool=>pool.dispose());this.pools.clear();this.surfaces?.dispose();for(const p of this.prototypes.values()){p.parts.forEach(part=>part.geometry.dispose());p.lods?.forEach(l=>l.parts.forEach(g=>g?.dispose()));p.shadow?.forEach(g=>g?.dispose());}this.prototypes.clear();this.solid.dispose();this.water.dispose();this.ground.dispose();this.geometry.dispose();this.waterGeometry.dispose();this.groundGeometry.dispose();this.root.clear();this.coarse.clear();this.hidden.clear();this.chunks.length=0;this.requested.clear();this.failed.clear();this.pendingResults.length=0;}
 }
 function isBridge(p:Placement):boolean {return !!p.id?.includes('bridge');}
 function chunkRank(p:Placement):number {
