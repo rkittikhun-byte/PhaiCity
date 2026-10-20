@@ -124,6 +124,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     window's Graphics box, saved per viewer as `phaicity.graphics` by `src/graphicsQuality.ts`). Auto drops contact
     shadows, then bloom, then tilt-shift before the resolution and draw budget, timed on the GPU where it can
     (`gpuTimer.ts`). Headless and failed lenses draw straight to the screen. Colours are `SCENE.post`.
+  - **Big cities (21 Oct 2026; RENDERER_SPEC §8B):** era buildings of one kind across the city draw together
+    (`src/render3d/city/pools.ts`) and switch to lighter meshoptimizer copies where the change is under a pixel
+    (`lod.ts`). `index.html?khonkaen&bench`, then `await phaicityBench.run({plots: 3000})` (`bench.ts`), measures a
+    3,000-plot town.
   - The camera bar at the bottom right (`src/cameraModes.ts`, owner 14 Oct 2026) sets what a left drag does (free, move,
     rotate, zoom, tilt) and has 2D, straight down and whole city. Its 2D is the 3D view's flat camera from straight
     above (`CityCamera.setFlat`), not the old 2D view, so it does not break the rule against a 2D/3D switch.
