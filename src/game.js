@@ -54,6 +54,7 @@ import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
+import { canalGraphLines } from './roads/canalLines.ts';
 import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
@@ -86,7 +87,7 @@ import {
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
-import { isBridgeTile, isWaterTile } from './canals.ts';
+import { canalMarkStands, isBridgeTile, isWaterTile } from './canals.ts';
 import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
@@ -2024,10 +2025,11 @@ Game.prototype.handleToolPoint = function(data) {
 };
 
 
-// The road and railway tools draw in metres (docs/METRE_DRAWING_PLAN.md 1.5): a road goes where it is clicked, to the
-// centimetre, as one road command that lays its tiles (src/cityCommands.ts road) and keeps it as drawn (the road graph)
+// The road, railway and canal tools draw in metres (docs/METRE_DRAWING_PLAN.md 1.5): a road goes where it is clicked,
+// to the centimetre, as one road command that lays its tiles (src/cityCommands.ts road) and keeps it as drawn (the road
+// graph; railways and canals in graphs of their own, docs/CANALS.md)
 var isMetreTool = function(toolName) {
-  return toolName === 'rail' || ROAD_TOOLS.indexOf(toolName) !== -1;
+  return toolName === 'rail' || toolName === 'canal' || ROAD_TOOLS.indexOf(toolName) !== -1;
 };
 
 // ... and a click of one lands (src/roads/roadDraw.ts): on a junction, a road's end or the road itself within
@@ -2062,11 +2064,38 @@ Game.prototype.metrePoint = function(toolName, x, y, free) {
 };
 
 
-// The roads (or railways) in metres and where they meet, for the road and railway tools (networkLines)
+// The roads (or railways, or canals) in metres and where they meet, for the tools that draw them (networkLines,
+// canalNetwork)
 Game.prototype.metreLines = function(toolName) {
+  if (toolName === 'canal')
+    return this.canalNetwork();
   var rail = toolName === 'rail';
   this.networkLines(rail);
   return this[rail ? '_railLines' : '_roadLines'];
+};
+
+
+// The canals, kept until the city is next changed: those dug in metres exactly as dug (the canal graph,
+// src/roads/canalLines.ts), the others smoothed from their tiles, in world units (lines) and metres (metres), with where
+// they meet (nodes, metres), as the 3D view draws them (src/render3d/city/canals.ts)
+Game.prototype.canalNetwork = function() {
+  if (!this._canalLines || this._canalLines.edits !== this._edits) {
+    var map = this.gameMap, width = map.width, height = map.height, size = tileMetres(map);
+    var value = function(i) { return map.getTileValue(i % width, Math.floor(i / width)); };
+    var canal = function(i) { return canalMarkStands(map, i % width, Math.floor(i / width)); };
+    var graph = map.canalGraph && map.canalGraph.segments.size ? canalGraphLines(map.canalGraph, {width: width,
+      height: height, tileSizeM: size, canal: canal, wet: function(i) { return isWaterTile(value(i)) || isBridgeTile(value(i)); }}) : null;
+    var own = new Set(graph ? graph.tiles : []);
+    var network = networkOf({width: width, height: height, level: function() { return 1; },
+      value: function(i) { return !own.has(i) && canal(i) ? 66 : 0; }}, false);
+    var lines = roadLines(network).lines.map(function(line) { return line.points; }).concat(graph ? graph.lines : []);
+    var toMetres = size / 10;
+    var inMetres = function(p) { return [p[0] * toMetres, p[1] * toMetres]; };
+    this._canalLines = {edits: this._edits, lines: lines,
+                        metres: lines.map(function(line) { return line.map(inMetres); }),
+                        nodes: network.junctions.concat(graph ? graph.junctions : []).map(inMetres)};
+  }
+  return this._canalLines;
 };
 
 
@@ -2188,7 +2217,8 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
 Game.prototype.metreLine = function(toolName, line) {
   var map = this.gameMap;
   return lineOnGraph(line, {width: map.width, height: map.height, tileSizeM: tileMetres(map)},
-                     toolName === 'rail' ? map.railGraph : map.roadGraph) || {tiles: [], length: 0};
+                     toolName === 'rail' ? map.railGraph : toolName === 'canal' ? map.canalGraph : map.roadGraph) ||
+         {tiles: [], length: 0};
 };
 
 
@@ -2499,7 +2529,7 @@ Game.prototype.buildingPose = function(size, x, y, stepMetres) {
 // Where a road or railway tool would start or end at the pointer (x, y on the view), in tiles: on the middle line of
 // one of its kind within a tile when there is one, else the ground under the pointer; null for other tools
 Game.prototype.linePoint = function(toolName, x, y) {
-  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || toolName === 'canal' || typeof this.cityView.pointAt !== 'function')
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || typeof this.cityView.pointAt !== 'function')
     return null;
   // ... in metres for the road and railway tools: where a click lands, exactly (metrePoint)
   if (isMetreTool(toolName)) {
@@ -2530,7 +2560,7 @@ Game.prototype.linePoint = function(toolName, x, y) {
 // or the city changes
 var DOT_STEP = 10;
 Game.prototype.snapDots = function(toolName, tile) {
-  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire' || toolName === 'canal')
+  if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
     return null;
   // As far as a click grabs (roadReach; metrePoint for the roads and railways), so each dot in sight is one a click near
   // it lands on
@@ -2546,7 +2576,7 @@ Game.prototype.snapDots = function(toolName, tile) {
   var isLine = this.lineKind(toolName), reach = (tiles + (here ? 0 : 0.5)) * 10;
   var mx = here ? here.x * 10 : (tile.x + 0.5) * 10, mz = here ? here.y * 10 : (tile.y + 0.5) * 10;
   var ends = [], dots = [];
-  this.networkLines(toolName === 'rail').forEach(function(line) {
+  (toolName === 'canal' ? this.canalNetwork().lines : this.networkLines(toolName === 'rail')).forEach(function(line) {
     if (line.length < 2 || !line.some(function(p) { return Math.abs(p[0] - mx) < reach + 20 && Math.abs(p[1] - mz) < reach + 20; }))
       return;
     // Its dead ends

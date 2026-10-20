@@ -5,14 +5,19 @@
 // The canals the player dug (src/canals.ts, docs/CANALS.md), drawn along their smooth lines with each one's level
 // (models/water/canal.ts) instead of as river tiles. The rest of the view sees a canal's tiles as plain ground
 // (canalLand), so the land under and beside a canal stays level and no river bank or water tile is drawn there; this
-// draws the water, the banks and what stands along them. Canals are drawn again only when they change (the map's
-// canalsVersion, which digging, filling and every level they rise move) or the ground under them does. Their small
-// things (piles, lamps, trees, boats) are instanced, and hidden when the camera is far away.
+// draws the water, the banks and what stands along them. A canal dug in metres is drawn exactly along the line it was
+// dug as (the map's canal graph, src/roads/canalLines.ts); one dug before, along the smooth line through its tiles.
+// Canals are drawn again only when they change (the map's canalsVersion, which digging, filling and every level they
+// rise move, or its canal graph) or the ground under them does. Their small things (piles, lamps, trees, boats) are
+// instanced, and hidden when the camera is far away.
 
 import { Group, InstancedMesh, Mesh, MeshStandardMaterial, type Material } from 'three';
 import { isBridgeTile, isWaterTile } from '../../canals.js';
 import { BIT_MASK } from '../../tileFlags.js';
 import { networkOf, roadLines, type Point } from '../../roadGeometry.js';
+import { canalGraphLines } from '../../roads/canalLines.js';
+import type { RoadGraph } from '../../roads/roadGraph.js';
+import { tileMetres } from '../../units.js';
 import { buildCanals, canalDetailParts, cutAround, canalSurfaceMeshes, CANAL_PROVINCE_METRE, type CanalJunction,
   type CanalRun } from '../models/water/canal.js';
 import type { CityHeightField } from './heightfield.js';
@@ -24,6 +29,9 @@ export interface CanalMapReader {
   /** Each tile's canal level, 0 where none was dug (src/canals.ts) */
   readonly canals?: Uint8Array | null;
   readonly canalsVersion?: number;
+  /** The canals dug in metres, drawn exactly as dug (docs/CANALS.md), and the size of a tile in metres */
+  readonly canalGraph?: RoadGraph | null;
+  readonly tileSizeM?: number | null;
   getTileValue(x: number, y: number): number;
 }
 
@@ -33,6 +41,8 @@ export const CANAL_DETAIL_DISTANCE = 1400;
 const PAD_METRES = 5;
 /** A plain road tile's value, as the road lines read it (src/roadGeometry.ts isLineRoad) */
 const LINE_TILE = 66;
+/** A tile road's end this near a canal dug in metres runs on to meet it (world units) */
+const MEET = 15;
 /** Natural woods (src/tileValues.ts TREEBASE … WOODS2 - 1), which the view leaves out beside a canal */
 const WOODS_FIRST = 21, WOODS_LAST = 39;
 
@@ -107,7 +117,7 @@ export function besideCanal(snapshot: { readonly width: number; readonly height:
 export class CityCanals {
   readonly root = new Group();
   private readonly details = new Group();
-  private version = -1;
+  private version = '';
   /** The water of each colour: matte, so it shows its colour rather than the sky's (the library's is glossy) */
   private readonly waters = new Map<string, MeshStandardMaterial>();
 
@@ -120,7 +130,7 @@ export class CityCanals {
   }
 
   /** The ground moved: draw them again on it */
-  invalidate(): void { this.version = -1; }
+  invalidate(): void { this.version = ''; }
 
   /**
    * Each frame: draw them again when they changed, and their small things only near the camera. Returns the tiles that
@@ -128,7 +138,7 @@ export class CityCanals {
    * tiles read as ground), yet their ground must lose its paddy or orchard, or get it back
    */
   update(distance: number): number[] {
-    const version = this.map.canalsVersion ?? 0;
+    const version = `${this.map.canalsVersion ?? 0}:${this.map.canalGraph?.version ?? -1}`;
     let changed: number[] = [];
     if (version !== this.version) { this.version = version; changed = this.rebuild(); }
     this.details.visible = distance < CANAL_DETAIL_DISTANCE;
@@ -183,10 +193,38 @@ export class CityCanals {
 
   private draw(canal: Uint8Array): void {
     const { width, height } = this.map, count = width * height, values = new Uint16Array(count);
-    for (let i = 0; i < count; i++) if (canal[i]) values[i] = LINE_TILE;
+    // The canals dug in metres, exactly as dug, and the tiles they take
+    const value = (i: number): number => this.map.getTileValue(i % width, Math.floor(i / width));
+    const graph = this.map.canalGraph?.segments.size ? canalGraphLines(this.map.canalGraph, { width, height,
+      tileSizeM: tileMetres(this.map), canal: (i) => canal[i] > 0, wet: (i) => isWaterTile(value(i)) || isBridgeTile(value(i)) }) : null;
+    const own = new Uint8Array(graph?.tiles.length ? count : 0);
+    for (const i of graph?.tiles ?? []) own[i] = 1;
+    // ... and the others along the smooth lines through the rest of the tiles
+    for (let i = 0; i < count; i++) if (canal[i] && !own[i]) values[i] = LINE_TILE;
     const network = networkOf({ width, height, value: (i) => values[i], level: () => 1 }, false);
-    const { lines } = roadLines(network);
-    const m = this.metre() ?? CANAL_PROVINCE_METRE, centres = network.junctions, pad = PAD_METRES * m;
+    const tileLines = roadLines(network).lines.map((line) => line.points.map((p): Point => [p[0], p[1]]));
+    const centres = [...network.junctions, ...(graph?.junctions ?? [])];
+    // A tile canal's end beside a canal dug in metres runs on to meet it, in a junction
+    if (graph) for (const points of tileLines) {
+      for (const end of [0, 1] as const) {
+        const p = end === 0 ? points[0] : points[points.length - 1], i = Math.floor(p[1] / 10) * width + Math.floor(p[0] / 10);
+        const x = i % width, y = (i - x) / width;
+        if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => x + dx >= 0 && y + dy >= 0 && x + dx < width &&
+          y + dy < height && own[(y + dy) * width + x + dx])) continue;
+        let best: Point | null = null, bestD = MEET;
+        for (const line of graph.lines) for (let k = 1; k < line.length; k++) {
+          const a = line[k - 1], dx = line[k][0] - a[0], dz = line[k][1] - a[1], len2 = dx * dx + dz * dz;
+          const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / len2)) : 0;
+          const q: Point = [a[0] + dx * t, a[1] + dz * t], d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+          if (d < bestD) { best = q; bestD = d; }
+        }
+        if (!best) continue;
+        if (end === 0) points.unshift(best); else points.push(best);
+        centres.push(best);
+      }
+    }
+    const lines = [...tileLines.map((points) => ({ points, dug: false })), ...(graph?.lines ?? []).map((points) => ({ points, dug: true }))];
+    const m = this.metre() ?? CANAL_PROVINCE_METRE, pad = PAD_METRES * m;
     const tileOf = (p: Point): number => {
       const x = Math.floor(p[0] / 10), y = Math.floor(p[1] / 10);
       return x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1;
@@ -209,13 +247,15 @@ export class CityCanals {
       return best;
     };
     const runs: CanalRun[] = [], arms = new Map<number, CanalJunction>();
+    // ... a canal dug in metres stops at the edge of the river it was dug from, where it opens into it as it is
+    const atEdge = (p: Point): boolean => [p[0] / 10, p[1] / 10].some((v) => Math.abs(v - Math.round(v)) < 0.01);
     for (const line of lines) {
       const points = line.points.map((p): Point => [p[0], p[1]]);
       if (points.length < 2) continue;
       const startEdge = riverBeside(points[0], unitOf(points[0], points[1], -1));
       const endEdge = riverBeside(points[points.length - 1], unitOf(points[points.length - 2], points[points.length - 1], 1));
-      if (startEdge) points.unshift(startEdge);
-      if (endEdge) points.push(endEdge);
+      if (startEdge && !(line.dug && atEdge(points[0]))) points.unshift(startEdge);
+      if (endEdge && !(line.dug && atEdge(points[points.length - 1]))) points.push(endEdge);
       const trimmed = { points, openStart: !!startEdge, openEnd: !!endEdge };
       for (const piece of cutAround(trimmed.points, centres, pad)) {
         const first = piece[0], last = piece[piece.length - 1];

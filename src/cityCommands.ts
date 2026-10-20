@@ -16,7 +16,7 @@
 // A new city builds its ruler's house before anything else (src/rulerHouse.ts, owner 13 Oct 2026): until it stands
 // only the house and the bulldozer are allowed; there is one house, and its next level needs the ruler's rank.
 
-import { CANAL_TOOL, isWaterTile } from "./canals";
+import { CANAL_TOOL, isBridgeTile, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
@@ -96,12 +96,13 @@ export type Command =
        * that line was drawn, with the points a clicked one was drawn through (src/roadPieces.ts RoadPath) */
       part?: number; shape?: LineShape; controls?: Array<[number, number]> }
   /**
-   * A road or railway drawn in metres (docs/METRE_DRAWING_PLAN.md 1.3): from one end to the other, a curve through its
-   * two inner control points (x east, z south, metres from the map's corner). It is laid on the tiles its middle line
-   * passes (src/roads/roadRaster.ts) as the tool lays a tile, and kept as drawn in the map's road graph
-   * (src/roads/roadGraph.ts) once every one of those tiles is a road; a stroke undoes with the tiles. Priced by the
-   * metre (src/roads/roadDraw.ts linePrice). part: which line of the stroke it is (a grid's rows and columns); the
-   * roads of one line drawn freely, one after another, are one drawn line.
+   * A road, railway or canal drawn in metres (docs/METRE_DRAWING_PLAN.md 1.3): from one end to the other, a curve
+   * through its two inner control points (x east, z south, metres from the map's corner). It is laid on the tiles its
+   * middle line passes (src/roads/roadRaster.ts) as the tool lays a tile, and kept as drawn in the map's road graph
+   * (src/roads/roadGraph.ts; railways and canals in graphs of their own) once every one of those tiles is a road (a
+   * railway, a canal's water or a bridge over it); a stroke undoes with the tiles. Priced by the metre
+   * (src/roads/roadDraw.ts linePrice). part: which line of the stroke it is (a grid's rows and columns); the roads of
+   * one line drawn freely, one after another, are one drawn line.
    */
   | { type: "road"; tool: ToolName; from: [number, number]; to: [number, number]; c1?: [number, number];
       c2?: [number, number]; stroke: number; part?: number }
@@ -345,6 +346,8 @@ function roadBesideProblem(city: CommandTarget, toolName: string, size: number, 
 }
 
 const isRailTile = (value: number): boolean => value >= RAILBASE && value <= LASTRAIL;
+/** What a canal lies on: its water, or a bridge over it (src/canals.ts) */
+const isCanalWater = (value: number): boolean => isWaterTile(value) || isBridgeTile(value);
 
 /** Whether a building of size tiles centred at (x, y) has a road tile along one of its sides (isRoad(x, y)) */
 export function besideRoad(width: number, height: number, isRoad: (x: number, y: number) => boolean,
@@ -483,15 +486,16 @@ export class CityCommands {
   private road(command: Extract<Command, { type: "road" }>): CommandOutcome {
     const city = this.city, map = city.map, tool = city.tools[command.tool];
     if (!map || !tool) return { accepted: false, reason: `no ${command.tool} tool` };
-    const rail = command.tool === "rail";
-    if (!tool.roadLevel && !rail) return { accepted: false, reason: "not a road or railway tool" };
+    const rail = command.tool === "rail", canal = command.tool === CANAL_TOOL;
+    if (!tool.roadLevel && !rail && !canal) return { accepted: false, reason: "not a road or railway tool" };
     const size = tileMetres(map as { tileSizeM?: number | null }), width = city.width, height = city.height;
     const ends = [command.from, command.to, command.c1, command.c2].filter((p): p is [number, number] => p !== undefined);
     if (ends.some(([x, z]) => x > width * size || z > height * size)) return { accepted: false, reason: "outside the map" };
     const drawn = { from: command.from, to: command.to, c1: command.c1, c2: command.c2, level: tool.roadLevel ?? 1 };
-    // Railways in a graph of their own: a railway crossing a road is a level crossing, not a junction
-    const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
-    const kept = rail ? graphs.railGraph : graphs.roadGraph;
+    // Railways and canals in graphs of their own: a railway crossing a road is a level crossing, not a junction, and a
+    // canal crossing one goes under its bridge
+    const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph; canalGraph?: RoadGraph };
+    const kept = rail ? graphs.railGraph : canal ? graphs.canalGraph : graphs.roadGraph;
     // Its tiles, from one end to the other, and its length, as the graph will hold it: tried on the graph and taken
     // back, so they are the tiles of the very segments it will be, joined to what its ends and crossings meet
     const placed = lineOnGraph(drawn, { width, height, tileSizeM: size }, kept, drawn.level);
@@ -517,10 +521,11 @@ export class CityCommands {
       if (out.accepted && out.toolResult === 0) laid++;
       else if (!out.accepted && reason === undefined) reason = out.reason;
     }
-    const isLine = rail ? isRailTile : isRoadTile;
+    const isLine = rail ? isRailTile : canal ? isCanalWater : isRoadTile;
     const whole = tiles.every((i) => isLine(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK));
     if (whole) {
-      const graph = rail ? graphs.railGraph ??= new RoadGraph() : graphs.roadGraph ??= new RoadGraph();
+      const graph = rail ? graphs.railGraph ??= new RoadGraph() : canal ? graphs.canalGraph ??= new RoadGraph() :
+        graphs.roadGraph ??= new RoadGraph();
       // ... taken back whole with its stroke's tiles on undo (docs/METRE_DRAWING_PLAN.md 1.7): marked where the graph
       // stood before the stroke's first road
       const marked = this.graphMark;
@@ -587,10 +592,10 @@ export class CityCommands {
    * left of them is still drawn as drawn (docs/METRE_DRAWING_PLAN.md, step 1's leftovers); what undoes each cut.
    */
   private cutGraphs(before: ReadonlyArray<{ x: number; y: number; before: number }>): Array<() => void> {
-    const map = this.city.map! as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null; tileSizeM?: number | null;
-      getTile(x: number, y: number): { getRawValue(): number } };
+    const map = this.city.map! as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null;
+      canalGraph?: RoadGraph | null; tileSizeM?: number | null; getTile(x: number, y: number): { getRawValue(): number } };
     const metres = tileMetres(map), backs: Array<() => void> = [];
-    for (const [graph, was] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail]] as const) {
+    for (const [graph, was] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail], [map.canalGraph, isCanalWater]] as const) {
       if (!graph?.segments.size) continue;
       const cleared = before.filter((c) => was(c.before & BIT_MASK) && !was(map.getTile(c.x, c.y).getRawValue() & BIT_MASK));
       if (!cleared.length) continue;
@@ -657,11 +662,12 @@ export class CityCommands {
    */
   cutLost(): boolean {
     const map = this.city.map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null;
-      tileSizeM?: number | null; getTile(x: number, y: number): { getRawValue(): number }; changeCount?(): number } | undefined;
+      canalGraph?: RoadGraph | null; tileSizeM?: number | null; getTile(x: number, y: number): { getRawValue(): number };
+      changeCount?(): number } | undefined;
     if (!map) return false;
     const width = this.city.width, raster = { width, height: this.city.height, tileSizeM: tileMetres(map) };
     let cut = false;
-    for (const [graph, kind] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail]] as const) {
+    for (const [graph, kind] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail], [map.canalGraph, isCanalWater]] as const) {
       if (!graph?.segments.size) continue;
       const isKind = (i: number): boolean => kind(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK);
       cut = this.lostTiles.cut(graph, raster, isKind, map.changeCount?.()) || cut;
