@@ -17,6 +17,7 @@ import { BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";
 import { DIRT } from "./tileValues";
 import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
+import { tileMetres, tileOfUnits, unitsOfTile, unitsPerMetre as metreUnits } from "./units";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
 export const CELL_M = 4;
@@ -96,7 +97,7 @@ export interface CellLayout {
 const cellGround = (value: number): boolean => isOpenLand(value) || isLineRoad(value) || plotKindOfValue(value) !== null;
 
 /** World units a metre on this map */
-const unitsPerMetre = (map: CellMap): number => 10 / (map.tileSizeM || 16);
+const unitsPerMetre = (map: CellMap): number => metreUnits(tileMetres(map));
 
 /** Which non-road tile (tx, ty) a cell belongs to: its column's front tile, anchored from its row-0 road edge along
  * (nx, nz), for rows 0 to PLOT_ROWS - 1, and the tile behind that one for the rows behind them */
@@ -109,7 +110,7 @@ export function plotTileOfCell(map: CellMap, cell: Pick<Cell, "x" | "z" | "nx" |
     const back = (r - b * PLOT_ROWS) * cellUnits, x0 = cell.x - cell.nx * back, z0 = cell.z - cell.nz * back;
     let found = -1, fallback = -1;
     for (const step of [0, 2, 4, 6, 8, 10, 12]) {
-      const tx = Math.floor((x0 + cell.nx * step) / 10), ty = Math.floor((z0 + cell.nz * step) / 10);
+      const tx = tileOfUnits(x0 + cell.nx * step), ty = tileOfUnits(z0 + cell.nz * step);
       if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height || ty * map.width + tx === tile) continue;
       const v = map.getTileValue(tx, ty);
       if (!isLineRoad(v)) {
@@ -125,14 +126,15 @@ export function plotTileOfCell(map: CellMap, cell: Pick<Cell, "x" | "z" | "nx" |
 
 /** The raster key of a point (world units) */
 export function rasterKey(map: CellMap, x: number, z: number): number {
-  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r);
+  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(unitsOfTile(map.width) / r);
   return Math.floor(z / r) * width + Math.floor(x / r);
 }
 
 /** The raster keys of every point within tile (tx, ty): the keys a cell whose middle lies on that tile can have */
 export function tileRasterKeys(map: CellMap, tx: number, ty: number): number[] {
-  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r), keys: number[] = [];
-  const x0 = Math.floor(tx * 10 / r), x1 = Math.ceil((tx + 1) * 10 / r), z0 = Math.floor(ty * 10 / r), z1 = Math.ceil((ty + 1) * 10 / r);
+  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(unitsOfTile(map.width) / r), keys: number[] = [];
+  const x0 = Math.floor(unitsOfTile(tx) / r), x1 = Math.ceil(unitsOfTile(tx + 1) / r);
+  const z0 = Math.floor(unitsOfTile(ty) / r), z1 = Math.ceil(unitsOfTile(ty + 1) / r);
   for (let rz = z0; rz < z1; rz++) for (let rx = x0; rx < x1; rx++) keys.push(rz * width + rx);
   return keys;
 }
@@ -151,8 +153,8 @@ function rasterBits(bytes: number): [Uint8Array, Uint8Array] {
 export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
   const units = unitsPerMetre(map), cellUnits = CELL_M * units, rasterUnits = RASTER_M * units;
   // The roads at their real width on a real-scale city map (src/roadGeometry.ts), so the first row lies at its edge
-  const real = realUnits(map.tileSizeM || 16);
-  const rasterWidth = Math.ceil(map.width * 10 / rasterUnits), rasterHeight = Math.ceil(map.height * 10 / rasterUnits);
+  const real = realUnits(tileMetres(map));
+  const rasterWidth = Math.ceil(unitsOfTile(map.width) / rasterUnits), rasterHeight = Math.ceil(unitsOfTile(map.height) / rasterUnits);
   // One bit a raster square: a 7.7 km map is 59 million of them
   const [bits, covers] = rasterBits(Math.ceil(rasterWidth * rasterHeight / 8));
   const taken = { get: (k: number): boolean => (bits[k >> 3] & (1 << (k & 7))) !== 0, set: (k: number): void => { bits[k >> 3] |= 1 << (k & 7); } };
@@ -233,7 +235,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       const t = (s - along[segment - 1]) / span, px = ax + (bx - ax) * t, pz = az + (bz - az) * t;
       const tx = (bx - ax) / span, tz = (bz - az) / span, angle = Math.atan2(tx, tz);
       // The stretch of road it faces: the one whose tile lies under the road's line there
-      road = stretchAt.get(Math.floor(pz / 10) * map.width + Math.floor(px / 10)) ?? road;
+      road = stretchAt.get(tileOfUnits(pz) * map.width + tileOfUnits(px)) ?? road;
       for (const side of [1, -1]) {
         const nx = -tz * side, nz = tx * side, facing = Math.atan2(-nx, -nz);
         for (let row = 0; row < CELL_DEPTH; row++) {
@@ -289,7 +291,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     for (const u of [-half, 0, half]) for (const v of [-halfV, 0, halfV]) {
       // u across the road, v along it
       const x = cell.x + cos * u + sin * v, z = cell.z - sin * u + cos * v, spot = keyOf(x, z);
-      const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
+      const tx = tileOfUnits(x), ty = tileOfUnits(z);
       if (spot < 0 || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
           !cellGround(tiles[ty * map.width + tx]) || !ownsAt(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) return false;
@@ -320,7 +322,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     if (!bucket.has(home)) bucket.set(home, []);
     bucket.get(home)!.push([cell.x, cell.z]);
     footprint(cell.x, cell.z, sin, cos, halfV, true);
-    const index = cells.length, tile = Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10);
+    const index = cells.length, tile = tileOfUnits(cell.z) * map.width + tileOfUnits(cell.x);
     cells.push(created);
     byKey.set(key, index);
     if (!byTile.has(tile)) byTile.set(tile, []);
@@ -357,7 +359,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
 
 /** The cell under a point (world units), or the nearest cell within a small margin on bends/curbs */
 export function cellAt(layout: CellLayout, width: number, x: number, z: number): Cell | null {
-  const tx = Math.floor(x / 10), tz = Math.floor(z / 10), half = layout.cellUnits / 2;
+  const tx = tileOfUnits(x), tz = tileOfUnits(z), half = layout.cellUnits / 2;
   let nearest: Cell | null = null, bestDist = layout.cellUnits * 1.35;
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     for (const index of layout.byTile.get((tz + dz) * width + tx + dx) ?? []) {
@@ -563,9 +565,9 @@ export function paintNear(map: CellPlotMap, tiles: Iterable<number>, reach = 6):
     }
   }
   if (!map.zoneCells?.size || x0 > x1) return false;
-  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(map.width * 10 / r);
+  const r = RASTER_M * unitsPerMetre(map), width = Math.ceil(unitsOfTile(map.width) / r);
   for (const key of map.zoneCells.keys()) {
-    const tx = Math.floor((key % width + 0.5) * r / 10), ty = Math.floor((Math.floor(key / width) + 0.5) * r / 10);
+    const tx = tileOfUnits((key % width + 0.5) * r), ty = tileOfUnits((Math.floor(key / width) + 0.5) * r);
     if (tx >= x0 - reach && tx <= x1 + reach && ty >= y0 - reach && ty <= y1 + reach) return true;
   }
   return false;

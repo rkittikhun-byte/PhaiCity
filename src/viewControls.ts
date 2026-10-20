@@ -8,6 +8,7 @@
 // Also: index.html?city=<id> opens a saved city straight away (src/splashScreen.js).
 
 import { onLanguageChange, t } from "./i18n/index";
+import { TILE_UNITS } from "./units";
 
 const CITY_ID = /^[a-z0-9]{1,40}$/;
 
@@ -84,8 +85,8 @@ function setPose(camera: CameraLike, pose: Pose): void {
 // The flight home in progress; any drag, key turn or zoom by the player stops it where it is
 let homeFlight = 0;
 
-/** Metres per map tile in the 3D world (docs/3d/MODEL_SPEC.md: TILE_M). */
-const TILE_M = 10;
+/** World units a map tile in the 3D world (src/units.ts) */
+const TILE_M = TILE_UNITS;
 // The tile ⌂ comes back to: a whole-province city's town, or null for the middle of the map
 let homeTile: { x: number; y: number } | null = null;
 

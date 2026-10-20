@@ -12,6 +12,7 @@
 // the simulation reads it (CLAUDE.md, "Online plan" rule 3), and nothing random.
 
 import { WATER_HIGH, WATER_LOW } from "./tileValues";
+import { isCityTileSize } from "./units";
 
 export const GROUNDWATER_MAX = 7;
 /** Every dry tile's land holds at least this much: a well gives a little anywhere */
@@ -27,8 +28,6 @@ const FALLOFF_TILES = 12;
  * seventh of a full works' water, and the town's buildings without
  */
 const FALLOFF_M = 2000;
-/** The largest tile, in metres, of a map at real scale (docs/CITY_SCALE.md; src/roadGeometry.ts realUnits) */
-const REAL_SCALE_TILE_M = 40;
 /** Metres above the nearest water that cost one level */
 const METRES_PER_LEVEL = 15;
 /** A month of rain gives back level² / RECHARGE_DIVISOR of what a store lacks (a seventh near water, far less inland) */
@@ -47,7 +46,7 @@ interface Terrain {
 /** Tiles from the nearest water over which the natural level falls to its least, on this map */
 export function falloffTiles(map: Pick<Terrain, "tileSizeM">): number {
   const metres = map.tileSizeM;
-  return metres && metres <= REAL_SCALE_TILE_M ? Math.round(FALLOFF_M / metres) : FALLOFF_TILES;
+  return metres && isCityTileSize(metres) ? Math.round(FALLOFF_M / metres) : FALLOFF_TILES;
 }
 
 const isWater = (value: number): boolean => value >= WATER_LOW && value <= WATER_HIGH;

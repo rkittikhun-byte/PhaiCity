@@ -2,7 +2,10 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-export const TILE_M = 10;
+import { TILE_UNITS } from '../units.js';
+
+/** World units a map tile (src/units.ts) */
+export const TILE_M = TILE_UNITS;
 export const BUILDING_MARGIN_M = 0.5;
 export const GROUND_Y = 0;
 export const WATER_Y = -0.6;

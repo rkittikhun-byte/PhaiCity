@@ -9,12 +9,13 @@
 // (src/cityCommands.ts). Buying is a command ({ type: "land", x, y }). A practice map, and a city saved before the
 // blocks, owns all its land (gameMap.landBlocks is null). No DOM.
 
+import { isCityTileSize } from "./units";
+
 /** Tiles a side of a block on a whole-province map */
 export const BLOCK_SIZE = 24;
 /** ... and on a real-scale city map (16 m a tile, docs/CITY_SCALE.md): 512 m, near Cities: Skylines 2's 600 m tiles */
 export const CITY_BLOCK_SIZE = 32;
 /** A map with tiles this small, in metres, is a city map */
-const CITY_TILE_MAX_M = 40;
 /** The first block bought costs this, and each after it this much more */
 export const FIRST_BLOCK_PRICE = 1000;
 export const BLOCK_PRICE_STEP = 500;
@@ -57,7 +58,7 @@ export const blockSizeOf = (map: { tileSizeM?: number | null }): number =>
 
 /** Whether a map is a real-scale city map (docs/CITY_SCALE.md), by the size of its tiles. */
 export function isCityMap(map: { tileSizeM?: number | null }): boolean {
-  return Boolean(map.tileSizeM && map.tileSizeM <= CITY_TILE_MAX_M);
+  return isCityTileSize(map.tileSizeM);
 }
 
 export const blockColumns = (map: { readonly width: number; tileSizeM?: number | null }): number =>

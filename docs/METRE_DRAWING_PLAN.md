@@ -168,6 +168,7 @@ simulation (ไฟวิ่งตามถนน น้ำตามถนน จ
 |---|---|
 | แผน | เขียนแล้ว 20 ต.ค. 2026 |
 | 0.1 | เสร็จ 20 ต.ค. 2026: ถนนที่วางทับช่องย่อยลบคีย์ถูกแล้ว (`tileRasterKeys`), test ใน `test/zoneCells.ts` |
-| 0.2–0.4 | ยังไม่เริ่ม |
+| 0.2 | เสร็จ 20 ต.ค. 2026: `src/units.ts` (ช่อง = 10 หน่วย, เมืองจริง ≤ 40 ม. ต่อช่อง, เมตร ↔ หน่วย) ใช้แทนเลขฝังใน `zoneCells.ts`, `cityCommands.ts`, `roadGeometry.ts`, `landBlocks.ts`, `groundwater.ts`, `blockMapUtils.js`, `objects/roadSegment.ts`, `game.js`, `heightfield.ts`, `provinceBackdrop.ts`, `render3d/constants.ts`, `viewControls.ts`; test `test/units.ts` |
+| 0.3–0.4 | ยังไม่เริ่ม |
 | 1.1–1.7 | ยังไม่เริ่ม |
 | 2.x, 3.x, 4 | ยังไม่เริ่ม |

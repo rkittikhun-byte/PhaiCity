@@ -7,6 +7,7 @@
 // outlines and the city's own district picked out, so zooming out shows all of the province. It only reads.
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshLambertMaterial } from 'three';
 import type { CityHeightField } from './heightfield.js';
+import { unitsPerMetre } from '../../units.js';
 
 /** The province's map, as the game loads it (src/splashScreen.js provinceBackdropFrom) */
 export interface ProvinceBackdrop {
@@ -39,7 +40,7 @@ export class ProvinceBackdropView {
   readonly span: number;
   constructor(province: ProvinceBackdrop, district: DistrictPlace, terrain?: CityHeightField) {
     this.root.name = 'province_backdrop';
-    const units = 10 / district.tileSizeM;
+    const units = unitsPerMetre(district.tileSizeM);
     const cosD = Math.cos(district.center.lat * Math.PI / 180), cosP = Math.cos(province.center.lat * Math.PI / 180);
     const halfWp = province.width * province.tileSizeM / 2, halfHp = province.height * province.tileSizeM / 2;
     const halfWd = district.width * district.tileSizeM / 2, halfHd = district.height * district.tileSizeM / 2;

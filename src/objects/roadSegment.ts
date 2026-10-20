@@ -8,6 +8,7 @@
 // and what it costs to keep. It is found from the map's road tiles each time, so it needs nothing saved.
 
 import { networkOf, smoothLine } from "../roadGeometry";
+import { metresPerUnit as unitMetres, tileMetres } from "../units";
 import { CityObject } from "./cityObject";
 
 export interface RoadMap {
@@ -48,7 +49,7 @@ export const segmentId = (tiles: readonly number[]): number => Math.min(...tiles
 
 /** Every stretch of road on the map */
 export function roadSegments(map: RoadMap): RoadSegment[] {
-  const levels = map.roadLevels, pieces = map.roadPieces, metresPerUnit = (map.tileSizeM || 16) / 10;
+  const levels = map.roadLevels, pieces = map.roadPieces, metresPerUnit = unitMetres(tileMetres(map));
   const network = networkOf({ width: map.width, height: map.height,
     value: (i) => map.getTileValue(i % map.width, Math.floor(i / map.width)), level: (i) => levels?.[i] ?? 1,
     piece: (i) => pieces?.[i] ?? 0 }, false);

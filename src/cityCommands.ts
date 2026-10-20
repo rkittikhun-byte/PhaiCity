@@ -20,6 +20,7 @@ import { CANAL_TOOL, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
+import { tileMetres, tileOfUnits } from "./units";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
@@ -607,7 +608,7 @@ export class CityCommands {
         if (!cells.length) return { accepted: false, reason: NOTHING_TO_PAINT };
         // Paint costs a share of its zone's price, by the cell (src/plots.ts PAINT_PRICE_SHARE); clearing is free
         const tool = command.zone ? city.tools[command.zone] : null;
-        const each = tool ? cellPrice(tool.toolCost ?? 100, PAINT_PRICE_SHARE, (map.tileSizeM || 16)) * (tool.costFactor ?? 1) : 0;
+        const each = tool ? cellPrice(tool.toolCost ?? 100, PAINT_PRICE_SHARE, tileMetres(map)) * (tool.costFactor ?? 1) : 0;
         const cost = Math.ceil(cells.length * each);
         if (city.budget.totalFunds < cost) return { accepted: false, reason: NO_MONEY_FOR_CELLS };
         for (const key of cells) if (code) painted.set(key, code); else painted.delete(key);
@@ -616,7 +617,7 @@ export class CityCommands {
         const touched = new Set<number>();
         for (const key of cells) {
           const cell = layout.cells[layout.byKey.get(key)!];
-          touched.add(Math.floor(cell.z / 10) * map.width + Math.floor(cell.x / 10));
+          touched.add(tileOfUnits(cell.z) * map.width + tileOfUnits(cell.x));
           const pt = plotTileOfCell(map, cell);
           if (pt >= 0) touched.add(pt);
         }

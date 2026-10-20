@@ -16,6 +16,7 @@ import { Commercial } from './commercial.js';
 import { Industrial } from './industrial.js';
 import { MiscUtils } from './miscUtils.js';
 import { plotDensity } from './plots.ts';
+import { isCityTileSize } from './units.ts';
 import { Random } from './random.ts';
 import { Residential } from './residential.js';
 import * as TileValues from "./tileValues.ts";
@@ -171,10 +172,9 @@ var getPollutionValue = function(tileValue, industryPollution, shopRubbish, plan
 // an original tile's worth, so a town's land is worth less only some 3 km from its centre rather than 1 km (owner,
 // 15 Oct 2026: "แก้ราคาที่ดินต่ำ ให้บ้านกับร้านค้าโตได้สูงขึ้น": the middle of a town of 5,000 counted as its edge)
 var NEARNESS_STEP_M = 48;
-var REAL_SCALE_TILE_M = 40;
 var centreDistanceStep = function(map) {
   var metres = map.tileSizeM;
-  return metres && metres <= REAL_SCALE_TILE_M ? Math.max(1, Math.round(NEARNESS_STEP_M / metres)) : 1;
+  return metres && isCityTileSize(metres) ? Math.max(1, Math.round(NEARNESS_STEP_M / metres)) : 1;
 };
 
 

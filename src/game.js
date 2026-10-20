@@ -17,6 +17,7 @@ import { attachGameAudio } from './audio/gameAudio.ts';
 import { installAutosave, showFullNote, showSavedNote } from './autosave.ts';
 import { audio, music } from './audio/index.ts';
 import { BaseTool } from './baseTool.js';
+import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
 import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
@@ -2020,7 +2021,7 @@ Game.prototype.buildingPose = function(size, x, y) {
   if (best === null)
     return null;
   // A zone cell's step along the road, from the road's start
-  var step = 2 * 10 / (map.tileSizeM || 16), want = Math.round(best.along / step) * step, along = 0;
+  var step = 2 * unitsPerMetre(tileMetres(map)), want = Math.round(best.along / step) * step, along = 0;
   for (var i = 1; i < best.line.length; i++) {
     var ax = best.line[i - 1][0], az = best.line[i - 1][1], dx = best.line[i][0] - ax, dz = best.line[i][1] - az;
     var length = Math.hypot(dx, dz) || 1;
@@ -2423,7 +2424,7 @@ Game.prototype.drawPreview = function(tile) {
       var a = tiles[i - 4], b = tiles[Math.min(i, tiles.length - 1)];
       metres += Math.hypot(b.x - a.x, b.y - a.y);
     }
-    metres *= this.gameMap.tileSizeM || 10;
+    metres *= this.gameMap.tileSizeM || DRAWN_TILE_M;
   }
   var estimate = tiles.length > 0 ? this.estimateTiles(tiles) : {cost: 0, blocked: [], why: []};
   this._preview = {key: key, tiles: tiles, cost: estimate.cost, blocked: estimate.blocked, blockedWhy: estimate.why, mode: mode,

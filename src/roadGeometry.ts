@@ -8,6 +8,8 @@
 // the roads along these lines (src/render3d/city/roadCurves.ts) and the zone cells lie beside them (src/zoneCells.ts),
 // so both use this. World units, as the 3D view's: 10 a tile, x east and z south. Plain code: no DOM, nothing random.
 
+import { isCityTileSize, unitsPerMetre } from "./units";
+
 export type Point = [number, number];
 
 /** A plain road or railway tile, which lies on a smooth line rather than drawing its own tile (bridges, crossings and
@@ -32,12 +34,10 @@ export const SHOULDER = 0.6;
  */
 export const REAL_WIDTH_M = [5, 5, 6, 7, 13, 14, 14, 14, 14];
 export const REAL_SHOULDER_M = 1;
-/** The tiles of a real-scale city map are 40 m or less (src/landBlocks.ts isCityMap) */
-const CITY_TILE_MAX_M = 40;
 /** World units a metre on a real-scale city map (10 a tile: 0.625 at 16 m a tile), or null on any other map, whose
  * roads and buildings are drawn as for 10 m tiles */
 export const realUnits = (tileSizeM?: number | null): number | null =>
-  tileSizeM && tileSizeM > 0 && tileSizeM <= CITY_TILE_MAX_M ? 10 / tileSizeM : null;
+  tileSizeM && isCityTileSize(tileSizeM) ? unitsPerMetre(tileSizeM) : null;
 const levelOf = (level: number): number => Math.max(1, Math.min(8, level));
 /** Half a road's carriageway (world units); units: realUnits of its map */
 export const halfWidth = (level: number, units?: number | null): number =>
