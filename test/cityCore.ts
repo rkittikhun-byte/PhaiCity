@@ -13,6 +13,7 @@ import { GameMap } from "../src/gameMap.js";
 import { decodePresetCells, decodePresetLayer } from "../src/geo/presetMap";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { DIRT } from "../src/tileValues";
+import { cellsOf } from "../src/zoneCells";
 
 /** Khon Kaen's whole-province map as a new city gets it (src/splashScreen.js) */
 function khonKaen() {
@@ -118,6 +119,72 @@ describe("the game's core", () => {
     expect(again.tiles).toBe(first.tiles);
     expect(again.funds).toBe(first.funds);
     expect(again.people).toBe(first.people);
+  });
+
+  test("a real-scale city painted a cell at a time replays the same (docs/METRE_DRAWING_PLAN.md 0.4)", () => {
+    /** A bare 16 m map whose zones go a cell at a time, as Mueang Khon Kaen's (src/zoneCells.ts) */
+    const cityMap = () => {
+      const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
+      map.tileSizeM = 16;
+      map.paintedZones = true;
+      map.cellZones = true;
+      return map;
+    };
+    /** The painted cells within a box of world units, as a brush in hand would find them */
+    const cellsIn = (map: any, x0: number, x1: number, z0: number, z1: number): number[] =>
+      cellsOf(map).cells.filter(c => c.x > x0 && c.x < x1 && c.z > z0 && c.z < z1).map(c => c.key);
+    // What the player does and when: roads drawn as lines, the ruler's house, power, homes, shops and factories painted
+    // along the road, then a road laid over some of the painted cells (src/cityCommands.ts, metre plan 0.1)
+    const orders: { step: number; make: (map: any) => Command[] }[] = [
+      { step: 0, make: () => {
+        const road: Command[] = [];
+        for (let x = 2; x < 58; x++) road.push({ type: "tool", tool: "road", x, y: 10, stroke: 1, shape: "straight", controls: [[2, 10], [57, 10]] } as Command);
+        return [...road, { type: "tool", tool: "ruler_house", x: 4, y: 8 } as Command];
+      } },
+      { step: 5, make: () => {
+        const slanted: Command[] = [];
+        let x = 10, y = 20;
+        for (let n = 0; n < 12; n++) for (const [dx, dy] of [[1, 0], [1, 0], [0, 1]]) {
+          slanted.push({ type: "tool", tool: "road", x, y, stroke: 2, shape: "free" } as Command);
+          x += dx; y += dy;
+        }
+        return slanted;
+      } },
+      { step: 10, make: () => [{ type: "tool", tool: "coal", x: 45, y: 7 } as Command] },
+      { step: 20, make: map => [{ type: "zoneCells", zone: "residential", cells: cellsIn(map, 100, 310, 106, 140) } as Command] },
+      { step: 30, make: map => [
+        { type: "zoneCells", zone: "commercial", cells: cellsIn(map, 100, 220, 70, 104) } as Command,
+        { type: "zoneCells", zone: "industrial", cells: cellsIn(map, 230, 420, 70, 104) } as Command,
+      ] },
+      { step: 200, make: () => [18, 19, 20, 21, 22, 23].map(x => ({ type: "tool", tool: "road", x, y: 11, stroke: 3 }) as Command) },
+    ];
+    const play = (replay?: { step: number; command: Command }[]) => {
+      const map = cityMap();
+      const core = new CityCore({ map, seed: 7 });
+      core.simulation.budget.setFunds(50000);
+      let next = 0;
+      for (let step = 0; step < STEPS_PER_YEAR; step++) {
+        if (replay) while (next < replay.length && replay[next].step === core.steps) core.apply(replay[next++].command);
+        else while (next < orders.length && orders[next].step === core.steps) orders[next++].make(map).forEach(c => core.apply(c));
+        core.step();
+      }
+      let tiles = 0;
+      for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) tiles = (tiles * 31 + map.getTileValue(x, y)) >>> 0;
+      return { core, tiles, funds: core.simulation.budget.totalFunds, people: core.simulation.evaluation.cityPop,
+        cells: [...(map.zoneCells as Map<number, number>).entries()].sort((a, b) => a[0] - b[0]),
+        paths: JSON.stringify(map.roadPaths), pieces: Array.from(map.roadPieces as Uint16Array) };
+    };
+    const first = play();
+    // It did something worth replaying: painted cells, plots grown, people
+    expect(first.cells.length).toBeGreaterThan(100);
+    expect(first.core.log.filter(l => l.command.type === "zoneCells")).toHaveLength(3);
+    const again = play(first.core.log);
+    expect(again.tiles).toBe(first.tiles);
+    expect(again.funds).toBe(first.funds);
+    expect(again.people).toBe(first.people);
+    expect(again.cells).toEqual(first.cells);
+    expect(again.paths).toBe(first.paths);
+    expect(again.pieces).toEqual(first.pieces);
   });
 
   test("a saved city opens again with its records, objects and when each went up", () => {

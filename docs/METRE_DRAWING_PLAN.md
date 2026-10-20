@@ -170,6 +170,6 @@ simulation (ไฟวิ่งตามถนน น้ำตามถนน จ
 | 0.1 | เสร็จ 20 ต.ค. 2026: ถนนที่วางทับช่องย่อยลบคีย์ถูกแล้ว (`tileRasterKeys`), test ใน `test/zoneCells.ts` |
 | 0.2 | เสร็จ 20 ต.ค. 2026: `src/units.ts` (ช่อง = 10 หน่วย, เมืองจริง ≤ 40 ม. ต่อช่อง, เมตร ↔ หน่วย) ใช้แทนเลขฝังใน `zoneCells.ts`, `cityCommands.ts`, `roadGeometry.ts`, `landBlocks.ts`, `groundwater.ts`, `blockMapUtils.js`, `objects/roadSegment.ts`, `game.js`, `heightfield.ts`, `provinceBackdrop.ts`, `render3d/constants.ts`, `viewControls.ts`; test `test/units.ts` |
 | 0.3 | เสร็จ 20 ต.ค. 2026: การทดสอบ "เป็นถนนไหม" ทุกแบบอยู่ที่ `src/roadTiles.ts` พร้อมตารางว่าแต่ละแบบนับช่องไหน (`isRoadTile`, `conductsPower`, `carriesWater`, `isDriveableValue`, `isLineRoad`, `isAnyRoad` …) ไม่เปลี่ยนพฤติกรรม; `test/roadTiles.ts` ตรึงทุกแบบทีละช่อง. **พบ:** ไฟนับช่อง 832 (ซึ่งเป็นเรดาร์สนามบินด้วย) แต่น้ำไม่นับ, น้ำนับช่อง 207 (ชิ้นสะพานเปิด) แต่ไฟไม่นับ รอเจ้าของตัดสินว่าจะให้เหมือนกันไหม |
-| 0.4 | ยังไม่เริ่ม |
+| 0.4 | เสร็จ 20 ต.ค. 2026: `test/cityCore.ts` เล่นเมืองขนาดจริง (ช่องละ 16 ม. ทาโซนทีละช่องย่อย) หนึ่งปี: ถนนแบบเส้น ถนนเฉียง จวน โรงไฟฟ้า ทาบ้าน ร้าน โรงงาน แล้ววางถนนทับช่องที่ทา; เล่นซ้ำจาก log ได้ช่อง เงิน ประชากร ช่องย่อย `roadPaths` และ `roadPieces` เท่าเดิม |
 | 1.1–1.7 | ยังไม่เริ่ม |
 | 2.x, 3.x, 4 | ยังไม่เริ่ม |
