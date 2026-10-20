@@ -108,7 +108,10 @@ const tHorizon = new Color();
 
 /** No animation loop or game state mutations: the game owns paint(), including while paused. */
 export class CityView3D implements CityView {
-  readonly kind='3d' as const;readonly scene=new Scene();readonly navigation:CityCamera;readonly chunks:CityChunks;
+  readonly kind='3d' as const;readonly scene=new Scene();
+  /** What is drawn over the finished picture, after the diorama lens: the problem icons (drawOverlay) */
+  readonly overlay=new Scene();
+  readonly navigation:CityCamera;readonly chunks:CityChunks;
   readonly metrics:CityMetrics={frameMs:0,intervalMs:0,drawCalls:0,triangles:0,pendingChunks:0,pendingModels:0,unknownTiles:0,rebuildMs:0,firstFrameMs:0,detailSwaps:0,dirtSwaps:0,pixelRatioChanges:0,gpuMs:null,effectChanges:0};
   readonly canvas:HTMLCanvasElement;readonly renderer:WebGLRenderer;
   readonly terrain:CityHeightField;
@@ -445,7 +448,7 @@ export class CityView3D implements CityView {
     this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellKeys??null);
     // Icons over the plots held back for want of power, water or a road (problemIcons.ts)
     const whyMap=this.setup.map as unknown as {width:number;height:number;plotWhy?:Uint8Array|null};
-    if(whyMap.plotWhy){if(!this.problems){this.problems=new ProblemIcons(whyMap,this.terrain);this.scene.add(this.problems.root);}this.problems.update(this.seconds);}
+    if(whyMap.plotWhy){if(!this.problems){this.problems=new ProblemIcons(whyMap,this.terrain);this.overlay.add(this.problems.root);}this.problems.update(this.seconds);}
     // The city's buses driving their roads (buses.ts)
     const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
     if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
@@ -545,7 +548,18 @@ export class CityView3D implements CityView {
         this.renderer.setRenderTarget(null);this.renderer.render(this.scene,this.navigation.camera);
       }
     }else this.renderer.render(this.scene,this.navigation.camera);
+    this.drawOverlay();
     this.gpuTimer?.end();
+  }
+  /** The problem icons over the finished picture, after the lens: signs, not lights, so its glow never takes their white
+   * for a lamp at night (its bar falls to about 0.6 then), and the tilt-shift and contact shadows leave them alone. The
+   * renderer maps their light to the screen as the lens's last pass does, so they look as they did inside the city */
+  private drawOverlay():void{
+    if(!this.problems?.shown)return;
+    const renderer=this.renderer,autoClear=renderer.autoClear;
+    this.overlay.fog=this.scene.fog;
+    renderer.setRenderTarget(null);renderer.autoClear=false;
+    try{renderer.render(this.overlay,this.navigation.camera);}finally{renderer.autoClear=autoClear;}
   }
   tileAt(x:number,y:number):TilePoint|null{return pickTile(this.navigation.camera,x,y,this.width,this.height,this.setup.map.width,this.setup.map.height,this.terrain);}
   visibleTiles():TileRect|null{return visibleTileRect(this.navigation.camera,this.width,this.height,this.setup.map.width,this.setup.map.height,this.navigation.camera.far,this.terrain);}
@@ -575,7 +589,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

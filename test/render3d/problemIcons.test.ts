@@ -19,13 +19,14 @@ describe('problem icons', () => {
     icons.update(10);
     const count = (n: number) => ((icons.root.children[n] as Points).geometry.getAttribute('position')?.count ?? 0);
     expect([count(0), count(1), count(2)]).toEqual([2, 1, 0]);
+    expect(icons.shown).toBe(3);
     const at = (icons.root.children[1] as Points).geometry.getAttribute('position');
     expect([at.getX(0), at.getZ(0)]).toEqual([25, 15]);
     expect(at.getY(0)).toBeGreaterThan(2);
     // The power comes: the next refresh drops its icons
     plotWhy[1] = plotWhy[5] = 0;
     icons.update(11); expect(count(0)).toBe(2);
-    icons.update(13); expect(count(0)).toBe(0);
+    icons.update(13); expect(count(0)).toBe(0); expect(icons.shown).toBe(1);
     icons.dispose();
   });
 });

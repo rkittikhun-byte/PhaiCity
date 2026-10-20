@@ -413,6 +413,11 @@ list). Code: `src/render3d/city/postFx.ts` (the passes), `quality.ts` (levels an
   dual filter: 9 small passes). By day the bar is high (the sun's disc, glints off water and glass), at sunrise and
   sunset lower and gold, at night low enough for every lamp, window and lantern, warm (`SCENE.post.glow*`). In fog,
   rain and smoke it is stronger and wider, as lights look through wet air; a lightning flash raises the bar.
+  The problem icons (`problemIcons.ts`: no power, water or road) are signs, not lights: their white would glow under
+  the night's bar (about 0.6), so the view keeps them in a scene of their own (`view.overlay`) and draws it over the
+  finished picture, after the lens, straight to the canvas without clearing it (`drawOverlay`); the renderer maps
+  their light with ACES as the lens's last pass does, so they look the same, and neither the tilt-shift nor the
+  contact shadows touch them. `screenshotMap` leaves them out.
 - **Tilt-shift:** the middle third of the screen stays sharp; above and below it the picture softens into a half- and
   a quarter-size blurred copy, with a faint lavender edge (`SCENE.post.vignette`). It is strongest from the usual
   45–60° and fades as the camera comes down to the street or looks straight down; the 2D map has none.

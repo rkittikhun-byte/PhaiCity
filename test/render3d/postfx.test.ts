@@ -5,7 +5,8 @@
 // order Auto gives effects up and takes them back in, and a headless view that never draws through the lens.
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import type { WebGLRenderer } from 'three';
+import type { Scene, WebGLRenderer } from 'three';
+import { PLOT_WHY } from '../../src/plots.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
 import type { CityPostLike, PostLook } from '../../src/render3d/city/postFx.js';
 import { EFFECT_COST_GUESS, EffectLadder, LADDER, LEVEL_RUNG, RAISE_WAIT_MS, effectsAt, isGraphicsQuality, middleInterval,
@@ -104,19 +105,19 @@ describe('the effect ladder', () => {
 function mapReader(width = 200, height = 16) { return { width, height, getTileValue: () => 0, getTileFlags: () => 0 }; }
 
 /** A stand-in for the lens, recording what the view asks of it */
-function fakePost(): CityPostLike & { renders: number; looks: PostLook[]; sizes: [number, number][]; effectsLog: PostEffects[] } {
+function fakePost(): CityPostLike & { renders: number; looks: PostLook[]; scenes: Scene[]; sizes: [number, number][]; effectsLog: PostEffects[] } {
   const post = {
     effects: { ao: false, bloom: false, tiltShift: false } as PostEffects, renders: 0, looks: [] as PostLook[],
-    sizes: [] as [number, number][], effectsLog: [] as PostEffects[],
+    scenes: [] as Scene[], sizes: [] as [number, number][], effectsLog: [] as PostEffects[],
     setEffects(effects: PostEffects) { post.effects = { ...effects }; post.effectsLog.push({ ...effects }); },
     setSize(width: number, height: number) { post.sizes.push([width, height]); },
-    render(_scene: unknown, _camera: unknown, look: PostLook) { post.renders++; post.looks.push(look); },
+    render(scene: Scene, _camera: unknown, look: PostLook) { post.renders++; post.looks.push(look); post.scenes.push(scene); },
     dispose: jest.fn(),
   };
   return post;
 }
 
-function viewFixture(options: { post?: ReturnType<typeof fakePost> | null; gpuMs?: number | null } = {}) {
+function viewFixture(options: { post?: ReturnType<typeof fakePost> | null; gpuMs?: number | null; map?: ReturnType<typeof mapReader> } = {}) {
   Object.defineProperty(globalThis, 'devicePixelRatio', { configurable: true, value: 2 });
   let time = 0, ratio = 2;
   const canvas = { style: { cssText: '' }, addEventListener: jest.fn(), removeEventListener: jest.fn(), remove: jest.fn(),
@@ -125,7 +126,7 @@ function viewFixture(options: { post?: ReturnType<typeof fakePost> | null; gpuMs
     shadowMap: {}, info: { autoReset: true, reset: jest.fn(), render: { calls: 3, triangles: 20 } }, render: jest.fn(), setRenderTarget: jest.fn(), dispose: jest.fn() } as unknown as WebGLRenderer;
   const container = { clientWidth: 800, clientHeight: 600, append: jest.fn() } as unknown as HTMLElement;
   const overlay = { blockSize: 2, worldGet: () => 0 };
-  const setup: CityViewSetup = { container, map: mapReader(), region: 'central', overlays: { trafficDensityMap: overlay, pollutionDensityMap: overlay, landValueMap: overlay }, date: () => ({ month: 0, year: 2026 }) };
+  const setup: CityViewSetup = { container, map: options.map ?? mapReader(), region: 'central', overlays: { trafficDensityMap: overlay, pollutionDensityMap: overlay, landValueMap: overlay }, date: () => ({ month: 0, year: 2026 }) };
   const timer = options.gpuMs === undefined ? undefined : { ms: options.gpuMs, begin: jest.fn(), end: jest.fn(), poll: jest.fn(), reset: jest.fn(), dispose: jest.fn() };
   const post = options.post;
   const view = new CityView3D(setup, { canvas, rendererFactory: () => renderer, provider: { request: jest.fn(), take: () => [], dispose: jest.fn() },
@@ -205,6 +206,40 @@ describe('the 3D view through the lens', () => {
       const look = post.looks[post.looks.length - 1];
       expect(look.ao.tint.getHex()).toBe(new (look.ao.tint.constructor as new (hex: number) => typeof look.ao.tint)(SCENE.post.contactShadow).getHex());
       expect(look.tilt.strength).toBeGreaterThan(0.3);
+    } finally { f.view.dispose(); }
+  });
+  it('draws the problem icons over its picture, after the lens, so their white never glows with the lamps at night', () => {
+    const plotWhy = new Uint8Array(200 * 16); plotWhy[5] = PLOT_WHY.indexOf('water'); plotWhy[40] = PLOT_WHY.indexOf('power');
+    for (const lens of [true, false]) {
+      const post = lens ? fakePost() : null, f = viewFixture({ post, map: { ...mapReader(), plotWhy } as ReturnType<typeof mapReader> });
+      try {
+        f.view.setDarkMode(true); f.view.setQuality('high');
+        const renderer = f.renderer as unknown as { autoClear: boolean; render: jest.Mock }, order: string[] = [], clears: boolean[] = [];
+        renderer.autoClear = true;
+        renderer.render.mockImplementation((scene: Scene) => {
+          const icons = Boolean(scene.getObjectByName('problem_icons'));
+          order.push(icons ? 'icons' : 'city'); if (icons) clears.push(renderer.autoClear);
+        });
+        if (post) { const draw = post.render; post.render = (scene, camera, look) => { order.push('lens'); draw(scene, camera, look); }; }
+        f.frames(2);
+        // The city (through the lens where there is one) without the icons, then the icons over it, without clearing it
+        expect(order).toEqual(lens ? ['lens', 'icons', 'lens', 'icons'] : ['city', 'icons', 'city', 'icons']);
+        if (post) {
+          expect(post.scenes[post.scenes.length - 1].getObjectByName('problem_icons')).toBeUndefined();
+          expect(post.looks[post.looks.length - 1].bloom.threshold).toBeLessThan(1);
+        }
+        expect(clears).toEqual([false, false]);
+        expect(renderer.autoClear).toBe(true);
+        expect(f.view.overlay.getObjectByName('problem_icons')).toBeDefined();
+        expect(f.view.scene.getObjectByName('problem_icons')).toBeUndefined();
+      } finally { f.view.dispose(); }
+    }
+  });
+  it('draws nothing over its picture while no plot is held back', () => {
+    const post = fakePost(), f = viewFixture({ post, map: { ...mapReader(), plotWhy: new Uint8Array(200 * 16) } as ReturnType<typeof mapReader> });
+    try {
+      const direct = (f.renderer.render as jest.Mock).mock.calls.length;
+      f.frames(2); expect((f.renderer.render as jest.Mock).mock.calls.length).toBe(direct);
     } finally { f.view.dispose(); }
   });
   it('keeps the 2D map sharp: no tilt-shift from straight above', () => {

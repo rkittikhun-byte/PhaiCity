@@ -44,7 +44,11 @@ function iconTexture(ring: string, glyph: 'bolt' | 'drop' | 'bar'): CanvasTextur
 }
 
 export class ProblemIcons {
+  /** The icons, which the view draws over its finished picture, after the diorama lens (index.ts drawOverlay): signs,
+   * not lights, so its glow never takes their white for a lamp at night */
   readonly root = new Group();
+  /** How many icons stand now */
+  shown = 0;
   private readonly points: Points[] = [];
   private last = -Infinity;
 
@@ -64,6 +68,7 @@ export class ProblemIcons {
     if (seconds - this.last < REFRESH) return;
     this.last = seconds;
     const why = this.map.plotWhy, { width } = this.map;
+    this.shown = 0;
     SHOWN.forEach(({ why: reason }, n) => {
       const code = PLOT_WHY.indexOf(reason), positions: number[] = [];
       if (why) {
@@ -74,6 +79,7 @@ export class ProblemIcons {
         }
       }
       const geometry = this.points[n].geometry;
+      this.shown += positions.length / 3;
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
       geometry.computeBoundingSphere();
     });
