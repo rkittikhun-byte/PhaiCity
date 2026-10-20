@@ -113,6 +113,21 @@ export const SCENE = {
     /** The streaks of rain, and a flash of lightning */
     rain: RAMPS.water[100], flash: RAMPS.gold[50],
   },
+  /**
+   * The diorama lens over the city (src/render3d/city/postFx.ts): contact shadows that go the concept's lavender, never
+   * black; the glow of lamps, windows and lanterns by night and of the low sun; the sun itself in the sky (sky.ts); and
+   * a darker lavender edge round the picture. Read by the renderer now, before the rest of SCENE is adopted.
+   */
+  post: {
+    /** What a corner in contact shadow turns to: the concept's cast shadow */
+    contactShadow: RAMPS.lavender[500],
+    /** The glow by day (glints off water and glass), at sunrise and sunset, and of the night's lamps and windows */
+    glowDay: RAMPS.sand[0], glowTwilight: RAMPS.gold[300], glowNight: RAMPS.gold[200],
+    /** The sun in the sky, high and low */
+    sunHigh: RAMPS.gold[50], sunLow: RAMPS.clay[300],
+    /** The picture's darker edge */
+    vignette: RAMPS.lavender[800],
+  },
 } as const;
 
 // --- css/theme.css --------------------------------------------------------------------------------------------------

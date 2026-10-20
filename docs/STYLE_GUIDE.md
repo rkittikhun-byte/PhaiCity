@@ -203,3 +203,6 @@ no royal or religious symbols, no temple roof ornaments on houses. Same style as
 - 18 ต.ค. 2026: สร้าง theme จาก concept ยุค 1–3 แล้วย้ายสีทุกสีใน `css/style.css` และ `css/tool-dock.css` เข้า theme
   HUD เปลี่ยนจากกระจกเขียวอมเทาเป็นกระจกครีม และสีเน้นจากเขียวเป็นดินเผา หน้าเริ่มเกมเปลี่ยนจากดำอมเขียวเป็นน้ำตาลอุ่น
   ส่วน 3D ยังไม่ได้เปลี่ยน
+- 21 ต.ค. 2026 (ไม้ไผ่7): เพิ่ม `SCENE.post` โดยไม่แก้ค่าเดิม สำหรับเลนส์ไดโอรามา (`src/render3d/city/postFx.ts`,
+  `docs/3d/RENDERER_SPEC.md` 8A): เงาตามซอกมุมสีลาเวนเดอร์ `lavender.500` (สีเงาของ concept) แสงเรืองกลางวัน `sand.0`
+  ยามเย็น `gold.300` กลางคืน `gold.200` ดวงอาทิตย์สูง `gold.50` ต่ำ `clay.300` และขอบภาพ `lavender.800` ทุกสีเป็นขั้นของ ramp เดิม

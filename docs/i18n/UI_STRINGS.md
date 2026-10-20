@@ -1079,6 +1079,12 @@
 | `sound.control` | `src/audio/index.ts` | `-` | `Sound: click for the volume, click again to mute or unmute` | `เสียง: คลิกเพื่อปรับระดับเสียง คลิกอีกครั้งเพื่อปิดหรือเปิดเสียง` | tooltip ปุ่มลำโพงในเกมตอนแถบเสียงยังไม่เลื่อนออกมา |
 | `sound.waiting` | `src/audio/index.ts` | `-` | `Click anywhere, or here, to start the sound (browsers keep games silent until then)` | `คลิกที่ไหนก็ได้หรือที่ปุ่มนี้เพื่อเริ่มเสียง (เบราว์เซอร์ไม่ให้เกมมีเสียงจนกว่าจะคลิก)` | tooltip ก่อนคลิกครั้งแรก (Claude Code 12 ต.ค. 2026) |
 | `sound.waiting_short` | `src/provincePicker.ts` | `-` | `Sound on` | `เปิดเสียง` | ข้อความข้างลำโพงบนหน้าเริ่มเกม ก่อนคลิกครั้งแรก |
+| `graphics.title` | `index.html` | `-` | `Graphics` | `ภาพ` | หัวข้อในหน้าต่างตั้งค่า เก็บแยกตามเบราว์เซอร์ (`src/graphicsQuality.ts`, Claude Code 20 ต.ค. 2026) |
+| `graphics.auto` | `index.html` | `-` | `Auto` | `อัตโนมัติ` | ตัวเลือกคุณภาพภาพ: เกมปรับเองตามความเร็วเครื่อง |
+| `graphics.low` | `index.html` | `-` | `Low` | `ต่ำ` | ตัวเลือกคุณภาพภาพ: ไม่มีเอฟเฟกต์ |
+| `graphics.medium` | `index.html` | `-` | `Medium` | `กลาง` | ตัวเลือกคุณภาพภาพ: แสงเรือง + เบลอแบบโมเดลจิ๋ว |
+| `graphics.high` | `index.html` | `-` | `High` | `สูง` | ตัวเลือกคุณภาพภาพ: เพิ่มเงาตามมุม |
+| `graphics.hint` | `index.html` | `-` | `Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.` | `อัตโนมัติจะปรับให้ภาพลื่นเอง ระดับกลางเพิ่มแสงเรืองของไฟและภาพเบลอขอบแบบเมืองจำลอง ระดับสูงเพิ่มเงานุ่มตามซอกมุม` | คำอธิบายใต้ตัวเลือก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
 ## 15B. เรื่องเล่าเปิดเกม เลือกภาค เลือกจังหวัด และเมนูหลัก (Claude Code, 11 ต.ค. 2026)

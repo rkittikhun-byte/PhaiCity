@@ -385,6 +385,80 @@ On a real-scale city map (16 m a tile, `docs/CITY_SCALE.md`) homes, shops and fa
 - Far away: hide props and anchors, then use simplified zone boxes (LOD), before dropping frame rate.
 - One sun (directional light) with shadows fitted to the visible area, plus the HDRI sky from Prompt 1.
 
+## 8A. The diorama lens and graphics quality (added 20 Oct 2026)
+
+The concept art's diorama look, as post-processing on WebGL 2 (`docs/METRE_DRAWING_PLAN.md` section 6, the 4-star
+list). Code: `src/render3d/city/postFx.ts` (the passes), `quality.ts` (levels and the adaptive ladder, no three.js),
+`gpuTimer.ts` (the graphics card's frame time), `index.ts` (`setQuality`, `updatePostLook`, the adaptive block in
+`paint`), the sun in `sky.ts`; the player's setting in `src/graphicsQuality.ts` and the settings window.
+
+- **One extra full-size pass.** The city is drawn once into a float picture that keeps light above white
+  (R11F_G11F_B10F where the card can draw into it, half the bytes of RGBA16F; else RGBA16F), with its depth kept only
+  while contact shadows are on. Every effect works at half size or smaller; one last pass puts them together, does
+  ACES and sRGB as the renderer does without the lens, adds a grain finer than one screen step against banding, and
+  draws to the canvas, so `screenshotVisible` works unchanged. `screenshotMap` draws its own picture and skips the lens.
+- **Antialiasing.** Where the lens can draw (asked with a throwaway context before the city's own is made,
+  `lensLikely`), the canvas is made without multisampling and every level smooths the edges in the last pass instead
+  (FXAA's classic form, judged by the brightness the screen will show). On the Intel Arc integrated graphics we
+  measured, four samples a pixel cost 3–5 ms a frame over a fresh city of trees and nearly 10 ms over a town of
+  houses, more than every effect together; FXAA costs a few tenths. TAA was left out: the camera is nearly always
+  moving and it smears; SMAA (three more full-size passes) could come later for High. Where the lens cannot draw, the
+  canvas keeps its own multisampling and the view draws straight to it as before.
+- **Contact shadows (AO):** from the depth alone (no second draw of the city for normals, which three's GTAOPass and
+  SAOPass need): 10 samples on a spiral, half size, blurred across and down only between points at about the same
+  distance. The radius follows the camera's distance (about 2 m at the street, a block's width over the whole city).
+  They go to the concept's lavender (`SCENE.post.contactShadow`), never black, fade into the haze and never darken
+  what shines (lamps, lit windows).
+- **Glow (bloom):** what is brighter than a threshold, at half size, down a chain to a thirty-second and back up (the
+  dual filter: 9 small passes). By day the bar is high (the sun's disc, glints off water and glass), at sunrise and
+  sunset lower and gold, at night low enough for every lamp, window and lantern, warm (`SCENE.post.glow*`). In fog,
+  rain and smoke it is stronger and wider, as lights look through wet air; a lightning flash raises the bar.
+- **Tilt-shift:** the middle third of the screen stays sharp; above and below it the picture softens into a half- and
+  a quarter-size blurred copy, with a faint lavender edge (`SCENE.post.vignette`). It is strongest from the usual
+  45–60° and fades as the camera comes down to the street or looks straight down; the 2D map has none.
+- **The sun** is now drawn in the sky (`SkyDome.setSun`): a disc brighter than white and a halo that widens and warms
+  as it sinks, hidden by cloud, fog, smoke and the haze below the horizon, so the low sun glows.
+
+**Levels** (`quality.ts`), the player's choice in the settings window, kept per browser as `phaicity.graphics`
+(Auto by default; never a command, like the language):
+
+| Level | Effects | Resolution cap |
+|---|---|---|
+| Low | none (edges smoothed by FXAA, as at every level) | the screen's own (1×) |
+| Medium | tilt-shift + glow | 1.25× |
+| High | tilt-shift + glow + contact shadows | 1.25× |
+| Auto | starts as Medium and moves between none and High | 1.25× |
+
+**Adaptive order.** Only in Auto do the effects move. When frames are slow (over 17 ms on the processor or on the
+graphics card, or, without a card timer, frames more than 24 ms apart), Auto gives up the costliest first: contact
+shadows, then glow, then tilt-shift; only then does the old ladder lower the resolution (1.25 → 1) and then the draw
+budget. When frames are fast again the budget and the resolution come back first, then tilt-shift, glow and contact
+shadows, each only after 10 s with room for what it was measured to cost (the card's time before and after it went),
+and an effect that made the frames slow again waits twice as long the next time (up to 5 min). A frame held up by
+the processor while the card idles keeps its effects. A level the player chose keeps its effects; only the resolution
+and the budget adapt, as before. Headless views and the 2D fallback have no lens (`view.effects` all off).
+
+**Measured (21 Oct 2026, ไม้ไผ่7).** Intel Arc integrated graphics (Core Ultra notebook), Chrome/ANGLE D3D11, Mueang
+Khon Kaen at the starting view (240 m, 55°), graphics-card time of one frame from timer queries (median of 18–24
+frames; the machine was shared with other sessions' builds and tests, so ±2 ms). "Before" is the renderer as it was:
+straight to a canvas with four samples a pixel.
+
+| Scene | Size | Before | Low | Medium | High |
+|---|---|---|---|---|---|
+| New city (roads, trees; 4.4 M triangles) | 1920×1065 | 15.7 | 10.9 | 12.3 | ≈13* |
+| New city | 2400×1331 (1.25× on a 2× screen) | 20.1 | 12.9 | 11.7–13 | ≈14* |
+| Town of 657 era-1 plots (6.2 M triangles) | 1920×1065 | 25 | 14.4–17.0 | 14.8–17.4 | 15.5–18.3 |
+| Town | 2400×1331 | 31.5 | 20.1–21.6 | 21.0–22.4 | 22.3–23.5 |
+
+\* Medium plus the contact-shadow pass measured on its own (High was measured there only with four samples a pixel,
+17.3 and 21.9 ms, before they were dropped).
+
+The lens's own passes cost about 0.7 ms (tilt-shift), 0.7 ms (glow) and 0.8 ms (contact shadows) at 1080p, 1.2 ms
+for all three, 1.8 ms at 2400×1331; the processor's time to send them is under 0.5 ms. Dropping the canvas's four
+samples paid for all of it: every level is faster than the renderer was. At 1080p Medium keeps to the 16.7 ms of 60
+frames a second on this card (12 ms over the new city, 15–17 ms over the town); at 2400×1331 it does not, and Auto
+then gives up the effects and lowers the resolution.
+
 ## 9. What stays 2D for now
 
 - **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game does not create it; the
