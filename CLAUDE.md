@@ -13,6 +13,8 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
 - **Unified Architecture & Cities: Skylines Upgrade Docs (17 Oct 2026):**
   - `docs/ARCHITECTURE.md` — Consolidated game systems, core architecture, map scales, district frames, zone cells, curved roads, and utilities.
   - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
+  - `docs/METRE_DRAWING_PLAN.md` (owner, 20 Oct 2026) — roads, then buildings, then zones drawn and stored in metres with
+    the tiles derived from them for the simulation, and the new technology for a 4-star game; follow it step by step.
 
 **One theme for everything (owner, 18 Oct 2026):** every colour, light and size of the pages, icons and 3D comes from
 `src/theme/tokens.ts` (pages through the generated `css/theme.css`). Read `docs/STYLE_GUIDE.md` before any visual work;
