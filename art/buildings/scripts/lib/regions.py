@@ -30,7 +30,7 @@ STYLE = {
     'central': {'roof': 'gable', 'gable': 'tips', 'pitch': 1.15, 'walls': 'panel', 'ground': 'grass',
                 'plaster': ('plaster', 'plaster_white', 'plaster_peach'), 'awning': ('awning_red', 'awning_white'),
                 'wood': 'teak', 'trim': 'teak_dark', 'shutter': 'teak'},
-    'north': {'roof': 'gable', 'gable': 'kalae', 'pitch': 0.9, 'walls': 'board_v', 'ground': 'stone_pale',
+    'north': {'roof': 'gable', 'gable': 'kalae', 'pitch': 0.9, 'walls': 'board_v', 'ground': 'grass_dark',
               'plaster': ('plaster', 'plaster_white', 'cream'), 'awning': ('awning_red', 'awning_yellow'),
               'wood': 'teak_dark', 'trim': 'teak', 'shutter': 'teak'},
     'northeast': {'roof': 'gable', 'gable': 'plain', 'pitch': 0.85, 'walls': 'board_h', 'ground': 'laterite',

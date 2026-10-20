@@ -12,7 +12,9 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
 
 ## Now
 
-- 20 Oct 2026: starting. Pipeline and era 1 by the main session; eras 2-5 by sub-agents, one file each.
+- 20 Oct 2026: pipeline done; era 1 built in all six regions (24 kinds each). Eras 2-5 are being written by
+  sub-agents, one file each (`scripts/buildings/era<n>.py`, helpers in `scripts/lib/era<n>_parts.py`); the main
+  session reviews and commits them. Next: check each era's sheets, then buildings-library.blend, README, IMPORT.
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 
@@ -55,7 +57,11 @@ map), keep 0.5 m clear on every side: a 1-tile building fits in 15 x 15 m, a 2x2
 
 ## What each era builds (one file each: `scripts/buildings/era<n>.py`)
 
-Every era has the same list, so the game can swap one for another by id `era<n>_<kind>`:
+Every era has the same list, and each is built once per region, so the game can swap one for another by id
+`era<n>_<region>_<kind>` (regions are the game's ids: north, northeast, central, east, west, south; the dress is
+`scripts/lib/regions.py`). One set per era and region: `blend/era<n>/era<n>_<region>.blend` (every building as an
+asset), `glb/era<n>/<region>/<id>.glb`, `previews/era<n>_<region>_sheet.png` and `_services.png`. The .blend and glb
+files are rebuilt by `./run.sh` and not in git (a set edited by hand goes in LOCKED.txt and is added with -f).
 
 | Kind | Tiles | What it is in the game |
 |---|---|---|
@@ -90,8 +96,8 @@ Build: `./run.sh <id|era1..era5|all> [--force] [--no-sheet]` (Blender 5.2,
 `D:/Program Files/Blender Foundation/Blender 5.2/blender.exe`). Look at `previews/<era>_sheet.png` beside the concept,
 fix, rebuild, commit. Previews are for checking only; the owner asked not to be shown them while building.
 
-- [ ] Pipeline: palette, mesh, kit (walls, roofs, windows, stairs, railings), props, studio, export, sheets
-- [ ] era1: 14 zone buildings
+- [x] Pipeline: palette, mesh, kit (walls, roofs, windows, stairs, railings), props, studio, export, sheets
+- [x] era1: 14 zone buildings (six regions)
 - [ ] era2: 14 zone buildings
 - [ ] era3: 14 zone buildings
 - [ ] era4: 14 zone buildings

@@ -44,6 +44,21 @@ def home_2(b):
     """The concept's house: rooms on tall posts, an open deck with stairs, the region's roof in thatch, a spirit
     house, a buffalo in the shade, jars and banana."""
     yard(b)
+    if b.region == 'west':
+        # the west's floating house (เรือนแพ): on a bamboo raft moored in the water, a boat alongside
+        pr.water_pond(b.yard, -7.6, -2.5, 7.6, 7.6)
+        pr.raft(b.main, -5.0, 0.0, 5.5, 6.5, 0.12)
+        info = houses.stilt_house(b, -1.6, 3.2, 5.6, 4.0, floor_z=0.75, wall_h=2.4, thatch=True,
+                                  deck=('right', 2.6), posts_every=2.0, stairs=False)
+        pr.boat(b.props, -2.0, -1.4, 4.2, facing=0)
+        for x in (-5.4, 5.9):
+            b.props.cyl(0.12, 0.12, 2.0, 'teak_dark', T(x, -0.3, 0.6), seg=8)
+        pr.orchid_hanging(b.props, 3.0, 1.4, 3.2)
+        props.hammock(b.props, (2.0, 0.6, 1.9), (5.2, 0.6, 1.9), 0.4)
+        b.path(-0.6, -7.9, 0.6, -2.5, 'paving', z=0.05)
+        regions.plant(b, 6.0, -5.5, 1)
+        regions.plant(b, -6.0, -5.5, 2)
+        return
     info = houses.stilt_house(b, -1.2, 1.6, 6.0, 4.4, floor_z=2.4, wall_h=2.5, thatch=True,
                               deck=('right', 3.0), posts_every=2.0)
     x0, y0, x1, y1 = info['rect']
