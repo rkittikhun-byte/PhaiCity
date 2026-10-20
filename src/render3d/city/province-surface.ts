@@ -18,6 +18,7 @@ import { ZONE_GRID_CELLS } from './overlay.js';
 import type { Placement } from './types.js';
 import { TerrainDetail } from './terrain-detail.js';
 import { besideCanal } from './canals.js';
+import { LOD_HYSTERESIS, lodDistance } from './lod.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 /** The fewest tiles of the far ground a frame fills in, however slow the frame (ProvinceSurface.update) */
 const MIN_FILL=32;
@@ -28,6 +29,9 @@ const COVER_COLOURS:Record<number,number>={1:0x7aa84a,2:0x8e5f3f,3:0x5a7d3c,4:0x
 const ZONE_PAINT={residential:new Color(0x3fae4a),commercial:new Color(0x3a7bd5),industrial:new Color(0xe0b020)};
 const ZONE_PAINT_SHARE=.55,ZONE_GAP=.45,MAX_TREES=SIZE*SIZE*5;
 interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:InstancedMesh;buildings:InstancedMesh;cursor:number;dirty:boolean;
+  /** Its trees' geometry, whole and light (treeGeometry), the light one drawn while the chunk is far enough for it to
+   * change no tree by more than a pixel; the largest a tree of it is scaled, building and as published */
+  fullTrees:BufferGeometry;lightTrees:BufferGeometry;light:boolean;treeScale:number;publishedTreeScale:number;
   positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,[number,number]>;buildingSlots:Map<number,number>;
   publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,[number,number]>;publishedBuildings:Map<number,number>;
   foliageFade:number;
@@ -46,7 +50,27 @@ function colorPart(g:BufferGeometry,hex:number):BufferGeometry {
   for(let i=0;i<count;i++){arr[i*3]=c.r;arr[i*3+1]=c.g;arr[i*3+2]=c.b;}
   nonIndexed.setAttribute('color',new Float32BufferAttribute(arr,3));return nonIndexed;
 }
-function treeGeometry():BufferGeometry {
+/** The far trees' foliage puffs: middle, size and colour of each (treeGeometry) */
+const TREE_PUFFS:readonly [number,number,number,number,number,number,number][]=[
+  [0,3.35,0,2.7,1.55,2.7,0x2e5b26],
+  [-1.7,3.8,-1.1,2.15,1.5,2.15,0x3a6b2e],
+  [1.75,3.85,-1.0,2.1,1.5,2.1,0x417634],
+  [-1.1,3.95,1.65,2.15,1.5,2.15,0x477f39],
+  [1.45,4.0,1.45,2.05,1.45,2.05,0x4f8a3f],
+  [-0.9,4.7,-0.6,2.25,1.55,2.25,0x5a9947],
+  [0.9,4.8,-0.5,2.15,1.5,2.15,0x63a54e],
+  [0.0,4.9,0.85,2.15,1.55,2.15,0x6db357],
+  [0.0,5.45,0.0,1.85,1.4,1.85,0x7fc965],
+];
+/**
+ * How far the light tree (treeGeometry(0)) lies from the whole one at most, in the tree's own units: a puff once
+ * subdivided has each edge's middle pushed out to its sphere, 1 - cos 45° = 0.293 of its radius beyond the plain
+ * octahedron's edge, the most its two surfaces part, times the puff's largest axis
+ */
+export const LIGHT_TREE_ERROR=(1-Math.SQRT1_2)*Math.max(...TREE_PUFFS.map(([,,,sx,sy,sz])=>Math.max(sx,sy,sz)));
+/** A far tree: a tapered trunk with four boughs and nine overlapping puffs, each an octahedron subdivided once (288
+ * triangles in all), or not at all for the light tree (72), with the same smooth shading */
+function treeGeometry(detail:0|1=1):BufferGeometry {
   const vertices:number[]=[];
   // Tapered 6-sided trunk with root flare and 4 spreading upper boughs
   for(let i=0;i<6;i++){const a=i*Math.PI/3,b=a+Math.PI/3,r0=.42,r1=.18;
@@ -57,19 +81,12 @@ function treeGeometry():BufferGeometry {
   const trunk=new BufferGeometry().setAttribute('position',new Float32BufferAttribute(vertices,3));trunk.computeVertexNormals();
   const parts:BufferGeometry[]=[colorPart(trunk,0x54402d)];
   // 9 overlapping foliage puffs with OctahedronGeometry(1, 1) (288 triangles total, 7x faster GPU vertex shading)
-  const puffs:readonly [number,number,number,number,number,number,number][]=[
-    [0,3.35,0,2.7,1.55,2.7,0x2e5b26],
-    [-1.7,3.8,-1.1,2.15,1.5,2.15,0x3a6b2e],
-    [1.75,3.85,-1.0,2.1,1.5,2.1,0x417634],
-    [-1.1,3.95,1.65,2.15,1.5,2.15,0x477f39],
-    [1.45,4.0,1.45,2.05,1.45,2.05,0x4f8a3f],
-    [-0.9,4.7,-0.6,2.25,1.55,2.25,0x5a9947],
-    [0.9,4.8,-0.5,2.15,1.5,2.15,0x63a54e],
-    [0.0,4.9,0.85,2.15,1.55,2.15,0x6db357],
-    [0.0,5.45,0.0,1.85,1.4,1.85,0x7fc965],
-  ];
-  for(const[px,py,pz,sx,sy,sz,hex]of puffs){
-    const puff=new OctahedronGeometry(1,1).scale(sx,sy,sz).translate(px,py,pz);
+  for(const[px,py,pz,sx,sy,sz,hex]of TREE_PUFFS){
+    const puff=new OctahedronGeometry(1,detail);
+    // ... shaded smooth either way: the normal of a point of the unit puff is the way out to it
+    if(!detail){const position=puff.getAttribute('position'),normal=puff.getAttribute('normal');
+      for(let i=0;i<position.count;i++){const x=position.getX(i),y=position.getY(i),z=position.getZ(i),l=Math.hypot(x,y,z)||1;normal.setXYZ(i,x/l,y/l,z/l);}}
+    puff.scale(sx,sy,sz).translate(px,py,pz);
     parts.push(colorPart(puff,hex));
   }
   const geometry=mergeGeometry(parts);parts.forEach(p=>p.dispose());return geometry;
@@ -80,7 +97,10 @@ function treeGeometry():BufferGeometry {
 export class ProvinceSurface {
   readonly root=new Group();readonly chunks:SurfaceChunk[]=[];
   readonly terrainDetail:TerrainDetail;
-  private edge:LineSegments2;private treeSource=treeGeometry();private boxSource=new BoxGeometry(1,1,1);
+  private edge:LineSegments2;private treeSource=treeGeometry();private lightTreeSource=treeGeometry(0);private boxSource=new BoxGeometry(1,1,1);
+  /** Where the camera is and the screen's pixels per world unit one unit from it (lod.ts), which the chunks set; with
+   * them a far chunk's trees are drawn light */
+  readonly eye=new Vector3(NaN,NaN,NaN);pixelsPerUnit=0;
   private placements=new Map<number,Placement>();private detail=new Map<number,number>();private columns:number;
   private lastUpdate?:number;
   constructor(readonly snapshot:TileSnapshot,readonly terrain:CityHeightField) {
@@ -97,9 +117,12 @@ export class ProvinceSurface {
       const trees=new InstancedMesh(this.treeSource.clone(),cityCoarseTreeMaterial(),MAX_TREES);
       const buildings=new InstancedMesh(this.boxSource.clone(),cityCoarseSurfaceMaterial(),SIZE*SIZE);
       attributes(trees.geometry,MAX_TREES,true);trees.count=0;trees.receiveShadow=true;trees.castShadow=false;
+      // ... and the light trees over the same per-tree attributes, so either draws the same trees
+      const fullTrees=trees.geometry,lightTrees=this.lightTreeSource.clone();
+      for(const name of['instanceDetail','cityOutside','cityGround','cityTerrain','cityBridgeDepth'])lightTrees.setAttribute(name,fullTrees.getAttribute(name));
       attributes(buildings.geometry,SIZE*SIZE,true);buildings.count=0;buildings.receiveShadow=true;buildings.castShadow=false;
       group.add(land,trees,buildings);this.root.add(group);
-      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
+      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,fullTrees,lightTrees,light:false,treeScale:0,publishedTreeScale:0,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
         publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(MAX_TREES*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(MAX_TREES),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
@@ -138,7 +161,7 @@ export class ProvinceSurface {
       if(unowned&&!ownsLand(land,x,y))unowned[i]=255;}
     setProvinceMask(outside,snapshot.width,snapshot.height,water,unowned);
   }
-  private resetBuffers(c:SurfaceChunk):void {c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
+  private resetBuffers(c:SurfaceChunk):void {c.treeScale=0;c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
   private quad(c:SurfaceChunk,x0:number,z0:number,x1:number,z1:number,shade:(x:number,z:number)=>Color,height:(x:number,z:number)=>number,index:number,overlay:boolean):void {
     for(const[x,z]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){
       c.positions.push(x,height(x,z)+(overlay?.025:0),z);c.colors.push(...shade(x,z).toArray());
@@ -283,7 +306,7 @@ export class ProvinceSurface {
         const jx=((hSeed>>>4)%101/100-.5)*1.8,jz=((hSeed>>>12)%101/100-.5)*1.8;
         const tx=(x+.5)*10+ox+jx,tz=(y+.5)*10+oz+jz;
         const s=realScale*(.82+(hSeed%9)*.07)*(k===0?1.2:1);
-        const sy=s*(.92+((hSeed>>>8)%7)*.05);
+        const sy=s*(.92+((hSeed>>>8)%7)*.05);c.treeScale=Math.max(c.treeScale,s,sy);
         matrix.makeRotationY((hSeed%16)*Math.PI/8).scale(new Vector3(s,sy,s)).setPosition(tx,this.terrain.sample(tx,tz),tz);
         c.treeMatrices.set(matrix.elements,slot*16);
         c.treeOutside[slot]=outside?1:0;
@@ -313,7 +336,7 @@ export class ProvinceSurface {
           const tx=(x+.5)*10+ox,tz=(y+.5)*10+oz;
           const baseScale=cover===3?.78:cover===1||cover===2?.88:.85;
           const s=realScale*(baseScale+(hSeed%7)*.055);
-          const sy=s*(cover===1&&hSeed%3===0?1.35:.95+((hSeed>>>7)%5)*.05);
+          const sy=s*(cover===1&&hSeed%3===0?1.35:.95+((hSeed>>>7)%5)*.05);c.treeScale=Math.max(c.treeScale,s,sy);
           matrix.makeRotationY((hSeed%16)*Math.PI/8).scale(new Vector3(s,sy,s)).setPosition(tx,this.terrain.sample(tx,tz),tz);
           c.treeMatrices.set(matrix.elements,slot*16);
           c.treeOutside[slot]=outside?1:0;
@@ -334,7 +357,7 @@ export class ProvinceSurface {
     const geometry=new BufferGeometry().setAttribute('position',new Float32BufferAttribute(c.positions,3)).setAttribute('color',new Float32BufferAttribute(c.colors,3));
     attributes(geometry,c.outside.length);geometry.setAttribute('cityOutside',new Float32BufferAttribute(c.outside,1));geometry.setAttribute('instanceDetail',new Float32BufferAttribute(c.fade,1));geometry.setAttribute('cityGround',new Float32BufferAttribute(c.ground,1));
     geometry.computeVertexNormals();geometry.computeBoundingSphere();c.land.geometry.dispose();c.land.geometry=geometry;
-    c.trees.count=c.treeCount;c.buildings.count=c.buildingCount;
+    c.trees.count=c.treeCount;c.buildings.count=c.buildingCount;c.publishedTreeScale=c.treeScale;
     (c.trees.instanceMatrix.array as Float32Array).set(c.treeMatrices);(c.buildings.instanceMatrix.array as Float32Array).set(c.buildingMatrices);
     c.buildings.instanceColor=new InstancedBufferAttribute(c.buildingColors.slice(),3);
     (c.trees.geometry.getAttribute('cityOutside').array as Float32Array).set(c.treeOutside);(c.buildings.geometry.getAttribute('cityOutside').array as Float32Array).set(c.buildingOutside);
@@ -373,7 +396,21 @@ export class ProvinceSurface {
       const fade=c.foliageFade+Math.max(-dt/350,Math.min(dt/350,wanted-c.foliageFade));
       if(Math.abs(fade-c.foliageFade)>=.025||((fade===0||fade===1)&&fade!==c.foliageFade)){c.foliageFade=fade;const a=c.trees.geometry.getAttribute('instanceDetail');(a.array as Float32Array).fill(fade,0,c.treeCount);a.needsUpdate=true;}
       c.trees.visible=fade<1;
+      // Far enough that the light tree moves no tree by more than a pixel: the light one, until it is nearer again
+      // (whole without the screen's scale, before the view says it or with the levels of detail off)
+      const light=this.pixelsPerUnit>0&&Number.isFinite(this.eye.x)&&c.treeCount>0&&
+        this.chunkDistance(c)>=lodDistance(LIGHT_TREE_ERROR*c.publishedTreeScale,this.pixelsPerUnit)*(c.light?1-LOD_HYSTERESIS:1+LOD_HYSTERESIS);
+      if(light!==c.light){c.light=light;c.trees.geometry=light?c.lightTrees:c.fullTrees;this.treeSwaps++;}
     }
+  }
+  /** How often a chunk's trees went light or whole again */
+  treeSwaps=0;
+  /** From the camera to the nearest point of a chunk, its ground to the tops of its tallest trees (world units) */
+  private chunkDistance(c:SurfaceChunk):number {
+    const {width,height}=this.snapshot,e=this.eye,x0=c.x*10,x1=Math.min(width,c.x+SIZE)*10,z0=c.y*10,z1=Math.min(height,c.y+SIZE)*10;
+    const y0=this.terrain.min,y1=this.terrain.max+8*Math.max(1,c.publishedTreeScale);
+    const dx=Math.max(x0-e.x,0,e.x-x1),dy=Math.max(y0-e.y,0,e.y-y1),dz=Math.max(z0-e.z,0,e.z-z1);
+    return Math.hypot(dx,dy,dz);
   }
   fade(index:number,fade:number):void {
     this.detail.set(index,fade);const x=index%this.snapshot.width,y=Math.floor(index/this.snapshot.width),c=this.chunks[Math.floor(y/SIZE)*this.columns+Math.floor(x/SIZE)];
@@ -385,5 +422,5 @@ export class ProvinceSurface {
   }
   get pending():number{return this.chunks.filter(c=>c.dirty).length+this.terrainDetail.pending;}
   finish():void {for(const c of this.chunks)if(c.dirty){while(c.cursor<SIZE*SIZE)this.cell(c,c.cursor++);this.publish(c);c.dirty=false;}}
-  dispose():void {this.terrainDetail.dispose();for(const c of this.chunks){c.land.geometry.dispose();for(const m of[c.trees,c.buildings]){m.geometry.dispose();m.dispose();}}this.edge.geometry.dispose();this.treeSource.dispose();this.boxSource.dispose();this.root.clear();this.placements.clear();this.detail.clear();}
+  dispose():void {this.terrainDetail.dispose();for(const c of this.chunks){c.land.geometry.dispose();c.fullTrees.dispose();c.lightTrees.dispose();for(const m of[c.trees,c.buildings]){m.geometry.dispose();m.dispose();}}this.lightTreeSource.dispose();this.edge.geometry.dispose();this.treeSource.dispose();this.boxSource.dispose();this.root.clear();this.placements.clear();this.detail.clear();}
 }

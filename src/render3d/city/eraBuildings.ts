@@ -17,6 +17,7 @@
 import { BufferAttribute, type BufferGeometry, type Mesh, type Object3D } from 'three';
 import type { RegionId } from '../regional/types.js';
 import type { PrototypeProvider, PrototypeRequest, SerializedPart, SerializedPrototype } from './prototypes.js';
+import { loadSimplifier, makeLevels, makeShadow, type Simplifier } from './lod.js';
 
 export const ERA_BUILDINGS_BASE = 'assets/models/buildings/';
 export const DRACO_DECODER_PATH = 'assets/draco/';
@@ -107,8 +108,9 @@ export async function loadEraIndex(base = ERA_BUILDINGS_BASE): Promise<EraIndex 
   }
 }
 
-/** A loaded glb's meshes as the parts of a city prototype: body (flat colours) and windows (lit at night) */
-export function serializeEraScene(key: string, scene: Object3D): SerializedPrototype {
+/** A loaded glb's meshes as the parts of a city prototype: body (flat colours) and windows (lit at night), and with a
+ * simplifier its lighter copies for far away (lod.ts), which the city's chunks draw by distance */
+export function serializeEraScene(key: string, scene: Object3D, simplifier: Simplifier | null = null): SerializedPrototype {
   scene.updateMatrixWorld(true);
   const parts: SerializedPart[] = [];
   let top = 0;
@@ -144,12 +146,16 @@ export function serializeEraScene(key: string, scene: Object3D): SerializedProto
       material: { key: windows ? 'emissive_window' : 'stucco_ornament', name: `era-building-${windows ? 'windows' : 'body'}`,
         // the colour is the vertices' (eraBuildingMaterial); this one is not read
         color: 0, data: { eraBuilding: windows ? 'windows' : 'body' } },
-      castShadow: true, receiveShadow: true,
+      // The window panes lie on the walls, inside the body's own shadow: casting theirs too would only cost a draw
+      castShadow: !windows, receiveShadow: true,
       bounds: { min: box.min.toArray(), max: box.max.toArray(), center: sphere.center.toArray(), radius: sphere.radius },
     });
     geometry.dispose();
   });
-  return { key, parts, height: top };
+  const sources = parts.map(p => ({ attributes: p.attributes, index: p.index }));
+  const lods = simplifier ? makeLevels(sources, simplifier) : [];
+  // ... and the shadow's, much lighter, as the shadow map sees no crease or colour
+  return { key, parts, height: top, ...(lods.length ? { lods } : {}), ...(simplifier ? { shadow: makeShadow(sources, simplifier) } : {}) };
 }
 
 /** Loads era models on the page (GLTFLoader with Draco); every other model goes to `inner`, the model worker. */
@@ -172,8 +178,8 @@ export function eraPrototypeProvider(inner: PrototypeProvider, base = ERA_BUILDI
       if (!era) { inner.request(request); return; }
       const region = (request.options.region ?? 'central') as RegionId;
       const url = `${base}era${era.era}/${region}/${era.kind}.glb`;
-      getLoader().then(gltf => gltf.loadAsync(url)).then(result => {
-        if (!disposed) ready.push(serializeEraScene(request.key, result.scene));
+      Promise.all([getLoader().then(gltf => gltf.loadAsync(url)), loadSimplifier()]).then(([result, simplifier]) => {
+        if (!disposed) ready.push(serializeEraScene(request.key, result.scene, simplifier));
       }).catch(error => {
         if (!disposed) ready.push({ key: request.key, parts: [], height: 0, error: String(error) });
       });
