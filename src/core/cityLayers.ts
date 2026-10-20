@@ -16,7 +16,7 @@ import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsK
 import { RoadGraph } from "../roads/roadGraph.js";
 import { PlacedBuildings } from "../buildings/placedBuildings.js";
 import { readBuildingRecords, writeBuildings } from "../buildings/buildingRecords.js";
-import { segmentTiles } from "../roads/roadRaster.js";
+import { segmentStands } from "../roads/roadRaster.js";
 import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
 import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
@@ -140,10 +140,8 @@ function readGraph(saved: unknown): RoadGraph | null {
 function graphKept(map: Legacy, graph: RoadGraph | null | undefined, rail: boolean): ReturnType<RoadGraph["toJSON"]> | undefined {
   if (!graph || !graph.segments.size) return undefined;
   const raster = { width: map.width, height: map.height, tileSizeM: tileMetres(map) }, kind = rail ? isAnyRail : isAnyRoad;
-  const standing = (id: number): boolean => {
-    const tiles = segmentTiles(graph, id, raster);
-    return tiles.length > 0 && tiles.every((i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
-  };
+  const standing = (id: number): boolean =>
+    segmentStands(graph, id, raster, (i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
   const gone = new Set<number>();
   for (const id of graph.segments.keys()) if (!standing(id)) gone.add(graph.segment(id).piece ?? -id);
   const kept = RoadGraph.fromJSON(graph.toJSON());

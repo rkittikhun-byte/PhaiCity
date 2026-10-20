@@ -21,10 +21,9 @@ import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
-import { segmentTiles } from "./roads/roadRaster";
 import { cutTile } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
-import { linePrice } from "./roads/roadDraw";
+import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
 import type { BuildingMap } from "./buildings/buildingRecords";
@@ -490,10 +489,14 @@ export class CityCommands {
     const ends = [command.from, command.to, command.c1, command.c2].filter((p): p is [number, number] => p !== undefined);
     if (ends.some(([x, z]) => x > width * size || z > height * size)) return { accepted: false, reason: "outside the map" };
     const drawn = { from: command.from, to: command.to, c1: command.c1, c2: command.c2, level: tool.roadLevel ?? 1 };
-    // Its tiles, from one end to the other, worked out on a graph of its own so nothing is split yet
-    const draft = new RoadGraph(), made = draft.add(drawn).segments;
-    if (!made.length) return { accepted: false, reason: "too short" };
-    const tiles = made.flatMap((id) => segmentTiles(draft, id, { width, height, tileSizeM: size }));
+    // Railways in a graph of their own: a railway crossing a road is a level crossing, not a junction
+    const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
+    const kept = rail ? graphs.railGraph : graphs.roadGraph;
+    // Its tiles, from one end to the other, and its length, as the graph will hold it: tried on the graph and taken
+    // back, so they are the tiles of the very segments it will be, joined to what its ends and crossings meet
+    const placed = lineOnGraph(drawn, { width, height, tileSizeM: size }, kept, drawn.level);
+    if (!placed) return { accepted: false, reason: "too short" };
+    const tiles = placed.tiles;
     if (!tiles.length) return { accepted: false, reason: "outside the map" };
     // The line as the tiles' road pieces keep it (src/roadPieces.ts), in tiles: each point half a tile back, so a tile's
     // middle is its point
@@ -517,8 +520,6 @@ export class CityCommands {
     const isLine = rail ? isRailTile : isRoadTile;
     const whole = tiles.every((i) => isLine(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK));
     if (whole) {
-      // Railways in a graph of their own: a railway crossing a road is a level crossing, not a junction
-      const graphs = map as { roadGraph?: RoadGraph; railGraph?: RoadGraph };
       const graph = rail ? graphs.railGraph ??= new RoadGraph() : graphs.roadGraph ??= new RoadGraph();
       // ... taken back whole with its stroke's tiles on undo (docs/METRE_DRAWING_PLAN.md 1.7): marked where the graph
       // stood before the stroke's first road
@@ -533,8 +534,7 @@ export class CityCommands {
       graph.add({ ...drawn, ...(piece ? { piece } : {}) });
       // Priced by the metre: the tiles' costs put right to the road's length (undone with the stroke)
       const each = Math.round((tool.toolCost ?? 0) * (tool.costFactor ?? 1));
-      const length = made.reduce((sum, id) => sum + draft.length(id), 0);
-      const spent = costs.reduce((sum, cost) => sum + cost, 0), price = linePrice(each, size, length, costs);
+      const spent = costs.reduce((sum, cost) => sum + cost, 0), price = linePrice(each, size, placed.length, costs);
       if (price !== spent) {
         city.budget.spend(price - spent);
         this.history.record(command.stroke, [], price - spent, city.cityTime?.() ?? 0);

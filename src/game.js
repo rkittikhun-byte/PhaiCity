@@ -54,7 +54,7 @@ import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
-import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapToRoads, snapWay } from './roads/roadDraw.ts';
+import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
 import { layerPixels } from './cityMap.ts';
@@ -2139,12 +2139,14 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
   var toolName = this.inputStatus.toolName, tool = this.inputStatus.currentTool;
   if (tool === null || lines.length === 0)
     return null;
-  var map = this.gameMap, size = tileMetres(map), isLine = this.lineKind(toolName);
+  var map = this.gameMap, isLine = this.lineKind(toolName);
   var laid = 0, total = 0, refused = {}, refusal = null;
   lines.forEach(function(item) {
     var line = item.line;
     if (line === null)
       return;
+    // The tiles it is laid on, as the command will lay them on the roads drawn before it
+    var tiles = this.metreLine(toolName, line).tiles;
     var command = {type: 'road', tool: toolName, from: line.from, to: line.to, stroke: stroke};
     if (line.c1) {
       command.c1 = line.c1;
@@ -2158,7 +2160,7 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
     var why = refusal === OUTSIDE_PROVINCE ? t('tool.outside_province') : refusal === LAND_LOCKED ? t('land.note.locked') :
               HOUSE_REASONS.indexOf(refusal) !== -1 ? houseNote(refusal, map) :
               this.simulation.budget.totalFunds < tool.toolCost ? t('draw.debug.no_money') : t('draw.debug.cannot');
-    lineTiles(line, {width: map.width, height: map.height, tileSizeM: size}).forEach(function(i) {
+    tiles.forEach(function(i) {
       total++;
       if (isLine(i % map.width, Math.floor(i / map.width)))
         laid++;
@@ -2181,10 +2183,19 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
 };
 
 
+// A road or railway drawn in metres as the road command lays it on the roads drawn before it: its tiles and its length
+// in metres (src/roads/roadDraw.ts lineOnGraph)
+Game.prototype.metreLine = function(toolName, line) {
+  var map = this.gameMap;
+  return lineOnGraph(line, {width: map.width, height: map.height, tileSizeM: tileMetres(map)},
+                     toolName === 'rail' ? map.railGraph : map.roadGraph) || {tiles: [], length: 0};
+};
+
+
 // What a road or railway drawn in metres would cost and where it could not be laid, as the road command prices it
 // (src/roads/roadDraw.ts linePrice): each tile tried on its own and put back; seen, the tiles roads laid before it in
-// the same stroke take, which it finds a road already
-Game.prototype.estimateRoad = function(line, tiles, seen) {
+// the same stroke take, which it finds a road already; length, its length as laid (metreLine), else as drawn
+Game.prototype.estimateRoad = function(line, tiles, seen, length) {
   var tool = this.inputStatus.currentTool, size = tileMetres(this.gameMap), costs = [];
   var estimate = this.estimateTiles(tiles);
   var blockMaps = this.simulation.blockMaps, width = this.gameMap.width;
@@ -2197,7 +2208,8 @@ Game.prototype.estimateRoad = function(line, tiles, seen) {
     if (seen)
       seen.add(tile.y * width + tile.x);
   }, this);
-  estimate.cost = linePrice(Math.round(tool.toolCost * (tool.costFactor || 1)), size, lineLength(line), costs);
+  estimate.cost = linePrice(Math.round(tool.toolCost * (tool.costFactor || 1)), size,
+                            length === undefined ? lineLength(line) : length, costs);
   return estimate;
 };
 
@@ -2872,12 +2884,13 @@ Game.prototype.drawPreview = function(tile) {
                  start: drawn.length > 0 ? tileOf(drawn[0]) : null};
       if (drawn.length > 0) {
         line = lineOfPoints(drawn.concat([at.m]));
-        tiles = lineTiles(line, mapSize).map(function(i) { return {x: i % mapSize.width, y: Math.floor(i / mapSize.width)}; });
+        var placed = this.metreLine(toolName, line);
+        tiles = placed.tiles.map(function(i) { return {x: i % mapSize.width, y: Math.floor(i / mapSize.width)}; });
         // ... drawn by the view as the curve through its control points, half a tile back as a tile's middle is its point
         controls = [line.from].concat(line.c1 ? [line.c1, line.c2] : [], [line.to]).map(function(m) {
           return {x: m[0] / size - 0.5, y: m[1] / size - 0.5};
         });
-        lineMetres = lineLength(line);
+        lineMetres = placed.length;
         close = alongside(line, this.metreLines(toolName).metres, size);
         // The angle it leaves the road it starts on at, else the way it heads (docs/METRE_DRAWING_PLAN.md, step 1's
         // leftovers: an angle in every mode) ...
@@ -2926,7 +2939,7 @@ Game.prototype.drawPreview = function(tile) {
     }
     metres *= this.gameMap.tileSizeM || DRAWN_TILE_M;
   }
-  var estimate = line !== null ? this.estimateRoad(line, tiles) : metre && mode === 'grid' && tiles.length > 0 ?
+  var estimate = line !== null ? this.estimateRoad(line, tiles, null, lineMetres) : metre && mode === 'grid' && tiles.length > 0 ?
                  this.estimateGrid(drag) : tiles.length > 0 ? this.estimateTiles(tiles) : {cost: 0, blocked: [], why: []};
   if (close.length) {
     var tileSize = tileMetres(this.gameMap);
