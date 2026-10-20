@@ -557,9 +557,12 @@ export class TileSnapshot implements CityMapReader {
       const rot=kept[2],nx=-Math.sin(rot),nz=-Math.cos(rot),delta=size*5*BUILDING_SCALE*(factor-1);
       return p.againstRoad(kept[0]+nx*delta,kept[1]+nz*delta,rot,scale);
     }
+    // Half its depth: an era model is in metres, a tile 16 m deep, the others 10 model units a tile (scale turns
+    // either into world units), so an era building stands its whole plot deep from the road's edge, not 3 m into it
+    const depthHalf=size*(p.id?.startsWith('era.')?8:5)*scale;
     if(zoned&&size<3&&(this.source as CellMap|null)?.cellZones){
       const tx=p.index%this.width,ty=Math.floor(p.index/this.width);
-      const cellPose=cellPlotPose(this.source as unknown as CellMap,tx,ty,size,scale);
+      const cellPose=cellPlotPose(this.source as unknown as CellMap,tx,ty,size,scale,depthHalf);
       if(cellPose)return p.againstRoad(cellPose.x,cellPose.z,cellPose.rotation,scale);
     }
     const near=this.roadSnap!(p.x,p.z,size*5+28);
@@ -567,8 +570,7 @@ export class TileSnapshot implements CityMapReader {
     if(zoned&&size<3){
       let nx=-near.tz,nz=near.tx;
       if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
-      const half=size*5*scale;
-      const gap=near.reach+.4+half;
+      const gap=near.reach+.4+depthHalf;
       return p.againstRoad(near.x+nx*gap,near.z+nz*gap,Math.atan2(-nx,-nz),scale);
     }
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road

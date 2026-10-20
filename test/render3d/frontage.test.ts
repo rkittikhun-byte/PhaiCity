@@ -172,8 +172,12 @@ describe('frontage: era models by the painted cells along the road', () => {
   test('paint left beside a plot is drawn by it, as part of its terrace', () => {
     const core = city();
     const cols = columnsOn(core, 30), next = columnsOn(core, 31);
-    // Tile 30 painted whole, and one column of tile 31: not enough for a plot there
-    paint(core, 'commercial', 300, next[0] + 1);
+    // Tile 30 painted whole, and three cells of a column of tile 31: not enough for a plot there (a column the whole
+    // plot deep would be one, zoneCells PLOT_COVER)
+    paint(core, 'commercial', 300, 310);
+    const stub = south(core, next[0] - 1, next[0] + 1).filter(c => c.row < 3).map(c => c.key);
+    expect(stub.length).toBe(3);
+    expect(core.apply({ type: 'zoneCells', zone: 'commercial', cells: stub }).accepted).toBe(true);
     expect(plotOf(core.map as any, 31, 11)).toBeNull();
     grow(core, 30, 30, 2);
     const s = snapshot(core);
@@ -204,6 +208,39 @@ describe('frontage: era models by the painted cells along the road', () => {
     paint(core, 'residential', cols[3] - 1, cols[3] + 1);
     s.sync(core.map as never);
     expect(s.placement(11 * s.width + 40, 'central')!.id).toBe('era.3.home_1');
+  });
+
+  test('one column of shop paint the whole plot deep is a plot of its own: a lone shophouse bay', () => {
+    const core = city();
+    const cols = columnsOn(core, 24);
+    paint(core, 'commercial', cols[1] - 1, cols[1] + 1);
+    expect(plotOf(core.map as any, 24, 11)).toMatchObject({ kind: 'commercial' });
+    grow(core, 24, 24, 1);
+    const s = snapshot(core);
+    const bays = drawn(s, 23, 25);
+    expect(bays.map(kindOf)).toEqual(['bay1_one']);
+    expect(bays[0].x).toBeCloseTo(cols[1], 1);
+  });
+
+  test('a full-tile era model stands its whole plot deep from the road, its front on the first row of cells', () => {
+    // An era model is in metres, a tile 16 m deep (8 m either side of its middle); it once stood as if 10 m deep,
+    // 3 m out over the road's edge
+    const core = city();
+    paint(core, 'commercial', 500, 510);
+    (core.map as any).era = 4;
+    grow(core, 50, 50, 3);
+    const s = snapshot(core);
+    // as in the game, whose roads are curves its buildings stand against
+    s.curves = true;
+    s.roadSnap = () => null;
+    const tower = s.placement(11 * s.width + 50, 'central')!;
+    expect(tower.id).toBe('era.4.shop_3');
+    const layout = cellsOf(core.map as any);
+    const row0 = south(core, 500, 510).filter(c => c.row === 0);
+    const edge = row0[0].z - layout.cellUnits / 2;
+    const m = tower.modelMatrix(new Matrix4());
+    expect(new Vector3(0, 0, 8).applyMatrix4(m).z).toBeCloseTo(edge, 1);
+    expect(new Vector3(0, 0, -8).applyMatrix4(m).z).toBeCloseTo(edge + 10, 1);
   });
 
   test('painting more cells beside a grown plot redraws it, though no tile changes', () => {
