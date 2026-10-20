@@ -196,7 +196,8 @@ export class CityBench {
     this.town = town;
     return town;
   }
-  private pose(name: string): void {
+  /** The camera at a pose: `usual` (the starting view over the town centre), `wide` (the whole town), `d<n>` (n units out) */
+  pose(name: string): void {
     const n = this.view.navigation, town = this.town;
     n.reset();
     if (name === 'wide' && town) {
@@ -207,7 +208,7 @@ export class CityBench {
     n.update(performance.now());
   }
   /** Frames until no chunk or model is waiting and the detail has stopped changing */
-  private async settle(limit = 5000): Promise<number> {
+  async settle(limit = 5000): Promise<number> {
     const m = this.view.metrics;
     let still = 0, swaps = -1, frames = 0;
     for (; frames < limit && still < 40; frames++) {
@@ -217,7 +218,7 @@ export class CityBench {
     }
     return frames;
   }
-  private async sample(frames: number): Promise<{ drawCalls: number; triangles: number; gpuMs: number | null; cpuMs: number }> {
+  async sample(frames: number): Promise<{ drawCalls: number; triangles: number; gpuMs: number | null; cpuMs: number }> {
     const view = this.view, timer = view.gpuTimer;
     timer?.reset();
     const calls: number[] = [], triangles: number[] = [], cpu: number[] = [];
@@ -239,7 +240,8 @@ export class CityBench {
     this.hold();
     for (let r = 0; r < rounds; r++) for (const lod of [true, false]) {
       this.status = `comparing ${lod ? 'on' : 'off'} ${r + 1}/${rounds}`;
-      this.view.chunks.lodOn = lod; await this.frame(); await this.frame();
+      // ... each after the batches have been built again the other way and have settled
+      this.view.chunks.lodOn = lod; await this.settle(); for (let i = 0; i < 30; i++) await this.frame();
       runs[lod ? 'on' : 'off'].push(await this.sample(frames));
     }
     this.view.chunks.lodOn = true; await this.frame();

@@ -68,6 +68,8 @@ export class ModelPool {
   private shadow: Slots | null = null;
   private capacity = 0;
   private readonly thresholds: number[] = [];
+  /** The buildings of each level in sight at a fill, with their squared distance from the camera, to draw nearest first */
+  private readonly order: { member: PoolMember; i: number; d: number }[][] = [];
   private readonly errors: number[];
   /**
    * @param parts the prototype's parts to draw, by index (the chunks leave out ground parts that the far ground draws)
@@ -143,13 +145,22 @@ export class ModelPool {
             level = lodLevel(Math.max(0, sphere.center.distanceTo(eye) - p.reach[i]), t, p.at[i]);
           }
           p.at[i] = level;
-          ModelPool.put(this.levels[level], m, i);
+          (this.order[level] ??= []).push({ member: m, i, d: sorting ? sphere.center.distanceToSquared(eye) : 0 });
         }
         // ... a little more room against the shadow camera, which the view moves only as it draws
         sphere.radius += 8;
         if (this.shadow && (!view.shadow || view.shadow.intersectsSphere(sphere))) ModelPool.put(this.shadow, m, i);
       }
     }
+    // Each level nearest first, so the depth test passes over what stands behind (the walls and roofs cost the most to
+    // shade) instead of shading it and covering it
+    this.levels.forEach((slots, k) => {
+      const order = this.order[k];
+      if (!order) return;
+      order.sort((a, b) => a.d - b.d);
+      for (const { member, i } of order) ModelPool.put(slots, member, i);
+      order.length = 0;
+    });
     for (const slots of [...this.levels, ...(this.shadow ? [this.shadow] : [])]) {
       for (const mesh of slots.meshes) { mesh.count = slots.count; mesh.visible = slots.count > 0; }
       if (slots.count) { slots.matrix.needsUpdate = true; slots.color.needsUpdate = true; slots.outside.needsUpdate = true; }
