@@ -168,10 +168,15 @@ def plank_walls(p, rect, z0, z1, mat, line_mat, board=0.25, sides=SIDES, posts_m
 
 
 def bands(p, rect, z, h, depth, mat, sides=SIDES):
-    """A belt round the walls (a floor line, a sill band, a cornice)."""
+    """A belt round the walls (a floor line, a sill band, a cornice): a ring sticking depth out of the faces and
+    0.2 m into them, open in the middle so it never lids a roof."""
     x0, y0, x1, y1 = rect
     d = depth
-    return block(p, x0 - d, y0 - d, z, x1 + d, y1 + d, z + h, mat)
+    t = d + 0.2
+    block(p, x0 - d, y0 - d, z, x1 + d, y0 - d + t, z + h, mat)
+    block(p, x0 - d, y1 + d - t, z, x1 + d, y1 + d, z + h, mat)
+    block(p, x0 - d, y0 - d, z, x0 - d + t, y1 + d, z + h, mat)
+    return block(p, x1 + d - t, y0 - d, z, x1 + d, y1 + d, z + h, mat)
 
 
 def corner_posts(p, rect, z0, z1, size, mat):
