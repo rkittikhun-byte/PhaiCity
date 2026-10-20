@@ -2265,6 +2265,90 @@ body #inspectCard .inspectBar span[data-mood="poor"] { background: var(--ph-chil
 body #inspectCard li[data-sign="plus"] { color: var(--ph-rice-500); }
 body #inspectCard li[data-sign="minus"] { color: var(--ph-chili-500); }
 
+/* The era block opens the era card (src/eraCard.ts) */
+body #cityStatus #statusEra { pointer-events: auto; cursor: pointer; border-radius: 8px; }
+body #cityStatus #statusEra:hover, body #cityStatus #statusEra[aria-expanded="true"] { background: var(--ph-accent-soft); }
+body #cityStatus #statusEra:focus-visible { outline: 2px solid var(--ph-accent); outline-offset: 1px; }
+
+/* The era card (docs/GAME_DESIGN.md 1.5): frosted glass under the era in the status, the city running behind it; a row
+   per side of life with a tick or a cross, a bar with its aim marked, what finishing it adds and what to do */
+body #eraCard {
+  position: fixed; z-index: 16; width: 320px; max-width: calc(100vw - 24px); max-height: calc(100vh - 150px) !important;
+  overflow-y: auto; box-sizing: border-box; padding: 10px 12px 12px; font: 400 11px/1.45 'Sarabun Thai', 'Open Sans', sans-serif;
+  text-align: left; background: var(--hud-glass-strong); color: var(--hud-text); border: 1px solid var(--hud-edge);
+  border-radius: 14px; -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: var(--hud-shadow);
+}
+body #eraCard[hidden] { display: none; }
+body #eraCard.docked { animation: windowDropIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+body #eraCard.motionLeave { animation: windowDropOut 0.2s ease-in forwards; }
+@keyframes windowDropIn { from { opacity: 0; transform: translateY(-10px); } }
+@keyframes windowDropOut { to { opacity: 0; transform: translateY(-10px); } }
+body #eraCard header {
+  display: flex; align-items: center; gap: 8px; height: auto !important; padding: 0; background: transparent !important;
+  background-image: none !important; color: var(--hud-dim); font-family: inherit;
+}
+body #eraCard .eraTitle { flex: 1; color: var(--hud-dim); font-size: 10px; }
+body #eraCard .eraClose {
+  flex: none; width: 22px; height: 22px; min-height: 0; padding: 0; border: none; border-radius: 50%;
+  background: none; color: var(--hud-text); box-shadow: none; cursor: pointer;
+}
+body #eraCard .eraClose:hover { background: var(--ph-accent-soft); }
+body #eraCard .eraName { font-size: 14px; line-height: 1.3; }
+body #eraCard .eraNextName { color: var(--hud-dim); font-size: 12px; }
+body #eraCard .eraScoreLine { display: flex; align-items: center; gap: 8px; margin: 5px 0 2px; }
+body #eraCard .eraScoreLine .eraBar { flex: 1; height: 8px; }
+body #eraCard .eraScoreValue { font-size: 13px; }
+body #eraCard .eraStage, body #eraCard .eraFormula { color: var(--hud-dim); font-size: 10px; }
+body #eraCard .eraBest {
+  margin: 7px 0 4px; padding: 5px 8px; border-radius: 8px; background: var(--ph-accent-soft);
+}
+body #eraCard .eraBest[data-state="done"] { background: rgba(var(--ph-rice-500-rgb), 0.16); }
+body #eraCard .eraFloor {
+  margin: 4px 0; padding: 5px 8px; border-radius: 8px; background: rgba(var(--ph-gold-400-rgb), 0.2);
+}
+body #eraCard .eraFloor[data-holding="true"] { background: rgba(var(--ph-chili-400-rgb), 0.18); }
+body #eraCard .eraSection { margin: 8px 0 2px; color: var(--hud-dim); font-size: 10px; }
+body #eraCard ul { margin: 0; padding: 0; list-style: none; }
+body #eraCard .eraRow {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) 54px auto 30px; align-items: center; column-gap: 6px;
+  padding: 2px 0;
+}
+body #eraCard .eraSymbols .eraRow { grid-template-columns: 12px minmax(0, 1fr); }
+body #eraCard .eraMark { color: var(--ph-danger); text-align: center; }
+body #eraCard .eraRow[data-met="true"] .eraMark { color: var(--ph-success); }
+body #eraCard .eraRowName { line-height: 1.25; }
+body #eraCard .eraReading { color: var(--hud-dim); font-size: 10px; text-align: right; white-space: nowrap; }
+body #eraCard .eraGain { color: var(--ph-success); font-size: 10px; text-align: right; }
+body #eraCard .eraHint { grid-column: 2 / -1; color: var(--hud-dim); font-size: 10px; line-height: 1.35; }
+body #eraCard .eraBar {
+  position: relative; display: block; height: 5px; border-radius: 3px; background: rgba(var(--ph-sand-500-rgb), 0.25);
+}
+body #eraCard .eraFill { display: block; height: 100%; border-radius: 3px; background: var(--ph-rice-500); }
+body #eraCard .eraFill[data-mood="fair"] { background: var(--ph-gold-500); }
+body #eraCard .eraFill[data-mood="poor"] { background: var(--ph-chili-400); }
+body #eraCard .eraAim {
+  position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--hud-text);
+}
+
+/* A home's, shop's or factory's level and what its next level needs (src/plotChecklist.ts) */
+body #inspectCard .plotLevel { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px; font-size: 12px; }
+body #inspectCard .plotPips { display: inline-flex; gap: 3px; }
+body #inspectCard .plotPips i { width: 7px; height: 7px; border-radius: 50%; background: rgba(var(--ph-sand-500-rgb), 0.3); }
+body #inspectCard .plotPips i.reached { background: var(--ph-accent); }
+body #inspectCard .plotStatus { margin: 0 0 4px; padding: 4px 8px; border-radius: 8px; background: var(--ph-accent-soft); }
+body #inspectCard .plotStatus[data-state="growing"], body #inspectCard .plotStatus[data-state="top"] {
+  background: rgba(var(--ph-rice-500-rgb), 0.16);
+}
+body #inspectCard .plotChecksTitle { margin: 6px 0 1px; color: var(--hud-dim); font-size: 10px; }
+body #inspectCard ul.plotChecks { margin: 0 0 6px; padding: 0; list-style: none; }
+body #inspectCard .plotChecks li { display: grid; grid-template-columns: 12px minmax(0, 1fr); column-gap: 6px; margin: 1px 0; }
+body #inspectCard .plotChecks .checkMark { color: var(--ph-danger); text-align: center; }
+body #inspectCard .plotChecks li[data-ok="true"] .checkMark { color: var(--ph-success); }
+body #inspectCard .plotChecks li[data-holds="true"] { margin: 2px -4px; padding: 2px 4px; border-radius: 6px; background: rgba(var(--ph-chili-400-rgb), 0.14); }
+body #inspectCard .plotChecks .checkHint { grid-column: 2; color: var(--hud-dim); font-size: 10px; line-height: 1.35; }
+body #inspectCard .plotLater { margin: 0 0 6px; color: var(--hud-dim); font-size: 10px; }
+
 /* The loading screen between the province card and the city (src/loadingScreen.ts): the gold PhaiCity logo, the
    city's name, one line of what loads now sliding in as it changes, and a glowing gold bar with a comet head and the
    share done counting beside it, then the region's music; over the dark curtain, fading once the city has drawn */

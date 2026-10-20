@@ -22,6 +22,13 @@ describe("windows beside their card", () => {
     expect(besidePosition(dock, { width: 210, height: 230 }, view)).toEqual({ left: 535, top: 458, from: "below" });
   });
 
+  test("a card in the top bar, the era in the city's status, gets its window under it", () => {
+    const era = { left: 520, top: 10, width: 90, height: 34 };
+    expect(besidePosition(era, { width: 310, height: 400 }, view)).toEqual({ left: 520, top: 54, from: "above" });
+    // ... kept on screen at the right edge
+    expect(besidePosition({ ...era, left: 1200 }, { width: 310, height: 400 }, view).left).toBe(1280 - 12 - 310);
+  });
+
   test("a tall window moves up to stay on screen, but never past the top", () => {
     expect(besidePosition(menu, { width: 340, height: 600 }, view).top).toBe(720 - 12 - 600);
     expect(besidePosition(menu, { width: 340, height: 900 }, view).top).toBe(12);

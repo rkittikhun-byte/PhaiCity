@@ -1319,10 +1319,6 @@
 | `status.tourists_festival` | `src/cityStatus.ts` | — | `{festival}. They spent {income} this month ({wanted} wanted to come)` | `{festival} เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | เดือนที่มีเทศกาล |
 | `status.era` | `index.html` | — | `Era` | `ยุค` | แถบสถานะ: ยุคของเมืองและคะแนนยุค (เจ้าของโปรเจกต์ 20 ต.ค. 2026, docs/GAME_DESIGN.md) |
 | `status.era_value` | `src/cityStatus.ts` | — | `{era} {percent}%` | `{era} {percent}%` |  |
-| `status.era_title` | `src/cityStatus.ts` | — | `Era score {percent}% = people {people} of {wanted} ({peoplePercent}%) × how well they live {quality}%` | `คะแนนยุค {percent}% = คน {people} จาก {wanted} ({peoplePercent}%) × คุณภาพชีวิต {quality}%` | บรรทัดแรกเมื่อชี้ |
-| `status.era_factor` | `src/cityStatus.ts` | — | `{name}: {value}% (aim {target}%)` | `{name}: {value}% (เป้า {target}%)` | หนึ่งบรรทัดต่อด้าน |
-| `status.era_held` | `src/cityStatus.ts` | — | `Held below 80%: fewer than half the people have {name}` | `ค้างไว้ต่ำกว่า 80%: คนที่มี{name}ยังไม่ถึงครึ่ง` |  |
-| `status.era_symbols` | `src/cityStatus.ts` | — | `The next era needs: {list}` | `ยุคถัดไปต้องมี: {list}` |  |
 | `status.era_last` | `src/cityStatus.ts` | — | `The last era: how complete the future city is` | `ยุคสุดท้าย: ความสมบูรณ์ของเมืองอนาคต` | ยุค 5 |
 | `era.name.1` | `src/cityStatus.ts` | — | `Farming village` | `หมู่บ้านเกษตร` |  |
 | `era.name.2` | `src/cityStatus.ts` | — | `Market town` | `เมืองตลาด` |  |
@@ -1349,6 +1345,49 @@
 | `era.symbol.university_or_metro` | `src/cityStatus.ts` | — | `a university or a metro` | `มหาวิทยาลัยหรือรถไฟฟ้า` |  |
 | `era.symbol.recycling` | `src/cityStatus.ts` | — | `a recycling plant` | `โรงงานรีไซเคิล` |  |
 | `era.symbol.clean_power` | `src/cityStatus.ts` | — | `half the power clean` | `ไฟฟ้าสะอาดครึ่งหนึ่ง` | แสงอาทิตย์ ลม น้ำ |
+| `status.era_open` | `src/cityStatus.ts` | — | `Click for what moves the city to the next era` | `คลิกดูว่าอะไรพาเมืองไปยุคถัดไป` | ข้อความเมื่อชี้ช่องยุค คลิกเปิดการ์ดยุค |
+| `era.card.title` | `src/eraCard.ts` | — | `The city's era` | `ยุคของเมือง` | การ์ดยุค (docs/GAME_DESIGN.md 1.5, Claude Code 20 ต.ค. 2026) |
+| `era.card.stage.growing` | `src/eraCard.ts` | — | `Buildings begin to take the {next} look at {transition}%; at 100% the city is a {next}` | `ตึกเริ่มเปลี่ยนเป็นแบบ{next}ที่ {transition}% ถึง 100% เข้ายุค{next}` | คะแนนยังต่ำกว่า 80% |
+| `era.card.stage.changing` | `src/eraCard.ts` | — | `Changing: some buildings already take the {next} look; at 100% the city is a {next}` | `ช่วงเปลี่ยนผ่าน ตึกบางหลังเป็นแบบ{next}แล้ว ถึง 100% เข้ายุค{next}` | 80% ขึ้นไป |
+| `era.card.formula` | `src/eraCard.ts` | — | `The score is the last {months} months' average. This month: people {people}% × how well they live {quality}% = {raw}%` | `คะแนนเป็นค่าเฉลี่ย {months} เดือน เดือนนี้ คน {people}% × คุณภาพชีวิต {quality}% = {raw}%` |  |
+| `era.card.best` | `src/eraCard.ts` | — | `Do next: {hint}` | `ทำต่อ: {hint}` | สิ่งที่ช่วยคะแนนได้มากที่สุดตอนนี้ |
+| `era.card.gain` | `src/eraCard.ts` | — | `+{gain}%` | `+{gain}%` | คะแนนยุคที่จะเพิ่มถ้าทำด้านนี้ครบ |
+| `era.card.all_done` | `src/eraCard.ts` | — | `Everything is in place: the score climbs as the months average out` | `ครบทุกด้านแล้ว คะแนนจะขึ้นตามค่าเฉลี่ยของเดือนต่อ ๆ ไป` |  |
+| `era.card.floor` | `src/eraCard.ts` | — | `Fewer than {floor}% of the people have {name} ({value}%): until they do, the score stops at {cap}%` | `คนที่มี{name}ยังไม่ถึง {floor}% (มี {value}%) คะแนนจะไม่เกิน {cap}% จนกว่าจะถึง` | ด้านที่ต่ำกว่าครึ่ง (กันพลาด) |
+| `era.card.floor_holding` | `src/eraCard.ts` | — | `Held at {cap}% now: fewer than {floor}% of the people have {name} ({value}%)` | `ตอนนี้คะแนนค้างที่ {cap}% เพราะคนที่มี{name}ยังไม่ถึง {floor}% (มี {value}%)` |  |
+| `era.card.section_people` | `src/eraCard.ts` | — | `Population` | `ประชากร` |  |
+| `era.card.people` | `src/eraCard.ts` | — | `People` | `จำนวนคน` |  |
+| `era.card.people_value` | `src/eraCard.ts` | — | `{count} of {wanted}` | `{count} จาก {wanted}` |  |
+| `era.card.section_quality` | `src/eraCard.ts` | — | `How well they live: {quality}%` | `คุณภาพชีวิต {quality}%` |  |
+| `era.card.aim` | `src/eraCard.ts` | — | `{value}% · aim {target}%` | `{value}% · เป้า {target}%` |  |
+| `era.card.count` | `src/eraCard.ts` | — | `{has} of {all}` | `{has} จาก {all}` | สัญลักษณ์ของยุคที่มีแล้ว |
+| `era.card.weight` | `src/eraCard.ts` | — | `Counts {weight}% of how well they live` | `มีน้ำหนัก {weight}% ของคุณภาพชีวิต` | ข้อความเมื่อชี้ชื่อด้าน |
+| `era.card.met` | `src/eraCard.ts` | — | `Met` | `ผ่าน` | สำหรับโปรแกรมอ่านจอ |
+| `era.card.unmet` | `src/eraCard.ts` | — | `Not yet` | `ยังไม่ผ่าน` |  |
+| `era.card.symbols` | `src/eraCard.ts` | — | `A {next} must have` | `{next}ต้องมี` |  |
+| `era.card.symbols_last` | `src/eraCard.ts` | — | `A complete future city must have` | `เมืองอนาคตที่สมบูรณ์ต้องมี` | ยุค 5 |
+| `era.hint.people` | `src/eraReport.ts` | — | `Paint more homes beside roads: people come where there are water, power and work` | `ทาเขตที่อยู่อาศัยริมถนนเพิ่ม คนจะย้ายมาเมื่อมีน้ำ ไฟ และงาน` | สิ่งที่ผู้เล่นทำได้ ด้านละหนึ่งบรรทัด |
+| `era.hint.water` | `src/eraReport.ts` | — | `Build a water works beside a road: water runs in the pipes under every road it reaches. Add another if it runs short` | `สร้างโรงผลิตน้ำประปาติดถนน น้ำไหลไปตามท่อใต้ถนนที่ต่อถึง ถ้าน้ำไม่พอให้สร้างเพิ่ม` |  |
+| `era.hint.power` | `src/eraReport.ts` | — | `Build a power plant beside a road: power runs along every road it reaches` | `สร้างโรงไฟฟ้าติดถนน ไฟฟ้าวิ่งไปตามถนนที่ต่อถึง` |  |
+| `era.hint.jobs` | `src/eraReport.ts` | — | `Paint shops and factories so people have work` | `ทาเขตพาณิชย์และอุตสาหกรรมเพิ่ม ให้คนมีงานทำ` |  |
+| `era.hint.education` | `src/eraReport.ts` | — | `Build schools with seats for the children` | `สร้างโรงเรียนให้ที่นั่งพอกับเด็ก` | ยุค 1–2 |
+| `era.hint.education_higher` | `src/eraReport.ts` | — | `Build schools, and a vocational college or university for the young` | `สร้างโรงเรียน และวิทยาลัยอาชีวะหรือมหาวิทยาลัยให้คนหนุ่มสาว` | ยุค 3 ขึ้นไป |
+| `era.hint.health` | `src/eraReport.ts` | — | `Build a health centre or a hospital` | `สร้างโรงพยาบาลส่งเสริมสุขภาพตำบลหรือโรงพยาบาล` |  |
+| `era.hint.safety` | `src/eraReport.ts` | — | `Build police stations near the homes and keep the police budget full` | `สร้างสถานีตำรวจใกล้ย่านที่อยู่อาศัย และจ่ายงบตำรวจให้เต็ม` |  |
+| `era.hint.clean` | `src/eraReport.ts` | — | `Build enough rubbish sites (landfill, incinerator, recycling) and fewer smoky plants and factories` | `สร้างที่จัดการขยะให้พอ (ฝังกลบ เตาเผา รีไซเคิล) และลดโรงงานกับโรงไฟฟ้าที่มีควัน` |  |
+| `era.hint.living` | `src/eraReport.ts` | — | `Parks, fair taxes and good services raise land value and please the people` | `สวน ภาษีที่พอดี และบริการที่ดี ทำให้ที่ดินมีราคาและชาวเมืองพอใจ` |  |
+| `era.hint.symbol` | `src/eraReport.ts` | — | `Build what the era must have, in the list below` | `สร้างสิ่งที่ยุคต้องมีตามรายการด้านล่าง` |  |
+| `era.symbol_hint.ruler_house` | `src/eraReport.ts` | — | `City & land: the ruler's house, beside a road` | `หมวดเมืองและที่ดิน: สร้างที่ว่าการ (จวนเจ้าเมือง) ติดถนน` | วิธีได้สัญลักษณ์ของยุค |
+| `era.symbol_hint.shops` | `src/eraReport.ts` | — | `Zones: paint shops along the roads until five stand` | `หมวดเขตเมือง: ทาเขตพาณิชย์ริมถนนจนมีร้าน 5 ร้าน` |  |
+| `era.symbol_hint.water_works` | `src/eraReport.ts` | — | `Services › Water supply: a water works beside a road` | `บริการเมือง › ประปา: สร้างโรงผลิตน้ำประปาติดถนน` |  |
+| `era.symbol_hint.power_plant` | `src/eraReport.ts` | — | `Services › Power plant: any kind, beside a road` | `บริการเมือง › โรงไฟฟ้า: แบบใดก็ได้ ติดถนน` |  |
+| `era.symbol_hint.school` | `src/eraReport.ts` | — | `Services › Education: any school` | `บริการเมือง › การศึกษา: โรงเรียนแบบใดก็ได้` |  |
+| `era.symbol_hint.hospital` | `src/eraReport.ts` | — | `Services › Healthcare: a hospital (it may need a higher ruler's house first)` | `บริการเมือง › สาธารณสุข: โรงพยาบาล (อาจต้องยกระดับที่ว่าการก่อน)` |  |
+| `era.symbol_hint.secondary_school` | `src/eraReport.ts` | — | `Services › Education: a secondary school or higher (needs a higher ruler's house)` | `บริการเมือง › การศึกษา: โรงเรียนมัธยมขึ้นไป (ต้องยกระดับที่ว่าการก่อน)` |  |
+| `era.symbol_hint.paved_roads` | `src/eraReport.ts` | — | `Raise laterite roads to paved ones with the road upgrade, above the road button` | `ยกระดับถนนลูกรังเป็นลาดยางด้วยเครื่องมืออัปเกรดถนน เหนือปุ่มถนน` |  |
+| `era.symbol_hint.university_or_metro` | `src/eraReport.ts` | — | `A university (Education), or a metro or high-speed rail station (Public transport)` | `มหาวิทยาลัย (การศึกษา) หรือสถานีรถไฟฟ้าหรือรถไฟความเร็วสูง (ขนส่งสาธารณะ)` |  |
+| `era.symbol_hint.recycling` | `src/eraReport.ts` | — | `Services › Waste & sewage: a recycling plant` | `บริการเมือง › ขยะและน้ำเสีย: โรงงานรีไซเคิล` |  |
+| `era.symbol_hint.clean_power` | `src/eraReport.ts` | — | `Make at least half the power plants solar, wind or dams` | `ให้โรงไฟฟ้าอย่างน้อยครึ่งหนึ่งเป็นแสงอาทิตย์ ลม หรือเขื่อน` |  |
 | `era.dawn` | `src/game.js` | — | `The city is entering a new era, {era}: its buildings begin to change` | `เมืองเริ่มเข้าสู่ยุค{era} ตึกบางหลังเริ่มเปลี่ยนโฉม` | ข่าวเมื่อคะแนนยุคถึง 80% |
 | `congrats.era` | `src/game.js` | — | `{name} has entered a new era: {era}!` | `{name} เข้าสู่ยุคใหม่: {era}!` | หน้าต่างยินดีเมื่อคะแนนยุคถึง 100% |
 | `time.bar` | `src/timeControls.ts` | — | `Game time` | `เวลาในเกม` | แถบเวลามุมล่างซ้าย (เจ้าของโปรเจกต์ 20 ต.ค. 2026: "แยกปุ่ม control เวลาออกมาเลย") |
@@ -1474,16 +1513,71 @@
 | `object.fact.land_value` | `src/inspect.ts` | — | `Land value: {grade}` | `ราคาที่ดิน: {grade}` |  |
 | `object.fact.pollution` | `src/inspect.ts` | — | `Pollution: {grade}` | `มลพิษ: {grade}` |  |
 | `object.fact.crime` | `src/inspect.ts` | — | `Crime: {grade}` | `อาชญากรรม: {grade}` |  |
-| `object.fact.why.none` | `src/inspect.ts` | — | `Growing: it rises when its turn comes` | `กำลังโต: จะขยายเมื่อถึงรอบ` | เหตุที่แปลงไม่โต (`src/plots.ts` PLOT_WHY) |
-| `object.fact.why.power` | `src/inspect.ts` | — | `Not growing: no power. Build a power plant beside a road it reaches` | `ไม่โต: ไม่มีไฟฟ้า สร้างโรงไฟฟ้าติดถนนที่ต่อถึง` |  |
-| `object.fact.why.water` | `src/inspect.ts` | — | `Not growing: no water. Build a water works, or another if the water runs short` | `ไม่โต: ไม่มีน้ำประปา สร้างโรงประปา หรือเพิ่มอีกแห่งถ้าน้ำไม่พอ` |  |
-| `object.fact.why.road` | `src/inspect.ts` | — | `Not growing: no road to drive on` | `ไม่โต: ไม่มีถนนให้รถออกไปได้` |  |
-| `object.fact.why.pollution` | `src/inspect.ts` | — | `Not growing: too much pollution here. Keep factories and busy roads away, or plant parks` | `ไม่โต: มลพิษมากเกินไป ย้ายโรงงานและถนนที่รถมากออกห่าง หรือปลูกสวน` |  |
-| `object.fact.why.land` | `src/inspect.ts` | — | `Not growing: the land is worth too little. Parks, buses and the town centre raise it` | `ไม่โต: ราคาที่ดินต่ำเกินไป สวน รถเมล์ และความใกล้ใจกลางเมืองช่วยได้` |  |
-| `object.fact.why.demand` | `src/inspect.ts` | — | `Not growing: the city wants no more of this kind now` | `ไม่โต: ตอนนี้เมืองยังไม่ต้องการอาคารแบบนี้เพิ่ม` |  |
-| `object.fact.why.quiet` | `src/inspect.ts` | — | `Not growing taller: too few people around yet` | `ยังไม่ขยายสูงขึ้น: คนรอบ ๆ ยังน้อย` |  |
-| `object.fact.why.lot` | `src/inspect.ts` | — | `At its tallest on one plot: four grown plots side by side make room for more` | `สูงสุดสำหรับแปลงเดียว ต้องมีแปลงที่โตแล้วติดกัน 4 แปลงจึงสูงได้อีก` |  |
-| `object.fact.why.top` | `src/inspect.ts` | — | `At its tallest` | `โตเต็มที่แล้ว` |  |
+| `object.kind.plot.residential` | `src/inspect.ts` | — | `Empty home plot` | `แปลงที่อยู่อาศัยว่าง` | แปลงที่ทาแล้วแต่ยังไม่มีอาคาร |
+| `object.kind.plot.commercial` | `src/inspect.ts` | — | `Empty shop plot` | `แปลงพาณิชย์ว่าง` |  |
+| `object.kind.plot.industrial` | `src/inspect.ts` | — | `Empty factory plot` | `แปลงอุตสาหกรรมว่าง` |  |
+| `plot.level` | `src/inspectCard.ts` | — | `Level {level} of {top}` | `ระดับ {level} จาก {top}` | เช็กลิสต์ระดับอาคาร (src/plotChecklist.ts, docs/GAME_DESIGN.md ข้อ 2) |
+| `plot.level_empty` | `src/inspectCard.ts` | — | `Nothing built yet · up to level {top}` | `ยังไม่มีอาคาร · สูงสุดระดับ {top}` |  |
+| `plot.status.growing` | `src/inspectCard.ts` | — | `Has all it needs: it rises to level {level} when its turn comes` | `ครบทุกข้อ จะขึ้นระดับ {level} เมื่อถึงรอบ` |  |
+| `plot.status.top` | `src/inspectCard.ts` | — | `At its tallest, with all it needs` | `สูงสุดแล้ว และมีครบทุกอย่าง` |  |
+| `plot.status.held` | `src/inspectCard.ts` | — | `Not rising to level {level}: held by {name}` | `ยังไม่ขึ้นระดับ {level}: ติดที่{name}` |  |
+| `plot.status.keep` | `src/inspectCard.ts` | — | `At its tallest, but it lacks {name}: it may shrink` | `สูงสุดแล้ว แต่ขาด{name} อาจลดระดับลง` |  |
+| `plot.checks.next` | `src/inspectCard.ts` | — | `Level {level} needs` | `ระดับ {level} ต้องมี` |  |
+| `plot.checks.keep` | `src/inspectCard.ts` | — | `To keep its level` | `เพื่อคงระดับไว้` |  |
+| `plot.name.road` | `src/inspectCard.ts` | — | `the road` | `ถนน` |  |
+| `plot.name.power` | `src/inspectCard.ts` | — | `power` | `ไฟฟ้า` |  |
+| `plot.name.water` | `src/inspectCard.ts` | — | `water` | `น้ำประปา` |  |
+| `plot.name.demand` | `src/inspectCard.ts` | — | `demand` | `ความต้องการของเมือง` |  |
+| `plot.name.services` | `src/inspectCard.ts` | — | `schools and health` | `โรงเรียนและสุขภาพ` |  |
+| `plot.name.land` | `src/inspectCard.ts` | — | `land value` | `ราคาที่ดิน` |  |
+| `plot.name.pollution` | `src/inspectCard.ts` | — | `pollution` | `มลพิษ` |  |
+| `plot.name.crowd` | `src/inspectCard.ts` | — | `the people round it` | `คนรอบ ๆ` |  |
+| `plot.name.lot` | `src/inspectCard.ts` | — | `a lot of four plots` | `แปลงรวม 4 แปลง` |  |
+| `plot.check.road` | `src/plotChecklist.ts` | — | `A road within reach` | `มีถนนในระยะเข้าถึง` |  |
+| `plot.check.road_none` | `src/plotChecklist.ts` | — | `No road within {reach} tiles` | `ไม่มีถนนในระยะ {reach} ช่อง` |  |
+| `plot.check.route.residential` | `src/plotChecklist.ts` | — | `No way along the roads to any shops` | `ถนนยังไปไม่ถึงร้านค้า` |  |
+| `plot.check.route.commercial` | `src/plotChecklist.ts` | — | `No way along the roads to any factories` | `ถนนยังไปไม่ถึงโรงงาน` |  |
+| `plot.check.route.industrial` | `src/plotChecklist.ts` | — | `No way along the roads to any homes` | `ถนนยังไปไม่ถึงบ้านคน` |  |
+| `plot.check.power` | `src/plotChecklist.ts` | — | `Power` | `มีไฟฟ้า` |  |
+| `plot.check.power_none` | `src/plotChecklist.ts` | — | `No power` | `ไม่มีไฟฟ้า` |  |
+| `plot.check.water` | `src/plotChecklist.ts` | — | `Water` | `มีน้ำประปา` |  |
+| `plot.check.water_none` | `src/plotChecklist.ts` | — | `No water` | `ไม่มีน้ำประปา` |  |
+| `plot.check.demand.residential` | `src/plotChecklist.ts` | — | `The city wants more homes` | `เมืองต้องการบ้านเพิ่ม` |  |
+| `plot.check.demand_none.residential` | `src/plotChecklist.ts` | — | `The city wants no more homes now` | `ตอนนี้เมืองยังไม่ต้องการบ้านเพิ่ม` |  |
+| `plot.check.demand.commercial` | `src/plotChecklist.ts` | — | `The city wants more shops` | `เมืองต้องการร้านค้าเพิ่ม` |  |
+| `plot.check.demand_none.commercial` | `src/plotChecklist.ts` | — | `The city wants no more shops now` | `ตอนนี้เมืองยังไม่ต้องการร้านค้าเพิ่ม` |  |
+| `plot.check.demand.industrial` | `src/plotChecklist.ts` | — | `The city wants more factories` | `เมืองต้องการโรงงานเพิ่ม` |  |
+| `plot.check.demand_none.industrial` | `src/plotChecklist.ts` | — | `The city wants no more factories now` | `ตอนนี้เมืองยังไม่ต้องการโรงงานเพิ่ม` |  |
+| `plot.check.services` | `src/plotChecklist.ts` | — | `Schools {school}%, health {health}%: they draw families` | `โรงเรียน {school}% สุขภาพ {health}% ดึงครอบครัวเข้ามา` | เฉพาะบ้าน เมื่อเมืองมีคน 500 ขึ้นไป |
+| `plot.check.services_enough` | `src/plotChecklist.ts` | — | `Schools {school}%, health {health}%: enough for now` | `โรงเรียน {school}% สุขภาพ {health}% พอสำหรับตอนนี้` | หมู่บ้านต่ำกว่า 2,000 คนยังไม่ขาด |
+| `plot.check.services_low` | `src/plotChecklist.ts` | — | `Schools {school}%, health {health}%: too few, families stay away` | `โรงเรียน {school}% สุขภาพ {health}% ยังไม่พอ ครอบครัวไม่อยากมา` |  |
+| `plot.check.land` | `src/plotChecklist.ts` | — | `Land value: {grade}` | `ราคาที่ดิน: {grade}` |  |
+| `plot.check.pollution` | `src/plotChecklist.ts` | — | `Pollution: {grade}` | `มลพิษ: {grade}` |  |
+| `plot.check.crowd` | `src/plotChecklist.ts` | — | `Enough people round it` | `คนรอบ ๆ มากพอ` |  |
+| `plot.check.crowd_low` | `src/plotChecklist.ts` | — | `Too few people round it yet` | `คนรอบ ๆ ยังน้อย` |  |
+| `plot.check.lot` | `src/plotChecklist.ts` | — | `Part of a lot of four plots` | `อยู่ในแปลงรวม 4 แปลง` |  |
+| `plot.check.lot_none` | `src/plotChecklist.ts` | — | `Needs four plots side by side (2 × 2), each at level {level} or more` | `ต้องมี 4 แปลงติดกัน (2 × 2) ระดับ {level} ขึ้นไปทุกแปลง` | ระดับสูงสุดโตได้เฉพาะบนแปลงรวม |
+| `plot.hint.road` | `src/plotChecklist.ts` | — | `Build a road close by` | `สร้างถนนให้ใกล้แปลงนี้` |  |
+| `plot.hint.route.residential` | `src/plotChecklist.ts` | — | `Join this road to the roads round the shops` | `ต่อถนนเส้นนี้ไปถึงย่านร้านค้า` |  |
+| `plot.hint.route.commercial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the factories` | `ต่อถนนเส้นนี้ไปถึงย่านโรงงาน` |  |
+| `plot.hint.route.industrial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย` |  |
+| `plot.hint.power` | `src/plotChecklist.ts` | — | `Build a power plant beside a road that reaches here` | `สร้างโรงไฟฟ้าติดถนนที่ต่อมาถึงที่นี่` |  |
+| `plot.hint.water` | `src/plotChecklist.ts` | — | `Build a water works beside a road that reaches here, or another if the water runs short` | `สร้างโรงผลิตน้ำประปาติดถนนที่ต่อมาถึง หรือเพิ่มอีกแห่งถ้าน้ำไม่พอ` |  |
+| `plot.hint.demand.residential` | `src/plotChecklist.ts` | — | `Jobs, schools, health and lower home taxes draw people` | `งาน โรงเรียน สุขภาพ และภาษีที่อยู่อาศัยที่ต่ำลง ดึงคนเข้าเมือง` |  |
+| `plot.hint.demand.commercial` | `src/plotChecklist.ts` | — | `More people and lower shop taxes bring customers` | `คนมากขึ้นและภาษีพาณิชย์ที่ต่ำลง ทำให้มีลูกค้า` |  |
+| `plot.hint.demand.industrial` | `src/plotChecklist.ts` | — | `More people and lower factory taxes bring orders` | `คนมากขึ้นและภาษีอุตสาหกรรมที่ต่ำลง ทำให้มีงานสั่งเข้ามา` |  |
+| `plot.hint.services` | `src/plotChecklist.ts` | — | `Build schools and a health centre or hospital` | `สร้างโรงเรียน และโรงพยาบาลส่งเสริมสุขภาพตำบลหรือโรงพยาบาล` |  |
+| `plot.hint.land` | `src/plotChecklist.ts` | — | `Parks, water nearby, buses and the town centre raise land value` | `สวน แหล่งน้ำ รถเมล์ และความใกล้ใจกลางเมือง ทำให้ที่ดินมีราคา` |  |
+| `plot.hint.land_shop` | `src/plotChecklist.ts` | — | `A shop grows only as far as its land is worth: parks and the town centre raise it` | `ร้านโตได้เท่าที่ราคาที่ดินให้ สวนและความใกล้ใจกลางเมืองช่วยได้` |  |
+| `plot.hint.pollution` | `src/plotChecklist.ts` | — | `Keep factories and busy roads away, or plant parks` | `ย้ายโรงงานและถนนที่รถมากออกห่าง หรือปลูกสวน` |  |
+| `plot.hint.crowd` | `src/plotChecklist.ts` | — | `Taller homes want a busy neighbourhood: paint more homes round it` | `บ้านที่สูงขึ้นต้องการย่านที่คึกคัก ทาเขตที่อยู่อาศัยรอบ ๆ เพิ่ม` |  |
+| `plot.hint.lot` | `src/plotChecklist.ts` | — | `Paint the same kind on the plots of its 2 × 2 square and let them grow` | `ทาเขตแบบเดียวกันบนแปลงในสี่เหลี่ยม 2 × 2 เดียวกัน แล้วรอให้โต` |  |
+| `plot.later` | `src/inspectCard.ts` | — | `Level {level}: {needs}` | `ระดับ {level}: {needs}` | สิ่งที่ระดับถัด ๆ ไปต้องการเพิ่ม |
+| `plot.later_range` | `src/inspectCard.ts` | — | `Levels {from}–{to}: {needs}` | `ระดับ {from}–{to}: {needs}` | ระดับติดกันที่ต้องการเพิ่มเหมือนกัน |
+| `plot.later.water` | `src/inspectCard.ts` | — | `water` | `น้ำประปา` |  |
+| `plot.later.crowd` | `src/inspectCard.ts` | — | `more people round it` | `คนรอบ ๆ มากขึ้น` |  |
+| `plot.later.land` | `src/inspectCard.ts` | — | `dearer land` | `ที่ดินราคาสูงขึ้น` |  |
+| `plot.later.lot` | `src/inspectCard.ts` | — | `a lot of four plots` | `แปลงรวม 4 แปลง` |  |
 | `object.grade.0` | `src/inspect.ts` | — | `low` | `ต่ำ` |  |
 | `object.grade.1` | `src/inspect.ts` | — | `medium` | `ปานกลาง` |  |
 | `object.grade.2` | `src/inspect.ts` | — | `high` | `สูง` |  |

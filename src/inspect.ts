@@ -18,7 +18,7 @@ import { PLANT_TOOLS } from "./powerPlants.js";
 import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
 import { roadSegmentAt } from "./objects/roadSegment.js";
 import { cellsOf } from "./zoneCells.js";
-import { PLOT_WHY, plotOf } from "./plots.js";
+import { type PlotChecklist, plotChecklist } from "./plotChecklist.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
@@ -31,6 +31,8 @@ export interface Inspection {
   sector?: "community" | "central";
   /** How content it is (src/objects/satisfaction.ts), for what has someone to be content */
   satisfaction?: Satisfaction;
+  /** A painted plot's level and what its next level needs (src/plotChecklist.ts) */
+  checklist?: PlotChecklist;
   facts: Fact[];
   /** The tiles it covers, for the outline in the view */
   rect: { x: number; y: number; width: number; height: number };
@@ -52,6 +54,24 @@ export interface InspectCity {
   language: "th" | "en";
   /** What the satisfaction scores read besides the map (budget, demand, services) */
   satisfaction?: SatisfactionContext;
+}
+
+/** The lines a plot's checklist shows instead (its level, power and water) */
+const CHECKLIST_FACTS = ["object.fact.level", "object.fact.powered", "object.fact.unpowered", "object.fact.watered",
+  "object.fact.dry"];
+
+/** What a plot's checklist reads: the map, the block maps, the demand and the schools and health */
+function checklistCity(city: InspectCity) {
+  return { map: city.map, blockMaps: city.blockMaps ?? null, valves: city.satisfaction?.valves ?? null,
+    services: city.satisfaction?.services ?? null };
+}
+
+/** The area's lines less the land value and pollution a plot's checklist already shows */
+function withoutChecked(facts: Fact[], checklist: PlotChecklist | undefined): Fact[] {
+  if (!checklist) return facts;
+  const shown = new Set(checklist.rows.map(row => row.check));
+  return facts.filter(fact => !(fact.key === "object.fact.land_value" && shown.has("land")) &&
+    !(fact.key === "object.fact.pollution" && shown.has("pollution")));
 }
 
 /** The tool whose name a building's sort takes as its title */
@@ -118,20 +138,20 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
   const building = city.objects.at(x, y);
   if (building) {
     const rect = { x: building.left, y: building.top, width: building.size, height: building.size };
-    const facts = building.facts(map).filter(fact => fact.key !== "object.fact.sort");
+    // A painted plot shows its level and what its next level needs, ticked and crossed (src/plotChecklist.ts;
+    // docs/MUEANG_CS_PLAN.md M1.1), in place of the lines about its level, power and water
+    const checklist = ["home", "shop", "factory"].includes(building.kind)
+      ? plotChecklist(checklistCity(city), building.x, building.y) ?? undefined : undefined;
+    const all = building.facts(map);
+    const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
     if (building.kind === "home") {
-      const level = Number(facts.find(f => f.key === "object.fact.level")?.params?.level ?? 1);
+      const level = Number(all.find(f => f.key === "object.fact.level")?.params?.level ?? 1);
       facts.push({ key: "object.fact.people", params: { people: homePeople(level, building.size, !!map.paintedZones) } });
     }
     facts.push(building.built > 0
       ? { key: "object.fact.built", params: { year: city.startingYear + Math.floor(building.built / 48) } }
       : { key: "object.fact.built_before" });
-    facts.push(...areaFacts(city.blockMaps, building.x, building.y));
-    // A painted plot says what holds it back (src/plots.ts PLOT_WHY; docs/MUEANG_CS_PLAN.md M1.1)
-    const why = map.plotWhy?.[building.y * map.width + building.x];
-    if (why !== undefined && ["home", "shop", "factory"].includes(building.kind)) {
-      facts.unshift({ key: `object.fact.why.${PLOT_WHY[why] ?? "none"}` });
-    }
+    facts.push(...withoutChecked(areaFacts(city.blockMaps, building.x, building.y), checklist));
     const street = streetBeside(map, rect);
     const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
     // A police or fire station is named by its level (src/buildingLevels.ts)
@@ -139,7 +159,7 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     const title = group ? `tool.${levelSpec(group, buildingLevelAt(map, building.x, building.y, group)).tool}`
       : titleOf(building.kind, building.sort(map));
     return { title: { key: title, params: { price: "" } }, sector: building.sector,
-      street: street ? streetLabel(street, city.language) : undefined, satisfaction, facts, rect };
+      street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect };
   }
   const rect = { x, y, width: 1, height: 1 };
   const outside = map.insideProvince && map.insideProvince[i] !== 1 ? [{ key: "object.fact.outside" }] : [];
@@ -183,10 +203,10 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     return { title: { key: "object.kind.woods" }, facts: outside, rect };
   }
   const cover = map.landCover?.[i] ?? 0;
-  const facts: Fact[] = [...areaFacts(city.blockMaps, x, y), ...outside];
-  // An empty painted plot says why nothing is built on it yet
-  const why = plotOf(map, x, y) ? map.plotWhy?.[i] : undefined;
-  if (why !== undefined) facts.unshift({ key: `object.fact.why.${PLOT_WHY[why] ?? "none"}` });
+  // An empty painted plot shows what its first building needs
+  const checklist = plotChecklist(checklistCity(city), x, y) ?? undefined;
+  const facts: Fact[] = [...withoutChecked(areaFacts(city.blockMaps, x, y), checklist), ...outside];
   if (map.landBlocks && !outside.length && !ownsLand(map, x, y)) facts.push({ key: "object.fact.unowned" });
-  return { title: { key: cover ? `object.cover.${cover}` : "object.kind.land" }, facts, rect };
+  return { title: { key: checklist ? `object.kind.plot.${checklist.kind}` : cover ? `object.cover.${cover}` : "object.kind.land" },
+    checklist, facts, rect };
 }

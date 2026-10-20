@@ -3,11 +3,13 @@
  */
 
 // The card a click on the map opens (ตัวตรวจดู, docs/GAME_PLAN.md phase 7 step 1): what src/inspect.ts found there,
-// translated, as a frosted-glass card against the right edge that does not pause or dim the city. Escape or its ✕
-// closes it; another click shows the next thing. It changes nothing in the city.
+// translated, as a frosted-glass card against the right edge that does not pause or dim the city. A home, shop or
+// factory plot shows its level and what its next level needs first, ticked and crossed (src/plotChecklist.ts). Escape
+// or its ✕ closes it; another click shows the next thing. It changes nothing in the city.
 
 import { formatYear, hasKey, t } from "./i18n/index.js";
 import type { Inspection } from "./inspect.js";
+import type { PlotChecklist } from "./plotChecklist.js";
 import { hide, show } from "./motion.js";
 
 /** A param that names a string (object.grade.2, tool.gas …) is shown translated; a year in the player's calendar */
@@ -67,6 +69,7 @@ export class InspectCard {
       subtitle.className = "inspectSub"; subtitle.textContent = sub.join(" · ");
       element.append(subtitle);
     }
+    if (inspection.checklist) this.renderChecklist(inspection.checklist);
     // How content it is, and why: the biggest reasons first (src/objects/satisfaction.ts)
     const satisfaction = inspection.satisfaction;
     if (satisfaction) {
@@ -98,5 +101,62 @@ export class InspectCard {
       list.append(item);
     }
     element.append(list);
+  }
+
+  /** A plot's level as pips, what holds it, its next level's needs ticked and crossed, and what later levels add */
+  private renderChecklist(checklist: PlotChecklist): void {
+    const doc = this.element.ownerDocument, element = this.element;
+    const level = doc.createElement("div");
+    level.className = "plotLevel";
+    level.append(t(checklist.level > 0 ? "plot.level" : "plot.level_empty", { level: checklist.level, top: checklist.top }));
+    const pips = doc.createElement("span");
+    pips.className = "plotPips";
+    pips.setAttribute("aria-hidden", "true");
+    for (let n = 1; n <= checklist.top; n++) {
+      const pip = doc.createElement("i");
+      if (n <= checklist.level) pip.className = "reached";
+      pips.append(pip);
+    }
+    level.append(pips);
+    const status = doc.createElement("div");
+    status.className = "plotStatus";
+    const state = checklist.state;
+    status.dataset.state = state === "growing" || state === "top" ? state : "held";
+    status.textContent = state === "growing" ? t("plot.status.growing", { level: checklist.target ?? checklist.level })
+      : state === "top" ? t("plot.status.top")
+      : t(checklist.target === null ? "plot.status.keep" : "plot.status.held",
+        { level: checklist.target ?? checklist.level, name: t(`plot.name.${state}`) });
+    const heading = doc.createElement("div");
+    heading.className = "plotChecksTitle";
+    heading.textContent = checklist.target === null ? t("plot.checks.keep") : t("plot.checks.next", { level: checklist.target });
+    const rows = doc.createElement("ul");
+    rows.className = "plotChecks";
+    for (const row of checklist.rows) {
+      const item = doc.createElement("li");
+      item.dataset.ok = String(row.ok);
+      item.dataset.holds = String(row.holds);
+      const mark = doc.createElement("span");
+      mark.className = "checkMark";
+      mark.textContent = row.ok ? "✓" : "✗";
+      const text = doc.createElement("span");
+      text.textContent = line(row.key, row.params);
+      item.append(mark, text);
+      if (row.hint) {
+        const hint = doc.createElement("span");
+        hint.className = "checkHint";
+        hint.textContent = t(row.hint);
+        item.append(hint);
+      }
+      rows.append(item);
+    }
+    element.append(level, status, heading, rows);
+    if (checklist.later.length) {
+      const later = doc.createElement("div");
+      later.className = "plotLater";
+      later.textContent = checklist.later.map(step => t(step.from === step.to ? "plot.later" : "plot.later_range",
+        { level: step.from, from: step.from, to: step.to, needs: step.checks.map(check => t(`plot.later.${check}`)).join(", ") }))
+        .join(" · ");
+      element.append(later);
+    }
   }
 }
