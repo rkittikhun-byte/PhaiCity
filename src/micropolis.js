@@ -23,6 +23,7 @@ import { installCityStatus } from './cityStatus.ts';
 import { installCreditLine } from './creditLine.ts';
 import { installMenuRail } from './menuRail.ts';
 import { SplashScreen } from './splashScreen.js';
+import { openCityStore } from './cityStorage.ts';
 import { TileSet } from './tileSet.js';
 import { TileSetURI } from './tileSetURI.ts';
 import { TileSetSnowURI } from './tileSetSnowURI.ts';
@@ -53,7 +54,10 @@ var onAllTilesLoaded = function() {
   var sprites = $('#sprites')[0];
   if (sprites.complete) {
     $('#loadingBanner').css('display', 'none');
-    var s = new SplashScreen(tileSet, snowTileSet, sprites);
+    // The saved cities' database first (src/cityStorage.ts), so the start screen lists them
+    openCityStore().then(function() {
+      var s = new SplashScreen(tileSet, snowTileSet, sprites);
+    });
   } else {
      window.setTimeout(onAllTilesLoaded, 0);
   }

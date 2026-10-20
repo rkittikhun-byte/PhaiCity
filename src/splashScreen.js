@@ -13,7 +13,7 @@
 
 import $ from "jquery";
 
-import { deleteCity, listCities, loadCity } from './cityStorage.ts';
+import { deleteCity, listCities, loadCityAsync } from './cityStorage.ts';
 import { chooseViewKind } from './cityViewChoice.ts';
 import { loadCityView3D } from './cityView3dLoader.ts';
 import { showCornerNote } from './cornerNote.ts';
@@ -113,14 +113,24 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
 
   $('#saveRequest').prop('disabled', !Storage.canStore);
 
-  // index.html?city=<id> opens a saved city straight away (src/viewControls.ts)
+  // index.html?city=<id> opens a saved city straight away (src/viewControls.ts), read from the city database
   var cityId = requestedCity(window.location.search);
-  var cityToOpen = cityId !== null ? loadCity(cityId) : null;
-  if (cityToOpen !== null) {
-    launch.call(this, cityToOpen, Simulation.LEVEL_EASY, null, 'saved');
+  if (cityId !== null) {
+    var self = this;
+    loadCityAsync(cityId).then(function(cityToOpen) {
+      if (cityToOpen !== null)
+        launch.call(self, cityToOpen, Simulation.LEVEL_EASY, null, 'saved');
+      else
+        openStart.call(self);
+    });
     return;
   }
+  openStart.call(this);
+}
 
+
+// The start screen, or a district straight away (index.html?district=…)
+var openStart = function() {
   var reqDistrict = getRequestedDistrict();
   if (reqDistrict) {
     var provId = reqDistrict.slice(0, 5);
@@ -135,9 +145,10 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
     start: startProvince.bind(this),
     // A saved city brings its own name and difficulty
     continueCity: function(id) {
-      var savedGame = loadCity(id);
-      if (savedGame !== null)
-        launch.call(this, savedGame, Simulation.LEVEL_EASY, null, 'saved');
+      loadCityAsync(id).then(function(savedGame) {
+        if (savedGame !== null)
+          launch.call(this, savedGame, Simulation.LEVEL_EASY, null, 'saved');
+      }.bind(this));
     }.bind(this),
     deleteCity: deleteCity,
     practice: function() {
@@ -146,7 +157,7 @@ function SplashScreen(tileSet, snowTileSet, spriteSheet) {
   // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026), after the
   // title page whose "Enter the game" click lets the music start at once (src/titleGate.ts, owner 12 Oct 2026)
   }, {intro: requested === null, provinceId: requested, gate: requested === null ? showTitleGate() : null});
-}
+};
 
 
 // Builds the province's real-geography map and starts the city on it. We won't return from here.

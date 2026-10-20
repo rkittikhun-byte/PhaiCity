@@ -13,6 +13,10 @@ import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "..
 import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
+import { RoadGraph } from "../roads/roadGraph.js";
+import { segmentTiles } from "../roads/roadRaster.js";
+import { isAnyRail, isAnyRoad } from "../roadTiles.js";
+import { tileMetres } from "../units.js";
 import { levelsStanding } from "../buildingLevels.js";
 import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
@@ -51,6 +55,9 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.roadPieces = saved.roadPieces ? decodePresetLayerWide(saved.roadPieces, map.width, map.height) : null;
     // ... and the tiles each piece was drawn along, which set its shape for good
     map.roadPaths = readRoadPaths(saved.roadPaths);
+    // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts, docs/METRE_DRAWING_PLAN.md)
+    map.roadGraph = readGraph(saved.roads);
+    map.railGraph = readGraph(saved.rails);
     // ... and the canals the player dug (src/canals.ts)
     map.canals = saved.canals ? decodePresetLayer(saved.canals, map.width, map.height) : null;
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
@@ -105,6 +112,33 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
   map.paintedZones = map.paintedZones === true || isCityMap(map) || (saved !== null && saved.paintedZones === true);
   // The next drawn line's number is found again from the map's (src/roadPieces.ts)
   map.nextRoadPiece = 0;
+}
+
+/** A saved road or rail graph (RoadGraph toJSON), or null for none or one that does not read */
+function readGraph(saved: unknown): RoadGraph | null {
+  if (!saved || typeof saved !== "object") return null;
+  try {
+    const graph = RoadGraph.fromJSON(saved as ReturnType<RoadGraph["toJSON"]>);
+    return graph.segments.size ? graph : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A road or rail graph as a save keeps it: the strokes whose every segment still lies on roads (or railways), those
+ * bulldozed in part being their tiles' lines from then on (src/roads/graphLines.ts) */
+function graphKept(map: Legacy, graph: RoadGraph | null | undefined, rail: boolean): ReturnType<RoadGraph["toJSON"]> | undefined {
+  if (!graph || !graph.segments.size) return undefined;
+  const raster = { width: map.width, height: map.height, tileSizeM: tileMetres(map) }, kind = rail ? isAnyRail : isAnyRoad;
+  const standing = (id: number): boolean => {
+    const tiles = segmentTiles(graph, id, raster);
+    return tiles.length > 0 && tiles.every((i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
+  };
+  const gone = new Set<number>();
+  for (const id of graph.segments.keys()) if (!standing(id)) gone.add(graph.segment(id).piece ?? -id);
+  const kept = RoadGraph.fromJSON(graph.toJSON());
+  for (const [id, s] of [...kept.segments]) if (gone.has(s.piece ?? -id)) kept.remove(id);
+  return kept.segments.size ? kept.toJSON() : undefined;
 }
 
 /** A saved city's land blocks. Saves before 15 Oct 2026 did not keep the size of a city map's tiles, so their 32-tile
@@ -213,6 +247,9 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
     roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
     roadPaths: roadPathsKept(map.roadPaths, piecesOnLines(map)),
+    // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
+    roads: graphKept(map, map.roadGraph, false),
+    rails: graphKept(map, map.railGraph, true),
     // ... and the canals the player dug and each one's level, where they are still water or bridged (src/canals.ts)
     canals: encodeCanals(map),
     // ... and whether its zones are painted tile by tile (src/plots.ts)

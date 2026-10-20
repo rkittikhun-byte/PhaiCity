@@ -41,7 +41,7 @@ import { applyTranslations, formatMoney, getLanguage, onLanguageChange, setTerm,
 import { InfoBar } from './infoBar.js';
 import { InputStatus } from './inputStatus.js';
 import { MainMenuWindow } from './mainMenuWindow.js';
-import { listCities, saveCity, StorageFullError } from './cityStorage.ts';
+import { citySavesWritten, listCities, onCitySaveFailed, saveCity, StorageFullError } from './cityStorage.ts';
 import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
@@ -593,6 +593,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     save: this.save.bind(this),
     shouldAutosave: function() { return self.provinceId !== null || self.cityId !== null; }
   }, {onSaved: showSavedNote, onFull: showFullNote});
+  // ... and a save the city database could not write (the browser's storage full) says so too
+  onCitySaveFailed(showFullNote);
   // A city whose land already reaches near the edge of its district's frame opens more of the district at once
   // (docs/DISTRICT_FRAME.md)
   this.growFrame();
@@ -819,6 +821,11 @@ Game.prototype.growFrame = function() {
     // The autosave must not put the old frame back as the page goes
     self.autosave.stop();
     if (!self.save(moved))
+      throw new Error('storage full');
+    // ... and the page opens it again once it is written (src/cityStorage.ts)
+    return citySavesWritten();
+  }).then(function(written) {
+    if (!written)
       throw new Error('storage full');
     window.location.assign(window.location.pathname + '?city=' + encodeURIComponent(self.cityId));
   }).catch(function(error) {
@@ -1418,9 +1425,17 @@ Game.prototype.handleMainMenuClosure = function(choice) {
     this.handleSave();
     return;
   }
-  // Leaving without saving must not be undone by the autosave when the page closes
+  // Leaving without saving must not be undone by the autosave when the page closes; the start screen once every save
+  // is written (src/cityStorage.ts)
   this.autosave.stop();
-  window.location.assign(window.location.pathname);
+  var self = this;
+  citySavesWritten().then(function(written) {
+    if (!written && choice === 'save') {
+      self.handleSave();
+      return;
+    }
+    window.location.assign(window.location.pathname);
+  });
 };
 
 

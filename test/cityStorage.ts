@@ -2,7 +2,8 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-import { decodeMap, deleteCity, encodeMap, listCities, loadCity, saveCity, StorageFullError } from "../src/cityStorage";
+import { citySavesWritten, closeCityStore, type CityBackend, type CityMeta, decodeMap, deleteCity, encodeMap, listCities, loadCity,
+  loadCityAsync, onCitySaveFailed, openCityStore, packSave, saveCity, StorageFullError, unpackSave } from "../src/cityStorage";
 
 class MemoryStore {
   items = new Map<string, string>();
@@ -82,5 +83,83 @@ describe("saved cities", () => {
     listCities(store);
     store.limit = 10;
     expect(() => saveCity({ name: "Big" }, meta("Big"), null, store)).toThrow(StorageFullError);
+  });
+});
+
+/** The city database kept in memory, as IndexedDB keeps it */
+class MemoryBackend implements CityBackend {
+  index: CityMeta[] | null = null;
+  saves = new Map<string, Uint8Array | string>();
+  full = false;
+  async readIndex() { return this.index ? this.index.map((c) => ({ ...c })) : null; }
+  async writeIndex(cities: CityMeta[]) { this.index = cities.map((c) => ({ ...c })); }
+  async read(id: string) { return this.saves.get(id) ?? null; }
+  async write(id: string, data: Uint8Array | string) {
+    if (this.full) throw new Error("QuotaExceededError");
+    this.saves.set(id, data);
+  }
+  async remove(id: string) { this.saves.delete(id); }
+}
+
+describe("the city database", () => {
+  afterEach(() => closeCityStore());
+
+  test("a save is gzipped and comes back the same", async () => {
+    const text = JSON.stringify({ name: "Pai", mapRle: encodeMap(provinceSizedMap()) });
+    const packed = await packSave(text);
+    expect(packed).toBeInstanceOf(Uint8Array);
+    expect((packed as Uint8Array).length).toBeLessThan(text.length / 5);
+    expect(await unpackSave(packed)).toBe(text);
+  });
+
+  test("the cities localStorage kept are read in once and left where they were", async () => {
+    const store = new MemoryStore(), backend = new MemoryBackend();
+    const id = saveCity({ name: "Lanna", map: provinceSizedMap() }, meta("Lanna"), null, store);
+    const kept = store.getItem("phaicity.city." + id);
+    expect(await openCityStore(backend, store)).toBe(true);
+    expect(listCities().map((c) => c.name)).toEqual(["Lanna"]);
+    expect((await loadCityAsync(id))!.map).toHaveLength(200 * 200);
+    expect(store.getItem("phaicity.city." + id)).toBe(kept);
+    // ... only once: a city deleted from the database does not come back from localStorage
+    deleteCity(id);
+    await citySavesWritten();
+    closeCityStore();
+    await openCityStore(backend, store);
+    expect(listCities()).toEqual([]);
+  });
+
+  test("saving, listing, loading and deleting in the database", async () => {
+    const store = new MemoryStore(), backend = new MemoryBackend();
+    await openCityStore(backend, store);
+    const first = saveCity({ name: "Lanna", map: provinceSizedMap() }, meta("Lanna"), null);
+    // ... at hand at once, before it is written
+    expect(loadCity(first)!.name).toBe("Lanna");
+    expect(await citySavesWritten()).toBe(true);
+    expect(backend.saves.get(first)).toBeInstanceOf(Uint8Array);
+    expect(store.getItem("phaicity.city." + first)).toBeNull();
+    const second = saveCity({ name: "Pai" }, meta("Pai"), null);
+    await citySavesWritten();
+    closeCityStore();
+    // ... and in the next visit
+    await openCityStore(backend, store);
+    expect(listCities().map((c) => c.name).sort()).toEqual(["Lanna", "Pai"]);
+    const loaded = (await loadCityAsync(first))!;
+    expect(loaded.isSavedGame).toBe(true);
+    expect(loaded.cityId).toBe(first);
+    expect((loaded.map as unknown[]).length).toBe(200 * 200);
+    deleteCity(first);
+    await citySavesWritten();
+    expect(listCities().map((c) => c.id)).toEqual([second]);
+    expect(await loadCityAsync(first)).toBeNull();
+  });
+
+  test("a save the database cannot write is reported", async () => {
+    const backend = new MemoryBackend(), failed: unknown[] = [];
+    await openCityStore(backend, new MemoryStore());
+    onCitySaveFailed((error) => failed.push(error));
+    backend.full = true;
+    saveCity({ name: "Big" }, meta("Big"), null);
+    expect(await citySavesWritten()).toBe(false);
+    expect(failed).toHaveLength(1);
   });
 });

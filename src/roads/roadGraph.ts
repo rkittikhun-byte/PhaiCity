@@ -64,6 +64,8 @@ const BUCKET_M = 64;
 /** Steps a curve is cut into to look for crossings, before each crossing is found exactly */
 const CURVE_STEPS = 32;
 
+/** A length to the millimetre */
+const mm = (v: number): number => Math.round(v * 1000) / 1000;
 const sub = (p: Vec, q: Vec): [number, number] => [p[0] - q[0], p[1] - q[1]];
 const lerp = (p: Vec, q: Vec, t: number): [number, number] => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
 const dist = (p: Vec, q: Vec): number => Math.hypot(p[0] - q[0], p[1] - q[1]);
@@ -99,6 +101,21 @@ function crossing(p0: Vec, p1: Vec, q0: Vec, q1: Vec): [number, number] | null {
   const w = sub(q0, p0), s = cross(w, d) / denom, t = cross(w, r) / denom;
   const eps = 1e-9;
   return s >= -eps && s <= 1 + eps && t >= -eps && t <= 1 + eps ? [Math.min(1, Math.max(0, s)), Math.min(1, Math.max(0, t))] : null;
+}
+
+/** A graph's data (RoadGraph toJSON) moved by dx east and dz south (metres), as a city moved into a bigger frame of its
+ * district is (src/cityFrame.ts) */
+export function movedGraphData(data: ReturnType<RoadGraph["toJSON"]>, dx: number, dz: number): ReturnType<RoadGraph["toJSON"]> {
+  const round = (v: number): number => Math.round(v * 1000) / 1000;
+  return {
+    nodes: data.nodes.map(([id, x, z]) => [id, round(x + dx), round(z + dz)]),
+    segments: data.segments.map((row) => {
+      const c = row[4] as number[];
+      return [...row.slice(0, 4), c.length === 4 ? [round(c[0] + dx), round(c[1] + dz), round(c[2] + dx), round(c[3] + dz)] : [],
+        ...row.slice(5)];
+    }),
+    next: [data.next[0], data.next[1]],
+  };
 }
 
 export class RoadGraph {
@@ -321,9 +338,10 @@ export class RoadGraph {
 
   // ---------------------------------------------------------------------------------------------------------------
 
+  /** A new node, to the millimetre as a save keeps it, so a city opened from its save goes on just as it would have */
   private newNode(p: Vec): number {
     const id = this.nextNode++;
-    this.nodes.set(id, { id, x: p[0], z: p[1] });
+    this.nodes.set(id, { id, x: mm(p[0]), z: mm(p[1]) });
     return id;
   }
 
@@ -396,6 +414,7 @@ export class RoadGraph {
   }
 
   private put(s: RoadSegment): void {
+    if (s.c1 && s.c2) { s.c1 = [mm(s.c1[0]), mm(s.c1[1])]; s.c2 = [mm(s.c2[0]), mm(s.c2[1])]; }
     this.segments.set(s.id, s);
     const pts = controls(this, s), xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
     const keys = this.keysFor(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs));

@@ -9,6 +9,8 @@
 // from the district's map, so the city opens again on the bigger frame with nothing lost. Plain code: no DOM.
 
 import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "./geo/presetMap.js";
+import { movedGraphData } from "./roads/roadGraph.js";
+import { CITY_TILE_M } from "./units.js";
 
 /** A frame of a district's map, in its tiles: whole land blocks */
 export interface Frame { x: number; y: number; width: number; height: number }
@@ -154,6 +156,9 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
       .map(([piece, path]) => [piece, { ...path, tiles: path.tiles.map(moved),
         ...(Array.isArray(path.controls) ? { controls: path.controls.map(([x, y]) => [x + dx, y + dy]) } : {}) }]));
   }
+  // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
+  const metres = save.tileSizeM || CITY_TILE_M;
+  for (const field of ["roads", "rails"]) if (save[field]) out[field] = movedGraphData(save[field], dx * metres, dy * metres);
   // ... and the canals the player dug (src/canals.ts)
   if (typeof save.canals === "string") out.canals = encodePresetLayer(layer(decoded(save.canals), null, 0));
   // The ground's water: the new land full (the water works fill it to what it holds, src/waterManager.ts prepareGround)

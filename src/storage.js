@@ -12,6 +12,7 @@
  */
 
 import { MiscUtils } from './miscUtils.js';
+import { graphsOfOldSave } from './roads/roadMigration.ts';
 
 // A very thin wrapper around localStorage, in case we wish to move to some other storage mechanism
 // (such as indexedDB) in the future
@@ -59,6 +60,12 @@ var transitionOldSave = function(savedGame) {
       savedGame.provinceId = null;
       savedGame.worldId = null;
 
+      /* falls through */
+    case 4:
+      // PhaiCity: version 5 keeps the roads and railways as drawn, in metres (src/roads/roadGraph.ts); an older city's
+      // are worked out once from the lines its roads were drawn as (docs/METRE_DRAWING_PLAN.md 1.6)
+      Object.assign(savedGame, graphsOfOldSave(savedGame));
+
       break;
 
     default:
@@ -74,7 +81,7 @@ var Storage = {
 };
 
 
-Object.defineProperty(Storage, 'CURRENT_VERSION', MiscUtils.makeConstantDescriptor(4));
+Object.defineProperty(Storage, 'CURRENT_VERSION', MiscUtils.makeConstantDescriptor(5));
 Object.defineProperty(Storage, 'KEY', MiscUtils.makeConstantDescriptor('micropolisJSGame'));
 // Checked safely, so the save helpers also load in Node (tests, a future server)
 Object.defineProperty(Storage, 'canStore', MiscUtils.makeConstantDescriptor(
