@@ -202,10 +202,11 @@ export class Waste {
   /**
    * A month: the rubbish of `people` and `visitors` shared out among the working buildings, the cleanest first; the
    * landfills fill and seep into `ground` (changed in place); the sewage treated; what is left over in the streets
-   * and the water.
+   * and the water. festival: the rubbish the month's festivals leave, in tonnes, and how much the krathong left in the
+   * rivers and canals dirty the water this month, 0–1 (src/festivals.ts festivalWaste)
    */
-  month(people: number, visitors: number, ground: Uint8Array): WasteMonth {
-    const rubbish = rubbishOf(people, visitors);
+  month(people: number, visitors: number, ground: Uint8Array, festival: { rubbish: number; dirt: number } | null = null): WasteMonth {
+    const rubbish = rubbishOf(people, visitors) + Math.max(0, festival?.rubbish ?? 0);
     // Landfills no longer standing are forgotten, so one built again starts empty
     const landfills = new Set(this.sites.filter((site) => site.kind === "landfill").map((site) => String(site.index)));
     for (const index of Object.keys(this.fill)) if (!landfills.has(index)) delete this.fill[index];
@@ -255,7 +256,8 @@ export class Waste {
     const target = clamp01((left - atHome) / OVERFLOW_FULL);
     this.overflow = target > this.overflow ? Math.min(target, this.overflow + OVERFLOW_RISE) : Math.max(target, this.overflow - OVERFLOW_FALL);
     const treated = this.sites.reduce((sum, site) => sum + WASTE_SPECS[site.kind].treats, 0);
-    this.sewage = clamp01((people - treated - OWN_SEWAGE) / SEWAGE_FULL);
+    // ... and the krathong in the water, for the month of the festival
+    this.sewage = clamp01(Math.max(0, (people - treated - OWN_SEWAGE) / SEWAGE_FULL) + Math.max(0, festival?.dirt ?? 0));
     return {
       people,
       rubbish,

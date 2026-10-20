@@ -30,6 +30,7 @@ import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./ro
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
+import { chooseFestival, type Festival, FESTIVAL_IDS, FESTIVAL_SCALES, festivalProblem, type FestivalState } from "./festivals";
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
@@ -130,6 +131,8 @@ export type Command =
   | { type: "wing"; wing: typeof WINGS[number]; add: boolean }
   /** One of the ruler's policies switched on or off (src/policies.ts) */
   | { type: "policy"; policy: typeof POLICIES[number]; on: boolean }
+  /** How the ruler holds one of the province's festivals, from its next turn on (src/festivals.ts) */
+  | { type: "festival"; id: typeof FESTIVAL_IDS[number]; scale: typeof FESTIVAL_SCALES[number] }
   /** The block of land at (x, y) bought (src/landBlocks.ts) */
   | { type: "land"; x: number; y: number }
   /** Zone cells painted (zone) or cleared (zone null) on a map whose zones go a cell at a time (src/zoneCells.ts) */
@@ -261,6 +264,9 @@ export interface CommandTarget {
   canalAt?(x: number, y: number): boolean;
   /** Water came or went somewhere, so the ground's water is worked out again (src/waterManager.ts refreshGround) */
   waterChanged?(): void;
+  /** The ruler's answers for the festivals, and the festivals the province keeps (src/festivals.ts). Without it there
+   * are none. */
+  readonly festivals?: { readonly state: FestivalState; calendar(): Festival[] };
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -421,6 +427,9 @@ export function commandProblem(command: unknown, width: number, height: number):
     case "policy":
       if (!isOneOf(POLICIES, c.policy)) return `unknown policy ${String(c.policy)}`;
       return typeof c.on === "boolean" ? null : "on missing";
+    case "festival":
+      if (!isOneOf(FESTIVAL_IDS, c.id)) return `unknown festival ${String(c.id)}`;
+      return isOneOf(FESTIVAL_SCALES, c.scale) ? null : `unknown scale ${String(c.scale)}`;
     case "zoneCells":
       if (c.zone !== null && !isOneOf(CELL_ZONES, c.zone)) return `unknown zone ${String(c.zone)}`;
       if (!Array.isArray(c.cells) || c.cells.length > MAX_CELLS || !c.cells.every((k) => isInteger(k, 0, Number.MAX_SAFE_INTEGER))) {
@@ -820,6 +829,13 @@ export class CityCommands {
         const refused = policyProblem(map, command.policy, command.on);
         if (refused || !map) return { accepted: false, reason: refused ?? "no house" };
         changePolicy(map, command.policy, command.on);
+        break;
+      }
+      case "festival": {
+        const festivals = city.festivals;
+        const refused = festivals ? festivalProblem(festivals.calendar(), command.id, command.scale) : null;
+        if (refused || !festivals) return { accepted: false, reason: refused ?? "no festivals here" };
+        chooseFestival(festivals.state, command.id, command.scale);
         break;
       }
       case "debugFunds":
