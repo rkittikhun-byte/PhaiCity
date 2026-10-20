@@ -17,6 +17,7 @@ import type { Building } from "../objects/cityObject.js";
 import { Random } from "../random.js";
 import { Simulation } from "../simulation.js";
 import { canBuildIn, type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
+import { completeBuildings } from "../buildings/buildingRecords.js";
 import { cellsOf, syncCellPlots } from "../zoneCells.js";
 import { ownsLand } from "../landBlocks.js";
 import { eraMonth } from "../eraScore.js";
@@ -102,6 +103,9 @@ export class CityCore {
       this.simulation.load(saved);
     }
     ensureCityLayers(this.map);
+    // Every ruler's building in gameMap.buildings, those of an older save taken from its tiles where its poses said
+    // they are drawn (docs/METRE_DRAWING_PLAN.md 2.6)
+    completeBuildings(this.map, saved?.buildingPoses ?? null);
     // A city painted a cell at a time before its cells made plots (15 Oct 2026) gets its plots now, so it grows
     if (saved && this.map.cellZones && this.map.zoneCells?.size) {
       const owns = canBuildIn(this.map);

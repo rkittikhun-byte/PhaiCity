@@ -199,10 +199,13 @@ describe("the game's core", () => {
     townOrders(area.x, area.y).forEach(order => core.apply(order));
     core.run(STEPS_PER_YEAR / 2);
     const saved = JSON.parse(JSON.stringify({ ...core.save(), width: map.width, height: map.height }));
-    expect(saved.powerKinds).toEqual(core.map.powerKinds);
+    // The plants' kinds kept with the buildings (docs/METRE_DRAWING_PLAN.md 2.6), not by tile
+    expect(saved.powerKinds).toBeUndefined();
+    expect(saved.buildings.all).toBe(true);
 
     const again = new CityCore({ map: new (GameMap as any)(saved.width, saved.height), saved });
     expect(again.map.rulerHouse).toEqual(core.map.rulerHouse);
+    expect(again.map.powerKinds).toEqual(core.map.powerKinds);
     expect(again.simulation.budget.totalFunds).toBe(core.simulation.budget.totalFunds);
     const built = (c: CityCore) => c.objects.all().map(o => [o.id, o.kind, o.built]).sort();
     expect(built(again)).toEqual(built(core));

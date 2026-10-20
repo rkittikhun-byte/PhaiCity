@@ -13,10 +13,12 @@ export interface PlacedBuilding {
   readonly id: number;
   /** The tool that put it down (src/gameTools.js) */
   readonly tool: string;
-  /** Its middle (metres) and its turn (radians, as the view turns a model: its front faces (-sin, -cos)) */
+  /** Its middle (metres) and its turn (radians, as the view turns a model: its front faces (-sin, -cos)); a building
+   * from before the metres that was never turned (rot null) stands against its nearest road as the 3D view finds it,
+   * until the game keeps that turn (src/game.js keepBuildingPoses) */
   readonly x: number;
   readonly z: number;
-  readonly rot: number;
+  readonly rot: number | null;
   /** Tiles a side of its block, and the index of the block's centre tile (one in from its top left, the tile itself
    * for a one-tile building) */
   readonly size: number;
@@ -44,10 +46,25 @@ export class PlacedBuildings {
     const old = this.byTile.get(building.tile);
     if (old) this.items.delete(old.id);
     const placed: PlacedBuilding = { ...building, id: this.next++, x: round(building.x, 2), z: round(building.z, 2),
-      rot: round(building.rot, 4) };
+      rot: building.rot === null ? null : round(building.rot, 4) };
     this.items.set(placed.id, placed);
     this.byTile.set(placed.tile, placed);
     return placed;
+  }
+
+  /** Puts a building taken away back as it was, its id and all (undo) */
+  restore(building: PlacedBuilding): void {
+    const now = this.byTile.get(building.tile);
+    if (now) this.items.delete(now.id);
+    this.items.set(building.id, building);
+    this.byTile.set(building.tile, building);
+    this.next = Math.max(this.next, building.id + 1);
+  }
+
+  /** Keeps where a building is drawn and its turn (metres, radians) */
+  setPose(id: number, x: number, z: number, rot: number): void {
+    const b = this.items.get(id);
+    if (b) this.restore({ ...b, x: round(x, 2), z: round(z, 2), rot: round(rot, 4) });
   }
 
   remove(id: number): void {
@@ -70,9 +87,12 @@ export class PlacedBuildings {
     return this.items.size;
   }
 
-  /** As a save keeps them: [id, tool, x, z, rot, size, tile] each, and the next id; only those keep() keeps */
-  toJSON(keep: (b: PlacedBuilding) => boolean = () => true): { buildings: Array<[number, string, number, number, number, number, number]>; next: number } {
-    return { buildings: this.all().filter(keep).map((b) => [b.id, b.tool, b.x, b.z, b.rot, b.size, b.tile]), next: this.next };
+  /** As a save keeps them: [id, tool, x, z, rot, size, tile] each, and what more() adds to its row, and the next id;
+   * only those keep() keeps */
+  toJSON(keep: (b: PlacedBuilding) => boolean = () => true, more: (b: PlacedBuilding) => unknown[] = () => []):
+    { buildings: unknown[][]; next: number } {
+    return { buildings: this.all().filter(keep).map((b) => [b.id, b.tool, b.x, b.z, b.rot, b.size, b.tile, ...more(b)]),
+      next: this.next };
   }
 
   /** From toJSON's data; what does not read as such is left out */
@@ -83,7 +103,8 @@ export class PlacedBuildings {
     for (const row of saved.buildings) {
       if (!Array.isArray(row) || row.length < 7) continue;
       const [id, tool, x, z, rot, size, tile] = row;
-      if (![id, x, z, rot, size, tile].every((n) => typeof n === "number" && Number.isFinite(n)) || typeof tool !== "string") continue;
+      if (![id, x, z, size, tile].every((n) => typeof n === "number" && Number.isFinite(n)) || typeof tool !== "string" ||
+        rot !== null && !(typeof rot === "number" && Number.isFinite(rot))) continue;
       const b = { id, tool, x, z, rot, size, tile };
       out.items.set(id, b);
       out.byTile.set(tile, b);

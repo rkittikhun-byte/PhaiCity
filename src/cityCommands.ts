@@ -23,8 +23,9 @@ import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { segmentTiles } from "./roads/roadRaster";
 import { linePrice } from "./roads/roadDraw";
-import { tileMetres, tileOfUnits } from "./units";
+import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
+import type { BuildingMap } from "./buildings/buildingRecords";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
@@ -244,7 +245,6 @@ export interface CommandTarget {
   /** Records the rubbish or wastewater building just built at (x, y), its centre (src/waste.ts). */
   setWasteKind?(x: number, y: number, kind: string): void;
   setBuildingLevel?(x: number, y: number, level: number): void;
-  setBuildingPose?(x: number, y: number, pose: [number, number, number]): void;
   /** A bus put down on the road at (x, y) (src/busStopTool.ts) */
   addBus?(x: number, y: number): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
@@ -527,17 +527,35 @@ export class CityCommands {
     const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
     const { cx, cy } = blockOf(command.x, command.z, size, metres);
     if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { accepted: false, reason: "outside the map" };
-    const before = this.history.last(), changed = before?.changes.length ?? 0;
-    // No pose for the 3D view: it reads where the building stands from gameMap.buildings (step 2.4)
-    const out = this.apply({ type: "tool", tool: command.tool, x: cx, y: cy,
-      ...(command.stroke !== undefined ? { stroke: command.stroke } : {}) });
-    if (!out.accepted || out.toolResult !== 0) return out;
-    const placed = (map as { buildings?: PlacedBuildings }).buildings ??= new PlacedBuildings();
-    const building = placed.add({ tool: command.tool, x: command.x, z: command.z, rot: command.rot, size, tile: cy * city.width + cx });
-    // ... and taken away again with its tiles on undo
-    const step = this.history.last();
-    if (step && (step !== before || step.changes.length > changed)) (step.also ??= []).push(() => placed.remove(building.id));
-    return out;
+    // Laid by the tool, which keeps it in gameMap.buildings where it was put down (keepBuilding), and the 3D view reads
+    // it there (step 2.4); undo takes it away with its tiles
+    this.placing = { x: command.x, z: command.z, rot: command.rot };
+    try {
+      return this.apply({ type: "tool", tool: command.tool, x: cx, y: cy,
+        ...(command.stroke !== undefined ? { stroke: command.stroke } : {}) });
+    } finally {
+      this.placing = null;
+    }
+  }
+  /** Where the build command in hand puts its building down, in metres */
+  private placing: { x: number; z: number; rot: number } | null = null;
+
+  /**
+   * A building a tool put down, kept in gameMap.buildings (docs/METRE_DRAWING_PLAN.md 2.6): where the build command
+   * put it down, else where the pose given with it says (world units), else where the one it was built over stood (a
+   * level built on its tiles), else at its block's middle, not yet turned (the 3D view stands it against its road).
+   * What undoes it.
+   */
+  private keepBuilding(command: Extract<Command, { type: "tool" }>, size: number): () => void {
+    const map = this.city.map as unknown as BuildingMap;
+    const placed = map.buildings ??= new PlacedBuildings();
+    const tile = command.y * map.width + command.x, old = placed.atTile(tile), kept = old && old.size === size ? old : null;
+    const metres = tileMetres(map), units = unitsPerMetre(metres), corner = size > 1 ? 1 : 0, pose = command.pose;
+    const at = this.placing ?? (pose ? { x: pose[0] / units, z: pose[1] / units, rot: pose[2] } : kept);
+    const building = placed.add({ tool: command.tool, size, tile,
+      x: at ? at.x : (command.x - corner + size / 2) * metres, z: at ? at.z : (command.y - corner + size / 2) * metres,
+      rot: at ? at.rot : null });
+    return () => { if (old) placed.restore(old); else placed.remove(building.id); };
   }
 
   /** After a tool: the canal tool's new water is a canal, a bridge over a canal bulldozed back to water can be filled in
@@ -620,7 +638,7 @@ export class CityCommands {
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
-        if (applied && command.pose && placesBuilding(command.tool, tool)) city.setBuildingPose?.(command.x, command.y, command.pose);
+        const keptBack = applied && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
@@ -670,6 +688,7 @@ export class CityCommands {
             .filter((c) => c.after !== c.before);
           const cost = fundsBefore - city.budget.totalFunds;
           this.history.record(command.stroke ?? null, changes, cost, city.cityTime?.() ?? 0);
+          if (keptBack) (this.history.last()!.also ??= []).push(keptBack);
         }
         return { accepted: true, toolResult: tool.result };
       }

@@ -2253,24 +2253,22 @@ Game.prototype.networkLines = function(rail) {
 };
 
 
-// Every building's pose kept with the city (gameMap.buildingPoses, saved), taken from the 3D view for those that have none
-// yet: only where the building is drawn, never what the simulation does with it
+// Every building's pose kept with the city (gameMap.buildings, saved), taken from the 3D view for those never turned
+// (put down before the buildings were kept in metres): only where the building is drawn, never what the simulation does
 Game.prototype.keepBuildingPoses = function() {
   var map = this.gameMap, view = this.cityView;
-  if (!map.cellZones || !view || typeof view.buildingPoseOf !== 'function')
+  if (!map.cellZones || !map.buildings || !view || typeof view.buildingPoseOf !== 'function')
     return 0;
-  map.buildingPoses = map.buildingPoses || {};
-  var kept = 0;
-  for (var y = 0; y < map.height; y++)
-    for (var x = 0; x < map.width; x++) {
-      if (map.getTileValue(x, y) < BUILDING_TILES || !map.getTile(x, y).isZone() || map.buildingPoses[y * map.width + x])
-        continue;
-      var pose = view.buildingPoseOf(x, y);
-      if (pose) {
-        map.buildingPoses[y * map.width + x] = pose;
-        kept++;
-      }
+  var units = unitsPerMetre(tileMetres(map)), kept = 0;
+  map.buildings.all().forEach(function(b) {
+    if (b.rot !== null)
+      return;
+    var pose = view.buildingPoseOf(b.tile % map.width, Math.floor(b.tile / map.width));
+    if (pose) {
+      map.buildings.setPose(b.id, pose[0] / units, pose[1] / units, pose[2]);
+      kept++;
     }
+  });
   return kept;
 };
 

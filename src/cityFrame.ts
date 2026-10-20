@@ -162,7 +162,8 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   // ... and the ruler's buildings where they were put down (src/buildings/placedBuildings.ts)
   if (save.buildings && Array.isArray(save.buildings.buildings)) {
     out.buildings = { ...save.buildings, buildings: save.buildings.buildings.map((row: unknown[]) =>
-      [row[0], row[1], Number(row[2]) + dx * metres, Number(row[3]) + dy * metres, row[4], row[5], moved(Number(row[6]))]) };
+      [row[0], row[1], Number(row[2]) + dx * metres, Number(row[3]) + dy * metres, row[4], row[5], moved(Number(row[6])),
+        ...row.slice(7)]) };
   }
   // ... and the canals the player dug (src/canals.ts)
   if (typeof save.canals === "string") out.canals = encodePresetLayer(layer(decoded(save.canals), null, 0));

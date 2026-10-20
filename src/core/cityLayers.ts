@@ -15,16 +15,16 @@ import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
 import { RoadGraph } from "../roads/roadGraph.js";
 import { PlacedBuildings } from "../buildings/placedBuildings.js";
+import { readBuildingRecords, writeBuildings } from "../buildings/buildingRecords.js";
 import { segmentTiles } from "../roads/roadRaster.js";
 import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
-import { levelsStanding } from "../buildingLevels.js";
 import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
-import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, TINYEXP, TINYEXPLAST, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
+import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
  * src/gameTools.js), so they are typed loosely here. */
@@ -87,8 +87,9 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.stationKinds = Object.assign({}, saved.stationKinds || {});
     // ... and the levels of the ruler's buildings (src/buildingLevels.ts); those from before the levels are at their base
     map.buildingLevels = Object.assign({}, saved.buildingLevels || {});
-    // ... and where buildings beside a road are drawn, slid along it (src/game.js buildingPose)
-    map.buildingPoses = Object.assign({}, saved.buildingPoses || {});
+    // ... all of which a save from step 2.6 on keeps with its buildings (src/buildings/buildingRecords.ts); where an
+    // older one's buildings are drawn (buildingPoses) goes into them once its tiles are in (cityCore.ts completeBuildings)
+    readBuildingRecords(map, saved.buildings);
     // ... and where its buses run (src/busStopTool.ts)
     map.buses = Array.isArray(saved.buses) ? saved.buses.filter((i: unknown) => Number.isInteger(i)) : [];
     // ... and, on a map whose zones go a cell at a time, its painted cells (src/zoneCells.ts)
@@ -176,30 +177,8 @@ export function ensureCityLayers(map: Legacy): void {
   map.policies = map.policies || [];
   map.stationKinds = map.stationKinds || {};
   map.buildingLevels = map.buildingLevels || {};
-  map.buildingPoses = map.buildingPoses || {};
   map.buses = map.buses || [];
   map.zoneCells = map.zoneCells || new Map();
-}
-
-/** A kind record (powerKinds …) kept only where its building still stands */
-export function plantsStanding(map: Legacy, field: string, centre: number): Record<string, string> {
-  const kinds: Record<string, string> = {};
-  const record: Record<string, string> = map[field] || {};
-  for (const index of Object.keys(record)) {
-    const i = Number(index), x = i % map.width, y = (i - x) / map.width;
-    if (map.testBounds(x, y) && map.getTileValue(x, y) === centre) kinds[index] = record[index];
-  }
-  return kinds;
-}
-
-/** Where buildings are drawn, kept only where a building's centre still stands */
-function posesStanding(map: Legacy): Record<string, [number, number, number]> | undefined {
-  const kept: Record<string, [number, number, number]> = {};
-  for (const [index, pose] of Object.entries(map.buildingPoses || {})) {
-    const i = Number(index), x = i % map.width, y = (i - x) / map.width;
-    if (map.testBounds(x, y) && (map.getTile(x, y).isZone() || map.getTileValue(x, y) >= 240)) kept[index] = pose as [number, number, number];
-  }
-  return Object.keys(kept).length ? kept : undefined;
 }
 
 /** The pieces of the roads and railways on the map (src/roadPieces.ts) */
@@ -226,19 +205,10 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     inside: map.insideProvince ? encodePresetLayer(map.insideProvince) : undefined,
     town: map.town || undefined,
     national: map.nationalTransport ? encodePresetLayer(map.nationalTransport) : undefined,
-    powerKinds: plantsStanding(map, "powerKinds", POWERPLANT),
-    mineKinds: plantsStanding(map, "mineKinds", MINE),
-    // The ruler's house, its wings, and whether a new city still has to build it (src/rulerHouse.ts)
-    civicKinds: plantsStanding(map, "civicKinds", CIVIC),
-    // ... and the rubbish and wastewater buildings (src/waste.ts)
-    wasteKinds: plantsStanding(map, "wasteKinds", WASTE),
-    // ... and the ruler's policies (src/policies.ts)
+    // The kinds of power plant, mine, civic building, waste building and station, and the levels of the ruler's
+    // buildings, are kept with the buildings (below, src/buildings/buildingRecords.ts)
+    // The ruler's policies (src/policies.ts)
     policies: (map.policies || []).length ? map.policies.slice() : undefined,
-    // ... and the stations (src/transit.ts)
-    stationKinds: plantsStanding(map, "stationKinds", STATION),
-    // ... and the levels of the ruler's buildings (src/buildingLevels.ts)
-    buildingLevels: levelsStanding(map),
-    buildingPoses: posesStanding(map),
     // ... and its buses, those whose road still stands
     buses: (map.buses || []).filter((i: number) => isRoadTile(map.getTileValue(i % map.width, Math.floor(i / map.width)))),
     // ... and its zone cells (src/zoneCells.ts)
@@ -256,12 +226,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
     roads: graphKept(map, map.roadGraph, false),
     rails: graphKept(map, map.railGraph, true),
-    // ... and the ruler's buildings where they were put down, those still standing
-    buildings: map.buildings && map.buildings.size ? map.buildings.toJSON((b: { tile: number; size: number }) => {
-      const x = b.tile % map.width, y = Math.floor(b.tile / map.width), value = map.testBounds(x, y) ? map.getTileValue(x, y) : 0;
-      // (a bulldozed one's tiles blow up first, TINYEXP on)
-      return b.size > 1 ? map.getTile(x, y).isZone() : value >= 240 && !(value >= TINYEXP && value <= TINYEXPLAST);
-    }) : undefined,
+    // ... and every ruler's building where it was put down, those still standing, each with its kind and level
+    buildings: writeBuildings(map),
     // ... and the canals the player dug and each one's level, where they are still water or bridged (src/canals.ts)
     canals: encodeCanals(map),
     // ... and whether its zones are painted tile by tile (src/plots.ts)
@@ -340,7 +306,6 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     setStationKind: (x: number, y: number, kind: string) => { map.stationKinds[y * map.width + x] = kind; },
     // ... and the level of a building that has levels (src/buildingLevels.ts)
     setBuildingLevel: (x: number, y: number, level: number) => { map.buildingLevels[y * map.width + x] = level; },
-    setBuildingPose: (x: number, y: number, pose: [number, number, number]) => { map.buildingPoses[y * map.width + x] = pose; },
     addBus: (x: number, y: number) => { map.buses.push(y * map.width + x); },
     // ... and the canals (src/canals.ts), after which the simulation works the ground's water out again
     // (a new dig starts at the first level, src/canals.ts; canalsVersion tells the 3D view to draw them again)

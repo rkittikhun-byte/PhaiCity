@@ -40,7 +40,7 @@ describe("buildings put down in metres", () => {
     expect(core.map.getTile(cx, cy).isZone()).toBe(true);
     expect(placed(core).all()).toEqual([{ id: 1, tool: "police", x: 330.4, z: 251.7, rot: 0.5, size: 3, tile: 15 * 60 + 20 }]);
     // ... which the 3D view reads (step 2.4): no pose of its own beside it
-    expect((core.map as any).buildingPoses[15 * 60 + 20]).toBeUndefined();
+    expect((core.map as any).buildingPoses?.[15 * 60 + 20]).toBeUndefined();
   });
 
   test("a building whose block is taken is refused there, not moved to another", () => {

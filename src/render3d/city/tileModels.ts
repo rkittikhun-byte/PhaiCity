@@ -418,13 +418,13 @@ export class TileSnapshot implements CityMapReader {
    * the game's as before; only where it is drawn moves.
    */
   /**
-   * The pose to keep for the building whose centre is tile index i, as game.js buildingPose writes it ([x, z, turn],
-   * gameMap.buildingPoses), when it has none yet: the way it stands now against its nearest road, so a road drawn later
+   * The pose to keep for the building whose centre is tile index i ([x, z, turn] in world units, kept in
+   * gameMap.buildings by game.js keepBuildingPoses), when it was never turned: the way it stands now against its nearest road, so a road drawn later
    * nearer to it never turns it (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"). Homes, shops and factories grow
    * with their zones and are left alone; null when it is not a building standing against a road.
    */
   poseToKeep(i:number,region:RegionId='central'):[number,number,number]|null {
-    if((this.source as {buildingPoses?:Record<string,unknown>}|null)?.buildingPoses?.[i]||this.placedPose(i))return null;
+    if(this.placedPose(i))return null;
     const p=this.placement(i,region);
     if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return null;
     const size=Math.max(p.footprint[0],p.footprint[1]);
@@ -433,11 +433,11 @@ export class TileSnapshot implements CityMapReader {
     const delta=size*5*BUILDING_SCALE*(factor-1),nx=-Math.sin(p.rotation),nz=-Math.cos(p.rotation);
     return [Math.round((p.x-nx*delta)*100)/100,Math.round((p.z-nz*delta)*100)/100,Math.round(p.rotation*1000)/1000];
   }
-  /** The middle and turn of the building put down in metres whose centre tile is i (gameMap.buildings), in world
-   * units, as a kept pose reads: [x, z, turn]; null when none was */
+  /** The middle and turn of the building whose centre tile is i (gameMap.buildings), in world units: [x, z, turn];
+   * null when there is none, or it was never turned (from before the metres: it stands against its nearest road) */
   private placedPose(i:number):[number,number,number]|null {
     const b=this.source?.buildings?.atTile(i);
-    if(!b)return null;
+    if(!b||b.rot===null)return null;
     const units=unitsPerMetre(tileMetres(this.source!));
     return [b.x*units,b.z*units,b.rot];
   }
@@ -450,9 +450,8 @@ export class TileSnapshot implements CityMapReader {
       !zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
     const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
     const scale=BUILDING_SCALE*factor;
-    // Where the player put it down in metres (gameMap.buildings), else the pose kept with the city for one put down
-    // before that (src/game.js buildingPose, keepBuildingPoses)
-    const kept=this.placedPose(p.index)??(this.source as {buildingPoses?:Record<string,[number,number,number]>}|null)?.buildingPoses?.[p.index];
+    // Where the player put it down in metres, or where the game kept it standing (gameMap.buildings)
+    const kept=this.placedPose(p.index);
     if(kept){
       const rot=kept[2],nx=-Math.sin(rot),nz=-Math.cos(rot),delta=size*5*BUILDING_SCALE*(factor-1);
       return p.againstRoad(kept[0]+nx*delta,kept[1]+nz*delta,rot,scale);
