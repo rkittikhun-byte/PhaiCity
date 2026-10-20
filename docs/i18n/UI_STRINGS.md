@@ -456,9 +456,8 @@
 | `move.tip.pick` | `src/game.js` | — | `Click to pick it up` | `คลิกเพื่อยกอาคารนี้` |  |
 | `move.tip.place` | `src/game.js` | — | `Click to put it here: {price}` | `คลิกเพื่อวางที่นี่ {price}` | R หมุนเมื่อไม่ติดถนน |
 | `move.tip.turn` | `src/game.js` | — | `R turns it, Shift+R the other way` | `กด R หมุน, Shift+R หมุนกลับ` | เมื่ออาคารไม่ติดถนน |
-| `move.tip.off_block` | `src/game.js` | — | `Too far: a building moves only on its own land` | `ไกลเกินไป ย้ายได้ในที่ดินของอาคารเท่านั้น` |  |
 | `move.note.none` | `src/game.js` | — | `No building here to move` | `ตรงนี้ไม่มีอาคารให้ย้าย` |  |
-| `move.note.off_block` | `src/game.js` | — | `A building moves only on its own land` | `ย้ายได้ในที่ดินของอาคารเท่านั้น` |  |
+| `move.note.blocked` | `src/game.js` | — | `Something is in the way: it cannot go here` | `มีสิ่งขวางอยู่ วางที่นี่ไม่ได้` | ย้ายไปบล็อกอื่นที่ไม่ว่าง (src/cityCommands.ts moveSite) |
 | `move.note.money` | `src/game.js` | — | `Not enough money to move it` | `เงินไม่พอค่าย้าย` |  |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |

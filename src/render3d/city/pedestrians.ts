@@ -3,8 +3,8 @@
  */
 
 import {
-  BoxGeometry, BufferGeometry, Color, DodecahedronGeometry, DynamicDrawUsage, Float32BufferAttribute,
-  Group, InstancedMesh, Matrix4, MeshStandardMaterial, type Object3D, Vector3,
+  BoxGeometry, BufferGeometry, type Camera, Color, DodecahedronGeometry, DynamicDrawUsage, Float32BufferAttribute, Frustum,
+  Group, InstancedMesh, Matrix4, MeshStandardMaterial, type Object3D, Sphere, Vector3,
 } from 'three';
 import { mergeGeometry } from '../util/geometry.js';
 import { getMaterial } from '../materials/library.js';
@@ -24,6 +24,7 @@ import type { RegionId } from '../regional/types.js';
 import type { BlockMapReader } from './types.js';
 import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
+import { frustumOf } from './pools.js';
 
 export const MAX_PEDESTRIANS = 140;
 const MAX_TAKRAW = 8;
@@ -1150,7 +1151,15 @@ const MAX_PER_SPECIES = 260;
 interface SpeciesBatch {
   readonly meshes: InstancedMesh[];
   count: number;
+  /** Every tree of the species round the camera: its matrix, its crown's middle (world units) and reach; the meshes
+   * draw only those in sight (CityFoliage.cull) */
+  readonly matrices: Float32Array;
+  readonly centres: Float32Array;
+  readonly reach: Float32Array;
+  /** The model's own middle and reach */
+  readonly bounds: Sphere;
 }
+const treeSphere = new Sphere();
 
 /**
  * Detailed, wind-swaying 3D tropical trees (`veg.golden_shower` / ต้นคูนราชพฤกษ์ดอกเหลืองขอนแก่น,
@@ -1161,6 +1170,10 @@ export class CityFoliage {
   readonly root = new Group();
   private readonly batches: SpeciesBatch[] = [];
   private lastCellKey = '';
+  /** The view's camera (index.ts): only the trees in its sight are drawn, sorted again as it moves */
+  camera: Camera | null = null;
+  private readonly sight = new Frustum();
+  private readonly lastSight = new Float32Array(16);
 
   constructor(
     private readonly snapshot: TileSnapshot,
@@ -1177,6 +1190,7 @@ export class CityFoliage {
       const kind = FOLIAGE_SPECIES[s];
       const entry = registry[`veg.${kind}`];
       const meshes: InstancedMesh[] = [];
+      const bounds = new Sphere();
       if (entry) {
         const proto = entry.factory({ seed: s + 1, region: this.region });
         proto.updateMatrixWorld(true);
@@ -1194,6 +1208,8 @@ export class CityFoliage {
         for (const [mat, geos] of byMaterial) {
           const merged = geos.length === 1 ? geos[0] : mergeGeometry(geos);
           if (geos.length > 1) geos.forEach(g => g.dispose());
+          merged.computeBoundingSphere();
+          if (merged.boundingSphere) bounds.union(merged.boundingSphere);
           const inst = new InstancedMesh(merged, mat, MAX_PER_SPECIES);
           inst.instanceMatrix.setUsage(DynamicDrawUsage);
           inst.castShadow = false;
@@ -1204,7 +1220,8 @@ export class CityFoliage {
           this.root.add(inst);
         }
       }
-      this.batches.push({ meshes, count: 0 });
+      this.batches.push({ meshes, count: 0, matrices: new Float32Array(MAX_PER_SPECIES * 16), centres: new Float32Array(MAX_PER_SPECIES * 3),
+        reach: new Float32Array(MAX_PER_SPECIES), bounds });
     }
   }
 
@@ -1214,8 +1231,27 @@ export class CityFoliage {
     const slot = batch.count++;
     const y = this.terrain.sample(x, z);
     bodyMatrix.makeRotationY(yaw).scale(new Vector3(scale, scale, scale)).setPosition(x, y, z);
-    for (const mesh of batch.meshes) {
-      mesh.setMatrixAt(slot, bodyMatrix);
+    bodyMatrix.toArray(batch.matrices, slot * 16);
+    treeSphere.copy(batch.bounds).applyMatrix4(bodyMatrix);
+    treeSphere.center.toArray(batch.centres, slot * 3); batch.reach[slot] = treeSphere.radius;
+  }
+
+  /**
+   * The trees in the camera's sight into the meshes, when the camera moved or the trees round it changed: the trees
+   * behind it or off the screen's sides cost nothing (they were all drawn before). Without a camera, every tree.
+   */
+  private cull(planted: boolean): void {
+    const moved = this.camera ? frustumOf(this.camera, this.sight, this.lastSight) : false;
+    if (!moved && !planted) return;
+    for (const b of this.batches) {
+      let n = 0;
+      for (let slot = 0; slot < b.count; slot++) {
+        treeSphere.center.fromArray(b.centres, slot * 3); treeSphere.radius = b.reach[slot] + 1;
+        if (this.camera && !this.sight.intersectsSphere(treeSphere)) continue;
+        for (const mesh of b.meshes) (mesh.instanceMatrix.array as Float32Array).set(b.matrices.subarray(slot * 16, slot * 16 + 16), n * 16);
+        n++;
+      }
+      for (const mesh of b.meshes) { mesh.count = n; mesh.instanceMatrix.needsUpdate = true; }
     }
   }
 
@@ -1241,7 +1277,7 @@ export class CityFoliage {
     const cellX = Math.round(target.x / 90);
     const cellZ = Math.round(target.z / 90);
     const cellKey = `${cellX},${cellZ},${lines.length},${this.size}`;
-    if (cellKey === this.lastCellKey) return;
+    if (cellKey === this.lastCellKey) { this.cull(false); return; }
     this.lastCellKey = cellKey;
 
     this.ensureBatches();
@@ -1334,12 +1370,7 @@ export class CityFoliage {
       }
     }
 
-    for (const b of this.batches) {
-      for (const m of b.meshes) {
-        m.count = b.count;
-        m.instanceMatrix.needsUpdate = true;
-      }
-    }
+    this.cull(true);
   }
 
   dispose(): void {

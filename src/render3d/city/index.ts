@@ -42,6 +42,7 @@ import type { CityMapReader, CityViewSetup } from './types.js';
 import { CityPost, lensLikely, postSupported, type CityPostLike, type PostLook } from './postFx.js';
 import { EffectLadder, LEVEL_PIXEL_RATIO, NO_EFFECTS, isGraphicsQuality, middleInterval, type FrameSample, type GraphicsQuality, type PostEffects } from './quality.js';
 import { GpuTimer } from './gpuTimer.js';
+import { pixelsPerUnit } from './lod.js';
 export type { CityViewSetup, CityMapReader, BlockMapReader } from './types.js';
 export { CityFoliage, CityPedestrians, CityRoadTraffic } from './pedestrians.js';
 export type { GraphicsQuality, PostEffects } from './quality.js';
@@ -192,7 +193,13 @@ export class CityView3D implements CityView {
     // On a real-scale city map the camera comes down to the street
     if((setup.map.tileSizeM??0)>0&&(setup.map.tileSizeM??0)<=40){this.navigation.minDistance=5;this.navigation.clearance=1.1;}
     this.cameraPose=this.navigation.camera.matrixWorld.elements.slice();
-    this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
+    this.chunks=new CityChunks(this.snapshot,setup.region,provider,this.now,this.terrain);
+    // ... whose models with levels of detail are drawn together, each building at its level and only those in sight of the
+    // camera or the sun's shadow (pools.ts, lod.ts); the shadow pass is told apart by its frustum
+    this.chunks.camera=this.navigation.camera;this.chunks.shadowCamera=this.sun.shadow.camera;
+    // ... and the trees round the camera only those in its sight
+    this.foliage.camera=this.navigation.camera;
+    this.chunks.shadowFrustum=()=>this.sun.shadow.getFrustum?.();this.outline=new ToolOutline(setup.map.width,setup.map.height,this.terrain);
     this.zones=new ZoneGrid(setup.map,this.terrain,this.now);
     // On a map painted a cell at a time, its zone cells along the roads (zoneCellsView.ts) take the zone grid's place
     if((setup.map as unknown as CellMap).cellZones){this.cells=new ZoneCellsView(setup.map as unknown as CellMap,this.terrain);this.scene.add(this.cells.root);}
@@ -244,6 +251,9 @@ export class CityView3D implements CityView {
     if(typeof ResizeObserver!=='undefined'){this.resizeObserver=new ResizeObserver(()=>{if(!this.disposed){this.resize();this.render();}});this.resizeObserver.observe(setup.container);}
     if(!this.headless)this.loadSky();
     this.render();this.metrics.firstFrameMs=this.now()-this.created;
+    // The benchmark over a big town (bench.ts, RENDERER_SPEC §8B), only with `bench` in the page's address
+    if(!this.headless&&typeof location!=='undefined'&&/[?&]bench(?:[=&]|$)/.test(location.search))
+      import('./bench.js').then(bench=>bench.installBench(this)).catch(error=>console.warn('PhaiCity: the bench did not load',error));
   }
   /** Continuous day/night and twilight color interpolation (GC-free, zero allocations) */
   private applyDayNight(nightFactor:number,twilight:number,sunAngle?:number):void {
@@ -442,6 +452,8 @@ export class CityView3D implements CityView {
     for(let i=0;i<16;i++){if(Math.abs(pose[i]-this.cameraPose[i])>1e-6){poseMoved=true;this.cameraPose[i]=pose[i];}}
     if(this.drag||this.navigation.isAnimating(start)||poseMoved)this.lastMotion=start;
     this.lastMotion=Math.max(this.lastMotion,this.navigation.lastInteractionAt);
+    // How big a world unit one unit from the camera shows, for the models' levels of detail (lod.ts)
+    this.chunks.pixelsPerUnit=pixelsPerUnit(Math.max(1,this.height)*(this.renderer.getPixelRatio?.()??1),this.navigation.camera.fov);
     const visible=this.visibleTiles();this.chunks.update(visible,this.navigation.target,this.navigation.distance);
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);

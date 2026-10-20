@@ -211,8 +211,8 @@ export function eraMonth(map: Legacy, sim: Legacy, objects: Objects, levels: { s
     if (own === 0) {
       // A building of a city that kept no eras yet stands in the era it is in; a new one may be the next
       eras[b.id] = first ? era : eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b));
-    } else if (fresh) {
-      // Just loaded: as it was
+    } else if (fresh || stamps[b.id] === 0) {
+      // Just loaded, or just moved to another block (the move command carries its era, src/cityCommands.ts): as it was
     } else if (stamps[b.id] !== level) {
       // It grew (or shrank) a level: rebuilt in the era of now, never an older one than it had
       eras[b.id] = Math.max(own, eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b)));

@@ -126,6 +126,68 @@ export function readBuildingRecords(map: BuildingMap, saved: unknown): void {
   }
 }
 
+/** A record kept by tile moved from one tile to another: what was on `to` gives way to what was on `from`, which is
+ * left with nothing; what moves it back and puts back what `to` had */
+export function carryKey(record: Record<string, unknown>, from: number, to: number): () => void {
+  const had = to in record, stale = record[to];
+  if (from in record) record[to] = record[from];
+  else delete record[to];
+  delete record[from];
+  return () => {
+    if (to in record) record[from] = record[to];
+    else delete record[from];
+    if (had) record[to] = stale;
+    else delete record[to];
+  };
+}
+
+/** What a moved building's records are read from (src/gameMap.js, typed loosely) */
+interface CarryMap extends BuildingMap {
+  buildingEras?: Uint8Array | null;
+  buildingErasVersion?: number;
+  rulerHouse?: { x: number; y: number } | null;
+  town?: { x: number; y: number } | null;
+}
+
+/**
+ * Everything kept by a building's centre tile carried from the tile `from` to `to`, as the move command takes the
+ * building to another block (docs/METRE_DRAWING_PLAN.md 2.5): its kind, its level and its era, and the ruler's house
+ * with its wings, and the town that follows the house (the camera's start and ⌂). What carries them back.
+ */
+export function carryRecords(map: CarryMap, from: number, to: number): () => void {
+  const backs: Array<() => void> = [];
+  for (const field of [...new Set(Object.values(KIND_FIELDS)), "buildingLevels"]) {
+    const record = map[field] as Record<string, unknown> | null | undefined;
+    if (record) backs.push(carryKey(record, from, to));
+  }
+  const eras = map.buildingEras;
+  if (eras instanceof Uint8Array && from < eras.length && to < eras.length) {
+    const stale = eras[to];
+    eras[to] = eras[from];
+    eras[from] = 0;
+    // (a count the 3D view watches to draw the buildings' eras again)
+    map.buildingErasVersion = (map.buildingErasVersion ?? 0) + 1;
+    backs.push(() => {
+      eras[from] = eras[to];
+      eras[to] = stale;
+      map.buildingErasVersion = (map.buildingErasVersion ?? 0) + 1;
+    });
+  }
+  const house = map.rulerHouse, width = map.width;
+  if (house && house.y * width + house.x === from) {
+    const town = map.town, follows = !!town && town.x === house.x && town.y === house.y;
+    const tx = to % width, ty = Math.floor(to / width);
+    map.rulerHouse = { ...house, x: tx, y: ty };
+    if (follows) map.town = { x: tx, y: ty };
+    backs.push(() => {
+      const now = map.rulerHouse;
+      if (now && now.x === tx && now.y === ty) map.rulerHouse = { ...now, x: house.x, y: house.y };
+      if (follows) map.town = { x: house.x, y: house.y };
+    });
+  }
+  return () => { for (const back of backs.reverse()) back(); };
+}
+
 /** The record by tile a tool's building keeps its kind in */
 function fieldOfTool(tool: string): string | null {
   const among = (list: readonly string[]): boolean => list.includes(tool);
