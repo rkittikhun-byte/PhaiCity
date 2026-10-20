@@ -96,6 +96,8 @@ export class CityView3D implements CityView {
   private dayNightMode:'auto'|'day'|'night'='auto';
   private readonly CYCLE_DURATION=180;
   private sunAngle=Math.PI*0.35;
+  /** The sun's place from the game's clock, null until the game sends one (setSunAngle) */
+  private clockAngle:number|null=null;
   private lastNightFactor=-1;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
@@ -195,10 +197,14 @@ export class CityView3D implements CityView {
     tSky.copy(cHemiSkyDay).lerp(cHemiSkyNight,nightFactor).lerp(cHemiSkyTwilight,twilight*0.7);
     tGnd.copy(cHemiGndDay).lerp(cHemiGndNight,nightFactor).lerp(cHemiGndTwilight,twilight*0.7);
     this.hemi.color.copy(tSky);this.hemi.groundColor.copy(tGnd);
-    this.hemi.intensity=(1.25*(1-nightFactor)+0.65*nightFactor)+twilight*0.2;
+    // A night dark enough to read as night, the city still to be made out and its lit windows standing out (owner,
+    // 20 Oct 2026: "ค่อยๆ มืดค่ำ ... เหมือนกับของจริง")
+    this.hemi.intensity=(1.25*(1-nightFactor)+0.38*nightFactor)+twilight*0.2;
+    // ... the daylight sky's light on every surface (the HDRI, loadSky) goes down with the sun
+    this.scene.environmentIntensity=1-0.85*nightFactor;
 
     tSun.copy(cSunDay).lerp(cSunNight,nightFactor).lerp(cSunTwilight,twilight*0.85);
-    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.7,3.3*(1-nightFactor)+1.2*nightFactor);
+    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.3,3.3*(1-nightFactor)+0.45*nightFactor);
 
     tZenith.copy(cZenithDay).lerp(cZenithNight,nightFactor).lerp(cZenithTwilight,twilight*0.75);
     tHorizon.copy(cHorizonDay).lerp(cHorizonNight,nightFactor).lerp(cHorizonTwilight,twilight*0.85);
@@ -213,13 +219,16 @@ export class CityView3D implements CityView {
   private updateDayNight():void {
     if(this.dayNightMode==='day'){this.applyDayNight(0,0,Math.PI*0.35);return;}
     if(this.dayNightMode==='night'){this.applyDayNight(1,0,-Math.PI*0.5);return;}
-    const phase=(this.seconds/this.CYCLE_DURATION)%1.0;
-    const angle=phase*Math.PI*2;
+    // The game's clock when it keeps one (src/dayClock.ts setSunAngle), else a cycle of its own
+    const angle=this.clockAngle??((this.seconds/this.CYCLE_DURATION)%1.0)*Math.PI*2;
     const elevation=Math.sin(angle);
     const nightFactor=Math.max(0,Math.min(1,(-elevation+0.18)/0.36));
     const twilight=Math.max(0,1-Math.abs(elevation)/0.22);
     this.applyDayNight(nightFactor,twilight,angle);
   }
+  /** Where the game's clock puts the sun (src/dayClock.ts sunAngle): 0 rising, π setting, on to 2π through the night;
+   * the auto cycle follows it from then on */
+  setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
   /** Switch between Day Mode, Dark Mode and Auto Day/Night Cycle */
   setDarkMode(on:boolean):void {
     this.dayNightMode=on?'night':'day';

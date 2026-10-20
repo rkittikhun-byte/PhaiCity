@@ -1354,6 +1354,7 @@
 | `time.speed.1` | `src/timeControls.ts` | — | `Slow: a month in about 8 seconds` | `ช้า: 1 เดือนประมาณ 8 วินาที` |  |
 | `time.speed.2` | `src/timeControls.ts` | — | `Normal: a month in about 4 seconds` | `ปกติ: 1 เดือนประมาณ 4 วินาที` |  |
 | `time.speed.3` | `src/timeControls.ts` | — | `Fast: a month in about 2 seconds` | `เร็ว: 1 เดือนประมาณ 2 วินาที` |  |
+| `time.sun` | `src/timeControls.ts` | — | `Sunrise {rise}, sunset {set} this month` | `เดือนนี้พระอาทิตย์ขึ้น {rise} ตก {set}` | ชี้ที่นาฬิกาในแถบเวลา |
 | `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
 | `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |

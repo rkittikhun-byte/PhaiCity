@@ -8,6 +8,7 @@
 // P still pauses and resumes (the rail's hidden button, src/menuRail.ts).
 
 import { onLanguageChange, t } from "./i18n/index";
+import { clockText, sunHours } from "./dayClock";
 
 /** The simulation's speeds (src/simulation.js Simulation.SPEED_*): paused, slow, medium, fast */
 export const TIME_SPEEDS = [0, 1, 2, 3] as const;
@@ -19,6 +20,9 @@ export interface TimeGame {
   isPaused: boolean;
   defaultSpeed: number;
   applyCommand(command: { type: "speed"; speed: number }): unknown;
+  /** The time of day (src/dayClock.ts), and the calendar's month for its sunrise and sunset */
+  dayClock?: { text(): string; night(month: number): boolean };
+  simulation?: { getDate(): { month: number } };
 }
 
 /** The speed the game runs at now: 0 while paused */
@@ -47,6 +51,14 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
   const bar = doc.createElement("div");
   bar.id = "timeBar";
   bar.setAttribute("role", "toolbar");
+  // The clock: a sun by day, a moon by night, and the hour (src/dayClock.ts)
+  const clock = doc.createElement("span");
+  clock.className = "timeClock";
+  clock.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="timeSun" cx="12" cy="12" r="4.5"/>'
+    + '<path class="timeSun" d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>'
+    + '<path class="timeMoon" d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg><span class="timeHour"></span>';
+  const hour = clock.querySelector(".timeHour") as HTMLElement;
+  if (game.dayClock) bar.append(clock);
   const date = doc.createElement("span");
   date.className = "timeDate";
   bar.append(date);
@@ -93,11 +105,23 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
     const source = doc.getElementById("date");
     const text = source?.textContent ?? "";
     if (date.textContent !== text) date.textContent = text;
+    if (game.dayClock) {
+      const month = game.simulation?.getDate().month ?? 0, now = game.dayClock.text();
+      if (hour.textContent !== now) hour.textContent = now;
+      clock.classList.toggle("night", game.dayClock.night(month));
+      if (month !== shownMonth) {
+        shownMonth = month;
+        const sun = sunHours(month);
+        clock.title = t("time.sun", { rise: clockText(sun.rise), set: clockText(sun.set) });
+      }
+    }
   };
+  let shownMonth = -1;
   label();
   refresh();
-  onLanguageChange(() => { label(); refresh(); });
-  // P on the rail, the settings window and loading a city change the speed too: look a few times a second
+  onLanguageChange(() => { label(); shownMonth = -1; refresh(); });
+  // P on the rail, the settings window and loading a city change the speed too, and the clock moves: look a few times
+  // a second
   setInterval(refresh, 250);
   return bar;
 }

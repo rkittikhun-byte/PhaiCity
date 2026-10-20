@@ -1179,6 +1179,7 @@ export const STRINGS: Record<string, Translation> = {
   "time.speed.1": { en: "Slow: a month in about 8 seconds", th: "ช้า: 1 เดือนประมาณ 8 วินาที" },
   "time.speed.2": { en: "Normal: a month in about 4 seconds", th: "ปกติ: 1 เดือนประมาณ 4 วินาที" },
   "time.speed.3": { en: "Fast: a month in about 2 seconds", th: "เร็ว: 1 เดือนประมาณ 2 วินาที" },
+  "time.sun": { en: "Sunrise {rise}, sunset {set} this month", th: "เดือนนี้พระอาทิตย์ขึ้น {rise} ตก {set}" },
   "festival.songkran": { en: "Songkran", th: "สงกรานต์" },
   "festival.new_year": { en: "New Year", th: "ปีใหม่" },
   "levels.level": { en: "Level {n}", th: "ระดับ {n}" },

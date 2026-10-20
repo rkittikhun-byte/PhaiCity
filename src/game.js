@@ -86,6 +86,7 @@ import { installMousePan, installViewControls, panOf, setViewHome } from './view
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
 import { installTimeControls } from './timeControls.ts';
+import { DayClock } from './dayClock.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
@@ -208,6 +209,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   this.name = name || 'MyTown';
   this.everClicked = false;
+  // The time of day (src/dayClock.ts): runs while the game runs, and the 3D view's sun follows it
+  this.dayClock = new DayClock();
+  this._clockAt = null;
 
   if (savedGame)
     this.load(savedGame);
@@ -762,7 +766,8 @@ Game.prototype.saveData = function() {
     name: this.name, everClicked: this.everClicked,
     provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
     rulerRank: this.rulerRank,
-    goals: this.rulerGoals.state(), news: this.newsLog.items()
+    goals: this.rulerGoals.state(), news: this.newsLog.items(),
+    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000
   });
 };
 
@@ -826,6 +831,9 @@ Game.prototype.load = function(saveData) {
   // The core has loaded the city itself (src/core/cityCore.ts); the game keeps its name and whether it was clicked
   this.name = saveData.name;
   this.everClicked = saveData.everClicked;
+  // ... and the time of day it was saved at (a city saved before the clock wakes at seven)
+  if (typeof saveData.timeOfDay === 'number')
+    this.dayClock = new DayClock(saveData.timeOfDay);
 };
 
 
@@ -2761,6 +2769,16 @@ var commonAnimate = function() {
 
   if (!this.isPaused)
     this.simulation.spriteManager.moveObjects(this.simulation._constructSimData());
+
+  // The time of day moves only while the city's time does (not paused, no window open), as fast as the game's speed,
+  // and the sun stands where it says (src/dayClock.ts)
+  var now = performance.now(), frameSeconds = this._clockAt === null ? 0 : (now - this._clockAt) / 1000;
+  this._clockAt = now;
+  var month = this.simulation.getDate().month;
+  if (!this.isPaused && !this.dialogOpen)
+    this.dayClock.advance(frameSeconds, this.simulation._speed, month);
+  if (this.cityView && typeof this.cityView.setSunAngle === 'function')
+    this.cityView.setSunAngle(this.dayClock.sunAngle(month));
 
   // With a line half drawn and the mouse at the edge of the screen, the camera slides that way
   this.edgeScrollView();

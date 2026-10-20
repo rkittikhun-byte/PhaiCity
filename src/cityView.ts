@@ -81,6 +81,8 @@ export interface CityView {
    * toolFootprint), sprites are the moving things from src/spriteManager.js (positions in 16-unit world pixels).
    */
   paint(hover: ToolHover | null, sprites: unknown[] | null, isPaused: boolean): void;
+  /** Where the game's clock puts the sun (src/dayClock.ts): 0 rising, π setting, to 2π through the night (3D only) */
+  setSunAngle?(angle: number): void;
   /** The map tile under a point of the view (CSS pixels from its top-left), or null when it is not on the map. */
   tileAt(x: number, y: number): TilePoint | null;
   /** The point of the ground at (x, y) on the view, in tiles with their fractions, or null off the map (optional) */
