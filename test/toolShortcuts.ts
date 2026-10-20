@@ -17,7 +17,7 @@ describe("tool icons", () => {
   test("every tool button has its icon file", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const tools = [...html.matchAll(/data-tool="(\w+)"/g)].map((m) => m[1]);
-    expect(tools.length).toBe(27);
+    expect(tools.length).toBe(28);
     // Every one has its icon now (owner, 15 Oct 2026: "ใส่ icon มาให้หมดเลย")
     for (const tool of tools) expect(fs.existsSync(path.join(__dirname, "..", toolIconUrl(tool)))).toBe(true);
   });
@@ -30,7 +30,7 @@ describe("tool icons", () => {
     expect(buttons).toHaveLength(22);
     expect(buttons).not.toContain("wire");
     expect(buttons[0]).toBe("ruler_house"); // a new city builds it first (src/rulerHouse.ts)
-    expect([...kept].sort()).toEqual(["airport", "fire", "fishing", "nuclear", "watertower"]);
+    expect([...kept].sort()).toEqual(["airport", "building_move", "fire", "fishing", "nuclear", "watertower"]);
     for (const tool of kept) {
       expect(buttons).not.toContain(tool);
       expect([tool, hasKey(`tool.${tool}`), hasKey(`choice.${tool}`)]).toEqual([tool, true, true]);
