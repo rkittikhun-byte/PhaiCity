@@ -9,6 +9,8 @@ import { Civic, Factory, Home, PowerPlant, Shop } from "../src/objects/buildings
 import { CityObjects } from "../src/objects/cityObjects";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
 import { BUS_STOP, CIVIC, CZB, FARM, HARBOUR, HOUSE, IZB, MINE, NUCLEAR, POWERPLANT, RZB } from "../src/tileValues";
+import { CityCore } from "../src/core/cityCore";
+import { MapGenerator } from "../src/mapGenerator.js";
 
 function city(width = 30, height = 20) {
   const values = new Uint16Array(width * height), flags = new Uint16Array(width * height);
@@ -124,5 +126,33 @@ describe("city objects", () => {
     expect(objects.at(5, 4)).toBeInstanceOf(Shop);
     expect((objects.at(5, 4) as Shop).level(c)).toBe(3);
     expect(objects.at(5, 4)!.size).toBe(1);
+  });
+
+  test("the ruler's buildings come from the list of those put down, with where each stands in metres", () => {
+    const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
+    map.tileSizeM = 16;
+    const core = new CityCore({ map, seed: 11 });
+    core.simulation.budget.setFunds(1000000);
+    (core.map as any).needsRulerHouse = false;
+    core.apply({ type: "build", tool: "police", x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
+    core.apply({ type: "tool", tool: "gas", x: 40, y: 10, stroke: 2 });
+    const objects = new CityObjects(60, 40);
+    objects.scan(core.map as any, 3);
+    const police = objects.at(19, 16)!, plant = objects.at(41, 11)!;
+    expect(police.kind).toBe("police");
+    expect(police.placed).toMatchObject({ x: 330.4, z: 251.7, rot: 0.5, tool: "police" });
+    expect(plant).toBeInstanceOf(PowerPlant);
+    expect(plant.placed).toMatchObject({ tool: "gas", x: 656, z: 176, rot: null });
+    // Moved along its road: the same object, where it stands now
+    core.apply({ type: "move", id: 1, x: 334, z: 250, rot: 1.25, stroke: 3 });
+    const { added, removed } = objects.scan(core.map as any, 4);
+    expect(added).toEqual([]);
+    expect(removed).toEqual([]);
+    expect(objects.at(20, 15)).toBe(police);
+    expect(police.built).toBe(3);
+    expect(police.placed).toMatchObject({ x: 334, z: 250, rot: 1.25 });
+    // Bulldozed: gone, though the list keeps it until a save leaves it out
+    core.apply({ type: "tool", tool: "bulldozer", x: 20, y: 15 });
+    expect(objects.scan(core.map as any, 5).removed).toEqual([police]);
   });
 });

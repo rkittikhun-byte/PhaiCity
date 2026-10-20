@@ -29,6 +29,21 @@ export interface CityReader {
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number } | null;
   /** Where the water reaches (src/waterManager.ts WaterView): each zone's mark as last scanned */
   readonly water?: { zoneWater(x: number, y: number): number } | null;
+  /** The ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts): the objects of the
+   * central services come from here, not from a look over every tile (docs/METRE_DRAWING_PLAN.md 2.7) */
+  readonly buildings?: { all(): ReadonlyArray<PlacedRecord> } | null;
+}
+
+/** A building put down by the ruler, as gameMap.buildings keeps it: its centre tile's index, its middle and turn
+ * (metres, radians; turn null when never turned) and the tool that built it */
+export interface PlacedRecord {
+  readonly id: number;
+  readonly tile: number;
+  readonly x: number;
+  readonly z: number;
+  readonly rot: number | null;
+  readonly tool: string;
+  readonly size: number;
 }
 
 /** One line of an object's card: an i18n key (`object.fact.*`) and what fills it */
@@ -91,6 +106,8 @@ export abstract class CityObject {
 export abstract class Building extends CityObject {
   /** When it went up, in city time; 0 if it stood before the city recorded its objects */
   built = 0;
+  /** Where it was put down in metres, for a building of the ruler's (gameMap.buildings), else null */
+  placed: PlacedRecord | null = null;
   powered(city: CityReader): boolean {
     return (city.getTileFlags(this.x, this.y) & POWERBIT) !== 0;
   }

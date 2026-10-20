@@ -2,9 +2,12 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// Every building of the city (src/objects/buildings.ts), kept in step with the map: a scan finds what stands on the
-// tiles, keeps the objects that still stand (with what they remember), adds the new ones and lets the gone ones go.
-// Each tile knows which building covers it, for a click. Plain code: no DOM, nothing random.
+// Every building of the city (src/objects/buildings.ts), kept in step with the map: a scan finds what stands, keeps
+// the objects that still stand (with what they remember), adds the new ones and lets the gone ones go. The buildings a
+// tool put down come from their list (gameMap.buildings), each with where it stands in metres (docs/
+// METRE_DRAWING_PLAN.md 2.7); homes, shops, factories and stops from the tiles they grow on, until zones are kept in
+// metres too (step 3), and so would any building the list missed. Each tile knows which building covers it, for a
+// click. Plain code: no DOM, nothing random.
 
 import { buildingAt } from "./buildings.js";
 import type { Building, CityReader } from "./cityObject.js";
@@ -31,12 +34,25 @@ export class CityObjects {
    */
   scan(city: CityReader, now: number): { added: Building[]; removed: Building[] } {
     const found = new Map<number, Building>(), added: Building[] = [];
-    for (let y = 0; y < city.height; y++) for (let x = 0; x < city.width; x++) {
-      const fresh = buildingAt(city, x, y);
-      if (!fresh) continue;
+    const keep = (fresh: Building): Building => {
       const old = this.byId.get(fresh.id);
-      if (old && old.kind === fresh.kind && old.size === fresh.size) found.set(old.id, old);
-      else { fresh.built = now; found.set(fresh.id, fresh); added.push(fresh); }
+      if (old && old.kind === fresh.kind && old.size === fresh.size) { found.set(old.id, old); return old; }
+      fresh.built = now; found.set(fresh.id, fresh); added.push(fresh);
+      return fresh;
+    };
+    // The ruler's buildings put down, those still standing on their centre tile
+    const placed = city.buildings?.all() ?? null;
+    if (placed) for (const record of placed) {
+      const x = record.tile % city.width, y = Math.floor(record.tile / city.width);
+      if (x < 0 || y < 0 || x >= city.width || y >= city.height) continue;
+      const fresh = buildingAt(city, x, y);
+      if (fresh && fresh.size === record.size) keep(fresh).placed = record;
+    }
+    // ... and what grows on the tiles: homes, shops, factories and the stops (every building on a map with no list)
+    for (let y = 0; y < city.height; y++) for (let x = 0; x < city.width; x++) {
+      if (found.has(y * city.width + x)) continue;
+      const fresh = buildingAt(city, x, y);
+      if (fresh) keep(fresh).placed = null;
     }
     const removed = [...this.byId.values()].filter(b => found.get(b.id) !== b);
     this.byId = found;
