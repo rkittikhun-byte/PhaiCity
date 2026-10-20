@@ -61,7 +61,10 @@ const cache = new Map<string, MeshStandardMaterial>();
 const owned = new WeakSet<Material>();
 const pending = new Map<MaterialKey, Promise<boolean>>();
 const statuses = new Map<MaterialKey, 'loading' | 'ready' | 'fallback'>();
-let nightMode = false;
+/** How dark it is, 0 by day to 1 at full night (setNightMode): lamps, windows and signs glow by it */
+let nightLevel = 0;
+/** How brightly they glow by day and at full night (owner, 17 Oct 2026: the windows a warm gold up to 2.6) */
+const GLOW = { lamp: [0.015, 2.2], window: [0.15, 2.6], sign: [0.3, 2.0] } as const;
 let previewGround: MeshStandardMaterial | undefined;
 
 /** Neutral diagnostic backdrop, kept outside the model-facing material keys. */
@@ -811,20 +814,14 @@ export function isLibraryMaterial(material: Material): boolean {
 
 /** Shared lighting setting: update existing materials and future tinted instances with smooth night factor. */
 export function setNightMode(night: boolean, nightFactor?: number): void {
-  nightMode = night;
-  const factor = nightFactor !== undefined ? nightFactor : (night ? 1 : 0);
-  const lampIntensity = Math.max(0.015, factor * 2.2);
-  const winIntensity = Math.max(0.15, factor * 2.6);
-  const signIntensity = Math.max(0.3, factor * 2.0);
-  cache.forEach(material => {
-    if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = lampIntensity;
-    if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = winIntensity;
-    if (material.userData.litSign) material.emissiveIntensity = signIntensity;
-  });
+  nightLevel = nightFactor !== undefined ? nightFactor : (night ? 1 : 0);
+  cache.forEach(applyNight);
 }
 
+/** A material's glow at the night's level, the same for one made at dusk as for those made before */
 function applyNight(material: MeshStandardMaterial): void {
-  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = nightMode ? 2.2 : 0.015;
-  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = nightMode ? 2.6 : 0.15;
-  if (material.userData.litSign) material.emissiveIntensity = nightMode ? 2.0 : 0.3;
+  const glow = ([day, night]: readonly [number, number]): number => Math.max(day, nightLevel * night);
+  if (['lamp_lens', 'tail_light_red'].includes(material.userData.vehicleMaterial)) material.emissiveIntensity = glow(GLOW.lamp);
+  if (material.userData.materialKey === 'emissive_window' && !material.userData.railwaySignal && !material.userData.stadiumFloodlight && !material.userData.powerDomeGlow) material.emissiveIntensity = glow(GLOW.window);
+  if (material.userData.litSign) material.emissiveIntensity = glow(GLOW.sign);
 }
