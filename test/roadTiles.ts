@@ -27,7 +27,7 @@ const counted = (test: (v: number) => boolean): [number, number][] => {
 describe("road tiles", () => {
   test("each test counts the tiles it says", () => {
     expect(counted(isRoadTile)).toEqual([[64, 207]]);
-    expect(counted(conductsPower)).toEqual([[64, 206], [237, 238], [828, 832], [948, 951]]);
+    expect(counted(conductsPower)).toEqual([[64, 207], [237, 238], [828, 831], [948, 951]]);
     expect(counted(carriesWater)).toEqual([[64, 207], [237, 238], [828, 831], [948, 951]]);
     expect(counted(isDriveableValue)).toEqual([[64, 206], [221, 238]]);
     expect(counted(isLineRoad)).toEqual([[66, 76], [79, 206]]);
@@ -35,6 +35,13 @@ describe("road tiles", () => {
     expect(counted(isPowerCrossing)).toEqual([[77, 78]]);
     expect(counted(isAnyRoad)).toEqual([[64, 206], [237, 239], [828, 832], [948, 951]]);
     expect(counted(isAnyRail)).toEqual([[221, 222], [224, 238]]);
+  });
+
+  test("power and water count the same road tiles (owner, 20 Oct 2026)", () => {
+    for (let v = 0; v < 1024; v++) expect(conductsPower(v)).toBe(carriesWater(v));
+    // An opening bridge under heavy traffic is a road for both; the airport's radar for neither
+    expect(conductsPower(207)).toBe(true);
+    expect(conductsPower(832)).toBe(false);
   });
 
   test("the modules that read them read these same tests", () => {

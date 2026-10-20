@@ -10,17 +10,19 @@
 //                  bridge  road   road     road    *    rail     rail     road      **   opening  ***  opening
 //                                 +wires                  +wires          +rail          bridge        bridge
 //   isRoadTile       x       x      x        x      x
-//   conductsPower    x       x      x        x                              x               x        x     x
+//   conductsPower    x       x      x        x      x                       x               x              x
 //   carriesWater     x       x      x        x      x                       x               x              x
 //   isDriveable      x       x      x        x           x        x         x
 //   isLineRoad               x               x
 //   isAnyRoad        x       x      x        x                              x         x     x        x     x
 //
 //   *   207 (BRWXXX7) a piece of the opening bridge;  ** 239 (ROADVPOWERH) a road under wires, "bogus?" in the original;
-//   *** 832 is both HBRDG_END and RADAR0 (an airport radar tile): power counts it, water does not.
+//   *** 832 is both HBRDG_END and RADAR0, an airport radar tile, not a road: it conducts by its own flag.
+//   Power and water count the same tiles (owner, 20 Oct 2026): before, power stopped at an opening bridge under
+//   heavy traffic (207, which water crossed) and counted the radar (832) as a road.
 
 import {
-  HBRDG0, HBRDG3, HBRDG_END, HRAILROAD, LASTRAIL, LASTROAD, POWERBASE, RAILHPOWERV, ROADBASE, VBRDG0, VBRDG3, VRAILROAD,
+  HBRDG0, HBRDG3, HRAILROAD, LASTRAIL, LASTROAD, POWERBASE, RAILHPOWERV, ROADBASE, VBRDG0, VBRDG3, VRAILROAD,
 } from "./tileValues";
 
 /** A road tile as the tools and the road levels see it: every value from the bridges to the last road piece before the
@@ -29,11 +31,11 @@ export function isRoadTile(value: number): boolean {
   return value >= ROADBASE && value < POWERBASE;
 }
 
-/** A tile power runs along (src/powerManager.js; owner, 15 Oct 2026: power runs along the roads): roads 64-206, the
- * level crossings and every opening-bridge tile up to HBRDG_END (832). */
+/** A tile power runs along (src/powerManager.js; owner, 15 Oct 2026: power runs along the roads): the same tiles as the
+ * water mains (owner, 20 Oct 2026: "ให้ไฟกับน้ำนับช่องถนนชุดเดียวกัน"), an opening bridge under heavy traffic (207)
+ * included and the airport's radar (832) not, which conducts by its own flag. */
 export function conductsPower(value: number): boolean {
-  return value >= ROADBASE && value <= LASTROAD || value === HRAILROAD || value === VRAILROAD ||
-    value >= HBRDG0 && value <= HBRDG_END || value >= VBRDG0 && value <= VBRDG3;
+  return carriesWater(value);
 }
 
 /** A tile that carries a water main (src/waterManager.ts): roads 64-207, the level crossings and the opening bridges'

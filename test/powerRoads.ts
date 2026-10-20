@@ -10,6 +10,7 @@ import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
 import { POWERBIT } from "../src/tileFlags";
+import { PowerManager } from "../src/powerManager.js";
 
 function city() {
   Random.seed(11);
@@ -37,6 +38,18 @@ describe("power along the roads", () => {
     core.run(200);
     expect(powered(core, 105, 18)).toBe(true);
     expect(powered(core, 60, 5)).toBe(false);
+  });
+
+  test("power crosses an opening bridge under heavy traffic (tile 207), as water does (owner, 20 Oct 2026)", () => {
+    // A row of road with the busy bridge tile in its middle, the power coming in at its west end
+    const map = (MapGenerator as any).fromPresetCells(30, 5, new Uint8Array(30 * 5));
+    for (let x = 0; x < 30; x++) map.setTile(x, 2, x === 15 ? 207 : 66, 0);
+    const power = new PowerManager(map);
+    power.addSource(0, 2);
+    power.doPowerScan({ plantPower: 1000, nuclearPowerPop: 0 });
+    expect(power.powerGridMap.worldGet(14, 2)).toBe(1);
+    expect(power.powerGridMap.worldGet(15, 2)).toBe(1);
+    expect(power.powerGridMap.worldGet(29, 2)).toBe(1);
   });
 
   test("without a plant the road carries nothing", () => {
