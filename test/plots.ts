@@ -13,10 +13,14 @@ import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import {
   ERASE_TOOL, fillRegion, LOT_LEVEL, lotFacing, lotOf, mayRise, nearestRoad, PAINT_TOOLS, paintOutcome, PLOT_KINDS,
-  PLOT_REACH, PLOT_TOP, plotFacing, plotOf,
+  PLOT_REACH, PLOT_TOP, plotBranchCode, plotEnvironmentClass, plotFacing, plotOf,
   plotTile, readPlotValue, zonable,
 } from "../src/plots";
 import { Random } from "../src/random";
+// The 3D side of a plot's upgrade, loaded with the file: loading it takes seconds, which a test's own time should not
+import { TileSnapshot } from "../src/render3d/city/tileModels";
+import { createPlot } from "../src/render3d/models/plot/index";
+import { disposeModel } from "../src/render3d/util/geometry";
 import { MOTORWAY_LEVEL, newRoadLevels } from "../src/roadLevels";
 import { Simulation } from "../src/simulation.js";
 import { BLBNCNBIT, ZONEBIT } from "../src/tileFlags";
@@ -209,11 +213,6 @@ describe("painted zones", () => {
   });
 
   test("environment-driven branching upgrades (A1 -> C2 -> D3) and 3D construction sequence (stage_1 -> stage_2 -> closed)", () => {
-    const { plotBranchCode, plotEnvironmentClass } = require("../src/plots");
-    const { TileSnapshot } = require("../src/render3d/city/tileModels");
-    const { createPlot } = require("../src/render3d/models/plot/index");
-    const { disposeModel } = require("../src/render3d/util/geometry");
-
     const { map, sim } = city();
     const x = 15, y = ROAD_Y + 1, idx = y * map.width + x;
     const simData = sim._constructSimData();
