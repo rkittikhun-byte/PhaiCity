@@ -457,7 +457,11 @@ const ARM_REACH = 25;
 const SMOOTH_JOINT_DEG = 30;
 
 /** A road as drawn: one or more stretches joined where it runs on through a junction, as one smooth line */
-export interface RoadLine { points: Point[]; level: number; rail: boolean; stretches: number[] }
+export interface RoadLine {
+  points: Point[]; level: number; rail: boolean; stretches: number[];
+  /** A road drawn in metres (src/roads/graphLines.ts): the stroke it was drawn in, 0 for none */
+  piece?: number;
+}
 /** A road at a junction: its line, the end of it that is there (null where the line runs on through), the way it
  * leaves the junction and its level */
 export interface JunctionArm { line: number; end: 0 | 1 | null; way: Point; level: number }

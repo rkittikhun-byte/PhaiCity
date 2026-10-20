@@ -235,7 +235,7 @@ export function withGraph(tiles: DrawnLines, plates: Array<[number, number, numb
       if (!next || lineOf.has(t)) { lineEnd.set(out, 1); break; }
       r = t; e = te as 0 | 1;
     }
-    lines.push({ points, level: runs[start].level, rail, stretches: [] });
+    lines.push({ points, level: runs[start].level, rail, stretches: [], piece: runs[start].piece });
   };
   runs.forEach((_, r) => {
     if (lineOf.has(r)) return;

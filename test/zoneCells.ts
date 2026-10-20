@@ -237,4 +237,52 @@ describe("zone cells", () => {
     const core = new CityCore({ map, seed: 1 });
     expect(core.apply({ type: "zoneCells", zone: "industrial", cells: [1] }).accepted).toBe(false);
   });
+
+  describe("along roads drawn in metres (docs/METRE_DRAWING_PLAN.md 3.1)", () => {
+    /** A bare 16 m city map with a slanted road drawn in metres, none of whose cells lie on a tile road's line */
+    function metreCity() {
+      const map = (MapGenerator as any).fromPresetCells(80, 60, new Uint8Array(80 * 60));
+      map.tileSizeM = 16;
+      map.paintedZones = true;
+      map.cellZones = true;
+      const core = new CityCore({ map, seed: 3 });
+      core.simulation.budget.setFunds(500000);
+      (core.map as any).needsRulerHouse = false;
+      expect(core.apply({ type: "road", tool: "road", from: [100, 300], to: [1100, 520], stroke: 1 }).accepted).toBe(true);
+      return core;
+    }
+    const U = 10 / 16;
+    const cellsBeside = (core: CityCore) => new Map(cellLayout(core.map as any).cells.map((c) => [c.key, [c.x, c.z, c.row]]));
+
+    test("its cells' first row lies along the road as drawn, at the road's edge", () => {
+      const core = metreCity(), layout = cellLayout(core.map as any);
+      const [ax, az, bx, bz] = [100 * U, 300 * U, 1100 * U, 520 * U], length = Math.hypot(bx - ax, bz - az);
+      const near = layout.cells.filter((c) => c.row === 0);
+      expect(near.length).toBeGreaterThan(40);
+      // Each one's distance from the drawn line
+      const distances = near.map((c) => Math.abs((bx - ax) * (c.z - az) - (bz - az) * (c.x - ax)) / length);
+      // Every first-row cell the same way from the drawn line, whatever the tiles under it
+      expect(Math.max(...distances) - Math.min(...distances)).toBeLessThan(0.05);
+    });
+
+    test("a road drawn across it, one built on from its end and a part raised a level leave its cells where they were", () => {
+      const core = metreCity(), before = cellsBeside(core);
+      core.apply({ type: "road", tool: "road", from: [600, 100], to: [600, 800], stroke: 2 });
+      core.apply({ type: "road", tool: "road", from: [1100, 520], to: [1250, 700], stroke: 3 });
+      core.apply({ type: "tool", tool: "road_upgrade" as any, x: 20, y: 24, stroke: 4 });
+      const after = cellsBeside(core);
+      // Most cells are still there, where they were (those on the new road's ground and round the new junctions are
+      // gone; at a corner the other road's cell may take a key, its middle within half a metre)
+      let kept = 0, same = 0;
+      for (const [key, where] of before) {
+        const now = after.get(key);
+        if (!now) continue;
+        kept++;
+        if (now[0] === where[0] && now[1] === where[1] && now[2] === where[2]) same++;
+        expect(Math.hypot(now[0] - where[0], now[1] - where[1])).toBeLessThan(0.5 * U);
+      }
+      expect(kept).toBeGreaterThan(before.size * 0.7);
+      expect(same).toBeGreaterThan(kept - 5);
+    });
+  });
 });

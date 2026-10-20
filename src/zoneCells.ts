@@ -17,6 +17,8 @@ import { BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";
 import { DIRT } from "./tileValues";
 import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
+import { graphLines, withGraph } from "./roads/graphLines";
+import type { RoadGraph } from "./roads/roadGraph";
 import { tileMetres, tileOfUnits, unitsOfTile, unitsPerMetre as metreUnits } from "./units";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
@@ -50,6 +52,9 @@ export interface CellMap {
   readonly roadPieces?: Uint16Array | null;
   /** ... and the tiles each piece was drawn along (src/roadPieces.ts) */
   readonly roadPaths?: Readonly<Record<number, { from: number; to: number; tiles: readonly number[] }>> | null;
+  /** The roads and railways drawn in metres (src/roads/roadGraph.ts): the cells lie along them exactly as drawn */
+  readonly roadGraph?: RoadGraph | null;
+  readonly railGraph?: RoadGraph | null;
   readonly insideProvince?: Uint8Array | null;
   getTileValue(x: number, y: number): number;
   /** Whether this map's zones are painted a cell at a time */
@@ -139,6 +144,87 @@ export function tileRasterKeys(map: CellMap, tx: number, ty: number): number[] {
   return keys;
 }
 
+/**
+ * Each stroke drawn in metres as one line (world units) from its first end, the end node of the lower id, with how far
+ * along it each point lies: the cells along its roads are counted from there, a cell's length apart, so a road drawn
+ * across it, a part of it raised a level or a road built on from its end never moves them (docs/METRE_DRAWING_PLAN.md
+ * 3.1), and the paint kept by where a cell's middle lies stays on it.
+ */
+function strokeLines(graph: RoadGraph, units: number): Map<number, { points: Point[]; along: number[] }> {
+  const byPiece = new Map<number, number[]>();
+  for (const id of [...graph.segments.keys()].sort((a, b) => a - b)) {
+    const piece = graph.segment(id).piece ?? 0;
+    if (!piece) continue;
+    let list = byPiece.get(piece);
+    if (!list) byPiece.set(piece, list = []);
+    list.push(id);
+  }
+  const out = new Map<number, { points: Point[]; along: number[] }>();
+  for (const [piece, ids] of byPiece) {
+    const at = new Map<number, number[]>();
+    for (const id of ids) {
+      const s = graph.segment(id);
+      for (const node of [s.a, s.b]) {
+        let list = at.get(node);
+        if (!list) at.set(node, list = []);
+        list.push(id);
+      }
+    }
+    const ends = [...at.entries()].filter(([, list]) => list.length === 1).map(([node]) => node).sort((a, b) => a - b);
+    let node = ends.length ? ends[0] : graph.segment(ids[0]).a;
+    const used = new Set<number>(), points: Point[] = [];
+    for (;;) {
+      const next = (at.get(node) ?? []).find((id) => !used.has(id));
+      if (next === undefined) break;
+      used.add(next);
+      const s = graph.segment(next), line = graph.polyline(next, 1).map(([x, z]): Point => [x * units, z * units]);
+      if (s.a !== node) line.reverse();
+      for (const p of line) {
+        const last = points[points.length - 1];
+        if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-6) points.push(p);
+      }
+      node = s.a === node ? s.b : s.a;
+    }
+    const along = [0];
+    for (let i = 1; i < points.length; i++) along.push(along[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+    if (points.length > 1) out.set(piece, { points, along });
+  }
+  return out;
+}
+
+/** How far along a stroke's line (strokeLines) the point of it nearest p lies */
+function alongStroke(stroke: { points: Point[]; along: number[] }, p: Point): number {
+  let best = 0, bestD = Infinity;
+  const { points, along } = stroke;
+  for (let i = 1; i < points.length; i++) {
+    const [ax, az] = points[i - 1], dx = points[i][0] - ax, dz = points[i][1] - az, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / l2));
+    const d = Math.hypot(ax + dx * t - p[0], az + dz * t - p[1]);
+    if (d < bestD) { bestD = d; best = along[i - 1] + t * Math.sqrt(l2); }
+  }
+  return best;
+}
+
+/** Where along a line its cells' middles lie (world units from its start): for a road drawn in metres on its stroke's
+ * steps (strokeLines), a cell's length apart from the stroke's first end, each whole on the line; for a road that is
+ * only tiles centred on it, as many as fit */
+function cellMiddles(line: readonly Point[], along: readonly number[], cellUnits: number,
+  stroke: { points: Point[]; along: number[] } | undefined): number[] {
+  const length = along[along.length - 1], out: number[] = [];
+  if (!stroke) {
+    const count = Math.floor(length / cellUnits), start = (length - count * cellUnits) / 2;
+    for (let k = 0; k < count; k++) out.push(start + (k + 0.5) * cellUnits);
+    return out;
+  }
+  // The line runs along its stroke or against it: compare where its start and a point a little along it lie
+  let i = 1;
+  while (i < line.length - 1 && along[i] < Math.min(length, cellUnits)) i++;
+  const u0 = alongStroke(stroke, line[0]), sign = alongStroke(stroke, line[i]) >= u0 ? 1 : -1;
+  const first = ((sign * (cellUnits / 2 - u0)) % cellUnits + cellUnits) % cellUnits, slack = 0.05 * cellUnits;
+  for (let s = first; s <= length - cellUnits / 2 + slack; s += cellUnits) if (s >= cellUnits / 2 - slack) out.push(s);
+  return out;
+}
+
 /** The two rasters a layout marks (the ground the roads take, the ground the cells cover), kept from one layout to the
  * next and cleared: new ones, 7 MB each on a city map, cost a fault of the system's memory at the first mark on each
  * page of them, half of the 0.3-0.6 s the cells took after each road drawn (19 Oct 2026) */
@@ -174,19 +260,38 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   };
   const value = (i: number): number => tiles[i];
   const levels = map.roadLevels, pieces = map.roadPieces, paths = map.roadPaths;
-  const roads = networkOf({ width: map.width, height: map.height, value, level: (i) => levels?.[i] ?? 1,
-    piece: (i) => pieces?.[i] ?? 0, path: (piece) => paths?.[piece] ?? null }, false);
-  const rails = networkOf({ width: map.width, height: map.height, value, level: () => 0, piece: (i) => pieces?.[i] ?? 0,
-    path: (piece) => paths?.[piece] ?? null }, true);
+  const piece = (i: number): number => pieces?.[i] ?? 0, level = (i: number): number => levels?.[i] ?? 1;
+  // The roads drawn in metres exactly as drawn (src/roads/graphLines.ts, docs/METRE_DRAWING_PLAN.md 3.1), and the
+  // roads that are only tiles read from the tiles they leave, joined as the 3D view joins them (drawnRoads)
+  const drawnGraph = (graph: RoadGraph | null | undefined, rail: boolean) => graph?.segments.size
+    ? graphLines(graph, { width: map.width, height: map.height, tileSizeM: tileMetres(map), value, piece, level }, rail) : null;
+  const roadGraph = drawnGraph(map.roadGraph, false), railGraph = drawnGraph(map.railGraph, true);
+  const graphOwn = new Uint8Array(roadGraph?.tiles.length ? map.width * map.height : 0);
+  for (const i of roadGraph?.tiles ?? []) graphOwn[i] = 1;
+  const roads = networkOf({ width: map.width, height: map.height, value: graphOwn.length ? (i) => (graphOwn[i] ? 0 : value(i)) : value,
+    level, piece, path: (p) => paths?.[p] ?? null }, false);
+  const rails = networkOf({ width: map.width, height: map.height, value, level: () => 0, piece,
+    path: (p) => paths?.[p] ?? null }, true);
   // The roads as the 3D view draws them, one line where a road runs on through a junction (src/roadGeometry.ts
   // roadLines), so their rows of cells run on through it too; each cell still belongs to the stretch it faces
-  const shapes = roadLines(roads), drawn = shapes.lines;
+  const tileShapes = roadLines(roads);
+  const shapes = roadGraph?.runs.length
+    ? withGraph(tileShapes, roads.plates, roadGraph, { width: map.width, height: map.height, value }, false) : tileShapes;
+  const drawn = shapes.lines;
   const stretchAt = new Map<number, number>();
   for (const stretch of roads.stretches) { const id = Math.min(...stretch.tiles); for (const tile of stretch.tiles) stretchAt.set(tile, id); }
+  // The stretch a road drawn in metres faces: the lowest tile under its line
+  const lowestTile = (points: readonly Point[]): number => points.reduce((low, [x, z]) => {
+    const tx = tileOfUnits(x), ty = tileOfUnits(z);
+    return tx >= 0 && ty >= 0 && tx < map.width && ty < map.height ? Math.min(low, ty * map.width + tx) : low;
+  }, map.width * map.height);
+  const strokes = map.roadGraph?.segments.size ? strokeLines(map.roadGraph, units) : new Map<number, { points: Point[]; along: number[] }>();
   const lines = [
     ...drawn.map((road) => ({ rail: false, level: road.level, line: road.points,
-      first: Math.min(...roads.stretches[road.stretches[0]].tiles) })),
-    ...rails.stretches.map((stretch) => ({ rail: true, level: 0, line: smoothLine(stretch.points), first: 0 })),
+      first: road.stretches.length ? Math.min(...roads.stretches[road.stretches[0]].tiles) : lowestTile(road.points),
+      stroke: road.piece ? strokes.get(road.piece) : undefined })),
+    ...rails.stretches.map((stretch) => ({ rail: true, level: 0, line: smoothLine(stretch.points), first: 0, stroke: undefined })),
+    ...(railGraph?.runs ?? []).map((run) => ({ rail: true, level: 0, line: run.points, first: 0, stroke: undefined })),
   ];
   // The roads and railways themselves, out to their edges, take their ground first
   for (const { rail, level, line } of lines) {
@@ -218,18 +323,17 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   }
   // Every row of cells beside the roads zones may face, nearest the road first, its junctions' corners before that
   const candidates: Array<Cell & { distance: number }> = [];
-  for (const [n, { rail, level, line, first }] of lines.entries()) {
+  for (const [n, { rail, level, line, first, stroke }] of lines.entries()) {
     if (rail || !servesZones(level) || line.length < 2) continue;
     let road = first;
     const along = [0];
     for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
-    const length = along[along.length - 1], count = Math.floor(length / cellUnits);
-    if (count < 1) continue;
-    const start = (length - count * cellUnits) / 2, edge = roadReach(level, real) + EDGE_GAP;
+    const middles = cellMiddles(line, along, cellUnits, stroke);
+    if (!middles.length) continue;
+    const edge = roadReach(level, real) + EDGE_GAP;
     const corners = cornersOf.get(n) ?? [], cornerReach = 1.5 * (edge + CELL_DEPTH * cellUnits);
     let segment = 1;
-    for (let k = 0; k < count; k++) {
-      const s = start + (k + 0.5) * cellUnits;
+    for (const s of middles) {
       while (segment < line.length - 1 && along[segment] < s) segment++;
       const [ax, az] = line[segment - 1], [bx, bz] = line[segment], span = along[segment] - along[segment - 1] || 1;
       const t = (s - along[segment - 1]) / span, px = ax + (bx - ax) * t, pz = az + (bz - az) * t;
