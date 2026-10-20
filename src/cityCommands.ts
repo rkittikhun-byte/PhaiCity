@@ -22,6 +22,8 @@ import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { segmentTiles } from "./roads/roadRaster";
+import { cutTile } from "./roads/roadCut";
+import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
@@ -571,6 +573,26 @@ export class CityCommands {
     return { accepted: true, toolResult: 0 };
   }
 
+  /**
+   * The roads and railways drawn in metres cut where the bulldozer cleared their tiles (src/roads/roadCut.ts), so what is
+   * left of them is still drawn as drawn (docs/METRE_DRAWING_PLAN.md, step 1's leftovers); what undoes each cut.
+   */
+  private cutGraphs(before: ReadonlyArray<{ x: number; y: number; before: number }>): Array<() => void> {
+    const map = this.city.map! as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null; tileSizeM?: number | null;
+      getTile(x: number, y: number): { getRawValue(): number } };
+    const metres = tileMetres(map), backs: Array<() => void> = [];
+    for (const [graph, was] of [[map.roadGraph, isAnyRoad], [map.railGraph, isAnyRail]] as const) {
+      if (!graph?.segments.size) continue;
+      const cleared = before.filter((c) => was(c.before & BIT_MASK) && !was(map.getTile(c.x, c.y).getRawValue() & BIT_MASK));
+      if (!cleared.length) continue;
+      const mark = graph.mark();
+      let cut = false;
+      for (const c of cleared) cut = cutTile(graph, c.x, c.y, metres) || cut;
+      if (cut) backs.push(() => graph.undo(mark));
+    }
+    return backs;
+  }
+
   /** Where the build command in hand puts its building down, in metres */
   private placing: { x: number; z: number; rot: number } | null = null;
 
@@ -673,6 +695,8 @@ export class CityCommands {
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
         const keptBack = applied && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
+        // A road or railway drawn in metres loses what ran over a tile the bulldozer cleared (src/roads/roadCut.ts)
+        const cutBack = applied && map && command.tool === "bulldozer" ? this.cutGraphs(before) : [];
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
@@ -723,6 +747,7 @@ export class CityCommands {
           const cost = fundsBefore - city.budget.totalFunds;
           this.history.record(command.stroke ?? null, changes, cost, city.cityTime?.() ?? 0);
           if (keptBack) (this.history.last()!.also ??= []).push(keptBack);
+          if (cutBack.length) (this.history.last()!.also ??= []).push(...cutBack);
         }
         return { accepted: true, toolResult: tool.result };
       }

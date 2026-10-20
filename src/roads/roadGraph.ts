@@ -56,11 +56,12 @@ export interface AddResult {
 }
 
 /** Where a graph stood, to take it back to (RoadGraph mark, undo): the ids it was to give next, and the segments it had
- * then that were split or removed since */
+ * then that were split or removed since, and the nodes it had then that went with them */
 export interface RoadMark {
   readonly nodes: number;
   readonly segments: number;
   readonly removed: RoadSegment[];
+  readonly removedNodes?: RoadNode[];
 }
 
 /** An end this near a node joins it (metres) */
@@ -309,6 +310,26 @@ export class RoadGraph {
     return { segments: made, split };
   }
 
+  /**
+   * Takes the part of a segment between t0 and t1 (0 to 1) away, the parts either side staying exactly where they were,
+   * each with a new end of its own (the bulldozer, src/roads/roadCut.ts); a part shorter than END_M goes with it.
+   */
+  cut(id: number, t0: number, t1: number): void {
+    const len = this.length(id), split: AddResult["split"] = [];
+    let middle = id, upTo = 1;
+    // The tail first: the head's own t is then t over t1 (de Casteljau keeps a part's t in step with the whole's)
+    if ((1 - t1) * len > END_M) {
+      this.splitAt(id, t1, split);
+      middle = split[split.length - 1].into[0];
+      upTo = t1;
+    }
+    if (t0 * len > END_M) {
+      this.splitAt(middle, t0 / upTo, split);
+      middle = split[split.length - 1].into[1];
+    }
+    this.remove(middle);
+  }
+
   /** Removes a segment, and its nodes when nothing else meets there */
   remove(id: number): void {
     const s = this.segment(id);
@@ -316,7 +337,13 @@ export class RoadGraph {
     this.keep(s);
     this.unindex(id);
     this.segments.delete(id);
-    for (const n of [s.a, s.b]) if (this.segmentsAt(n).length === 0) this.nodes.delete(n);
+    for (const n of [s.a, s.b]) {
+      if (this.segmentsAt(n).length > 0 || !this.nodes.has(n)) continue;
+      // ... kept by the mark watched when it had the node, for undo
+      const mark = this.watched;
+      if (mark && n < mark.nodes) (mark.removedNodes as RoadNode[] | undefined)?.push({ ...this.node(n) });
+      this.nodes.delete(n);
+    }
   }
 
   /**
@@ -324,7 +351,7 @@ export class RoadGraph {
    * count up), and each segment it has now that is split or removed is kept in the mark, until the next mark.
    */
   mark(): RoadMark {
-    this.watched = { nodes: this.nextNode, segments: this.nextSegment, removed: [] };
+    this.watched = { nodes: this.nextNode, segments: this.nextSegment, removed: [], removedNodes: [] };
     return this.watched;
   }
 
@@ -337,6 +364,7 @@ export class RoadGraph {
       this.segments.delete(id);
     }
     for (const id of [...this.nodes.keys()]) if (id >= mark.nodes) this.nodes.delete(id);
+    for (const n of mark.removedNodes ?? []) this.nodes.set(n.id, { ...n });
     for (const s of mark.removed) this.put({ ...s });
     this.nextNode = mark.nodes;
     this.nextSegment = mark.segments;
