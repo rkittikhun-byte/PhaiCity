@@ -24,6 +24,7 @@ import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
+import { calendarOf, newFestivalState, readFestivals, writeFestivals } from "../festivals.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -101,6 +102,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.needsRulerHouse = saved.needsRulerHouse === true;
     // ... and the month's weather (src/weather.ts); a city saved before the weather starts its own (src/simulation.js)
     map.weather = readWeather(saved.weather);
+    // ... and the festivals: the ruler's answers, this month's and their afterglow (src/festivals.ts)
+    map.festivals = readFestivals(saved.festivals);
   } else {
     // A new city builds its ruler's house before anything else
     map.civicKinds = {};
@@ -179,6 +182,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.buildingLevels = map.buildingLevels || {};
   map.buses = map.buses || [];
   map.zoneCells = map.zoneCells || new Map();
+  map.festivals = map.festivals || newFestivalState();
 }
 
 /** The pieces of the roads and railways on the map (src/roadPieces.ts) */
@@ -243,6 +247,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     buildingEras: map.buildingEras && map.buildingEras.some((e: number) => e > 0) ? encodePresetLayer(map.buildingEras) : undefined,
     // ... and the month's weather, with the seed of its chances (src/weather.ts)
     weather: map.weather ? { ...map.weather } : undefined,
+    // ... and the festivals (src/festivals.ts)
+    festivals: writeFestivals(map.festivals),
   };
 }
 
@@ -317,6 +323,8 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
       const value = map.getTileValue(x, y);
       return value >= RAILBASE && value <= LASTRAIL;
     },
+    // ... and the festivals the province keeps, and the ruler's answers (src/festivals.ts)
+    festivals: { get state() { return map.festivals; }, calendar: () => calendarOf(simulation) },
     setRulerHouse: (x: number, y: number) => {
       map.civicKinds[y * map.width + x] = HOUSE_KIND;
       map.rulerHouse = { x, y, level: 1, wings: [] };

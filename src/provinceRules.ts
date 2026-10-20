@@ -10,6 +10,8 @@
 // the game's defaults, then the region's, then the province's.
 //
 // Every number is checked before use, so a bad edit is reported and ignored rather than breaking the game.
+// The festivals each region and province keeps are rules too (FESTIVAL_SPECS below, src/festivals.ts): the country's
+// own are the defaults. This file imports nothing, so the admin page's server can run its checks in Node as they are.
 
 export const TOOL_COSTS = ["residential", "commercial", "industrial", "road", "rail", "wire", "park", "police", "fire",
   "coal", "nuclear", "stadium", "port", "airport", "bulldozer", "waterworks", "watertower", "gas", "hydro", "solar",
@@ -86,6 +88,8 @@ export interface Rules {
   seasons: Season[];
   /** The weather month by month: the chances of rain, storms, fog and smoke, and of a storm's flood (src/weather.ts) */
   weather: Climate;
+  /** The festivals kept, by id, with whatever of each festival's numbers the layers change (src/festivals.ts) */
+  festivals: Partial<Record<FestivalId, FestivalEntry>>;
 }
 
 /** What one layer changes; anything left out comes from the layer below. */
@@ -99,6 +103,8 @@ export interface RulesPatch {
   seasons?: Season[];
   /** Any of the climate's lists or its flood chance; the rest comes from the layer below */
   weather?: Partial<Climate>;
+  /** Festivals added or changed, or taken away (null); the rest come from the layer below */
+  festivals?: FestivalsPatch;
 }
 
 export interface RulesData {
@@ -116,6 +122,8 @@ export const DEFAULT_RULES: Rules = {
   drought: { months: [], share: 0 },
   seasons: [],
   weather: DEFAULT_CLIMATE,
+  // The country's own festivals, kept in every province
+  festivals: { new_year: {}, songkran: {}, loy_krathong: {} },
 };
 
 // The range each kind of number may take
@@ -208,6 +216,9 @@ export function checkPatch(raw: unknown, where: string, problems: string[]): Rul
         patch.weather = climate;
         break;
       }
+      case "festivals":
+        patch.festivals = checkFestivalsPatch(value, `${where}.festivals`, problems);
+        break;
       case "seasons":
         if (!Array.isArray(value)) {
           problems.push(`${where}.seasons: not a list`);
@@ -284,6 +295,8 @@ function apply(rules: Rules, patch: RulesPatch | undefined): Rules {
     seasons: patch.seasons ?? rules.seasons,
     // ... but its weather only the lists it gives
     weather: { ...rules.weather, ...patch.weather },
+    // ... and its festivals only those it names
+    festivals: applyFestivals(rules.festivals, patch.festivals),
   };
 }
 
@@ -423,5 +436,156 @@ export function ruleEffects(rules: Rules, monthName: (key: string) => string): E
       params: { months: monthsText(season.months, monthName), chance: `${Math.round(season.chancePerMonth * 100)}%` },
       good: false });
   }
+  // The festivals of the region and province, beyond the country's own
+  for (const festival of festivalCalendar(rules.festivals)) {
+    if (festival.id in DEFAULT_RULES.festivals) continue;
+    effects.push({ key: `rules.festival.${festival.id}`, params: { months: monthsText([festival.month], monthName) }, good: true });
+  }
   return effects;
+}
+
+// --- Festivals (src/festivals.ts, docs/GAME_DESIGN.md section 5) ---------------------------------------------------
+
+export const FESTIVAL_IDS = ["new_year", "songkran", "loy_krathong", "yi_peng", "bun_bang_fai", "silk", "vegetarian"] as const;
+export type FestivalId = typeof FESTIVAL_IDS[number];
+
+/** What a festival is like. Pairs are [held modestly, held grandly]; cheer has "not held" first. */
+export interface FestivalSpec {
+  /** The month it falls in, 1 (January) to 12, as the rules file counts months */
+  month: number;
+  /** Whether the ruler chooses how it is held; New Year's holidays come whatever the ruler does */
+  choice: boolean;
+  /** How much more the province's tourism draws, held modestly (src/tourism.ts) */
+  draw: number;
+  /** People coming home for it, a month, to a well-known city */
+  homecoming: number;
+  /** The share of the water supply it uses up, held modestly (Songkran's water fights) */
+  waterUse: number;
+  /** Baht to hold it, for a town of src/festivals.ts COST_PEOPLE people (a bigger town's costs more) */
+  cost: readonly [number, number];
+  /** The people's approval, in points of a hundred: not held, held modestly, held grandly */
+  cheer: readonly [number, number, number];
+  /** Land value added round the venue */
+  land: readonly [number, number];
+  /** The chance of a fire near the venue (only while disasters are on): lanterns, rockets, firecrackers */
+  fire: readonly [number, number];
+  /** Rubbish it leaves, tonnes for every thousand people (src/waste.ts) */
+  rubbish: readonly [number, number];
+  /** How much it dirties the rivers and canals, 0–1: krathong left in the water (src/waste.ts sewage) */
+  dirt: readonly [number, number];
+}
+
+/** The game's own numbers for each festival, as BASE_PRICES is each tool's. The months are the usual ones; whether a
+ * province keeps a festival is in its rules (DEFAULT_RULES.festivals and data/province-rules.json). */
+export const FESTIVAL_SPECS: Readonly<Record<FestivalId, FestivalSpec>> = {
+  // The country travels home and to the sea; the ruler holds nothing
+  new_year: { month: 1, choice: false, draw: 1.5, homecoming: 200, waterUse: 0, cost: [0, 0], cheer: [0, 0, 0],
+    land: [0, 0], fire: [0, 0], rubbish: [0, 0], dirt: [0, 0] },
+  // 13–15 April: people come home, water fights in the middle of the dry season
+  songkran: { month: 4, choice: true, draw: 1.6, homecoming: 300, waterUse: 0.15, cost: [200, 1200], cheer: [-5, 3, 8],
+    land: [4, 12], fire: [0, 0], rubbish: [5, 12], dirt: [0, 0] },
+  // The full moon of November: krathong on the water, fireworks
+  loy_krathong: { month: 11, choice: true, draw: 1.4, homecoming: 100, waterUse: 0, cost: [150, 1000], cheer: [-4, 3, 7],
+    land: [3, 10], fire: [0.02, 0.06], rubbish: [6, 15], dirt: [0.1, 0.25] },
+  // The North's sky lanterns, with Loy Krathong
+  yi_peng: { month: 11, choice: true, draw: 1.5, homecoming: 0, waterUse: 0, cost: [200, 1500], cheer: [-3, 3, 8],
+    land: [3, 12], fire: [0.1, 0.3], rubbish: [3, 8], dirt: [0, 0] },
+  // The Northeast's rocket festival, asking the sky for the rains, in May
+  bun_bang_fai: { month: 5, choice: true, draw: 1.3, homecoming: 150, waterUse: 0, cost: [150, 1000], cheer: [-4, 3, 8],
+    land: [2, 8], fire: [0.08, 0.25], rubbish: [3, 8], dirt: [0, 0] },
+  // Khon Kaen's silk festival and Phuk Siao, late November into December, counted in December
+  silk: { month: 12, choice: true, draw: 1.3, homecoming: 100, waterUse: 0, cost: [250, 1500], cheer: [-2, 2, 6],
+    land: [5, 15], fire: [0, 0], rubbish: [3, 8], dirt: [0, 0] },
+  // The South's vegetarian festival, the ninth lunar month, about October: processions and firecrackers
+  vegetarian: { month: 10, choice: true, draw: 1.4, homecoming: 50, waterUse: 0, cost: [150, 1000], cheer: [-3, 3, 7],
+    land: [2, 8], fire: [0.03, 0.08], rubbish: [2, 6], dirt: [0, 0] },
+};
+
+/** What the rules keep of a festival: anything of its spec they change (an empty entry keeps the game's own) */
+export type FestivalEntry = Partial<FestivalSpec>;
+/** A layer of the rules' festivals: an entry adds or changes one, null takes it away */
+export type FestivalsPatch = Partial<Record<FestivalId, FestivalEntry | null>>;
+/** A festival a province keeps, with its numbers as its rules make them */
+export interface Festival extends FestivalSpec { id: FestivalId }
+
+export const isFestivalId = (value: unknown): value is FestivalId =>
+  typeof value === "string" && (FESTIVAL_IDS as readonly string[]).includes(value);
+
+/** The festivals a province keeps (Rules.festivals), in the order of the year */
+export function festivalCalendar(festivals: Readonly<Partial<Record<string, FestivalEntry>>> | null | undefined): Festival[] {
+  const out: Festival[] = [];
+  for (const id of FESTIVAL_IDS) {
+    const entry = festivals?.[id];
+    if (entry) out.push({ ...FESTIVAL_SPECS[id], ...entry, id });
+  }
+  return out.sort((a, b) => a.month - b.month);
+}
+
+/** The range each number of a festival's entry may take; pairs and the triple are checked number by number */
+const FESTIVAL_RANGES: Readonly<Record<string, { min: number; max: number; size: number }>> = {
+  draw: { min: 1, max: 5, size: 1 }, homecoming: { min: 0, max: 5000, size: 1 }, waterUse: { min: 0, max: 0.5, size: 1 },
+  cost: { min: 0, max: 100000, size: 2 }, cheer: { min: -30, max: 30, size: 3 }, land: { min: 0, max: 100, size: 2 },
+  fire: { min: 0, max: 1, size: 2 }, rubbish: { min: 0, max: 100, size: 2 }, dirt: { min: 0, max: 1, size: 2 },
+};
+
+/** A layer's festivals, checked: what is valid is kept, the rest is reported in problems */
+export function checkFestivalsPatch(raw: unknown, where: string, problems: string[]): FestivalsPatch {
+  const patch: FestivalsPatch = {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    problems.push(`${where}: not an object`);
+    return patch;
+  }
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (id.startsWith("_")) continue;
+    if (!isFestivalId(id)) {
+      problems.push(`${where}.${id}: unknown festival (one of ${FESTIVAL_IDS.join(", ")})`);
+      continue;
+    }
+    if (value === null || value === false) {
+      patch[id] = null;
+      continue;
+    }
+    if (typeof value !== "object" || Array.isArray(value)) {
+      problems.push(`${where}.${id}: not an object`);
+      continue;
+    }
+    const entry: Record<string, unknown> = {};
+    for (const [key, field] of Object.entries(value as Record<string, unknown>)) {
+      const at = `${where}.${id}.${key}`;
+      if (key.startsWith("_")) continue;
+      const range = FESTIVAL_RANGES[key];
+      if (key === "month") {
+        if (Number.isInteger(field) && (field as number) >= 1 && (field as number) <= 12) entry.month = field;
+        else problems.push(`${at}: must be a month 1–12`);
+      } else if (key === "choice") {
+        if (typeof field === "boolean") entry.choice = field;
+        else problems.push(`${at}: must be true or false`);
+      } else if (range) {
+        const numbers = range.size === 1 ? [field] : Array.isArray(field) && field.length === range.size ? field : null;
+        if (numbers && numbers.every((n) => typeof n === "number" && Number.isFinite(n) && n >= range.min && n <= range.max)) {
+          entry[key] = range.size === 1 ? field : [...numbers];
+        } else {
+          problems.push(`${at}: must be ${range.size === 1 ? "" : `${range.size} numbers, each `}${range.min}–${range.max}`);
+        }
+      } else {
+        problems.push(`${at}: unknown`);
+      }
+    }
+    patch[id] = entry as FestivalEntry;
+  }
+  return patch;
+}
+
+/** A layer's festivals over the ones below: an entry changes or adds one, null takes it away */
+export function applyFestivals(below: Readonly<Partial<Record<FestivalId, FestivalEntry>>>,
+                               patch: FestivalsPatch | undefined): Partial<Record<FestivalId, FestivalEntry>> {
+  const out: Partial<Record<FestivalId, FestivalEntry>> = { ...below };
+  if (!patch) return out;
+  for (const id of FESTIVAL_IDS) {
+    if (!(id in patch)) continue;
+    const entry = patch[id];
+    if (entry === null || entry === undefined) delete out[id];
+    else out[id] = { ...out[id], ...entry };
+  }
+  return out;
 }

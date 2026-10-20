@@ -73,11 +73,12 @@ describe("visitors", () => {
 });
 
 describe("the country's festivals", () => {
-  test("are New Year in January and Songkran in April", () => {
+  test("are New Year in January, Songkran in April and Loy Krathong in November (src/festivals.ts)", () => {
     expect(festivalIn(JANUARY)?.id).toBe("new_year");
     expect(festivalIn(APRIL)?.id).toBe("songkran");
+    expect(festivalIn(10)?.id).toBe("loy_krathong");
     expect(festivalIn(MARCH)).toBeNull();
-    expect(FESTIVALS.map((f) => f.id)).toEqual(["new_year", "songkran"]);
+    expect(FESTIVALS.map((f) => f.id)).toEqual(["new_year", "songkran", "loy_krathong"]);
   });
 
   test("bring far more visitors than the month before, and people home even where there is no tourism", () => {

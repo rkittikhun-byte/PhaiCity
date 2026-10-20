@@ -1251,6 +1251,10 @@
 | `rules.season.fire` | `src/provinceRules.ts` | `-` | `Dry-season fires, {months} ({chance} a month)` | `ไฟป่าหน้าแล้ง {months} (เดือนละ {chance})` | เกิดเมื่อเปิดสุ่มภัยพิบัติในตั้งค่า |
 | `rules.season.flood` | `src/provinceRules.ts` | `-` | `Floods, {months} ({chance} a month)` | `น้ำท่วม {months} (เดือนละ {chance})` |  |
 | `rules.season.tornado` | `src/provinceRules.ts` | `-` | `Storms, {months} ({chance} a month)` | `พายุ {months} (เดือนละ {chance})` |  |
+| `rules.festival.yi_peng` | `src/provinceRules.ts` | — | `Yi Peng sky lanterns, {months}` | `ยี่เป็ง ปล่อยโคมลอย {months}` | เทศกาลของภาคและจังหวัด (src/festivals.ts) |
+| `rules.festival.bun_bang_fai` | `src/provinceRules.ts` | — | `Bun Bang Fai rocket festival, {months}` | `บุญบั้งไฟ {months}` |  |
+| `rules.festival.silk` | `src/provinceRules.ts` | — | `Silk festival and Phuk Siao, {months}` | `เทศกาลไหมและประเพณีผูกเสี่ยว {months}` | ขอนแก่นเท่านั้น |
+| `rules.festival.vegetarian` | `src/provinceRules.ts` | — | `Vegetarian festival, {months}` | `เทศกาลกินเจ {months}` |  |
 | `resource.coast_gulf` | `src/provincePicker.ts` | `-` | `Gulf of Thailand coast` | `ชายฝั่งอ่าวไทย` | แท็กจังหวัด |
 | `resource.coast_andaman` | `src/provincePicker.ts` | `-` | `Andaman Sea coast` | `ชายฝั่งทะเลอันดามัน` | แท็กจังหวัด |
 | `resource.island` | `src/provincePicker.ts` | `-` | `Island` | `เกาะ` | แท็กจังหวัด |
@@ -1441,6 +1445,44 @@
 | `weather.effect.smoke` | `src/timeControls.ts` | — | `Smoke from burning fields hangs in the air` | `ควันจากการเผาไร่ลอยปกคลุม` | แสดงเพิ่มเมื่อควันมาก |
 | `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
 | `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
+| `festival.loy_krathong` | `src/cityStatus.ts` | — | `Loy Krathong` | `ลอยกระทง` | เทศกาลของเจ้าเมือง (src/festivals.ts, docs/GAME_DESIGN.md ข้อ 5) |
+| `festival.yi_peng` | `src/cityStatus.ts` | — | `Yi Peng` | `ยี่เป็ง` | ภาคเหนือ |
+| `festival.bun_bang_fai` | `src/cityStatus.ts` | — | `Bun Bang Fai` | `บุญบั้งไฟ` | ภาคอีสาน |
+| `festival.silk` | `src/cityStatus.ts` | — | `Silk festival` | `เทศกาลไหม` | ขอนแก่น (เทศกาลไหมและประเพณีผูกเสี่ยว) |
+| `festival.vegetarian` | `src/cityStatus.ts` | — | `Vegetarian festival` | `เทศกาลกินเจ` | ภาคใต้ |
+| `festival.card.title` | `src/festivalCard.ts` | — | `Next month's festival` | `เทศกาลเดือนหน้า` | การ์ดถามเจ้าเมืองล่วงหน้าหนึ่งเดือน |
+| `festival.card.close` | `src/festivalCard.ts` | — | `Close` | `ปิด` |  |
+| `festival.card.now` | `src/festivalCard.ts` | — | `This year's festival` | `เทศกาลปีนี้` | การ์ดค้างไว้หลังเทศกาลเริ่ม ให้ตอบสำหรับปีหน้าได้ |
+| `festival.this_year.grand` | `src/festivalCard.ts` | — | `This year it is held grandly ({cost}). An answer now counts from next year.` | `ปีนี้จัดยิ่งใหญ่ ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.modest` | `src/festivalCard.ts` | — | `This year it is held modestly ({cost}). An answer now counts from next year.` | `ปีนี้จัดแบบเรียบง่าย ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.none` | `src/festivalCard.ts` | — | `This year the city holds nothing. An answer now counts from next year.` | `ปีนี้เมืองไม่จัด คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.by_people` | `src/festivalCard.ts` | — | `This year the temples and the people hold it themselves. An answer now counts from next year.` | `ปีนี้วัดและชาวบ้านจัดกันเอง คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.ask.songkran` | `src/festivalCard.ts` | — | `Songkran is next month: families come home and the whole town throws water. How will the city hold it?` | `เดือนหน้าถึงสงกรานต์ ลูกหลานกลับบ้าน เล่นน้ำกันทั้งเมือง จะจัดงานอย่างไร` |  |
+| `festival.ask.loy_krathong` | `src/festivalCard.ts` | — | `Next month's full moon is Loy Krathong: krathong float on the canals and rivers. How will the city hold it?` | `เดือนหน้าวันเพ็ญเดือนสิบสอง ลอยกระทงริมคลองและแม่น้ำ จะจัดงานอย่างไร` |  |
+| `festival.ask.yi_peng` | `src/festivalCard.ts` | — | `Yi Peng is next month: sky lanterns rise into the night. How will the city hold it?` | `เดือนหน้ายี่เป็ง ปล่อยโคมลอยขึ้นฟ้ายามค่ำ จะจัดงานอย่างไร` |  |
+| `festival.ask.bun_bang_fai` | `src/festivalCard.ts` | — | `Bun Bang Fai is next month: rockets ask the sky for the rains. How will the city hold it?` | `เดือนหน้าบุญบั้งไฟ จุดบั้งไฟขอฝนต้นฤดู จะจัดงานอย่างไร` |  |
+| `festival.ask.silk` | `src/festivalCard.ts` | — | `Khon Kaen's silk festival and Phuk Siao are next month. How will the city hold them?` | `เดือนหน้าเทศกาลไหมและประเพณีผูกเสี่ยวของขอนแก่น จะจัดงานอย่างไร` |  |
+| `festival.ask.vegetarian` | `src/festivalCard.ts` | — | `The vegetarian festival is next month: processions and firecrackers. How will the city hold it?` | `เดือนหน้าเทศกาลกินเจ มีขบวนแห่และจุดประทัด จะจัดงานอย่างไร` |  |
+| `festival.scale.grand` | `src/festivalCard.ts` | — | `Hold it grandly` | `จัดยิ่งใหญ่` | ปุ่มเลือกในการ์ด |
+| `festival.scale.modest` | `src/festivalCard.ts` | — | `Hold it modestly` | `จัดเรียบง่าย` |  |
+| `festival.scale.none` | `src/festivalCard.ts` | — | `Hold nothing` | `ไม่จัด` |  |
+| `festival.free` | `src/festivalCard.ts` | — | `Free` | `ไม่เสียเงิน` |  |
+| `festival.chosen` | `src/festivalCard.ts` | — | `Chosen` | `เลือกไว้` |  |
+| `festival.gain.grand` | `src/festivalCard.ts` | — | `Many visitors, the people delighted, land round the ruler's house dearer for months` | `นักท่องเที่ยวมาก ชาวเมืองพอใจมาก ที่ดินรอบที่ว่าการราคาขึ้นหลายเดือน` |  |
+| `festival.gain.modest` | `src/festivalCard.ts` | — | `Visitors come and the people are pleased` | `มีนักท่องเที่ยว ชาวเมืองพอใจ` |  |
+| `festival.gain.none` | `src/festivalCard.ts` | — | `Saves the money, but the people are let down` | `ประหยัดเงิน แต่ชาวเมืองผิดหวัง` |  |
+| `festival.cost.base` | `src/festivalCard.ts` | — | `More rubbish and traffic` | `ขยะและรถติดเพิ่ม` | ข้อเสียของการจัดงาน |
+| `festival.cost.water` | `src/festivalCard.ts` | — | `The water fights use the water supply` | `เล่นน้ำใช้น้ำประปา` |  |
+| `festival.cost.fire` | `src/festivalCard.ts` | — | `Lanterns and rockets may start a fire (with disasters on)` | `โคมและบั้งไฟอาจทำไฟไหม้ (เมื่อเปิดภัยพิบัติ)` |  |
+| `festival.cost.dirt` | `src/festivalCard.ts` | — | `Krathong left in the canals and rivers dirty the water` | `กระทงค้างในคลองและแม่น้ำ ทำให้น้ำสกปรก` |  |
+| `festival.short` | `src/festivalCard.ts` | — | `Not enough in the treasury now` | `เงินในคลังตอนนี้ไม่พอ` |  |
+| `festival.note` | `src/festivalCard.ts` | — | `If you do not choose, it is held modestly. Your answer stands for the years after, until you change it.` | `ถ้าไม่เลือก จะจัดแบบเรียบง่าย คำตอบนี้ใช้กับปีต่อ ๆ ไปจนกว่าจะเปลี่ยน` |  |
+| `festival.news.grand` | `src/festivalCard.ts` | — | `{name} is held grandly ({cost}): visitors fill the town` | `{name} จัดยิ่งใหญ่ ({cost}) นักท่องเที่ยวมาเต็มเมือง` | ข่าวเมื่อเทศกาลเริ่ม |
+| `festival.news.modest` | `src/festivalCard.ts` | — | `{name} is held modestly ({cost})` | `{name} จัดแบบเรียบง่าย ({cost})` |  |
+| `festival.news.none` | `src/festivalCard.ts` | — | `The city holds no {name} this year: the people are let down` | `ปีนี้เมืองไม่จัด{name} ชาวเมืองผิดหวัง` |  |
+| `festival.news.by_people` | `src/festivalCard.ts` | — | `{name}: the treasury is empty, so the temples and the people hold it themselves` | `{name}: เงินในคลังไม่พอ วัดและชาวบ้านจัดกันเอง` |  |
+| `festival.news.downgraded` | `src/festivalCard.ts` | — | `{name}: not enough money for a grand festival, so it is held modestly ({cost})` | `{name}: เงินไม่พอจัดยิ่งใหญ่ จึงจัดแบบเรียบง่าย ({cost})` |  |
+| `festival.news.fire` | `src/festivalCard.ts` | — | `{name}: lanterns or rockets came down burning, a fire near the festival` | `{name}: โคมหรือบั้งไฟตกลงมาติดไฟ เกิดไฟไหม้ใกล้งาน` | คลิกเพื่อไปดูที่เกิดเหตุ |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |
 | `levels.soon` | `src/toolLevels.ts` | `-` | `Coming later` | `เร็ว ๆ นี้` | ช่องระดับที่ยังไม่มี |
 | `menu.language` | `index.html` | `-` | `Language` | `ภาษา` | ไอคอนลูกโลกในแถบเมนูซ้าย เปิดการ์ดเลือกภาษา (เจ้าของโปรเจค 12 ต.ค. 2026) |
