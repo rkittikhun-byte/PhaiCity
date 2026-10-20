@@ -82,6 +82,8 @@ export class CityView3D implements CityView {
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
   /** The era the buildings are drawn in (eraBuildings.ts) */
   private shownEra=0;
+  /** Each building's era as last drawn, and the count it was drawn at (src/eraScore.ts buildingErasVersion) */
+  private shownEras:{version:number;eras:Uint8Array|null}={version:-1,eras:null};
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
@@ -273,7 +275,12 @@ export class CityView3D implements CityView {
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     // A city that reaches a new era draws its buildings in that era's look (eraBuildings.ts)
-    if(this.snapshot.eraModels){const era=mapEra(this.land as {era?:unknown});if(era!==this.shownEra){this.shownEra=era;this.chunks.refreshAll();}}
+    if(this.snapshot.eraModels){const era=mapEra(this.land as {era?:unknown});if(era!==this.shownEra){this.shownEra=era;this.chunks.refreshAll();}
+      // ... and a building that took another era's look in the transition (src/eraScore.ts) is drawn again, alone
+      const eraMap=this.land as {buildingEras?:Uint8Array|null;buildingErasVersion?:number};
+      if((eraMap.buildingErasVersion??0)!==this.shownEras.version&&eraMap.buildingEras){const now=eraMap.buildingEras,seen=this.shownEras.eras,changed:number[]=[];
+        if(seen&&seen.length===now.length){for(let i=0;i<now.length;i++)if(now[i]!==seen[i])changed.push(i);}
+        this.shownEras={version:eraMap.buildingErasVersion??0,eras:now.slice()};if(changed.length)this.chunks.dirty(changed);}}
     this.resize();const synced=this.snapshot.sync(this.land),built=this.snapshot.stepConstruction(this.seconds);
     const changed=built.length?[...new Set([...synced,...built])]:synced;
     // The ruler's house rises a level or takes a wing without its tiles changing: rebuild it when it does

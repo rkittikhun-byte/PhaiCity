@@ -19,6 +19,8 @@ import { Simulation } from "../simulation.js";
 import { canBuildIn, type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
 import { cellsOf, syncCellPlots } from "../zoneCells.js";
 import { ownsLand } from "../landBlocks.js";
+import { eraMonth } from "../eraScore.js";
+import type { Era } from "../era.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -38,7 +40,11 @@ export type CoreEvent =
   | { type: "built"; object: Building }
   | { type: "removed"; object: Building }
   /** A player's command was accepted */
-  | { type: "command"; step: number; command: Command };
+  | { type: "command"; step: number; command: Command }
+  /** The era score reached the transition: the city's buildings begin to take the next era's look (src/eraScore.ts) */
+  | { type: "eraDawn"; era: Era }
+  /** The era score reached 1: the city is in a new era */
+  | { type: "era"; era: Era };
 type Listener<T extends CoreEvent["type"]> = (event: Extract<CoreEvent, { type: T }>) => void;
 
 /** A command the city accepted, and the step it came at: replaying them makes the same city */
@@ -111,6 +117,13 @@ export class CityCore {
       const { added, removed } = core.objects.scan(core.map, core.simulation._cityTime);
       for (const object of added) core.emit({ type: "built", object });
       for (const object of removed) core.emit({ type: "removed", object });
+    } });
+    // The city's era from its score, and each building's era (docs/GAME_DESIGN.md section 1)
+    const eraLevels = { stamps: null as Uint8Array | null };
+    this.addSystem({ name: "era", monthly: core => {
+      for (const news of eraMonth(core.map, core.simulation, core.objects, eraLevels)) {
+        core.emit(news.type === "era" ? { type: "era", era: news.era } : { type: "eraDawn", era: news.era });
+      }
     } });
     this.simulation.addEventListener(Messages.DATE_UPDATED, (date: { month: number; year: number }) => {
       for (const system of this.systems) system.monthly?.(this);

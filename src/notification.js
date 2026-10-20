@@ -150,4 +150,13 @@ Notification.prototype.news = function(message, unlogged) {
 };
 
 
+// Good news written by the game itself rather than a simulation message (the era score, src/eraScore.ts)
+Notification.prototype.goodText = function(text) {
+  this._element.removeClass('neutral');
+  this._element.removeClass('bad');
+  this._element.addClass('good');
+  this._displayText(text);
+};
+
+
 export { Notification };

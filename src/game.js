@@ -21,7 +21,7 @@ import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
 import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
-import { showDemandAndPeople, showServices, showTourism, showWaste } from './cityStatus.ts';
+import { showDemandAndPeople, showEra, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -97,7 +97,7 @@ import { Random } from './random.ts';
 import { RCI } from './rci.js';
 import { installRulerGoals } from './rulerGoals.ts';
 import { keepHigherRank, RANKS, rankForCityClass } from './rulerRank.ts';
-import { eraForRank } from './era.ts';
+import { eraForRank, isEra } from './era.ts';
 import { SaveWindow } from './saveWindow.js';
 import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
@@ -217,8 +217,22 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The ruler's rank follows the city's size and is never lost (src/rulerRank.ts); older saves have none yet
   this.rulerRank = keepHigherRank(savedGame ? savedGame.rulerRank : null,
                                   rankForCityClass(this.simulation.evaluation.cityClass));
-  // The city's era follows the rank; renderers read it from the map (src/era.ts)
-  this.gameMap.era = eraForRank(this.rulerRank);
+  // The city's era comes from its era score (src/eraScore.ts, docs/GAME_DESIGN.md); a new city or one saved before
+  // the score starts from the era of its rank. Renderers read it from the map (src/era.ts)
+  if (!isEra(this.gameMap.era))
+    this.gameMap.era = eraForRank(this.rulerRank);
+  var eraGame = this;
+  this.core.on('eraDawn', function(event) {
+    eraGame._notificationBar.goodText(t('era.dawn', {era: t('era.name.' + event.era)}));
+  });
+  this.core.on('era', function(event) {
+    eraGame._notificationBar.goodText(t('congrats.era', {name: eraGame.name, era: t('era.name.' + event.era)}));
+    if (!eraGame.dialogOpen) {
+      eraGame.dialogOpen = true;
+      eraGame._openWindow = 'congratsWindow';
+      eraGame.congratsWindow.open(t('congrats.era', {name: eraGame.name, era: t('era.name.' + event.era)}));
+    }
+  });
 
   this.rci = new RCI('RCIContainer', this.simulation);
   // The same demand, as percentages with the people in homes, shops and factories, in the status (src/cityStatus.ts)
@@ -226,6 +240,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   showTourism(this.simulation);
   showServices(this.simulation);
   showWaste(this.simulation);
+  showEra(this.core);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
@@ -1623,7 +1638,6 @@ Game.prototype.processFrontEndMessage = function(message) {
       var rank = keepHigherRank(this.rulerRank, rankForCityClass(milestone.cityClass));
       promoted = rank !== this.rulerRank;
       this.rulerRank = rank;
-      this.gameMap.era = eraForRank(rank);
       this.showRulerRank();
       // A higher rank may let the ruler's house rise a level
       this.refreshHouse();

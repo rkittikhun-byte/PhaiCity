@@ -12,6 +12,8 @@ import { POPULATION_UPDATED, SERVICES_UPDATED, TOURISM_UPDATED, VALVES_UPDATED, 
 import { type ServiceLevels, SERVICES_FROM } from "./services";
 import type { TourismMonth } from "./tourism";
 import { WASTE_FROM, type WasteMonth } from "./waste";
+import type { EraScore } from "./eraScore";
+import { FACTORS } from "./eraRules";
 
 /** How the money reads in the status: ฿16,295. Anything that is not a number is shown as it is. */
 export function statusMoney(text: string): string {
@@ -176,6 +178,52 @@ export function showWaste(simulation: { addEventListener(event: string, listener
     month = value as WasteMonth;
     render();
   });
+  onLanguageChange(render);
+  render();
+}
+
+
+/** Where the city's era score is kept (src/eraScore.ts map.eraScore), and what tells when a month has turned */
+export interface EraSource {
+  map: { eraScore?: EraScore | null; era?: number };
+  on(type: "month" | "era" | "eraDawn", listener: () => void): () => void;
+}
+
+/** The lines pointing at the era block shows: the score, each side of life, what holds it, what the era needs */
+export function eraTitle(score: EraScore): string {
+  const percent = (v: number): number => Math.round(v * 100);
+  const lines = [t("status.era_title", { percent: percent(score.score), people: Math.round(score.people).toLocaleString("en-US"),
+    wanted: score.peopleWanted.toLocaleString("en-US"), peoplePercent: percent(score.peopleDone), quality: percent(score.quality) })];
+  if (score.era >= 5) lines.push(t("status.era_last"));
+  for (const factor of FACTORS) {
+    const f = score.factors[factor];
+    if (!f || f.weight <= 0) continue;
+    lines.push((f.done >= 1 ? "✓ " : "· ") + t("status.era_factor", { name: t(`era.factor.${factor}`), value: percent(f.value),
+      target: percent(f.target) }));
+  }
+  if (score.heldBy) lines.push(t("status.era_held", { name: t(`era.factor.${score.heldBy}`) }));
+  const missing = score.symbols.filter(s => !s.has).map(s => t(`era.symbol.${s.key}`));
+  if (missing.length) lines.push(t("status.era_symbols", { list: missing.join(", ") }));
+  return lines.join("\n");
+}
+
+/**
+ * The era block (docs/GAME_DESIGN.md section 1): the city's era and its score, as each month works it out; pointing at
+ * it shows every side of life against its aim, and what the next era still needs.
+ */
+export function showEra(core: EraSource, doc: Document = document): void {
+  const render = (): void => {
+    const block = doc.getElementById("statusEra");
+    const score = core.map.eraScore;
+    if (!block) return;
+    block.hidden = !score;
+    if (!score) return;
+    const value = block.querySelector(".statValue");
+    if (value) value.textContent = t("status.era_value", { era: t(`era.name.${score.era}`), percent: Math.round(score.score * 100) });
+    block.title = eraTitle(score);
+  };
+  core.on("month", render);
+  core.on("era", render);
   onLanguageChange(render);
   render();
 }

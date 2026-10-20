@@ -1315,6 +1315,40 @@
 | `status.tourists_high` | `src/cityStatus.ts` | — | `High season. They spent {income} this month ({wanted} wanted to come)` | `ฤดูท่องเที่ยว เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ย.–ก.พ. |
 | `status.tourists_low` | `src/cityStatus.ts` | — | `Low season. They spent {income} this month ({wanted} wanted to come)` | `ช่วงซบเซา เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | พ.ค.–ก.ย. |
 | `status.tourists_festival` | `src/cityStatus.ts` | — | `{festival}. They spent {income} this month ({wanted} wanted to come)` | `{festival} เดือนนี้ใช้จ่าย {income} (อยากมา {wanted} คน)` | เดือนที่มีเทศกาล |
+| `status.era` | `index.html` | — | `Era` | `ยุค` | แถบสถานะ: ยุคของเมืองและคะแนนยุค (เจ้าของโปรเจกต์ 20 ต.ค. 2026, docs/GAME_DESIGN.md) |
+| `status.era_value` | `src/cityStatus.ts` | — | `{era} {percent}%` | `{era} {percent}%` |  |
+| `status.era_title` | `src/cityStatus.ts` | — | `Era score {percent}% = people {people} of {wanted} ({peoplePercent}%) × how well they live {quality}%` | `คะแนนยุค {percent}% = คน {people} จาก {wanted} ({peoplePercent}%) × คุณภาพชีวิต {quality}%` | บรรทัดแรกเมื่อชี้ |
+| `status.era_factor` | `src/cityStatus.ts` | — | `{name}: {value}% (aim {target}%)` | `{name}: {value}% (เป้า {target}%)` | หนึ่งบรรทัดต่อด้าน |
+| `status.era_held` | `src/cityStatus.ts` | — | `Held below 80%: fewer than half the people have {name}` | `ค้างไว้ต่ำกว่า 80%: คนที่มี{name}ยังไม่ถึงครึ่ง` |  |
+| `status.era_symbols` | `src/cityStatus.ts` | — | `The next era needs: {list}` | `ยุคถัดไปต้องมี: {list}` |  |
+| `status.era_last` | `src/cityStatus.ts` | — | `The last era: how complete the future city is` | `ยุคสุดท้าย: ความสมบูรณ์ของเมืองอนาคต` | ยุค 5 |
+| `era.name.1` | `src/cityStatus.ts` | — | `Farming village` | `หมู่บ้านเกษตร` |  |
+| `era.name.2` | `src/cityStatus.ts` | — | `Market town` | `เมืองตลาด` |  |
+| `era.name.3` | `src/cityStatus.ts` | — | `Factory town` | `เมืองโรงงาน` |  |
+| `era.name.4` | `src/cityStatus.ts` | — | `Modern city` | `เมืองสมัยใหม่` |  |
+| `era.name.5` | `src/cityStatus.ts` | — | `Future city` | `เมืองอนาคต` |  |
+| `era.factor.water` | `src/cityStatus.ts` | — | `Water` | `น้ำประปา` |  |
+| `era.factor.power` | `src/cityStatus.ts` | — | `Power` | `ไฟฟ้า` |  |
+| `era.factor.jobs` | `src/cityStatus.ts` | — | `Jobs` | `งาน` |  |
+| `era.factor.education` | `src/cityStatus.ts` | — | `Education` | `การศึกษา` |  |
+| `era.factor.health` | `src/cityStatus.ts` | — | `Health` | `สุขภาพ` |  |
+| `era.factor.safety` | `src/cityStatus.ts` | — | `Safety` | `ความปลอดภัย` |  |
+| `era.factor.clean` | `src/cityStatus.ts` | — | `Clean streets and air` | `ความสะอาดและอากาศ` |  |
+| `era.factor.living` | `src/cityStatus.ts` | — | `Living` | `ความเป็นอยู่` | ความพอใจและราคาที่ดิน |
+| `era.factor.symbol` | `src/cityStatus.ts` | — | `What the era must have` | `สัญลักษณ์ของยุค` |  |
+| `era.symbol.ruler_house` | `src/cityStatus.ts` | — | `the ruler's house` | `จวนเจ้าเมือง` |  |
+| `era.symbol.shops` | `src/cityStatus.ts` | — | `five shops` | `ร้านค้า 5 ร้าน` |  |
+| `era.symbol.water_works` | `src/cityStatus.ts` | — | `a water works` | `โรงประปา` |  |
+| `era.symbol.power_plant` | `src/cityStatus.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
+| `era.symbol.school` | `src/cityStatus.ts` | — | `a school` | `โรงเรียน` |  |
+| `era.symbol.hospital` | `src/cityStatus.ts` | — | `a hospital` | `โรงพยาบาล` |  |
+| `era.symbol.secondary_school` | `src/cityStatus.ts` | — | `a secondary school or higher` | `โรงเรียนมัธยมขึ้นไป` |  |
+| `era.symbol.paved_roads` | `src/cityStatus.ts` | — | `half the roads paved` | `ถนนลาดยางครึ่งเมือง` |  |
+| `era.symbol.university_or_metro` | `src/cityStatus.ts` | — | `a university or a metro` | `มหาวิทยาลัยหรือรถไฟฟ้า` |  |
+| `era.symbol.recycling` | `src/cityStatus.ts` | — | `a recycling plant` | `โรงงานรีไซเคิล` |  |
+| `era.symbol.clean_power` | `src/cityStatus.ts` | — | `half the power clean` | `ไฟฟ้าสะอาดครึ่งหนึ่ง` | แสงอาทิตย์ ลม น้ำ |
+| `era.dawn` | `src/game.js` | — | `The city is entering a new era, {era}: its buildings begin to change` | `เมืองเริ่มเข้าสู่ยุค{era} ตึกบางหลังเริ่มเปลี่ยนโฉม` | ข่าวเมื่อคะแนนยุคถึง 80% |
+| `congrats.era` | `src/game.js` | — | `{name} has entered a new era: {era}!` | `{name} เข้าสู่ยุคใหม่: {era}!` | หน้าต่างยินดีเมื่อคะแนนยุคถึง 100% |
 | `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
 | `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |

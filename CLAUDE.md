@@ -190,8 +190,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   rises (`keepHigherRank`), is saved as `rulerRank` (and `rank` in the city list), shows under the city name, and the
   congratulations window opens once per new rank (`game.processFrontEndMessage`).
 - **City era (ยุค, owner 19 Oct 2026):** `src/era.ts`. A city moves through five eras (farming village, market town,
-  factory town, modern city, future city); `gameMap.era` (1-5, set in `game.js` from the ruler's rank for now) is
-  what every renderer reads to draw the era's people and, next, its buildings.
+  factory town, modern city, future city); `gameMap.era` (1-5) is what every renderer reads to draw the era's people
+  and buildings. Since 20 Oct 2026 the era comes from the **era score** (`src/eraScore.ts`, numbers in
+  `src/eraRules.ts`, `docs/GAME_DESIGN.md`): people's progress toward the era's number times how well they live, each
+  side counted per person, 0-1; from 0.8 buildings take the next era's look a few at a time (`gameMap.buildingEras`,
+  saved), at 1 the city is in the next era. It runs as the core's monthly "era" system; the rank no longer sets it.
 - **People (owner, 19 Oct 2026):** the concept-sheet characters are built in Blender in `art/people/` (Python
   scripts, `.blend` sources, `PLAN.md`, `IMPORT.md`); `export_game.py` writes `assets/models/people/`, which
   `src/render3d/city/people3d.ts` draws for `pedestrians.ts` (the era's sheet, the region's and the shared one).

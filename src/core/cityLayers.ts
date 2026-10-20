@@ -17,6 +17,7 @@ import { levelsStanding } from "../buildingLevels.js";
 import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
+import { isEra } from "../era.js";
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -55,6 +56,12 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     // The ground's heights come from the province's map, not the save (src/splashScreen.js savedCityHeights)
     map.heights = saved.heights || null;
     map.tileSizeM = saved.tileSizeM || null;
+    // The city's era, its last months' scores and each building's era (src/eraScore.ts); a city saved before the era
+    // score has none, and the game gives it the era of its rank
+    map.era = isEra(saved.era) ? saved.era : undefined;
+    map.eraHistory = Array.isArray(saved.eraHistory) ? saved.eraHistory.filter((v: unknown) => typeof v === "number") : [];
+    map.eraDawn = saved.eraDawn === true;
+    map.buildingEras = saved.buildingEras ? decodePresetLayer(saved.buildingEras, map.width, map.height) : null;
     // ... and the frame of its district it plays (src/cityFrame.ts), null on a map that is not a frame
     map.frame = saved.frame || null;
     // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
@@ -214,6 +221,11 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     tileSizeM: map.tileSizeM || undefined,
     // ... and the frame of its district it plays (src/cityFrame.ts)
     frame: map.frame || undefined,
+    // ... and its era, the last months' era scores and each building's era (src/eraScore.ts)
+    era: isEra(map.era) ? map.era : undefined,
+    eraHistory: Array.isArray(map.eraHistory) && map.eraHistory.length ? map.eraHistory.map((v: number) => Math.round(v * 1e4) / 1e4) : undefined,
+    eraDawn: map.eraDawn ? true : undefined,
+    buildingEras: map.buildingEras && map.buildingEras.some((e: number) => e > 0) ? encodePresetLayer(map.buildingEras) : undefined,
   };
 }
 
