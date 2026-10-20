@@ -26,9 +26,10 @@ import { cutTile } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
-import { blockOf, PlacedBuildings } from "./buildings/placedBuildings";
+import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
 import type { BuildingMap } from "./buildings/buildingRecords";
-import { movePrice, moveProblem } from "./moveTool";
+import { MOVE_BLOCKED, MOVE_NO_MONEY, movePrice, NO_BUILDING } from "./moveTool";
+import { TileUtils } from "./tileUtils.js";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
@@ -42,8 +43,8 @@ import { PAINT_PRICE_SHARE } from "./plots";
 import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK, BULLBIT } from "./tileFlags";
-import { LASTRAIL, RAILBASE } from "./tileValues";
-import { UndoHistory, type UndoStep } from "./undoHistory";
+import { DIRT, LASTRAIL, RAILBASE, TREEBASE, WOODS2 } from "./tileValues";
+import { type TileChange, UndoHistory, type UndoStep } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
 
 export const TOOL_NAMES = [
@@ -115,8 +116,9 @@ export type Command =
   | { type: "build"; tool: ToolName; x: number; z: number; rot: number; stroke?: number }
   /**
    * A building the player moves (docs/METRE_DRAWING_PLAN.md 2.5): slid along its road or turned, to the middle (metres)
-   * and turn the move tool showed, the building being gameMap.buildings' id. For now it stays on the block of tiles it
-   * stands on, as the simulation counts it there. A tenth of its price; undo puts it back, and the money.
+   * and turn the move tool showed, the building being gameMap.buildings' id. Off the block of tiles it stands on, its
+   * tiles are lifted and laid on the block round its new middle with everything kept by its centre tile, where a build
+   * there would stand. A tenth of its price, and clearing woods as a build pays; undo puts it back, and the money.
    */
   | { type: "move"; id: number; x: number; z: number; rot: number; stroke?: number }
   | { type: "undo" }
@@ -170,6 +172,11 @@ interface CommandTool {
   roadLevel?: number;
   /** It changes what undo cannot put back (the road upgrade tool) */
   noUndo?: boolean;
+  /** Whether it clears what is in its way, and what clearing a tile costs: woods the province's price, anything else
+   * the bulldozer's (src/baseTool.js) */
+  autoBulldoze?: boolean;
+  clearWoodsCost?: number;
+  bulldozerCost?: number;
   /** It builds the ruler's house (src/rulerHouse.ts) */
   rulerHouse?: boolean;
   /** The school or hospital it builds on the civic tiles (src/services.ts) */
@@ -261,6 +268,9 @@ export interface CommandTarget {
   addBus?(x: number, y: number): void;
   /** Records the station just built at (x, y), its centre (src/transit.ts). */
   setStationKind?(x: number, y: number, kind: string): void;
+  /** Carries everything kept by a building's centre tile to another tile, as the move command takes it to another block
+   * (src/buildings/buildingRecords.ts carryRecords); what carries it back */
+  carryBuilding?(from: number, to: number): () => void;
   /** Records a canal just dug at (x, y), and whether (x, y) was dug as one and is still its water or a bridge over it
    * (src/canals.ts) */
   setCanal?(x: number, y: number): void;
@@ -563,23 +573,96 @@ export class CityCommands {
       this.placing = null;
     }
   }
-  /** A building moved by the player (the "move" command), within the block it stands on, for a tenth of its price */
+  /** A building moved by the player (the "move" command): slid or turned on its block, or taken with its tiles and
+   * everything kept by its centre tile to another (carryTiles, CommandTarget.carryBuilding); one undo step puts it all
+   * back, and the money */
   private move(command: Extract<Command, { type: "move" }>): CommandOutcome {
-    const city = this.city, map = city.map as unknown as BuildingMap | undefined;
-    const placed = map?.buildings, b = placed?.get(command.id);
-    if (!map || !placed || !b) return { accepted: false, reason: "no such building" };
-    const x = b.tile % map.width, y = Math.floor(b.tile / map.width), tool = city.tools[b.tool];
-    if (!tool || !map.getTile(x, y).isZone() && b.size > 1) return { accepted: false, reason: "no such building" };
-    const problem = moveProblem(b, command.x, command.z, map.width, tileMetres(map));
-    if (problem) return { accepted: false, reason: problem };
-    const cost = movePrice(tool);
-    if (city.budget.totalFunds < cost) return { accepted: false, reason: "not enough money" };
+    const site = this.moveSite(command);
+    if ("reason" in site) return { accepted: false, reason: site.reason };
+    const city = this.city, placed = (city.map as unknown as BuildingMap).buildings!, { b, to, cost } = site;
+    if (city.budget.totalFunds < cost) return { accepted: false, reason: MOVE_NO_MONEY };
     city.budget.spend(cost);
-    placed.setPose(b.id, command.x, command.z, command.rot);
-    const time = city.cityTime?.() ?? 0;
-    this.history.record(command.stroke ?? null, [], cost, time);
-    (this.history.last()!.also ??= []).push(() => placed.restore(b));
+    const backs: Array<() => void> = [() => { placed.remove(b.id); placed.restore(b); }];
+    let changes: TileChange[] = [];
+    if (to !== b.tile) {
+      changes = this.carryTiles(b, site.left, site.top);
+      const back = city.carryBuilding?.(b.tile, to);
+      if (back) backs.push(back);
+    }
+    placed.setPose(b.id, command.x, command.z, command.rot, to);
+    // One step: the tiles first, then the records and where it stands
+    const stroke = command.stroke ?? null, time = city.cityTime?.() ?? 0;
+    const back = (): void => { for (const each of [...backs].reverse()) each(); };
+    this.history.record(stroke, changes, cost, time);
+    if (changes.length || cost) (this.history.last()!.also ??= []).push(back);
+    else this.history.attach(stroke, back, time);
     return { accepted: true, toolResult: 0 };
+  }
+
+  /**
+   * Why the move command would be refused, the money aside, and what it costs: a tenth of the building's price, and
+   * clearing its new tiles as a build pays (src/baseTool.js). The move tool's outline is red where it is refused.
+   */
+  quoteMove(command: Extract<Command, { type: "move" }>): { reason: string | null; cost: number } {
+    const site = this.moveSite(command);
+    return "reason" in site ? { reason: site.reason, cost: 0 } : { reason: null, cost: site.cost };
+  }
+
+  /**
+   * Where the move command takes its building: on its own block it may go anywhere; on another, only where the build
+   * command would put it (off the map, the province or the city's land; with no road beside it on a map painted a cell at
+   * a time, the ruler's house anywhere; a dam or a harbour with no water beside it, a station with no railway), and on
+   * bare ground or what the tool clears (src/buildingTool.js prepareBuildingSite), its own tiles being lifted first
+   */
+  private moveSite(command: Extract<Command, { type: "move" }>):
+    { reason: string } | { b: PlacedBuilding; to: number; left: number; top: number; cost: number } {
+    const problem = commandProblem(command, this.city.width, this.city.height);
+    if (problem) return { reason: problem };
+    const city = this.city, tiles = city.map, map = tiles as unknown as BuildingMap | undefined;
+    const placed = map?.buildings, b = placed?.get(command.id);
+    if (!tiles || !map || !placed || !b) return { reason: NO_BUILDING };
+    const width = city.width, height = city.height, tool = city.tools[b.tool];
+    const x = b.tile % width, y = Math.floor(b.tile / width), size = b.size;
+    if (!tool || !map.getTile(x, y).isZone() && size > 1) return { reason: NO_BUILDING };
+    const block = blockOf(command.x, command.z, size, tileMetres(map)), { left, top, cx, cy } = block, to = cy * width + cx;
+    if (to === b.tile) return { b, to, left, top, cost: movePrice(tool) };
+    if (left < 0 || top < 0 || left + size > width || top + size > height) return { reason: "outside the map" };
+    // (the ruler's rank and the one high-speed station were asked when it was built)
+    const refused = placeProblem(city, cx, cy, size) ?? plantProblem(city, tool.powerKind, cx, cy) ??
+      farmProblem(city, b.tool, cx, cy) ?? transitProblem(b.tool, cx, cy, Infinity, city.isRailAt ?? (() => true), null) ??
+      roadBesideProblem(city, b.tool, size, cx, cy) ??
+      (tool.rulerHouse ? houseRoadProblem({ width, height, getTileValue: (tx, ty) => tiles.getTile(tx, ty).getRawValue() & BIT_MASK },
+        cx, cy) : null);
+    if (refused) return { reason: refused };
+    const corner = size > 1 ? 1 : 0, ownLeft = x - corner, ownTop = y - corner;
+    let applied = 0, woods = 0;
+    for (let ty = top; ty < top + size; ty++) for (let tx = left; tx < left + size; tx++) {
+      if (tx >= ownLeft && tx < ownLeft + size && ty >= ownTop && ty < ownTop + size) continue;
+      const value = tiles.getTile(tx, ty).getRawValue() & BIT_MASK;
+      if (value === DIRT) continue;
+      if (!tool.autoBulldoze || !TileUtils.canBulldoze(value)) return { reason: MOVE_BLOCKED };
+      if (value >= TREEBASE && value < WOODS2) woods += tool.clearWoodsCost ?? 1;
+      else applied += tool.bulldozerCost ?? 1;
+    }
+    return { b, to, left, top, cost: movePrice(tool) + Math.round(applied * (tool.costFactor ?? 1)) + woods };
+  }
+
+  /** A building's tiles lifted off its block, leaving bare ground, and laid as they were, flags and all, on the block
+   * whose top left is (left, top); the tiles that changed, for undo */
+  private carryTiles(b: PlacedBuilding, left: number, top: number): TileChange[] {
+    const map = this.city.map!, width = this.city.width, size = b.size, corner = size > 1 ? 1 : 0;
+    const ownLeft = b.tile % width - corner, ownTop = Math.floor(b.tile / width) - corner;
+    const raws: number[] = [], before = new Map<number, { x: number; y: number; before: number }>();
+    const put = (x: number, y: number, raw: number): void => {
+      const i = y * width + x;
+      if (!before.has(i)) before.set(i, { x, y, before: map.getTile(x, y).getRawValue() });
+      map.setTile(x, y, raw & BIT_MASK, raw & ALLBITS);
+    };
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) raws.push(map.getTile(ownLeft + dx, ownTop + dy).getRawValue());
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) put(ownLeft + dx, ownTop + dy, DIRT);
+    for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) put(left + dx, top + dy, raws[dy * size + dx]);
+    return [...before.values()].map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
+      .filter((c) => c.after !== c.before);
   }
 
   /**
