@@ -166,6 +166,8 @@ export class TileSnapshot implements CityMapReader {
     // have, which the road tools keep beside the tiles, so the whole map is not gone over (about 26 ms a frame on a
     // 480 x 480 city map before)
     const count = map.changeCount ? map.changeCount() : -1;
+    // ... and a building moved on its tiles (the move tool) changes no tile: its centre is looked at again
+    changed.push(...this.posesMoved(map));
     if (count >= 0 && count === this.seenChanges && !this.initialSync) {
       if (rl) for (let i = 0; i < rl.length; i++) if (rl[i] !== this.levelsCopy[i]) { this.levelsCopy[i] = rl[i]; changed.push(i); }
       return changed;
@@ -195,6 +197,24 @@ export class TileSnapshot implements CityMapReader {
     }
     this.initialSync = false;
     if(zonesChanged) this.coverZones(); return changed;
+  }
+  /** The map's count of changes to its buildings when last looked at, and where each one stood then, by centre tile */
+  private posesSeen = -1;
+  private poseCopy = new Map<number, string>();
+  /** The centre tiles of the buildings put down in metres that moved, came or went since the last look */
+  private posesMoved(map: CityMapReader): number[] {
+    const placed = map.buildings;
+    if (!placed?.all || placed.version === undefined || placed.version === this.posesSeen) return [];
+    this.posesSeen = placed.version;
+    const now = new Map<number, string>(), moved: number[] = [];
+    for (const b of placed.all()) {
+      const key = `${b.x},${b.z},${b.rot}`;
+      now.set(b.tile, key);
+      if (!this.initialSync && this.poseCopy.get(b.tile) !== key) moved.push(b.tile);
+    }
+    if (!this.initialSync) for (const tile of this.poseCopy.keys()) if (!now.has(tile)) moved.push(tile);
+    this.poseCopy = now;
+    return moved;
   }
   /** Advances active 3D plot construction sequences (stage_1 foundation -> stage_2 scaffolding/crane -> finished building). */
   stepConstruction(seconds: number): number[] {

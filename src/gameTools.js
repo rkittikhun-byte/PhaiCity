@@ -38,6 +38,7 @@ import { ERASE_TOOL, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { PlotTool } from './plotTool.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
+import { MOVE_TOOL, MoveTool } from './moveTool.ts';
 
 // rules (PhaiCity): the province's rules (src/provinceRules.ts), which set each tool's price and the price of clearing
 // woods; none means the game's own
@@ -118,6 +119,8 @@ function GameTools(map, rules) {
     });
   });
   tools.building_upgrade = new BuildingUpgradeTool(map);
+  // ... and the move tool, chosen above the bulldozer, which slides a building along its road (src/moveTool.ts)
+  tools[MOVE_TOOL] = new MoveTool(map);
   // ... and the land tool, which buys blocks of land as a command of its own (src/landBlocks.ts)
   tools.land = new LandTool(map);
   // ... and public transport (src/transit.ts): a stop is one tile, the stations share one 3x3 of tiles

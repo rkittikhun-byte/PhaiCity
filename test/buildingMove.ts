@@ -8,6 +8,7 @@
 import type { PlacedBuildings } from "../src/buildings/placedBuildings";
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
+import { buildingAt, movePrice, moveProblem } from "../src/moveTool";
 
 function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
@@ -52,5 +53,18 @@ describe("moving a building", () => {
     for (const { command } of core.log) again.apply(command as any);
     expect(JSON.stringify(placed(again).toJSON())).toBe(JSON.stringify(placed(core).toJSON()));
     expect((core.save() as any).buildings.buildings[0].slice(1, 5)).toEqual(["fire", 604.5, 402, 3]);
+  });
+
+  test("the move tool finds the building under the mouse, what it costs and where it may go", () => {
+    const core = city();
+    core.apply({ type: "build", tool: "police", x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
+    const b = placed(core).get(1)!;
+    // Its block is tiles 19-21 x 14-16
+    expect(buildingAt(placed(core), 60, 19, 16)?.id).toBe(1);
+    expect(buildingAt(placed(core), 60, 22, 15)).toBeNull();
+    expect(buildingAt(placed(core), 60, 20, 15, () => false)).toBeNull();
+    expect(movePrice(core.tools.police)).toBe(50);
+    expect(moveProblem(b, 334, 250, 60, 16)).toBeNull();
+    expect(moveProblem(b, 400, 250, 60, 16)).toBe("off its block");
   });
 });

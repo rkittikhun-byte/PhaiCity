@@ -47,6 +47,7 @@ import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
+import { buildingAt, MOVE_TOOL, movePrice, moveProblem } from './moveTool.ts';
 import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { cellsAlong, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
@@ -305,6 +306,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
   setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
     .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
+  // On a map whose buildings stand against their roads the bulldozer's places are the bulldozer and the move tool,
+  // which slides a building along its road (src/moveTool.ts, docs/METRE_DRAWING_PLAN.md 2.5)
+  if (cityMap.cellZones)
+    setToolChoices('bulldozer', [pageChoice('bulldozer'),
+      Object.assign(pageChoice(MOVE_TOOL), {note: 'choice.move_note'})]);
+  else
+    clearToolChoices('bulldozer');
   // On a map with painted zones the home, shop and factory buttons are brushes, with the eraser beside them
   PLOT_KINDS.forEach(function(kind) {
     if (!cityMap.paintedZones) {
@@ -624,6 +632,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && self.inspectCard && self.inspectCard.isOpen)
       self.inspectCard.close();
+    // A building carried by the move tool turns 15 degrees a press where no road is near it (R, Shift+R the other way)
+    if ((event.key === 'r' || event.key === 'R') && self.moving && self.inputStatus.toolName === MOVE_TOOL) {
+      self.moving.turn += (event.shiftKey ? -1 : 1) * Math.PI / 12;
+      event.preventDefault();
+    }
   });
   if (panOf(this.cityView) !== null)
     showCornerNoteOnce('phaicity.mouseHint', t('view.mouse_hint'), 10000);
@@ -1498,6 +1511,12 @@ Game.prototype.handleTool = function(data) {
   var toolName = this.inputStatus.toolName;
   var result;
 
+  // The move tool picks a building up, then puts it down (moveClick)
+  if (toolName === MOVE_TOOL) {
+    this.moveClick(x, y, tileCoords, data.stroke);
+    return;
+  }
+
   // A building on a map painted a cell at a time goes where its outline showed: slid along the road a cell at a time,
   // its tiles the nearest beside the road
   var pose = this.buildingPose(this.inputStatus.toolWidth - 0, x, y);
@@ -1767,6 +1786,8 @@ Game.prototype.calculateMouseForPaint = function() {
   var tile = this.cityView.tileAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
   if (tile === null)
     return null;
+  if (this.inputStatus.toolName === MOVE_TOOL)
+    return this.moveHover(tile);
 
   // The inputStatus fields came from DOM attributes, so will be strings. Coerce back to numbers.
   var pose = this.buildingPose(this.inputStatus.toolWidth - 0, this.inputStatus.mouseX, this.inputStatus.mouseY);
@@ -2273,13 +2294,99 @@ Game.prototype.keepBuildingPoses = function() {
 };
 
 
+// The move tool (src/moveTool.ts, docs/METRE_DRAWING_PLAN.md 2.5): the first click picks up the ruler's building under
+// the mouse, the next puts it down where its outline stands, with the move command, for a tenth of its price
+Game.prototype.moveClick = function(x, y, tile, stroke) {
+  var map = this.gameMap, game = this;
+  if (!this.moving) {
+    var picked = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) { return game.buildingStands(b); });
+    if (picked === null) {
+      showCornerNote(t('move.note.none'), OUTSIDE_NOTE_MS);
+      return;
+    }
+    this.moving = {id: picked.id, turn: 0};
+    return;
+  }
+  var place = this.movePlace(x, y);
+  if (place === null)
+    return;
+  var outcome = place.problem !== null ? {accepted: false, reason: place.problem} :
+    this.applyCommand({type: 'move', id: this.moving.id, x: place.x, z: place.z, rot: place.rot, stroke: stroke});
+  if (!outcome.accepted) {
+    showCornerNote(t(outcome.reason === 'not enough money' ? 'move.note.money' : 'move.note.off_block'), OUTSIDE_NOTE_MS);
+    return;
+  }
+  this.moving = null;
+  this.writeDrawTip([]);
+  this.refreshUndo();
+};
+
+
+// Whether a building kept in gameMap.buildings still stands on its tiles
+Game.prototype.buildingStands = function(b) {
+  var map = this.gameMap, x = b.tile % map.width, y = Math.floor(b.tile / map.width);
+  return map.testBounds(x, y) && (b.size === 1 || map.getTile(x, y).isZone());
+};
+
+
+// Where the building the move tool carries would go at the pointer (x, y on the view): along its road as a new one would
+// (buildingPose), else under the mouse with the turn it had and the turns the player gave it; its middle in metres and
+// its turn, the pose to draw its outline, and why it may not go there (src/moveTool.ts moveProblem), or null
+Game.prototype.movePlace = function(x, y) {
+  var map = this.gameMap, b = this.moving && map.buildings ? map.buildings.get(this.moving.id) : null;
+  if (!b)
+    return null;
+  var pose = this.buildingPose(b.size, x, y, 1), free = pose === null;
+  if (free) {
+    var point = typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null;
+    if (point === null)
+      return null;
+    pose = [point.x * 10, point.y * 10, (b.rot === null ? 0 : b.rot) + this.moving.turn];
+  }
+  var perUnit = tileMetres(map) / 10;
+  var mx = Math.round(pose[0] * perUnit * 100) / 100, mz = Math.round(pose[1] * perUnit * 100) / 100;
+  return {x: mx, z: mz, rot: Math.round(pose[2] * 1000) / 1000, pose: pose,
+          problem: moveProblem(b, mx, mz, map.width, tileMetres(map)), building: b, free: free};
+};
+
+
+// The move tool's outline: the building under the mouse to pick up, or the one it carries where it would go, red off
+// its block, with a tip of what a click does and costs
+Game.prototype.moveHover = function(tile) {
+  var map = this.gameMap, game = this, colour = this.inputStatus.toolColour || 'yellow';
+  var fill = realUnits(map.tileSizeM) ? BUILDING_SCALE : 1, units = 10 / tileMetres(map);
+  var outline = function(b, pose, red) {
+    var hover = {tile: {x: b.tile % map.width, y: Math.floor(b.tile / map.width)}, size: b.size,
+                 colour: red ? OUTSIDE_COLOUR : colour, building: true, fill: fill};
+    if (pose !== null)
+      hover.pose = pose;
+    return hover;
+  };
+  if (!this.moving) {
+    var under = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) { return game.buildingStands(b); });
+    this.writeDrawTip([t(under ? 'move.tip.pick' : 'move.tip.find')]);
+    if (under === null)
+      return {tile: tile, size: 1, colour: colour};
+    return outline(under, under.rot === null ? null : [under.x * units, under.z * units, under.rot], false);
+  }
+  var place = this.movePlace(this.inputStatus.mouseX, this.inputStatus.mouseY);
+  if (place === null)
+    return null;
+  var tools = this.inputStatus.gameTools, tool = tools ? tools[place.building.tool] : null;
+  var tip = place.problem !== null ? [t('move.tip.off_block')] : [t('move.tip.place', {price: formatMoney(movePrice(tool))})];
+  this.writeDrawTip(place.free ? tip.concat([t('move.tip.turn')]) : tip);
+  return outline(place.building, place.pose, place.problem !== null);
+};
+
+
 // Where a building of size tiles goes at the pointer (x, y on the view) on a map painted a cell at a time: against the
 // nearest road, slid along it a zone cell (2 m) at a time, turned to face it (owner, 14 Oct 2026: "จะขยับซ้ายหรือขวา
-// ให้ขยับได้ ทีละช่อง ทุก object"): [x, z, rotation] in world units, or null
-Game.prototype.buildingPose = function(size, x, y) {
+// ให้ขยับได้ ทีละช่อง ทุก object"): [x, z, rotation] in world units, or null. stepMetres: how far apart the places along
+// the road are, a zone cell (2 m) unless given (the move tool slides a metre at a time)
+Game.prototype.buildingPose = function(size, x, y, stepMetres) {
   var map = this.gameMap;
   // Every tool that puts a building down, a one-tile one too (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน")
-  if (!map.cellZones || !this.placesBuilding() || typeof this.cityView.pointAt !== 'function')
+  if (!map.cellZones || !(this.placesBuilding() || this.moving) || typeof this.cityView.pointAt !== 'function')
     return null;
   var point = this.cityView.pointAt(x, y);
   if (point === null)
@@ -2300,7 +2407,7 @@ Game.prototype.buildingPose = function(size, x, y) {
   if (best === null)
     return null;
   // A zone cell's step along the road, from the road's start
-  var step = 2 * unitsPerMetre(tileMetres(map)), want = Math.round(best.along / step) * step, along = 0;
+  var step = (stepMetres || 2) * unitsPerMetre(tileMetres(map)), want = Math.round(best.along / step) * step, along = 0;
   for (var i = 1; i < best.line.length; i++) {
     var ax = best.line[i - 1][0], az = best.line[i - 1][1], dx = best.line[i][0] - ax, dz = best.line[i][1] - az;
     var length = Math.hypot(dx, dz) || 1;
@@ -2594,6 +2701,7 @@ Game.prototype.roadWayAt = function(tile) {
 
 Game.prototype.resetDraft = function() {
   this.lineDraft = null;
+  this.moving = null;
   setDrawingLine(false);
   this._lastDraftHover = null;
   this._cellStroke = null;
@@ -2857,7 +2965,15 @@ Game.prototype.showDrawTip = function(preview) {
   if (preview.blocked && preview.blocked.length > 0)
     parts.push(t('draw.debug.blocked', {count: preview.blocked.length,
       why: (preview.blockedWhy || []).map(function(reason) { return t('draw.debug.blocked.' + reason); }).join(', ')}));
+  this.writeDrawTip(parts);
+};
 
+
+// The drawing tip's chips, one a part, beside the mouse
+Game.prototype.writeDrawTip = function(parts) {
+  var tip = document.getElementById('drawTip');
+  if (!tip)
+    return;
   var text = parts.join('\n');
   tip.hidden = text === '';
   if (text === '')

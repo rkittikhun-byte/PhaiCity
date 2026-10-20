@@ -56,4 +56,17 @@ describe('buildings put down in metres, in 3D', () => {
     core.apply({ type: 'build', tool: 'police', x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
     expect(snapshotOf(core, { x: 190, z: 157, tx: 0, tz: 1 }).poseToKeep(15 * 60 + 20)).toBeNull();
   });
+
+  test('a building moved on its tiles is stood again where it was moved to, though no tile changed', () => {
+    const core = city();
+    core.apply({ type: 'build', tool: 'police', x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
+    const snapshot = snapshotOf(core, null), tile = 15 * 60 + 20;
+    expect(snapshot.sync(core.map as any)).toEqual([]);
+    core.apply({ type: 'move', id: 1, x: 334, z: 250, rot: 1.25, stroke: 2 });
+    expect(snapshot.sync(core.map as any)).toEqual([tile]);
+    const p = snapshot.placement(tile, 'central')!;
+    expect(p.x).toBeCloseTo(334 * U, 3);
+    expect(p.rotation).toBeCloseTo(1.25, 4);
+    expect(snapshot.sync(core.map as any)).toEqual([]);
+  });
 });

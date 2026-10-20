@@ -40,6 +40,12 @@ export class PlacedBuildings {
   /** The same by centre tile, as the 3D view looks them up for every tile it draws */
   private readonly byTile = new Map<number, PlacedBuilding>();
   private next = 1;
+  private changes = 0;
+
+  /** Counts every change, so the 3D view looks again only when one was made */
+  get version(): number {
+    return this.changes;
+  }
 
   /** Puts a building down, in place of any whose centre tile was the same; its id */
   add(building: Omit<PlacedBuilding, "id">): PlacedBuilding {
@@ -49,6 +55,7 @@ export class PlacedBuildings {
       rot: building.rot === null ? null : round(building.rot, 4) };
     this.items.set(placed.id, placed);
     this.byTile.set(placed.tile, placed);
+    this.changes++;
     return placed;
   }
 
@@ -59,6 +66,7 @@ export class PlacedBuildings {
     this.items.set(building.id, building);
     this.byTile.set(building.tile, building);
     this.next = Math.max(this.next, building.id + 1);
+    this.changes++;
   }
 
   /** Keeps where a building is drawn and its turn (metres, radians) */
@@ -72,6 +80,7 @@ export class PlacedBuildings {
     if (!b) return;
     this.items.delete(id);
     if (this.byTile.get(b.tile) === b) this.byTile.delete(b.tile);
+    this.changes++;
   }
 
   get(id: number): PlacedBuilding | undefined {

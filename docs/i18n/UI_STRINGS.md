@@ -117,6 +117,7 @@
 | `tool.fire_post` | `src/buildingLevels.ts` | — | `Fire Post {price}` | `จุดดับเพลิง {price}` | ระดับ 1 ของดับเพลิง |
 | `tool.fire_centre` | `src/buildingLevels.ts` | — | `Disaster Relief Centre {price}` | `ศูนย์บรรเทาสาธารณภัย {price}` | ระดับ 3 |
 | `tool.building_upgrade` | `src/buildingUpgradeTool.ts` | — | `Upgrade Building {price}` | `อัปเกรดอาคาร {price}` | คลิกที่อาคาร ขึ้นทีละขั้น จ่ายส่วนต่าง |
+| `tool.building_move` | `src/moveTool.ts` | — | `Move Building` | `ย้ายอาคาร` | เลือกเหนือปุ่มรื้อถอน คลิกอาคาร แล้วคลิกที่ใหม่ตามถนน |
 | `tool.road` | `index.html` | `Road $10` | `Road {price}` | `ถนน {price}` | 1 ช่อง |
 | `tool.rail` | `index.html` | `Rail $20` | `Rail {price}` | `ทางรถไฟ {price}` | 1 ช่อง |
 | `tool.canal` | `index.html` | — | `Canal {price}` | `คลอง {price}` | 1 ช่อง ขุดเป็นน้ำ ข้ามถนนเป็นสะพาน |
@@ -275,6 +276,10 @@
 | `choice.zone_industrial` | `src/toolLevels.ts` | — | `Industry` | `โรงงาน` |  |
 | `choice.zone_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบเขต` |  |
 | `choice.erase_note` | `src/toolLevels.ts` | — | `free` | `ฟรี` | แทนราคาในช่องลบเขต |
+| `choice.move_note` | `src/game.js` | — | `a tenth of its price` | `10% ของราคาอาคาร` | แทนราคาในช่องย้ายอาคาร |
+| `choice.title.bulldozer` | `src/toolLevels.ts` | — | `Bulldoze or move a building` | `รื้อถอน หรือย้ายอาคาร` |  |
+| `choice.bulldozer` | `src/toolLevels.ts` | — | `Bulldoze` | `รื้อถอน` |  |
+| `choice.building_move` | `src/toolLevels.ts` | — | `Move` | `ย้าย` | ย้ายอาคารตามถนน |
 | `choice.title.residential` | `src/toolLevels.ts` | — | `Homes: paint the zone` | `ที่อยู่อาศัย: ระบายเขต` |  |
 | `choice.title.commercial` | `src/toolLevels.ts` | — | `Shops: paint the zone` | `พาณิชย์: ระบายเขต` |  |
 | `choice.title.industrial` | `src/toolLevels.ts` | — | `Industry: paint the zone` | `อุตสาหกรรม: ระบายเขต` |  |
@@ -439,6 +444,14 @@
 | `camera.top` | `src/cameraModes.ts` | — | `Look straight down, north up` | `มองตรงจากบน หันทิศเหนือขึ้น` |  |
 | `camera.whole` | `src/cameraModes.ts` | — | `See the whole city` | `ดูทั้งเมือง` |  |
 | `tool.needs_road` | `src/game.js` | — | `Buildings stand beside a road: put it next to one` | `อาคารต้องตั้งติดถนน วางให้ชิดถนน` | แผนที่ที่ทาเขตทีละช่อง (src/cityCommands.ts roadBesideProblem) |
+| `move.tip.find` | `src/game.js` | — | `Click a building to move it` | `คลิกอาคารที่จะย้าย` | ป้ายข้างเมาส์ของเครื่องมือย้าย |
+| `move.tip.pick` | `src/game.js` | — | `Click to pick it up` | `คลิกเพื่อยกอาคารนี้` |  |
+| `move.tip.place` | `src/game.js` | — | `Click to put it here: {price}` | `คลิกเพื่อวางที่นี่ {price}` | R หมุนเมื่อไม่ติดถนน |
+| `move.tip.turn` | `src/game.js` | — | `R turns it, Shift+R the other way` | `กด R หมุน, Shift+R หมุนกลับ` | เมื่ออาคารไม่ติดถนน |
+| `move.tip.off_block` | `src/game.js` | — | `Too far: a building moves only on its own land` | `ไกลเกินไป ย้ายได้ในที่ดินของอาคารเท่านั้น` |  |
+| `move.note.none` | `src/game.js` | — | `No building here to move` | `ตรงนี้ไม่มีอาคารให้ย้าย` |  |
+| `move.note.off_block` | `src/game.js` | — | `A building moves only on its own land` | `ย้ายได้ในที่ดินของอาคารเท่านั้น` |  |
+| `move.note.money` | `src/game.js` | — | `Not enough money to move it` | `เงินไม่พอค่าย้าย` |  |
 | `tool.bulldozer` | `index.html` | `Bulldozer $1` | `Bulldoze {price}` | `รื้อถอน {price}` | รถไถ 1 ช่อง |
 | `tool.query` | `index.html` | `Query` | `Inspect` | `ส่องดูพื้นที่` | ตรวจสอบข้อมูล |
 | `tool.msg.no_money` | `src/text.js` | `Insufficient funds to build that` | `Not enough funds to build that` | `เงินในคลังไม่พอสำหรับก่อสร้าง` | แสดงที่ toolOutput |
