@@ -9,14 +9,6 @@ import {
 import { mergeGeometry } from '../util/geometry.js';
 import { getMaterial } from '../materials/library.js';
 import { registry } from '../models/registry.js';
-import {
-  BUS_STOP, CIVIC, COMLAST, CZB, FARM_BASE, FARM_LAST,
-  FIRESTATION, HARBOUR_BASE, HARBOUR_LAST, HHTHR, HOSPITAL, HOSPITALBASE,
-  HOUSE, IND1, LASTIND, LASTTREE, MINE_BASE, MINE_LAST, POLICESTATION,
-  RZB, STATION, TREEBASE,
-} from '../../tileValues.js';
-import { ZONEBIT } from '../../tileFlags.js';
-import { readPlotValue } from '../../plots.js';
 import { tileSeed, type TileSnapshot } from './tileModels.js';
 import type { CityHeightField } from './heightfield.js';
 import { halfWidth, roadReach, type Point } from '../../roadGeometry.js';
@@ -25,9 +17,17 @@ import type { BlockMapReader } from './types.js';
 import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
 import { frustumOf } from './pools.js';
+import {
+  LineIndex, MAX_TAKRAW, SPORTS_COLOURS, getStructureInfo, scanPeople, type EmployedCitizen, type Household, type PeopleScan,
+  type RoadLine, type ScanCounter, type Workplace,
+} from './peopleScan.js';
+export type { EmployedCitizen, Household, RoadLine, Workplace } from './peopleScan.js';
 
 export const MAX_PEDESTRIANS = 140;
-const MAX_TAKRAW = 8;
+/** How much of a scan of who lives and works round the camera (peopleScan.ts) a frame may do: its count of work, and
+ * its milliseconds (the steps already begun finish) */
+export const SCAN_BUDGET = 40000;
+export const SCAN_BUDGET_MS = 2.5;
 const MAX_VEHICLES = 16;
 let rngState = 0;
 function fastSeed(seed: number): void { rngState = seed >>> 0; }
@@ -50,21 +50,6 @@ function getLineLength(points: Point[]): number {
   return len;
 }
 
-const SHIRT_COLOURS = [
-  0x2c4c7e, // Isan indigo (Mor Hom)
-  0xf2f0e8, // White school / office shirt
-  0xc85a3b, // Terracotta / brick red
-  0x3b7a6e, // Tropical teal
-  0xe0a238, // Marigold / saffron yellow
-  0xd96f14, // Saffron orange monk robe
-  0x5d7aa8, // Sky polo blue
-  0x8b4c70, // Silk magenta / mudmee
-  0x6b8e4e, // Palm green
-  0xd97f54, // Warm coral
-  0x48525e, // Charcoal work shirt
-  0xe6c229, // Yellow silk
-  0x283845, // Navy blue uniform
-] as const;
 
 function colorGeometry(box: BoxGeometry, hex: number): BufferGeometry {
   const g = box.toNonIndexed();
@@ -139,177 +124,44 @@ const swingMatrix = new Matrix4();
 const pivotToWorld = new Matrix4();
 const instanceColor = new Color();
 
-export interface RoadLine {
-  readonly points: Point[];
-  readonly rail: boolean;
-  readonly level?: number;
-}
-
-const SPORTS_COLOURS = [
-  0x3b7a6e, // Tropical teal
-  0xe0a238, // Marigold yellow
-  0xd97f54, // Warm coral
-  0x8b4c70, // Silk magenta
-  0x2c4c7e, // Mor Hom indigo
-  0xc85a3b, // Terracotta
-] as const;
-
-const INDUSTRY_SHIRTS = [
-  0x2c4c7e, // Mor Hom indigo
-  0x48525e, // Charcoal work shirt
-  0xc85a3b, // Terracotta factory shirt
-  0x283845, // Navy technician uniform
-] as const;
-
-const COMMERCE_SHIRTS = [
-  0xf2f0e8, // White office shirt
-  0x5d7aa8, // Sky polo blue
-  0x283845, // Navy business uniform
-  0xe6c229, // Yellow commercial shirt
-] as const;
-
-const CIVIC_SHIRTS = [
-  0xf2f0e8, // White civil service
-  0x283845, // Navy uniform
-  0xe6c229, // Yellow silk
-  0x48525e, // Charcoal uniform
-] as const;
-
-const THAI_COMPANIES_INDUSTRY = [
-  'บจก. สยามแอโกรอินดัสทรี',
-  'โรงสีข้าวไทยเจริญ',
-  'บมจ. อุตสาหกรรมชิ้นส่วนยานยนต์',
-  'โรงงานทอผ้าไหมมัดหมี่',
-  'โรงงานผลิตอาหารแปรรูปอีสาน',
-  'คลังสินค้าและโลจิสติกส์รุ่งเรือง',
-  'เหมืองแร่สยามพัฒนา',
-  'โรงกลั่นน้ำมันพืชไชโย',
-] as const;
-
-const THAI_COMPANIES_COMMERCE = [
-  'ตลาดสดประสานมิตร',
-  'ร้านค้าสะดวกซื้อชุมชน',
-  'ธนาคารพาณิชย์ไทยพัฒนา',
-  'ร้านทองเยาวราชสาขา 1',
-  'ศูนย์การค้าวัฒนาสแควร์',
-  'ร้านสหกรณ์การค้าชุมชน',
-  'ร้านอาหารพื้นเมืองรสเด็ด',
-] as const;
-
-const THAI_COMPANIES_CIVIC = [
-  'ที่ว่าการอำเภอ',
-  'โรงพยาบาลศูนย์ประจำจังหวัด',
-  'โรงเรียนเทศบาลเฉลิมพระเกียรติ',
-  'สถานีตำรวจภูธร',
-  'สถานีดับเพลิงและกู้ภัย',
-  'สถานีขนส่งผู้โดยสาร',
-] as const;
-
-const THAI_COMPANIES_AGRI = [
-  'ฟาร์มเกษตรอินทรีย์ชุมชน',
-  'ไร่กสิกรรมผสมผสาน',
-  'ท่าเทียบเรือประมงพื้นบ้าน',
-] as const;
-
-const THAI_CITIZEN_NAMES = [
-  'สมชาย', 'วิชัย', 'วีระ', 'ประเสริฐ', 'บุญส่ง', 'สุรชัย', 'สมบัติ', 'มานะ',
-  'สมร', 'กานดา', 'สุภา', 'วันดี', 'รัตนา', 'เพ็ญศรี', 'อรทัย', 'ศิริพร',
-] as const;
-
-interface StructureInfo {
-  readonly kind: 'home' | 'industry' | 'commercial' | 'civic' | 'farm' | 'mine' | 'stop' | 'park';
-  readonly level: number;
-}
-
-function getStructureInfo(v: number, flags: number): StructureInfo | null {
-  if (v === BUS_STOP) return { kind: 'stop', level: 1 };
-  if (v >= HOUSE && v <= HHTHR) return { kind: 'home', level: 1 };
-
-  const plot = readPlotValue(v);
-  if (plot && plot.level > 0) {
-    if (plot.kind === 'residential') return { kind: 'home', level: plot.level };
-    if (plot.kind === 'commercial') return { kind: 'commercial', level: plot.level };
-    if (plot.kind === 'industrial') return { kind: 'industry', level: plot.level };
-  }
-
-  if (flags & ZONEBIT) {
-    if (v >= RZB && v < HOSPITALBASE) return { kind: 'home', level: 2 };
-    if (v >= CZB && v <= COMLAST) return { kind: 'commercial', level: 2 };
-    if ((v >= IND1 && v <= LASTIND) || v === 625) return { kind: 'industry', level: 2 };
-    if (v === MINE_BASE || (v >= MINE_BASE && v <= MINE_LAST)) return { kind: 'mine', level: 2 };
-    if (v === FARM_BASE || (v >= FARM_BASE && v <= FARM_LAST)) return { kind: 'farm', level: 2 };
-    if (v === HARBOUR_BASE || (v >= HARBOUR_BASE && v <= HARBOUR_LAST)) return { kind: 'farm', level: 2 };
-    if (v === CIVIC || v === FIRESTATION || v === POLICESTATION || v === HOSPITAL || v === STATION) {
-      return { kind: 'civic', level: 2 };
-    }
-  }
-
-  if (v >= TREEBASE && v <= LASTTREE) return { kind: 'park', level: 1 };
-  return null;
-}
-
-export interface Workplace {
-  readonly id: number;
-  readonly tx: number;
-  readonly ty: number;
-  readonly wx: number;
-  readonly wz: number;
-  readonly sector: 'industry' | 'commercial' | 'civic' | 'agriculture';
-  readonly companyName: string;
-  readonly capacity: number;
-  assignedWorkers: number;
-}
-
-export interface Household {
-  readonly id: number;
-  readonly tx: number;
-  readonly ty: number;
-  readonly wx: number;
-  readonly wz: number;
-  readonly residentCount: number;
-}
-
-export interface EmployedCitizen {
-  readonly id: number;
-  readonly name: string;
-  readonly home: Household;
-  readonly workplace: Workplace;
-  readonly shirtColor: number;
-  readonly speedVar: number;
-  lineIdx: number;
-}
-
-interface TakrawCourt {
-  readonly cx: number;
-  readonly cz: number;
-  readonly seed: number;
-  readonly angle0: number;
-  readonly shirts: readonly [number, number, number];
-}
-
-interface ChatSpot {
-  readonly cx: number;
-  readonly cz: number;
-  readonly angle: number;
-  readonly shirtA: number;
-  readonly shirtB: number;
-}
-
-interface TransitStopSpot {
-  readonly wx: number;
-  readonly wz: number;
-  readonly heading: number;
-  readonly shirt: number;
-}
-
-interface ShopSpot {
-  readonly wx: number;
-  readonly wz: number;
-  readonly heading: number;
-  readonly shirt: number;
-}
-
 const ballMatrix = new Matrix4();
+
+/** Each line's length from its start to each of its points, for finding a place along it without walking it */
+const lineRunCache = new WeakMap<object, Float64Array>();
+function lineRun(points: Point[]): Float64Array {
+  let run = lineRunCache.get(points);
+  if (run) return run;
+  run = new Float64Array(points.length);
+  for (let i = 1; i < points.length; i++) {
+    run[i] = run[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+  }
+  lineRunCache.set(points, run);
+  return run;
+}
+/** The point `along` units from a line's start and the way its piece there runs, as walking it point by point finds
+ * them (the first piece reaching that far, or the last) */
+const alongOut = { x: 0, z: 0, dx: 0, dz: 0 };
+export function pointAlong(points: Point[], along: number): typeof alongOut {
+  const run = lineRun(points), last = points.length - 1;
+  let lo = 1, hi = last;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (run[m] >= along) hi = m; else lo = m + 1; }
+  const ax = points[lo - 1][0], az = points[lo - 1][1], bx = points[lo][0], bz = points[lo][1];
+  const seg = Math.hypot(bx - ax, bz - az);
+  const t = seg > 0 ? Math.max(0, Math.min(1, (along - run[lo - 1]) / seg)) : 0;
+  alongOut.x = ax + (bx - ax) * t; alongOut.z = az + (bz - az) * t; alongOut.dx = bx - ax; alongOut.dz = bz - az;
+  return alongOut;
+}
+
+const NO_COMMUTERS: EmployedCitizen[] = [];
+
+/** A scan under way (peopleScan.ts): where it looks, and for which lines */
+interface ScanJob {
+  readonly steps: Generator<void, PeopleScan, void>;
+  readonly key: string;
+  readonly lines: ReadonlyArray<RoadLine>;
+  readonly x: number;
+  readonly z: number;
+}
 
 /**
  * Animated 3D pedestrians with real jobs, destinations, and Thai community activities
@@ -331,15 +183,22 @@ export class CityPedestrians {
   private readonly material: MeshStandardMaterial;
   private readonly takrawMaterial: MeshStandardMaterial;
 
-  private cachedHouseholds: Household[] = [];
-  private cachedWorkplaces: Workplace[] = [];
-  private cachedEmployed: EmployedCitizen[] = [];
-  private cachedTakrawCourts: TakrawCourt[] = [];
-  private cachedChatSpots: ChatSpot[] = [];
-  private cachedTransitStops: TransitStopSpot[] = [];
-  private cachedShopSpots: ShopSpot[] = [];
-  private commutersByLine = new Map<number, EmployedCitizen[]>();
-  private lastScanKey = '';
+  /** What the last finished scan found round the camera (peopleScan.ts): the people walking now */
+  private shown: PeopleScan | null = null;
+  private shownKey = '';
+  private shownAt = { x: 0, z: 0 };
+  /** The scan under way, if any, a few thousand of its steps' work a frame */
+  private job: ScanJob | null = null;
+  private lineIndex: LineIndex | null = null;
+  private readonly counter: ScanCounter = { units: 0 };
+  /** How much of a scan a frame may do: its count of work and milliseconds (SCAN_BUDGET, SCAN_BUDGET_MS) */
+  scanBudget = SCAN_BUDGET;
+  scanBudgetMs = SCAN_BUDGET_MS;
+  /** Scans begun and finished, for tests and the bench */
+  scansStarted = 0;
+  scansFinished = 0;
+  /** The lines of roads built again since the scan shown, to the scan's own lines (commutersOn) */
+  private remap: { lines: ReadonlyArray<RoadLine>; map: Map<RoadLine, RoadLine> } | null = null;
 
   employedIndustry = 0;
   employedCommercial = 0;
@@ -431,9 +290,9 @@ export class CityPedestrians {
     this.root.add(drawer.mesh);
   }
 
-  get households(): ReadonlyArray<Household> { return this.cachedHouseholds; }
-  get workplaces(): ReadonlyArray<Workplace> { return this.cachedWorkplaces; }
-  get employedCitizens(): ReadonlyArray<EmployedCitizen> { return this.cachedEmployed; }
+  get households(): ReadonlyArray<Household> { return this.shown?.households ?? []; }
+  get workplaces(): ReadonlyArray<Workplace> { return this.shown?.workplaces ?? []; }
+  get employedCitizens(): ReadonlyArray<EmployedCitizen> { return this.shown?.employed ?? []; }
 
   private placeWalker(
     slot: number,
@@ -514,240 +373,81 @@ export class CityPedestrians {
     return score;
   }
 
+  /** Whether a scan is under way: until it is done the people shown are those of the last one finished */
+  get scanning(): boolean { return this.job !== null; }
+  /** The scans' count of work so far: tiles read, squares, workplaces and lines weighed (peopleScan.ts) */
+  get scanWork(): number { return this.counter.units; }
+  /** Where the scan shown looked from (world units), null before the first */
+  get scannedAt(): { readonly x: number; readonly z: number } | null { return this.shown ? this.shownAt : null; }
+
+  /**
+   * Who lives and works round the camera, found again once it is over another 40-unit square or the roads have
+   * changed: a job of small steps (peopleScan.ts) done a budget a frame, the people of the last scan walking on until it
+   * is done. With nothing found yet it is done at once. A scan under way that the camera has gone beyond (a jump) is
+   * dropped for one where the camera is.
+   */
   private scanCityAgents(target: Vector3, span: number, lines: ReadonlyArray<RoadLine>): void {
-    const cellX = Math.round(target.x / 40);
-    const cellZ = Math.round(target.z / 40);
-    const scanKey = `${cellX},${cellZ},${lines.length}`;
-    if (scanKey === this.lastScanKey) return;
-    this.lastScanKey = scanKey;
-
-    const minTx = Math.max(1, Math.floor((target.x - span) / 10));
-    const maxTx = Math.min(this.snapshot.width - 2, Math.ceil((target.x + span) / 10));
-    const minTy = Math.max(1, Math.floor((target.z - span) / 10));
-    const maxTy = Math.min(this.snapshot.height - 2, Math.ceil((target.z + span) / 10));
-
-    const households: Household[] = [];
-    const workplaces: Workplace[] = [];
-    const takrawCourts: TakrawCourt[] = [];
-    const chatSpots: ChatSpot[] = [];
-    const transitStops: TransitStopSpot[] = [];
-    const shopSpots: ShopSpot[] = [];
-
-    let workerIdGen = 0;
-    let houseIdGen = 0;
-    let workIdGen = 0;
-
-    for (let ty = minTy; ty <= maxTy; ty++) {
-      for (let tx = minTx; tx <= maxTx; tx++) {
-        const i = ty * this.snapshot.width + tx;
-        const v = this.snapshot.values[i];
-        const f = this.snapshot.flags[i];
-        const info = getStructureInfo(v, f);
-        if (!info) continue;
-
-        const seed = tileSeed(tx, ty);
-        const cx = (tx + 0.5) * 10;
-        const cz = (ty + 0.5) * 10;
-
-        if (info.kind === 'home') {
-          const resCount = Math.max(1, info.level * 2);
-          const house: Household = { id: ++houseIdGen, tx, ty, wx: cx, wz: cz, residentCount: resCount };
-          households.push(house);
-
-          // Community activities in front of homes:
-          // 1 in 6 homes has a takraw court if space permits
-          if ((seed % 6 === 0) && takrawCourts.length < MAX_TAKRAW) {
-            fastSeed(seed ^ 0xa5a5a5a5);
-            takrawCourts.push({
-              cx: cx + (fastRng() - 0.5) * 1.5,
-              cz: cz + (fastRng() - 0.5) * 1.5,
-              seed,
-              angle0: fastRng() * Math.PI * 2,
-              shirts: [
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-              ],
-            });
-          } else if (seed % 4 === 1 && chatSpots.length < 16) {
-            // Chatting neighbors
-            fastSeed(seed ^ 0x3c3c3c3c);
-            chatSpots.push({
-              cx: cx + (fastRng() - 0.5) * 2.0,
-              cz: cz + (fastRng() - 0.5) * 2.0,
-              angle: fastRng() * Math.PI,
-              shirtA: SHIRT_COLOURS[Math.floor(fastRng() * SHIRT_COLOURS.length)],
-              shirtB: SHIRT_COLOURS[Math.floor(fastRng() * SHIRT_COLOURS.length)],
-            });
-          }
-        } else if (info.kind === 'industry' || info.kind === 'mine') {
-          const cap = Math.max(1, info.level * 3);
-          const nameIdx = seed % THAI_COMPANIES_INDUSTRY.length;
-          workplaces.push({
-            id: ++workIdGen,
-            tx, ty, wx: cx, wz: cz,
-            sector: 'industry',
-            companyName: THAI_COMPANIES_INDUSTRY[nameIdx],
-            capacity: cap,
-            assignedWorkers: 0,
-          });
-        } else if (info.kind === 'commercial') {
-          const cap = Math.max(1, info.level * 2);
-          const nameIdx = seed % THAI_COMPANIES_COMMERCE.length;
-          workplaces.push({
-            id: ++workIdGen,
-            tx, ty, wx: cx, wz: cz,
-            sector: 'commercial',
-            companyName: THAI_COMPANIES_COMMERCE[nameIdx],
-            capacity: cap,
-            assignedWorkers: 0,
-          });
-          if (seed % 3 === 0 && shopSpots.length < 12) {
-            fastSeed(seed ^ 0x7e7e7e7e);
-            shopSpots.push({
-              wx: cx + (fastRng() - 0.5) * 2.2,
-              wz: cz + (fastRng() - 0.5) * 2.2,
-              heading: fastRng() * Math.PI * 2,
-              shirt: SHIRT_COLOURS[Math.floor(fastRng() * SHIRT_COLOURS.length)],
-            });
-          }
-        } else if (info.kind === 'civic') {
-          const cap = 4;
-          const nameIdx = seed % THAI_COMPANIES_CIVIC.length;
-          workplaces.push({
-            id: ++workIdGen,
-            tx, ty, wx: cx, wz: cz,
-            sector: 'civic',
-            companyName: THAI_COMPANIES_CIVIC[nameIdx],
-            capacity: cap,
-            assignedWorkers: 0,
-          });
-        } else if (info.kind === 'farm') {
-          const cap = 3;
-          const nameIdx = seed % THAI_COMPANIES_AGRI.length;
-          workplaces.push({
-            id: ++workIdGen,
-            tx, ty, wx: cx, wz: cz,
-            sector: 'agriculture',
-            companyName: THAI_COMPANIES_AGRI[nameIdx],
-            capacity: cap,
-            assignedWorkers: 0,
-          });
-        } else if (info.kind === 'stop') {
-          fastSeed(seed ^ 0x55aa55aa);
-          transitStops.push({
-            wx: cx, wz: cz,
-            heading: (seed % 4) * (Math.PI / 2),
-            shirt: SHIRT_COLOURS[Math.floor(fastRng() * SHIRT_COLOURS.length)],
-          });
-        } else if (info.kind === 'park') {
-          if (seed % 3 === 0 && takrawCourts.length < MAX_TAKRAW) {
-            fastSeed(seed ^ 0x12345678);
-            takrawCourts.push({
-              cx, cz, seed,
-              angle0: fastRng() * Math.PI * 2,
-              shirts: [
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-                SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)],
-              ],
-            });
-          }
-        }
+    const key = `${Math.round(target.x / 40)},${Math.round(target.z / 40)}`;
+    if (this.job && (Math.abs(this.job.x - target.x) > span || Math.abs(this.job.z - target.z) > span)) this.job = null;
+    const whole = this.shown === null;
+    const start = this.counter.units, began = performance.now();
+    for (let steps = 0; ; steps++) {
+      if (!this.job) {
+        if (this.shown && this.shownKey === key && this.shown.lines === lines) return;
+        if (this.lineIndex?.lines !== lines) this.lineIndex = new LineIndex(lines, this.counter);
+        this.job = { steps: scanPeople(this.snapshot, target.x, target.z, span, this.lineIndex, this.counter), key, lines,
+          x: target.x, z: target.z };
+        this.scansStarted++;
+      }
+      if (!whole && (this.counter.units - start >= this.scanBudget || (steps & 7) === 7 && performance.now() - began >= this.scanBudgetMs)) return;
+      const step = this.job.steps.next();
+      if (step.done) {
+        this.show(step.value, this.job.key);
+        this.shownAt = { x: this.job.x, z: this.job.z };
+        this.job = null;
+        this.scansFinished++;
+        if (whole) return;
       }
     }
+  }
 
-    // Match residents to open workplaces ("คนที่ไปทำงาน ต้อง มีงานจริงๆ นะ")
-    const employed: EmployedCitizen[] = [];
-    for (const h of households) {
-      fastSeed(tileSeed(h.tx + 7, h.ty + 13));
-      for (let r = 0; r < h.residentCount; r++) {
-        // Find closest workplace with available capacity
-        let bestWork: Workplace | null = null;
-        let bestDist = Infinity;
-        for (const w of workplaces) {
-          if (w.assignedWorkers >= w.capacity) continue;
-          const dist = Math.hypot(w.wx - h.wx, w.wz - h.wz);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestWork = w;
-          }
-        }
+  /** A finished scan's people walk from now on */
+  private show(scan: PeopleScan, key: string): void {
+    this.shown = scan;
+    this.shownKey = key;
+    this.remap = null;
+    const s = scan.sectors;
+    this.employedIndustry = s.industry;
+    this.employedCommercial = s.commercial;
+    this.employedCivic = s.civic;
+    this.employedAgri = s.agriculture;
+    this.totalEmployed = s.industry + s.commercial + s.civic + s.agriculture;
+  }
 
-        if (bestWork) {
-          bestWork.assignedWorkers++;
-          const name = THAI_CITIZEN_NAMES[(h.id * 3 + r) % THAI_CITIZEN_NAMES.length];
-          let shirtColor: number;
-          if (bestWork.sector === 'industry') {
-            shirtColor = INDUSTRY_SHIRTS[(h.id + r) % INDUSTRY_SHIRTS.length];
-          } else if (bestWork.sector === 'commercial') {
-            shirtColor = COMMERCE_SHIRTS[(h.id + r) % COMMERCE_SHIRTS.length];
-          } else if (bestWork.sector === 'civic') {
-            shirtColor = CIVIC_SHIRTS[(h.id + r) % CIVIC_SHIRTS.length];
-          } else {
-            shirtColor = INDUSTRY_SHIRTS[(h.id + r) % INDUSTRY_SHIRTS.length];
-          }
-
-          employed.push({
-            id: ++workerIdGen,
-            name,
-            home: h,
-            workplace: bestWork,
-            shirtColor,
-            speedVar: 0.88 + fastRng() * 0.24,
-            lineIdx: -1,
-          });
-        }
+  /**
+   * The workers the scan shown put on a line. Roads built again since then are new lines: an unchanged road's (the
+   * same points, so the same middle) are its old line's until the next scan, and a changed one has none yet.
+   */
+  private commutersOn(line: RoadLine, lines: ReadonlyArray<RoadLine>): EmployedCitizen[] | undefined {
+    const scan = this.shown;
+    if (!scan) return undefined;
+    if (scan.lines === lines) return scan.byLine.get(line);
+    if (!this.remap || this.remap.lines !== lines) {
+      const old = new Map<string, RoadLine>(), map = new Map<RoadLine, RoadLine>();
+      const name = (l: RoadLine): string => {
+        const p = l.points, mid = p[Math.floor(p.length / 2)];
+        return `${p.length},${p[0][0]},${p[0][1]},${mid[0]},${mid[1]}`;
+      };
+      for (const l of scan.byLine.keys()) old.set(name(l), l);
+      for (const l of lines) {
+        if (l.rail || l.points.length < 2) continue;
+        const was = old.get(name(l));
+        if (was) map.set(l, was);
       }
+      this.remap = { lines, map };
     }
-
-    // Assign employed citizens to the most relevant road line connecting home and work
-    const byLine = new Map<number, EmployedCitizen[]>();
-    for (const worker of employed) {
-      let bestLine = -1;
-      let minScore = Infinity;
-      for (let l = 0; l < lines.length; l++) {
-        const line = lines[l];
-        if (line.rail || line.points.length < 2) continue;
-        const mid = line.points[Math.floor(line.points.length / 2)];
-        const dHome = Math.hypot(mid[0] - worker.home.wx, mid[1] - worker.home.wz);
-        const dWork = Math.hypot(mid[0] - worker.workplace.wx, mid[1] - worker.workplace.wz);
-        const score = dHome + dWork;
-        if (score < minScore && score < 160) {
-          minScore = score;
-          bestLine = l;
-        }
-      }
-      worker.lineIdx = bestLine;
-      if (bestLine >= 0) {
-        let list = byLine.get(bestLine);
-        if (!list) { list = []; byLine.set(bestLine, list); }
-        list.push(worker);
-      }
-    }
-
-    // Track sector employment totals ("ก็นับด้วยว่าคนทำงาน ในอุตสาหกรรม 1 คน")
-    let ind = 0, com = 0, civ = 0, agr = 0;
-    for (const w of employed) {
-      if (w.workplace.sector === 'industry') ind++;
-      else if (w.workplace.sector === 'commercial') com++;
-      else if (w.workplace.sector === 'civic') civ++;
-      else if (w.workplace.sector === 'agriculture') agr++;
-    }
-    this.employedIndustry = ind;
-    this.employedCommercial = com;
-    this.employedCivic = civ;
-    this.employedAgri = agr;
-    this.totalEmployed = ind + com + civ + agr;
-
-    this.cachedHouseholds = households;
-    this.cachedWorkplaces = workplaces;
-    this.cachedEmployed = employed;
-    this.cachedTakrawCourts = takrawCourts;
-    this.cachedChatSpots = chatSpots;
-    this.cachedTransitStops = transitStops;
-    this.cachedShopSpots = shopSpots;
-    this.commutersByLine = byLine;
+    const was = this.remap.map.get(line);
+    return was ? scan.byLine.get(was) : undefined;
   }
 
   update(
@@ -775,6 +475,10 @@ export class CityPedestrians {
     let count = 0;
     let takrawCount = 0;
     this.activeCommutersCount = 0;
+    const takrawCourts = this.shown?.takrawCourts ?? [];
+    const chatSpots = this.shown?.chatSpots ?? [];
+    const transitStops = this.shown?.transitStops ?? [];
+    const shopSpots = this.shown?.shopSpots ?? [];
 
     // 1. Purposeful commuters & joggers along road sidewalks
     for (let lineIdx = 0; lineIdx < lines.length && count < MAX_PEDESTRIANS; lineIdx++) {
@@ -792,7 +496,7 @@ export class CityPedestrians {
       const activity = this.activityAt(tx, ty);
       const sidewalkOffset = (2.15 + (line.level ?? 2) * 0.22) * this.size;
 
-      const lineCommuters = this.commutersByLine.get(lineIdx) ?? [];
+      const lineCommuters = this.commutersOn(line, lines) ?? NO_COMMUTERS;
       const commuterCount = Math.min(lineCommuters.length, 12);
 
       // A. Real Commuters going between home and work
@@ -806,23 +510,7 @@ export class CityPedestrians {
         const frac = (shiftTime % (shiftPeriod * 0.5)) / (shiftPeriod * 0.5);
         const distAlong = (frac * totalLen) % totalLen;
 
-        let acc = 0;
-        let px = line.points[0][0], pz = line.points[0][1];
-        let dx = line.points[1][0] - px, dz = line.points[1][1] - pz;
-        for (let i = 1; i < line.points.length; i++) {
-          const ax = line.points[i - 1][0], az = line.points[i - 1][1];
-          const bx = line.points[i][0], bz = line.points[i][1];
-          const seg = Math.hypot(bx - ax, bz - az);
-          if (acc + seg >= distAlong || i === line.points.length - 1) {
-            const t = seg > 0 ? Math.max(0, Math.min(1, (distAlong - acc) / seg)) : 0;
-            px = ax + (bx - ax) * t;
-            pz = az + (bz - az) * t;
-            dx = bx - ax;
-            dz = bz - az;
-            break;
-          }
-          acc += seg;
-        }
+        const { x: px, z: pz, dx, dz } = pointAlong(line.points, distAlong);
 
         if (Math.abs(px - target.x) > viewSpan || Math.abs(pz - target.z) > viewSpan) continue;
         const len = Math.hypot(dx, dz) || 1;
@@ -848,23 +536,7 @@ export class CityPedestrians {
         const jogTravel = (jogStartFrac * totalLen + seconds * walkSpeed * 2.2 * jogDir) % totalLen;
         const distAlong = jogTravel < 0 ? jogTravel + totalLen : jogTravel;
 
-        let acc = 0;
-        let px = line.points[0][0], pz = line.points[0][1];
-        let dx = line.points[1][0] - px, dz = line.points[1][1] - pz;
-        for (let i = 1; i < line.points.length; i++) {
-          const ax = line.points[i - 1][0], az = line.points[i - 1][1];
-          const bx = line.points[i][0], bz = line.points[i][1];
-          const seg = Math.hypot(bx - ax, bz - az);
-          if (acc + seg >= distAlong || i === line.points.length - 1) {
-            const t = seg > 0 ? Math.max(0, Math.min(1, (distAlong - acc) / seg)) : 0;
-            px = ax + (bx - ax) * t;
-            pz = az + (bz - az) * t;
-            dx = bx - ax;
-            dz = bz - az;
-            break;
-          }
-          acc += seg;
-        }
+        const { x: px, z: pz, dx, dz } = pointAlong(line.points, distAlong);
 
         if (Math.abs(px - target.x) > viewSpan || Math.abs(pz - target.z) > viewSpan) continue;
         const len = Math.hypot(dx, dz) || 1;
@@ -882,8 +554,8 @@ export class CityPedestrians {
 
     // 2. Thai Community Activities: Sepak Takraw (เล่นตะกร้อวง)
     const takrawCourtR = 1.75 * this.size;
-    for (let tIdx = 0; tIdx < this.cachedTakrawCourts.length && count < MAX_PEDESTRIANS - 2; tIdx++) {
-      const court = this.cachedTakrawCourts[tIdx];
+    for (let tIdx = 0; tIdx < takrawCourts.length && count < MAX_PEDESTRIANS - 2; tIdx++) {
+      const court = takrawCourts[tIdx];
       if (Math.abs(court.cx - target.x) > viewSpan || Math.abs(court.cz - target.z) > viewSpan) continue;
 
       const pCycle = 3.3; // 3.3s cycle for passing ball between 3 players
@@ -928,8 +600,8 @@ export class CityPedestrians {
     }
 
     // 3. Socializing Neighbors (ยืนคุยกันหน้าบ้าน)
-    for (let c = 0; c < this.cachedChatSpots.length && count < MAX_PEDESTRIANS - 1; c++) {
-      const spot = this.cachedChatSpots[c];
+    for (let c = 0; c < chatSpots.length && count < MAX_PEDESTRIANS - 1; c++) {
+      const spot = chatSpots[c];
       if (Math.abs(spot.cx - target.x) > viewSpan || Math.abs(spot.cz - target.z) > viewSpan) continue;
       const facingA = spot.angle;
       const facingB = spot.angle + Math.PI;
@@ -944,15 +616,15 @@ export class CityPedestrians {
     }
 
     // 4. Waiting passengers at bus stops (รอรถเมล์/สองแถว)
-    for (let s = 0; s < this.cachedTransitStops.length && count < MAX_PEDESTRIANS; s++) {
-      const stop = this.cachedTransitStops[s];
+    for (let s = 0; s < transitStops.length && count < MAX_PEDESTRIANS; s++) {
+      const stop = transitStops[s];
       if (Math.abs(stop.wx - target.x) > viewSpan || Math.abs(stop.wz - target.z) > viewSpan) continue;
       this.placeWalker(count++, stop.wx, stop.wz, stop.heading, seconds * 0.2 + s, 0.96, stop.shirt, 'stand', 0, 80000 + s);
     }
 
     // 5. Commercial shoppers outside shops
-    for (let sp = 0; sp < this.cachedShopSpots.length && count < MAX_PEDESTRIANS; sp++) {
-      const shop = this.cachedShopSpots[sp];
+    for (let sp = 0; sp < shopSpots.length && count < MAX_PEDESTRIANS; sp++) {
+      const shop = shopSpots[sp];
       if (Math.abs(shop.wx - target.x) > viewSpan || Math.abs(shop.wz - target.z) > viewSpan) continue;
       this.placeWalker(count++, shop.wx, shop.wz, shop.heading, seconds * 0.6 + sp, 0.94, shop.shirt, 'stand', undefined,
         90000 + sp);
