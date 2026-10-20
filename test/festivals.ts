@@ -8,7 +8,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { Budget } from "../src/budget.js";
 import { CityCommands, commandProblem, type Command } from "../src/cityCommands";
+import { yearAccounts } from "../src/core/autoPlayer";
 import { CityCore, STEPS_PER_YEAR } from "../src/core/cityCore";
 import {
   calendarOf, CHEER_KEEP, chooseFestival, COST_PEOPLE, type Festival, FESTIVAL_IDS, FESTIVAL_NO_CHOICE, FESTIVAL_NOT_HERE,
@@ -217,6 +219,35 @@ describe("a festival's month", () => {
     expect(sim.budget.totalFunds).toBe(0);
     // ... which the people cheer as their own, not the ruler's
     expect(map.festivals.cheer).toBeCloseTo(cheer * CHEER_KEEP, 5);
+  });
+
+  test("what the year's festivals cost is counted for the budget window, apart from the taxes, and saved", () => {
+    const { map, sim } = city();
+    chooseFestival(map.festivals, "songkran", "grand");
+    atMonth(sim, 3); festivalMonth(map, sim);
+    atMonth(sim, 4); festivalMonth(map, sim);
+    expect(sim.budget.festivalFund).toBe(1200 + 150);
+    // ... nothing for one the people held themselves
+    sim.budget.setFunds(0); atMonth(sim, 10); festivalMonth(map, sim);
+    expect(map.festivals.held[0]).toMatchObject({ id: "loy_krathong", byPeople: true });
+    expect(sim.budget.festivalFund).toBe(1350);
+    const saved: Record<string, unknown> = {};
+    sim.budget.save(saved);
+    const reopened = new (Budget as any)(), plain = new (Budget as any)();
+    reopened.load(JSON.parse(JSON.stringify(saved)));
+    plain.load({ ...JSON.parse(JSON.stringify(saved)), festivalFund: 0 });
+    expect(reopened.festivalFund).toBe(1350);
+    // The year's taxes count them as the year's line and take nothing more for them: they were paid in their months
+    const census = { ...sim._census, totalPop: 0 };
+    reopened.collectTax(0, census); plain.collectTax(0, census);
+    expect([reopened.festivalCost, reopened.festivalFund]).toEqual([1350, 0]);
+    expect(reopened.taxFund).toBe(plain.taxFund);
+    expect(reopened.totalFunds).toBe(plain.totalFunds);
+    expect(yearAccounts(reopened).costs.festivals).toBe(1350);
+    // A city saved before the line has none
+    const old = new (Budget as any)();
+    old.load({ ...saved, festivalFund: undefined, festivalCost: undefined });
+    expect([old.festivalFund, old.festivalCost]).toEqual([0, 0]);
   });
 
   test("the cheer never goes past its bound", () => {
@@ -455,6 +486,11 @@ describe("a province city's festivals in the core", () => {
     const asked = first.news.filter((n) => n.type === "festivalAhead").map((n) => n.type === "festivalAhead" ? n.id : "");
     expect(asked).toEqual(["songkran", "bun_bang_fai", "loy_krathong", "silk"]);
     expect(first.map.festivals.choices).toEqual({ songkran: "grand", silk: "none" });
+    // What they cost, paid in their months, is the budget's festivals line once the year's taxes come in
+    const paid = first.news.reduce((sum, n) => sum + (n.type === "festival" ? n.cost : 0), 0);
+    expect(paid).toBeGreaterThan(1000);
+    expect(first.core.simulation.budget.festivalCost).toBe(paid);
+    expect(yearAccounts(first.core.simulation.budget as never).costs.festivals).toBe(paid);
     // The same seed and the same commands at the same steps make the same city
     const again = play(first.core.log);
     expect(again.tiles).toBe(first.tiles);
@@ -473,6 +509,8 @@ describe("a province city's festivals in the core", () => {
     const again = new CityCore({ map: reopened, saved: JSON.parse(JSON.stringify(saved)), rules: rulesOf("northeast", "TH-40"),
       resources: PROVINCE });
     expect(reopened.festivals).toEqual(map.festivals);
+    expect(again.simulation.budget.festivalCost).toBe(core.simulation.budget.festivalCost);
+    expect(again.simulation.budget.festivalCost).toBeGreaterThan(0);
     const funds = again.simulation.budget.totalFunds;
     expect(festivalMonth(reopened, again.simulation)).toEqual([]);
     expect(again.simulation.budget.totalFunds).toBe(funds);

@@ -481,6 +481,7 @@
 | `budget.recycling` | `index.html` | — | `Recycling sold: ` | `รายได้จากขายของรีไซเคิล: ` | แสดงเมื่อมี |
 | `budget.transit` | `index.html` | — | `Public transport: ` | `ขนส่งสาธารณะ: ` | ค่าบำรุงรถเมล์และสถานี แสดงเมื่อมี |
 | `budget.policies` | `index.html` | — | `Ruler's policies: ` | `นโยบายเจ้าเมือง: ` | ค่าใช้จ่ายนโยบาย แสดงเมื่อมี |
+| `budget.festivals` | `index.html` | — | `Festivals: ` | `งานเทศกาล: ` | ค่าจัดงานเทศกาลของปีที่แล้ว จ่ายไปแล้วตอนต้นเดือนของแต่ละงาน แสดงเมื่อมี (`src/festivals.ts`, Claude Code 21 ต.ค. 2026) |
 | `budget.pollution_tax` | `index.html` | — | `Pollution tax: ` | `ภาษีมลพิษ: ` | แสดงเมื่อมี |
 | `budget.mining` | `index.html` | — | `Mine royalties: ` | `ค่าภาคหลวงจากเหมือง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |
 | `budget.farming` | `index.html` | — | `Farms and fishing: ` | `รายได้จากเกษตรและประมง: ` | แสดงเมื่อมี (Claude Code 13 ต.ค. 2026) |

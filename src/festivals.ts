@@ -12,9 +12,10 @@
 // A month before a festival the news asks the ruler how to hold it: modestly, grandly or not at all. The answer is a
 // command ({ type: "festival", id, scale }, src/cityCommands.ts), kept with the city (gameMap.festivals, saved as
 // festivals) and standing for the years after until the ruler changes it; a festival nobody answered for is held
-// modestly. At the month's turn the core's "festivals" system (src/core/cityCore.ts) holds it: it pays for it, cheers
-// the people (or lets them down), raises the land value round the venue (the ruler's house, or the town), and may set a
-// fire where lanterns and rockets come down, while disasters are on. The simulation reads what is held this month for
+// modestly. At the month's turn the core's "festivals" system (src/core/cityCore.ts) holds it: it pays for it (counted
+// in the budget's festivals line, src/budget.js festivalCost), cheers the people (or lets them down), raises the land
+// value round the venue (the ruler's house, or the town), and may set a fire where lanterns and rockets come down, while
+// disasters are on. The simulation reads what is held this month for
 // its visitors, the water Songkran uses, the traffic and the rubbish and krathong left in the water (src/simulation.js);
 // the era score reads the people's cheer (src/eraScore.ts); the 3D view reads it for its lanterns and krathong
 // (src/render3d/city/festivals3d.ts). Plain code: no DOM, nothing random but Random, so the same seed and the same
@@ -196,7 +197,8 @@ export interface FestivalSim {
   /** The province's resources: a practice map has none, and no festivals */
   resources?: Readonly<Record<string, number>> | null;
   _census?: { totalPop?: number } | null;
-  budget: { totalFunds: number; spend(amount: number): void };
+  /** The treasury, and the year's festival spending it counts for the budget window (src/budget.js festivalFund) */
+  budget: { totalFunds: number; spend(amount: number): void; festivalFund?: number };
   disasterManager?: { disastersEnabled: boolean; setFireNear?(x: number, y: number, radius: number): { x: number; y: number } | null } | null;
 }
 
@@ -273,7 +275,10 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
       byPeople = true;
       cost = 0;
     }
-    if (cost > 0) sim.budget.spend(cost);
+    if (cost > 0) {
+      sim.budget.spend(cost);
+      sim.budget.festivalFund = (sim.budget.festivalFund ?? 0) + cost;
+    }
     // The people cheer a festival the ruler held, and are let down by one not held; one they held themselves is theirs
     if (!byPeople) state.cheer = clamp(state.cheer + festival.cheer[pairIndex(scale) + 1], -MAX_CHEER, MAX_CHEER);
     if (scale !== "none" && venue) {

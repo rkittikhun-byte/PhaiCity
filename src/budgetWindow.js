@@ -193,6 +193,8 @@ BudgetWindow.prototype.open = function(budgetData) {
   var pollutionTaxIncome = budgetData.pollutionTaxIncome || 0;
   // ... and public transport's upkeep is taken from them (src/transit.ts)
   var transitCost = budgetData.transitCost || 0;
+  // ... but the festivals were paid in their own months (src/festivals.ts): their line only says what they cost
+  var festivalCost = budgetData.festivalCost || 0;
   $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
                                         waterIncome - recyclingIncome - pollutionTaxIncome + fuelCost + houseCost +
                                         educationCost + healthCost + wasteCost + policyCost + transitCost));
@@ -200,6 +202,8 @@ BudgetWindow.prototype.open = function(budgetData) {
   $('#transitInfo').prop('hidden', transitCost <= 0);
   $('#policyCost').text(formatMoney(policyCost));
   $('#policyInfo').prop('hidden', policyCost <= 0);
+  $('#festivalCost').text(formatMoney(festivalCost));
+  $('#festivalInfo').prop('hidden', festivalCost <= 0);
   $('#pollutionTaxIncome').text(formatMoney(pollutionTaxIncome));
   $('#pollutionTaxInfo').prop('hidden', pollutionTaxIncome <= 0);
   $('#wasteCost').text(formatMoney(wasteCost));

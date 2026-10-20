@@ -23,7 +23,8 @@ import { serviceProblem } from "../services.js";
 export interface YearAccounts {
   income: Record<string, number>;
   costs: Record<string, number>;
-  /** Income less costs: what the year's end added to the treasury, when it charged them (charged) */
+  /** Income less costs: what the year added to the treasury, when its end charged them (charged); the festivals among
+   *  the costs were paid in their months */
   net: number;
   /** Whether the year's end charged them: not while no one lived in the city */
   charged: boolean;
@@ -43,6 +44,8 @@ export function yearAccounts(budget: Budget): YearAccounts {
     fuel: budget.fuelCost ?? 0, house: budget.houseCost ?? 0, education: budget.educationCost ?? 0,
     health: budget.healthCost ?? 0, waste: budget.wasteCost ?? 0, policies: budget.policyCost ?? 0,
     transit: budget.transitCost ?? 0,
+    // ... and the festivals, paid from the treasury in their months rather than at the year's end (src/festivals.ts)
+    festivals: budget.festivalCost ?? 0,
   };
   const sum = (lines: Record<string, number>) => Object.values(lines).reduce((a, b) => a + b, 0);
   return { income, costs, net: sum(income) - sum(costs), charged: (budget as Record<string, unknown>).charged !== false };

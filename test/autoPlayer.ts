@@ -43,9 +43,12 @@ describe("the auto player", () => {
   });
 
   test("reads every line of the budget's year", () => {
-    const accounts = yearAccounts({ taxIncome: 500, tourismIncome: 100, roadSpend: 20, fuelCost: 150, educationCost: 60 });
+    const accounts = yearAccounts({ taxIncome: 500, tourismIncome: 100, roadSpend: 20, fuelCost: 150, educationCost: 60,
+      festivalCost: 350 });
     expect(accounts.income.taxes).toBe(500);
     expect(accounts.costs.fuel).toBe(150);
-    expect(accounts.net).toBe(500 + 100 - 20 - 150 - 60);
+    // ... the festivals too, paid in their months (src/festivals.ts)
+    expect(accounts.costs.festivals).toBe(350);
+    expect(accounts.net).toBe(500 + 100 - 20 - 150 - 60 - 350);
   });
 });

@@ -80,6 +80,10 @@ var Budget = EventEmitter(function() {
   this.pollutionTaxIncome = 0;
   // ... and what public transport cost last year (src/transit.ts)
   this.transitCost = 0;
+  // ... and what the festivals cost (src/festivals.ts): each is paid from the treasury at the start of its month, so
+  // this is only counted, not charged again at the year's end: this year's so far, and last year's (the window's line)
+  this.festivalFund = 0;
+  this.festivalCost = 0;
   // PhaiCity (owner, 13 Oct 2026): a tax for each kind of zone, cityTax staying the homes' (0–20%), and two fees: the
   // water fee, in baht a year for each zone the water reaches (0–10), and the visitors' fee, a percentage on what they
   // spend (0–20). Each brings money and costs something (src/valves.js, src/waterManager.ts, src/simulation.js)
@@ -115,7 +119,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
                  'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
-                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost'];
+                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost', 'festivalFund', 'festivalCost'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -153,6 +157,8 @@ Budget.prototype.load = function(saveData) {
   this.policyCost = this.policyCost || 0;
   this.pollutionTaxIncome = this.pollutionTaxIncome || 0;
   this.transitCost = this.transitCost || 0;
+  this.festivalFund = this.festivalFund || 0;
+  this.festivalCost = this.festivalCost || 0;
 
   this._emitEvent(Messages.AUTOBUDGET_CHANGED, this.autoBudget);
   this._emitEvent(Messages.FUNDS_CHANGED, this.totalFunds);
@@ -364,6 +370,10 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   // ... and public transport costs its upkeep (src/transit.ts)
   this.transitCost = Math.round(census.transitUpkeep || 0);
   this.taxFund -= this.transitCost;
+  // ... and the year's festivals, already paid in their months, are only counted (src/festivals.ts); a festival held in
+  // January, before the year's taxes come in, counts with the year before (the country's New Year costs the city nothing)
+  this.festivalCost = Math.round(this.festivalFund || 0);
+  this.festivalFund = 0;
 
   // ... and whether the year's end charges it all: a city no one lives in yet pays and is paid nothing
   this.charged = census.totalPop > 0;
