@@ -694,7 +694,8 @@ export class CityCommands {
         if (applied && tool.civicKind) city.setCivicKind?.(command.x, command.y, tool.civicKind);
         if (applied && tool.wasteKind) city.setWasteKind?.(command.x, command.y, tool.wasteKind);
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
-        const keptBack = applied && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
+        // (a city with no map of its own, as some tests drive, keeps no list)
+        const keptBack = applied && map && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
         // A road or railway drawn in metres loses what ran over a tile the bulldozer cleared (src/roads/roadCut.ts)
         const cutBack = applied && map && command.tool === "bulldozer" ? this.cutGraphs(before) : [];
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);

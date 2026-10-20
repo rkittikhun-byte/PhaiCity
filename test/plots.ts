@@ -196,7 +196,7 @@ describe("painted zones", () => {
 
   test("the draw modes: lines for roads, brushes for zones, and every string", () => {
     expect(modesFor("road")).toContain("curve2");
-    expect(modesFor("zone_residential")).toEqual(["brush", "rectangle", "fill"]);
+    expect(modesFor("zone_residential")).toEqual(["brush", "circle", "rectangle", "fill"]);
     expect(modesFor("park")).toEqual([]);
     expect(drawModeOf("rail")).not.toBeNull();
     expect(isClickMode("straight") && isClickMode("fill") && !isClickMode("free")).toBe(true);

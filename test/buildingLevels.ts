@@ -75,10 +75,12 @@ describe("building levels", () => {
     const core = city();
     core.apply({ type: "tool", tool: "police_box" as any, x: 12, y: 8 });
     const saved = JSON.parse(JSON.stringify({ ...core.save(), width: core.map.width, height: core.map.height }));
-    expect(saved.buildingLevels).toEqual({ [8 * 40 + 12]: 1 });
+    // Kept with the building (docs/METRE_DRAWING_PLAN.md 2.6: [id, tool, x, z, rot, size, tile, kind, level])
+    expect(saved.buildingLevels).toBeUndefined();
+    expect(saved.buildings.buildings.find((row: unknown[]) => row[6] === 8 * 40 + 12)[8]).toBe(1);
     const again = new CityCore({ map: new (GameMap as any)(saved.width, saved.height), saved });
     expect(buildingLevelAt(again.map, 12, 8, "police")).toBe(1);
     for (let y = 7; y <= 9; y++) for (let x = 11; x <= 13; x++) again.apply({ type: "tool", tool: "bulldozer", x, y });
-    expect(again.save().buildingLevels).toBeUndefined();
+    expect(((again.save() as any).buildings?.buildings ?? []).some((row: unknown[]) => row[6] === 8 * 40 + 12)).toBe(false);
   });
 });

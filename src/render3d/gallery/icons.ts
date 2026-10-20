@@ -48,6 +48,7 @@ export const TOOL_ICONS = [
   ['tollway', 'ทางด่วน', 'Tollway', '#3a3a3a'],
   ['road_upgrade', 'อัปเกรดถนน', 'Upgrade road', '#d9a400'],
   ['building_upgrade', 'อัปเกรดอาคาร', 'Upgrade building', '#d9a400'],
+  ['building_move', 'ย้ายอาคาร', 'Move building', 'darkorange'],
   ['ruler_house', 'ที่ว่าการอำเภอ', 'District office', '#c9a227'],
   ['ruler_house_upgrade', 'ยกระดับที่ว่าการ', 'Raise the office', '#c9a227'],
   ['ruler_house_wings', 'ส่วนต่อเติม', 'Wings', '#c9a227'],
