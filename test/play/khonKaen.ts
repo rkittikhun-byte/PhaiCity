@@ -68,6 +68,18 @@ const row = (y: PlayerYear) => {
     const year = player.playYear();
     years.push(year);
     process.stdout.write(row(year));
+    // The era score (src/eraScore.ts, docs/GAME_DESIGN.md): how far the city is toward its next era, side by side
+    const era = (core.map as { eraScore?: import("../../src/eraScore").EraScore }).eraScore;
+    if (era) {
+      const pc = (v: number) => Math.round(v * 100);
+      const sides = Object.entries(era.factors).map(([k, f]) => `${k} ${pc(f.value)}/${pc(f.target)}`).join(", ");
+      const eras = Array.from((core.map as { buildingEras?: Uint8Array }).buildingEras ?? []).filter(e => e > 0);
+      const byEra = [1, 2, 3, 4, 5].map(e => eras.filter(x => x === e).length).join("/");
+      process.stdout.write(`  era ${era.era} score ${pc(era.score)}% = people ${pc(era.peopleDone)}% x quality ${pc(era.quality)}%` +
+        `${era.heldBy ? ` (held by ${era.heldBy})` : ""}; buildings by era ${byEra}
+  ${sides}; missing ${era.symbols.filter(x => !x.has).map(x => x.key).join(", ") || "none"}
+`);
+    }
     if (process.env.PHAICITY_PLOTS) {
       const pct = (label: string, v: number) => (v ? `, ${label} ${Math.round(v * 100)}%` : "");
       for (const g of plotReport(core)) {

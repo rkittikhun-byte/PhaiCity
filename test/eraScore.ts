@@ -130,6 +130,19 @@ describe("eras moving on", () => {
     expect(Array.from(map.buildingEras as Uint8Array).filter(e => e === 2).length).toBeGreaterThanOrEqual(ahead);
   });
 
+  test("no more of the buildings take the next era's look than the transition has gone, however long it lasts", () => {
+    // The 10-year Khon Kaen play held at 90% for years had turned nearly all its buildings to the next era's look
+    Random.seed(5);
+    const map = city(), list = wellBuilt(), levels = { stamps: null as Uint8Array | null };
+    // 90%: half the way from 0.8 to 1, for ten years
+    for (let month = 0; month < 120; month++) eraMonth(map, sim(1800), objects(list), levels);
+    expect(map.era).toBe(1);
+    const eras = Array.from(map.buildingEras as Uint8Array).filter(e => e > 0);
+    const ahead = eras.filter(e => e === 2).length;
+    expect(ahead).toBeGreaterThan(0);
+    expect(ahead).toBeLessThanOrEqual(Math.ceil(eras.length / 2));
+  });
+
   test("the same seed makes the same eras", () => {
     const run = () => {
       Random.seed(3);

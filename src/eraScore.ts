@@ -195,24 +195,31 @@ export function eraMonth(map: Legacy, sim: Legacy, objects: Objects, levels: { s
   levels.stamps = stamps;
   const standing = new Uint8Array(size);
   const before = eras.slice();
-  for (const b of objects.all()) {
+  // In the transition no more of the buildings take the next era's look than the transition has gone: at 0.9, half
+  // of them at most (a city held at 90% for years kept its era but had turned nearly all its buildings to the next)
+  const all = objects.all(), next = Math.min(5, era + 1);
+  let ahead = 0;
+  for (const b of all) if (b.id >= 0 && b.id < size && eras[b.id] >= next && era < 5) ahead++;
+  const mayAdvance = (): boolean => era < 5 && ahead < transition * all.length;
+  for (const b of all) {
     if (b.id < 0 || b.id >= size) continue;
     standing[b.id] = 1;
     const level = ((b as Building & { level?(m: Legacy): number }).level?.(map) ?? 0) + 1;
     const own = eras[b.id];
     if (own === 0) {
       // A building of a city that kept no eras yet stands in the era it is in; a new one may be the next
-      eras[b.id] = first ? era : eraForNew(era, transition, pull(sim, b));
+      eras[b.id] = first ? era : eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b));
     } else if (fresh) {
       // Just loaded: as it was
     } else if (stamps[b.id] !== level) {
       // It grew (or shrank) a level: rebuilt in the era of now, never an older one than it had
-      eras[b.id] = Math.max(own, eraForNew(era, transition, pull(sim, b)));
+      eras[b.id] = Math.max(own, eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b)));
     } else if (own < era && roll() < RENOVATE_CHANCE * pull(sim, b)) {
       eras[b.id] = era;
-    } else if (own === era && transition > 0 && roll() < ADVANCE_CHANCE * transition * pull(sim, b)) {
+    } else if (own === era && transition > 0 && mayAdvance() && roll() < ADVANCE_CHANCE * transition * pull(sim, b)) {
       eras[b.id] = Math.min(5, era + 1);
     }
+    if (eras[b.id] >= next && (own < next) && era < 5) ahead++;
     stamps[b.id] = level;
   }
   // A building gone leaves no era behind it
