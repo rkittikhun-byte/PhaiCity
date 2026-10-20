@@ -123,6 +123,15 @@ describe("about.html", () => {
     expect(aboutHtml).toContain('The name/term "MICROPOLIS" is a registered trademark of Micropolis');
   });
 
+  test("explains the graphics setting by the names the settings window gives it, in both languages", () => {
+    expect(aboutHtml).toContain('data-i18n="about.settings.graphics"');
+    for (const language of ["en", "th"] as const) {
+      const text = STRINGS["about.settings.graphics"][language];
+      expect(text.startsWith(`${STRINGS["graphics.title"][language]}: `)).toBe(true);
+      for (const level of ["auto", "low", "medium", "high"]) expect(text).toContain(STRINGS[`graphics.${level}`][language]);
+    }
+  });
+
   test("never names the game micropolisJS or SimCity", () => {
     expect(aboutHtml).not.toMatch(/simcity/i);
     expect(aboutHtml).not.toMatch(/<title>[^<]*micropolis/i);
