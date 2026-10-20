@@ -96,6 +96,12 @@ describe("a district's frame", () => {
     expect(again.map.wasteKinds).toEqual(Object.fromEntries(Object.entries(core.map.wasteKinds).map(([k, v]) => [String(at(Number(k) % 96, Math.floor(Number(k) / 96))), v])));
     expect(again.map.buildingPoses[at(50, 37)]).toEqual([500 + dx * 10, 380 + dy * 10, 1]);
     expect(again.map.buses).toEqual([at(60, 40)]);
+    // ... and each building's era (src/eraScore.ts)
+    expect(save.buildingEras).toEqual(expect.any(String));
+    for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) {
+      expect(again.map.buildingEras[at(x, y)]).toBe(core.map.buildingEras[y * 96 + x]);
+    }
+    expect(again.map.buildingEras[0]).toBe(0);
     // ... and the drawn line each road tile was laid by (src/roadPieces.ts)
     expect(again.map.roadPieces[at(20, 40)]).toBe(1);
     expect(again.map.roadPieces[at(79, 40)]).toBe(1);
