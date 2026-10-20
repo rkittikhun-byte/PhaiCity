@@ -50,7 +50,6 @@ function getLineLength(points: Point[]): number {
   return len;
 }
 
-
 function colorGeometry(box: BoxGeometry, hex: number): BufferGeometry {
   const g = box.toNonIndexed();
   box.dispose();
