@@ -812,6 +812,7 @@
 | `msg.bad.fire_season_ahead` | `src/text.js` | — | `Warning tower: the wildfire season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูไฟป่า` |  |
 | `msg.bad.flood_season_ahead` | `src/text.js` | — | `Warning tower: the flood season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูน้ำท่วม` |  |
 | `msg.bad.storm_season_ahead` | `src/text.js` | — | `Warning tower: the storm season begins next month` | `หอเตือนภัย: เดือนหน้าเข้าฤดูพายุ` |  |
+| `msg.bad.heavy_storm` | `src/text.js` | — | `A heavy storm: low land by the water may flood` | `ฝนตกหนัก ฟ้าคะนอง ที่ลุ่มริมน้ำอาจน้ำท่วม` | เดือนแรกของพายุ (src/weather.ts, Claude Code 20 ต.ค. 2026) |
 | `msg.bad.few_schools` | `src/text.js` | — | `Too few schools: families are leaving for towns with places for their children` | `เด็ก ๆ มีที่เรียนไม่พอ ครอบครัวเริ่มย้ายไปเมืองที่มีโรงเรียน` | ไม่เกินปีละครั้ง |
 | `msg.bad.few_hospitals` | `src/text.js` | — | `Too few hospitals: people worry about falling ill here` | `โรงพยาบาลไม่พอ คนเริ่มกังวลเรื่องเจ็บป่วย` | ไม่เกินปีละครั้ง |
 | `msg.bad.rubbish_overflow` | `src/text.js` | — | `Rubbish is piling up in the streets: build a landfill or an incinerator` | `ขยะล้นเมือง กองอยู่ตามถนน ควรสร้างบ่อฝังกลบหรือโรงเผาขยะ` | ไม่เกินปีละครั้ง |
@@ -834,6 +835,7 @@
 | `msg.good.tourist_season` | `src/text.js` | — | `The high season has begun: more visitors are coming` | `เข้าฤดูท่องเที่ยวแล้ว นักท่องเที่ยวมามากขึ้น` | ต้นเดือนพฤศจิกายน (Claude Code 13 ต.ค. 2026) |
 | `msg.good.songkran` | `src/text.js` | — | `Songkran: people come home and visitors fill the city; the water fights use up water` | `สงกรานต์ คนกลับบ้านและนักท่องเที่ยวมาเต็มเมือง เล่นน้ำกันจนน้ำประปาหายไปส่วนหนึ่ง` | เมษายน ทุกจังหวัด |
 | `msg.good.new_year` | `src/text.js` | — | `New Year holidays: people come home and travel all over the country` | `ช่วงปีใหม่ คนกลับบ้านและเที่ยวกันทั่วประเทศ` | มกราคม ทุกจังหวัด |
+| `msg.good.first_rains` | `src/text.js` | — | `The first rains of the year: the ground drinks again` | `ฝนแรกของปีมาแล้ว ผืนดินได้น้ำอีกครั้ง` | ฝนครั้งแรกหลังแล้ง 3 เดือนขึ้นไป |
 | `msg.good.reach_city` | `src/text.js` | `Population has reached 10,000` | `Population reached 10,000 (City level)` | `ประชากรในเมืองทะลุ 10,000 คนแล้ว (ยกฐานะเป็นอำเภอ)` | 10,000 คน |
 | `msg.good.reach_capital`| `src/text.js`| `Population has reached 50,000` | `Population reached 50,000 (Province level)` | `ประชากรในเมืองทะลุ 50,000 คนแล้ว (ยกฐานะเป็นจังหวัด)` | 50,000 คน |
 | `msg.good.reach_metro` | `src/text.js` | `Population has reached 100,000` | `Population reached 100,000 (Metropolis level)` | `ประชากรในเมืองทะลุ 100,000 คนแล้ว (ยกฐานะเป็นนคร)` | 100,000 คน |
@@ -1355,6 +1357,22 @@
 | `time.speed.2` | `src/timeControls.ts` | — | `Normal: a month in about 4 seconds` | `ปกติ: 1 เดือนประมาณ 4 วินาที` |  |
 | `time.speed.3` | `src/timeControls.ts` | — | `Fast: a month in about 2 seconds` | `เร็ว: 1 เดือนประมาณ 2 วินาที` |  |
 | `time.sun` | `src/timeControls.ts` | — | `Sunrise {rise}, sunset {set} this month` | `เดือนนี้พระอาทิตย์ขึ้น {rise} ตก {set}` | ชี้ที่นาฬิกาในแถบเวลา |
+| `weather.kind.sunny` | `src/timeControls.ts` | — | `Sunny` | `แดดออก` | สภาพอากาศข้างนาฬิกา (src/weather.ts; เจ้าของโปรเจกต์ 20 ต.ค. 2026: "มีฝนที่ฝนตก ตกหนัก แดดออก ฟ้ามืดด้วย ก็น่าจะดี") |
+| `weather.kind.clear` | `src/timeControls.ts` | — | `Clear` | `ฟ้าโปร่ง` | แดดออก ตอนกลางคืน |
+| `weather.kind.overcast` | `src/timeControls.ts` | — | `Overcast` | `ฟ้าครึ้ม` |  |
+| `weather.kind.rain` | `src/timeControls.ts` | — | `Rain` | `ฝนตก` |  |
+| `weather.kind.storm` | `src/timeControls.ts` | — | `Heavy rain` | `ฝนตกหนัก` | พายุฝนฟ้าคะนอง |
+| `weather.kind.fog` | `src/timeControls.ts` | — | `Fog` | `หมอก` |  |
+| `weather.kind.smoke` | `src/timeControls.ts` | — | `Haze` | `หมอกควัน` | แดดออกแต่ควันจากการเผาไร่มาก |
+| `weather.season.hot` | `src/timeControls.ts` | — | `Hot season` | `ฤดูร้อน` |  |
+| `weather.season.rainy` | `src/timeControls.ts` | — | `Rainy season` | `ฤดูฝน` |  |
+| `weather.season.cool` | `src/timeControls.ts` | — | `Cool season` | `ฤดูหนาว` |  |
+| `weather.effect.sunny` | `src/timeControls.ts` | — | `Clear skies: the ground takes in little water this month` | `ฟ้าโปร่ง เดือนนี้น้ำใต้ดินเติมได้น้อย` | คำอธิบายเมื่อชี้ |
+| `weather.effect.overcast` | `src/timeControls.ts` | — | `Clouds are building: rain may come next month` | `เมฆตั้งเค้า เดือนหน้าฝนอาจตก` |  |
+| `weather.effect.rain` | `src/timeControls.ts` | — | `Rain fills the ground's water; traffic is a little slower and a few visitors stay away` | `ฝนเติมน้ำใต้ดิน รถช้าลงเล็กน้อย นักท่องเที่ยวลดลงบ้าง` |  |
+| `weather.effect.storm` | `src/timeControls.ts` | — | `Heavy rain and thunder fill the ground's water; low land by the water may flood, traffic slows and visitors stay away` | `ฝนตกหนักฟ้าคะนอง เติมน้ำใต้ดินมาก ที่ลุ่มริมน้ำอาจน้ำท่วม รถติดขึ้น นักท่องเที่ยวลดลง` |  |
+| `weather.effect.fog` | `src/timeControls.ts` | — | `Morning fog: traffic is a little slower` | `หมอกยามเช้า รถช้าลงเล็กน้อย` |  |
+| `weather.effect.smoke` | `src/timeControls.ts` | — | `Smoke from burning fields hangs in the air` | `ควันจากการเผาไร่ลอยปกคลุม` | แสดงเพิ่มเมื่อควันมาก |
 | `festival.songkran` | `src/cityStatus.ts` | — | `Songkran` | `สงกรานต์` |  |
 | `festival.new_year` | `src/cityStatus.ts` | — | `New Year` | `ปีใหม่` |  |
 | `levels.level` | `src/toolLevels.ts` | `-` | `Level {n}` | `ระดับ {n}` | ช่องระดับของเครื่องมือที่ถืออยู่ เหนือแถบเครื่องมือ (เจ้าของโปรเจค 12 ต.ค. 2026) |

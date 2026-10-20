@@ -124,6 +124,7 @@ badMessages[Messages.UNTREATED_SEWAGE] = true;
 badMessages[Messages.FIRE_SEASON_AHEAD] = true;
 badMessages[Messages.FLOOD_SEASON_AHEAD] = true;
 badMessages[Messages.STORM_SEASON_AHEAD] = true;
+badMessages[Messages.HEAVY_STORM] = true;
 
 var goodMessages = {};
 goodMessages[Messages.REACHED_CAPITAL] = true;
@@ -134,6 +135,7 @@ goodMessages[Messages.REACHED_TOWN] = true;
 goodMessages[Messages.TOURIST_SEASON] = true;
 goodMessages[Messages.SONGKRAN] = true;
 goodMessages[Messages.NEW_YEAR_HOLIDAYS] = true;
+goodMessages[Messages.FIRST_RAINS] = true;
 
 var messageKeys = {};
 messageKeys[Messages.FIRE_STATION_NEEDS_FUNDING] = 'msg.fund.fire';
@@ -199,6 +201,8 @@ messageKeys[Messages.UNTREATED_SEWAGE] = 'msg.bad.untreated_sewage';
 messageKeys[Messages.FIRE_SEASON_AHEAD] = 'msg.bad.fire_season_ahead';
 messageKeys[Messages.FLOOD_SEASON_AHEAD] = 'msg.bad.flood_season_ahead';
 messageKeys[Messages.STORM_SEASON_AHEAD] = 'msg.bad.storm_season_ahead';
+messageKeys[Messages.HEAVY_STORM] = 'msg.bad.heavy_storm';
+messageKeys[Messages.FIRST_RAINS] = 'msg.good.first_rains';
 
 
 var translateList = function(keys) {

@@ -18,6 +18,7 @@ import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
+import { readWeather } from "../weather.js";
 import { CIVIC, LASTRAIL, MINE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -87,6 +88,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.landBlocks = saved.land ? savedLand(map, saved.land) : null;
     map.landBought = saved.landBought || 0;
     map.needsRulerHouse = saved.needsRulerHouse === true;
+    // ... and the month's weather (src/weather.ts); a city saved before the weather starts its own (src/simulation.js)
+    map.weather = readWeather(saved.weather);
   } else {
     // A new city builds its ruler's house before anything else
     map.civicKinds = {};
@@ -226,6 +229,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     eraHistory: Array.isArray(map.eraHistory) && map.eraHistory.length ? map.eraHistory.map((v: number) => Math.round(v * 1e4) / 1e4) : undefined,
     eraDawn: map.eraDawn ? true : undefined,
     buildingEras: map.buildingEras && map.buildingEras.some((e: number) => e > 0) ? encodePresetLayer(map.buildingEras) : undefined,
+    // ... and the month's weather, with the seed of its chances (src/weather.ts)
+    weather: map.weather ? { ...map.weather } : undefined,
   };
 }
 

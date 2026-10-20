@@ -28,6 +28,9 @@ function Traffic(map, spriteManager) {
   // PhaiCity: public transport (src/transit.ts), which the simulation sets: a share of the trips from where it reaches
   // ride instead of drive, and where a train or metro reaches, a trip with no way by road still gets there
   this.transit = null;
+  // ... and the month's weather (src/weather.ts), which the simulation sets: in rain, a storm or fog the traffic goes
+  // slower, so each trip crowds the roads a little more
+  this.weatherLoad = 1;
 }
 
 
@@ -83,7 +86,7 @@ Traffic.prototype.addToTrafficDensityMap = function(blockMaps, share) {
       // Update traffic density.
       var traffic = trafficDensityMap.worldGet(pos.x, pos.y);
       // PhaiCity: a wider road fills more slowly (src/roadLevels.ts)
-      traffic += Math.round(50 * roadSpec(roadLevelAt(this._map, pos.x, pos.y)).load * driving);
+      traffic += Math.round(50 * roadSpec(roadLevelAt(this._map, pos.x, pos.y)).load * driving * this.weatherLoad);
       traffic = Math.min(traffic, 240);
       trafficDensityMap.worldSet(pos.x, pos.y, traffic);
 

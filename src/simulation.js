@@ -26,7 +26,7 @@ import * as Messages from './messages.ts';
 import { MiscTiles } from './miscTiles.js';
 import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
-import { DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
+import { chancePerCycle, DEFAULT_CLIMATE, DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
 import { BUS_STOP, CIVIC, COALBASE, FARM, HARBOUR, MINE, STATION, WASTE } from './tileValues.ts';
 import { Transit } from './transit.ts';
@@ -43,7 +43,7 @@ import {
   CLOSED_MONTHS, GREEN_DEMAND, GREEN_LAND_VALUE, GREEN_RECHARGE, hasPolicy, POLLUTION_TAX_DEMAND, POLLUTION_TAX_RATE,
   POLLUTION_TAX_SMOKE, policyUpkeep, SONGKRAN_VISITORS, TOLL_RAISE, TOLL_SHOPS, WATER_SAVING, WATER_SAVING_PULL
 } from './policies.ts';
-import { FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
+import { BURNING_MONTHS, FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
 import { canalLandValues, growCanals } from './canals.ts';
 import { Random } from './random.ts';
@@ -56,6 +56,7 @@ import { festivalWaterUse, livingCostFactor, NO_TOURISM, shopRubbish, tourismMon
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
+import { nextWeather, startingWeather, weatherFlood, weatherTraffic, weatherVisitors } from './weather.ts';
 import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 
 // rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
@@ -214,6 +215,14 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // ... and what the canals add to the land value (src/canals.ts), until their next month works it out again
   this._canalLand = canalLandValues(this._map);
   this._canalLandVersion = this._map.canalsVersion;
+  // ... and the month's weather (src/weather.ts): a saved city's, or a new city's first, from the likeliest of its month,
+  // with its own stream of chances seeded from the city's (read, not drawn, so no other chance shifts)
+  if (!this._map.weather)
+    this._map.weather = startingWeather(this._climate(), this.getDate().month, Random.getState(), this._cityTime >> 2);
+  this._traffic.weatherLoad = weatherTraffic(this._map.weather);
+  this._waterManager.weather = this._map.weather;
+  // The months since it last rained, for the news of the year's first rains (not saved: only the news hears it)
+  this._dryMonths = 0;
 
   this.init();
 });
@@ -508,6 +517,8 @@ var simulate = function(simData) {
     case 9:
       // PhaiCity: a month's visitors, before the year's taxes take in what they spent
       if ((this._cityTime & 3) === 0) {
+        // ... the month's weather first, which the rest of the month reads (src/weather.ts)
+        this._weatherMonth();
         this._houseMonth();
         this._policiesMonth();
         this._servicesMonth();
@@ -673,9 +684,45 @@ Simulation.prototype._drought = function() {
 // The seasons' disasters this month (src/provinceRules.ts), rarer with the ruler's house's warning tower
 Simulation.prototype._seasonalRisks = function(month) {
   var risks = seasonalRisks(this.rules, month);
+  // ... and a storm's heavy rain, which floods low land beside the water (src/weather.ts)
+  var flood = weatherFlood(this._map.weather || null, this._climate());
+  if (flood > 0)
+    risks = risks.concat([{disaster: 'flood', chance: chancePerCycle(flood), lowLand: true}]);
   if (!hasWing(this._map, 'warning_tower'))
     return risks;
-  return risks.map(function(risk) { return {disaster: risk.disaster, chance: risk.chance * WARNING_RISK_FACTOR}; });
+  return risks.map(function(risk) {
+    return {disaster: risk.disaster, chance: risk.chance * WARNING_RISK_FACTOR, lowLand: risk.lowLand};
+  });
+};
+
+
+// PhaiCity: the region's and province's weather month by month (src/weather.ts), the game's own on a practice map
+Simulation.prototype._climate = function() {
+  return (this.rules && this.rules.weather) || DEFAULT_CLIMATE;
+};
+
+
+// PhaiCity: the month's weather after the last (src/weather.ts): the smoke of the city's own fields while their stubble
+// burns, the traffic it slows, the rain the ground takes in this month (src/waterManager.ts), and the news of a storm
+// and of the year's first rains
+Simulation.prototype._weatherMonth = function() {
+  var month = this.getDate().month;
+  var climate = this._climate();
+  var previous = this._map.weather || startingWeather(climate, month, Random.getState(), this._cityTime >> 2);
+  var farms = this._farming.farms.length;
+  var burning = BURNING_MONTHS.indexOf(month) >= 0 && !this._farming.noBurning ?
+                Math.min(FIELD_SMOKE_MOST, farms * FIELD_SMOKE_PER_FARM) : 0;
+  var weather = nextWeather(previous, climate, month, this._cityTime >> 2, burning);
+  this._map.weather = weather;
+  this._traffic.weatherLoad = weatherTraffic(weather);
+  this._waterManager.weather = weather;
+
+  var wet = weather.kind === 'rain' || weather.kind === 'storm';
+  if (weather.kind === 'storm' && previous.kind !== 'storm')
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.HEAVY_STORM});
+  else if (wet && this._dryMonths >= FIRST_RAINS_AFTER)
+    this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.FIRST_RAINS});
+  this._dryMonths = wet ? 0 : this._dryMonths + 1;
 };
 
 
@@ -767,6 +814,13 @@ Simulation.prototype._policiesMonth = function() {
 };
 
 
+// Smoke the city's own fields put in the air while their stubble burns, a farm's and at most (src/weather.ts)
+var FIELD_SMOKE_PER_FARM = 0.03;
+var FIELD_SMOKE_MOST = 0.3;
+// Dry months before rain makes the news of the year's first rains
+var FIRST_RAINS_AFTER = 3;
+
+
 // A month of the ruler's house: a new city that has built it is no longer held back; the news hears when it falls,
 // and it is forgotten with its wings; its warning tower tells of a season of disasters a month ahead
 var SEASON_WARNINGS = {fire: Messages.FIRE_SEASON_AHEAD, flood: Messages.FLOOD_SEASON_AHEAD,
@@ -839,9 +893,12 @@ Simulation.prototype._visitors = function(month) {
   var dry = visit.festival === 'songkran' && hasPolicy(this._map, 'songkran_saving') ? SONGKRAN_VISITORS : 1;
   // ... and more by train and high-speed rail (src/transit.ts)
   var rail = this._transit.visitorFactor();
-  if (visit.level === 0 || (!court && fee === 0 && sewage === 0 && dry === 1 && rail === 1))
+  // ... and fewer in a storm or the rain (src/weather.ts)
+  var weather = weatherVisitors(this._map.weather || null);
+  if (visit.level === 0 || (!court && fee === 0 && sewage === 0 && dry === 1 && rail === 1 && weather === 1))
     return visit;
-  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY) * dry * rail;
+  var come = (court ? CULTURE_VISITORS : 1) * (1 - fee * TOURIST_FEE_AWAY) * (1 - sewage * SEWAGE_AWAY) * dry * rail *
+             weather;
   return Object.assign({}, visit, {visitors: Math.round(visit.visitors * come),
                                    income: visit.income * come * (1 + fee * TOURIST_FEE_TAKE),
                                    shopsWanted: visit.shopsWanted * come});
