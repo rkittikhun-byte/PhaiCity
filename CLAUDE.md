@@ -282,7 +282,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   **Farms and fishing harbours** (`docs/FARMING.md`, `src/farming.ts`): 3×3 buildings (974–982, 983–991) where the
   province has farmland or fishing; farms sell their crop, ask for farm-goods factories, pump groundwater, seep
   chemicals and burn stubble into haze from February to April; harbours sell their catch, ask for markets and use
-  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts.
+  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts but water and forest, whose levels the simulation
+  does not read yet (`docs/PROVINCE_PROFILE.md`).
 - **Road levels (ชนิดถนน, owner 13 Oct 2026):** `docs/ROADS.md`, `src/roadLevels.ts`. Eight levels, laterite to tollway,
   chosen above the road button, with an upgrade tool that raises a road one level for the difference. The map keeps
   each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads
