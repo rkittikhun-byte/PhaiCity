@@ -398,12 +398,12 @@ list). Code: `src/render3d/city/postFx.ts` (the passes), `quality.ts` (levels an
   ACES and sRGB as the renderer does without the lens, adds a grain finer than one screen step against banding, and
   draws to the canvas, so `screenshotVisible` works unchanged. `screenshotMap` draws its own picture and skips the lens.
 - **Antialiasing.** Where the lens can draw (asked with a throwaway context before the city's own is made,
-  `lensLikely`), the canvas is made without multisampling: on the Intel Arc integrated graphics we measured, four
-  samples of a city full of trees cost about 3–5 ms a frame, as much as everything else in the lens. Low and Medium
-  smooth the edges in the last pass instead (FXAA's classic form, judged by the brightness the screen will show);
-  High draws the city with four samples into the picture (sharpest edges, no FXAA blur). TAA was left out: the camera
-  is nearly always moving and it smears. Where the lens cannot draw, the canvas keeps its own multisampling and the
-  view draws straight to it as before.
+  `lensLikely`), the canvas is made without multisampling and every level smooths the edges in the last pass instead
+  (FXAA's classic form, judged by the brightness the screen will show). On the Intel Arc integrated graphics we
+  measured, four samples a pixel cost 3–5 ms a frame over a fresh city of trees and nearly 10 ms over a town of
+  houses, more than every effect together; FXAA costs a few tenths. TAA was left out: the camera is nearly always
+  moving and it smears; SMAA (three more full-size passes) could come later for High. Where the lens cannot draw, the
+  canvas keeps its own multisampling and the view draws straight to it as before.
 - **Contact shadows (AO):** from the depth alone (no second draw of the city for normals, which three's GTAOPass and
   SAOPass need): 10 samples on a spiral, half size, blurred across and down only between points at about the same
   distance. The radius follows the camera's distance (about 2 m at the street, a block's width over the whole city).
@@ -424,9 +424,9 @@ list). Code: `src/render3d/city/postFx.ts` (the passes), `quality.ts` (levels an
 
 | Level | Effects | Resolution cap |
 |---|---|---|
-| Low | none, edges smoothed by FXAA | the screen's own (1×) |
-| Medium | tilt-shift + glow, FXAA | 1.25× |
-| High | tilt-shift + glow + contact shadows, four samples a pixel | 1.25× |
+| Low | none (edges smoothed by FXAA, as at every level) | the screen's own (1×) |
+| Medium | tilt-shift + glow | 1.25× |
+| High | tilt-shift + glow + contact shadows | 1.25× |
 | Auto | starts as Medium and moves between none and High | 1.25× |
 
 **Adaptive order.** Only in Auto do the effects move. When frames are slow (over 17 ms on the processor or on the

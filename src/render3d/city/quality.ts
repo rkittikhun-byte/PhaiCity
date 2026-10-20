@@ -5,8 +5,7 @@
 // and, in Auto, by how fast the frames come (docs/METRE_DRAWING_PLAN.md section 6; docs/3d/RENDERER_SPEC.md 8A).
 //
 // The effects stand on a ladder, the cheapest at the bottom: the tilt-shift (rung 1), then the glow (rung 2), then the
-// contact shadows with four samples a pixel for the sharpest edges (rung 3). Low draws none of them, only smoothing the
-// edges; Medium the first two, which a notebook with integrated graphics keeps near 60 frames a second; High all
+// contact shadows (rung 3). Every level smooths the edges (FXAA); Low draws no effect; Medium the first two, which a notebook with integrated graphics keeps near 60 frames a second; High all
 // three. Auto starts at Medium; when frames are slow it gives up the costliest first (contact shadows, then glow, then
 // tilt-shift) before the view lowers its resolution and its draw budget, and when they are fast again it takes them
 // back in the other order, last of all.
@@ -42,7 +41,7 @@ export function effectsAt(rung: number): PostEffects {
  * What an effect costs the graphics card, in milliseconds a frame, until the view has measured it: a notebook with
  * integrated graphics at 1080p (docs/3d/RENDERER_SPEC.md 8A has the measured numbers)
  */
-export const EFFECT_COST_GUESS: Record<Effect, number> = { tiltShift: 0.8, bloom: 0.8, ao: 3.5 };
+export const EFFECT_COST_GUESS: Record<Effect, number> = { tiltShift: 0.6, bloom: 0.6, ao: 1.2 };
 
 /** Frames slower than this, in milliseconds on the processor or the graphics card, give up an effect in Auto */
 export const EFFECT_SLOW_MS = 17;

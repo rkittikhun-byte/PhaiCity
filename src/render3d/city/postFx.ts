@@ -199,11 +199,10 @@ uniform float tiltBand;
 uniform float vignette;
 uniform vec3 vignetteTint;
 uniform float aspect;
-uniform float fxaaOn;
 uniform vec2 sceneTexel;
 varying vec2 vUv;
-// Edges smoothed along their direction where the picture was drawn without multisampling (FXAA's classic form), judged
-// by the brightness the screen will show, so a lamp brighter than white does not throw it off
+// Edges smoothed along their direction (FXAA's classic form), the picture having been drawn with one sample a pixel,
+// judged by the brightness the screen will show, so a lamp brighter than white does not throw it off
 float shown(vec3 c) { float l = dot(c, vec3(0.299, 0.587, 0.114)); return sqrt(l / (1.0 + l)); }
 vec3 smoothed(vec2 uv) {
   vec3 m = texture2D(tScene, uv).rgb;
@@ -221,7 +220,7 @@ vec3 smoothed(vec2 uv) {
   return lb < lo || lb > hi ? a : b;
 }
 void main() {
-  vec3 colour = fxaaOn > 0.5 ? smoothed(vUv) : texture2D(tScene, vUv).rgb;
+  vec3 colour = smoothed(vUv);
   if (tiltOn > 0.5) {
     // Sharp in the band, softening towards the top and bottom, softest at the very edges
     float away = abs(vUv.y - tiltFocus) * 2.0;
@@ -264,15 +263,15 @@ const target = (pixels: Pixels): WebGLRenderTarget => new WebGLRenderTarget(1, 1
 const format = (pixels: Pixels): { type: typeof HalfFloatType | typeof UnsignedInt101111Type; format?: typeof RGBFormat | typeof RGFormat } =>
   pixels === 'packed' ? { type: UnsignedInt101111Type, format: RGBFormat } : pixels === 'two' ? { type: HalfFloatType, format: RGFormat } : { type: HalfFloatType };
 
-/** How many samples the card can take of a packed-float picture (none: it cannot draw into one) */
-function packedSamples(renderer: WebGLRenderer): number {
+/** Whether the card can draw into a packed-float picture (EXT_color_buffer_float makes R11F_G11F_B10F drawable) */
+function packedDrawable(renderer: WebGLRenderer): boolean {
   try {
     const gl = renderer.getContext() as WebGL2RenderingContext;
-    if (!renderer.extensions.has('EXT_color_buffer_float')) return 0;
+    if (!renderer.extensions.has('EXT_color_buffer_float')) return false;
     const samples = gl.getInternalformatParameter(gl.RENDERBUFFER, gl.R11F_G11F_B10F, gl.SAMPLES) as Int32Array | null;
-    return samples && samples.length ? Math.max(1, samples[0]) : 0;
+    return samples !== null;
   } catch {
-    return 0;
+    return false;
   }
 }
 
@@ -305,9 +304,9 @@ export function postSupported(renderer: WebGLRenderer): boolean {
 export class CityPost implements CityPostLike {
   effects: PostEffects = { ...NO_EFFECTS };
   private width = 1; private height = 1;
-  private scene?: WebGLRenderTarget; private sceneHasDepth = false; private sceneSamples = 0;
-  /** The most samples the card takes of a pixel (multisampling, at High) and how the pictures keep their light */
-  private readonly msaa: number; private readonly pixels: Pixels;
+  private scene?: WebGLRenderTarget; private sceneHasDepth = false;
+  /** How the pictures keep their light */
+  private readonly pixels: Pixels;
   private readonly quad: Mesh; private readonly quadCamera: Camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly half: WebGLRenderTarget; private readonly quarter: WebGLRenderTarget; private readonly blur: WebGLRenderTarget;
   private readonly aoRaw: WebGLRenderTarget; private readonly aoBlur: WebGLRenderTarget;
@@ -318,9 +317,7 @@ export class CityPost implements CityPostLike {
   private readonly bloomColour = new Color();
 
   constructor(private readonly renderer: WebGLRenderer) {
-    const packed = packedSamples(renderer);
-    this.pixels = packed ? 'packed' : 'half';
-    this.msaa = Math.min(4, packed || (renderer.capabilities?.maxSamples ?? 0));
+    this.pixels = packedDrawable(renderer) ? 'packed' : 'half';
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
     geometry.setAttribute('uv', new BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2));
@@ -346,7 +343,7 @@ export class CityPost implements CityPostLike {
         aoOn: { value: 0 }, aoStrength: { value: 0 }, aoTint: { value: new Color() }, fogNear: { value: 1e9 }, fogFar: { value: 2e9 },
         bloomOn: { value: 0 }, bloomColour: { value: new Color() }, tiltOn: { value: 0 }, tiltStrength: { value: 0 },
         tiltFocus: { value: 0.5 }, tiltBand: { value: 0.3 }, vignette: { value: 0 }, vignetteTint: { value: new Color() },
-        aspect: { value: 1 }, fxaaOn: { value: 1 }, sceneTexel: { value: new Vector2() },
+        aspect: { value: 1 }, sceneTexel: { value: new Vector2() },
       } });
   }
 
@@ -367,24 +364,20 @@ export class CityPost implements CityPostLike {
   }
 
   /**
-   * The picture the city is drawn into, with its depth kept for the contact shadows. At High (with contact shadows) the
-   * card takes four samples a pixel, the sharpest edges; below it one, and the last pass smooths the edges instead
-   * (FXAA): on a notebook's integrated graphics four samples of a city of trees cost about 3 ms a frame, the smoothing
-   * a few tenths (docs/3d/RENDERER_SPEC.md 8A)
+   * The picture the city is drawn into, one sample a pixel, with its depth kept for the contact shadows; the last pass
+   * smooths its edges (FXAA). Four samples a pixel looked a little sharper but cost 3 to 10 ms a frame on a notebook's
+   * integrated graphics in a city of trees and houses, more than every effect together (docs/3d/RENDERER_SPEC.md 8A)
    */
   private sceneTarget(): WebGLRenderTarget {
-    const depth = this.effects.ao, samples = depth ? this.msaa : 0;
-    if (this.scene && this.sceneHasDepth === depth && this.sceneSamples === samples) return this.scene;
+    const depth = this.effects.ao;
+    if (this.scene && this.sceneHasDepth === depth) return this.scene;
     this.scene?.dispose();
-    const t = new WebGLRenderTarget(this.width, this.height, { ...format(this.pixels), samples,
+    const t = new WebGLRenderTarget(this.width, this.height, { ...format(this.pixels),
       minFilter: LinearFilter, magFilter: LinearFilter, generateMipmaps: false,
       ...(depth ? { depthTexture: new DepthTexture(this.width, this.height) } : {}) });
-    t.resolveDepthBuffer = depth; this.scene = t; this.sceneHasDepth = depth; this.sceneSamples = samples;
+    this.scene = t; this.sceneHasDepth = depth;
     return t;
   }
-
-  /** Whether the edges are smoothed by multisampling (else by the last pass) */
-  get multisampled(): boolean { return this.effects.ao && this.msaa > 1; }
 
   private draw(material: ShaderMaterial, output: WebGLRenderTarget | null): void {
     this.quad.material = material; this.renderer.setRenderTarget(output); this.renderer.render(this.quad, this.quadCamera);
@@ -402,7 +395,7 @@ export class CityPost implements CityPostLike {
     renderer.setRenderTarget(sceneTarget); renderer.render(scene, camera);
     const c = this.composite.uniforms;
     c.tScene.value = sceneTarget.texture; c.aspect.value = w / h;
-    c.fxaaOn.value = this.sceneSamples > 1 ? 0 : 1; (c.sceneTexel.value as Vector2).set(1 / w, 1 / h);
+    (c.sceneTexel.value as Vector2).set(1 / w, 1 / h);
     // Contact shadows, half size, then blurred across and down
     c.aoOn.value = fx.ao && look.ao.strength > 0.01 ? 1 : 0;
     if (c.aoOn.value) {
