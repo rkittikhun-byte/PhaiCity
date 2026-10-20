@@ -9,7 +9,8 @@
 2. `docs/3d/MODEL_SPEC.md` (สเปกโมเดล: หน่วย พิกัด ขนาด งบสามเหลี่ยม วัสดุ ภาค สัญญาของ factory)
 3. `docs/3d/DETAIL_CHECKLIST.md` (รายละเอียดที่โมเดลแต่ละชนิดต้องมี)
 4. `docs/3d/RENDERER_SPEC.md` (ตัววาดเมือง: อ่านอะไรจากแผนที่)
-5. `docs/3d/MODEL_CATALOG.md` (มีโมเดลอะไรแล้ว ขาดอะไร) และ `docs/3d/CODEX_PROMPTS.md` (ใบสั่งงานแต่ละโมเดลที่ใช้มา)
+5. `model-gallery.html` (`npm run gallery`), `era-buildings.html` และ `art/buildings/PLAN.md` (มีโมเดลอะไรแล้ว ขาดอะไร)
+   และ `docs/3d/CODEX_PROMPTS.md` (ใบสั่งงานแต่ละโมเดล ข้อไหนเสร็จ ข้อไหนค้าง)
 
 ## 1. หน้าตาที่ต้องการ
 
