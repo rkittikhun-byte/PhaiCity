@@ -20,6 +20,8 @@ import { CANAL_TOOL, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile } from "./roadLevels";
+import { RoadGraph } from "./roads/roadGraph";
+import { segmentTiles } from "./roads/roadRaster";
 import { tileMetres, tileOfUnits } from "./units";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
@@ -87,6 +89,14 @@ export type Command =
       /** A road or railway: which line of the stroke it is (a grid's rows and columns are lines of their own), and how
        * that line was drawn, with the points a clicked one was drawn through (src/roadPieces.ts RoadPath) */
       part?: number; shape?: LineShape; controls?: Array<[number, number]> }
+  /**
+   * A road or railway drawn in metres (docs/METRE_DRAWING_PLAN.md 1.3): from one end to the other, a curve through its
+   * two inner control points (x east, z south, metres from the map's corner). It is laid on the tiles its middle line
+   * passes (src/roads/roadRaster.ts) as the tool lays a tile, and kept as drawn in the map's road graph
+   * (src/roads/roadGraph.ts) once every one of those tiles is a road; a stroke undoes with the tiles.
+   */
+  | { type: "road"; tool: ToolName; from: [number, number]; to: [number, number]; c1?: [number, number];
+      c2?: [number, number]; stroke: number }
   | { type: "undo" }
   /**
    * Tax rate in percent (0-20; the homes', and the shops' and factories' unless given) and the share of each service's
@@ -340,6 +350,16 @@ export function commandProblem(command: unknown, width: number, height: number):
         return "bad controls";
       }
       return null;
+    case "road": {
+      if (!isOneOf(TOOL_NAMES, c.tool)) return `unknown tool ${String(c.tool)}`;
+      if (!isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
+      const point = (p: unknown): boolean => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === "number" &&
+        Number.isFinite(n) && n >= 0);
+      if (!point(c.from) || !point(c.to)) return "bad ends";
+      if ((c.c1 === undefined) !== (c.c2 === undefined)) return "a curve needs both control points";
+      if (c.c1 !== undefined && (!point(c.c1) || !point(c.c2))) return "bad controls";
+      return null;
+    }
     case "undo":
       return null;
     case "budget":
@@ -410,6 +430,48 @@ export class CityCommands {
   }
 
   constructor(private readonly city: CommandTarget) {}
+
+  /** A road drawn in metres (the "road" command): its tiles laid one by one as the tool lays them, then the road kept as
+   * drawn in the road graph when every one of them is a road */
+  private road(command: Extract<Command, { type: "road" }>): CommandOutcome {
+    const city = this.city, map = city.map, tool = city.tools[command.tool];
+    if (!map || !tool) return { accepted: false, reason: `no ${command.tool} tool` };
+    const rail = command.tool === "rail";
+    if (!tool.roadLevel && !rail) return { accepted: false, reason: "not a road or railway tool" };
+    const size = tileMetres(map as { tileSizeM?: number | null }), width = city.width, height = city.height;
+    const ends = [command.from, command.to, command.c1, command.c2].filter((p): p is [number, number] => p !== undefined);
+    if (ends.some(([x, z]) => x > width * size || z > height * size)) return { accepted: false, reason: "outside the map" };
+    const drawn = { from: command.from, to: command.to, c1: command.c1, c2: command.c2, level: tool.roadLevel ?? 1 };
+    // Its tiles, from one end to the other, worked out on a graph of its own so nothing is split yet
+    const draft = new RoadGraph(), made = draft.add(drawn).segments;
+    if (!made.length) return { accepted: false, reason: "too short" };
+    const tiles = made.flatMap((id) => segmentTiles(draft, id, { width, height, tileSizeM: size }));
+    if (!tiles.length) return { accepted: false, reason: "outside the map" };
+    // The line as the tiles' road pieces keep it (src/roadPieces.ts), in tiles: each point half a tile back, so a tile's
+    // middle is its point
+    const inTiles = (p: [number, number]): [number, number] =>
+      [Math.round((p[0] / size - 0.5) * 100) / 100, Math.round((p[1] / size - 0.5) * 100) / 100];
+    const shape: LineShape = command.c1 ? "curve" : "straight";
+    const controls = (command.c1 && command.c2 ? [command.from, command.c1, command.c2, command.to] : [command.from, command.to])
+      .map(inTiles);
+    let laid = 0, reason: string | undefined;
+    for (const i of tiles) {
+      const x = i % width, y = (i - x) / width;
+      const out = this.apply({ type: "tool", tool: command.tool, x, y, stroke: command.stroke, shape, controls });
+      if (out.accepted && out.toolResult === 0) laid++;
+      else if (!out.accepted && reason === undefined) reason = out.reason;
+    }
+    const isLine = rail ? isRailTile : isRoadTile;
+    const whole = tiles.every((i) => isLine(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK));
+    if (whole) {
+      const graph = (map as { roadGraph?: RoadGraph }).roadGraph ??= new RoadGraph();
+      const first = tiles[0];
+      const piece = city.roadPieceAt?.(first % width, Math.floor(first / width)) ?? 0;
+      graph.add({ ...drawn, ...(piece ? { piece } : {}) });
+    }
+    if (!laid && !whole) return { accepted: false, reason: reason ?? "nothing laid" };
+    return { accepted: true, toolResult: whole ? 0 : null, ...(whole ? {} : { reason: reason ?? "partly laid" }) };
+  }
 
   /** After a tool: the canal tool's new water is a canal, a bridge over a canal bulldozed back to water can be filled in
    * again like the rest of it, and the ground's water is worked out again when water came or went */
@@ -544,6 +606,8 @@ export class CityCommands {
         }
         return { accepted: true, toolResult: tool.result };
       }
+      case "road":
+        return this.road(command);
       case "undo": {
         const map = city.map;
         const step = map ? this.history.take(city.cityTime?.() ?? 0) : null;
