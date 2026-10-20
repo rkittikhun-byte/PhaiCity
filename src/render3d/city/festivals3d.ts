@@ -61,8 +61,9 @@ export const FESTIVAL_TOUCHES: Readonly<Record<string, Touches>> = {
 export const MAX_BUNTING = 240, MAX_KRATHONG = 140, MAX_SKY_LANTERNS = 120, MAX_ROCKETS = 2;
 export const MODEST_SHARE = 0.5;
 const PUFFS_PER_ROCKET = 28;
-/** How far round the venue the town is dressed (world units: 10 a tile) and krathong float (tiles) */
-const BUNTING_RADIUS = 260, KRATHONG_TILES = 30;
+/** How far round the venue the town is dressed (world units: 10 a tile), and how far its people go to float krathong
+ * (metres: the town's nearest lake, river or canal; Mueang Khon Kaen's is about 800 m off) */
+const BUNTING_RADIUS = 260, KRATHONG_METRES = 1500;
 /** A town stays dressed at most this long (seconds of the view's clock) after a festival began; it fades in and out */
 export const MAX_SHOW_SECONDS = 240;
 const FADE_IN = 2, FADE_OUT = 3;
@@ -80,7 +81,10 @@ interface Show { id: string; scale: string; since: number; sawNight: boolean; le
 interface Krathong { tile: number; to: number; x: number; z: number; tx: number; tz: number; steps: number; spread: number }
 
 const tMatrix = new Matrix4(), tPos = new Vector3(), tScale = new Vector3(), tQuat = new Quaternion(), tColour = new Color();
-const UP = new Vector3(0, 1, 0);
+const UP = new Vector3(0, 1, 0), ALONG = new Vector3(1, 0, 0);
+/** A flag leans out from its road, as bunting sags, so it shows from the camera above the town */
+const FLAG_LEAN = 0.95;
+const tLean = new Quaternion();
 
 /** A mesh of instances whose colour each instance may set, drawn only while some are shown */
 function instanced(geometry: ConstructorParameters<typeof InstancedMesh>[0], material: Material, count: number,
@@ -110,7 +114,7 @@ export class CityFestivals {
   private readonly flameMaterial: MeshBasicMaterial;
   private readonly skyMaterial: MeshBasicMaterial;
   /** The bunting's places: x, y, z and its turn, and how much of the dressing it belongs to */
-  private bunting: { x: number; y: number; z: number; turn: number; colour: number; flag: boolean }[] = [];
+  private bunting: { x: number; y: number; z: number; turn: number; colour: number; flag: boolean; side: number }[] = [];
   private krathong: Krathong[] = [];
   private venue: { x: number; z: number } | null = null;
   private strengthShown = -1;
@@ -121,21 +125,22 @@ export class CityFestivals {
   constructor(private readonly map: FestivalViewMap, private readonly ground: FestivalGround, private readonly size = 1,
               private readonly units: number | null = null) {
     this.root.name = 'festivals';
-    const s = size;
+    // About twice their real size, so they read from the usual height over the town (a real 40 cm flag is lost at once)
+    const s = size * 2;
     this.lanternMaterial = new MeshBasicMaterial({ toneMapped: false });
-    this.lantern = instanced(new IcosahedronGeometry(0.32 * s, 1).scale(1, 1.25, 1), this.lanternMaterial, MAX_BUNTING, 'festival_lanterns');
-    this.flag = instanced(new PlaneGeometry(0.42 * s, 0.32 * s).translate(0.21 * s, 0, 0),
+    this.lantern = instanced(new IcosahedronGeometry(0.3 * s, 1).scale(1, 1.25, 1), this.lanternMaterial, MAX_BUNTING, 'festival_lanterns');
+    this.flag = instanced(new PlaneGeometry(0.6 * s, 0.42 * s).translate(0.3 * s, 0, 0),
       new MeshStandardMaterial({ roughness: 0.85, side: DoubleSide }), MAX_BUNTING, 'festival_flags');
-    this.krathongBase = instanced(new CylinderGeometry(0.28 * s, 0.2 * s, 0.14 * s, 8),
+    this.krathongBase = instanced(new CylinderGeometry(0.25 * s, 0.18 * s, 0.12 * s, 8),
       new MeshStandardMaterial({ color: F.krathong, roughness: 0.9 }), MAX_KRATHONG, 'festival_krathong');
     this.flameMaterial = new MeshBasicMaterial({ color: F.candle, toneMapped: false });
-    this.krathongFlame = instanced(new ConeGeometry(0.06 * s, 0.22 * s, 5), this.flameMaterial, MAX_KRATHONG, 'festival_candles');
+    this.krathongFlame = instanced(new ConeGeometry(0.08 * s, 0.2 * s, 5), this.flameMaterial, MAX_KRATHONG, 'festival_candles');
     this.skyMaterial = new MeshBasicMaterial({ color: F.skyLantern, toneMapped: false });
     this.skyLantern = instanced(new CylinderGeometry(0.42 * s, 0.3 * s, 0.75 * s, 6), this.skyMaterial, MAX_SKY_LANTERNS, 'festival_sky_lanterns');
-    this.smoke = instanced(new IcosahedronGeometry(0.9 * s, 0),
+    this.smoke = instanced(new IcosahedronGeometry(0.6 * s, 1),
       new MeshStandardMaterial({ color: F.smoke, roughness: 1, transparent: true, opacity: 0.7, depthWrite: false }),
       MAX_ROCKETS * PUFFS_PER_ROCKET, 'festival_rocket_smoke');
-    this.rocket = instanced(new IcosahedronGeometry(0.35 * s, 0), new MeshBasicMaterial({ color: F.flame, toneMapped: false }),
+    this.rocket = instanced(new IcosahedronGeometry(0.25 * s, 0), new MeshBasicMaterial({ color: F.flame, toneMapped: false }),
       MAX_ROCKETS, 'festival_rockets');
     this.root.add(this.lantern, this.flag, this.krathongBase, this.krathongFlame, this.skyLantern, this.smoke, this.rocket);
   }
@@ -247,13 +252,15 @@ export class CityFestivals {
     out.sort((a, b) => a.d - b.d);
     const count = bunting ? Math.min(out.length, Math.round(MAX_BUNTING * bunting.share)) : 0;
     this.bunting = out.slice(0, count).map((p, k) => ({
-      x: p.x, z: p.z, y: this.ground.sample(p.x, p.z) + (bunting!.kind === 'lantern' ? 3.4 : 3.8) * s, turn: p.turn,
+      x: p.x, z: p.z, y: this.ground.sample(p.x, p.z) + (bunting!.kind === 'lantern' ? 3.4 : 3.8) * s, turn: p.turn, side: p.side,
       colour: bunting!.colours[Math.floor(hash(k * 7 + 3) * bunting!.colours.length)], flag: bunting!.kind === 'flag',
     }));
     // The water near the town, for the krathong: river tiles and dug canals
     const { width, height } = this.map, tx = Math.floor(at.x), ty = Math.floor(at.y), water: number[] = [];
-    for (let y = Math.max(0, ty - KRATHONG_TILES); y <= Math.min(height - 1, ty + KRATHONG_TILES); y++) {
-      for (let x = Math.max(0, tx - KRATHONG_TILES); x <= Math.min(width - 1, tx + KRATHONG_TILES); x++) {
+    // ... tiles of 10 world units, which are 10 / units metres on a real-scale city map (a world unit a metre elsewhere)
+    const reach = Math.max(8, Math.round(KRATHONG_METRES / (this.units ? 10 / this.units : 10)));
+    for (let y = Math.max(0, ty - reach); y <= Math.min(height - 1, ty + reach); y++) {
+      for (let x = Math.max(0, tx - reach); x <= Math.min(width - 1, tx + reach); x++) {
         if (isWaterTile(this.map.getTileValue(x, y) & 1023)) water.push(y * width + x);
       }
     }
@@ -280,6 +287,7 @@ export class CityFestivals {
     for (const b of this.bunting) {
       const mesh = b.flag ? this.flag : this.lantern, n = b.flag ? flags++ : lanterns++;
       tQuat.setFromAxisAngle(UP, b.turn);
+      if (b.flag) tQuat.multiply(tLean.setFromAxisAngle(ALONG, b.side ? FLAG_LEAN : -FLAG_LEAN));
       tPos.set(b.x, b.y, b.z);
       tScale.setScalar(Math.max(0.001, strength));
       mesh.setMatrixAt(n, tMatrix.compose(tPos, tQuat, tScale));

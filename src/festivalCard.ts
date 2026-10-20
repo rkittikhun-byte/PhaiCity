@@ -6,10 +6,10 @@
 // ruler how to hold it, on a frosted-glass card under the top bar that keeps the city running. Three choices, each with
 // its price and what it brings: grandly, modestly or not at all; what any festival costs besides money (rubbish and
 // traffic, Songkran's water, lanterns' and rockets' fires, krathong in the water) below them. A choice is the festival
-// command (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. The card
-// stays until the festival comes, its ✕ or Escape; when it comes, the news says how it was held, and where a fire its
-// lanterns started. It only reads the city and sends commands. A month passes in a few seconds, so the card waits for
-// the ruler rather than the month: an answer given any time before the festival's turn counts.
+// command (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. When the
+// festival comes the news says how it was held (and where a fire its lanterns started), and the card stays, saying so,
+// until its ✕, Escape or the next festival's question: a month passes in two to eight seconds, so the ruler who was too
+// slow for this year still answers for the next. It only reads the city and sends commands.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index.js";
 import { hide, isShown, show } from "./motion.js";
@@ -42,6 +42,12 @@ export function festivalCosts(id: FestivalId): string[] {
   return keys;
 }
 
+/** How a festival was held this year, on the card once it has come */
+export function festivalThisYear(event: Extract<FestivalNews, { type: "festival" }>): string {
+  const how = event.byPeople ? "by_people" : event.scale;
+  return t(`festival.this_year.${how}`, { cost: formatMoney(event.cost) });
+}
+
 /** The news line for a festival held this month */
 export function festivalNewsText(event: Extract<FestivalNews, { type: "festival" }>): string {
   const params = { name: t(`festival.${event.id}`), cost: formatMoney(event.cost) };
@@ -51,8 +57,8 @@ export function festivalNewsText(event: Extract<FestivalNews, { type: "festival"
 }
 
 export class FestivalCard {
-  /** The festivals asked about, next month's, with their prices [modest, grand] */
-  private readonly asked = new Map<FestivalId, [number, number]>();
+  /** The festivals asked about, with their prices [modest, grand], and how each was held once it came */
+  private readonly asked = new Map<FestivalId, { costs: [number, number]; held: Extract<FestivalNews, { type: "festival" }> | null }>();
 
   constructor(private readonly element: HTMLElement, private readonly source: FestivalCardSource) {
     element.addEventListener("click", (event) => {
@@ -71,14 +77,17 @@ export class FestivalCard {
     });
     source.on("festivalAhead", (event) => {
       if (event.type !== "festivalAhead") return;
-      this.asked.set(event.id, event.costs);
+      // A new question takes the place of the festivals already held
+      for (const [id, entry] of [...this.asked]) if (entry.held) this.asked.delete(id);
+      this.asked.set(event.id, { costs: event.costs, held: null });
       this.open();
     });
     source.on("festival", (event) => {
       if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice) return;
       source.news(festivalNewsText(event), event.scale !== "none" && !event.byPeople);
-      if (this.asked.delete(event.id) && !this.asked.size) this.close();
-      else this.render();
+      const entry = this.asked.get(event.id);
+      if (entry) entry.held = event;
+      this.render();
     });
     source.on("festivalFire", (event) => {
       if (event.type !== "festivalFire") return;
@@ -106,19 +115,21 @@ export class FestivalCard {
       if (text !== undefined) node.textContent = text;
       return node;
     };
-    this.element.setAttribute("aria-label", t("festival.card.title"));
+    const title = t([...this.asked.values()].every((entry) => entry.held) ? "festival.card.now" : "festival.card.title");
+    this.element.setAttribute("aria-label", title);
     const header = el("header", "festivalHeader");
-    header.append(el("span", "festivalTitle", t("festival.card.title")));
+    header.append(el("span", "festivalTitle", title));
     const close = el("button", "festivalClose", "✕");
     close.setAttribute("type", "button");
     close.setAttribute("aria-label", t("festival.card.close"));
     header.append(close);
     const parts: HTMLElement[] = [header];
     const funds = this.source.funds();
-    for (const [id, costs] of this.asked) {
+    for (const [id, { costs, held }] of this.asked) {
       const section = el("section", "festivalOne");
       section.dataset.festival = id;
-      section.append(el("div", "festivalName", t(`festival.${id}`)), el("p", "festivalAsk", t(`festival.ask.${id}`)));
+      section.append(el("div", "festivalName", t(`festival.${id}`)),
+        held ? el("p", "festivalAsk festivalHeld", festivalThisYear(held)) : el("p", "festivalAsk", t(`festival.ask.${id}`)));
       const choices = el("div", "festivalChoices"), chosen = this.source.choiceOf(id);
       for (const scale of SHOWN_SCALES) {
         const price = scale === "none" ? 0 : costs[scale === "grand" ? 1 : 0];

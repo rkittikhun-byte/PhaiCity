@@ -19,7 +19,7 @@ import {
 import { GameMap } from "../src/gameMap.js";
 import { decodePresetCells, decodePresetLayer } from "../src/geo/presetMap";
 import { hasKey, setLanguage } from "../src/i18n/index";
-import { festivalCosts, festivalNewsText } from "../src/festivalCard";
+import { festivalCosts, festivalNewsText, festivalThisYear } from "../src/festivalCard";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { checkRulesData, DEFAULT_RULES, resolveRules, ruleEffects, type Rules } from "../src/provinceRules";
 import { Random } from "../src/random";
@@ -384,8 +384,16 @@ describe("the festival card", () => {
     expect(news("none")).toBe("The city holds no Songkran this year: the people are let down");
     expect(news("modest", { downgraded: true })).toContain("not enough money");
     expect(news("modest", { byPeople: true })).toContain("the temples and the people");
+    // Once it has come, the card says how it was held, and that an answer now is for next year
+    const held = (scale: "none" | "modest" | "grand", byPeople = false) =>
+      festivalThisYear({ type: "festival", id: "silk", scale, cost: 250, byPeople, downgraded: false });
+    expect(held("modest")).toBe("This year it is held modestly (฿250). An answer now counts from next year.");
+    expect(held("modest", true)).toContain("the temples and the people");
+    expect(held("none")).toContain("holds nothing");
     setLanguage("th");
     expect(news("grand")).toBe("สงกรานต์ จัดยิ่งใหญ่ (฿1200) นักท่องเที่ยวมาเต็มเมือง");
+    expect(held("grand")).toBe("ปีนี้จัดยิ่งใหญ่ (฿250) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า");
+    expect(hasKey("festival.card.now")).toBe(true);
   });
 });
 

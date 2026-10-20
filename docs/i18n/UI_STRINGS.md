@@ -1427,6 +1427,11 @@
 | `festival.vegetarian` | `src/cityStatus.ts` | — | `Vegetarian festival` | `เทศกาลกินเจ` | ภาคใต้ |
 | `festival.card.title` | `src/festivalCard.ts` | — | `Next month's festival` | `เทศกาลเดือนหน้า` | การ์ดถามเจ้าเมืองล่วงหน้าหนึ่งเดือน |
 | `festival.card.close` | `src/festivalCard.ts` | — | `Close` | `ปิด` |  |
+| `festival.card.now` | `src/festivalCard.ts` | — | `This year's festival` | `เทศกาลปีนี้` | การ์ดค้างไว้หลังเทศกาลเริ่ม ให้ตอบสำหรับปีหน้าได้ |
+| `festival.this_year.grand` | `src/festivalCard.ts` | — | `This year it is held grandly ({cost}). An answer now counts from next year.` | `ปีนี้จัดยิ่งใหญ่ ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.modest` | `src/festivalCard.ts` | — | `This year it is held modestly ({cost}). An answer now counts from next year.` | `ปีนี้จัดแบบเรียบง่าย ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.none` | `src/festivalCard.ts` | — | `This year the city holds nothing. An answer now counts from next year.` | `ปีนี้เมืองไม่จัด คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
+| `festival.this_year.by_people` | `src/festivalCard.ts` | — | `This year the temples and the people hold it themselves. An answer now counts from next year.` | `ปีนี้วัดและชาวบ้านจัดกันเอง คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
 | `festival.ask.songkran` | `src/festivalCard.ts` | — | `Songkran is next month: families come home and the whole town throws water. How will the city hold it?` | `เดือนหน้าถึงสงกรานต์ ลูกหลานกลับบ้าน เล่นน้ำกันทั้งเมือง จะจัดงานอย่างไร` |  |
 | `festival.ask.loy_krathong` | `src/festivalCard.ts` | — | `Next month's full moon is Loy Krathong: krathong float on the canals and rivers. How will the city hold it?` | `เดือนหน้าวันเพ็ญเดือนสิบสอง ลอยกระทงริมคลองและแม่น้ำ จะจัดงานอย่างไร` |  |
 | `festival.ask.yi_peng` | `src/festivalCard.ts` | — | `Yi Peng is next month: sky lanterns rise into the night. How will the city hold it?` | `เดือนหน้ายี่เป็ง ปล่อยโคมลอยขึ้นฟ้ายามค่ำ จะจัดงานอย่างไร` |  |

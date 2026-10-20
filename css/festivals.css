@@ -30,7 +30,8 @@ body #festivalCard .festivalName { color: var(--ph-gold-deep); font-size: 15px; 
 body #festivalCard .festivalAsk { margin: 2px 0 6px; }
 body #festivalCard .festivalChoices { display: flex; flex-direction: column; gap: 4px; }
 body #festivalCard .festivalChoice {
-  display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; min-height: 0; margin: 0;
+  /* height: auto over the page's old button { height: 19px } (css/style.css) */
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px; width: 100%; height: auto; min-height: 0; margin: 0;
   padding: 5px 8px; border: 1px solid var(--ph-line); border-radius: 9px; background: var(--ph-glass);
   color: var(--hud-text); font: inherit; text-align: left; box-shadow: none; cursor: pointer;
 }
