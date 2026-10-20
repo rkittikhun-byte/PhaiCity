@@ -108,7 +108,7 @@ def stilt_house(b, cx, cy, w, d, floor_z=2.4, wall_h=2.6, thatch=False, roof_mat
     # the rooms
     zt = floor_z + wall_h
     regions.house_walls(p, rect, floor_z, zt, r, wood)
-    door_side = door_side or (deck[0] if isinstance(deck, tuple) else 'front')
+    door_side = door_side or (deck[0] if isinstance(deck, tuple) and deck else 'front')
     door_u = 0.0
     for side in kit.SIDES:
         fw = kit.face_width(rect, side)
@@ -128,7 +128,7 @@ def stilt_house(b, cx, cy, w, d, floor_z=2.4, wall_h=2.6, thatch=False, roof_mat
     over = 0.7 if deck == 'round' else 0.9
     top = regions.house_roof(p, roof_rect, zt + (0.0 if deck != 'round' else 0.1), r, roof_mat, axis=axis, over=over,
                              thatch=thatch)
-    if isinstance(deck, tuple) and r in ('northeast', 'west', 'east'):
+    if isinstance(deck, tuple) and deck and r in ('northeast', 'west', 'east'):
         # a lean-to roof over the deck (Isan's porch, the west's shaded deck)
         lr = deck_rect
         rm = roof_mat or ('thatch' if thatch else 'clay_tile')

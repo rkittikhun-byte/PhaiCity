@@ -42,10 +42,11 @@ def bay(b, floors):
     zl = ZF + floors * H
     kit.block(p, x0 + 0.02, y0, ZF, x1 - 0.02, y1, zl, wall)
     kit.block(p, top[0] + 0.02, top[1], zl, top[2] - 0.02, top[3], zl + H, wall)
-    # the shop floor: a glass front, its door and a plain sign (no brand)
+    # the shop floor: a glass front, its door and a plain sign (no brand) on the front edge of the balcony over it,
+    # where the camera above sees it (under the balcony it was hidden)
     e5.glass_door(p, g, 'front', -0.9, ZF, d, 1.3, 2.5)
     e5.window(p, g, 'front', 0.95, ZF + 0.5, 1.6, 2.2, d, transom=False)
-    props.sign_board(q, g, 'front', 0, ZF + 2.75, BAY_M - 1.0, 0.42, SIGNS[i], 'sign_text', out=0.9)
+    props.sign_board(q, g, 'front', 0, ZF + H - 0.5, BAY_M - 1.0, 0.42, SIGNS[i], 'sign_text', out=1.0)
     # the floors over it: a planted balcony on the first, windows and fins above
     for k in range(1, floors):
         z = ZF + k * H

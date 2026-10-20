@@ -361,11 +361,12 @@ def mound(p, x, y, r, h, mat):
 # shophouses ----------------------------------------------------------------------------------------------------------
 
 def shophouse(b, rect, i=0, storeys=2, ground=None, awning=True, sign=True, sides=('left', 'right'), roof=True,
-              wares=True, lamp=False, balcony=None):
+              wares=True, lamp=False, balcony=None, few_sides=False):
     """One shophouse unit (ห้องแถว) on rect (x0, y0, x1, y1), its front on y0 toward the road: a 4 m ground floor
     behind folding plank doors, timber upper floors with shuttered windows, the region's gable to the front (a
     hip roof and a stucco front with a five-foot way and arched windows in the south). sides: the outer side walls
-    that get windows. Returns a dict with the eave and ridge heights."""
+    that get windows (few_sides: two a floor upstairs and one below, for a frontage bay that repeats along a street).
+    Returns a dict with the eave and ridge heights."""
     r = b.region
     st = regions.style(r)
     p = b.main
@@ -420,7 +421,7 @@ def shophouse(b, rect, i=0, storeys=2, ground=None, awning=True, sign=True, side
             else:
                 house_window(p, urect, 'front', u, zf + 1.0, r, 0.9, 1.3)
         for side in sides:
-            for u in kit.spread(y1 - y0, 3, 1.0)[:: 2 if k else 1]:
+            for u in kit.spread(y1 - y0, 3, 1.0)[:: 2 if k or few_sides else 1]:
                 if south:
                     arched_window(p, urect, side, u, zf + 0.75, 0.8, 1.4, frame=trim, shutter='shutter_green')
                 else:
@@ -430,7 +431,7 @@ def shophouse(b, rect, i=0, storeys=2, ground=None, awning=True, sign=True, side
             kit.balcony(p, urect, 'front', 0, zf + 0.1, w - 0.3, 0.8, 'plank', trim, 1.0)
     for side in sides:
         gd = grect[3] - grect[1]
-        for f in (0.25, -0.15):
+        for f in (0.25,) if few_sides else (0.25, -0.15):
             if south:
                 arched_window(p, grect, side, gd * f, 1.0, 0.8, 1.4, frame=trim, shutter='shutter_green')
             elif ground == 'plaster':

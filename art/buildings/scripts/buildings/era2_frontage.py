@@ -41,7 +41,7 @@ def bay(b, storeys):
                 z=0.06)
     sides = tuple(s for s, end in (('left', left), ('right', right)) if end)
     u = e2.shophouse(b, (x0, FRONT, x0 + BAY_M, FRONT + DEPTH), i, storeys, sides=sides, lamp=place in ('right', 'one'),
-                     wares=place in ('one', 'left', 'mid2'))
+                     wares=place in ('one', 'left', 'mid2'), few_sides=True)
     if left:
         tops = e2.pole(q, x0 + 0.35, -7.6, 8.2 if storeys == 2 else 9.0, 0)
         e2.service_drop(q, tops[-1][0], (x0 + 0.5, FRONT - 0.05, e2.GROUND + 0.9))

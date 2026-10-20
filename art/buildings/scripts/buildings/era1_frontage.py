@@ -117,12 +117,10 @@ def bay(b, tall):
         kit.block(p, x - 0.08, VERANDA + 0.05, floor, x + 0.08, VERANDA + 0.21, z_lo + 0.1, trim)
         kit.block(p, x - 0.15, VERANDA + 0.0, floor - 0.02, x + 0.15, VERANDA + 0.26, floor + 0.06, 'stone')
     kit.block(p, a0, VERANDA + 0.06, z_lo - 0.08, a1, VERANDA + 0.2, z_lo + 0.06, trim)
-    # the hand-painted sign hangs from the veranda's beam, where the road sees it, lined up along the row
-    props.sign_board(q, (x0, VERANDA + 0.06, x1, ROOM[0]), 'front', 0, z_lo - 0.62, BAY_M - 1.4, 0.42, SIGNS[i],
+    # the hand-painted sign is nailed to the lean-to's front edge, where the road and the camera above both see it
+    # (hung under the beam, the eave hid it from above), lined up along the row
+    props.sign_board(q, (x0, VERANDA - 0.3, x1, ROOM[0]), 'front', 0, z_lo - 0.3, BAY_M - 1.4, 0.42, SIGNS[i],
                      'teak_dark', out=0.02)
-    for s in (-1, 1):
-        q.rod((s * (BAY_M / 2 - 0.85), VERANDA + 0.04, z_lo - 0.08), (s * (BAY_M / 2 - 0.85), VERANDA + 0.04, z_lo - 0.18),
-              0.01, 'rope', seg=3)
     goods(b, place, VERANDA - 0.2, tall)
     # behind the room
     yb = ROOM[1] + 0.9
@@ -157,7 +155,7 @@ def house(b, big):
                                   stair_at=0.6, posts_every=2.0)
         kx0 = info['deck'][2]
         houses.stilt_house(b, kx0 + 1.45, 3.2, 2.8, 2.8, floor_z=2.05, wall_h=2.2, thatch=True, stairs=False,
-                           door_side='left', axis='x' if r != 'northeast' else 'y')
+                           deck=(), door_side='left', axis='x' if r != 'northeast' else 'y')
         pw.rice_barn(b, -3.6, -3.8, 2.4, 2.0)
         regions.under_house(b, -3.0, 2.2)
         props.water_jar(q, 2.4, -0.9, 1.0)

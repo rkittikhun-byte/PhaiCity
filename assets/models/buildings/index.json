@@ -4,15 +4,15 @@
    "central": {
     "bay1_left": {
      "height": 7.81,
-     "triangles": 1265
+     "triangles": 1267
     },
     "bay1_mid": {
      "height": 7.81,
-     "triangles": 1269
+     "triangles": 1271
     },
     "bay1_mid2": {
      "height": 7.81,
-     "triangles": 1282
+     "triangles": 1283
     },
     "bay1_one": {
      "height": 7.81,
@@ -20,7 +20,7 @@
     },
     "bay1_right": {
      "height": 7.81,
-     "triangles": 1273
+     "triangles": 1275
     },
     "bay2_left": {
      "height": 9.38,
@@ -36,11 +36,11 @@
     },
     "bay2_one": {
      "height": 9.38,
-     "triangles": 1267
+     "triangles": 1271
     },
     "bay2_right": {
      "height": 9.38,
-     "triangles": 1273
+     "triangles": 1277
     },
     "factory_1": {
      "height": 6.47,
@@ -150,11 +150,11 @@
    "east": {
     "bay1_left": {
      "height": 7.44,
-     "triangles": 1274
+     "triangles": 1276
     },
     "bay1_mid": {
      "height": 7.44,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay1_mid2": {
      "height": 7.44,
@@ -170,7 +170,7 @@
     },
     "bay2_left": {
      "height": 8.98,
-     "triangles": 1281
+     "triangles": 1283
     },
     "bay2_mid": {
      "height": 8.98,
@@ -182,11 +182,11 @@
     },
     "bay2_one": {
      "height": 8.98,
-     "triangles": 1265
+     "triangles": 1269
     },
     "bay2_right": {
      "height": 8.98,
-     "triangles": 1275
+     "triangles": 1279
     },
     "factory_1": {
      "height": 6.17,
@@ -300,19 +300,19 @@
     },
     "bay1_mid": {
      "height": 6.89,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay1_mid2": {
      "height": 6.89,
-     "triangles": 1278
+     "triangles": 1277
     },
     "bay1_one": {
      "height": 7.97,
-     "triangles": 1258
+     "triangles": 1259
     },
     "bay1_right": {
      "height": 7.97,
-     "triangles": 1271
+     "triangles": 1275
     },
     "bay2_left": {
      "height": 9.45,
@@ -328,11 +328,11 @@
     },
     "bay2_one": {
      "height": 9.45,
-     "triangles": 1230
+     "triangles": 1232
     },
     "bay2_right": {
      "height": 9.45,
-     "triangles": 1257
+     "triangles": 1261
     },
     "factory_1": {
      "height": 8.16,
@@ -383,8 +383,8 @@
      "triangles": 3301
     },
     "house12_2": {
-     "height": 8.61,
-     "triangles": 4412
+     "height": 8.38,
+     "triangles": 3409
     },
     "market": {
      "height": 10.99,
@@ -446,19 +446,19 @@
     },
     "bay1_mid": {
      "height": 6.7,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay1_mid2": {
      "height": 6.7,
-     "triangles": 1273
+     "triangles": 1277
     },
     "bay1_one": {
      "height": 6.7,
-     "triangles": 1234
+     "triangles": 1235
     },
     "bay1_right": {
      "height": 6.7,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay2_left": {
      "height": 8.16,
@@ -474,11 +474,11 @@
     },
     "bay2_one": {
      "height": 8.16,
-     "triangles": 1218
+     "triangles": 1220
     },
     "bay2_right": {
      "height": 8.16,
-     "triangles": 1233
+     "triangles": 1235
     },
     "factory_1": {
      "height": 5.7,
@@ -592,23 +592,23 @@
     },
     "bay1_mid": {
      "height": 6.15,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay1_mid2": {
      "height": 6.15,
-     "triangles": 1278
+     "triangles": 1277
     },
     "bay1_one": {
      "height": 6.15,
-     "triangles": 1232
+     "triangles": 1233
     },
     "bay1_right": {
      "height": 6.15,
-     "triangles": 1276
+     "triangles": 1280
     },
     "bay2_left": {
      "height": 7.56,
-     "triangles": 1261
+     "triangles": 1262
     },
     "bay2_mid": {
      "height": 7.56,
@@ -620,11 +620,11 @@
     },
     "bay2_one": {
      "height": 7.56,
-     "triangles": 1256
+     "triangles": 1254
     },
     "bay2_right": {
      "height": 7.56,
-     "triangles": 1245
+     "triangles": 1247
     },
     "factory_1": {
      "height": 6.15,
@@ -738,7 +738,7 @@
     },
     "bay1_mid": {
      "height": 7.44,
-     "triangles": 1267
+     "triangles": 1269
     },
     "bay1_mid2": {
      "height": 7.44,
@@ -750,7 +750,7 @@
     },
     "bay1_right": {
      "height": 7.44,
-     "triangles": 1271
+     "triangles": 1275
     },
     "bay2_left": {
      "height": 8.98,
@@ -766,11 +766,11 @@
     },
     "bay2_one": {
      "height": 8.98,
-     "triangles": 1265
+     "triangles": 1269
     },
     "bay2_right": {
      "height": 8.98,
-     "triangles": 1272
+     "triangles": 1274
     },
     "factory_1": {
      "height": 6.17,
@@ -882,7 +882,7 @@
    "central": {
     "bay1_left": {
      "height": 10.05,
-     "triangles": 1166
+     "triangles": 1214
     },
     "bay1_mid": {
      "height": 10.07,
@@ -894,7 +894,7 @@
     },
     "bay1_one": {
      "height": 10.05,
-     "triangles": 1480
+     "triangles": 1273
     },
     "bay1_right": {
      "height": 10.07,
@@ -902,7 +902,7 @@
     },
     "bay2_left": {
      "height": 13.27,
-     "triangles": 1326
+     "triangles": 1230
     },
     "bay2_mid": {
      "height": 13.27,
@@ -914,11 +914,11 @@
     },
     "bay2_one": {
      "height": 13.27,
-     "triangles": 1788
+     "triangles": 1584
     },
     "bay2_right": {
      "height": 13.27,
-     "triangles": 1265
+     "triangles": 1313
     },
     "factory_1": {
      "height": 8.2,
@@ -1028,7 +1028,7 @@
    "east": {
     "bay1_left": {
      "height": 9.82,
-     "triangles": 1176
+     "triangles": 1224
     },
     "bay1_mid": {
      "height": 9.85,
@@ -1040,7 +1040,7 @@
     },
     "bay1_one": {
      "height": 9.82,
-     "triangles": 1478
+     "triangles": 1271
     },
     "bay1_right": {
      "height": 9.85,
@@ -1048,7 +1048,7 @@
     },
     "bay2_left": {
      "height": 13.02,
-     "triangles": 1318
+     "triangles": 1222
     },
     "bay2_mid": {
      "height": 13.05,
@@ -1060,11 +1060,11 @@
     },
     "bay2_one": {
      "height": 13.02,
-     "triangles": 1784
+     "triangles": 1577
     },
     "bay2_right": {
      "height": 13.02,
-     "triangles": 1273
+     "triangles": 1321
     },
     "factory_1": {
      "height": 8.2,
@@ -1174,7 +1174,7 @@
    "north": {
     "bay1_left": {
      "height": 10.53,
-     "triangles": 1229
+     "triangles": 1139
     },
     "bay1_mid": {
      "height": 10.53,
@@ -1186,15 +1186,15 @@
     },
     "bay1_one": {
      "height": 10.53,
-     "triangles": 1865
+     "triangles": 1656
     },
     "bay1_right": {
      "height": 10.53,
-     "triangles": 1318
+     "triangles": 1228
     },
     "bay2_left": {
      "height": 13.73,
-     "triangles": 1435
+     "triangles": 1334
     },
     "bay2_mid": {
      "height": 13.73,
@@ -1206,11 +1206,11 @@
     },
     "bay2_one": {
      "height": 13.73,
-     "triangles": 2177
+     "triangles": 1970
     },
     "bay2_right": {
      "height": 13.73,
-     "triangles": 1536
+     "triangles": 1436
     },
     "factory_1": {
      "height": 8.2,
@@ -1332,15 +1332,15 @@
     },
     "bay1_one": {
      "height": 9.02,
-     "triangles": 1351
+     "triangles": 1183
     },
     "bay1_right": {
      "height": 9.02,
-     "triangles": 1264
+     "triangles": 1300
     },
     "bay2_left": {
      "height": 12.22,
-     "triangles": 1412
+     "triangles": 1298
     },
     "bay2_mid": {
      "height": 12.22,
@@ -1352,11 +1352,11 @@
     },
     "bay2_one": {
      "height": 12.22,
-     "triangles": 1875
+     "triangles": 1647
     },
     "bay2_right": {
      "height": 12.22,
-     "triangles": 1239
+     "triangles": 1225
     },
     "factory_1": {
      "height": 8.2,
@@ -1466,7 +1466,7 @@
    "south": {
     "bay1_left": {
      "height": 10.38,
-     "triangles": 1398
+     "triangles": 1176
     },
     "bay1_mid": {
      "height": 10.38,
@@ -1478,15 +1478,15 @@
     },
     "bay1_one": {
      "height": 10.38,
-     "triangles": 1908
+     "triangles": 1456
     },
     "bay1_right": {
      "height": 10.38,
-     "triangles": 1208
+     "triangles": 1205
     },
     "bay2_left": {
      "height": 13.58,
-     "triangles": 1856
+     "triangles": 1636
     },
     "bay2_mid": {
      "height": 13.58,
@@ -1498,11 +1498,11 @@
     },
     "bay2_one": {
      "height": 13.58,
-     "triangles": 2595
+     "triangles": 2147
     },
     "bay2_right": {
      "height": 13.58,
-     "triangles": 1666
+     "triangles": 1445
     },
     "factory_1": {
      "height": 8.2,
@@ -1612,7 +1612,7 @@
    "west": {
     "bay1_left": {
      "height": 9.82,
-     "triangles": 1204
+     "triangles": 1181
     },
     "bay1_mid": {
      "height": 9.85,
@@ -1624,7 +1624,7 @@
     },
     "bay1_one": {
      "height": 9.82,
-     "triangles": 1534
+     "triangles": 1327
     },
     "bay1_right": {
      "height": 9.85,
@@ -1632,7 +1632,7 @@
     },
     "bay2_left": {
      "height": 13.02,
-     "triangles": 1401
+     "triangles": 1305
     },
     "bay2_mid": {
      "height": 13.05,
@@ -1644,11 +1644,11 @@
     },
     "bay2_one": {
      "height": 13.02,
-     "triangles": 1840
+     "triangles": 1633
     },
     "bay2_right": {
      "height": 13.02,
-     "triangles": 1303
+     "triangles": 1287
     },
     "factory_1": {
      "height": 8.2,
