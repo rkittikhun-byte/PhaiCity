@@ -5,22 +5,25 @@
 // Trained people (คนที่มีความรู้, docs/GAME_DESIGN.md 6.1; owner, 21 Oct 2026): the city counts the people its own schools
 // train, a class a year, and what needs them waits for them (src/unlocks.ts): no paved road without technicians, no
 // provincial hospital without doctors, no solar farm without engineers.
+// - Villagers who read and write (literate) come out of primary schools: a farming village becomes a market town only
+//   once its first classes have finished (the era symbol "literate", src/eraRules.ts; docs/GAME_DESIGN.md 6.5).
 // - Technicians come out of lower secondary schools and vocational colleges, nurses out of vocational colleges, engineers
 //   and doctors out of universities, and only from a school that works (standing, finished, with power).
 // - A school fills as many of its seats as the city has children (secondary) or young people (colleges, universities)
 //   for them, shared with the other schools of its field (src/services.ts), and a class is its filled seats over the
 //   years of its course.
-// - A school counts only once it has worked its first months (TRAINING wait): a new university gives its first graduates
-//   after four years.
+// - A school counts only once it has worked its first months (TRAINING wait, times the mode's schooling,
+//   src/gameModes.ts): a new university gives its first graduates after four years.
 // - Each year's class graduates when the year turns; then some leave: a few every year, and more while the city has
 //   fewer jobs than workers.
 // Plain code: no DOM and nothing random, so the same city trains the same people.
 
+import { modeRule } from "./gameModes.js";
 import { CHILDREN_SHARE, isServiceKind, SERVICE_SPECS, type ServiceKind, YOUNG_SHARE } from "./services.js";
 import { POWERBIT } from "./tileFlags.js";
 import { CIVIC } from "./tileValues.js";
 
-export const TRAINED_KINDS = ["technician", "nurse", "engineer", "doctor"] as const;
+export const TRAINED_KINDS = ["literate", "technician", "nurse", "engineer", "doctor"] as const;
 export type TrainedKind = typeof TRAINED_KINDS[number];
 export type TrainedCounts = Record<TrainedKind, number>;
 
@@ -35,6 +38,8 @@ export interface Training {
 
 /** Which schools train whom (data, one place to tune it) */
 export const TRAINING: Readonly<Partial<Record<ServiceKind, Training>>> = {
+  // (six years of primary school: a sixth of its pupils finish each year, every one of them reading and writing)
+  primary_school: { course: 6, wait: 12, makes: { literate: 1 } },
   secondary_school: { course: 3, wait: 12, makes: { technician: 0.12 } },
   vocational_college: { course: 3, wait: 12, makes: { technician: 0.5, nurse: 0.2 } },
   university: { course: 4, wait: 48, makes: { engineer: 0.25, doctor: 0.06 } },
@@ -56,7 +61,7 @@ export interface TrainedState {
   at: number;
 }
 
-export const noTrained = (): TrainedCounts => ({ technician: 0, nurse: 0, engineer: 0, doctor: 0 });
+export const noTrained = (): TrainedCounts => ({ literate: 0, technician: 0, nurse: 0, engineer: 0, doctor: 0 });
 
 export function newTrainedState(): TrainedState {
   return { counts: noTrained(), cohort: noTrained(), worked: {}, last: null, at: -1 };
@@ -119,6 +124,8 @@ export interface TrainingCity {
   /** Home and job figures of the census (the era score's jobs, src/eraScore.ts) */
   workers: number;
   jobs: number;
+  /** Times each school's TRAINING wait (the mode's schooling, src/gameModes.ts); 1 when left out */
+  schooling?: number;
 }
 
 /** The schools of a kind that train, working this month: standing on their centre, finished, with power */
@@ -166,7 +173,7 @@ export function trainMonth(map: TrainingMap, city: TrainingCity, month: number):
   };
   for (const { tile, kind } of schools) {
     const training = TRAINING[kind]!, spec = SERVICE_SPECS[kind];
-    if (worked[tile] <= training.wait) continue;
+    if (worked[tile] <= Math.round(training.wait * (city.schooling ?? 1))) continue;
     const yearClass = spec.places * fill[spec.field as "basic" | "higher"] / training.course;
     for (const [trained, share] of Object.entries(training.makes) as [TrainedKind, number][]) {
       state.cohort[trained] += yearClass * share / 12;
@@ -196,5 +203,6 @@ export function trainingCity(sim: any): TrainingCity {
     people: sim?.evaluation?.cityPop ?? 0,
     workers: census.resHist10?.[0] ?? 0,
     jobs: (census.comHist10?.[0] ?? 0) + (census.indHist10?.[0] ?? 0),
+    schooling: modeRule(sim?._gameLevel).schooling,
   };
 }

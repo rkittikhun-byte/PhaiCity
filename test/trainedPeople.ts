@@ -10,7 +10,7 @@ import { MapGenerator } from "../src/mapGenerator.js";
 import { POWERBIT, ZONEBIT } from "../src/tileFlags";
 import { CIVIC } from "../src/tileValues";
 import {
-  LEAVE_EACH_YEAR, newTrainedState, readTrained, trainedOf, type TrainingMap, trainMonth, writeTrained,
+  LEAVE_EACH_YEAR, newTrainedState, readTrained, trainedOf, type TrainingCity, type TrainingMap, trainMonth, writeTrained,
 } from "../src/trainedPeople";
 
 /** A map of 20 × 20 with schools on civic centres: kind by tile, powered unless said */
@@ -27,7 +27,7 @@ function schools(kinds: Record<number, string>, unpowered: number[] = []): Train
 const city = { people: 20000, workers: 100, jobs: 100 };
 
 /** Trains n months from month `from`, returning the last year's news */
-function months(map: TrainingMap, n: number, from = 1, c = city) {
+function months(map: TrainingMap, n: number, from = 1, c: TrainingCity = city) {
   let last = null;
   for (let m = from; m < from + n; m++) last = trainMonth(map, c, m) ?? last;
   return last;
@@ -44,6 +44,20 @@ describe("trained people", () => {
     // 800 seats, all filled by a city of 20,000 (4,000 children), over 3 years, 12% of them technicians: months 13-24
     const yearClass = 800 / 3 * 0.12;
     expect(trainedOf(map).technician).toBe(Math.floor(yearClass * (1 - LEAVE_EACH_YEAR) + 1e-6));
+  });
+
+  test("a primary school teaches villagers to read and write, its first class after a year, sooner in the easy mode (6.5)", () => {
+    // A village of 2,000: 400 children for its 500 seats, a sixth of them finishing each year
+    const village = { people: 2000, workers: 100, jobs: 100 };
+    const map = schools({ 45: "primary_school" });
+    months(map, 23, 1, village);           // months 1-23: the first year waits, and its first January sees nobody
+    expect(trainedOf(map).literate).toBe(0);
+    months(map, 1, 24, village);           // the second January: months 13-24's class, a whole year's, less those who left
+    expect(trainedOf(map).literate).toBe(Math.floor(400 / 6 * (1 - LEAVE_EACH_YEAR) + 1e-6));
+    // ... the easy mode's school waits half as long: its first January already sees half a year's class
+    const easy = schools({ 45: "primary_school" });
+    months(easy, 12, 1, { ...village, schooling: 0.5 });
+    expect(trainedOf(easy).literate).toBe(Math.floor(400 / 6 / 2 * (1 - LEAVE_EACH_YEAR) + 1e-6));
   });
 
   test("a vocational college trains technicians and nurses; a university nothing for four years, then engineers and doctors", () => {

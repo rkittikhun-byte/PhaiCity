@@ -253,10 +253,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // the year's graduates and a finished construction site make the news (docs/GAME_DESIGN.md 6)
   this.core.on('trained', function(event) {
     var g = event.graduates;
+    var whole = function(n) { return Math.round(n).toLocaleString('en-US'); };
     if (g.technician + g.nurse + g.engineer + g.doctor >= 1) {
-      var whole = function(n) { return Math.round(n).toLocaleString('en-US'); };
       eraGame._notificationBar.goodText(t('news.trained', {technician: whole(g.technician), nurse: whole(g.nurse),
         engineer: whole(g.engineer), doctor: whole(g.doctor)}));
+    } else if (g.literate >= 1) {
+      // ... a village's first classes, the villagers who read and write a market town needs (src/eraRules.ts)
+      eraGame._notificationBar.goodText(t('news.trained_literate', {literate: whole(g.literate)}));
     }
     eraGame.refreshLocks();
   });

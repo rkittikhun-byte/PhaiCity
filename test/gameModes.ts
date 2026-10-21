@@ -16,9 +16,9 @@ import { MapGenerator } from "../src/mapGenerator.js";
 
 describe("the modes", () => {
   test("follow section 6.3, on the game's old levels", () => {
-    expect(MODE_RULES.easy).toEqual({ level: 0, trained: 0.5, buildTime: 0.5, funds: 1.5, people: 0.75 });
-    expect(MODE_RULES.normal).toEqual({ level: 1, trained: 1, buildTime: 1, funds: 1, people: 1 });
-    expect(MODE_RULES.hard).toEqual({ level: 2, trained: 1.5, buildTime: 1.5, funds: 0.7, people: 1.25 });
+    expect(MODE_RULES.easy).toEqual({ level: 0, trained: 0.5, buildTime: 0.5, schooling: 0.5, funds: 1.5, people: 0.75 });
+    expect(MODE_RULES.normal).toEqual({ level: 1, trained: 1, buildTime: 1, schooling: 1, funds: 1, people: 1 });
+    expect(MODE_RULES.hard).toEqual({ level: 2, trained: 1.5, buildTime: 1.5, schooling: 1.5, funds: 0.7, people: 1.25 });
     expect([0, 1, 2, 7, undefined].map(modeOfLevel)).toEqual(["easy", "normal", "hard", "normal", "normal"]);
     expect(startingFundsIn(20000, 0)).toBe(30000);
     expect(startingFundsIn(20000, 2)).toBe(14000);

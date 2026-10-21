@@ -1393,6 +1393,7 @@
 | `era.symbol.ruler_house` | `src/cityStatus.ts` | — | `the ruler's house` | `จวนเจ้าเมือง` |  |
 | `era.symbol.shops` | `src/cityStatus.ts` | — | `five shops` | `ร้านค้า 5 ร้าน` |  |
 | `era.symbol.water_tower` | `src/cityStatus.ts` | — | `a water tower` | `หอถังประปา` | ประปาหมู่บ้าน: หอถังสูบน้ำบาดาลเอง โรงประปามาในยุคเมืองตลาด |
+| `era.symbol.literate` | `src/eraCard.ts` | — | `{need} villagers who read and write (now {have})` | `ชาวบ้านอ่านออกเขียนได้ {need} คน (ตอนนี้ {have})` | ผู้จบประถมรุ่นแรก ๆ (`src/trainedPeople.ts`) |
 | `era.symbol.water_works` | `src/cityStatus.ts` | — | `a water works` | `โรงประปา` |  |
 | `era.symbol.power_plant` | `src/cityStatus.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
 | `era.symbol.school` | `src/cityStatus.ts` | — | `a school` | `โรงเรียน` |  |
@@ -1438,6 +1439,7 @@
 | `era.symbol_hint.ruler_house` | `src/eraReport.ts` | — | `City & land: the ruler's house, beside a road` | `หมวดเมืองและที่ดิน: สร้างที่ว่าการ (จวนเจ้าเมือง) ติดถนน` | วิธีได้สัญลักษณ์ของยุค |
 | `era.symbol_hint.shops` | `src/eraReport.ts` | — | `Zones: paint shops along the roads until five stand` | `หมวดเขตเมือง: ทาเขตพาณิชย์ริมถนนจนมีร้าน 5 ร้าน` |  |
 | `era.symbol_hint.water_tower` | `src/eraReport.ts` | — | `Services › Water supply: a water tower beside a road, which pumps its own well` | `บริการเมือง › ประปา: สร้างหอถังประปาติดถนน สูบน้ำบาดาลเอง` |  |
+| `era.symbol_hint.literate` | `src/eraReport.ts` | — | `Services › Education: a primary school with power; after a year of teaching, a class finishes every January` | `บริการเมือง › การศึกษา: สร้างโรงเรียนประถมที่มีไฟ สอนครบปีแล้วจะมีนักเรียนจบทุกเดือนมกราคม` |  |
 | `era.symbol_hint.water_works` | `src/eraReport.ts` | — | `Services › Water supply: a water works beside a road` | `บริการเมือง › ประปา: สร้างโรงผลิตน้ำประปาติดถนน` |  |
 | `era.symbol_hint.power_plant` | `src/eraReport.ts` | — | `Services › Power plant: any kind, beside a road` | `บริการเมือง › โรงไฟฟ้า: แบบใดก็ได้ ติดถนน` |  |
 | `era.symbol_hint.school` | `src/eraReport.ts` | — | `Services › Education: any school` | `บริการเมือง › การศึกษา: โรงเรียนแบบใดก็ได้` |  |
@@ -1794,14 +1796,16 @@
 | `unlock.need.primary_school` | `src/unlockLabels.ts` | — | `a primary school` | `โรงเรียนประถม` |  |
 | `unlock.need.secondary_school` | `src/unlockLabels.ts` | — | `a secondary school` | `โรงเรียนมัธยม` |  |
 | `unlock.need.university` | `src/unlockLabels.ts` | — | `a university` | `มหาวิทยาลัย` |  |
+| `trained.literate` | `src/unlockLabels.ts` | — | `people who read and write` | `คนอ่านออกเขียนได้` | ผู้จบประถม |
 | `trained.technician` | `src/unlockLabels.ts` | — | `technicians` | `ช่าง` |  |
 | `trained.nurse` | `src/unlockLabels.ts` | — | `nurses` | `พยาบาล` |  |
 | `trained.engineer` | `src/unlockLabels.ts` | — | `engineers` | `วิศวกร` |  |
 | `trained.doctor` | `src/unlockLabels.ts` | — | `doctors` | `หมอ` |  |
-| `status.trained` | `index.html` | — | `Trained people` | `คนมีความรู้` | แถบสถานะ: ช่าง พยาบาล วิศวกร หมอ |
-| `status.trained_value` | `src/cityStatus.ts` | — | `{technician} · {nurse} · {engineer} · {doctor}` | `{technician} · {nurse} · {engineer} · {doctor}` |  |
-| `status.trained_title` | `src/cityStatus.ts` | — | `Technicians {technician}, nurses {nurse}, engineers {engineer}, doctors {doctor}. The schools' next class graduates in January: about {cohort} more` | `ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน รุ่นต่อไปจบเดือนมกราคม อีกราว {cohort} คน` | ชี้ช่องในแถบสถานะ |
+| `status.trained` | `index.html` | — | `Trained people` | `คนมีความรู้` | แถบสถานะ: อ่านออกเขียนได้ ช่าง พยาบาล วิศวกร หมอ |
+| `status.trained_value` | `src/cityStatus.ts` | — | `{literate} · {technician} · {nurse} · {engineer} · {doctor}` | `{literate} · {technician} · {nurse} · {engineer} · {doctor}` |  |
+| `status.trained_title` | `src/cityStatus.ts` | — | `Read and write {literate}, technicians {technician}, nurses {nurse}, engineers {engineer}, doctors {doctor}. The schools' next class graduates in January: about {cohort} more` | `อ่านออกเขียนได้ {literate} ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน รุ่นต่อไปจบเดือนมกราคม อีกราว {cohort} คน` | ชี้ช่องในแถบสถานะ |
 | `news.trained` | `src/game.js` | — | `This year's graduates: {technician} technicians, {nurse} nurses, {engineer} engineers, {doctor} doctors` | `ผู้จบการศึกษาปีนี้: ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน` | ข่าวต้นปี |
+| `news.trained_literate` | `src/game.js` | — | `{literate} pupils finished primary school this year: the village has more people who read and write` | `ปีนี้นักเรียนจบประถม {literate} คน หมู่บ้านมีคนอ่านออกเขียนได้มากขึ้น` | ข่าวต้นปี เมื่อยังไม่มีผู้จบสายอื่น |
 | `news.site_done` | `src/game.js` | — | `{name} is built and at work` | `{name}สร้างเสร็จ เริ่มใช้งานแล้ว` | ไซต์ก่อสร้างครบเดือน |
 | `site.months_left` | `src/inspectCard.ts` | — | `Being built: {months} months to go` | `กำลังก่อสร้าง อีก {months} เดือน` | การ์ดตรวจดู |
 | `site.choice_months` | `src/unlockLabels.ts` | — | `{price} · {months} months to build` | `{price} · สร้าง {months} เดือน` | ช่องตัวเลือกของอาคารที่ใช้เวลาก่อสร้าง |

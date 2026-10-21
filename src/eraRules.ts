@@ -14,7 +14,7 @@ export type Factor = typeof FACTORS[number];
 
 /** What a city must have to leave an era: each one a check the era's symbol counts (docs/GAME_DESIGN.md 1.4) */
 export type SymbolKey =
-  | "ruler_house" | "shops" | "water_tower" | "water_works" | "power_plant" | "school" | "hospital" | "secondary_school"
+  | "ruler_house" | "shops" | "water_tower" | "literate" | "water_works" | "power_plant" | "school" | "hospital" | "secondary_school"
   | "paved_roads" | "university_or_metro" | "recycling" | "clean_power";
 
 export interface EraRule {
@@ -39,7 +39,9 @@ export const ERA_RULES: Readonly<Record<Era, EraRule>> = {
   1: { people: 2000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
     targets: { water: 0.6, power: 0.6, jobs: 0.8, education: 0.3, health: 0.2, safety: 0.6, clean: 0.6, living: 0.4 },
     // (a farming village's water is its tower's well: water works come with the market town, src/unlocks.ts)
-    symbols: ["ruler_house", "shops", "water_tower"] },
+    // ... and a market town needs villagers who read and write, its primary school's first classes (src/trainedPeople.ts;
+    // owner, 21 Oct 2026: the first eras slower for a real reason, docs/GAME_DESIGN.md 6.5)
+    symbols: ["ruler_house", "shops", "water_tower", "literate"] },
   2: { people: 10000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
     targets: { water: 0.8, power: 0.8, jobs: 0.85, education: 0.5, health: 0.4, safety: 0.65, clean: 0.65, living: 0.5 },
     symbols: ["power_plant", "water_works", "school"] },
@@ -73,3 +75,6 @@ export const PAVED_SHARE = 0.5;
 export const CLEAN_SHARE = 0.5;
 /** The shops the shops symbol wants */
 export const SHOPS_WANTED = 5;
+/** The villagers who read and write (primary school graduates, src/trainedPeople.ts) the literate symbol wants in the
+ * normal mode, times the mode's trained (src/gameModes.ts): about the first class of a village school */
+export const LITERATE_WANTED = 30;

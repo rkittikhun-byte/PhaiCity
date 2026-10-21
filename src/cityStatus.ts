@@ -193,7 +193,8 @@ export interface TrainedSource {
 }
 
 /**
- * The trained people block (docs/GAME_DESIGN.md 6.1): technicians, nurses, engineers and doctors, once the city has any
+ * The trained people block (docs/GAME_DESIGN.md 6.1): villagers who read and write (6.5), technicians, nurses, engineers
+ * and doctors, once the city has any
  * or its schools are training some; pointing at it names them and the class to come in January.
  */
 export function showTrained(core: TrainedSource, doc: Document = document): void {

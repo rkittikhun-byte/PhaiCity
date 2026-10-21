@@ -37,7 +37,8 @@ export interface EraFactorRow {
 /** A side below its floor: while it is, the score stays below the transition (FLOOR_CAP) */
 export interface EraFloorRow { factor: Factor; value: number; floor: number; holding: boolean }
 
-export interface EraSymbolRow { key: SymbolKey; has: boolean; hint: string | null }
+/** A symbol the era wants; one that counts (literate) also says how many the city has and the era wants */
+export interface EraSymbolRow { key: SymbolKey; has: boolean; hint: string | null; count?: { have: number; need: number } }
 
 export interface EraReport {
   era: Era;
@@ -96,7 +97,8 @@ export function eraReport(score: EraScore): EraReport {
     const value = score.factors[factor]?.value ?? 0;
     if (value < floor) floors.push({ factor, value: percentOf(value), floor: Math.round(floor * 100), holding: score.heldBy !== null });
   }
-  const symbols = score.symbols.map(s => ({ key: s.key, has: s.has, hint: s.has ? null : `era.symbol_hint.${s.key}` }));
+  const symbols = score.symbols.map((s): EraSymbolRow => ({ key: s.key, has: s.has, hint: s.has ? null : `era.symbol_hint.${s.key}`,
+    ...(s.count ? { count: { ...s.count } } : {}) }));
   // The floor that holds the score comes first: nothing else lifts it past the transition
   const held = floors.find(f => f.holding);
   const candidates = [people, ...factors].filter(row => row.hint !== null && row.gain > 0).sort((a, b) => b.gain - a.gain);

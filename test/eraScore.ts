@@ -5,8 +5,9 @@
 // The city's era from its score (owner, 20 Oct 2026; docs/GAME_DESIGN.md section 1): people's progress times how well
 // they live, counted per person; from 0.8 its buildings begin to change, at 1 the city is in the next era.
 
-import { ERA_RULES, FACTORS, FLOOR_CAP } from "../src/eraRules";
-import { eraMonth, scoreEra } from "../src/eraScore";
+import { ERA_RULES, FACTORS, FLOOR_CAP, LITERATE_WANTED } from "../src/eraRules";
+import { eraMonth, literateCount, scoreEra } from "../src/eraScore";
+import { noTrained } from "../src/trainedPeople";
 import { Random } from "../src/random";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
 
@@ -15,10 +16,12 @@ function building(kind: string, id: number, powered = true, level = 2) {
   return { kind, id, x: id % 20, y: Math.floor(id / 20), powered: () => powered, level: () => level };
 }
 
-/** A small map whose homes have water (or not) and the records the era symbols read */
-function city(watered = true) {
+/** A small map whose homes have water (or not) and the records the era symbols read, with the villagers who read and
+ * write its primary school taught (src/trainedPeople.ts) */
+function city(watered = true, literate = 40) {
   return {
     width: 20, height: 20, era: 1 as number | undefined,
+    trained: { counts: { ...noTrained(), literate }, cohort: noTrained(), worked: {}, last: null, at: -1 },
     getTileValue: () => 0, getTileFlags: () => 0,
     water: { zoneWater: () => (watered ? 1 : 3) },
     civicKinds: {}, wasteKinds: {}, stationKinds: {}, powerKinds: {},
@@ -95,6 +98,20 @@ describe("era score", () => {
     const score = scoreEra(city(), sim(4000), objects(wellBuilt().filter(b => b.kind !== "water_tower")), 1);
     expect(score.symbols).toEqual(expect.arrayContaining([{ key: "water_tower", has: false }, { key: "shops", has: true }]));
     expect(score.factors.symbol.done).toBeLessThan(1);
+  });
+
+  test("a farming village moves on only once its primary school's first classes read and write (6.5)", () => {
+    // Owner, 21 Oct 2026: eras 1 and 2 slower for a real reason
+    const few = scoreEra(city(true, LITERATE_WANTED - 1), sim(4000), objects(wellBuilt()), 1);
+    expect(few.symbols).toContainEqual({ key: "literate", has: false, count: { have: LITERATE_WANTED - 1, need: LITERATE_WANTED } });
+    expect(few.month).toBeLessThan(1);
+    const enough = scoreEra(city(true, LITERATE_WANTED), sim(4000), objects(wellBuilt()), 1);
+    expect(enough.symbols).toContainEqual({ key: "literate", has: true, count: { have: LITERATE_WANTED, need: LITERATE_WANTED } });
+    // ... as many as the mode's trained people ask: half in the easy mode, half again in the hard one
+    expect(literateCount(city(), 0).need).toBe(Math.ceil(LITERATE_WANTED * 0.5));
+    expect(literateCount(city(), 2).need).toBe(Math.ceil(LITERATE_WANTED * 1.5));
+    // ... and only the farming village asks it
+    expect(ERA_RULES[2].symbols).not.toContain("literate");
   });
 });
 

@@ -14,9 +14,10 @@
 
 import { type Era, isEra, mapEra } from "./era.js";
 import {
-  ADVANCE_CHANCE, CLEAN_SHARE, ERA_RULES, FACTORS, type Factor, FLOOR_CAP, FLOORS, PAVED_SHARE, RENOVATE_CHANCE,
-  SCORE_MONTHS, SHOPS_WANTED, type SymbolKey, TRANSITION_START,
+  ADVANCE_CHANCE, CLEAN_SHARE, ERA_RULES, FACTORS, type Factor, FLOOR_CAP, FLOORS, LITERATE_WANTED, PAVED_SHARE,
+  RENOVATE_CHANCE, SCORE_MONTHS, SHOPS_WANTED, type SymbolKey, TRANSITION_START,
 } from "./eraRules.js";
+import { trainedOf } from "./trainedPeople.js";
 import type { Building } from "./objects/cityObject.js";
 import { Random } from "./random.js";
 import { houseStanding } from "./rulerHouse.js";
@@ -30,6 +31,9 @@ type Legacy = any;
 
 /** One side of life as the score saw it this month */
 export interface FactorScore { value: number; target: number; done: number; weight: number }
+
+/** A symbol of the era and whether the city has it */
+export interface EraSymbol { key: SymbolKey; has: boolean; count?: { have: number; need: number } }
 
 /** The era score of a month, kept on the map for the status bar and the era card (map.eraScore) */
 export interface EraScore {
@@ -45,8 +49,8 @@ export interface EraScore {
   /** How well they live, 0-1 */
   quality: number;
   factors: Record<Factor, FactorScore>;
-  /** The symbols the era wants, and which the city has */
-  symbols: { key: SymbolKey; has: boolean }[];
+  /** The symbols the era wants, and which the city has; one that counts (literate) also says how many it has and wants */
+  symbols: EraSymbol[];
   /** A floor not met (water or power) holds the score below the transition */
   heldBy: Factor | null;
 }
@@ -73,8 +77,22 @@ function servedShares(map: Legacy, objects: Objects): { water: number; power: nu
   return homes ? { water: watered / homes, power: powered / homes } : { water: 0, power: 0 };
 }
 
+/** The villagers who read and write the literate symbol wants in a mode (src/gameModes.ts), and the city has */
+export function literateCount(map: Legacy, level: unknown): { have: number; need: number } {
+  return { have: trainedOf(map).literate, need: Math.ceil(LITERATE_WANTED * modeRule(level).trained) };
+}
+
+/** An era symbol: whether the city has what it asks, and for one that counts, how many */
+function symbolOf(key: SymbolKey, map: Legacy, sim: Legacy, objects: Objects): EraSymbol {
+  if (key === "literate") {
+    const count = literateCount(map, sim._gameLevel);
+    return { key, has: count.have >= count.need, count };
+  }
+  return { key, has: hasSymbol(key, map, objects) };
+}
+
 /** Whether the city has what an era symbol asks */
-function hasSymbol(key: SymbolKey, map: Legacy, objects: Objects): boolean {
+function hasSymbol(key: Exclude<SymbolKey, "literate">, map: Legacy, objects: Objects): boolean {
   // (a building still being built is not had yet, src/construction.ts)
   const sites = map.sites || {};
   const kinds = (field: string): string[] =>
@@ -132,7 +150,7 @@ export function scoreEra(map: Legacy, sim: Legacy, objects: Objects, era: Era = 
     clean: (1 - (census.pollutionAverage ?? 0) / 255) * (1 - clamp01(sim._waste?.overflow ?? 0)),
     living: (approval + clamp01((census.landValueAverage ?? 0) / 250)) / 2,
   };
-  const symbols = rule.symbols.map(key => ({ key, has: hasSymbol(key, map, objects) }));
+  const symbols = rule.symbols.map(key => symbolOf(key, map, sim, objects));
   const factors = {} as Record<Factor, FactorScore>;
   let quality = 0;
   for (const factor of FACTORS) {

@@ -181,7 +181,8 @@ export class EraCard {
       for (const symbol of report.symbols) {
         const item = el("li", "eraRow");
         item.dataset.met = String(symbol.has);
-        item.append(el("span", "eraMark", symbol.has ? "✓" : "✗"), el("span", "eraRowName", t(`era.symbol.${symbol.key}`)));
+        // (one that counts, the villagers who read and write, says how many it wants and the city has)
+        item.append(el("span", "eraMark", symbol.has ? "✓" : "✗"), el("span", "eraRowName", t(`era.symbol.${symbol.key}`, symbol.count)));
         if (symbol.hint) item.append(el("span", "eraHint", t(symbol.hint)));
         symbols.append(item);
       }
