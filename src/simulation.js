@@ -59,7 +59,8 @@ import { calendarOf, festivalLandValue, festivalsRun, festivalTraffic, festivalV
 import { Traffic } from './traffic.js';
 import { Transport } from './transport.js';
 import { Valves } from './valves.js';
-import { nextWeather, startingWeather, weatherFlood, weatherTraffic, weatherVisitors } from './weather.ts';
+import { nextWeather, startingWeather, weatherTraffic, weatherVisitors } from './weather.ts';
+import { spellBeginning, stormDuring } from './rainSpells.ts';
 import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 
 // rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
@@ -702,8 +703,9 @@ Simulation.prototype._drought = function() {
 // The seasons' disasters this month (src/provinceRules.ts), rarer with the ruler's house's warning tower
 Simulation.prototype._seasonalRisks = function(month) {
   var risks = seasonalRisks(this.rules, month);
-  // ... and a storm's heavy rain, which floods low land beside the water (src/weather.ts)
-  var flood = weatherFlood(this._map.weather || null, this._climate());
+  // ... and a storm spell's heavy rain this month, which floods low land beside the water (src/rainSpells.ts)
+  var weather = this._map.weather, climate = this._climate(), week = (this._cityTime >> 2) * 4;
+  var flood = weather && stormDuring(weather.seed, climate, week, week + 4) ? climate.flood : 0;
   if (flood > 0)
     risks = risks.concat([{disaster: 'flood', chance: chancePerCycle(flood), lowLand: true}]);
   if (!hasWing(this._map, 'warning_tower'))
@@ -721,8 +723,9 @@ Simulation.prototype._climate = function() {
 
 
 // PhaiCity: the month's weather after the last (src/weather.ts): the smoke of the city's own fields while their stubble
-// burns, the traffic it slows, the rain the ground takes in this month (src/waterManager.ts), and the news of a storm
-// and of the year's first rains
+// burns, the traffic it slows, the rain the ground takes in this month (src/waterManager.ts), and the news of a rain
+// spell beginning this month (src/rainSpells.ts): a storm, or the first rains of the year (owner, 21 Oct 2026: the news
+// only with a spell)
 Simulation.prototype._weatherMonth = function() {
   var month = this.getDate().month;
   var climate = this._climate();
@@ -738,11 +741,12 @@ Simulation.prototype._weatherMonth = function() {
   this._waterManager.weather = weather;
 
   var wet = weather.kind === 'rain' || weather.kind === 'storm';
-  if (weather.kind === 'storm' && previous.kind !== 'storm')
+  var week = (this._cityTime >> 2) * 4, spell = spellBeginning(weather.seed, climate, week, week + 4);
+  if (spell && spell.storm)
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.HEAVY_STORM});
-  else if (wet && this._dryMonths >= FIRST_RAINS_AFTER)
+  else if (spell && this._dryMonths >= FIRST_RAINS_AFTER)
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.FIRST_RAINS});
-  this._dryMonths = wet ? 0 : this._dryMonths + 1;
+  this._dryMonths = spell ? 0 : this._dryMonths + 1;
 };
 
 
