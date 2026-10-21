@@ -7,7 +7,7 @@ import * as path from "path";
 import { SOUNDS } from "../src/audio/catalog";
 import { AudioEngine, defaultSettings, parseSettings } from "../src/audio/engine";
 import {
-  ambienceLevels, AMBIENCE_BEDS, BULLDOZER_SOUNDS, classifyTile, isRainySeason, nextWeather, pickAmbientOneShot, sampleView,
+  ambienceLevels, AMBIENCE_BEDS, BULLDOZER_SOUNDS, classifyTile, pickAmbientOneShot, rainHeard, sampleView,
   soundForTool, soundsForMessage, SPRITE_SOUNDS, TOOL_RESULT, ViewStats,
 } from "../src/audio/gameAudio";
 import { uiSoundForControl } from "../src/audio/uiSounds";
@@ -301,24 +301,20 @@ describe("ambience", () => {
     expect(ambienceLevels({ ...empty, total: 100 })["amb.rain"]).toBe(0);
   });
 
-  test("rain comes in spells, in the rainy season only", () => {
-    const dry = { raining: false, until: 0 };
-    expect(isRainySeason(4)).toBe(true);
-    expect(isRainySeason(11)).toBe(false);
-    expect(nextWeather(dry, 0, 1000, () => 0)).toEqual(dry); // January: never
-    const wet = nextWeather(dry, 6, 1000, () => 0);
-    expect(wet.raining).toBe(true);
-    expect(wet.until).toBe(1000 + 30000);
-    expect(nextWeather(wet, 6, 20000, () => 0.99)).toBe(wet); // keeps raining until it ends
-    expect(nextWeather(wet, 6, 31000, () => 0.99)).toEqual({ raining: false, until: 31000 });
-    expect(nextWeather(dry, 6, 1000, () => 0.99)).toEqual(dry); // not every check starts rain
+  test("rain is heard only while a shower falls, thunder only in a storm", () => {
+    expect(rainHeard(null)).toEqual({ raining: false, thunder: false });
+    expect(rainHeard({ kind: "overcast", rain: 0 })).toEqual({ raining: false, thunder: false });
+    expect(rainHeard({ kind: "rain", rain: 0.4 })).toEqual({ raining: true, thunder: false });
+    expect(rainHeard({ kind: "storm", rain: 0.9 })).toEqual({ raining: true, thunder: true });
+    expect(rainHeard({ kind: "storm", rain: 0 })).toEqual({ raining: false, thunder: false });
   });
 
   test("one-shots fit the view and the weather", () => {
     const always = () => 0;
     const never = () => 0.99;
     expect(pickAmbientOneShot({ ...empty, total: 100, stadiumGame: 4 }, false, always)).toBe("amb.crowd");
-    expect(pickAmbientOneShot({ ...empty, total: 100 }, true, always)).toBe("amb.thunder"); // thunder only in the rain
+    expect(pickAmbientOneShot({ ...empty, total: 100 }, true, always, true)).toBe("amb.thunder"); // thunder in a storm
+    expect(pickAmbientOneShot({ ...empty, total: 100 }, true, always)).toBeNull(); // ... not in plain rain
     expect(pickAmbientOneShot({ ...empty, total: 100 }, false, always)).toBeNull();
     expect(pickAmbientOneShot({ ...empty, total: 100, water: 50 }, false, never)).toBeNull();
   });

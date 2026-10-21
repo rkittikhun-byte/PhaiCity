@@ -139,6 +139,8 @@ export class CityView3D implements CityView {
   private sunAngle=Math.PI*0.35;
   /** The sun's place from the game's clock, null until the game sends one (setSunAngle) */
   private clockAngle:number|null=null;
+  /** The sky now as the game shows it (src/rainSpells.ts setSky); undefined until the game gives one */
+  private skyNow:Weather|null|undefined=undefined;
   private lastNightFactor=-1;
   /** The month's weather as the view shows it (weather.ts), read from the map, and the look last lit by */
   private weather:CityWeather;private look:WeatherLook;private litLook=new Float32Array(6).fill(-1);
@@ -325,6 +327,8 @@ export class CityView3D implements CityView {
   /** Where the game's clock puts the sun (src/dayClock.ts sunAngle): 0 rising, π setting, on to 2π through the night;
    * the auto cycle follows it from then on */
   setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
+  /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, shown in its place */
+  setSky(sky:Weather|null):void{this.skyNow=sky;}
   /** Switch between Day Mode, Dark Mode and Auto Day/Night Cycle */
   setDarkMode(on:boolean):void {
     this.dayNightMode=on?'night':'day';
@@ -478,8 +482,9 @@ export class CityView3D implements CityView {
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
-    // The month's weather (src/weather.ts), read from the map and eased in, in real seconds so a paused storm still rains
-    this.weather.update((this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
+    // The sky now (src/rainSpells.ts: the month's weather with its rain spells; the map's month without a game),
+    // eased in, in real seconds so a paused storm still rains
+    this.weather.update(this.skyNow!==undefined?this.skyNow:(this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
     this.updateDayNight();this.updateSun();
     // The month's festivals, read from the map (src/festivals.ts): lanterns along the roads, krathong on the water, sky
     // lanterns and rockets, lit by the hour, moving in real seconds as the weather does, so a paused festival still shows
