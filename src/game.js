@@ -261,6 +261,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     eraGame.refreshLocks();
   });
   this.core.on('month', function() { eraGame.refreshLocks(); });
+  onLanguageChange(function() { eraGame.refreshLocks(); });
   this.core.on('era', function(event) {
     eraGame.refreshLocks();
     eraGame._notificationBar.goodText(t('congrats.era', {name: eraGame.name, era: t('era.name.' + event.era)}));
@@ -1249,8 +1250,21 @@ Game.prototype.applyCommand = function(command) {
 Game.prototype.setChoices = function(group, list) {
   this._choiceLists = this._choiceLists || {};
   this._choiceLists[group] = list;
-  setToolChoices(group, list.map(this.lockChoice, this));
+  this.showChoices(group, true);
+};
+
+
+// A group's places with their locks, given again to the tools only when one changed: the cards are drawn anew each time
+Game.prototype.showChoices = function(group, always) {
+  var shown = this._choiceLists[group].map(this.lockChoice, this);
+  var key = JSON.stringify(shown);
+  this._choiceKeys = this._choiceKeys || {};
+  if (!always && this._choiceKeys[group] === key)
+    return false;
+  this._choiceKeys[group] = key;
+  setToolChoices(group, shown);
   this.lockGroupButton(group);
+  return true;
 };
 
 
@@ -1299,10 +1313,9 @@ Game.prototype.lockGroupButton = function(group) {
 Game.prototype.refreshLocks = function() {
   if (!this.core)
     return;
-  for (var group in this._choiceLists || {}) {
-    setToolChoices(group, this._choiceLists[group].map(this.lockChoice, this));
-    this.lockGroupButton(group);
-  }
+  var changed = false;
+  for (var group in this._choiceLists || {})
+    changed = this.showChoices(group, false) || changed;
   // ... and the buttons of a tool of their own
   var game = this;
   document.querySelectorAll('#buttons .toolButton[data-tool]').forEach(function(button) {
@@ -1310,13 +1323,18 @@ Game.prototype.refreshLocks = function() {
     if (toolChoicesFor(tool))
       return;
     var lock = game.core.commands.lock(tool);
+    var title = lock ? lockedTitle(tool, lock) : undefined;
+    if (button.dataset.lockTitle === title)
+      return;
+    changed = true;
     button.classList.toggle('locked', lock !== null);
-    if (lock)
-      button.dataset.lockTitle = lockedTitle(tool, lock);
+    if (title)
+      button.dataset.lockTitle = title;
     else
       delete button.dataset.lockTitle;
   });
-  relabelTools();
+  if (changed)
+    relabelTools();
 };
 
 

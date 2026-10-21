@@ -249,8 +249,10 @@ export function installToolDock(doc: Document = document): void {
 
         const card = doc.createElement("button");
         card.type = "button";
-        card.className = `trayCard${choice.tool === activeTool ? " is-active" : ""}${available ? "" : " unavailable"}`;
-        card.disabled = !available;
+        // (a place the city cannot build yet stays open to pointing, which says why, src/unlocks.ts)
+        const locked = Boolean(choice.locked) && !houseLocked;
+        card.className = `trayCard${choice.tool === activeTool ? " is-active" : ""}${available ? "" : " unavailable"}${locked ? " locked" : ""}`;
+        card.disabled = !available && !locked;
         card.dataset.tool = choice.tool;
 
         // Thumbnail box
@@ -264,9 +266,8 @@ export function installToolDock(doc: Document = document): void {
         const price = toolLabel(choice.tool).price;
         const badge = doc.createElement("span");
         badge.className = "cardPrice";
-        badge.textContent = !available
-          ? t(houseLocked ? "dock.house_first" : choice.reason ?? "choice.unavailable")
-          : choice.note ? t(choice.note) : price;
+        const why = houseLocked ? t("dock.house_first") : choice.reasonText ?? t(choice.reason ?? "choice.unavailable");
+        badge.textContent = !available ? why : choice.noteText ?? (choice.note ? t(choice.note) : price);
 
         thumb.append(thumbImg, badge);
 
@@ -277,7 +278,7 @@ export function installToolDock(doc: Document = document): void {
 
         card.append(thumb, name);
         card.setAttribute("aria-label", t(`choice.${choice.tool}`));
-        tip(card, t(`choice.${choice.tool}`), price);
+        tip(card, t(`choice.${choice.tool}`), available ? choice.noteText ?? price : why);
 
         card.addEventListener("click", () => {
           if (!available) return;
@@ -380,10 +381,12 @@ export function installToolDock(doc: Document = document): void {
         const family = toolChoicesFor(toolId);
         const hasChoices = Boolean(family?.length);
         const isArmed = orig.classList.contains("selected");
+        // A tool the city cannot build yet (src/game.js refreshLocks): greyed with a lock, pointing at it says why
+        const locked = orig.classList.contains("locked");
 
         const card = doc.createElement("button");
         card.type = "button";
-        card.className = `trayCard${isArmed ? " is-active" : ""}${orig.disabled ? " unavailable" : ""}`;
+        card.className = `trayCard${isArmed ? " is-active" : ""}${orig.disabled || locked ? " unavailable" : ""}${locked ? " locked" : ""}`;
         card.disabled = orig.disabled;
         card.dataset.tool = toolId;
 
@@ -416,10 +419,10 @@ export function installToolDock(doc: Document = document): void {
 
         card.append(thumb, name);
         card.setAttribute("aria-label", TOOL_GROUP_LABELS.has(toolId) ? t(`dock.group.${toolId}`) : toolLabel(toolId).name);
-        tip(card, name.textContent ?? "", price);
+        tip(card, locked ? orig.dataset.lockTitle ?? name.textContent ?? "" : name.textContent ?? "", locked ? "" : price);
 
         card.addEventListener("click", () => {
-          if (orig.disabled) return;
+          if (orig.disabled || locked && !hasChoices) return;
           if (hasChoices) {
             // STEP 2: Transition sub-menu in the tray
             currentGroup = toolId;

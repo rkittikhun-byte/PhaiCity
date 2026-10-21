@@ -10,6 +10,9 @@
 import { hasKey, t } from "./i18n/index";
 import { toolLabel } from "./toolShortcuts";
 import type { UnlockLock } from "./unlocks";
+import { MINE_TOOLS } from "./mining";
+
+const isMineTool = (tool: string): boolean => (Object.values(MINE_TOOLS) as string[]).includes(tool);
 
 const count = (value: unknown): string => Number(value).toLocaleString("en-US");
 
@@ -43,12 +46,12 @@ export function lockedTitle(tool: string, lock: UnlockLock): string {
   return t("unlock.locked_title", { name: plainToolName(tool), reason: lockText(lock) });
 }
 
-/** The names of what an era brings, each once, in the table's order (several mines read as one name each) */
+/** The names of what an era brings, each once, in the table's order (the mines and wells read as one) */
 export function unlockNames(tools: readonly string[]): string[] {
   const names: string[] = [];
   for (const tool of tools) {
     if (tool.startsWith("zone_")) continue; // the brushes are their zones
-    const name = plainToolName(tool);
+    const name = isMineTool(tool) ? t("dock.group.mine") : plainToolName(tool);
     if (name && !names.includes(name)) names.push(name);
   }
   return names;
