@@ -83,5 +83,7 @@ export const SHOPS_WANTED = 5;
  * normal mode, times the mode's trained (src/gameModes.ts): a village school's first classes, two years or so of them */
 export const LITERATE_WANTED = 50;
 /** The technicians (secondary school and college graduates) the technicians symbol wants in the normal mode, times the
- * mode's trained: as many as the first paved roads take (src/unlocks.ts road_asphalt) */
-export const TECHNICIANS_WANTED = 20;
+ * mode's trained: about a secondary school's first whole class (was 20, as many as the first paved roads take,
+ * src/unlocks.ts road_asphalt; at 20 a normal-mode town met it with its first January's half class, three years into
+ * the market town, docs/GAME_DESIGN.md 6.5) */
+export const TECHNICIANS_WANTED = 30;
