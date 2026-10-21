@@ -25,6 +25,7 @@ import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
 import { calendarOf, newFestivalState, readFestivals, writeFestivals } from "../festivals.js";
+import { newTrainedState, readTrained, writeTrained } from "../trainedPeople.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -104,6 +105,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.weather = readWeather(saved.weather);
     // ... and the festivals: the ruler's answers, this month's and their afterglow (src/festivals.ts)
     map.festivals = readFestivals(saved.festivals);
+    // ... and the people its schools trained (src/trainedPeople.ts)
+    map.trained = readTrained(saved.trained);
   } else {
     // A new city builds its ruler's house before anything else
     map.civicKinds = {};
@@ -183,6 +186,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.buses = map.buses || [];
   map.zoneCells = map.zoneCells || new Map();
   map.festivals = map.festivals || newFestivalState();
+  map.trained = map.trained || newTrainedState();
 }
 
 /** The pieces of the roads and railways on the map (src/roadPieces.ts) */
@@ -249,6 +253,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     weather: map.weather ? { ...map.weather } : undefined,
     // ... and the festivals (src/festivals.ts)
     festivals: writeFestivals(map.festivals),
+    // ... and the people its schools trained (src/trainedPeople.ts)
+    trained: writeTrained(map.trained),
   };
 }
 
