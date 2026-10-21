@@ -10,6 +10,7 @@ import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
 import { zoneCode } from "../src/zoneCells";
+import { blockAt, blockColumns, blockRows } from "../src/landBlocks";
 
 /** A bare 16 m map painted a cell at a time, with a road through the town and a crossing road; with a province's
  *  resources it keeps the country's festivals (src/festivals.ts calendarOf), else none */
@@ -121,6 +122,31 @@ describe("the auto player", () => {
     expect(planned).toBeGreaterThanOrEqual(0);
     expect(year.slice(planned + 1).some((line) => line.includes("ruler_house_upgrade at"))).toBe(true);
     expect(core.map.rulerHouse?.level).toBeGreaterThanOrEqual(2);
+  });
+
+  test("buys a block of land for a building dearer than it, and clears plots for a cheaper one (6.5)", () => {
+    Random.seed(5);
+    const core = town();
+    // The city owns only the town's block (src/landBlocks.ts), its roadsides painted
+    const map = core.map as any;
+    map.landBlocks = new Uint8Array(blockColumns(map) * blockRows(map));
+    map.landBlocks[blockAt(map, 40, 30)] = 1;
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 6000, paintEachYear: 0 });
+    const place = (tool: string, reach?: number, x = 40, y = 30) => (player as any).place(tool, x, y, reach) as boolean;
+    expect(place("ruler_house")).toBe(true);
+    (player as any).paint(6000);
+    const bought = () => map.landBought ?? 0;
+    // A ฿300 water tower finds no room and buys no ฿1,000 block for it
+    expect(place("watertower", 3, 52, 12)).toBe(false);
+    expect(bought()).toBe(0);
+    // ฿500 health posts, once the open places beside the roads are taken, clear a young plot or two on the town's own land
+    const cleared = () => player.log.some((line) => /cleared \d+ cells for health_centre/.test(line));
+    for (let n = 0; n < 20 && !cleared(); n++) expect(place("health_centre")).toBe(true);
+    expect(cleared()).toBe(true);
+    expect(bought()).toBe(0);
+    // A ฿3,000 power plant buys a block beside the town's and goes up there
+    expect(place("coal")).toBe(true);
+    expect(bought()).toBe(1);
   });
 
   test("answers through the festival command, and a festival not held costs the year nothing", () => {

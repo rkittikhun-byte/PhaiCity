@@ -226,7 +226,7 @@ const FESTIVAL_KEEP = 250;
 
 /** The schools that train each kind of trained people, the first tried first (src/trainedPeople.ts TRAINING) */
 const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
-  literate: ["primary_school"], technician: ["secondary_school", "vocational_college"], nurse: ["vocational_college"],
+  literate: ["primary_school"], technician: ["secondary_school", "vocational_college"], nurse: ["health_centre", "vocational_college"],
   engineer: ["university"], doctor: ["university"],
 };
 
@@ -716,19 +716,25 @@ export class AutoPlayer {
         }
       }
     }
-    // No room left on the city's land: a block more, and the building there, when the treasury pays for both (a town that
-    // bought the land with the water works' money then could not build them, src/landBlocks.ts blockPrice)
-    const both = blockPrice(map as never) + (this.core.tools?.[tool]?.toolCost ?? 0);
-    if (!this.buying && (!map.landBlocks || this.core.simulation.budget.totalFunds >= both)) {
+    // No room left on the city's land: plots cleared for it beside a road, as a player knocks houses down for a stadium or
+    // a port, or for what the town could not build before its land was painted (src/unlocks.ts: water works, schools,
+    // hospitals); and a block more, and the building there, when the treasury pays for both (a town that bought the land
+    // with the water works' money then could not build them, src/landBlocks.ts blockPrice). A building dearer than a
+    // block buys the block first; one cheaper clears plots first, and one that clears none (a water tower, a bus stop:
+    // smaller than 3 × 3 or tried only near its spot) never buys one: the normal mode's
+    // towns paid ฿7,500 for six blocks in their first two years to put up ฿300 towers and ฿500 health posts, two of
+    // the blocks with no road for them, while their one power plant was full (docs/GAME_DESIGN.md 6.5)
+    const price = this.core.tools?.[tool]?.toolCost ?? 0, block = blockPrice(map as never);
+    const clears = reach > 16 && (this.core.tools?.[tool]?.size ?? 1) >= 3;
+    if (clears && price < block && this.clearFor(tool, cx, cy)) return true;
+    if (!this.buying && (clears || price >= block) && (!map.landBlocks || this.core.simulation.budget.totalFunds >= block + price)) {
       this.buying = true;
       const land = this.buyLand();
       const built = land !== null && this.place(tool, land.x, land.y, 16);
       this.buying = false;
       if (built) return true;
     }
-    // Still no room: plots cleared for it beside a road, as a player knocks houses down for a stadium or a port, or for
-    // what the town could not build before its land was painted (src/unlocks.ts: water works, schools, hospitals)
-    if (reach > 16 && (this.core.tools?.[tool]?.size ?? 1) >= 3 && this.clearFor(tool, cx, cy)) return true;
+    if (clears && price >= block && this.clearFor(tool, cx, cy)) return true;
     const reasons = [...this.failures].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${why} ×${n}`);
     this.note(`${tool}: no place (${reasons.join(", ")})`);
     return false;

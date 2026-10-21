@@ -9,6 +9,9 @@
 //   once its first classes have finished (the era symbol "literate", src/eraRules.ts; docs/GAME_DESIGN.md 6.5).
 // - Technicians come out of lower secondary schools and vocational colleges, nurses out of vocational colleges, engineers
 //   and doctors out of universities, and only from a school that works (standing, finished, with power).
+// - Each working health centre (รพ.สต.) brings a nurse home a year: a young villager it sent to nursing college on the
+//   district's grant, as Thailand's "nurses back home" scholarships do, so a market town's community hospital need not
+//   wait for a vocational college (21 Oct 2026; the normal mode's towns had no nurse in ten years, docs/GAME_DESIGN.md 6.5).
 // - A school fills as many of its seats as the city has children (secondary) or young people (colleges, universities)
 //   for them, shared with the other schools of its field (src/services.ts), and a class is its filled seats over the
 //   years of its course.
@@ -34,6 +37,8 @@ export interface Training {
   wait: number;
   /** The share of a class that becomes each kind of trained person */
   makes: Partial<TrainedCounts>;
+  /** A class of this many a year, whatever the city's students (a health centre's nurses), in place of its seats */
+  yearly?: number;
 }
 
 /** Which schools train whom (data, one place to tune it) */
@@ -43,6 +48,8 @@ export const TRAINING: Readonly<Partial<Record<ServiceKind, Training>>> = {
   secondary_school: { course: 3, wait: 12, makes: { technician: 0.12 } },
   vocational_college: { course: 3, wait: 12, makes: { technician: 0.5, nurse: 0.2 } },
   university: { course: 4, wait: 48, makes: { engineer: 0.25, doctor: 0.06 } },
+  // (a nurse a year from each health centre, once its first scholar has studied two years)
+  health_centre: { course: 1, wait: 24, makes: { nurse: 1 }, yearly: 1 },
 };
 
 /** The share of each kind that leaves every year, and the share more that leaves for each share of workers with no job */
@@ -158,8 +165,8 @@ export function trainMonth(map: TrainingMap, city: TrainingCity, month: number):
   for (const [tile, kind] of Object.entries(civic)) {
     if (!isServiceKind(kind)) continue;
     const spec = SERVICE_SPECS[kind];
-    if (spec.field === "health" || !working(map, Number(tile))) continue;
-    seats[spec.field] += spec.places;
+    if (!working(map, Number(tile))) continue;
+    if (spec.field !== "health") seats[spec.field] += spec.places;
     if (!TRAINING[kind]) continue;
     worked[tile] = (state.worked[tile] ?? 0) + 1;
     schools.push({ tile, kind });
@@ -174,7 +181,7 @@ export function trainMonth(map: TrainingMap, city: TrainingCity, month: number):
   for (const { tile, kind } of schools) {
     const training = TRAINING[kind]!, spec = SERVICE_SPECS[kind];
     if (worked[tile] <= Math.round(training.wait * (city.schooling ?? 1))) continue;
-    const yearClass = spec.places * fill[spec.field as "basic" | "higher"] / training.course;
+    const yearClass = training.yearly ?? spec.places * fill[spec.field as "basic" | "higher"] / training.course;
     for (const [trained, share] of Object.entries(training.makes) as [TrainedKind, number][]) {
       state.cohort[trained] += yearClass * share / 12;
     }
