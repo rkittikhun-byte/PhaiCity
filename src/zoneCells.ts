@@ -4,13 +4,14 @@
 
 // Zone cells along the roads, as in Cities: Skylines (owner, 14 Oct 2026: "ลดขนาดช่องลงอีก เหลือ 4x4 และ วาดสีทีละช่อง
 // และ ให้ snap กันถนน", then "จาก 4x4 เหลือ 2x2", Mueang Khon Kaen first). Beside every road that zones may face, on
-// both sides, rows of 2 m cells (half a Thai shophouse's frontage) lie along the road's smooth line
+// both sides, rows of 4 m cells (CELL_M, about a Thai shophouse's frontage) lie along the road's smooth line
 // (src/roadGeometry.ts), straight, slanted or curved, CELL_DEPTH deep (16 m: one plot, PLOT_ROWS rows); the player paints homes, shops or factories a cell at a time (the zoneCells command,
 // src/cityCommands.ts). Where two roads' cells would overlap, the nearer road's win; no cell lies on a road, a railway,
 // water, a building, outside the district or on land the city has not bought.
 // A painted cell is kept by where its middle lies, on a 1 m raster of the map (its key), so the paint stays when the
-// road is straightened or upgraded in place. Step 1: painting and keeping; the buildings that grow on painted cells
-// come next (docs/ZONE_CELLS.md). Plain code: no DOM, nothing random.
+// road is straightened or upgraded in place. A tile whose cells are painted enough becomes a plot that grows its own
+// building (syncCellPlots; docs/ARCHITECTURE.md section 4, docs/METRE_DRAWING_PLAN.md). Plain code: no DOM, nothing
+// random.
 
 import { isOpenLand, plotKindOfValue, plotTile } from "./plots";
 import { BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";

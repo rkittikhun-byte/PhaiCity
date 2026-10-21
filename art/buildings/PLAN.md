@@ -28,6 +28,7 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   layers), railings with balusters, real steps, eave brackets, gutters and downpipes, bevelled edges where the
   concept is rounded, and the yard things of the sheets (jars, water tanks, AC units, pots, plants, spirit houses,
   signs without brands). 9-10 (every board and tile modelled, interiors) is out of scope.
+- The parts each kind of building should have: `docs/3d/DETAIL_CHECKLIST.md`.
 - Triangles in the Blender source: 1 tile 6,000-12,000; a 2x2 lot 15,000-30,000; a 3x3 service 25,000-45,000. The
   game gets lighter versions at import (LOD), as the people did.
 

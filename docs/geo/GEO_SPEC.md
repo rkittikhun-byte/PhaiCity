@@ -273,6 +273,9 @@ Every flag must appear on the review page and in the final report.
 5. `npm test` and `npm run build` pass, and the game plays as before.
 6. No changes to existing license headers. New files get the PhaiCity header (see `docs/3d/MODEL_SPEC.md` section 8).
 7. Report to the project owner **in Thai**: what was produced, every flag found, and anything that needs a human decision.
+8. After the province maps are built again, the owner looks at every map on the review page (`npm run geo:review`,
+   `geo-review.html`: all 77 maps by region, flags in red, a click enlarges one and shows its centre). Where a town
+   centre is wrong, the owner fixes it in `data/geo/center-overrides.json` and `npm run geo:maps` runs again.
 
 ## 13. Local Thailand Database (PostgreSQL + PostGIS) & Real-Scale District Maps
 
