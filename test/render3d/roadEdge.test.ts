@@ -23,6 +23,10 @@ import { realUnits } from '../../src/roadGeometry.js';
 import { besideRoad } from '../../src/cityCommands';
 import { blockOf } from '../../src/buildings/placedBuildings';
 import { isRoadTile } from '../../src/roadTiles';
+import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
+import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
+
+const flat = { sample: () => 0, sampleTile: () => 0, inside: () => true } as unknown as CityHeightField;
 
 const index = JSON.parse(readFileSync(resolve('assets/models/buildings/index.json'), 'utf8')) as EraIndex;
 /** World units a metre on a 16 m city map */
@@ -91,9 +95,11 @@ function built(tool: string, size: number, angle: number, era: boolean) {
   return { core, map, snapshot, p: snapshot.placement(b.tile, 'central')!, r, back };
 }
 
-/** How far ahead of its middle a placement's front stands as drawn: an era model's lot, else its model's own box */
+/** How far ahead of its middle a placement's front stands as drawn: an era model's lot, the house's fence, else its model's own box */
 function frontOf(p: Placement): number {
   const era = parseEraId(p.id);
+  // (the ruler's house drawn smaller than its lot, by its level: its own fence, 23.4 m from its middle at full size)
+  if (era?.kind === 'ruler_house') return 23.4 * p.scale;
   if (era) return (index.kinds[era.kind].tiles * 16 / 2 - 0.5) * p.scale;
   const root = registry[p.id!].factory(p.options), box = new Box3().setFromObject(root);
   disposeModel(root);
@@ -145,6 +151,32 @@ describe('buildings against their road', () => {
         expect([part.id, gapToRoad(part, r, box.max.z * part.scale) >= houseFront + 0.5 * U]).toEqual([part.id, true]);
       }
     }
+  });
+
+  test('every kind lies on a lot as big as it is drawn, never bigger than the tiles it takes', () => {
+    // Owner, 21 Oct 2026: "พื้นที่รอบข้าง object มันเกินที่ๆ กำหนดหรือป่าว ต้องย่อให้เท่าๆ กับที่สร้างได้พอดี"
+    const wrong: string[] = [];
+    for (const angle of [0, Math.PI / 4]) for (const era of [true, false]) for (const [tool, size] of KINDS) {
+      const { snapshot } = built(tool, size, angle, era);
+      // (the road curves stand the buildings against their own lines of the road's tiles)
+      const curves = new RoadCurves(snapshot, flat);
+      try {
+        const b = [...(snapshot.source as any).buildings.all()][0], p = snapshot.placement(b.tile, 'central')!;
+        const rect = curves.lotAt(b.tile)!;
+        expect(rect).not.toBeNull();
+        const across = Math.hypot(rect[1][0] - rect[0][0], rect[1][1] - rect[0][1]);
+        const deep = Math.hypot(rect[3][0] - rect[0][0], rect[3][1] - rect[0][1]);
+        // ... the model's own front, sides and back (an era model's 47 m lot, a model's own site)
+        const front = frontOf(p);
+        if (Math.abs(across - 2 * front) > 0.1 * U || Math.abs(deep - 2 * front) > 0.1 * U || across > size * 10 || deep > size * 10) {
+          wrong.push(`${tool} as ${p.id}: lot ${(across / U).toFixed(1)} x ${(deep / U).toFixed(1)} m, drawn ${(2 * front / U).toFixed(1)} m`);
+        }
+        // ... its front where the building's is
+        const ahead = (rect[2][0] + rect[3][0]) / 2, aheadZ = (rect[2][1] + rect[3][1]) / 2;
+        expect(Math.hypot(ahead - (p.x + Math.sin(p.rotation) * p.front!), aheadZ - (p.z + Math.cos(p.rotation) * p.front!))).toBeLessThan(1e-3);
+      } finally { curves.dispose(); }
+    }
+    expect(wrong).toEqual([]);
   });
 
   test('a building at a corner, its side to a road, stays where it was put; with no road it stays too', () => {

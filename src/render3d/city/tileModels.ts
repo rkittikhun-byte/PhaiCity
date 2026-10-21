@@ -592,6 +592,8 @@ export class TileSnapshot implements CityMapReader {
     // The era model is in metres (3 tiles of 16 m) and drawn at `metre` world units a metre; the wings' models too
     const metre=p.scale,half=1.5*(this.eraModels?.index.tileMetres??16),ring=half*(1+grow*HOUSE_FENCE_SHARE)/2;
     p.scale=metre*grow;p.height*=grow;p.front=half*grow*HOUSE_FENCE_SHARE*metre;
+    // ... its wings reaching to its lot's edge beside and behind it, the lot as far as they go
+    if(house.wings?.length){p.side=half*metre;p.back=half*metre;}
     const cos=Math.cos(p.rotation),sin=Math.sin(p.rotation);
     p.parts=parseRulerWings((house.wings??[]).join(',')).map(wing=>{
       const [u,v]=WING_PLACES[wing](ring),x=p.x+(u*cos+v*sin)*metre,z=p.z+(-u*sin+v*cos)*metre;
@@ -623,9 +625,10 @@ export class TileSnapshot implements CityMapReader {
    * road across its front stays where it is. Its front is kept on the placement for its lot and driveway (roadCurves.ts).
    */
   private toRoadEdge(p:Placement|null):Placement|null {
-    if(!p||!p.posed||!this.roadSnap||['residential','commercial','industrial'].includes(p.kind))return p;
+    if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return p;
     const front=p.front??this.frontOf(p);
     p.front=front;
+    if(!this.roadSnap)return p;
     const slide=slideToRoad(p.x,p.z,p.rotation,front,this.roadSnap);
     if(Math.abs(slide)<1e-3)return p;
     const dx=Math.sin(p.rotation)*slide,dz=Math.cos(p.rotation)*slide;
