@@ -127,3 +127,9 @@ Curb bands, water normals, fictional Thai sign canvases and pastel palette are g
 - [Draco](https://github.com/google/draco) glTF decoder, copyright Google LLC — **Apache License 2.0**. Unmodified
   `draco/draco_decoder.js`, `draco/draco_decoder.wasm`, `draco/draco_wasm_wrapper.js`, copied from three.js
   (`examples/jsm/libs/draco/gltf/`); it unpacks the compressed era buildings in the browser.
+
+## The game's icon
+
+- `icons/app/` and the site root's `favicon.ico` (a clump of golden bamboo over a Thai stilt house on a diorama plot)
+  are PhaiCity's own work: modelled and rendered by `art/icon/build_icon.py` in Blender with the era buildings' studio
+  and palette, sized by `scripts/icon/export.mjs`; GPL v3 with the project additional terms.
