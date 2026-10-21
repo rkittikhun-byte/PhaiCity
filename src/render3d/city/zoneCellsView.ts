@@ -27,7 +27,7 @@ export class ZoneCellsView {
     depthWrite: false, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8 });
   // The brush's lot and the dragged area are drawn over everything on the map, as the tools' outlines are
   // (materials/library.ts cityToolMaterial; owner, 18 Oct 2026)
-  private readonly hoverMaterial = new MeshBasicMaterial({ color: 0x4fbf5a, transparent: true, opacity: 0.70,
+  private readonly hoverMaterial = new MeshBasicMaterial({ color: 0x4fbf5a, transparent: true, opacity: 0.5,
     depthWrite: false, depthTest: false, polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12 });
   private readonly borderMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.90,
     depthWrite: false, depthTest: false, polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12 });

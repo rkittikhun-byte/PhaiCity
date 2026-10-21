@@ -13,7 +13,7 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellPlotPose, cellsAlong, cellsNear, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey,
+import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellPlotPose, cellsAlong, cellsInStrip, cellsNear, cellsOf, STRIP_CELLS, PLOT_ROWS, plotTileOfCell, rasterKey,
   tileRasterKeys } from "../src/zoneCells";
 import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
@@ -316,6 +316,43 @@ describe("zone cells", () => {
       // Painted by the command, every one of them
       expect(core.apply({ type: "zoneCells", zone: "residential", cells: stroke }).accepted).toBe(true);
       expect(stroke.every((key) => (core.map as any).zoneCells.get(key) === 1)).toBe(true);
+    });
+
+    test("the strip brush paints against the road a few cells either way of the stroke, the plot's whole depth, on its side only", () => {
+      // Owner, 21 Oct 2026: "การวาดสีให้วาด ทีละ 6 แถว กับพื้นถนน"; on a straight (slanted) road and a curved one
+      const straight = metreCity();
+      expect(straight.apply({ type: "road", tool: "road", from: [200, 800], to: [1000, 800], c1: [450, 600], c2: [750, 600], stroke: 2 }).accepted).toBe(true);
+      const layout = cellLayout(straight.map as any), u = layout.cellUnits;
+      for (const [label, a, b] of [["straight", [500, 395], [800, 461]], ["curved", [520, 655], [700, 664]]] as const) {
+        const from: [number, number] = [a[0] * U, a[1] * U], to: [number, number] = [b[0] * U, b[1] * U];
+        const start = cellAt(layout, 80, ...from)!;
+        expect([label, start]).not.toEqual([label, null]);
+        const keys = cellsInStrip(layout, 80, from, to), cells = keys.map((k) => layout.cells[layout.byKey.get(k)!]);
+        expect([label, cells.length > STRIP_CELLS * CELL_DEPTH]).toEqual([label, true]);
+        for (const c of cells) {
+          // ... on the stroke's side of its road, never across it
+          expect([label, c.nx * start.nx + c.nz * start.nz > 0, c.road === start.road]).toEqual([label, true, true]);
+        }
+        // Every row from the road's edge to the plot's back
+        expect(new Set(cells.map((c) => c.row))).toEqual(new Set(Array.from({ length: CELL_DEPTH }, (_, r) => r)));
+        // ... the stroke's whole length, and no further than half the strip past its ends
+        const foot = (c: typeof cells[number]) => [c.x - c.nx * c.row * u, c.z - c.nz * c.row * u];
+        const along = (c: typeof cells[number], p: readonly number[]) => {
+          const [fx, fz] = foot(c);
+          return Math.abs((p[0] - fx) * Math.sin(c.angle) + (p[1] - fz) * Math.cos(c.angle));
+        };
+        for (const c of cells) expect(Math.min(along(c, from), along(c, to), ...Array.from({ length: 41 }, (_, k) => k / 40).map((t) =>
+          along(c, [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t])))).toBeLessThanOrEqual(STRIP_CELLS * u / 2 + u);
+        // ... and none of that road's cells beside the stroke left out
+        const beside = layout.cells.filter((c) => c.road === start.road && c.nx * start.nx + c.nz * start.nz > 0 &&
+          along(c, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]) <= u);
+        for (const c of beside) expect(keys).toContain(c.key);
+        expect(straight.apply({ type: "zoneCells", zone: "commercial", cells: keys }).accepted).toBe(true);
+      }
+      // A press without a drag: a strip STRIP_CELLS cells long
+      const one = cellsInStrip(layout, 80, null, [650 * U, 428 * U]);
+      expect(one.length).toBeGreaterThanOrEqual((STRIP_CELLS - 1) * CELL_DEPTH);
+      expect(one.length).toBeLessThanOrEqual((STRIP_CELLS + 2) * CELL_DEPTH);
     });
 
     test("a road drawn across it, one built on from its end and a part raised a level leave its cells where they were", () => {

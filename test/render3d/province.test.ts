@@ -1,12 +1,12 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
-import { Euler, Matrix4, Mesh, PerspectiveCamera, Quaternion, Ray, Vector3, WebGLRenderer } from 'three';
+import { Color, Euler, Matrix4, Mesh, PerspectiveCamera, Quaternion, Ray, Vector3, WebGLRenderer } from 'three';
 import { CityHeightField, HILL_EXAGGERATION, provinceColor } from '../../src/render3d/city/heightfield.js';
 import { CityCamera } from '../../src/render3d/city/camera.js';
 import { BUILDING_SCALE, TileSnapshot, ROAD_GAP } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, realUnits, roadReach } from '../../src/roadGeometry.js';
-import { ProvinceSurface } from '../../src/render3d/city/province-surface.js';
+import { ProvinceSurface, smoothPatch } from '../../src/render3d/city/province-surface.js';
 import { Placement, RoadsidePlacement } from '../../src/render3d/city/placement.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
 import { pickTile } from '../../src/render3d/city/picking.js';
@@ -32,6 +32,16 @@ describe('Province ground and appearance',()=>{
     const shader={vertexShader:'#include <common>\n#include <begin_vertex>',fragmentShader:'#include <common>\n#include <dithering_fragment>',uniforms:{}};
     cityLODMaterial(citySurfaceMaterial(),true).onBeforeCompile(shader as never,{} as never);
     expect(shader.fragmentShader).toContain('*0.45');expect(shader.vertexShader).toContain('cityProvince = cityOutside');
+  });
+  it('keeps the leaves of a tree as it gets smaller on the screen, so far trees read as trees, not dark twigs and fruit',()=>{
+    // Owner, 21 Oct 2026: trees seen from the usual height as black specks with red and yellow dots
+    const base=citySurfaceMaterial().clone();base.name='test-leaves';base.userData.materialKey='foliage_tropical';
+    const leaves=cityLODMaterial(base),shader={vertexShader:'#include <common>\n#include <begin_vertex>\n#include <project_vertex>',
+      fragmentShader:'#include <common>\n#include <alphamap_fragment>\n#include <dithering_fragment>',uniforms:{}};
+    leaves.onBeforeCompile(shader as never,{} as never);
+    expect(shader.fragmentShader).toContain('leafMip');expect(leaves.customProgramCacheKey()).toContain('leaves:');
+    const ground=cityLODMaterial(citySurfaceMaterial().clone()),plain={...shader,fragmentShader:'#include <common>\n#include <alphamap_fragment>\n#include <dithering_fragment>'};
+    ground.onBeforeCompile(plain as never,{} as never);expect(plain.fragmentShader).not.toContain('leafMip');
   });
   it('follows the mask transitions as one smoothed, continuous line, with no map perimeter',()=>{
     // Inside: (0,0), (1,0), (0,1). The edge steps from (2,0) down to (2,1), across to (1,1) and down to (1,2)
@@ -125,6 +135,21 @@ describe('Province ground and appearance',()=>{
       expect([...c.land.geometry.getAttribute('cityOutside').array].every(v=>v===1)).toBe(true);
       expect(c.land.geometry.getAttribute('position').count).toBeGreaterThan(4*4*6);
     }}finally{surface.dispose();}
+  });
+  it('on a real-scale city map the open ground shows no tile: covers fade across a slanted edge, no squares of light and dark',()=>{
+    // Owner, 21 Oct 2026: "ทำไมยังเห็นรอยเป็นช่องๆ อยู่"; a paddy beside grass along a 45° line, the land staircase of tiles
+    const f=fixture(12,12),cover=new Uint8Array(144);for(let y=0;y<12;y++)for(let x=0;x<12;x++)cover[y*12+x]=x>y?1:4;
+    const reader={...f.map,tileSizeM:16,paintedZones:true,landCover:cover} as unknown as CityMapReader;
+    const t=f.build(reader);t.snapshot.source=reader as never;const surface=new ProvinceSurface(t.snapshot,t);
+    try{
+      const corner=(x:number,y:number)=>{const c=new Color();(surface as any).corner(x,y,false,c);return c;};
+      const paddy=new Color(0x7aa84a),grass=new Color(0x89a052),step=Math.abs(paddy.g-grass.g);
+      // Along a row across the edge no corner differs from the next by more than half the step between the covers
+      for(let x=1;x<11;x++){const a=corner(x,6),b=corner(x+1,6);expect(Math.abs(a.g-b.g)).toBeLessThan(step*.6);}
+      // ... and the light and dark of the land comes in soft waves, never a jump from one tile corner to the next
+      for(let x=0;x<40;x++)expect(Math.abs(smoothPatch(x*10,30)-smoothPatch((x+1)*10,30))).toBeLessThan(.012);
+      expect(Math.max(...Array.from({length:80},(_,k)=>Math.abs(smoothPatch(k*13,k*7))))).toBeLessThan(.025);
+    }finally{surface.dispose();}
   });
   it('a building stood against its road keeps its smaller size and its turn in the far box',()=>{
     const f=fixture(),t=f.build(),surface=new ProvinceSurface(t.snapshot,t);

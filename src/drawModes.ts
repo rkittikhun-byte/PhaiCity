@@ -6,7 +6,8 @@
 // roads, railways and power lines draw a straight line between two clicks, or one after another, each from where the last
 // ended, until Esc or a right click (ต่อเนื่อง, docs/METRE_DRAWING_PLAN.md 1.5), a curve bent by one or two clicks more,
 // follow the mouse freely, or lay a grid across a dragged rectangle (src/drawPaths.ts); the zone brushes of a map with
-// painted zones (src/plots.ts) paint under the mouse, paint every cell a round brush a few metres across passes over
+// painted zones (src/plots.ts) paint a strip against the road as the mouse goes along it (by default, owner 21 Oct 2026),
+// paint under the mouse, paint every cell a round brush a few metres across passes over
 // (docs/METRE_DRAWING_PLAN.md 3.2), fill a dragged rectangle, or fill a whole stretch of empty land along a road. The mode is chosen in a row of the tool levels card (src/toolLevels.ts) and remembered in this browser.
 // The game does the drawing (src/game.js); this only knows the modes.
 
@@ -16,7 +17,7 @@ import { FARM_ERASE_TOOL, FARM_PAINT_TOOL } from "./farmZone";
 import { ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 
 export const LINE_MODES = ["straight", "chain", "curve", "curve2", "free", "grid"] as const;
-export const PAINT_MODES = ["brush", "circle", "rectangle", "fill"] as const;
+export const PAINT_MODES = ["strip", "brush", "circle", "rectangle", "fill"] as const;
 export type DrawMode = typeof LINE_MODES[number] | typeof PAINT_MODES[number];
 /** The upgrade tool draws as the roads do, and may also take a whole road from junction to junction at a click ("fill",
  * docs/METRE_DRAWING_PLAN.md step 1's leftovers); its mode is its own, so the road tools never take that one */
@@ -33,11 +34,14 @@ const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire",
 const FARM_TOOL_NAMES = new Set<string>([FARM_PAINT_TOOL, FARM_ERASE_TOOL]);
 const PAINT_TOOL_NAMES = new Set<string>([...Object.values(PAINT_TOOLS), ERASE_TOOL, ...FARM_TOOL_NAMES]);
 const GROUP_MODES: Readonly<Record<ModeGroup, readonly DrawMode[]>> = { line: LINE_MODES, paint: PAINT_MODES };
-// Zones are painted by dragging a rectangle over them (owner, 15 Oct 2026: "บ้าน ร้านค้า อุสาหกรรม การวาด ต้องเป็น drag แล้ว
-// คลุมได้")
-const DEFAULTS: Readonly<Record<ModeGroup, DrawMode>> = { line: "straight", paint: "rectangle" };
-// Kept per player; a new key from 15 Oct 2026, when the brushes' default became the rectangle, so every player gets it
-const STORAGE_KEY = "phaicity.drawModes.2";
+// Zones are painted along the road, a strip against it the plot's whole depth (owner, 21 Oct 2026: "การวาดสีให้วาด ทีละ 6
+// แถว กับพื้นถนน"; src/zoneCells.ts cellsInStrip); the rectangle (owner, 15 Oct 2026: "ต้องเป็น drag แล้วคลุมได้") is in the
+// card. The farm zone's brushes, which paint whole tiles, keep the rectangle (FARM_DEFAULT)
+const DEFAULTS: Readonly<Record<ModeGroup, DrawMode>> = { line: "straight", paint: "strip" };
+const FARM_DEFAULT: DrawMode = "rectangle";
+// Kept per player; a new key from 21 Oct 2026, when the brushes' default became the strip, so every player gets it (the
+// lines' modes are read from the last key's)
+const STORAGE_KEY = "phaicity.drawModes.3", OLD_STORAGE_KEY = "phaicity.drawModes.2";
 
 /** Whether a tool draws lines (roads, railways, power lines) or paints zones, or neither. */
 export function modeGroupOf(tool: string | null | undefined): ModeGroup | null {
@@ -59,7 +63,9 @@ export const isFarmTool = (tool: string | null | undefined): boolean => !!tool &
 function loadModes(): Record<ModeGroup | "upgrade", DrawMode> {
   const modes: Record<ModeGroup | "upgrade", DrawMode> = { ...DEFAULTS, upgrade: DEFAULTS.line };
   try {
-    const saved = JSON.parse(globalThis.localStorage?.getItem(STORAGE_KEY) ?? "null") as Record<string, unknown> | null;
+    const storage = globalThis.localStorage, now = storage?.getItem(STORAGE_KEY) ?? null;
+    const saved = JSON.parse(now ?? storage?.getItem(OLD_STORAGE_KEY) ?? "null") as Record<string, unknown> | null;
+    if (saved && now === null) delete saved.paint;
     for (const group of ["line", "paint", "upgrade"] as const) {
       const mode = saved?.[group];
       if (typeof mode === "string" && (allowed(group) as readonly string[]).includes(mode)) modes[group] = mode as DrawMode;
@@ -85,13 +91,16 @@ const current = loadModes();
 /** The mode the tool draws in, or null for a tool without modes. */
 export function drawModeOf(tool: string | null | undefined): DrawMode | null {
   const kept = keptAs(tool);
-  return kept ? current[kept] : null;
+  if (!kept) return null;
+  // (the farm zone paints whole tiles, with no road's strip of cells)
+  return isFarmTool(tool) && current[kept] === "strip" ? FARM_DEFAULT : current[kept];
 }
 
 /** The modes a tool may draw in (none for most tools). */
 export function modesFor(tool: string | null | undefined): readonly DrawMode[] {
   const kept = keptAs(tool);
-  return kept ? allowed(kept) : [];
+  if (!kept) return [];
+  return isFarmTool(tool) ? allowed(kept).filter((mode) => mode !== "strip") : allowed(kept);
 }
 
 /** Chooses the mode of the tool's group, and remembers it in this browser. */
@@ -145,6 +154,7 @@ const ICONS: Readonly<Record<DrawMode, string>> = {
   curve2: '<path d="M2 13C8 13 8 3 14 3"/><circle cx="2" cy="13" r="1.5"/><circle cx="14" cy="3" r="1.5"/>',
   free: '<path d="M2 12c2-6 4 2 6-3s3-5 6-6"/>',
   grid: '<path d="M2 2h12v12H2zM6.7 2v12M11.3 2v12M2 6.7h12M2 11.3h12"/>',
+  strip: '<path d="M1.5 13.5 14.5 6.5"/><path d="M3 9.5 12.5 4.5 13.5 1.5 4 6.5z" stroke-dasharray="2 1.2"/>',
   brush: '<path d="M10 2 14 6 7 13H3V9z"/><path d="M8.5 3.5l4 4"/>',
   circle: '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2 1.5"/><circle cx="8" cy="8" r="1"/>',
   rectangle: '<path d="M2.5 3.5h11v9h-11z" stroke-dasharray="2 1.5"/>',
