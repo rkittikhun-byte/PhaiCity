@@ -16,6 +16,7 @@ import {
 } from "./tileValues";
 import type { WaterView } from "./waterManager";
 import { ownsLand } from "./landBlocks";
+import { mineKindOfTool } from "./mining";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 
 export const MAP_LAYERS = ["city", "satisfaction", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
@@ -24,6 +25,16 @@ export type MapLayer = typeof MAP_LAYERS[number];
 
 export function isMapLayer(value: unknown): value is MapLayer {
   return typeof value === "string" && (MAP_LAYERS as readonly string[]).includes(value);
+}
+
+/** The layer the city view shows while a tool is in hand (Game.updateContextualOverlay): pollution for factories and
+ * the lignite plant, the groundwater for the water tools, and the poisoned ground for the mine button and every ore's
+ * own tool, which the dock hands over (src/mining.ts MINE_TOOLS) */
+export function toolLayer(tool: string | null | undefined): "pollution" | "groundwater" | "toxic" | null {
+  if (tool === "industrial" || tool === "zone_industrial" || tool === "coal") return "pollution";
+  if (tool === "waterworks" || tool === "watertower" || tool === "water") return "groundwater";
+  if (tool === "mine" || (tool && mineKindOfTool(tool))) return "toxic";
+  return null;
 }
 
 export type TileKind = "dirt" | "water" | "woods" | "park" | "rubble" | "fire" | "flood" | "radiation" | "road" |
