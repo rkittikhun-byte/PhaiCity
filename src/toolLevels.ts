@@ -43,6 +43,11 @@ export interface ToolChoice {
   note?: string;
   /** Why it may not be used, a string key, in place of "Not in this province" (the house: "needs the rank ขุน") */
   reason?: string;
+  /** ... or the reason in words, for a tool the city cannot build yet (src/unlockLabels.ts), which shows a lock */
+  reasonText?: string;
+  locked?: boolean;
+  /** What its place says in place of its price, in words (a building's months as a construction site) */
+  noteText?: string;
   /** What its place does instead of choosing a tool: the house's wings open the house's window */
   action?: () => void;
 }
@@ -150,7 +155,7 @@ export function installToolLevels(doc: Document = document): void {
       const slot = doc.createElement("button");
       slot.type = "button";
       slot.className = `levelSlot choice${choice.tool === active && !choice.action ? " current" : ""}` +
-        `${available ? "" : " unavailable"}`;
+        `${available ? "" : " unavailable"}${choice.locked && !houseLocked ? " locked" : ""}`;
       slot.disabled = !available;
       slot.dataset.toolChoice = choice.tool;
       slot.setAttribute("aria-pressed", String(choice.tool === active && !choice.action));
@@ -172,8 +177,8 @@ export function installToolLevels(doc: Document = document): void {
       label.textContent = t(`choice.${choice.tool}`);
       const note = doc.createElement("span");
       note.className = "levelNote";
-      const unavailable = t(houseLocked ? "dock.house_first" : choice.reason ?? "choice.unavailable");
-      note.textContent = !available ? unavailable : choice.note ? t(choice.note) : price;
+      const unavailable = houseLocked ? t("dock.house_first") : choice.reasonText ?? t(choice.reason ?? "choice.unavailable");
+      note.textContent = !available ? unavailable : choice.noteText ?? (choice.note ? t(choice.note) : price);
       slot.title = available ? toolTitle(choice.tool, null) : `${name}: ${unavailable}`;
       slot.append(icon, label, note);
       slot.addEventListener("click", () => {

@@ -11,7 +11,7 @@ import { GameTools } from "../src/gameTools.js";
 import { Simulation } from "../src/simulation.js";
 import { CIVIC, POWERPLANT, RAILBASE, ROADS } from "../src/tileValues";
 import { noTrained } from "../src/trainedPeople";
-import { FREE_TOOLS, type UnlockCity, unlockCity, type UnlockMap, unlockProblem, UNLOCKS } from "../src/unlocks";
+import { eraUnlocks, FREE_TOOLS, NEEDS, type UnlockCity, unlockCity, type UnlockMap, unlockProblem, UNLOCKS } from "../src/unlocks";
 
 const city = (over: Partial<UnlockCity> = {}): UnlockCity => ({
   era: 1, trained: noTrained(), trainedScale: 1, has: () => false, count: () => 0, ...over,
@@ -33,9 +33,7 @@ describe("the unlock table", () => {
     for (const tool of Object.keys(UNLOCKS)) expect(tools.has(tool)).toBe(true);
     for (const row of Object.values(UNLOCKS)) {
       expect([1, 2, 3, 4, 5]).toContain(row.era);
-      for (const choices of row.first ?? []) {
-        for (const need of choices) expect(need === "rail" || need === "paved_road" || tools.has(need)).toBe(true);
-      }
+      for (const need of row.first ?? []) expect(NEEDS.includes(need as never) || tools.has(need)).toBe(true);
     }
   });
 
@@ -65,7 +63,9 @@ describe("the unlock table", () => {
     expect(unlockProblem("vocational_college", city({ era: 2 })))
       .toEqual({ reason: "unlock.first", params: { need: "secondary_school" } });
     expect(unlockProblem("vocational_college", city({ era: 2, has: (n) => n === "secondary_school" }))).toBeNull();
-    expect(unlockProblem("industrial", city({ has: (n) => n === "gas" }))).toBeNull();
+    expect(unlockProblem("industrial", city())).toEqual({ reason: "unlock.first", params: { need: "power_plant" } });
+    expect(unlockProblem("industrial", city({ has: (n) => n === "power_plant" }))).toBeNull();
+    expect(eraUnlocks(5)).toEqual(["nuclear", "hsr_station"]);
     expect(unlockProblem("coal", city())).toBeNull();
     expect(unlockProblem("coal", city({ count: () => 1 }))).toEqual({ reason: "unlock.limit", params: { count: 1, era: 2 } });
     expect(unlockProblem("coal", city({ era: 2, count: () => 1 }))).toBeNull();
@@ -89,6 +89,7 @@ describe("the unlock table", () => {
     expect(c.trained.technician).toBe(25);
     expect(c.count("coal")).toBe(1);
     expect(c.has("coal")).toBe(true);
+    expect(c.has("power_plant")).toBe(true);
     expect(c.has("primary_school")).toBe(true);
     expect(c.count("secondary_school")).toBe(1);
     expect(c.has("secondary_school")).toBe(false);
@@ -117,7 +118,7 @@ describe("the unlock table", () => {
     const commands = new CityCommands(city);
     const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
     expect(tool("gas", 10, 10)).toMatchObject({ accepted: false, reason: "unlock.era", detail: { era: 2 } });
-    expect(tool("industrial", 30, 10)).toMatchObject({ accepted: false, reason: "unlock.first", detail: { need: "coal" } });
+    expect(tool("industrial", 30, 10)).toMatchObject({ accepted: false, reason: "unlock.first", detail: { need: "power_plant" } });
     expect(tool("coal", 10, 10).toolResult).toBe(0);
     // ... one small lignite plant in the first era
     expect(tool("coal", 20, 20)).toMatchObject({ accepted: false, reason: "unlock.limit", detail: { count: 1, era: 2 } });

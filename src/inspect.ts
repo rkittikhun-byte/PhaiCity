@@ -7,6 +7,7 @@
 // of its card as i18n keys and their values. The card (src/inspectCard.ts) translates and draws them. It only reads
 // the city. Plain code: no DOM.
 
+import { isSite, monthsLeft } from "./construction.js";
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { CANAL_NEEDS, isCanalAt } from "./canals.js";
 import { ownsLand } from "./landBlocks.js";
@@ -144,6 +145,8 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
       ? plotChecklist(checklistCity(city), building.x, building.y) ?? undefined : undefined;
     const all = building.facts(map);
     const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
+    // A building still going up works only after its months (src/construction.ts)
+    if (isSite(map, building.id)) facts.unshift({ key: "site.months_left", params: { months: monthsLeft(map, building.id, city.cityTime) } });
     if (building.kind === "home") {
       const level = Number(all.find(f => f.key === "object.fact.level")?.params?.level ?? 1);
       facts.push({ key: "object.fact.people", params: { people: homePeople(level, building.size, !!map.paintedZones) } });

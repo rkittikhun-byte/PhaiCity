@@ -51,7 +51,7 @@ describe("construction sites", () => {
     expect(siteMonths("provincial_hospital", 1.5)).toBe(9);
     expect(siteMonths("coal", 0.1)).toBe(1);
     expect(siteMonths("residential")).toBe(0);
-    expect(siteMonths("primary_school")).toBe(0);
+    expect(siteMonths("police_box")).toBe(0);
   });
 
   test("a power plant being built gives no power until its months are over", () => {
@@ -59,11 +59,11 @@ describe("construction sites", () => {
     expect(tool("coal", 10, 10).toolResult).toBe(0);
     const centre = 10 * map.width + 10;
     expect(isSite(map, centre)).toBe(true);
-    expect(monthsLeft(map, centre, sim._cityTime)).toBe(2);
+    expect(monthsLeft(map, centre, sim._cityTime)).toBe(6);
     scan();
     expect(sim._census.coalPowerPop).toBe(0);
-    expect(sitesMonth(map, sim._cityTime + TIME_PER_MONTH)).toEqual([]);
-    expect(sitesMonth(map, sim._cityTime + 2 * TIME_PER_MONTH)).toEqual([{ tool: "coal", x: 10, y: 10 }]);
+    expect(sitesMonth(map, sim._cityTime + 5 * TIME_PER_MONTH)).toEqual([]);
+    expect(sitesMonth(map, sim._cityTime + 6 * TIME_PER_MONTH)).toEqual([{ tool: "coal", x: 10, y: 10 }]);
     expect(isSite(map, centre)).toBe(false);
     scan();
     expect(sim._census.coalPowerPop).toBe(1);

@@ -235,7 +235,8 @@ export function installToolShortcuts(doc: Document = document): void {
       priceSpan.className = "toolPrice";
       priceSpan.textContent = price;
       button.replaceChildren(icon, nameSpan, priceSpan);
-      button.title = toolTitle(tool, key);
+      // ... or, for a tool the city cannot build yet, why (src/unlocks.ts; the game writes it, src/game.js refreshLocks)
+      button.title = button.dataset.lockTitle ?? toolTitle(tool, key);
     });
     // The menu's pause and map buttons show their keys in the names that slide out of them (src/menuRail.ts)
     doc.dispatchEvent(new CustomEvent(TOOL_LABELS_CHANGED));

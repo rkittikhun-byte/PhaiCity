@@ -297,8 +297,8 @@ export interface CommandTarget {
  * or null. The upgrade tools ask the row of the level they would build: the road's next level, the building's next one.
  */
 export function lockProblem(city: Pick<CommandTarget, "unlocks" | "map" | "width" | "height">, tool: string, x: number,
-                            y: number): UnlockLock | null {
-  const unlocks = city.unlocks?.();
+                            y: number, known?: UnlockCity): UnlockLock | null {
+  const unlocks = known ?? city.unlocks?.();
   if (!unlocks) return null;
   let asked: string | null = tool;
   const map = city.map as unknown as (Parameters<typeof upgradeAt>[0] & { roadLevels?: Uint8Array | null }) | undefined;
@@ -755,6 +755,28 @@ export class CityCommands {
     if (changed) city.waterChanged?.();
   }
 
+  /** Why a tool cannot be built yet (src/unlocks.ts), the same the commands refuse it with, or null: for the tool
+   * buttons and the auto player, which ask before they try */
+  lock(tool: string, x = 0, y = 0): UnlockLock | null {
+    return lockProblem(this.city, tool, x, y, this.unlocksNow());
+  }
+
+  /** The ruler's rank, 0 (หมื่น) and up, as the city's host tells it (src/rulerRank.ts) */
+  rank(): number {
+    return this.city.rank?.() ?? 0;
+  }
+
+  /** Commands accepted so far, which change what the city has */
+  private changes = 0;
+  /** The city the unlock table was last asked against, kept while no command changed it and its time stood still:
+   * a player trying a building at many places asks it at each (its buildings are looked over once) */
+  private unlocks: { key: string; city: UnlockCity | undefined } | null = null;
+  private unlocksNow(): UnlockCity | undefined {
+    const key = `${this.city.cityTime?.() ?? 0}:${this.changes}`;
+    if (this.unlocks?.key !== key) this.unlocks = { key, city: this.city.unlocks?.() };
+    return this.unlocks.city;
+  }
+
   /** Whether "undo" would take something back now. */
   canUndo(): boolean {
     return this.city.map !== undefined && this.history.canUndo(this.city.cityTime?.() ?? 0);
@@ -776,6 +798,12 @@ export class CityCommands {
   }
 
   apply(command: Command): CommandOutcome {
+    const outcome = this.applyOne(command);
+    if (outcome.accepted) this.changes++;
+    return outcome;
+  }
+
+  private applyOne(command: Command): CommandOutcome {
     const problem = commandProblem(command, this.city.width, this.city.height);
     if (problem) return { accepted: false, reason: problem };
     const city = this.city;
@@ -805,7 +833,7 @@ export class CityCommands {
             getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         // ... and what the city cannot build yet (src/unlocks.ts): its era, trained people, what must stand first
-        const lock = lockProblem(city, command.tool, command.x, command.y);
+        const lock = lockProblem(city, command.tool, command.x, command.y, this.unlocksNow());
         if (lock) return { accepted: false, reason: lock.reason, detail: lock.params, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
@@ -949,7 +977,7 @@ export class CityCommands {
         const houseFirst = houseProblem(city.houseMap, "zone_residential", city.rank?.() ?? 0);
         if (houseFirst) return { accepted: false, reason: houseFirst };
         // ... and factories once there is power for them (src/unlocks.ts)
-        const lock = command.zone ? lockProblem(city, PAINT_TOOLS[command.zone], 0, 0) : null;
+        const lock = command.zone ? lockProblem(city, PAINT_TOOLS[command.zone], 0, 0, this.unlocksNow()) : null;
         if (lock) return { accepted: false, reason: lock.reason, detail: lock.params };
         const layout = cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
         const code = command.zone ? zoneCode(command.zone) : 0, painted = map.zoneCells ?? (map.zoneCells = new Map());

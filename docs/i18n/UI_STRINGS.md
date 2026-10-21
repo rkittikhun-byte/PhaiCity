@@ -59,9 +59,9 @@
 | `start.title` | `index.html` | `New Game` | `New City` | `สร้างเมืองใหม่` | หัวข้อฟอร์มเริ่มเกม |
 | `start.label.name` | `index.html` | `City name (max 15 letters)` | `City name (max 15 letters)` | `ชื่อเมือง (ไม่เกิน 15 ตัวอักษร)` | ฉลากกรอกชื่อเมือง |
 | `start.label.difficulty` | `index.html` | `Difficulty` | `Difficulty` | `ระดับความยาก` | ฉลากเลือกความยาก |
-| `start.diff.easy` | `index.html` | `Easy` | `Easy` | `ง่าย` | เงินเริ่มต้น 20,000 บาท |
-| `start.diff.med` | `index.html` | `Medium` | `Medium` | `ปานกลาง` | เงินเริ่มต้น 10,000 บาท |
-| `start.diff.hard` | `index.html` | `Hard` | `Hard` | `ยาก` | เงินเริ่มต้น 5,000 บาท |
+| `start.diff.easy` | `index.html` | `Easy` | `Easy` | `ง่าย` | โหมดง่าย (docs/GAME_DESIGN.md 6.3): เงินเริ่มต้น +50% คนมีความรู้และเวลาก่อสร้างครึ่งหนึ่ง |
+| `start.diff.med` | `index.html` | `Medium` | `Normal` | `ปกติ` | โหมดปกติ เลือกไว้ก่อน และเป็นโหมดเดียวของเกมออนไลน์ |
+| `start.diff.hard` | `index.html` | `Hard` | `Hard` | `ยาก` | โหมดยาก: เงินเริ่มต้น −30% คนมีความรู้และเวลาก่อสร้าง ×1.5 |
 | `start.btn.play` | `index.html` | `Play!` | `Start!` | `เริ่มสร้างเมือง!` | ปุ่มส่งฟอร์ม |
 
 ---
@@ -638,7 +638,7 @@
 | `rank.phraya` | `src/rulerRank.ts` | — | `Phraya` | `พระยา` | นคร |
 | `rank.chaophraya` | `src/rulerRank.ts` | — | `Chao Phraya` | `เจ้าพระยา` | มหานคร |
 | `diff.easy` | `src/text.js` | `Easy` | `Easy` | `ง่าย` | ระดับความยาก |
-| `diff.med` | `src/text.js` | `Medium` | `Medium` | `ปานกลาง` | ระดับความยาก |
+| `diff.med` | `src/text.js` | `Medium` | `Normal` | `ปกติ` | ระดับความยาก |
 | `diff.hard` | `src/text.js` | `Hard` | `Hard` | `ยาก` | ระดับความยาก |
 
 ---
@@ -1368,6 +1368,7 @@
 | `era.factor.symbol` | `src/cityStatus.ts` | — | `What the era must have` | `สัญลักษณ์ของยุค` |  |
 | `era.symbol.ruler_house` | `src/cityStatus.ts` | — | `the ruler's house` | `จวนเจ้าเมือง` |  |
 | `era.symbol.shops` | `src/cityStatus.ts` | — | `five shops` | `ร้านค้า 5 ร้าน` |  |
+| `era.symbol.water_tower` | `src/cityStatus.ts` | — | `a water tower` | `หอถังประปา` | ประปาหมู่บ้าน: หอถังสูบน้ำบาดาลเอง โรงประปามาในยุคเมืองตลาด |
 | `era.symbol.water_works` | `src/cityStatus.ts` | — | `a water works` | `โรงประปา` |  |
 | `era.symbol.power_plant` | `src/cityStatus.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
 | `era.symbol.school` | `src/cityStatus.ts` | — | `a school` | `โรงเรียน` |  |
@@ -1399,6 +1400,7 @@
 | `era.card.symbols` | `src/eraCard.ts` | — | `A {next} must have` | `{next}ต้องมี` |  |
 | `era.card.symbols_last` | `src/eraCard.ts` | — | `A complete future city must have` | `เมืองอนาคตที่สมบูรณ์ต้องมี` | ยุค 5 |
 | `era.hint.people` | `src/eraReport.ts` | — | `Paint more homes beside roads: people come where there are water, power and work` | `ทาเขตที่อยู่อาศัยริมถนนเพิ่ม คนจะย้ายมาเมื่อมีน้ำ ไฟ และงาน` | สิ่งที่ผู้เล่นทำได้ ด้านละหนึ่งบรรทัด |
+| `era.hint.water_village` | `src/eraReport.ts` | — | `Build water towers beside roads: each pumps a little water from its own well. Water works come with the market town` | `สร้างหอถังประปาติดถนน แต่ละหอสูบน้ำบาดาลได้เล็กน้อย โรงประปามาเมื่อเป็นเมืองตลาด` | ยุคหมู่บ้านเกษตร |
 | `era.hint.water` | `src/eraReport.ts` | — | `Build a water works beside a road: water runs in the pipes under every road it reaches. Add another if it runs short` | `สร้างโรงผลิตน้ำประปาติดถนน น้ำไหลไปตามท่อใต้ถนนที่ต่อถึง ถ้าน้ำไม่พอให้สร้างเพิ่ม` |  |
 | `era.hint.power` | `src/eraReport.ts` | — | `Build a power plant beside a road: power runs along every road it reaches` | `สร้างโรงไฟฟ้าติดถนน ไฟฟ้าวิ่งไปตามถนนที่ต่อถึง` |  |
 | `era.hint.jobs` | `src/eraReport.ts` | — | `Paint shops and factories so people have work` | `ทาเขตพาณิชย์และอุตสาหกรรมเพิ่ม ให้คนมีงานทำ` |  |
@@ -1411,6 +1413,7 @@
 | `era.hint.symbol` | `src/eraReport.ts` | — | `Build what the era must have, in the list below` | `สร้างสิ่งที่ยุคต้องมีตามรายการด้านล่าง` |  |
 | `era.symbol_hint.ruler_house` | `src/eraReport.ts` | — | `City & land: the ruler's house, beside a road` | `หมวดเมืองและที่ดิน: สร้างที่ว่าการ (จวนเจ้าเมือง) ติดถนน` | วิธีได้สัญลักษณ์ของยุค |
 | `era.symbol_hint.shops` | `src/eraReport.ts` | — | `Zones: paint shops along the roads until five stand` | `หมวดเขตเมือง: ทาเขตพาณิชย์ริมถนนจนมีร้าน 5 ร้าน` |  |
+| `era.symbol_hint.water_tower` | `src/eraReport.ts` | — | `Services › Water supply: a water tower beside a road, which pumps its own well` | `บริการเมือง › ประปา: สร้างหอถังประปาติดถนน สูบน้ำบาดาลเอง` |  |
 | `era.symbol_hint.water_works` | `src/eraReport.ts` | — | `Services › Water supply: a water works beside a road` | `บริการเมือง › ประปา: สร้างโรงผลิตน้ำประปาติดถนน` |  |
 | `era.symbol_hint.power_plant` | `src/eraReport.ts` | — | `Services › Power plant: any kind, beside a road` | `บริการเมือง › โรงไฟฟ้า: แบบใดก็ได้ ติดถนน` |  |
 | `era.symbol_hint.school` | `src/eraReport.ts` | — | `Services › Education: any school` | `บริการเมือง › การศึกษา: โรงเรียนแบบใดก็ได้` |  |
@@ -1747,6 +1750,38 @@
 | `loading.step.textures` | `src/loadingScreen.ts` | — | `Surfaces and materials` | `พื้นผิวและวัสดุ` | นับจำนวนที่โหลดแล้ว |
 | `loading.music` | `src/loadingScreen.ts` | — | `Music of the {region}` | `เพลงภาค{region}` | {region} คือชื่อสั้นของภาค |
 | `loading.music_theme` | `src/loadingScreen.ts` | — | `PhaiCity theme` | `เพลงประจำเกม PhaiCity` | แผนที่ฝึกเล่น |
+
+
+## 15C. สิ่งที่สร้างได้ คนมีความรู้ ไซต์ก่อสร้าง และโหมด (Unlocks, trained people, sites and modes; Claude Code, 21 ต.ค. 2026)
+
+เหตุที่ยังสร้างไม่ได้ (`src/unlocks.ts`, docs/GAME_DESIGN.md 6) ขึ้นที่ปุ่มเครื่องมือและช่องตัวเลือก และที่คำสั่งถูกปฏิเสธ
+
+| Key | File | Current | English | Thai | Notes |
+|---|---|---|---|---|---|
+| `unlock.era` | `src/unlockLabels.ts` | — | `Needs the {era} era` | `ต้องเข้ายุค{era}` | {era} ชื่อยุค เช่น เมืองสมัยใหม่ |
+| `unlock.trained` | `src/unlockLabels.ts` | — | `Needs {need} {kind} (now {have})` | `ต้องมี{kind} {need} คน (ตอนนี้ {have})` | {kind} ช่าง พยาบาล วิศวกร หมอ |
+| `unlock.first` | `src/unlockLabels.ts` | — | `Needs {need} first` | `ต้องมี{need}ก่อน` |  |
+| `unlock.limit` | `src/unlockLabels.ts` | — | `Only {count} in this era (more in the {era} era)` | `ยุคนี้สร้างได้ {count} แห่ง (ยุค{era}สร้างเพิ่มได้)` | โรงไฟฟ้าลิกไนต์เล็กของหมู่บ้าน |
+| `unlock.locked_title` | `src/unlockLabels.ts` | — | `{name}: {reason}` | `{name}: {reason}` | ชี้ปุ่มที่ยังสร้างไม่ได้ |
+| `unlock.need.power_plant` | `src/unlockLabels.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
+| `unlock.need.rail` | `src/unlockLabels.ts` | — | `a railway` | `ทางรถไฟ` |  |
+| `unlock.need.paved_road` | `src/unlockLabels.ts` | — | `a paved road` | `ถนนลาดยาง` |  |
+| `unlock.need.primary_school` | `src/unlockLabels.ts` | — | `a primary school` | `โรงเรียนประถม` |  |
+| `unlock.need.secondary_school` | `src/unlockLabels.ts` | — | `a secondary school` | `โรงเรียนมัธยม` |  |
+| `unlock.need.university` | `src/unlockLabels.ts` | — | `a university` | `มหาวิทยาลัย` |  |
+| `trained.technician` | `src/unlockLabels.ts` | — | `technicians` | `ช่าง` |  |
+| `trained.nurse` | `src/unlockLabels.ts` | — | `nurses` | `พยาบาล` |  |
+| `trained.engineer` | `src/unlockLabels.ts` | — | `engineers` | `วิศวกร` |  |
+| `trained.doctor` | `src/unlockLabels.ts` | — | `doctors` | `หมอ` |  |
+| `status.trained` | `index.html` | — | `Trained people` | `คนมีความรู้` | แถบสถานะ: ช่าง พยาบาล วิศวกร หมอ |
+| `status.trained_value` | `src/cityStatus.ts` | — | `{technician} · {nurse} · {engineer} · {doctor}` | `{technician} · {nurse} · {engineer} · {doctor}` |  |
+| `status.trained_title` | `src/cityStatus.ts` | — | `Technicians {technician}, nurses {nurse}, engineers {engineer}, doctors {doctor}. The schools' next class graduates in January: about {cohort} more` | `ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน รุ่นต่อไปจบเดือนมกราคม อีกราว {cohort} คน` | ชี้ช่องในแถบสถานะ |
+| `news.trained` | `src/game.js` | — | `This year's graduates: {technician} technicians, {nurse} nurses, {engineer} engineers, {doctor} doctors` | `ผู้จบการศึกษาปีนี้: ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน` | ข่าวต้นปี |
+| `news.site_done` | `src/game.js` | — | `{name} is built and at work` | `{name}สร้างเสร็จ เริ่มใช้งานแล้ว` | ไซต์ก่อสร้างครบเดือน |
+| `site.months_left` | `src/inspectCard.ts` | — | `Being built: {months} months to go` | `กำลังก่อสร้าง อีก {months} เดือน` | การ์ดตรวจดู |
+| `site.choice_months` | `src/unlockLabels.ts` | — | `{price} · {months} months to build` | `{price} · สร้าง {months} เดือน` | ช่องตัวเลือกของอาคารที่ใช้เวลาก่อสร้าง |
+| `era.card.unlocks` | `src/eraCard.ts` | — | `A {next} can build` | `{next}สร้างได้` | การ์ดยุค: สิ่งที่ยุคถัดไปปลดล็อก |
+| `era.card.mode` | `src/eraCard.ts` | — | `Mode: {mode}` | `โหมด: {mode}` |  |
 
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 
