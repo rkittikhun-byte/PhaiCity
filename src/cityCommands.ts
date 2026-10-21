@@ -50,6 +50,7 @@ import { type TileChange, UndoHistory, type UndoStep } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
 import { type UnlockCity, type UnlockLock, unlockProblem } from "./unlocks";
 import { upgradeAt } from "./buildingUpgradeTool";
+import { TEMPLE_IN_THE_WAY, TEMPLE_KIND, templeProblem } from "./temples";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
@@ -723,6 +724,7 @@ export class CityCommands {
     const city = this.city, tiles = city.map, map = tiles as unknown as BuildingMap | undefined;
     const placed = map?.buildings, b = placed?.get(command.id);
     if (!tiles || !map || !placed || !b) return { reason: NO_BUILDING };
+    if (b.tool === TEMPLE_KIND) return { reason: TEMPLE_IN_THE_WAY };
     const width = city.width, height = city.height, tool = city.tools[b.tool];
     const x = b.tile % width, y = Math.floor(b.tile / width), size = b.size;
     if (!tool || !map.getTile(x, y).isZone() && size > 1) return { reason: NO_BUILDING };
@@ -985,6 +987,8 @@ export class CityCommands {
           transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1, turned) ??
+          // ... and no tool touches a temple's ground: it is the community's (src/temples.ts)
+          templeProblem(city.map as never, command.x, command.y, tool.size ?? 1, turned) ??
           plantProblem(city, tool.powerKind, command.x, command.y, tool.size ?? 4) ?? mineProblem(city, tool.mineKind) ??
           farmProblem(city, command.tool, command.x, command.y) ??
           roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y, turned) ??

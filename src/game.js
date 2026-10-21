@@ -25,6 +25,7 @@ import { CityCore } from './core/cityCore.ts';
 import { MODE_RULES, modeChoosable, modeRule, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
 import { siteMonths } from './construction.ts';
 import { lockedTitle, lockOf, lockText, plainToolName } from './unlockLabels.ts';
+import { TEMPLE_IN_THE_WAY, TEMPLE_KIND } from './temples.ts';
 import { showDemandAndPeople, showEra, showServices, showTourism, showTrained, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -269,7 +270,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     eraGame.refreshLocks();
   });
   this.core.on('siteDone', function(event) {
-    eraGame._notificationBar.goodText(t('news.site_done', {name: plainToolName(event.tool)}));
+    // (a temple the villagers built, src/temples.ts: theirs, not the ruler's)
+    eraGame._notificationBar.goodText(event.tool === TEMPLE_KIND ? t('news.temple_done') :
+      t('news.site_done', {name: plainToolName(event.tool)}));
     eraGame.refreshLocks();
   });
   this.core.on('month', function() { eraGame.refreshLocks(); });
@@ -1805,8 +1808,8 @@ Game.prototype.handleTool = function(data) {
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
-    if (outcome.reason === LAND_LOCKED) {
-      showCornerNote(t('land.note.locked'), OUTSIDE_NOTE_MS);
+    if (outcome.reason === LAND_LOCKED || outcome.reason === TEMPLE_IN_THE_WAY) {
+      showCornerNote(t(outcome.reason === LAND_LOCKED ? 'land.note.locked' : 'temple.in_the_way'), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
@@ -2393,6 +2396,7 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
     if (!outcome.accepted && refusal === null)
       refusal = outcome.reason;
     var why = refusal === OUTSIDE_PROVINCE ? t('tool.outside_province') : refusal === LAND_LOCKED ? t('land.note.locked') :
+              refusal === TEMPLE_IN_THE_WAY ? t('temple.in_the_way') :
               HOUSE_REASONS.indexOf(refusal) !== -1 ? houseNote(refusal, map) :
               this.simulation.budget.totalFunds < tool.toolCost ? t('draw.debug.no_money') : t('draw.debug.cannot');
     tiles.forEach(function(i) {
@@ -2407,6 +2411,7 @@ Game.prototype.applyRoads = function(lines, stroke, soundX) {
                tool.TOOLRESULT_NO_MONEY : tool.TOOLRESULT_FAILED;
   if (laid === 0 && refusal !== null) {
     var note = refusal === OUTSIDE_PROVINCE ? t('tool.outside_province') : refusal === LAND_LOCKED ? t('land.note.locked') :
+              refusal === TEMPLE_IN_THE_WAY ? t('temple.in_the_way') :
                HOUSE_REASONS.indexOf(refusal) !== -1 ? houseNote(refusal, map) : null;
     if (note !== null)
       showCornerNote(note, OUTSIDE_NOTE_MS);
@@ -2591,7 +2596,9 @@ Game.prototype.keepBuildingPoses = function() {
 Game.prototype.moveClick = function(x, y, tile, stroke) {
   var map = this.gameMap, game = this;
   if (!this.moving) {
-    var picked = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) { return game.buildingStands(b); });
+    var picked = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) {
+      return b.tool !== TEMPLE_KIND && game.buildingStands(b);
+    });
     if (picked === null) {
       showCornerNote(t('move.note.none'), OUTSIDE_NOTE_MS);
       return;
@@ -2622,6 +2629,8 @@ Game.prototype.moveNote = function(reason, b) {
     return t('tool.outside_province');
   if (reason === LAND_LOCKED)
     return t('land.note.locked');
+  if (reason === TEMPLE_IN_THE_WAY)
+    return t('temple.in_the_way');
   if (reason === NEEDS_ROAD_BESIDE)
     return t('tool.needs_road');
   if (reason === NEEDS_ROAD)
@@ -2676,7 +2685,9 @@ Game.prototype.moveHover = function(tile) {
     return hover;
   };
   if (!this.moving) {
-    var under = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) { return game.buildingStands(b); });
+    var under = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) {
+      return b.tool !== TEMPLE_KIND && game.buildingStands(b);
+    });
     this.writeDrawTip([t(under ? 'move.tip.pick' : 'move.tip.find')]);
     if (under === null)
       return {tile: tile, size: 1, colour: colour};

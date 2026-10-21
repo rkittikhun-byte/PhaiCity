@@ -20,6 +20,9 @@ are exported again from its .blend).
 --frontage builds the era's frontage variants instead (era<n>_frontage.py, PLAN.md "Frontage"): the set
 era<n>_<region>_frontage, its .blend beside the era's, its glbs in the same folder and one sheet,
 previews/era<n>_<region>_frontage.png, with the bays laid out as terraces.
+
+--temple builds the era's temple compounds instead (temples.py, PLAN.md "Temples"): the set era<n>_<region>_temple,
+temple_1 ... temple_3 side by side on one sheet, previews/era<n>_<region>_temple.png.
 """
 
 import os
@@ -35,7 +38,7 @@ from lib import scene  # noqa: E402
 from lib.builder import BAY_M, Build, TILE_M  # noqa: E402
 from lib.mesh import triangles  # noqa: E402
 from lib.regions import REGIONS  # noqa: E402
-from buildings import ERAS, FRONTAGE_SETS  # noqa: E402
+from buildings import ERAS, FRONTAGE_SETS, TEMPLE_SETS  # noqa: E402
 
 # Triangles in the Blender source by footprint (PLAN.md "Detail level").
 BUDGET = {1: 12000, 2: 30000, 3: 45000}
@@ -53,8 +56,8 @@ def locked():
         return {line.split('#')[0].strip() for line in f if line.split('#')[0].strip()}
 
 
-def set_name(era, region, frontage=False):
-    return '%s_%s%s' % (era, region, '_frontage' if frontage else '')
+def set_name(era, region, frontage=False, temple=False):
+    return '%s_%s%s' % (era, region, '_frontage' if frontage else ('_temple' if temple else ''))
 
 
 def building_id(spec, region):
@@ -177,6 +180,12 @@ def lay_out_frontage(roots_specs):
     return [inst for inst, _ in extra]
 
 
+def lay_out_temples(roots_specs):
+    """The temple levels side by side, left to right, a little apart."""
+    for i, (root, spec) in enumerate(roots_specs):
+        root.location = (i * 54.0, 0, 0)
+
+
 def is_service(spec):
     return spec['kind'].split('_')[0] not in ROW_OF
 
@@ -222,10 +231,10 @@ def closeups(cam, roots_specs, era, region):
     sc.render.resolution_x, sc.render.resolution_y = res
 
 
-def build_set(era, region, force=False, only=None, close=False, frontage=False):
-    name = set_name(era, region, frontage)
+def build_set(era, region, force=False, only=None, close=False, frontage=False, temple=False):
+    name = set_name(era, region, frontage, temple)
     blend = os.path.join(ROOT, 'blend', era, name + '.blend')
-    specs = FRONTAGE_SETS[era] if frontage else ERAS[era]
+    specs = FRONTAGE_SETS[era] if frontage else (TEMPLE_SETS[era] if temple else ERAS[era])
     if only:
         specs = [s for s in specs if s['kind'] in only]
     if name in locked() and not only:
@@ -245,7 +254,9 @@ def build_set(era, region, force=False, only=None, close=False, frontage=False):
     set_coll = scene.collection(name)
     roots = [(make_building(s, region, set_coll), s) for s in specs]
     copies = lay_out_frontage(roots) if frontage else []
-    if not frontage:
+    if temple:
+        lay_out_temples(roots)
+    elif not frontage:
         lay_out(roots)
     bpy.context.view_layer.update()
     if only:
@@ -254,7 +265,7 @@ def build_set(era, region, force=False, only=None, close=False, frontage=False):
         closeups(cam, roots, era, region)
         return
     export_each(roots, era, region)
-    if frontage:
+    if frontage or temple:
         scene.frame(cam, [o for r, _ in roots for o in objects_of(r)], margin=1.06)
         scene.save(blend)
         scene.render(os.path.join(ROOT, 'previews', name + '.png'))
@@ -281,20 +292,22 @@ def main():
     force = '--force' in args
     close = '--closeups' in args
     frontage = '--frontage' in args
+    temple = '--temple' in args
     only = None
     if '--only' in args:
         only = set(args[args.index('--only') + 1].split(','))
         words = [w for w in words if w != args[args.index('--only') + 1]]
-    sets = FRONTAGE_SETS if frontage else ERAS
+    sets = FRONTAGE_SETS if frontage else (TEMPLE_SETS if temple else ERAS)
     eras = list(sets) if words[0] == 'all' else [words[0]]
     regions = [words[1]] if len(words) > 1 else list(REGIONS)
     for era in eras:
         if era not in sets:
-            raise SystemExit('No %sbuildings for %s yet' % ('frontage ' if frontage else '', era))
+            raise SystemExit('No %sbuildings for %s yet' % ('frontage ' if frontage else ('temple ' if temple else ''),
+                                                             era))
         for region in regions:
             if region not in REGIONS:
                 raise SystemExit('Unknown region %s (%s)' % (region, ', '.join(REGIONS)))
-            build_set(era, region, force, only, close, frontage)
+            build_set(era, region, force, only, close, frontage, temple)
 
 
 main()

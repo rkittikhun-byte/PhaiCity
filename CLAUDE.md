@@ -372,6 +372,14 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   value near the venue, and costs money, rubbish and krathong dirt in the water, Songkran's water, traffic and, while
   disasters are on, fire. It is saved as `festivals`, its year's cost is a budget line (`budget.festivalCost`), the auto player answers the
   card, and the 3D view dresses the town (`src/render3d/city/festivals3d.ts`).
+- **Temples (วัด, owner 21 Oct 2026: "ที่ไหนมีชุมชน ก็จะมีวัด"):** `docs/GAME_DESIGN.md` section 9, `src/temples.ts`. A
+  community of 400 people in homes with no temple within about 800 m builds one by itself (the core's monthly "temples"
+  system, nothing random): a 3 x 3 on the civic tiles (`civicKinds` "temple", kept in `gameMap.buildings`, turned to a
+  slanted road on its outline's tiles), a construction site for six months, then levels 1-3 as its people grow
+  (`gameMap.temples`, saved). It cheers the people it serves (the era score's living side), holds Songkran, Loy Krathong
+  and Yi Peng, keeps its centre out of fire; the ruler can neither build, bulldoze nor move one (`TEMPLE_IN_THE_WAY`).
+  The 3D view draws `era<n>/<region>/temple_<level>.glb` (art/buildings, `--temple`), whose wall is its กำแพงแก้ว; its
+  bell rings softly at dawn and dusk (`src/audio/templeBells.ts`).
 - **What can be built yet, and modes (owner, 21 Oct 2026):** `docs/GAME_DESIGN.md` section 6. Every tool has a row of
   data in `src/unlocks.ts` (the era that brings it, the trained people it needs, what must stand first, its months as a
   construction site); `CityCommands` refuses a locked tool with that reason (`commands.lock(tool)`), and the dock greys

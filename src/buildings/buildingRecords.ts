@@ -198,7 +198,8 @@ function fieldOfTool(tool: string): string | null {
   // (a nuclear plant on a 3x3 keeps its kind too, src/plantBlocks.ts)
   if (among(Object.values(PLANT_TOOLS)) || tool === "nuclear") return "powerKinds";
   if (among(Object.values(MINE_TOOLS))) return "mineKinds";
-  if (tool === "ruler_house" || among(SERVICE_KINDS)) return "civicKinds";
+  // (a temple too, which its community built, src/temples.ts)
+  if (tool === "ruler_house" || tool === "temple" || among(SERVICE_KINDS)) return "civicKinds";
   if (among(WASTE_KINDS)) return "wasteKinds";
   if (among(STATION_KINDS)) return "stationKinds";
   return null;

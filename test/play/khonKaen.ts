@@ -74,6 +74,11 @@ const row = (y: PlayerYear) => {
     process.stdout.write(`  >> era ${era} after ${Math.floor(months / 12)} years ${months % 12} months
 `);
   });
+  // PHAICITY_TEMPLES=0 plays without the temples the communities build (src/temples.ts), to weigh what they give
+  if (process.env.PHAICITY_TEMPLES === "0") {
+    const systems = (core as unknown as { systems: Array<{ name: string }> }).systems;
+    systems.splice(systems.findIndex(s => s.name === "temples"), 1);
+  }
   player.start();
   const years: PlayerYear[] = [];
   for (let n = 0; n < Number(process.env.PHAICITY_YEARS || 10); n++) {
@@ -88,6 +93,13 @@ const row = (y: PlayerYear) => {
       const eras = Array.from((core.map as { buildingEras?: Uint8Array }).buildingEras ?? []).filter(e => e > 0);
       const byEra = [1, 2, 3, 4, 5].map(e => eras.filter(x => x === e).length).join("/");
       const trained = trainedOf(core.map);
+      // The temples the communities built: how many, their levels, the share of homes' people they serve, their cheer
+      const temples = (core.map as { temples?: import("../../src/temples").TempleState }).temples;
+      if (temples?.temples.length) {
+        process.stdout.write(`  temples: ${temples.temples.length} (levels ${temples.temples.map(t => t.level).join(", ")}), ` +
+          `serving ${Math.round(temples.served * 100)}% of the people in homes, cheer +${temples.cheer.toFixed(1)}
+`);
+      }
       process.stdout.write(`  trained: ${trained.literate} literate, ${trained.technician} technicians, ${trained.nurse} nurses, ${trained.engineer} engineers, ${trained.doctor} doctors
 `);
       process.stdout.write(`  era ${era.era} score ${pc(era.score)}% = people ${pc(era.peopleDone)}% x quality ${pc(era.quality)}%` +

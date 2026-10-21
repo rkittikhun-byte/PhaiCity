@@ -30,6 +30,7 @@ import { UNLOCKS } from '../../unlocks.js';
 import { RAMPS } from '../../theme/tokens.js';
 import { siteId } from '../models/plot/site.js';
 import { parseRulerWings, rulerWingId, type RulerHouseWing } from '../models/civic/ruler-house.js';
+import { TEMPLE_ID } from '../models/civic/temple.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -504,6 +505,17 @@ export class TileSnapshot implements CityMapReader {
     if(n<4){p.share=PLANT_SHARE;if(n===2)p.procedural=true;}
     return p;
   }
+  /** A temple on the civic 3 × 3 (src/temples.ts): `civic.temple` at its level, drawn with its era's `temple_<level>` model once
+   * the era models have loaded (toEra), its gate toward its road; its wall is its model's, so it has no fence of compounds.ts */
+  private templePlacement(i:number,x:number,y:number,region:RegionId):Placement|null {
+    if(this.values[i]!==CIVIC||this.source?.civicKinds?.[i]!=='temple'||!registry[TEMPLE_ID])return null;
+    const temples=(this.source as {temples?:{temples:ReadonlyArray<{tile:number;level:number}>}|null}).temples;
+    const level=Math.max(1,Math.min(3,temples?.temples.find(t=>t.tile===i)?.level??1));
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,3)];
+    return new Placement({index:i,x:(x+.5)*10,z:(y+.5)*10,id:TEMPLE_ID,eraKind:`temple_${level}`,kind:'services',footprint:[3,3],
+      height:8+level*4,color:RAMPS.sand[100],water:false,rotation,scale:1,powered:false,options:{region,roadLevel,seed:0,variant:level,
+        state:'closed',waterMask:0,landMask:15,worldOrigin:[(x+.5)*10,(y+.5)*10],worldRotationY:rotation}});
+  }
   /** A school or hospital on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its
    * gate toward its road. The ruler's house keeps its own placement; a kind without a model stays generic. */
   private civicPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
@@ -787,6 +799,8 @@ export class TileSnapshot implements CityMapReader {
     if(house)return house;
     const power=zone?this.powerPlacement(i,x,y,region,hash):null;
     if(power)return power;
+    const temple=zone?this.templePlacement(i,x,y,region):null;
+    if(temple)return temple;
     const school=zone?this.civicPlacement(i,x,y,region,hash):null;
     if(school)return school;
     const waste=zone?this.wastePlacement(i,x,y,region,hash):null;

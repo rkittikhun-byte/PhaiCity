@@ -30,6 +30,7 @@ import { newTrainedState, readTrained, writeTrained } from "../trainedPeople.js"
 import { unlockCity } from "../unlocks.js";
 import { readSites, startSite, writeSites } from "../construction.js";
 import { modeRule } from "../gameModes.js";
+import { newTempleState, readTemples, writeTemples } from "../temples.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -117,6 +118,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.trained = readTrained(saved.trained);
     // ... and its buildings still being built (src/construction.ts)
     map.sites = readSites(saved.sites);
+    // ... and its temples, which its communities built (src/temples.ts)
+    map.temples = readTemples(saved.temples);
   } else {
     // A new city builds its ruler's house before anything else
     map.civicKinds = {};
@@ -197,6 +200,7 @@ export function ensureCityLayers(map: Legacy): void {
   map.festivals = map.festivals || newFestivalState();
   map.trained = map.trained || newTrainedState();
   map.sites = map.sites || {};
+  map.temples = map.temples || newTempleState();
 }
 
 /** The pieces of the roads and railways on the map (src/roadPieces.ts) */
@@ -276,6 +280,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     trained: writeTrained(map.trained),
     // ... and its buildings still being built (src/construction.ts)
     sites: writeSites(map.sites),
+    // ... and its temples (src/temples.ts)
+    temples: writeTemples(map.temples),
   };
 }
 

@@ -82,7 +82,7 @@ describe("the game's core", () => {
 
     const start = core.simulation.getDate().year;
     core.run(STEPS_PER_YEAR);
-    expect(core.systemNames).toEqual(["objects", "era", "festivals", "trained", "construction"]);
+    expect(core.systemNames).toEqual(["objects", "era", "festivals", "trained", "construction", "temples"]);
     // The era system scores the city each month (src/eraScore.ts), headless as in the game
     expect(map.eraScore).toMatchObject({ era: 1 });
     expect(map.eraScore.score).toBeGreaterThanOrEqual(0);
@@ -92,11 +92,13 @@ describe("the game's core", () => {
     expect(kinds).toContain("civic");
     expect(core.objects.all().find(o => o.kind === "power_plant")!.sort(map)).toBe("gas");
     expect(kinds.filter(k => k === "home")).toHaveLength(5);
-    // The first month's look found what the commands built, and the homes that grew with power along the roads
+    // The first month's look found what the commands built, the homes that grew with power along the roads
     // (src/powerManager.js); every month turned once
     expect(heard.filter(h => h.startsWith("built")).sort()).toEqual(
       ["built civic", "built home", "built home", "built home", "built home", "built home", "built home", "built home",
-        "built power_plant", "built shop", "built shop", "built shop"]);
+        "built power_plant", "built shop", "built shop", "built shop",
+        // ... and the temple its villagers built once 400 of them lived there (src/temples.ts)
+        "built temple"]);
     // The first step reports the month the city starts in, then twelve months turn
     expect(heard.filter(h => h.startsWith("month"))).toHaveLength(13);
     expect(core.simulation.getDate().year).toBe(start + 1);

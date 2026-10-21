@@ -54,6 +54,13 @@ COLORS = {
     'durian': '#A7A83A', 'rambutan': '#D2402E', 'lotus': '#E79AB4', 'orchid': '#B57BC8', 'latex': '#F2EEDC',
     'umbrella_red': '#C8463A', 'umbrella_blue': '#4A6FB0', 'umbrella_yellow': '#E8B63E', 'silk': '#6A5AA8',
     'fretwork': '#E9D9B8',
+    # temples (buildings/temples.py, lib/temple_parts.py): glazed roof tiles, gold leaf, whitewash, lacquer, murals
+    'temple_orange': '#E2782E', 'temple_orange_dark': '#B65A22', 'temple_green': '#3E8A58', 'temple_blue': '#3D5F9C',
+    'temple_red_roof': '#8C3426', 'temple_brown': '#4E2A20', 'temple_brown_light': '#6E3C2A', 'shingle': '#9C7B57',
+    'shingle_dark': '#76593D', 'gold_leaf': '#E8B83E', 'gold_dark': '#B78A2A', 'whitewash': '#F8F5EC',
+    'whitewash_shade': '#E6E0D2', 'lacquer_red': '#A2302A', 'lacquer_black': '#2B2326', 'sema_stone': '#BDB5A4',
+    'mural_ochre': '#D69A3C', 'mural_blue': '#4A70A2', 'mural_green': '#5F8B55', 'mural_red': '#B4473A',
+    'granite': '#BAB6AF', 'granite_dark': '#8F8B85', 'sandstone': '#C8A57A', 'bell_bronze': '#7A5A2E',
 }
 
 OUTLINE = 'pb_outline'

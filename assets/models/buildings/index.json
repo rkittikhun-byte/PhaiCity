@@ -138,6 +138,18 @@
      "height": 7.77,
      "triangles": 10550
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15963
+    },
+    "temple_2": {
+     "height": 13.09,
+     "triangles": 15930
+    },
+    "temple_3": {
+     "height": 16.42,
+     "triangles": 15627
+    },
     "waste": {
      "height": 6.81,
      "triangles": 15986
@@ -283,6 +295,18 @@
     "station": {
      "height": 7.41,
      "triangles": 10278
+    },
+    "temple_1": {
+     "height": 11.81,
+     "triangles": 15882
+    },
+    "temple_2": {
+     "height": 12.89,
+     "triangles": 15880
+    },
+    "temple_3": {
+     "height": 16.17,
+     "triangles": 15716
     },
     "waste": {
      "height": 6.83,
@@ -430,6 +454,18 @@
      "height": 7.76,
      "triangles": 10499
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15888
+    },
+    "temple_2": {
+     "height": 12.85,
+     "triangles": 15858
+    },
+    "temple_3": {
+     "height": 14.42,
+     "triangles": 15226
+    },
     "waste": {
      "height": 7.33,
      "triangles": 15999
@@ -575,6 +611,18 @@
     "station": {
      "height": 6.17,
      "triangles": 8746
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15941
+    },
+    "temple_2": {
+     "height": 12.85,
+     "triangles": 15907
+    },
+    "temple_3": {
+     "height": 13.79,
+     "triangles": 15628
     },
     "waste": {
      "height": 6.39,
@@ -722,6 +770,18 @@
      "height": 10.23,
      "triangles": 6434
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 16000
+    },
+    "temple_2": {
+     "height": 12.85,
+     "triangles": 15905
+    },
+    "temple_3": {
+     "height": 15.17,
+     "triangles": 15908
+    },
     "waste": {
      "height": 10.49,
      "triangles": 15999
@@ -867,6 +927,18 @@
     "station": {
      "height": 7.41,
      "triangles": 10970
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15927
+    },
+    "temple_2": {
+     "height": 12.85,
+     "triangles": 15932
+    },
+    "temple_3": {
+     "height": 15.92,
+     "triangles": 15795
     },
     "waste": {
      "height": 6.29,
@@ -1016,6 +1088,18 @@
      "height": 8.76,
      "triangles": 15989
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15990
+    },
+    "temple_2": {
+     "height": 13.39,
+     "triangles": 15913
+    },
+    "temple_3": {
+     "height": 19.5,
+     "triangles": 15378
+    },
     "waste": {
      "height": 23.99,
      "triangles": 15988
@@ -1161,6 +1245,18 @@
     "station": {
      "height": 8.5,
      "triangles": 15989
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15913
+    },
+    "temple_2": {
+     "height": 13.19,
+     "triangles": 15865
+    },
+    "temple_3": {
+     "height": 19.5,
+     "triangles": 15484
     },
     "waste": {
      "height": 23.99,
@@ -1308,6 +1404,18 @@
      "height": 8.84,
      "triangles": 15973
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15881
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15866
+    },
+    "temple_3": {
+     "height": 18.06,
+     "triangles": 14968
+    },
     "waste": {
      "height": 23.99,
      "triangles": 15133
@@ -1453,6 +1561,18 @@
     "station": {
      "height": 8.5,
      "triangles": 16000
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15997
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15901
+    },
+    "temple_3": {
+     "height": 19.42,
+     "triangles": 15670
     },
     "waste": {
      "height": 23.99,
@@ -1600,6 +1720,18 @@
      "height": 10.38,
      "triangles": 15732
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15995
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15897
+    },
+    "temple_3": {
+     "height": 16.57,
+     "triangles": 15563
+    },
     "waste": {
      "height": 23.99,
      "triangles": 15988
@@ -1745,6 +1877,18 @@
     "station": {
      "height": 8.5,
      "triangles": 15992
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15984
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15919
+    },
+    "temple_3": {
+     "height": 19.32,
+     "triangles": 15573
     },
     "waste": {
      "height": 23.99,
@@ -1894,6 +2038,18 @@
      "height": 11.13,
      "triangles": 14532
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15995
+    },
+    "temple_2": {
+     "height": 13.39,
+     "triangles": 15913
+    },
+    "temple_3": {
+     "height": 19.5,
+     "triangles": 15436
+    },
     "waste": {
      "height": 9.5,
      "triangles": 15366
@@ -2039,6 +2195,18 @@
     "station": {
      "height": 11.13,
      "triangles": 13408
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15922
+    },
+    "temple_2": {
+     "height": 13.19,
+     "triangles": 15825
+    },
+    "temple_3": {
+     "height": 17.57,
+     "triangles": 15490
     },
     "waste": {
      "height": 9.5,
@@ -2186,6 +2354,18 @@
      "height": 11.13,
      "triangles": 14433
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15867
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15667
+    },
+    "temple_3": {
+     "height": 18.06,
+     "triangles": 15181
+    },
     "waste": {
      "height": 9.5,
      "triangles": 16000
@@ -2331,6 +2511,18 @@
     "station": {
      "height": 11.13,
      "triangles": 11184
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15997
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15892
+    },
+    "temple_3": {
+     "height": 19.42,
+     "triangles": 15558
     },
     "waste": {
      "height": 9.5,
@@ -2478,6 +2670,18 @@
      "height": 11.13,
      "triangles": 11548
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15996
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15861
+    },
+    "temple_3": {
+     "height": 16.57,
+     "triangles": 15656
+    },
     "waste": {
      "height": 10.51,
      "triangles": 13890
@@ -2623,6 +2827,18 @@
     "station": {
      "height": 11.13,
      "triangles": 13624
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15998
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15922
+    },
+    "temple_3": {
+     "height": 19.32,
+     "triangles": 15718
     },
     "waste": {
      "height": 9.5,
@@ -2772,6 +2988,18 @@
      "height": 19.42,
      "triangles": 7704
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15981
+    },
+    "temple_2": {
+     "height": 13.39,
+     "triangles": 15909
+    },
+    "temple_3": {
+     "height": 19.5,
+     "triangles": 15422
+    },
     "waste": {
      "height": 50.0,
      "triangles": 9652
@@ -2917,6 +3145,18 @@
     "station": {
      "height": 19.42,
      "triangles": 7332
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15894
+    },
+    "temple_2": {
+     "height": 13.19,
+     "triangles": 15773
+    },
+    "temple_3": {
+     "height": 17.57,
+     "triangles": 15460
     },
     "waste": {
      "height": 50.0,
@@ -3064,6 +3304,18 @@
      "height": 19.42,
      "triangles": 7373
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15821
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15644
+    },
+    "temple_3": {
+     "height": 18.06,
+     "triangles": 15140
+    },
     "waste": {
      "height": 50.0,
      "triangles": 9724
@@ -3209,6 +3461,18 @@
     "station": {
      "height": 19.42,
      "triangles": 6948
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15997
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15860
+    },
+    "temple_3": {
+     "height": 19.42,
+     "triangles": 15542
     },
     "waste": {
      "height": 50.0,
@@ -3356,6 +3620,18 @@
      "height": 19.42,
      "triangles": 6616
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15996
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15839
+    },
+    "temple_3": {
+     "height": 16.57,
+     "triangles": 15638
+    },
     "waste": {
      "height": 50.0,
      "triangles": 9052
@@ -3501,6 +3777,18 @@
     "station": {
      "height": 19.42,
      "triangles": 7984
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15983
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15917
+    },
+    "temple_3": {
+     "height": 19.32,
+     "triangles": 15691
     },
     "waste": {
      "height": 50.0,
@@ -3650,6 +3938,18 @@
      "height": 17.35,
      "triangles": 10092
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15935
+    },
+    "temple_2": {
+     "height": 13.39,
+     "triangles": 15734
+    },
+    "temple_3": {
+     "height": 19.5,
+     "triangles": 15383
+    },
     "waste": {
      "height": 13.37,
      "triangles": 11938
@@ -3795,6 +4095,18 @@
     "station": {
      "height": 17.35,
      "triangles": 10952
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15818
+    },
+    "temple_2": {
+     "height": 13.19,
+     "triangles": 15743
+    },
+    "temple_3": {
+     "height": 17.57,
+     "triangles": 15464
     },
     "waste": {
      "height": 13.37,
@@ -3942,6 +4254,18 @@
      "height": 17.35,
      "triangles": 10952
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15759
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15617
+    },
+    "temple_3": {
+     "height": 18.06,
+     "triangles": 15180
+    },
     "waste": {
      "height": 13.37,
      "triangles": 12218
@@ -4087,6 +4411,18 @@
     "station": {
      "height": 17.35,
      "triangles": 9528
+    },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15957
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15810
+    },
+    "temple_3": {
+     "height": 19.42,
+     "triangles": 15534
     },
     "waste": {
      "height": 13.37,
@@ -4234,6 +4570,18 @@
      "height": 17.35,
      "triangles": 10468
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15974
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15783
+    },
+    "temple_3": {
+     "height": 16.57,
+     "triangles": 15631
+    },
     "waste": {
      "height": 13.37,
      "triangles": 11358
@@ -4380,6 +4728,18 @@
      "height": 17.35,
      "triangles": 10812
     },
+    "temple_1": {
+     "height": 11.83,
+     "triangles": 15944
+    },
+    "temple_2": {
+     "height": 13.0,
+     "triangles": 15726
+    },
+    "temple_3": {
+     "height": 19.32,
+     "triangles": 15539
+    },
     "waste": {
      "height": 13.37,
      "triangles": 12078
@@ -4516,6 +4876,15 @@
    "tiles": 2
   },
   "station": {
+   "tiles": 3
+  },
+  "temple_1": {
+   "tiles": 3
+  },
+  "temple_2": {
+   "tiles": 3
+  },
+  "temple_3": {
    "tiles": 3
   },
   "waste": {

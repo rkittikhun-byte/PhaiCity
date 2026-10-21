@@ -22,6 +22,7 @@ import type { Building } from "./objects/cityObject.js";
 import { Random } from "./random.js";
 import { houseStanding } from "./rulerHouse.js";
 import { festivalCheer } from "./festivals.js";
+import { templeCheer } from "./temples.js";
 import { isRoadTile } from "./roadTiles.js";
 import { roadLevelAt } from "./roadLevels.js";
 import { modeRule } from "./gameModes.js";
@@ -144,7 +145,8 @@ export function scoreEra(map: Legacy, sim: Legacy, objects: Objects, era: Era = 
   const res = census.resHist10?.[0] ?? 0, jobs = (census.comHist10?.[0] ?? 0) + (census.indHist10?.[0] ?? 0) + (sim._farming?.fields?.jobs ?? 0);
   const education = ((levels.basic ?? 0) * rule.education.basic + (levels.higher ?? 0) * rule.education.higher) / 100;
   // ... the yearly poll, and the cheer of the festivals the ruler held or let pass these last months (src/festivals.ts)
-  const approval = clamp01(((evaluation.cityYes ?? 0) > 0 ? evaluation.cityYes / 100 : 0.5) + festivalCheer(map) / 100);
+  // and of the temples (src/temples.ts)
+  const approval = clamp01(((evaluation.cityYes ?? 0) > 0 ? evaluation.cityYes / 100 : 0.5) + (festivalCheer(map) + templeCheer(map)) / 100);
   const values: Record<Exclude<Factor, "symbol">, number> = {
     water: shares.water,
     power: shares.power,

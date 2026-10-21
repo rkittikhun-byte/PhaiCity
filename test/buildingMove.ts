@@ -209,7 +209,9 @@ describe("moving a building to another block", () => {
     expect(allTiles(again)).toEqual(allTiles(core));
     // A few months on, every one still stands where it went, the gas plant in its era
     again.run(16 * 12);
-    expect(placed(again).all().map((b) => again.objects.get(b.tile)?.kind)).toEqual(["civic", "power_plant", "civic", "waste"]);
+    // (and the temple its villagers may have built meanwhile, src/temples.ts)
+    expect(placed(again).all().map((b) => again.objects.get(b.tile)?.kind).filter((k) => k !== "temple"))
+      .toEqual(["civic", "power_plant", "civic", "waste"]);
     expect(a.buildingEras[at(49, 10)]).toBeGreaterThanOrEqual(2);
   });
 

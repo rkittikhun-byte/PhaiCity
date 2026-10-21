@@ -30,6 +30,7 @@ import {
 } from "./provinceRules";
 import { Random } from "./random";
 import { houseStanding, type HouseMap } from "./rulerHouse";
+import { festivalTemple } from "./temples";
 
 export { FESTIVAL_EVENTS, FESTIVAL_IDS, FESTIVAL_SPECS, festivalCalendar, isFestivalId } from "./provinceRules";
 export type { Festival, FestivalEntry, FestivalId, FestivalSpec } from "./provinceRules";
@@ -245,7 +246,8 @@ export function calendarOf(sim: Pick<FestivalSim, "rules" | "resources">): Festi
   return festivalCalendar(sim.rules?.festivals ?? DEFAULT_RULES.festivals);
 }
 
-/** Where the city holds its festivals: the ruler's house while it stands, else the town */
+/** Where the city holds its festivals: the ruler's house while it stands, else the town (the temple's festivals at its
+ * temple, src/temples.ts festivalTemple) */
 export function venueOf(map: FestivalMap): { x: number; y: number } | null {
   if (houseStanding(map) && map.rulerHouse) return { x: map.rulerHouse.x, y: map.rulerHouse.y };
   return map.town ? { x: map.town.x, y: map.town.y } : null;
@@ -312,17 +314,19 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
     }
     // The people cheer a festival the ruler held, and are let down by one not held; one they held themselves is theirs
     if (!byPeople) state.cheer = clamp(state.cheer + festival.cheer[pairIndex(scale) + 1], -MAX_CHEER, MAX_CHEER);
-    if (scale !== "none" && venue) {
+    // (Songkran, Loy Krathong and Yi Peng at the city's temple when it has one, src/temples.ts)
+    const at = festivalTemple(map as never, festival.id) ?? venue;
+    if (scale !== "none" && at) {
       state.glow = Math.max(state.glow, fromPair(festival.land, scale));
-      state.venue = venue;
+      state.venue = at;
     }
     state.held.push({ id: festival.id, scale, cost, ...(byPeople ? { byPeople: true as const } : {}) });
     news.push({ type: "festival", id: festival.id, scale, cost, byPeople, downgraded });
     // Sky lanterns and rockets come down, sometimes burning, near where they went up
     const chance = fromPair(festival.fire, scale), disasters = sim.disasterManager;
-    if (chance > 0 && venue && disasters?.disastersEnabled && disasters.setFireNear && Random.next() < chance) {
-      const at = disasters.setFireNear(venue.x, venue.y, FIRE_RADIUS * nearnessStep(map));
-      if (at) news.push({ type: "festivalFire", id: festival.id, x: at.x, y: at.y });
+    if (chance > 0 && at && disasters?.disastersEnabled && disasters.setFireNear && Random.next() < chance) {
+      const fire = disasters.setFireNear(at.x, at.y, FIRE_RADIUS * nearnessStep(map));
+      if (fire) news.push({ type: "festivalFire", id: festival.id, x: fire.x, y: fire.y });
     }
   }
   // Next month's events: the ruler of a town is asked a month before

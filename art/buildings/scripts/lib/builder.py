@@ -45,6 +45,11 @@ BAY_PLACES = ('one', 'left', 'mid', 'mid2', 'right')
 FRONTAGE = tuple('bay%d_%s' % (h, place) for h in (1, 2) for place in BAY_PLACES) + ('house12_1', 'house12_2')
 FRONTAGE_WIDTH = {k: (12.0 if k.startswith('house12') else BAY_M) for k in FRONTAGE}
 
+# The temple set (PLAN.md "Temples"): a 3x3 temple compound (วัด) by the level of its community, its wall on the
+# compound's edge; built from buildings/temples.py as era<n>_<region>_temple.
+TEMPLE = ('temple_1', 'temple_2', 'temple_3')
+TILES.update({k: 3 for k in TEMPLE})
+
 
 def bay_ends(kind):
     """(left, right): whether a bay kind has its end wall on its left (-X, seen from the street) and right side."""
@@ -96,8 +101,8 @@ def registry(era):
     items = []
 
     def building(kind, level, th, en):
-        if kind not in KINDS and kind not in FRONTAGE:
-            raise ValueError('Unknown kind %s (builder.KINDS, builder.FRONTAGE)' % kind)
+        if kind not in KINDS and kind not in FRONTAGE and kind not in TEMPLE:
+            raise ValueError('Unknown kind %s (builder.KINDS, builder.FRONTAGE, builder.TEMPLE)' % kind)
 
         def deco(fn):
             spec = {'kind_id': 'era%d_%s' % (era, kind), 'era': era, 'kind': kind, 'level': level,

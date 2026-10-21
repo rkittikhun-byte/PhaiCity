@@ -2,7 +2,8 @@
 # Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
 
 """Every era's buildings, one file each (era1.py ... era5.py), and each era's frontage variants (era1_frontage.py
-... era5_frontage.py: shophouse bays and a 12 m house, PLAN.md "Frontage"), a set of their own. A missing file is
+... era5_frontage.py: shophouse bays and a 12 m house, PLAN.md "Frontage"), a set of their own, and the temples
+(temples.py, every era in one file, PLAN.md "Temples"). A missing file is
 skipped; a file that fails to import is skipped too, with its traceback printed, so one era being written never stops
 another from building."""
 
@@ -35,6 +36,9 @@ for _n in range(1, 6):
     _mod = _load('buildings.era%d_frontage' % _n)
     if _mod is not None:
         FRONTAGE_SETS['era%d' % _n] = sorted(_mod.BUILDINGS, key=lambda s: FRONTAGE.index(s['kind']))
+# The temple sets (temples.py, PLAN.md "Temples"): every era's temple compounds, one set per era and region.
+_mod = _load('buildings.temples')
+TEMPLE_SETS = dict(_mod.TEMPLE_SETS) if _mod is not None else {}
 
 
 def find(bid):
