@@ -307,7 +307,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   saved): a canal grows a level every three months while it stands, by the city's people and the land value along it
   (`growCanals`, `_canalsMonth`), and adds land value nearby. In 3D a canal is drawn along its smooth line with each
   level's banks and things (`src/render3d/city/canals.ts`, `models/water/canal.ts`); the rest of the view reads its
-  tiles as ground (`canalLand`).
+  tiles as ground (`canalLand`). Since 21 Oct 2026 canals are dug in metres like roads (`gameMap.canalGraph`, saved as
+  `canalLines`, `src/roads/canalLines.ts`); the road, rail and canal tools have a chain mode, and a drawn line lost to a
+  disaster or decay is cut there, never redrawn (`test/roadsStay.ts`).
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
   building, beside a road: until it stands only the roads, the house and the bulldozer work (`houseProblem` and
   `houseRoadProblem` in `CityCommands`, the dock greys the rest with `body.houseFirst`); cities saved before it are not
