@@ -85,6 +85,9 @@ describe("a community builds its temple", () => {
     const b = map.buildings.atTile(t.tile);
     expect(b).toMatchObject({ tool: TEMPLE_KIND, size: 3 });
     expect(Math.sign(Math.cos(b.rot))).toBe(cy > 40 ? -1 : 1);
+    // ... on its own tiles' middle, its front row against the road, so the 3D view's front at the road's edge covers no
+    // one else's ground
+    expect([b.x, b.z]).toEqual([(cx + 0.5) * M, (cy + 0.5) * M]);
     // near the heart of its homes, not far off along the road
     expect(Math.abs(cx - 33)).toBeLessThanOrEqual(4);
     // a site gives nothing yet; then it is a temple
@@ -127,6 +130,25 @@ describe("a community builds its temple", () => {
     homes(map, row(far, 42, 6));
     months(map, 40, GATHER_MONTHS + 1);
     expect(templesOf(map).temples).toHaveLength(2);
+  });
+
+  test("on a map of tile roads, faces a road that runs along a whole side of it, never one at its corner", () => {
+    const map = (MapGenerator as any).fromPresetCells(W, H, new Uint8Array(W * H));
+    map.tileSizeM = M;
+    map.paintedZones = true;
+    const core = new CityCore({ map, seed: 5, sandbox: true });
+    core.simulation.budget.setFunds(1000000);
+    (core.map as any).needsRulerHouse = false;
+    // a road east-west along row 40, and a lane ending at its corner from the north
+    for (let x = 10; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40 } as any);
+    for (let y = 20; y < 34; y++) core.apply({ type: "tool", tool: "road", x: 44, y } as any);
+    homes(core.map, row(30, 42, 6));
+    months(core.map, 0, GATHER_MONTHS);
+    const t = templesOf(core.map).temples[0], b = (core.map as any).buildings.atTile(t.tile);
+    const cy = Math.floor(t.tile / W);
+    // its whole side along row 40: a row from it, facing it
+    expect(Math.abs(cy - 40)).toBe(2);
+    expect(b.rot).toBeCloseTo(cy > 40 ? Math.PI : 0, 3);
   });
 
   test("a town more than one temple can look after builds another, a neighbourhood away", () => {

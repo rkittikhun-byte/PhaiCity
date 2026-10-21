@@ -182,6 +182,10 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   }
   // ... the construction sites (src/construction.ts) and the months each school has trained (src/trainedPeople.ts)
   if (save.sites) out.sites = movedKeys(save.sites);
+  // ... and the temples the communities built, by their centre tiles (src/temples.ts)
+  if (save.temples && Array.isArray(save.temples.temples)) {
+    out.temples = { ...save.temples, temples: save.temples.temples.map((t: number[]) => [moved(t[0]), ...t.slice(1)]) };
+  }
   if (save.trained && typeof save.trained === "object") out.trained = { ...save.trained, worked: movedKeys(save.trained.worked) };
   if (save.buildingPoses) out.buildingPoses = movedKeys(save.buildingPoses as Record<string, [number, number, number]>,
     ([x, z, turn]): [number, number, number] => [x + dx * 10, z + dy * 10, turn]);

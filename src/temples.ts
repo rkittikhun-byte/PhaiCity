@@ -42,6 +42,8 @@ export const TEMPLE_REACH_M = 700;
 export const TEMPLE_CAPACITY = 6000;
 /** How close another temple may stand (metres): a neighbourhood's own, not the next street's */
 export const TEMPLE_APART_M = 400;
+/** How far a temple's front may stand off its road's edge (metres) */
+export const FRONT_SLACK_M = 6;
 /** The people in homes with no temple within reach that make a community build one */
 export const FOUND_PEOPLE = 400;
 /** The months the community gathers before it builds, and the months it builds */
@@ -348,6 +350,21 @@ function besideRoadTile(map: TempleMap, tiles: readonly number[]): boolean {
   });
 }
 
+/** The turn of a 3 x 3 round centre (cx, cy) facing a road that runs along a whole side of it (two of its three tiles
+ * beside that side road), south first, then east, west and north, as the 3D view picks a side (tileModels.ts roadSide);
+ * null when no road runs along it (a road touching a corner, which the view would turn it away from) */
+function facingRoad(map: TempleMap, cx: number, cy: number): number | null {
+  const road = (x: number, y: number): number => x >= 0 && y >= 0 && x < map.width && y < map.height && isRoadTile(map.getTileValue(x, y)) ? 1 : 0;
+  const along = (side: number): number => {
+    let n = 0;
+    for (let k = -1; k <= 1; k++) n += side === 0 ? road(cx + k, cy - 2) : side === 1 ? road(cx + 2, cy + k) : side === 2 ? road(cx + k, cy + 2) : road(cx - 2, cy + k);
+    return n;
+  };
+  // (the front (sin rot, cos rot): south 0, east a quarter turn, north a half, west a quarter back)
+  for (const [side, rot] of [[2, 0], [1, Math.PI / 2], [3, -Math.PI / 2], [0, Math.PI]] as const) if (along(side) >= 2) return Math.round(rot * 1000) / 1000;
+  return null;
+}
+
 /** The square block round centre (cx, cy) */
 function blockTiles(map: TempleMap, cx: number, cy: number): number[] {
   const out: number[] = [];
@@ -407,8 +424,12 @@ export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Fl
               }
               const tiles = blockTiles(map, b.cx, b.cy);
               if (tiles.some((i) => isRoadTile(map.getTileValue(i % map.width, Math.floor(i / map.width))))) continue;
+              // ... its front row against the road it faces (the 3D view stands its front at the road's edge, so a
+              // block stood farther back would be drawn over what lies between), kept on its own tiles' middle
+              const mx = (b.cx + 0.5) * metres, mz = (b.cy + 0.5) * metres, front = (mx - rx) * nx + (mz - rz) * nz - half;
+              if (front > reach + FRONT_SLACK_M) break;
               if (free(tiles) && besideRoadTile(map, tiles)) {
-                add({ cx: b.cx, cy: b.cy, x, z, rot, tiles });
+                add({ cx: b.cx, cy: b.cy, x: mx, z: mz, rot, tiles });
                 break;
               }
             }
@@ -419,8 +440,8 @@ export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Fl
   } else {
     for (let cy = Math.max(1, hy - near); cy <= Math.min(map.height - 2, hy + near); cy++) {
       for (let cx = Math.max(1, hx - near); cx <= Math.min(map.width - 2, hx + near); cx++) {
-        const tiles = blockTiles(map, cx, cy);
-        if (free(tiles) && besideRoadTile(map, tiles)) add({ cx, cy, x: (cx + 0.5) * metres, z: (cy + 0.5) * metres, rot: null, tiles });
+        const tiles = blockTiles(map, cx, cy), rot = facingRoad(map, cx, cy);
+        if (rot !== null && free(tiles)) add({ cx, cy, x: (cx + 0.5) * metres, z: (cy + 0.5) * metres, rot, tiles });
       }
     }
   }

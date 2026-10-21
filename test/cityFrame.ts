@@ -72,6 +72,8 @@ describe("a district's frame", () => {
     expect(core.apply({ type: "tool", tool: "bus_stop" as any, x: 60, y: 40 }).toolResult).toBe(0);
     expect(core.map.buses).toEqual([40 * 96 + 60]);
     core.run(100);
+    // ... and a temple the villagers built (src/temples.ts), kept by its centre tile
+    (core.map as any).temples.temples.push({ tile: 33 * 96 + 70, level: 2, since: 4 });
     const save = JSON.parse(JSON.stringify(core.save()));
 
     const fresh = frameMap(to), freshData: any = {};
@@ -95,6 +97,7 @@ describe("a district's frame", () => {
     const at = (x: number, y: number) => (y + dy) * 160 + x + dx;
     expect(again.map.powerKinds[at(30, 37)]).toBe("lignite");
     expect(again.map.civicKinds[at(40, 26)]).toBe("ruler_house");
+    expect((again.map as any).temples.temples).toEqual([{ tile: at(70, 33), level: 2, since: 4 }]);
     expect(again.map.wasteKinds).toEqual(Object.fromEntries(Object.entries(core.map.wasteKinds).map(([k, v]) => [String(at(Number(k) % 96, Math.floor(Number(k) / 96))), v])));
     expect((again.map as any).buildings.atTile(at(50, 37))).toMatchObject({ tool: "landfill", x: 50.5 * 16 + 3 + dx * 16,
       z: 37.5 * 16 - 2 + dy * 16, rot: 1 });
