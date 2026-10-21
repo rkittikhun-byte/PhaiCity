@@ -44,7 +44,7 @@ describe("the era card's rows", () => {
     expect(report.factors.map(f => f.factor)).toEqual([...FACTORS]);
     expect(report.factors.reduce((sum, f) => sum + f.weight, 0)).toBe(100);
     // The symbols' row counts them
-    expect(report.factors.find(f => f.factor === "symbol")?.count).toEqual({ has: 3, all: 3 });
+    expect(report.factors.find(f => f.factor === "symbol")?.count).toEqual({ has: 4, all: 4 });
   });
 
   test("what finishing a side adds: people's progress × its weight × what it lacks", () => {
@@ -80,9 +80,9 @@ describe("the era card's rows", () => {
     const report = eraReport(score({ missing: ["school"] }));
     expect(report.symbols).toEqual([
       { key: "power_plant", has: true, hint: null }, { key: "water_works", has: true, hint: null },
-      { key: "school", has: false, hint: "era.symbol_hint.school" },
+      { key: "school", has: false, hint: "era.symbol_hint.school" }, { key: "technicians", has: true, hint: null },
     ]);
-    expect(report.factors.find(f => f.factor === "symbol")).toMatchObject({ met: false, count: { has: 2, all: 3 },
+    expect(report.factors.find(f => f.factor === "symbol")).toMatchObject({ met: false, count: { has: 3, all: 4 },
       hint: "era.hint.symbol" });
   });
 

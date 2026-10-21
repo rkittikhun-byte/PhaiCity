@@ -38,6 +38,8 @@ var PowerManager = EventEmitter(function(map) {
   this.drySeason = null;
   // ... and the share of the plants' power the city used at the last power scan, by which they burn fuel
   this.load = 1;
+  // ... and the plants' power at that scan, in tiles, which a player reads to see how many more the city can light
+  this.capacity = 0;
 });
 
 
@@ -95,6 +97,7 @@ PowerManager.prototype.doPowerScan = function(census) {
                   census.nuclearPowerPop * NUCLEAR_POWER_STRENGTH) * this.outputFactor;
 
   var powerConsumption = 0; // Amount of power used.
+  this.capacity = maxPower;
 
   while (this._powerStack.length > 0) {
     var pos = this._powerStack.pop();
