@@ -39,8 +39,21 @@ const rulesOf = (region: string | null, province: string | null): Rules => resol
 const ids = (calendar: readonly Festival[]): string[] => calendar.map((f) => f.id);
 const PROVINCE = { tourism: 3 };
 
-/** A small map with a simulation of a province (it has resources), as the simulation tests make one */
+/** The rules with every festival the ruler holds sure to be the town's event when one is due (FESTIVAL_SPECS event) */
+const everyEvent = (rules: Rules): Rules => ({ ...rules, festivals: Object.fromEntries(Object.entries(rules.festivals)
+  .map(([id, entry]) => [id, { ...entry, event: 1 }])) });
+
+/** A month of the festivals with every one of them an event, as the tests of how one is held want: no event waits for
+ * the last one's gap (festivalEvents) */
+function month(map: any, sim: any): FestivalNews[] {
+  map.festivals.nextEvent = -1;
+  return festivalMonth(map, sim);
+}
+
+/** A small map with a simulation of a province (it has resources), as the simulation tests make one, every festival an
+ * event when its month comes (use month()) */
 function city(rules: Rules | null = rulesOf("northeast", "TH-40"), resources: Record<string, number> = PROVINCE) {
+  if (rules) rules = everyEvent(rules);
   const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(64, 40);
   map.civicKinds = {};
   map.rulerHouse = null;
@@ -168,15 +181,15 @@ describe("a festival's month", () => {
   test("is held as the ruler answered: paid for, the people cheered, the land round the venue raised, once a month", () => {
     const { map, sim } = city();
     atMonth(sim, 2); // March: Songkran is next month
-    const asked = festivalMonth(map, sim);
+    const asked = month(map, sim);
     expect(asked).toEqual([{ type: "festivalAhead", id: "songkran", scale: "modest", costs: [200, 1200] }]);
     chooseFestival(map.festivals, "songkran", "grand");
     atMonth(sim, 3);
     const funds = sim.budget.totalFunds;
-    const held = festivalMonth(map, sim);
-    // ... and May's rockets are asked about
-    expect(held).toEqual([{ type: "festival", id: "songkran", scale: "grand", cost: 1200, byPeople: false, downgraded: false },
-      { type: "festivalAhead", id: "bun_bang_fai", scale: "modest", costs: [150, 1000] }]);
+    const held = month(map, sim);
+    // ... and May's rockets are not asked about: the next event is a season away (festivalEvents)
+    expect(held).toEqual([{ type: "festival", id: "songkran", scale: "grand", cost: 1200, byPeople: false, downgraded: false }]);
+    expect(map.festivals.nextEvent).toBeGreaterThanOrEqual(3 + 10);
     expect(sim.budget.totalFunds).toBe(funds - 1200);
     expect(map.festivals.held).toEqual([{ id: "songkran", scale: "grand", cost: 1200 }]);
     expect(map.festivals.cheer).toBe(FESTIVAL_SPECS.songkran.cheer[2]);
@@ -184,18 +197,18 @@ describe("a festival's month", () => {
     expect(map.festivals.venue).toEqual(map.town);
     expect(festivalsShown(map).map((h) => h.id)).toEqual(["songkran"]);
     // The same month again holds nothing more
-    expect(festivalMonth(map, sim)).toEqual([]);
+    expect(month(map, sim)).toEqual([]);
     expect(sim.budget.totalFunds).toBe(funds - 1200);
     // Next month the festival is over, and its cheer and land value fade
     atMonth(sim, 4);
-    const may = festivalMonth(map, sim);
+    const may = month(map, sim);
     expect(may.map((n) => n.type === "festival" ? n.id : n.type)).toEqual(["bun_bang_fai"]);
     expect(map.festivals.cheer).toBeCloseTo(FESTIVAL_SPECS.songkran.cheer[2] * CHEER_KEEP + FESTIVAL_SPECS.bun_bang_fai.cheer[1], 5);
     expect(map.festivals.held.map((h: any) => h.id)).toEqual(["bun_bang_fai"]);
     atMonth(sim, 5);
-    festivalMonth(map, sim);
+    month(map, sim);
     expect(map.festivals.held).toEqual([]);
-    for (let m = 6; m < 10; m++) { atMonth(sim, m); festivalMonth(map, sim); }
+    for (let m = 6; m < 10; m++) { atMonth(sim, m); month(map, sim); }
     expect(map.festivals.glow).toBeLessThan(2);
   });
 
@@ -204,7 +217,7 @@ describe("a festival's month", () => {
     chooseFestival(map.festivals, "songkran", "none");
     atMonth(sim, 3);
     const funds = sim.budget.totalFunds;
-    expect(festivalMonth(map, sim)[0]).toEqual({ type: "festival", id: "songkran", scale: "none", cost: 0, byPeople: false, downgraded: false });
+    expect(month(map, sim)[0]).toEqual({ type: "festival", id: "songkran", scale: "none", cost: 0, byPeople: false, downgraded: false });
     expect(sim.budget.totalFunds).toBe(funds);
     expect(map.festivals.cheer).toBe(FESTIVAL_SPECS.songkran.cheer[0]);
     expect(map.festivals.cheer).toBeLessThan(0);
@@ -214,12 +227,12 @@ describe("a festival's month", () => {
     chooseFestival(map.festivals, "bun_bang_fai", "grand");
     sim.budget.setFunds(500);
     atMonth(sim, 4);
-    expect(festivalMonth(map, sim)[0]).toEqual({ type: "festival", id: "bun_bang_fai", scale: "modest", cost: 150, byPeople: false, downgraded: true });
+    expect(month(map, sim)[0]).toEqual({ type: "festival", id: "bun_bang_fai", scale: "modest", cost: 150, byPeople: false, downgraded: true });
     expect(sim.budget.totalFunds).toBe(350);
     sim.budget.setFunds(0);
     const cheer = map.festivals.cheer;
     sim._cityTime = 4 * 16; // May of the next year
-    expect(festivalMonth(map, sim)[0]).toEqual({ type: "festival", id: "bun_bang_fai", scale: "modest", cost: 0, byPeople: true, downgraded: true });
+    expect(month(map, sim)[0]).toEqual({ type: "festival", id: "bun_bang_fai", scale: "modest", cost: 0, byPeople: true, downgraded: true });
     expect(sim.budget.totalFunds).toBe(0);
     // ... which the people cheer as their own, not the ruler's
     expect(map.festivals.cheer).toBeCloseTo(cheer * CHEER_KEEP, 5);
@@ -231,34 +244,75 @@ describe("a festival's month", () => {
     chooseFestival(map.festivals, "songkran", "grand");
     atMonth(sim, 2);
     // March: no question about April's Songkran
-    expect(festivalMonth(map, sim)).toEqual([]);
+    expect(month(map, sim)).toEqual([]);
     atMonth(sim, 3);
     const funds = sim.budget.totalFunds;
-    expect(festivalMonth(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "modest", cost: 0, byPeople: true,
-      downgraded: false, village: true }]);
+    expect(month(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "modest", cost: 0, byPeople: true,
+      downgraded: false, quiet: true }]);
     expect(sim.budget.totalFunds).toBe(funds);
     expect(sim.budget.festivalFund ?? 0).toBe(0);
     expect(map.festivals.cheer).toBe(FESTIVAL_SPECS.songkran.cheer[1]);
     expect(map.festivals.glow).toBe(0);
-    expect(map.festivals.held).toEqual([{ id: "songkran", scale: "modest", cost: 0, byPeople: true, village: true }]);
+    expect(map.festivals.held).toEqual([{ id: "songkran", scale: "modest", cost: 0, byPeople: true, quiet: true }]);
     expect(festivalsShown(map)).toEqual([]);
     // ... kept so with the city
     expect(readFestivals(JSON.parse(JSON.stringify(writeFestivals(map.festivals)))).held).toEqual(map.festivals.held);
     // A town of 500: asked about May's rockets, and its Songkran held grandly as the ruler answered
     sim._census.totalPop = FESTIVAL_TOWN_PEOPLE / 160;
     atMonth(sim, 15);
-    expect(festivalMonth(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "grand", cost: 120, byPeople: false,
-      downgraded: false }, { type: "festivalAhead", id: "bun_bang_fai", scale: "modest", costs: [20, 100] }]);
+    expect(month(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "grand", cost: 120, byPeople: false,
+      downgraded: false }]);
+    sim._cityTime = 4 * 14;
+    map.festivals.nextEvent = -1;
+    expect(festivalMonth(map, sim)).toEqual([{ type: "festivalAhead", id: "songkran", scale: "grand", costs: [20, 120] }]);
+  });
+
+  test("a town makes an event of two or three festivals an era, the big ones, and is asked a month before each; the rest pass quietly", () => {
+    // Owner, 21 Oct 2026: "เทศกาล เอาในแต่ละยุค มี 2-3 ครั้งกำลังดี"
+    for (const [region, province, town] of [["northeast", "TH-40", { x: 30, y: 20 }], ["north", "TH-50", { x: 12, y: 7 }],
+      ["central", "TH-10", { x: 50, y: 33 }]] as const) {
+      const { map, sim } = city();
+      sim.rules = rulesOf(region, province);
+      map.town = town;
+      const events: string[] = [], asked = new Map<number, string[]>();
+      let quiet = 0;
+      for (let m = 0; m < 9 * 12; m++) {
+        sim._cityTime = m * 4;
+        const funds = sim.budget.totalFunds;
+        const news = festivalMonth(map, sim);
+        for (const n of news) {
+          if (n.type === "festivalAhead") asked.set(m + 1, [...(asked.get(m + 1) ?? []), n.id]);
+          if (n.type !== "festival") continue;
+          if (n.quiet) {
+            quiet++;
+            expect(n.cost).toBe(0);
+            continue;
+          }
+          events.push(`${m}:${n.id}`);
+          // ... each one asked about the month before
+          expect([m, n.id, asked.get(m)?.includes(n.id)]).toEqual([m, n.id, true]);
+          expect(FESTIVAL_SPECS[n.id].choice).toBe(true);
+        }
+        if (news.every((n) => n.type !== "festival" || n.quiet)) expect(sim.budget.totalFunds).toBe(funds);
+        expect(festivalsShown(map).every((h) => !h.quiet)).toBe(true);
+      }
+      // Nine years, three eras: two or three occasions each (two festivals of one month are one occasion)
+      const occasions = new Set(events.map((e) => e.split(":")[0])).size;
+      expect([province, occasions >= 6 && occasions <= 9]).toEqual([province, true]);
+      // ... and nothing asked about that did not come
+      for (const [m, ids] of asked) if (m < 9 * 12) for (const id of ids) expect(events).toContain(`${m}:${id}`);
+      expect(quiet).toBeGreaterThan(events.length * 2);
+    }
   });
 
   test("what the year's festivals cost is counted for the budget window, apart from the taxes, and saved", () => {
     const { map, sim } = city();
     chooseFestival(map.festivals, "songkran", "grand");
-    atMonth(sim, 3); festivalMonth(map, sim);
-    atMonth(sim, 4); festivalMonth(map, sim);
+    atMonth(sim, 3); month(map, sim);
+    atMonth(sim, 4); month(map, sim);
     expect(sim.budget.festivalFund).toBe(1200 + 150);
     // ... nothing for one the people held themselves
-    sim.budget.setFunds(0); atMonth(sim, 10); festivalMonth(map, sim);
+    sim.budget.setFunds(0); atMonth(sim, 10); month(map, sim);
     expect(map.festivals.held[0]).toMatchObject({ id: "loy_krathong", byPeople: true });
     expect(sim.budget.festivalFund).toBe(1350);
     const saved: Record<string, unknown> = {};
@@ -286,7 +340,7 @@ describe("a festival's month", () => {
     chooseFestival(map.festivals, "yi_peng", "grand");
     map.festivals.cheer = MAX_CHEER - 1;
     atMonth(sim, 10);
-    festivalMonth(map, sim);
+    month(map, sim);
     expect(map.festivals.cheer).toBe(MAX_CHEER);
   });
 
@@ -301,7 +355,7 @@ describe("a festival's month", () => {
       const news: FestivalNews[] = [];
       for (let year = 0; year < 20; year++) {
         sim._cityTime = (year * 12 + 10) * 4;
-        news.push(...festivalMonth(map, sim));
+        news.push(...month(map, sim));
       }
       return { calls, news: news.filter((n) => n.type === "festivalFire") };
     };
@@ -319,7 +373,7 @@ describe("a festival's month", () => {
   test("a practice map keeps no festivals", () => {
     const { map, sim } = city(null, {});
     atMonth(sim, 3);
-    expect(festivalMonth(map, sim)).toEqual([]);
+    expect(month(map, sim)).toEqual([]);
     expect(map.festivals.held).toEqual([]);
   });
 });
@@ -489,7 +543,7 @@ describe("a province city's festivals in the core", () => {
   /** A year of Khon Kaen with its rules, the commands at their steps; what the festivals told, and the city after */
   const play = (orders: { step: number; command: Command }[], seed = 9) => {
     const map = khonKaen();
-    const core = new CityCore({ map, seed, rules: rulesOf("northeast", "TH-40"), resources: PROVINCE });
+    const core = new CityCore({ map, seed, rules: everyEvent(rulesOf("northeast", "TH-40")), resources: PROVINCE });
     map.landBlocks = null;
     core.simulation.budget.setFunds(20000);
     // A town of 640 people as the festivals count them (4 of the census's units), past FESTIVAL_TOWN_PEOPLE, so its
@@ -502,6 +556,8 @@ describe("a province city's festivals in the core", () => {
     let next = 0;
     for (let step = 0; step < STEPS_PER_YEAR; step++) {
       while (next < orders.length && orders[next].step === core.steps) core.apply(orders[next++].command);
+      // Every festival the town's event, to see each held as answered (the cadence is the test above)
+      if (map.festivals) map.festivals.nextEvent = -1;
       core.step();
     }
     let tiles = 0;
@@ -519,7 +575,8 @@ describe("a province city's festivals in the core", () => {
     expect(held).toEqual(["new_year:modest", "songkran:grand", "bun_bang_fai:modest", "loy_krathong:modest", "silk:none",
       "new_year:modest"]);
     const asked = first.news.filter((n) => n.type === "festivalAhead").map((n) => n.type === "festivalAhead" ? n.id : "");
-    expect(asked).toEqual(["songkran", "bun_bang_fai", "loy_krathong", "silk"]);
+    // (none the month after an event: the next is a season away, festivalEvents)
+    expect(asked).toEqual(["songkran", "loy_krathong"]);
     expect(first.map.festivals.choices).toEqual({ songkran: "grand", silk: "none" });
     // What they cost, paid in their months, is the budget's festivals line once the year's taxes come in
     const paid = first.news.reduce((sum, n) => sum + (n.type === "festival" ? n.cost : 0), 0);

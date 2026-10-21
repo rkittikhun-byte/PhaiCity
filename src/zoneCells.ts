@@ -504,6 +504,51 @@ export function cellsNear(layout: CellLayout, width: number, from: Point | null,
   return [...keys].sort((p, q) => p - q);
 }
 
+/** How many cells along its road the strip brush paints at once (owner, 21 Oct 2026: "การวาดสีให้วาด ทีละ 6 แถว กับพื้น
+ * ถนน"): six cells, 24 m, a few shophouses' frontage, every row of them from the road to the plot's back (CELL_DEPTH) */
+export const STRIP_CELLS = 6;
+
+/**
+ * The strip brush (src/drawModes.ts "strip", the zone brushes' first mode): every cell against the road the stroke from
+ * one point to another (world units) goes along, on the side of the road the stroke starts on, from the road's edge to
+ * the plot's back, and STRIP_CELLS / 2 cells either way along the road of each point of the stroke. Only that road's
+ * cells, measured along its own line, so a curve is painted as it bends and nothing across the road or on another road
+ * behind. In the order of their keys.
+ */
+export function cellsInStrip(layout: CellLayout, width: number, from: Point | null, to: Point, cells = STRIP_CELLS): number[] {
+  const [ax, az] = from ?? to, [bx, bz] = to;
+  const start = cellAt(layout, width, ax, az) ?? cellAt(layout, width, bx, bz);
+  if (!start) return [];
+  const u = layout.cellUnits, half = cells * u / 2, steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / u));
+  const points: Point[] = [];
+  for (let k = 0; k <= steps; k++) points.push([ax + (bx - ax) * k / steps, az + (bz - az) * k / steps]);
+  // The roads the stroke goes along: the start's, and those of the cells under it on the same side
+  const roads = new Set<number>([start.road]);
+  for (const [x, z] of points) {
+    const cell = cellAt(layout, width, x, z);
+    if (cell && cell.nx * start.nx + cell.nz * start.nz > 0) roads.add(cell.road);
+  }
+  const keys = new Set<number>(), reach = Math.ceil((half + CELL_DEPTH * u) / unitsOfTile(1)) + 1, seen = new Set<number>();
+  for (const [x, z] of points) {
+    const tx = tileOfUnits(x), tz = tileOfUnits(z);
+    for (let oz = -reach; oz <= reach; oz++) for (let ox = -reach; ox <= reach; ox++) {
+      const tile = (tz + oz) * width + tx + ox;
+      if (seen.has(tile)) continue;
+      seen.add(tile);
+      for (const index of layout.byTile.get(tile) ?? []) {
+        const cell = layout.cells[index];
+        if (!roads.has(cell.road) || cell.nx * start.nx + cell.nz * start.nz <= 0) continue;
+        // ... measured along the road from the cell's foot by the road, the same for every row of it
+        const fx = cell.x - cell.nx * cell.row * u, fz = cell.z - cell.nz * cell.row * u;
+        const tx2 = Math.sin(cell.angle), tz2 = Math.cos(cell.angle);
+        if (points.some(([px, pz]) => Math.abs((px - fx) * tx2 + (pz - fz) * tz2) <= half &&
+          (px - fx) * cell.nx + (pz - fz) * cell.nz <= (CELL_DEPTH + 1) * u)) keys.add(cell.key);
+      }
+    }
+  }
+  return [...keys].sort((p, q) => p - q);
+}
+
 /** The cells a stroke from one point to another (world units) passes over, in order, each once */
 export function cellsAlong(layout: CellLayout, width: number, from: Point | null, to: Point): number[] {
   const keys: number[] = [], seen = new Set<number>();

@@ -632,6 +632,9 @@ export interface FestivalSpec {
   rubbish: readonly [number, number];
   /** How much it dirties the rivers and canals, 0–1: krathong left in the water (src/waste.ts sewage) */
   dirt: readonly [number, number];
+  /** How likely it is to be the town's festival of the season when one is due, 0–1 (src/festivals.ts festivalEvents):
+   * the big ones (Songkran, Loy Krathong, a region's own) most; New Year, which the ruler does not hold, never */
+  event: number;
 }
 
 /** The game's own numbers for each festival, as BASE_PRICES is each tool's. The months are the usual ones; whether a
@@ -639,26 +642,32 @@ export interface FestivalSpec {
 export const FESTIVAL_SPECS: Readonly<Record<FestivalId, FestivalSpec>> = {
   // The country travels home and to the sea; the ruler holds nothing
   new_year: { month: 1, choice: false, draw: 1.5, homecoming: 200, waterUse: 0, cost: [0, 0], cheer: [0, 0, 0],
-    land: [0, 0], fire: [0, 0], rubbish: [0, 0], dirt: [0, 0] },
+    land: [0, 0], fire: [0, 0], rubbish: [0, 0], dirt: [0, 0], event: 0 },
   // 13–15 April: people come home, water fights in the middle of the dry season
   songkran: { month: 4, choice: true, draw: 1.6, homecoming: 300, waterUse: 0.15, cost: [200, 1200], cheer: [-5, 3, 8],
-    land: [4, 12], fire: [0, 0], rubbish: [5, 12], dirt: [0, 0] },
+    land: [4, 12], fire: [0, 0], rubbish: [5, 12], dirt: [0, 0], event: 1 },
   // The full moon of November: krathong on the water, fireworks
   loy_krathong: { month: 11, choice: true, draw: 1.4, homecoming: 100, waterUse: 0, cost: [150, 1000], cheer: [-4, 3, 7],
-    land: [3, 10], fire: [0.02, 0.06], rubbish: [6, 15], dirt: [0.1, 0.25] },
+    land: [3, 10], fire: [0.02, 0.06], rubbish: [6, 15], dirt: [0.1, 0.25], event: 1 },
   // The North's sky lanterns, with Loy Krathong
   yi_peng: { month: 11, choice: true, draw: 1.5, homecoming: 0, waterUse: 0, cost: [200, 1500], cheer: [-3, 3, 8],
-    land: [3, 12], fire: [0.1, 0.3], rubbish: [3, 8], dirt: [0, 0] },
+    land: [3, 12], fire: [0.1, 0.3], rubbish: [3, 8], dirt: [0, 0], event: 0.9 },
   // The Northeast's rocket festival, asking the sky for the rains, in May
   bun_bang_fai: { month: 5, choice: true, draw: 1.3, homecoming: 150, waterUse: 0, cost: [150, 1000], cheer: [-4, 3, 8],
-    land: [2, 8], fire: [0.08, 0.25], rubbish: [3, 8], dirt: [0, 0] },
+    land: [2, 8], fire: [0.08, 0.25], rubbish: [3, 8], dirt: [0, 0], event: 0.9 },
   // Khon Kaen's silk festival and Phuk Siao, late November into December, counted in December
   silk: { month: 12, choice: true, draw: 1.3, homecoming: 100, waterUse: 0, cost: [250, 1500], cheer: [-2, 2, 6],
-    land: [5, 15], fire: [0, 0], rubbish: [3, 8], dirt: [0, 0] },
+    land: [5, 15], fire: [0, 0], rubbish: [3, 8], dirt: [0, 0], event: 0.6 },
   // The South's vegetarian festival, the ninth lunar month, about October: processions and firecrackers
   vegetarian: { month: 10, choice: true, draw: 1.4, homecoming: 50, waterUse: 0, cost: [150, 1000], cheer: [-3, 3, 7],
-    land: [2, 8], fire: [0.03, 0.08], rubbish: [2, 6], dirt: [0, 0] },
+    land: [2, 8], fire: [0.03, 0.08], rubbish: [2, 6], dirt: [0, 0], event: 0.9 },
 };
+
+/** How often a town makes an event of a festival (owner, 21 Oct 2026: "ทุกอย่างมันเร็วไป ทั้งฝนตก เทศกาล เอาในแต่ละยุค มี 2-3
+ * ครั้งกำลังดี"): about this many in an era of eraMonths months (normal mode, about three years); after one, the next may
+ * come no sooner than the gap less `spread` of it, and no later than the gap plus it, at the first festival then due whose
+ * `event` the city's dice allow (src/festivals.ts festivalEvents) */
+export const FESTIVAL_EVENTS = { perEra: 2.5, eraMonths: 36, spread: 0.3 } as const;
 
 /** What the rules keep of a festival: anything of its spec they change (an empty entry keeps the game's own) */
 export type FestivalEntry = Partial<FestivalSpec>;
@@ -685,6 +694,7 @@ const FESTIVAL_RANGES: Readonly<Record<string, { min: number; max: number; size:
   draw: { min: 1, max: 5, size: 1 }, homecoming: { min: 0, max: 5000, size: 1 }, waterUse: { min: 0, max: 0.5, size: 1 },
   cost: { min: 0, max: 100000, size: 2 }, cheer: { min: -30, max: 30, size: 3 }, land: { min: 0, max: 100, size: 2 },
   fire: { min: 0, max: 1, size: 2 }, rubbish: { min: 0, max: 100, size: 2 }, dirt: { min: 0, max: 1, size: 2 },
+  event: { min: 0, max: 1, size: 1 },
 };
 
 /** A layer's festivals, checked: what is valid is kept, the rest is reported in problems */
