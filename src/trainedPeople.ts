@@ -9,6 +9,7 @@
 //   once its first classes have finished (the era symbol "literate", src/eraRules.ts; docs/GAME_DESIGN.md 6.5).
 // - Technicians come out of lower secondary schools and vocational colleges, nurses out of vocational colleges, engineers
 //   and doctors out of universities, and only from a school that works (standing, finished, with power).
+//   A market town becomes a factory town only once it has its first technicians (the era symbol "technicians").
 // - Each working health centre (รพ.สต.) brings a nurse home a year: a young villager it sent to nursing college on the
 //   district's grant, as Thailand's "nurses back home" scholarships do, so a market town's community hospital need not
 //   wait for a vocational college (21 Oct 2026; the normal mode's towns had no nurse in ten years, docs/GAME_DESIGN.md 6.5).

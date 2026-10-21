@@ -756,6 +756,12 @@ export class AutoPlayer {
     const core = this.core, score = (core.map as { eraScore?: { symbols?: Array<{ key: string; has: boolean }> } }).eraScore;
     const city = unlockCity(core.map), level = core.map.rulerHouse?.level ?? 0, tools: string[] = [];
     for (const { key, has } of score?.symbols ?? []) {
+      // The first technicians come from a secondary school's classes: none more while one teaches, and the district
+      // office it needs first through the training goal (trainingGoal)
+      if (key === "technicians" && !has) {
+        if (city.count("secondary_school") + city.count("vocational_college") > 0) continue;
+        if (serviceProblem("secondary_school", level) !== null) { this.wantTrained.add("technician"); continue; }
+      }
       const tool = SYMBOL_TOOLS[key];
       if (has || !tool || tools.includes(tool) || city.count(tool) > 0) continue;
       if (serviceProblem(tool, level) !== null || this.waits(tool)) continue;
@@ -783,7 +789,10 @@ export class AutoPlayer {
     const core = this.core, city = unlockCity(core.map), rank = core.commands.rank();
     for (const kind of this.wantTrained) {
       for (const school of TRAINS[kind]) {
-        if (city.count(school) > 0) continue;
+        // (a school the city has trains them already: their classes come, and the money goes to what the era card asks,
+        // not to a district office for the next school; a health centre's nurses kept a town short of care for years
+        // while it saved for a vocational college, docs/GAME_DESIGN.md 6.5)
+        if (city.count(school) > 0) break;
         const lock = core.commands.lock(school);
         const goal = !lock ? school : lock.reason === "unlock.first" && core.tools?.[String(lock.params.need)] &&
           !core.commands.lock(String(lock.params.need)) ? String(lock.params.need) : null;
