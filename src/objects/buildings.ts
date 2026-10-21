@@ -89,6 +89,15 @@ export class Civic extends RecordedBuilding {
   readonly kind = "civic";
   protected record(city: CityReader) { return city.civicKinds; }
 }
+/** A temple (วัด, src/temples.ts): the community's, on the civic 3 × 3; it needs no power, and its card says its level */
+export class Temple extends CommunityBuilding {
+  readonly kind = "temple";
+  override get needsPower(): boolean { return false; }
+  override facts(city: CityReader): Fact[] {
+    const level = city.temples?.temples.find(t => t.tile === this.id)?.level ?? 1;
+    return [...super.facts(city), { key: "object.fact.temple_level", params: { level } }];
+  }
+}
 export class WasteSite extends RecordedBuilding {
   readonly kind = "waste";
   protected record(city: CityReader) { return city.wasteKinds; }
@@ -139,6 +148,7 @@ const BY_CENTRE = new Map(CENTRES.map(([value, size, make]) => [value, { size, m
 export function buildingAt(city: CityReader, x: number, y: number): Building | null {
   const value = city.getTileValue(x, y), flags = city.getTileFlags(x, y), id = y * city.width + x;
   if (flags & ZONEBIT) {
+    if (value === CIVIC && city.civicKinds?.[id] === "temple") return new Temple(id, x, y, 3);
     const centre = BY_CENTRE.get(value);
     if (centre) return centre.make(id, x, y);
     const plot = readPlotValue(value);

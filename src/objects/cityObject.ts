@@ -27,6 +27,8 @@ export interface CityReader {
   readonly mineKinds?: Readonly<Record<string, string>> | null;
   readonly stationKinds?: Readonly<Record<string, string>> | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number } | null;
+  /** The temples and their levels (src/temples.ts) */
+  readonly temples?: { readonly temples: ReadonlyArray<{ readonly tile: number; readonly level: number }> } | null;
   /** Where the water reaches (src/waterManager.ts WaterView): each zone's mark as last scanned */
   readonly water?: { zoneWater(x: number, y: number): number } | null;
   /** The ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts): the objects of the
@@ -59,7 +61,7 @@ export type ObjectKind =
   | "civic" | "police" | "fire"
   | "mine" | "farm" | "harbour"
   | "station" | "bus_stop" | "port" | "airport"
-  | "stadium" | "road";
+  | "stadium" | "road" | "temple";
 
 /**
  * The two sides of the city (owner, 13 Oct 2026: "แบ่งแยก ในส่วนของ ชุมชนกับ service ของส่วนกลาง"): the community's

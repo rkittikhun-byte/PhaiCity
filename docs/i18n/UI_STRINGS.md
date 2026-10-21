@@ -1632,6 +1632,7 @@
 | `object.land.3` | `src/inspect.ts` | — | `prime` | `ทำเลทอง` |  |
 | `object.fact.powered` | `src/inspect.ts` | — | `Has power` | `มีไฟฟ้า` |  |
 | `object.fact.unpowered` | `src/inspect.ts` | — | `No power` | `ไม่มีไฟฟ้า` |  |
+| `object.fact.temple_level` | `src/inspect.ts` | — | `Level {level} of 3: it grows with its community` | `ระดับ {level} จาก 3 โตตามชุมชน` | วัด (src/temples.ts, GAME_DESIGN 9; ไม้ไผ่30 21 ต.ค. 2026) |
 | `object.fact.watered` | `src/inspect.ts` | — | `Has water` | `มีน้ำประปา` |  |
 | `object.fact.dry` | `src/inspect.ts` | — | `No water` | `ไม่มีน้ำประปา` |  |
 | `object.fact.people` | `src/inspect.ts` | — | `About {people} people live here` | `มีคนอยู่ราว {people} คน` | ตัวเลขประมาณจากสูตรเดิมของเกม จนกว่าจะมีครัวเรือน (เฟส 7) |
@@ -1824,6 +1825,9 @@
 | `news.trained` | `src/game.js` | — | `This year's graduates: {technician} technicians, {nurse} nurses, {engineer} engineers, {doctor} doctors` | `ผู้จบการศึกษาปีนี้: ช่าง {technician} พยาบาล {nurse} วิศวกร {engineer} หมอ {doctor} คน` | ข่าวต้นปี |
 | `news.trained_literate` | `src/game.js` | — | `{literate} pupils finished primary school this year: the village has more people who read and write` | `ปีนี้นักเรียนจบประถม {literate} คน หมู่บ้านมีคนอ่านออกเขียนได้มากขึ้น` | ข่าวต้นปี เมื่อยังไม่มีผู้จบสายอื่น |
 | `news.site_done` | `src/game.js` | — | `{name} is built and at work` | `{name}สร้างเสร็จ เริ่มใช้งานแล้ว` | ไซต์ก่อสร้างครบเดือน |
+| `news.temple_done` | `src/game.js` | — | `The villagers have finished building their temple` | `ชาวบ้านร่วมกันสร้างวัดเสร็จแล้ว` | วัดที่ชุมชนสร้างเอง (GAME_DESIGN 9) |
+| `tool.temple` | `src/inspect.ts` | — | `Temple` | `วัด` | ชื่อวัดในการ์ดตรวจดู (ไม่มีปุ่มเครื่องมือ: วัดเป็นของชุมชน) |
+| `temple.in_the_way` | `src/game.js` | — | `That is the temple's ground: it belongs to the community` | `ตรงนั้นเป็นที่วัด เป็นของชุมชน` | เครื่องมือที่ทับที่วัด |
 | `site.months_left` | `src/inspectCard.ts` | — | `Being built: {months} months to go` | `กำลังก่อสร้าง อีก {months} เดือน` | การ์ดตรวจดู |
 | `site.choice_months` | `src/unlockLabels.ts` | — | `{price} · {months} months to build` | `{price} · สร้าง {months} เดือน` | ช่องตัวเลือกของอาคารที่ใช้เวลาก่อสร้าง |
 | `era.card.unlocks` | `src/eraCard.ts` | — | `A {next} can build` | `{next}สร้างได้` | การ์ดยุค: สิ่งที่ยุคถัดไปปลดล็อก |
