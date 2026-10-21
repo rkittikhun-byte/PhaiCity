@@ -10,7 +10,10 @@
 // answers the festival card a month before each festival as a sensible ruler would (answerFestivals). It asks what the
 // city cannot build yet (src/unlocks.ts) before it tries, and waits for it: a building it wanted is tried again each month
 // once it is unlocked, a locked service lets the next ones go first, and it paves the town's roads once it has the
-// technicians (docs/GAME_DESIGN.md 6). No DOM.
+// technicians (docs/GAME_DESIGN.md 6). It plans as a ruler would (docs/GAME_DESIGN.md 6.6): power plants and water works
+// saved for and built before the town needs them, looked at each month (planCapacity), the stadium and port saved for
+// before their caps come, the year's zones as far as power, water and money allow (paintAhead), new sois cut off the
+// roads when the roadsides are full (laySois), and factories in a district of their own past a green band. No DOM.
 
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
@@ -31,6 +34,11 @@ import type { FestivalNews, FestivalScale } from "../festivals.js";
 import { FARM_PAINT_TOOL, fieldLevelOf, isFieldValue, kindOfCode, wayField } from "../farmZone.js";
 import { isOpenLand } from "../plots.js";
 import { FARM_ZONE } from "../provinceRules.js";
+import { kindOfTool, SPECS } from "../powerPlants.js";
+import { WORKS_SUPPLY } from "../waterManager.js";
+import { cellPrice } from "../zoneCells.js";
+import { PAINT_PRICE_SHARE, PLOT_SHARE } from "../plots.js";
+import { tileMetres } from "../units.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
@@ -190,6 +198,13 @@ const ERA_ASKS: ReadonlyArray<["health" | "education", string[]]> = [
 /** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go */
 const CAPS: ReadonlyArray<[string, string, number, number]> = [["resCap", "stadium", -20, -12],
   ["indCap", "port", 30, 12], ["comCap", "airport", 30, -20]];
+/** ... which come once the census counts this many of the kind (src/simulation.js _sendMessages: homes 500, about
+ * 10,000 people in them; factories 70; shops 100), its count as the census's history keeps it; and money is kept for
+ * each from CAP_AHEAD of that on, as for power (planCapacity), so it goes up the year the cap comes */
+const CAP_AT: ReadonlyArray<[string, number, (census: Record<string, number[]>) => number]> = [
+  ["stadium", 500, (c) => (c.resHist10?.[0] ?? 0) * 8], ["port", 70, (c) => c.indHist10?.[0] ?? 0],
+  ["airport", 100, (c) => c.comHist10?.[0] ?? 0]];
+const CAP_AHEAD = 0.7;
 /** Rubbish lying in the streets (src/waste.ts overflow, 0–1) at which another landfill goes up */
 const OVERFLOW_AT = 0.1;
 /** Zones and land are bought while the treasury has this much: cells are cheap, and a town that stops growing stays small */
@@ -200,18 +215,70 @@ const GROWING_TAX = 9;
 const DEFAULT_TAX = 7;
 /** A bus for this many people */
 const BUS_PEOPLE = 1500;
+/** Sois (laySois): no shorter and no longer than this (tiles), within this many tiles of the town's middle, each the
+ *  road tool's stroke from SOI_STROKES on */
+const SOI_LEAST = 5;
+const SOI_MOST = 20;
+const SOI_REACH = 70;
+const SOI_STROKES = 800000;
+/** Tiles from one soi to the next: a plot each side of each, and between their back plots a tile of the land left as it
+ *  was, woods or fields, behind the houses. Open land in a home's 4-tile block raises its land's value by up to 240
+ *  (src/blockMapUtils.js terrainDensityMap): sois three apart left homes "open 3-9" and their growth score -2000, the
+ *  factories beside the fields "open 50-100" */
+const SOI_APART = 4;
+/** ... but three in the factories' district, whose land's value nothing there needs: back to back, their plots join into
+ *  lots (src/plots.ts lotOf), the only place a factory grows to its top size */
+const FACTORY_SOI_APART = 3;
 /** One home tile in this many is a park */
 const PARK_EVERY = 8;
-/** Another power plant goes up when the city uses this share of its plants' power */
-const MORE_POWER_AT = 0.85;
-/** ... while the treasury holds this much; and once they give all they have (zones go without), saved for */
-const PLANT_FROM_FUNDS = 3500;
+/** Power and water planned ahead, as a ruler watching the meters builds (owner, 21 Oct 2026: "เป้า 10 ปีได้ราว
+ * 40,000-50,000 คน"; docs/GAME_DESIGN.md 6.6): money kept for the next power plant or water works once the city uses
+ * RESERVE_AT of what it has, and the building put up once it uses BUILD_AT, as a plant takes six months to build and a
+ * water works four (src/unlocks.ts), in which a growing town takes the rest. Both are looked at every month. */
+const RESERVE_AT = 0.65;
+const BUILD_AT = 0.75;
+/** ... or sooner, from RESERVE_AT, when the treasury pays for it and keeps this much: money kept and not spent held a
+ *  town at 77% of its power for three years, painting nothing (the zones that would have passed 80% waited for it) */
+const BUILD_EARLY_KEEP = 1500;
+/** The share of its price kept by the share used: none at RESERVE_AT, all at BUILD_AT (a plant's whole price kept from
+ *  60% on left a town of 20,000 at 65% use holding ฿4,000 for years, and painting nothing) */
+const ramp = (use: number): number => Math.min(1, Math.max(0, (use - RESERVE_AT) / (BUILD_AT - RESERVE_AT)));
+/** ... with this much left in the treasury past its price */
+const CAPACITY_SPARE = 200;
+/** Once the plants give all they have (zones go without), a plant is saved for before anything else is bought */
 const POWER_OUT = 0.99;
-/** ... and another water works when this share of its buildings went without water, or this share of its supply is taken */
+/** ... and another water works when this share of its buildings went without water */
 const MORE_WATER_AT = 0.15;
-const MORE_WATER_USED = 0.9;
-/** Factories stand this far from the town's middle at least (world units, 10 a tile), the power plants further */
-const FACTORIES_FROM = 100;
+/** Zones are painted each year up to this share of the power and water the city has and is building, no more: a plot
+ * no plant lights eats nothing but money, and one no water reaches grows no further than its first size */
+const PAINT_TO = 0.85;
+/** The painted cells of a plot tile, on average (16 wholly painted; the rows round a road's curve leave some short) */
+const CELLS_A_PLOT = 12;
+/** The most cells painted in a year */
+const PAINT_MOST = 9000;
+/** ... with no more than this share of the money past what is kept for power and water */
+const PAINT_SHARE = 0.5;
+/** The zones wait for the era card's asks while education or health is below this share of what the era aims at, and
+ *  then take no more than PAINT_SHARE_CARE_SHORT of the money left: with half, the town of 35,000 had schools and care
+ *  for half its people and stayed a market town for its ten years */
+const CARE_FIRST_BELOW = 0.85;
+const PAINT_SHARE_CARE_SHORT = 0.25;
+/** A kind of zone's weight among a year's cells when it is not wanted at all (the valves, up to 1500–2000, at or below 0) */
+const UNWANTED_WEIGHT = 70;
+/** ... and the weight of one that waits for its stadium, port or airport, which takes none */
+const CAPPED = -Infinity;
+/** The kinds of zone painted */
+const PAINT_ZONES = ["residential", "commercial", "industrial"] as const;
+type PaintZone = typeof PAINT_ZONES[number];
+/** The factories' district: east of the town's middle, within FACTORY_ANGLE of due east and FACTORIES_FROM from the
+ * middle at least (world units, 10 a tile), the power plants in it. Between it and the town's shops and homes a band
+ * GREEN_BAND wide is left unpainted on every side, its woods and fields standing (owner, 21 Oct 2026: "วางโรงงานห่างบ้าน
+ * กับร้าน ... มีสวนหรือพื้นที่สีเขียวคั่น"): a factory's smoke reaches about four tiles (src/blockMapUtils.js smooths it
+ * twice over 2-tile blocks), and open land beside a home or shop raises its land's value. Factories much further would
+ * find no homes within a trip (30 road tiles, src/traffic.js). */
+const FACTORY_ANGLE = Math.PI / 4;
+const FACTORIES_FROM = 160;
+const GREEN_BAND = 60;
 const PLANT_FROM = 24;
 /** The farm zone painted round the town while it is a farming village or a market town (src/farmZone.ts): at the start,
  * then each year as many tiles as the fields' room for more food asks, no more than FARM_EACH_YEAR, behind the tiles that
@@ -233,7 +300,7 @@ const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
 /** The building that gives each era symbol (src/eraRules.ts), which the player builds when the era card lists it missing */
 const SYMBOL_TOOLS: Readonly<Record<string, string>> = {
   water_tower: "watertower", water_works: "waterworks", power_plant: "coal", school: "primary_school",
-  literate: "primary_school", hospital: "community_hospital", secondary_school: "secondary_school",
+  literate: "primary_school", technicians: "secondary_school", hospital: "community_hospital", secondary_school: "secondary_school",
 };
 
 /** The era score's short sides are built for this much past their aim, for the year's growth to come, with no more
@@ -335,10 +402,13 @@ export class AutoPlayer {
       }
       if (this.asks.length) this.answerFestivals();
       if (this.later.length && step % STEPS_PER_MONTH === 0) this.tryLater();
+      if (step % STEPS_PER_MONTH === 0) this.planCapacity(false);
       if (this.cellsLater.length && step % STEPS_PER_MONTH === 0) this.paintLater();
     }
     this.year++;
     this.noted.clear();
+    this.towers = 0;
+    this.noRoom.delete("watertower");
     const population = sim.evaluation.cityPop;
     const { x, y } = this.options.town;
     // First what the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
@@ -354,27 +424,25 @@ export class AutoPlayer {
       if (this.waits(tool)) continue;
       const price = core.tools?.[tool]?.toolCost ?? 0;
       if (budget.totalFunds >= price + 500 && this.place(tool, x + dx, y + dy)) continue;
+      this.note(`${tool}: saving for it (฿${price}, treasury ฿${budget.totalFunds})`);
       saving = true;
     }
-    // Then what keeps the town running: a power plant more when it uses nearly all its power (src/powerManager.js load),
-    // none more while one is still being built (src/construction.ts)
+    // Then what keeps the town running: power and water planned ahead (planCapacity), before the year's taxes go
+    // anywhere else; what it cannot build yet is saved for (reserve)
+    this.planCapacity(true);
     const load = sim._powerManager?.load ?? 0;
-    const plantBuilding = Object.values((core.map as { sites?: Record<string, { tool: string }> | null }).sites ?? {})
-      .some((site) => POWER_TOOLS.includes(site.tool));
-    const plantPrice = (core.tools?.coal?.toolCost ?? 0) + ERA_ASK_SPARE;
-    const plantPlaced = load >= MORE_POWER_AT && !plantBuilding && budget.totalFunds > PLANT_FROM_FUNDS &&
-      this.place("coal", x + PLANT_FROM, y + 8);
-    // ... a water works more when many buildings went without or the supply is nearly all taken (src/waterManager.ts)
-    const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
-    const water = sim._waterManager, short = water && water.supply > 0 && water.used >= water.supply * MORE_WATER_USED;
-    if ((short || dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT) && budget.totalFunds > 2000) {
-      // ... a village's water towers while it may not build works yet (src/unlocks.ts)
-      if (this.waits("waterworks")) {
-        for (let n = 0; n < TOWERS_A_YEAR; n++) this.place("watertower", x + ((this.year * 7 + n * 5) % 25) - 12, y + ((n * 9) % 25) - 12, 14);
-      } else {
-        this.place("waterworks", x - 10 - this.year, y + 8);
-      }
-    }
+    const plantBuilding = this.underway(POWER_TOOLS);
+    const plantPrice = (core.tools?.[this.plantTool()]?.toolCost ?? 0) + ERA_ASK_SPARE;
+    // ... then the year's zones (paintAhead) while the town's schools and care are near what the era card aims at, the
+    // cheapest growth there is; when either falls well short, the era card's asks come first and the zones after them
+    // (zones first always: 29,000-31,000 people in ten years but never a factory town, education and care at half their
+    // aims; the era card's asks first always: 20,500-22,300 people)
+    const sides = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
+    const careShort = (["education", "health"] as const).some((side) => {
+      const f = sides?.[side];
+      return f !== undefined && f.value < f.target * CARE_FIRST_BELOW;
+    });
+    if (!careShort) this.paintAhead(valves);
     // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
     const waste = sim._waste;
     const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
@@ -400,12 +468,12 @@ export class AutoPlayer {
     // stay empty and the town has no jobs for newcomers), saved for before anything else is bought: a town that spends
     // each year's money on health posts and schools seldom holds ฿3,500 at a year's end, and the normal mode's towns
     // stayed at 11,000–15,000 people with their one plant full from the second year to the tenth (docs/GAME_DESIGN.md 6.5)
-    if (!saving && load >= POWER_OUT && !plantBuilding && !plantPlaced && !this.waits("coal")) {
+    if (!saving && load >= POWER_OUT && !plantBuilding && !this.waits(this.plantTool())) {
       if (budget.totalFunds < plantPrice) {
         saveFor(plantPrice);
         this.note(`power: saving for a plant (฿${plantPrice}, treasury ฿${budget.totalFunds})`);
       } else {
-        this.place("coal", x + PLANT_FROM, y + 8);
+        this.placePlant();
       }
     }
     // ... then, when a building it wants waits for trained people whose school needs a higher district office (the
@@ -423,7 +491,7 @@ export class AutoPlayer {
       if (goal && house && serviceProblem(goal, level) !== null) {
         const price = houseSpec(level + 1).price - houseSpec(level).price;
         this.note(`training: district office for ${goal} (฿${price}, treasury ฿${budget.totalFunds})`);
-        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
+        if (budget.totalFunds < price + ERA_ASK_SPARE + this.keptNow) saveFor(price + ERA_ASK_SPARE);
         else this.apply("ruler_house_upgrade", house.x, house.y);
         goal = null;
       }
@@ -451,7 +519,7 @@ export class AutoPlayer {
         const base = side === "health" ? population : population * CHILDREN_SHARE / Math.max(0.1, ERA_RULES[era].education.basic);
         let short = (f.target * (1 + ASK_AHEAD) - f.value) * base;
         for (let built = 0; short > 0 && built < ASK_MOST; built++) {
-          const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE);
+          const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE + this.keptNow);
           const n = this.asked++;
           const tool = affordable.find((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
           if (!tool) {
@@ -466,14 +534,23 @@ export class AutoPlayer {
       if (goal && !saving) {
         const price = core.tools?.[goal]?.toolCost ?? 0, n = this.asked++;
         this.note(`training: ${goal} (฿${price}, treasury ฿${budget.totalFunds})`);
-        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
+        if (budget.totalFunds < price + ERA_ASK_SPARE + this.keptNow) saveFor(price + ERA_ASK_SPARE);
         else this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20);
       }
       if (!saving) this.wantTrained.clear();
+    }
+    // ... or here, the year's zones, as many as the power and water leave room for (paintAhead), with up to half the money
+    // past what is kept for them: after the era card's asks and the schools for trained people, but before the services
+    // by numbers and the district office's rise, and even while those or a stadium are saved for (saved for, they left
+    // nothing: the town painted no zones after its first year, and grew only by its plots rising; a stadium saved for
+    // three years left room for 300 plots unpainted), only no more of the kind that waits for it. Painted before the era
+    // card's asks, the town outgrew its schools and stayed a market town (education 34% of the 50% aimed at)
+    if (careShort) this.paintAhead(valves, PAINT_SHARE_CARE_SHORT);
+    if (!saving) {
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
       // money is kept for what the era card asks
       const house = core.map.rulerHouse;
-      if (house && !saving && budget.totalFunds > (this.options.reserve ?? 3000)) this.apply("ruler_house_upgrade", house.x, house.y);
+      if (house && !saving && budget.totalFunds > (this.options.reserve ?? 3000) + this.kept) this.apply("ruler_house_upgrade", house.x, house.y);
       // The services its people ask for, in turn; one the office is not yet high enough for waits (serviceProblem)
       // ... and one the city cannot build yet waits while the next ones go up (src/unlocks.ts)
       // ... built while the treasury pays for them, saving for the next rather than painting more (in the normal mode
@@ -483,14 +560,14 @@ export class AutoPlayer {
         const [, tool] = SERVICES[i];
         if (this.waits(tool)) continue;
         const price = core.tools?.[tool]?.toolCost ?? 0;
-        if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
+        if (budget.totalFunds < price + ERA_ASK_SPARE + this.kept) { saveFor(price + ERA_ASK_SPARE); break; }
         if (!this.place(tool, x + ((i * 7) % 41) - 20, y + ((i * 11) % 41) - 20)) break;
         this.servicesDone.add(i);
       }
       while (this.servicesDone.has(this.next)) this.next++;
       // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
       // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
-      while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {
+      while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000) + this.kept) {
         const n = core.map.buses?.length ?? 0;
         if (!this.place("bus_stop", x + ((n * 5) % 13) - 6, y + ((n * 3) % 13) - 6, 12)) break;
       }
@@ -505,14 +582,9 @@ export class AutoPlayer {
       core.apply({ type: "budget", tax, comTax: tax, indTax: tax, road: Math.round(budget.roadPercent * 100),
         fire: Math.round(budget.firePercent * 100), police: Math.round(budget.policePercent * 100), yearEnd: false });
     }
-    if (!saving && budget.totalFunds > EXPAND_FROM) {
-      const wanted = this.options.paintEachYear ?? 3000;
-      const painted = this.paint(wanted);
-      if (painted < wanted / 2 && this.buyLand() !== null) this.paint(wanted - painted);
-    }
     // ... and the fields round a farming village, as many as its people and the market would eat
     const fields = sim._farming?.fields;
-    if (!saving && fields && (core.map.era ?? 1) <= FARM_UNTIL_ERA && budget.totalFunds > EXPAND_FROM) {
+    if (!saving && fields && (core.map.era ?? 1) <= FARM_UNTIL_ERA && budget.totalFunds > EXPAND_FROM + this.kept) {
       this.paintFarms(Math.min(FARM_EACH_YEAR, Math.max(0, fields.room - fields.empty)));
     }
     const map = core.map, plots = { residential: [0, 0, 0, 0, 0, 0], commercial: [0, 0, 0, 0, 0, 0], industrial: [0, 0, 0, 0, 0, 0] };
@@ -545,6 +617,114 @@ export class AutoPlayer {
     };
   }
 
+  /** Money kept for the power and water planned ahead (planCapacity): all of it, and the part for what the city may
+   *  build now (not what waits for its era, as the village's second plant waits for the market town) */
+  private kept = 0;
+  private keptNow = 0;
+  /** ... of which for the stadium, port or airport, which the zones do not wait for */
+  private capsKept = 0;
+  /** Water towers put up this year */
+  private towers = 0;
+
+  /**
+   * Power and water planned ahead, as a ruler reading the meters each month (owner, 21 Oct 2026): once the city uses
+   * RESERVE_AT of its plants' power or its water, the next plant or water works is saved for, and once it uses BUILD_AT
+   * it goes up, so it is finished before the town needs it (src/construction.ts); none more while one is still being
+   * built. What waits for its era (the village's one plant, its water works) is saved for all the same, and goes up the
+   * month the city may build it. Sets kept and keptNow. yearEnd: the year's turn, which also notes what is saved for.
+   */
+  private planCapacity(yearEnd: boolean): void {
+    const core = this.core, sim = core.simulation, budget = sim.budget, { x, y } = this.options.town;
+    let kept = 0, keptNow = 0, capsKept = 0;
+    const load = sim._powerManager?.load ?? 0;
+    if (load >= RESERVE_AT && !this.underway(POWER_TOOLS) && core.tools) {
+      const tool = this.plantTool(), price = (core.tools[tool]?.toolCost ?? 0) + CAPACITY_SPARE;
+      const waits = this.waits(tool);
+      const now = load >= BUILD_AT ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP;
+      if (!(now && !waits && this.tryCapacity(tool, yearEnd, () => this.placePlant()))) {
+        const keep = Math.round(price * ramp(load));
+        kept += keep;
+        if (!waits) keptNow += keep;
+        if (yearEnd) this.note(`power: ${Math.round(load * 100)}% used, keeping ฿${keep} for a ${tool} plant${waits ? " once it may be built" : ""}`);
+      }
+    }
+    const water = sim._waterManager, census = sim._census;
+    if (water && core.tools && !this.underway(["waterworks"])) {
+      const dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
+      const use = water.supply > 0 ? water.used / water.supply : dry > 0 ? 1 : 0;
+      const short = dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT;
+      if (use >= RESERVE_AT || short) {
+        const price = (core.tools.waterworks?.toolCost ?? 0) + CAPACITY_SPARE, waits = this.waits("waterworks");
+        // (a village's water towers meanwhile, whose wells water the roads beside them, src/waterManager.ts TOWER_WELL)
+        if (waits && (use >= BUILD_AT || short) && !this.noRoom.has("watertower")) {
+          const tower = (core.tools.watertower?.toolCost ?? 0) + CAPACITY_SPARE;
+          for (; this.towers < TOWERS_A_YEAR && budget.totalFunds >= tower; this.towers++) {
+            const n = this.year * TOWERS_A_YEAR + this.towers;
+            if (!this.place("watertower", x + ((n * 7) % 25) - 12, y + ((n * 9) % 25) - 12, 14, false)) { this.noRoom.add("watertower"); break; }
+          }
+        }
+        const built = !waits && (use >= BUILD_AT || short ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP) &&
+          this.tryCapacity("waterworks", yearEnd, () => this.place("waterworks", x - 10 - (this.year % 12), y + 8));
+        if (!built) {
+          const keep = Math.round(price * (short ? 1 : ramp(use)));
+          kept += keep;
+          if (!waits) keptNow += keep;
+          if (yearEnd) this.note(`water: ${Math.round(use * 100)}% used, keeping ฿${keep} for a water works${waits ? " once it may be built" : ""}`);
+        }
+      }
+    }
+    // ... and the stadium, port or airport a kind of zone will soon wait for, unless it waits for more than the
+    // technicians a secondary school brings (the airport's engineers are years away): kept from the zones and the
+    // services by numbers only, not from what the era card asks (kept as needed now, a stadium's ฿5,000 held the
+    // nurses' district office and the health posts back for three years, and the town's care fell to a third)
+    const city = unlockCity(core.map);
+    for (const [tool, at, count] of CAP_AT) {
+      const share = Math.min(1, Math.max(0, (count(census) / at - CAP_AHEAD) / (1 - CAP_AHEAD)));
+      if (!share || city.count(tool) > 0 || this.underway([tool])) continue;
+      const lock = core.commands.lock(tool);
+      if (lock && !(lock.reason === "unlock.trained" && lock.params.kind === "technician")) continue;
+      const keep = Math.round(((core.tools?.[tool]?.toolCost ?? 0) + CAPACITY_SPARE) * share);
+      kept += keep;
+      capsKept += keep;
+      if (yearEnd) this.note(`${tool}: keeping ฿${keep} for it`);
+    }
+    this.kept = kept;
+    this.keptNow = keptNow;
+    this.capsKept = capsKept;
+  }
+
+  /** The capacity buildings that found no place this year, tried again only at the year's turn: a try looks at thousands
+   *  of spots and clears plots, and made a month's play take seconds */
+  private readonly noRoom = new Set<string>();
+
+  /** A power plant or water works placed by place, unless it found no place earlier this year and this is not the year's
+   *  turn */
+  private tryCapacity(tool: string, yearEnd: boolean, place: () => boolean): boolean {
+    if (!yearEnd && this.noRoom.has(tool)) return false;
+    if (place()) { this.noRoom.delete(tool); return true; }
+    this.noRoom.add(tool);
+    return false;
+  }
+
+  /** Whether a building of these tools stands as a construction site */
+  private underway(tools: readonly string[]): boolean {
+    const sites = (this.core.map as { sites?: Record<string, { tool: string }> | null }).sites ?? {};
+    return Object.values(sites).some((site) => tools.includes(site.tool));
+  }
+
+  /** The kind of power plant the city builds next: gas, cleaner and stronger, once it may (technicians, src/unlocks.ts),
+   *  else lignite */
+  private plantTool(): string {
+    return this.core.tools?.gas && !this.core.commands.lock("gas") ? "gas" : "coal";
+  }
+
+  /** A power plant more in the factories' district, beside the first */
+  private plants = 0;
+  private placePlant(): boolean {
+    const { x, y } = this.options.town, n = ++this.plants;
+    return this.place(this.plantTool(), x + PLANT_FROM + 6 * (n >> 1), y + (n & 1 ? 8 : -8));
+  }
+
   /**
    * The festival card answered for the festivals the news asked about (festivalAnswer), by the treasury now and the era
    * score; each answer is the real `festival` command, standing for the years after until the next one changes it
@@ -556,7 +736,7 @@ export class AutoPlayer {
     // Festivals asked about together are paid together
     let funds = core.simulation.budget.totalFunds;
     for (const ask of this.asks.splice(0)) {
-      const [modest, grand] = ask.costs, scale = festivalAnswer(ask.costs, funds, short, reserve, this.savingFor);
+      const [modest, grand] = ask.costs, scale = festivalAnswer(ask.costs, funds, short, reserve, Math.max(this.savingFor, this.kept));
       const price = scale === "grand" ? grand : scale === "modest" && funds >= modest ? modest : 0;
       funds -= price;
       if (scale === ask.scale) continue;
@@ -664,7 +844,7 @@ export class AutoPlayer {
 
   /** Up to PAVE_EACH_YEAR laterite road tiles nearest the town raised to asphalt, while money allows */
   private pave(): void {
-    const core = this.core, map = core.map, budget = core.simulation.budget, reserve = PAVE_KEEP;
+    const core = this.core, map = core.map, budget = core.simulation.budget, reserve = PAVE_KEEP + this.kept;
     if (core.commands.lock("road_asphalt") || budget.totalFunds <= reserve) return;
     const { x: tx, y: ty } = this.options.town, tiles: Array<{ x: number; y: number; d: number }> = [];
     for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
@@ -702,7 +882,7 @@ export class AutoPlayer {
   }
 
   /** A building at the nearest spot round (cx, cy) the game takes, as a player tries spots near a road */
-  private place(tool: string, cx: number, cy: number, reach = 40): boolean {
+  private place(tool: string, cx: number, cy: number, reach = 40, buy = true): boolean {
     const map = this.core.map;
     this.failures.clear();
     if (this.waits(tool)) return false;
@@ -727,7 +907,10 @@ export class AutoPlayer {
     const price = this.core.tools?.[tool]?.toolCost ?? 0, block = blockPrice(map as never);
     const clears = reach > 16 && (this.core.tools?.[tool]?.size ?? 1) >= 3;
     if (clears && price < block && this.clearFor(tool, cx, cy)) return true;
-    if (!this.buying && (clears || price >= block) && (!map.landBlocks || this.core.simulation.budget.totalFunds >= block + price)) {
+    // ... out of the money kept for power and water, unless it is for them (planCapacity)
+    const kept = POWER_TOOLS.includes(tool) || tool === "waterworks" ? 0 : this.kept;
+    if (buy && !this.buying && (clears || price >= block) &&
+        (!map.landBlocks || this.core.simulation.budget.totalFunds >= block + price + kept)) {
       this.buying = true;
       const land = this.buyLand();
       const built = land !== null && this.place(tool, land.x, land.y, 16);
@@ -819,31 +1002,219 @@ export class AutoPlayer {
     return null;
   }
 
-  /** Up to n more zone cells, the nearest the town first: factories on the town's east side past a band of shops, by
-   *  the power plant, and homes and shops elsewhere, mixed by tile (3 : 1) */
-  private paint(n: number): number {
+  /**
+   * The year's zones, as many as the power and water the city has and is building leave room for (PAINT_TO), and the
+   * treasury pays for past the money kept for them (planCapacity), each kind by how much it is wanted (the valves): a
+   * town short of jobs paints factories and shops, not more homes nobody moves into. A block of land more when the
+   * town's own is nearly all painted.
+   */
+  private paintAhead(valves: Record<string, unknown>, share = PAINT_SHARE): void {
+    const core = this.core, sim = core.simulation, budget = sim.budget, map = core.map;
+    if (!map.cellZones || !core.tools) return;
+    const power = sim._powerManager, water = sim._waterManager;
+    // The plants' power in tiles, with the plants still being built, and what the city uses of it
+    let capacity = power?.capacity ?? 0;
+    const sites = Object.values((map as { sites?: Record<string, { tool: string }> | null }).sites ?? {});
+    for (const site of sites) {
+      const kind = kindOfTool(site.tool);
+      if (kind) capacity += SPECS[kind].power(0) * (power?.outputFactor ?? 1);
+    }
+    const powerRoom = PAINT_TO * capacity - (power?.load ?? 1) * (power?.capacity ?? 0);
+    // ... and the water once the city may build water works (a village's houses and first shops need none)
+    let room = powerRoom;
+    if (water && !core.commands.lock("waterworks")) {
+      const supply = water.supply + WORKS_SUPPLY * sites.filter((site) => site.tool === "waterworks").length;
+      room = Math.min(room, (PAINT_TO * supply - water.used) / PLOT_SHARE);
+    }
+    const tool = core.tools.residential;
+    const each = cellPrice(tool?.toolCost ?? 100, PAINT_PRICE_SHARE, tileMetres(map)) * (tool?.costFactor ?? 1);
+    const keep = this.kept - this.capsKept;
+    const spare = Math.min(budget.totalFunds - keep - EXPAND_FROM / 3, (budget.totalFunds - keep) * share);
+    const cells = Math.floor(Math.min(PAINT_MOST, room * CELLS_A_PLOT, spare / Math.max(each, 0.01)));
+    if (cells < CELLS_A_PLOT * 4) {
+      this.note(`zones: none painted (room for ${Math.round(room)} plots, ฿${Math.round(spare)} to spare)`);
+      return;
+    }
+    // (none of a kind that waits for its stadium, port or airport)
+    const wanted = (value: unknown, cap: string): number => (valves[cap] ? CAPPED : Number(value ?? 0));
+    const weights = { residential: wanted(valves.resValve, "resCap"), commercial: wanted(valves.comValve, "comCap"),
+      industrial: wanted(valves.indValve, "indCap") };
+    let painted = this.paint(cells, weights);
+    // Short of roadside land: new sois where the zones wanted would go (laySois), and a block of land more only when they
+    // find too little room
+    // ... each kind short of cells by its share, the most wanted first: the nearest sois first left a town's money on homes
+    // nobody had work for, and its factories at 45 plots
+    if (painted < cells * 0.8) {
+      let opened = 0;
+      for (const zone of [...PAINT_ZONES].sort((a, b) => weights[b] - weights[a])) {
+        if (this.short[zone] > 0) opened += this.laySois(this.short[zone] / CELLS_A_PLOT, new Set([zone]));
+      }
+      if (opened > 0) painted += this.paint(cells - painted, weights);
+    }
+    if (painted < cells / 2 && budget.totalFunds - this.kept > blockPrice(map as never) && this.buyLand() !== null) {
+      // (the new block's sois before its roadsides are painted)
+      this.laySois((cells - painted) / CELLS_A_PLOT, new Set(PAINT_ZONES));
+      this.paint(cells - painted, weights);
+    }
+  }
+
+  /** The zone a free cell of the town takes, by where it lies (world units, the town's middle at tx, tz): factories in
+   *  their district east of the town, nothing in the green band round it, shops on its town side, and elsewhere homes
+   *  and shops mixed by tile (3 : 1) */
+  private zoneOf(c: { x: number; z: number }, tx: number, tz: number): PaintZone | null {
+    const dx = c.x - tx, dz = c.z - tz, r = Math.hypot(dx, dz), angle = Math.abs(Math.atan2(dz, dx));
+    if (angle <= FACTORY_ANGLE) {
+      if (r >= FACTORIES_FROM) return "industrial";
+      if (r > FACTORIES_FROM - GREEN_BAND) return null;
+      return "commercial";
+    }
+    const off = angle - FACTORY_ANGLE;
+    if (off < Math.PI / 2 && r * Math.sin(off) < GREEN_BAND && r * Math.cos(off) > FACTORIES_FROM - GREEN_BAND) return null;
+    return (Math.floor(c.x / 10) * 7 + Math.floor(c.z / 10) * 13) % 4 === 0 ? "commercial" : "residential";
+  }
+
+  /** Sois laid so far, each its own stroke of the road tool */
+  private sois = 0;
+
+  /**
+   * New sois (ซอย) off the town's roads where its own land has room and no road yet, as a Thai town grows: a street
+   * straight out from a road across open land, SOI_LEAST to SOI_MOST tiles, SOI_APART tiles from the next so a plot faces
+   * each side of it (src/zoneCells.ts: the cells lie one plot deep beside a road) and green is left behind them. Only where
+   * the zone the land would take (zoneOf) is one of zones, nearest the town first, while the treasury pays past what is
+   * kept for power and water. Returns about how many plot tiles they open.
+   */
+  private laySois(wanted: number, zones: ReadonlySet<PaintZone>): number {
+    const core = this.core, map = core.map, budget = core.simulation.budget, size = tileMetres(map);
+    const owns = canBuildIn(map), { x: tx, y: ty } = this.options.town, w = map.width, h = map.height;
+    const inside = (x: number, y: number) => x >= 1 && y >= 1 && x < w - 1 && y < h - 1;
+    const open = (x: number, y: number) => inside(x, y) && ownsLand(map, x, y) && owns(x, y) && isOpenLand(map.getTileValue(x, y));
+    // ... or, for the soi's way through, an empty plot, and beside its road a house at most: the road row is painted all
+    // along, so a soi takes one lot there to open some forty behind it (the road tool clears a plot in its way)
+    const through = (x: number, y: number, first: boolean) => {
+      if (open(x, y)) return true;
+      const plot = inside(x, y) && ownsLand(map, x, y) && owns(x, y) ? plotOf(map, x, y) : null;
+      return plot !== null && plot.level <= (first ? 1 : 0);
+    };
+    const road = (x: number, y: number) => inside(x, y) && isRoadTile(map.getTileValue(x, y));
+    const tool = core.tools?.road, each = (tool?.toolCost ?? 10) * (tool?.costFactor ?? 1);
+    type Soi = { x: number; y: number; dx: number; dy: number; length: number; d: number; apart: number };
+    const found: Soi[] = [];
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        if (!road(x, y) || !ownsLand(map, x, y) || Math.hypot(x - tx, y - ty) > SOI_REACH) continue;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          // (straight out from the road, with no road beside its first tile: not along another road)
+          let length = 0;
+          for (; length < SOI_MOST; length++) {
+            const px = x + dx * (length + 1), py = y + dy * (length + 1);
+            if (!through(px, py, length === 0) || road(px + dy, py + dx) || road(px - dy, py - dx)) break;
+          }
+          if (length < SOI_LEAST) continue;
+          const mx = x + dx * (length >> 1), my = y + dy * (length >> 1);
+          const zone = this.zoneOf({ x: mx * 10 + 5, z: my * 10 + 5 }, tx * 10, ty * 10);
+          if (!zone || !zones.has(zone)) continue;
+          found.push({ x, y, dx, dy, length, d: Math.hypot(mx - tx, my - ty), apart: zone === "industrial" ? FACTORY_SOI_APART : SOI_APART });
+        }
+      }
+    }
+    found.sort((a, b) => a.d - b.d);
+    // The tiles a soi chosen takes, and the plots beside it, which the next may not take
+    const taken = new Uint8Array(w * h);
+    let opened = 0, laid = 0, spent = 0;
+    for (const soi of found) {
+      if (opened >= wanted) break;
+      const { x, y, dx, dy, length, apart } = soi;
+      let clear = true;
+      for (let k = 1; clear && k <= length; k++) {
+        for (let side = -1; side <= 1; side++) if (taken[(y + dy * k + dx * side) * w + x + dx * k + dy * side]) clear = false;
+      }
+      if (!clear) continue;
+      const price = (length + 1) * each;
+      // (out of the money the zones may spend: not what is kept for power and water, but what is for a stadium)
+      if (budget.totalFunds - (this.kept - this.capsKept) < price + EXPAND_FROM / 3) break;
+      const before = budget.totalFunds;
+      const centre = (cx: number, cy: number): [number, number] => [(cx + 0.5) * size, (cy + 0.5) * size];
+      const out = core.apply({ type: "road", tool: "road" as never, from: centre(x, y), to: centre(x + dx * length, y + dy * length),
+        stroke: SOI_STROKES + this.sois++ });
+      if (!out.accepted) continue;
+      spent += before - budget.totalFunds;
+      laid++;
+      for (let k = 1; k <= length; k++) {
+        for (let side = 2 - apart; side <= apart - 2; side++) {
+          const ix = x + dx * k + dy * side, iy = y + dy * k + dx * side;
+          if (ix >= 0 && iy >= 0 && ix < w && iy < h) taken[iy * w + ix] = 1;
+        }
+        opened += Number(open(x + dx * k + dy, y + dy * k + dx)) + Number(open(x + dx * k - dy, y + dy * k - dx));
+      }
+    }
+    this.built += spent;
+    if (found.length) this.note(`laid ${laid} sois of ${found.length} places (฿${spent}), about ${opened} plot tiles`);
+    return opened;
+  }
+
+  /** The cells each kind of zone was short of at the last paint, by its share of them */
+  private readonly short: Record<PaintZone, number> = { residential: 0, commercial: 0, industrial: 0 };
+
+  /** The park tiles tried (paint) */
+  private readonly parkTried = new Set<number>();
+
+  /** Up to n more zone cells, the nearest the town first, each where it lies (zoneOf); with weights (the valves) each
+   *  kind takes its share of them by how much it is wanted, and at least a little when it is not */
+  private paint(n: number, weights?: Record<PaintZone, number>): number {
     const core = this.core, map = core.map, budget = core.simulation.budget;
     if (!map.cellZones) return 0;
     const owns = canBuildIn(map);
     const layout = cellsOf(map, (x, y) => ownsLand(map, x, y) && owns(x, y));
     const tx = this.options.town.x * 10, tz = this.options.town.y * 10;
-    const free = layout.cells.filter((c) => !map.zoneCells?.get?.(c.key))
-      .sort((a, b) => Math.hypot(a.x - tx, a.z - tz) - Math.hypot(b.x - tx, b.z - tz)).slice(0, n);
-    const zoneOf = (c: { x: number; z: number }) => {
-      if (Math.abs(Math.atan2(c.z - tz, c.x - tx)) < Math.PI / 4) {
-        return Math.hypot(c.x - tx, c.z - tz) > FACTORIES_FROM ? "industrial" : "commercial";
-      }
-      return (Math.floor(c.x / 10) * 7 + Math.floor(c.z / 10) * 13) % 4 === 0 ? "commercial" : "residential";
-    };
-    // One home tile in PARK_EVERY is left for a park, which raises the land's value round it (src/blockMapUtils.js)
+    type Free = { key: number; x: number; z: number; d: number };
+    const byZone: Record<PaintZone, Free[]> = { residential: [], commercial: [], industrial: [] };
+    // One home tile in PARK_EVERY is left for a park; its cells are never painted, so they are not counted among the
+    // free ones (they were the nearest each year, and took the year's whole share of homes)
     const tileOf = (c: { x: number; z: number }) => ({ x: Math.floor(c.x / 10), y: Math.floor(c.z / 10) });
     const isPark = (c: { x: number; z: number }) => {
       const { x, y } = tileOf(c);
-      return zoneOf(c) === "residential" && (x * 3 + y * 7 + 1) % PARK_EVERY === 0;
+      return (x * 3 + y * 7 + 1) % PARK_EVERY === 0;
     };
+    const parks = new Map<number, { x: number; y: number }>();
+    for (const c of layout.cells) {
+      if (map.zoneCells?.get?.(c.key)) continue;
+      const zone = this.zoneOf(c, tx, tz);
+      if (zone === "residential" && isPark(c)) {
+        const t = tileOf(c);
+        if (!this.parkTried.has(t.y * map.width + t.x)) parks.set(t.y * map.width + t.x, t);
+      } else if (zone) {
+        byZone[zone].push({ key: c.key, x: c.x, z: c.z, d: Math.hypot(c.x - tx, c.z - tz) });
+      }
+    }
+    for (const zone of PAINT_ZONES) byZone[zone].sort((a, b) => a.d - b.d);
+    // How many of each: by the weights, a kind that runs out of cells leaving its share to the others; without them
+    // the nearest n of all
+    const counts: Record<PaintZone, number> = { residential: 0, commercial: 0, industrial: 0 };
+    if (weights) {
+      const w = PAINT_ZONES.map((zone) => (weights[zone] === CAPPED ? 0 : Math.max(weights[zone], 0) + UNWANTED_WEIGHT));
+      const sum = w.reduce((a, b) => a + b, 0);
+      PAINT_ZONES.forEach((zone, i) => { this.short[zone] = Math.max(0, Math.round(n * w[i] / sum) - byZone[zone].length); });
+      let left = n;
+      for (let pass = 0; pass < 3 && left > 0; pass++) {
+        const open = PAINT_ZONES.map((zone, i) => (byZone[zone].length > counts[zone] ? w[i] : 0));
+        const sum = open.reduce((a, b) => a + b, 0);
+        if (!sum) break;
+        let given = 0;
+        PAINT_ZONES.forEach((zone, i) => {
+          const take = Math.min(byZone[zone].length - counts[zone], Math.floor(left * open[i] / sum));
+          counts[zone] += take;
+          given += take;
+        });
+        left -= given;
+        if (!given) break;
+      }
+    } else {
+      const nearest = PAINT_ZONES.flatMap((zone) => byZone[zone].map((c) => ({ zone, d: c.d }))).sort((a, b) => a.d - b.d).slice(0, n);
+      for (const c of nearest) counts[c.zone]++;
+    }
     let painted = 0;
-    for (const zone of ["residential", "commercial", "industrial"] as const) {
-      const keys = free.filter((c) => zoneOf(c) === zone && !isPark(c)).map((c) => c.key);
+    for (const zone of PAINT_ZONES) {
+      const keys = byZone[zone].slice(0, counts[zone]).map((c) => c.key);
       for (let i = 0; i < keys.length; i += 4000) {
         const before = budget.totalFunds, batch = keys.slice(i, i + 4000);
         const outcome = core.apply({ type: "zoneCells", zone, cells: batch });
@@ -853,15 +1224,20 @@ export class AutoPlayer {
         } else if (String(outcome.reason).startsWith("unlock.")) {
           // (factories wait for a finished power plant, src/unlocks.ts: painted the month they may be, paintLater)
           this.cellsLater.push([zone, batch]);
+        } else {
+          this.note(`${zone} cells refused: ${String(outcome.reason)}`);
         }
       }
     }
-    const parks = new Map<number, { x: number; y: number }>();
-    for (const c of free) if (isPark(c)) { const t = tileOf(c); parks.set(t.y * map.width + t.x, t); }
     let parked = 0;
     this.failures.clear();
-    for (const { x, y } of parks.values()) if (this.apply("park", x, y, true)) parked++;
-    this.note(`painted ${painted} cells, ${parked} parks` + (parks.size && !parked ? ` (${[...this.failures].map(([w, n]) => `${w} ×${n}`).join(", ")})` : ""));
+    // (each tried once: a park that does not fit there now never will)
+    for (const [tile, { x, y }] of parks) {
+      this.parkTried.add(tile);
+      if (this.apply("park", x, y, true)) parked++;
+    }
+    this.note(`painted ${painted} cells (${PAINT_ZONES.map((zone) => `${zone} ${counts[zone]} of ${byZone[zone].length}`).join(", ")}), ${parked} parks` +
+      (parks.size && !parked ? ` (${[...this.failures].map(([w, n]) => `${w} ×${n}`).join(", ")})` : ""));
     return painted;
   }
 
@@ -884,7 +1260,7 @@ export class AutoPlayer {
     const budget = core.simulation.budget, before = budget.totalFunds, stroke = 900000 + this.year;
     let painted = 0;
     for (const { x, y } of spots) {
-      if (painted >= n || budget.totalFunds < EXPAND_FROM / 2) break;
+      if (painted >= n || budget.totalFunds < EXPAND_FROM / 2 + this.kept) break;
       const out = core.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x, y, stroke });
       if (out.accepted && out.toolResult === 0 && isFieldValue(map.getTileValue(x, y))) painted++;
     }

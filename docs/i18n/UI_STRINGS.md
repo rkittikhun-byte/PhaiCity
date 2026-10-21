@@ -1397,6 +1397,7 @@
 | `era.symbol.shops` | `src/cityStatus.ts` | — | `five shops` | `ร้านค้า 5 ร้าน` |  |
 | `era.symbol.water_tower` | `src/cityStatus.ts` | — | `a water tower` | `หอถังประปา` | ประปาหมู่บ้าน: หอถังสูบน้ำบาดาลเอง โรงประปามาในยุคเมืองตลาด |
 | `era.symbol.literate` | `src/eraCard.ts` | — | `{need} villagers who read and write (now {have})` | `ชาวบ้านอ่านออกเขียนได้ {need} คน (ตอนนี้ {have})` | ผู้จบประถมรุ่นแรก ๆ (`src/trainedPeople.ts`) |
+| `era.symbol.technicians` | `src/eraCard.ts` | — | `{need} technicians (now {have})` | `ช่าง {need} คน (ตอนนี้ {have})` | ผู้จบมัธยมหรืออาชีวะรุ่นแรก ๆ (`src/trainedPeople.ts`) |
 | `era.symbol.water_works` | `src/cityStatus.ts` | — | `a water works` | `โรงประปา` |  |
 | `era.symbol.power_plant` | `src/cityStatus.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
 | `era.symbol.school` | `src/cityStatus.ts` | — | `a school` | `โรงเรียน` |  |
@@ -1443,6 +1444,7 @@
 | `era.symbol_hint.shops` | `src/eraReport.ts` | — | `Zones: paint shops along the roads until five stand` | `หมวดเขตเมือง: ทาเขตพาณิชย์ริมถนนจนมีร้าน 5 ร้าน` |  |
 | `era.symbol_hint.water_tower` | `src/eraReport.ts` | — | `Services › Water supply: a water tower beside a road, which pumps its own well` | `บริการเมือง › ประปา: สร้างหอถังประปาติดถนน สูบน้ำบาดาลเอง` |  |
 | `era.symbol_hint.literate` | `src/eraReport.ts` | — | `Services › Education: a primary school with power; after a year of teaching, a class finishes every January` | `บริการเมือง › การศึกษา: สร้างโรงเรียนประถมที่มีไฟ สอนครบปีแล้วจะมีนักเรียนจบทุกเดือนมกราคม` |  |
+| `era.symbol_hint.technicians` | `src/eraReport.ts` | — | `Services › Education: a secondary school or vocational college with power; after a year of teaching, a class finishes every January` | `บริการเมือง › การศึกษา: สร้างโรงเรียนมัธยมหรือวิทยาลัยอาชีวะที่มีไฟ สอนครบปีแล้วจะมีช่างจบทุกเดือนมกราคม` |  |
 | `era.symbol_hint.water_works` | `src/eraReport.ts` | — | `Services › Water supply: a water works beside a road` | `บริการเมือง › ประปา: สร้างโรงผลิตน้ำประปาติดถนน` |  |
 | `era.symbol_hint.power_plant` | `src/eraReport.ts` | — | `Services › Power plant: any kind, beside a road` | `บริการเมือง › โรงไฟฟ้า: แบบใดก็ได้ ติดถนน` |  |
 | `era.symbol_hint.school` | `src/eraReport.ts` | — | `Services › Education: any school` | `บริการเมือง › การศึกษา: โรงเรียนแบบใดก็ได้` |  |
