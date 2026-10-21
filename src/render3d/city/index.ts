@@ -34,6 +34,7 @@ import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import { CityFestivals, type FestivalViewMap } from './festivals3d.js';
 import { CityFarmFields, type FarmViewMap } from './farmFields.js';
+import { CityCompounds, type CompoundMap } from './compounds.js';
 import type { CellMap } from '../../zoneCells.js';
 import { halfWidth, realUnits } from '../../roadGeometry.js';
 import { isLineTile } from '../../dozing.js';
@@ -155,6 +156,7 @@ export class CityView3D implements CityView {
   /** The festivals' lanterns, krathong, sky lanterns and rockets (festivals3d.ts), made when the first is held */
   private festivals?:CityFestivals;
   private farms?:CityFarmFields;
+  private compounds?:CityCompounds;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
     this.pixelRatioLimit=Math.max(1,Math.min(1.25,dependencies.pixelRatioLimit??1.25));
@@ -453,6 +455,9 @@ export class CityView3D implements CityView {
     if((this.setup.map as {paintedZones?:boolean}).paintedZones){if(!this.farms){this.farms=new CityFarmFields(this.setup.map as unknown as FarmViewMap,this.terrain,this.setup.region,this.snapshot.realUnits??1);this.scene.add(this.farms.root);}
       if(raised.length)this.farms.invalidate(this.seconds);
       const hubs=this.farms.update(changed,this.setup.date().month,this.navigation.distance,this.seconds);if(hubs.length)this.chunks.dirty(hubs);}
+    // The ground each building of the ruler's reserves, fenced in its era's look (compounds.ts)
+    if(this.snapshot.realUnits){if(!this.compounds){this.compounds=new CityCompounds(this.setup.map as unknown as CompoundMap,this.snapshot.realUnits,(x,z)=>this.terrain.sample(x,z));this.scene.add(this.compounds.root);}
+      this.compounds.update(changed);}
     if(changed.length&&this.cells)this.cells.refresh();
     if(raised.length){const p=this.bed.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,this.terrain.min-this.bedDrop);p.needsUpdate=true;this.bed.geometry.computeBoundingSphere();}
     // The camera stays over what stands under it, not over what it looks at, so it can come down and look across the
@@ -613,7 +618,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

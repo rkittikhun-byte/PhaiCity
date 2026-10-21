@@ -19,6 +19,7 @@ import { ANIMBIT, BULLBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
+import { turnedTilesOf } from './buildings/turnedFootprint.ts';
 
 // PhaiCity: it works by dragging the mouse (owner, 18 Oct 2026: "รื้อถอน เอาแบบลากเม้าส์ ได้เลย"), and takes what the
 // mouse went over only when it is released, the tiles shown red while it is dragged (owner: "ให้คลิก drag จนกว่า จะปล่อย
@@ -121,7 +122,12 @@ BulldozerTool.prototype.doTool = function(x, y, blockMaps) {
 
       case 3:
         this._emitEvent(SOUND_EXPLOSIONHIGH);
-        this.putRubble(centerX - 1, centerY - 1, 3);
+        // PhaiCity: a building turned to a slanted road takes its turned outline's tiles (src/buildings/turnedFootprint.ts)
+        var turned = turnedTilesOf(this._map, centerY * this._map.width + centerX, this._worldEffects.getTileValue(centerX, centerY));
+        if (turned)
+          turned.forEach(function(i) { this.putRubble(i % this._map.width, Math.floor(i / this._map.width), 1); }, this);
+        else
+          this.putRubble(centerX - 1, centerY - 1, 3);
         break;
 
       case 4:

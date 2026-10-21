@@ -15,6 +15,7 @@ import { ConnectingTool } from './connectingTool.js';
 import { ANIMBIT, BNCNBIT, ZONEBIT } from "./tileFlags.ts";
 import { DIRT } from "./tileValues.ts";
 import { TileUtils } from './tileUtils.js';
+import { familyValue } from './buildings/turnedFootprint.ts';
 
 var BuildingTool = ConnectingTool(function(cost, centreTile, map, size, animated) {
   this.init(cost, map, false);
@@ -93,6 +94,11 @@ BuildingTool.prototype.prepareBuildingSite = function(leftX, topY) {
 
 
 BuildingTool.prototype.buildBuilding = function(x, y) {
+  // PhaiCity: a building put down turned to a slanted road lays the tiles of its turned outline, offsets from its centre
+  // (src/buildings/turnedFootprint.ts), not its square block
+  if (this.footprint)
+    return this.buildTurned(x, y, this.footprint);
+
   // Correct to top left
   x--;
   y--;
@@ -107,6 +113,41 @@ BuildingTool.prototype.buildBuilding = function(x, y) {
 
   this.checkBorder(x, y);
 
+  return this.TOOLRESULT_OK;
+};
+
+
+// PhaiCity: the turned tiles' site cleared as the square's is, then its centre laid with the zone bit and every other
+// tile in its family as the square's tile beside it (familyValue)
+BuildingTool.prototype.buildTurned = function(x, y, offsets) {
+  var i, tx, ty, tileValue;
+  for (i = 0; i < offsets.length; i++) {
+    tx = x + offsets[i][0];
+    ty = y + offsets[i][1];
+    if (!this._map.testBounds(tx, ty))
+      return this.TOOLRESULT_FAILED;
+    tileValue = this._worldEffects.getTileValue(tx, ty);
+    if (tileValue === DIRT)
+      continue;
+    if (!this.autoBulldoze || !TileUtils.canBulldoze(tileValue))
+      return this.TOOLRESULT_NEEDS_BULLDOZE;
+  }
+  for (i = 0; i < offsets.length; i++) {
+    tx = x + offsets[i][0];
+    ty = y + offsets[i][1];
+    tileValue = this._worldEffects.getTileValue(tx, ty);
+    if (tileValue !== DIRT) {
+      this._worldEffects.setTile(tx, ty, DIRT);
+      this.addBulldozeCost(tileValue);
+    }
+  }
+  this.addCost(this.toolCost);
+  for (i = 0; i < offsets.length; i++) {
+    var dx = offsets[i][0], dy = offsets[i][1];
+    var centre = dx === 0 && dy === 0;
+    this._worldEffects.setTile(x + dx, y + dy, centre ? this.centreTile : familyValue(this.centreTile, this.size, dx, dy),
+                               centre ? BNCNBIT | ZONEBIT : BNCNBIT);
+  }
   return this.TOOLRESULT_OK;
 };
 

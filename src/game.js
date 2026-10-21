@@ -64,6 +64,7 @@ import { canalGraphLines } from './roads/canalLines.ts';
 import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
+import { isTurned } from './buildings/turnedFootprint.ts';
 import { layerPixels, toolLayer } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
@@ -2727,13 +2728,16 @@ Game.prototype.buildingPose = function(size, x, y, stepMetres) {
       var t = Math.max(0, Math.min(1, (want - along) / length)), rx = ax + dx * t, rz = az + dz * t, tx = dx / length, tz = dz / length;
       var nx = -tz, nz = tx;
       if (nx * (px - rx) + nz * (pz - rz) < 0) { nx = -nx; nz = -nz; }
-      var gap = roadReach(best.level, realUnits(map.tileSizeM)) + 0.6 + size * 5 * BUILDING_SCALE;
+      // (a 3x3 its whole block deep, as it takes the tiles of its outline turned with it, the outline's front at the road's
+      // edge: src/buildings/turnedFootprint.ts)
+      var turns = size === 3 && isTurned(Math.atan2(-nx, -nz));
+      var gap = roadReach(best.level, realUnits(map.tileSizeM)) + 0.6 + size * 5 * (size === 3 ? 1 : BUILDING_SCALE);
       // ... stood back from it a metre at a time while its block would cover a road's tiles or stand beside none (a road
       // at a slant), so the outline is where it goes (poseTile)
       var metre = unitsPerMetre(tileMetres(map)), isRoad = function(tx, ty) {
         return map.testBounds(tx, ty) && isRoadTile(map.getTileValue(tx, ty));
       };
-      for (var back = 0; back <= 24; back++) {
+      for (var back = 0; back <= 24 && !turns; back++) {
         var block = blockOf(rx + nx * (gap + back * metre), rz + nz * (gap + back * metre), size, 10), clear = true;
         for (var ty = block.top; ty < block.top + size && clear; ty++)
           for (var tx = block.left; tx < block.left + size && clear; tx++)

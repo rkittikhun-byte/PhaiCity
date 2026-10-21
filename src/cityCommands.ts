@@ -26,12 +26,15 @@ import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
+import { bodyMeets, drawnPoints, familyValue, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
+  outsideBy, turnedOutlines, turnedTilesOf, turnsFootprint, type FootprintMap } from "./buildings/turnedFootprint";
 import type { BuildingMap } from "./buildings/buildingRecords";
 import { MOVE_BLOCKED, MOVE_NO_MONEY, movePrice, NO_BUILDING } from "./moveTool";
 import { TileUtils } from "./tileUtils.js";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
-import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, WINGS, wingProblem } from "./rulerHouse";
+import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, NEEDS_ROAD, WINGS, wingProblem } from "./rulerHouse";
+import { roadReach } from "./roadGeometry";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
 import { chooseFestival, type Festival, FESTIVAL_IDS, FESTIVAL_SCALES, festivalProblem, type FestivalState } from "./festivals";
 import { STATION_KINDS, transitProblem } from "./transit";
@@ -41,7 +44,7 @@ import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, c
 import { PAINT_PRICE_SHARE, PAINT_TOOLS } from "./plots";
 import { BUILDING_UPGRADE_TOOL, LEVEL_GROUPS, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
-import { ALLBITS, BIT_MASK, BULLBIT } from "./tileFlags";
+import { ALLBITS, BIT_MASK, BNCNBIT, BULLBIT } from "./tileFlags";
 import { DIRT, LASTRAIL, RAILBASE, TREEBASE, WOODS2 } from "./tileValues";
 import { type TileChange, UndoHistory, type UndoStep } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
@@ -87,6 +90,10 @@ export const NOTHING_TO_PAINT = "nothing to paint";
 export const NO_MONEY_FOR_CELLS = "not enough money";
 /** Why a building was refused on a map painted a cell at a time: every building there stands beside a road */
 export const NEEDS_ROAD_BESIDE = "needs a road beside it";
+/** Why a turned building was refused: a road or railway runs inside its fence (src/buildings/turnedFootprint.ts) */
+export const LINE_IN_THE_WAY = "a road or railway is in the way";
+/** Why a road or railway was refused: it would run inside the ruler's house's fence */
+export const HOUSE_IN_THE_WAY = "the ruler's house is in the way";
 /** The most cells one command paints */
 export const MAX_CELLS = 4000;
 
@@ -168,6 +175,12 @@ interface CommandTool {
   pendingTiles?(): Array<{ x: number; y: number }>;
   /** The kind of power plant it builds (src/gameTools.js, src/powerPlants.ts) */
   powerKind?: string;
+  /** The tiles a building tool lays, offsets from its centre, in place of its square block: a turned building's
+   * (src/buildings/turnedFootprint.ts, src/buildingTool.js) */
+  footprint?: [number, number][] | null;
+  /** The road or railway a road tool lays now, as drawn: a turned building's tile on its way is given up to it when its
+   * body stays outside the building's outline (src/roadTool.js) */
+  lineBody?: { points: [number, number][]; reach: number } | null;
   /** Puts a bus down on the road (src/busStopTool.ts) */
   busTool?: boolean;
   /** The kind of mine it digs (src/mining.ts) */
@@ -315,9 +328,10 @@ export function lockProblem(city: Pick<CommandTarget, "unlocks" | "map" | "width
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
 export function placeProblem(city: Pick<CommandTarget, "canBuildAt" | "ownsLand">, x: number, y: number,
-                             size: number): string | null {
+                             size: number, turned?: ReadonlyArray<{ x: number; y: number }> | null): string | null {
   const canBuildAt = city.canBuildAt;
-  const tiles = footprint(x, y, size);
+  // (a building turned to a slanted road takes its turned outline's tiles: src/buildings/turnedFootprint.ts)
+  const tiles = turned ?? footprint(x, y, size);
   if (canBuildAt && tiles.some((t) => !canBuildAt(t.x, t.y))) return OUTSIDE_PROVINCE;
   // ... and land the city has not bought (src/landBlocks.ts)
   const ownsLand = city.ownsLand;
@@ -378,14 +392,24 @@ const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is
  * Cities: Skylines, and the 3D view sets it against the road's edge (owner, 14 Oct 2026: "ตั้งให้ แต่ละ object ต้อง snap
  * กับถนน เท่านั้น"); the ruler's house has its own check (houseRoadProblem)
  */
-function roadBesideProblem(city: CommandTarget, toolName: string, size: number, x: number, y: number): string | null {
+function roadBesideProblem(city: CommandTarget, toolName: string, size: number, x: number, y: number,
+                           turned?: ReadonlyArray<{ x: number; y: number }> | null): string | null {
   const map = city.map as unknown as { cellZones?: boolean } | undefined;
   const isBuilding = size >= 3 || placesBuilding(toolName, city.tools[toolName]);
   if (!map?.cellZones || !isBuilding || toolName === "ruler_house" || isOneOf(["residential", "commercial", "industrial"], toolName)) {
     return null;
   }
-  return besideRoad(city.width, city.height, (rx, ry) => isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK), x, y, size)
-    ? null : NEEDS_ROAD_BESIDE;
+  const isRoad = (rx: number, ry: number): boolean => isRoadTile(city.map!.getTile(rx, ry).getRawValue() & BIT_MASK);
+  if (turned) return besideTiles(city.width, city.height, isRoad, turned) ? null : NEEDS_ROAD_BESIDE;
+  return besideRoad(city.width, city.height, isRoad, x, y, size) ? null : NEEDS_ROAD_BESIDE;
+}
+
+/** Whether a road tile lies beside one of these tiles (a turned building's, src/buildings/turnedFootprint.ts), or among the
+ * tiles of its outline a road took */
+export function besideTiles(width: number, height: number, isRoad: (x: number, y: number) => boolean,
+  tiles: ReadonlyArray<{ x: number; y: number }>): boolean {
+  const road = (rx: number, ry: number): boolean => rx >= 0 && ry >= 0 && rx < width && ry < height && isRoad(rx, ry);
+  return tiles.some((t) => road(t.x - 1, t.y) || road(t.x + 1, t.y) || road(t.x, t.y - 1) || road(t.x, t.y + 1));
 }
 
 const isRailTile = (value: number): boolean => value >= RAILBASE && value <= LASTRAIL;
@@ -554,15 +578,30 @@ export class CityCommands {
     const shape: LineShape = more ? "free" : command.c1 ? "curve" : "straight";
     const controls = more ? undefined : (command.c1 && command.c2 ? [command.from, command.c1, command.c2, command.to] :
       [command.from, command.to]).map(inTiles);
+    // Its body as drawn: a building turned to a slanted road gives up a tile at its edge to a road that stays outside its
+    // outline (src/roadTool.js), and the ruler's house refuses one that comes inside it, its fence
+    // (src/buildings/turnedFootprint.ts)
+    const units = unitsPerMetre(size);
+    const body = { points: drawnPoints(command.from, command.to, command.c1, command.c2),
+      reach: rail ? RAIL_REACH_M : roadReach(drawn.level, units) / units };
+    const house = (map as unknown as { rulerHouse?: { x: number; y: number } | null }).rulerHouse;
+    const housePlaced = house ? (map as unknown as BuildingMap).buildings?.atTile(house.y * width + house.x) : undefined;
+    const houseOutline = housePlaced ? laidOutline(map as unknown as FootprintMap, housePlaced) : null;
+    if (!canal && houseOutline && bodyMeets(houseOutline, body)) return { accepted: false, reason: HOUSE_IN_THE_WAY };
     let laid = 0, reason: string | undefined;
     const costs: number[] = [];
-    for (const i of tiles) {
-      const x = i % width, y = (i - x) / width, funds = city.budget.totalFunds;
-      const out = this.apply({ type: "tool", tool: command.tool, x, y, stroke: command.stroke, part: command.part, shape,
-        ...(controls ? { controls } : {}) });
-      costs.push(funds - city.budget.totalFunds);
-      if (out.accepted && out.toolResult === 0) laid++;
-      else if (!out.accepted && reason === undefined) reason = out.reason;
+    tool.lineBody = canal ? null : body;
+    try {
+      for (const i of tiles) {
+        const x = i % width, y = (i - x) / width, funds = city.budget.totalFunds;
+        const out = this.apply({ type: "tool", tool: command.tool, x, y, stroke: command.stroke, part: command.part, shape,
+          ...(controls ? { controls } : {}) });
+        costs.push(funds - city.budget.totalFunds);
+        if (out.accepted && out.toolResult === 0) laid++;
+        else if (!out.accepted && reason === undefined) reason = out.reason;
+      }
+    } finally {
+      tool.lineBody = null;
     }
     const isLine = rail ? isRailTile : canal ? isCanalWater : isRoadTile;
     const whole = tiles.every((i) => isLine(map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK));
@@ -601,14 +640,32 @@ export class CityCommands {
     const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
     const { cx, cy } = blockOf(command.x, command.z, size, metres);
     if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { accepted: false, reason: "outside the map" };
+    // Turned to a slanted road, a 3 x 3 takes the tiles its turned outline covers, not its square block: none where a
+    // road or railway runs inside the outline (its fence, src/render3d/city/compounds.ts), and not the tiles of the
+    // outline a road already holds at its edge (src/buildings/turnedFootprint.ts)
+    let turned: { tool: string; x: number; y: number; tiles: { x: number; y: number }[] } | null = null;
+    if (turnsFootprint(size, command.rot)) {
+      const outline = outlineOf(command.x, command.z, command.rot, size, metres), units = unitsPerMetre(metres);
+      const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null };
+      const footprintMap = { width: city.width, height: city.height, tileSizeM: metres,
+        getTileValue: (x: number, y: number) => map.getTile(x, y).getRawValue() & BIT_MASK,
+        roadGraph: graphs.roadGraph ?? null, railGraph: graphs.railGraph ?? null };
+      if (lineInOutline(outline, footprintMap, (level) => roadReach(level, units) / units,
+        (v) => isRoadTile(v) || isRailTile(v))) return { accepted: false, reason: LINE_IN_THE_WAY };
+      const tiles = outlineTiles(outline, city.width, city.height, metres).map((i) => ({ x: i % city.width, y: Math.floor(i / city.width) }))
+        .filter((t) => (t.x === cx && t.y === cy) || !isRoadTile(footprintMap.getTileValue(t.x, t.y)) && !isRailTile(footprintMap.getTileValue(t.x, t.y)));
+      turned = { tool: command.tool, x: cx, y: cy, tiles };
+    }
     // Laid by the tool, which keeps it in gameMap.buildings where it was put down (keepBuilding), and the 3D view reads
     // it there (step 2.4); undo takes it away with its tiles
     this.placing = { x: command.x, z: command.z, rot: command.rot };
+    this.turned = turned;
     try {
       return this.apply({ type: "tool", tool: command.tool, x: cx, y: cy,
         ...(command.stroke !== undefined ? { stroke: command.stroke } : {}) });
     } finally {
       this.placing = null;
+      this.turned = null;
     }
   }
   /** A building moved by the player (the "move" command): slid or turned on its block, or taken with its tiles and
@@ -622,7 +679,13 @@ export class CityCommands {
     city.budget.spend(cost);
     const backs: Array<() => void> = [() => { placed.remove(b.id); placed.restore(b); }];
     let changes: TileChange[] = [];
-    if (to !== b.tile) {
+    if (site.turned) {
+      changes = this.relayTurned(b, site.turned.own, site.turned.tiles, to);
+      if (to !== b.tile) {
+        const back = city.carryBuilding?.(b.tile, to);
+        if (back) backs.push(back);
+      }
+    } else if (to !== b.tile) {
       changes = this.carryTiles(b, site.left, site.top);
       const back = city.carryBuilding?.(b.tile, to);
       if (back) backs.push(back);
@@ -653,7 +716,8 @@ export class CityCommands {
    * bare ground or what the tool clears (src/buildingTool.js prepareBuildingSite), its own tiles being lifted first
    */
   private moveSite(command: Extract<Command, { type: "move" }>):
-    { reason: string } | { b: PlacedBuilding; to: number; left: number; top: number; cost: number } {
+    { reason: string } | { b: PlacedBuilding; to: number; left: number; top: number; cost: number;
+      turned?: { own: number[]; tiles: { x: number; y: number }[] } } {
     const problem = commandProblem(command, this.city.width, this.city.height);
     if (problem) return { reason: problem };
     const city = this.city, tiles = city.map, map = tiles as unknown as BuildingMap | undefined;
@@ -663,6 +727,44 @@ export class CityCommands {
     const x = b.tile % width, y = Math.floor(b.tile / width), size = b.size;
     if (!tool || !map.getTile(x, y).isZone() && size > 1) return { reason: NO_BUILDING };
     const block = blockOf(command.x, command.z, size, tileMetres(map)), { left, top, cx, cy } = block, to = cy * width + cx;
+    // A building turned to a slanted road, before or after, takes the tiles of its outline where it goes, its own lifted
+    // first (src/buildings/turnedFootprint.ts)
+    const metres = tileMetres(map), oldOutline = laidOutline(map as unknown as FootprintMap, b);
+    const newOutline = turnsFootprint(size, command.rot) ? outlineOf(command.x, command.z, command.rot, size, metres) : null;
+    if (oldOutline || newOutline) {
+      if (left < 0 || top < 0 || left + size > width || top + size > height) return { reason: "outside the map" };
+      const value = (x: number, y: number): number => tiles.getTile(x, y).getRawValue() & BIT_MASK;
+      const centreValue = value(x, y);
+      const own = turnedTilesOf({ width, height, tileSizeM: metres, getTileValue: value, buildings: placed }, b.tile, centreValue) ??
+        footprint(x, y, size).map((t) => t.y * width + t.x);
+      let next: { x: number; y: number }[];
+      if (newOutline) {
+        const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null }, units = unitsPerMetre(metres);
+        if (lineInOutline(newOutline, { width, height, tileSizeM: metres, getTileValue: value, roadGraph: graphs.roadGraph ?? null,
+          railGraph: graphs.railGraph ?? null }, (level) => roadReach(level, units) / units, (v) => isRoadTile(v) || isRailTile(v))) {
+          return { reason: LINE_IN_THE_WAY };
+        }
+        next = outlineTiles(newOutline, width, height, metres).map((i) => ({ x: i % width, y: Math.floor(i / width) }))
+          .filter((t) => (t.x === cx && t.y === cy) || !isRoadTile(value(t.x, t.y)) && !isRailTile(value(t.x, t.y)));
+      } else next = footprint(cx, cy, size);
+      const refused = placeProblem(city, cx, cy, size, next) ?? plantProblem(city, tool.powerKind, cx, cy, size) ??
+        farmProblem(city, b.tool, cx, cy) ?? transitProblem(b.tool, cx, cy, Infinity, city.isRailAt ?? (() => true), null) ??
+        roadBesideProblem(city, b.tool, size, cx, cy, next) ??
+        (tool.rulerHouse && !besideTiles(width, height, (tx, ty) => isRoadTile(value(tx, ty)), next) ? NEEDS_ROAD : null);
+      if (refused) return { reason: refused };
+      const mine = new Set(own);
+      let cleared = 0, felled = 0;
+      for (const t of next) {
+        if (mine.has(t.y * width + t.x)) continue;
+        const v = value(t.x, t.y);
+        if (v === DIRT) continue;
+        if (!tool.autoBulldoze || !TileUtils.canBulldoze(v)) return { reason: MOVE_BLOCKED };
+        if (v >= TREEBASE && v < WOODS2) felled += tool.clearWoodsCost ?? 1;
+        else cleared += tool.bulldozerCost ?? 1;
+      }
+      return { b, to, left, top, cost: movePrice(tool) + Math.round(cleared * (tool.costFactor ?? 1)) + felled,
+        turned: { own, tiles: next } };
+    }
     if (to === b.tile) return { b, to, left, top, cost: movePrice(tool) };
     if (left < 0 || top < 0 || left + size > width || top + size > height) return { reason: "outside the map" };
     // (the ruler's rank and the one high-speed station were asked when it was built)
@@ -687,6 +789,26 @@ export class CityCommands {
 
   /** A building's tiles lifted off its block, leaving bare ground, and laid as they were, flags and all, on the block
    * whose top left is (left, top); the tiles that changed, for undo */
+  /** A turned building's tiles lifted, and laid on the tiles of its outline where it goes, centre `to` with its centre's
+   * value and flags, the rest in its family (src/buildings/turnedFootprint.ts); the tiles that changed, for undo */
+  private relayTurned(b: PlacedBuilding, own: readonly number[], tiles: ReadonlyArray<{ x: number; y: number }>, to: number): TileChange[] {
+    const map = this.city.map!, width = this.city.width, before = new Map<number, { x: number; y: number; before: number }>();
+    const put = (x: number, y: number, value: number, flags: number): void => {
+      const i = y * width + x;
+      if (!before.has(i)) before.set(i, { x, y, before: map.getTile(x, y).getRawValue() });
+      map.setTile(x, y, value, flags);
+    };
+    const centreRaw = map.getTile(b.tile % width, Math.floor(b.tile / width)).getRawValue(), centre = centreRaw & BIT_MASK;
+    for (const i of own) put(i % width, Math.floor(i / width), DIRT, 0);
+    const tx = to % width, ty = Math.floor(to / width);
+    for (const t of tiles) {
+      if (t.x === tx && t.y === ty) put(t.x, t.y, centre, centreRaw & ALLBITS);
+      else put(t.x, t.y, familyValue(centre, b.size, t.x - tx, t.y - ty), BNCNBIT);
+    }
+    return [...before.values()].map((c) => ({ ...c, after: map.getTile(c.x, c.y).getRawValue() }))
+      .filter((c) => c.after !== c.before);
+  }
+
   private carryTiles(b: PlacedBuilding, left: number, top: number): TileChange[] {
     const map = this.city.map!, width = this.city.width, size = b.size, corner = size > 1 ? 1 : 0;
     const ownLeft = b.tile % width - corner, ownTop = Math.floor(b.tile / width) - corner;
@@ -725,6 +847,8 @@ export class CityCommands {
 
   /** Where the build command in hand puts its building down, in metres */
   private placing: { x: number; z: number; rot: number } | null = null;
+  /** The tiles a building put down turned takes, while the build command lays it (src/buildings/turnedFootprint.ts) */
+  private turned: { tool: string; x: number; y: number; tiles: { x: number; y: number }[] } | null = null;
 
   /**
    * A building a tool put down, kept in gameMap.buildings (docs/METRE_DRAWING_PLAN.md 2.6): where the build command
@@ -851,16 +975,22 @@ export class CityCommands {
         if (lays && line !== null && city.map) this.followPath(line, command.x, command.y, command.shape, command.controls);
         const houseMap = city.houseMap;
         const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
+        // A building put down turned to a slanted road takes its turned outline's tiles (the build command worked them out)
+        const turned = this.turned && this.turned.tool === command.tool && this.turned.x === command.x &&
+          this.turned.y === command.y ? this.turned.tiles : null;
         const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
           serviceProblem(command.tool, houseLevel) ?? levelProblem(command.tool, houseLevel) ??
           (command.tool === BUILDING_UPGRADE_TOOL && city.map ? upgradeProblem(city.map as unknown as Parameters<typeof upgradeProblem>[0],
             command.x, command.y, houseLevel) : null) ??
           transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
-          placeProblem(city, command.x, command.y, tool.size ?? 1) ??
+          placeProblem(city, command.x, command.y, tool.size ?? 1, turned) ??
           plantProblem(city, tool.powerKind, command.x, command.y, tool.size ?? 4) ?? mineProblem(city, tool.mineKind) ??
-          farmProblem(city, command.tool, command.x, command.y) ?? roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y) ??
-          (tool.rulerHouse && city.map ? houseRoadProblem({ width: city.width, height: city.height,
+          farmProblem(city, command.tool, command.x, command.y) ??
+          roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y, turned) ??
+          (tool.rulerHouse && city.map && turned ? (besideTiles(city.width, city.height,
+            (x, y) => isRoadTile(city.map!.getTile(x, y).getRawValue() & BIT_MASK), turned) ? null : NEEDS_ROAD) : null) ??
+          (tool.rulerHouse && city.map && !turned ? houseRoadProblem({ width: city.width, height: city.height,
             getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
         // ... and what the city cannot build yet (src/unlocks.ts): its era, trained people, what must stand first
@@ -868,7 +998,9 @@ export class CityCommands {
         if (lock) return { accepted: false, reason: lock.reason, detail: lock.params, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
-        tool.doTool(command.x, command.y, city.blockMaps);
+        // (the building tool lays the turned tiles, src/buildingTool.js)
+        if (turned) tool.footprint = turned.map((t) => [t.x - command.x, t.y - command.y]);
+        try { tool.doTool(command.x, command.y, city.blockMaps); } finally { if (turned) tool.footprint = null; }
         const before = map && tool.pendingTiles
           ? tool.pendingTiles().map(({ x, y }) => ({ x, y, before: map.getTile(x, y).getRawValue() }))
           : [];
@@ -1012,7 +1144,15 @@ export class CityCommands {
         if (lock) return { accepted: false, reason: lock.reason, detail: lock.params };
         const layout = cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
         const code = command.zone ? zoneCode(command.zone) : 0, painted = map.zoneCells ?? (map.zoneCells = new Map());
-        const cells = [...new Set(command.cells)].filter((key) => layout.byKey.has(key) && (painted.get(key) ?? 0) !== code);
+        // ... never inside the fence of a building turned to a slanted road, on ground it reserves though the tile is not
+        // its (src/buildings/turnedFootprint.ts)
+        const fenced = turnedOutlines(map as unknown as FootprintMap), units = unitsPerMetre(tileMetres(map));
+        const inFence = (key: number): boolean => {
+          const cell = layout.cells[layout.byKey.get(key)!];
+          return fenced.some(({ outline }) => outsideBy(outline, cell.x / units, cell.z / units) < 0);
+        };
+        const cells = [...new Set(command.cells)].filter((key) => layout.byKey.has(key) && (painted.get(key) ?? 0) !== code &&
+          !(code && fenced.length && inFence(key)));
         if (!cells.length) return { accepted: false, reason: NOTHING_TO_PAINT };
         // Paint costs a share of its zone's price, by the cell (src/plots.ts PAINT_PRICE_SHARE); clearing is free
         const tool = command.zone ? city.tools[command.zone] : null;

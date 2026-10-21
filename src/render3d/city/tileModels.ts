@@ -21,6 +21,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
+import { turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
@@ -407,6 +408,9 @@ export class TileSnapshot implements CityMapReader {
   coverZones(): void {
     this.coverage.fill(-1);
     for(let i=0;i<this.flags.length;i++) if(this.flags[i]&ZONEBIT) {
+      // A building turned to a slanted road covers its turned outline's tiles, not its square (src/buildings/turnedFootprint.ts)
+      const turned=this.source?turnedTilesOf(this.source as unknown as FootprintMap,i,this.values[i]):null;
+      if(turned){for(const j of turned)if(this.coverage[j]===-1)this.coverage[j]=i;continue;}
       const entry=TILE_TABLE[this.values[i]] ?? debug(),[w,h]=entry.footprint;
       const x=i%this.width-(w>1?1:0), y=Math.floor(i/this.width)-(h>1?1:0);
       for(let dy=0;dy<h;dy++) for(let dx=0;dx<w;dx++) if(x+dx>=0&&y+dy>=0&&x+dx<this.width&&y+dy<this.height) {
