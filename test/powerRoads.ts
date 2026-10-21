@@ -15,7 +15,7 @@ import { PowerManager } from "../src/powerManager.js";
 function city() {
   Random.seed(11);
   const map = (MapGenerator as any).fromPresetCells(120, 40, new Uint8Array(120 * 40));
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(100000);
   // A long road along row 20
   for (let x = 2; x < 118; x++) expect(core.apply({ type: "tool", tool: "road", x, y: 20 }).accepted).toBe(true);
@@ -56,7 +56,7 @@ describe("power along the roads", () => {
     // Along the tiles of a road drawn from (3, 2) to (100, 35) tiles, in metres on 16 m tiles, the power coming in at its start
     const map = (MapGenerator as any).fromPresetCells(120, 40, new Uint8Array(120 * 40));
     map.tileSizeM = 16;
-    const core = new CityCore({ map, seed: 11 });
+    const core = new CityCore({ sandbox: true, map, seed: 11 });
     core.simulation.budget.setFunds(100000);
     expect(core.apply({ type: "road", tool: "road", from: [3.5 * 16, 2.5 * 16], to: [100.5 * 16, 35.5 * 16], stroke: 1 }).toolResult).toBe(0);
     const power = new PowerManager(map);

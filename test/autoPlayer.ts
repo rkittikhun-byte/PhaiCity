@@ -60,6 +60,24 @@ describe("the auto player", () => {
     // ... but a treasury that cannot pay at all answers modestly: the people then hold it themselves, letting nobody down
     expect(festivalAnswer([400, 2400], 399, true, reserve)).toBe("modest");
     expect(festivalAnswer([400, 2400], 0, false, reserve)).toBe("modest");
+    // ... and while it saves for a school or a hospital, a festival may not eat into that
+    expect(festivalAnswer([400, 2400], 1500, false, reserve, 1800)).toBe("none");
+    expect(festivalAnswer([400, 2400], 2300, false, reserve, 1800)).toBe("modest");
+  });
+
+  test("waits for what the city cannot build yet, and builds it once it can (docs/GAME_DESIGN.md 6)", () => {
+    Random.seed(5);
+    const core = town();
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 300, paintEachYear: 300 });
+    player.start();
+    // A village's water is its towers' wells; the water works wait for the market town and the plant's months
+    expect(player.log.some((line) => line.includes("watertower at"))).toBe(true);
+    expect(player.log.some((line) => line.includes("waterworks waits: unlock.era"))).toBe(true);
+    expect(player.log.some((line) => line.includes("waterworks at"))).toBe(false);
+    core.map.era = 2;
+    core.run(16 * 4 * 7);
+    player.playYear();
+    expect(player.log.some((line) => line.includes("waterworks at"))).toBe(true);
   });
 
   test("answers through the festival command, and a festival not held costs the year nothing", () => {
