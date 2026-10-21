@@ -152,6 +152,11 @@ describe("the auto player", () => {
   test("answers through the festival command, and a festival not held costs the year nothing", () => {
     Random.seed(5);
     const core = town({ tourism: 3 });
+    // A town of at least 640 people as the festivals count them (4 of the census's units), so its festivals are the
+    // ruler's to answer for (a village holds its own unasked, src/festivals.ts FESTIVAL_TOWN_PEOPLE)
+    const census = core.simulation._census as { totalPop: number };
+    let units = census.totalPop;
+    Object.defineProperty(census, "totalPop", { get: () => Math.max(4, units), set: (v: number) => { units = v; }, configurable: true });
     const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 3000, paintEachYear: 1000 });
     player.start();
     // A treasury that could pay for Songkran but be left nearly empty (a new town's price: a tenth, src/festivals.ts)

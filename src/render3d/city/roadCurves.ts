@@ -15,7 +15,7 @@ import { roadReach, smoothLine, type Point } from '../../roadGeometry.js';
 import { graphLines, type GraphLines } from '../../roads/graphLines.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import { CITY_TILE_M } from '../../units.js';
-import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
+import { isRail, isRoad, ROAD_GAP, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
@@ -610,9 +610,10 @@ export class RoadCurves {
       if (size < 3) continue;
       const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
       // As big as its tiles, but turned with it to face its road (owner, 18 Oct 2026: "ที่ว่าการอำเภอ ทำมันวาดเขียวๆ ไม่ขนาน
-      // กับถนน"): from the road's edge in front of it (game.js buildingPose: 0.6 before its front) back as deep as wide ...
+      // กับถนน"): from the road's edge in front of it (tileModels.ts toRoadEdge: ROAD_GAP before its front) back as deep as
+      // wide ...
       const ground = p.ground(), side = size * 10, sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
-      const front = ground.depth / 2 + 0.6, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
+      const front = (p.front ?? ground.depth / 2) + ROAD_GAP, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
       // ... and reaching over every tile the building takes, which stand square to the map whatever way it is turned, so
       // none lies bare beside it (owner, 18 Oct 2026: "สี่เหลี่ยมสีแดงๆ ... ไม่ติดกับสิ่งก่อสร้างอะไรเลย")
       const x0 = i % width - 1, y0 = Math.floor(i / width) - 1;
@@ -655,8 +656,10 @@ export class RoadCurves {
       // A building turned to its road keeps its driveway to that road, out of its front, whatever road is drawn nearer
       // to it later (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"): the road is looked for in front of it
       const posed = p.posed, fx = Math.sin(p.rotation), fz = Math.cos(p.rotation);
-      const lookX = posed ? p.x + fx * (size * 5 * (p.fill ?? 0.625) * 0.45 + 2) : p.x;
-      const lookZ = posed ? p.z + fz * (size * 5 * (p.fill ?? 0.625) * 0.45 + 2) : p.z;
+      // ... (from its front where it is known, tileModels.ts toRoadEdge, which reaches under it a little)
+      const halfDepth = p.front !== undefined ? Math.max(0, p.front - 0.5) : size * 5 * (p.fill ?? 0.625) * 0.45;
+      const lookX = posed ? p.x + fx * (halfDepth + 2) : p.x;
+      const lookZ = posed ? p.z + fz * (halfDepth + 2) : p.z;
       const near = this.nearest(lookX, lookZ, size * 5 + 28);
       if (!near) continue;
 
@@ -668,7 +671,6 @@ export class RoadCurves {
       const tx = near.tx, tz = near.tz;
       const dist = Math.hypot(p.x - near.x, p.z - near.z);
       const d0 = near.reach * 0.72;
-      const halfDepth = size * 5 * (p.fill ?? 0.625) * 0.45;
       const d1 = Math.max(d0 + 0.9, dist - halfDepth);
       if (d1 <= d0 + 0.2 || d1 > d0 + 18) continue;
 

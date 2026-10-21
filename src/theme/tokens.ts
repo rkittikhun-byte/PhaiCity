@@ -149,6 +149,8 @@ export const SCENE = {
     silk: [RAMPS.lavender[400], RAMPS.clay[500], RAMPS.gold[500], RAMPS.chili[500]],
     /** The vegetarian festival's yellow flags */
     vegetarian: [RAMPS.gold[300], RAMPS.gold[400]],
+    /** The bamboo poles the bunting is strung between, and its cord */
+    pole: RAMPS.gold[700], cord: RAMPS.sand[700],
   },
   /**
    * The farm zone (src/farmZone.ts, src/render3d/city/farmFields.ts; docs/GAME_DESIGN.md section 7): its paint, the

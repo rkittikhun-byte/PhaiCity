@@ -54,6 +54,8 @@
         </div>
       </nav>
       <nav class="hudButtons hudRight">
+        <!-- A town's next festival to answer for, opening its card beside it (src/festivalCard.ts); the game writes its name -->
+        <button id="festivalChip" type="button" class="hudPill" aria-haspopup="dialog" aria-controls="festivalCard" aria-expanded="false" hidden></button>
         <button id="newsLogButton" type="button" class="hudPill initialHidden">News</button>
         <!-- Bring the 3D view back to where it started; shown only in 3D (src/viewControls.ts) -->
         <button id="viewReset" class="hudPill hudRound" type="button" hidden>⌂</button>
@@ -66,6 +68,8 @@
     </header>
     <!-- The era card, opened under the era in the status (src/eraCard.ts); the game writes its lines -->
     <aside id="eraCard" data-anchor="statusEra" hidden></aside>
+    <!-- The festival card, opened from its chip by the News button (src/festivalCard.ts); the game writes its lines -->
+    <aside id="festivalCard" role="dialog" data-anchor="festivalChip" hidden></aside>
     <div id="wrapper">
       <main id="canvasContainer">
         <div class="hidden" id="opaque"></div>

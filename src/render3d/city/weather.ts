@@ -2,15 +2,17 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 // The weather in the 3D view (owner, 20 Oct 2026: "มีฝนที่ฝนตก ตกหนัก แดดออก ฟ้ามืดด้วย ก็น่าจะดี"; src/weather.ts).
-// The simulation chooses the month's weather and keeps it on the map; the view only reads it, never writes it, and
-// eases its look in over a few seconds: the clouds gather before the rain falls, the rain stops before they part, the
-// ground stays wet a while after. What it draws: streaks of rain in a box that follows the camera (one draw of lines
+// The simulation chooses the month's weather and keeps it on the map; the game turns it into the sky now, with a rain
+// spell two or three times an era (src/rainSpells.ts; owner, 21 Oct 2026: "ฝนตกบ่อยเกินไปมากๆ"), and the view only
+// reads that, never writes it, and eases its look in over a few seconds: the clouds gather before the rain falls, the rain stops before
+// they part, the ground stays wet a while after. What it draws: streaks of rain in a box that follows the camera (one draw of lines
 // moved on the graphics card, cheap enough for a notebook), a darker sky and haze under the clouds (index.ts
 // applyDayNight, sky.ts), wet ground, roofs and roads (materials/library.ts setCityWetness), lightning in a storm, fog
 // that closes in, thickest in the morning, and the brown haze of burning fields.
 import { BufferAttribute, BufferGeometry, Color, type Group, LineSegments, Material, Mesh, MeshStandardMaterial,
   type Object3D, ShaderMaterial, Vector3, type Camera } from 'three';
 import type { Weather } from '../../weather.js';
+import { fogAtHour } from '../../rainSpells.js';
 import { SCENE } from '../../theme/tokens.js';
 
 /** What the view shows of the weather this frame, each 0–1 */
@@ -37,18 +39,8 @@ const WETTING = 0.35, DRYING = 0.05;
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
-/**
- * How much of the month's fog hangs at an hour (the sun's angle, src/dayClock.ts sunAngle: 0 rising, π setting, on to
- * 2π through the night): thick at dawn, thinning through the morning, thin by day, gathering again through the night.
- */
-export function fogAtHour(sunAngle: number): number {
-  const a = ((sunAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  if (a <= Math.PI) {
-    const day = a / Math.PI;
-    return day < 0.35 ? 1 - 0.7 * (day / 0.35) : 0.3;
-  }
-  return 0.5 + 0.5 * (a - Math.PI) / Math.PI;
-}
+/** How much of the month's fog hangs at an hour (src/rainSpells.ts) */
+export { fogAtHour };
 
 /** One frame of the look following the map's weather (none: a clear day), over dt seconds at an hour of the day */
 export function easeLook(look: WeatherLook, weather: Readonly<Weather> | null, dt: number, sunAngle: number): void {

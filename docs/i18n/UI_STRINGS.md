@@ -1468,6 +1468,11 @@
 | `weather.season.hot` | `src/timeControls.ts` | — | `Hot season` | `ฤดูร้อน` |  |
 | `weather.season.rainy` | `src/timeControls.ts` | — | `Rainy season` | `ฤดูฝน` |  |
 | `weather.season.cool` | `src/timeControls.ts` | — | `Cool season` | `ฤดูหนาว` |  |
+| `weather.month.sunny` | `src/timeControls.ts` | — | `A sunny month: no rain` | `เดือนนี้แดดดี ฝนไม่ตก` | ลักษณะของเดือนเมื่อชี้ (src/rainSpells.ts; เจ้าของโปรเจกต์ 21 ต.ค. 2026: "ฝนตกบ่อยเกินไปมากๆ") |
+| `weather.month.overcast` | `src/timeControls.ts` | — | `A cloudy month: no rain yet` | `เดือนนี้ฟ้าครึ้ม ฝนยังไม่ตก` |  |
+| `weather.month.rain` | `src/timeControls.ts` | — | `A rainy month: the rain comes in spells now and then` | `หน้าฝน ฝนมาเป็นช่วงๆ นานๆ ครั้ง` |  |
+| `weather.month.storm` | `src/timeControls.ts` | — | `A stormy month: a storm may come with the rains` | `เดือนพายุ ฝนที่มาอาจเป็นพายุฝนฟ้าคะนอง` |  |
+| `weather.month.fog` | `src/timeControls.ts` | — | `Foggy: fog at dawn and through the night` | `หมอกลงตอนเช้ามืดและกลางคืน` |  |
 | `weather.effect.sunny` | `src/timeControls.ts` | — | `Clear skies: the ground takes in little water this month` | `ฟ้าโปร่ง เดือนนี้น้ำใต้ดินเติมได้น้อย` | คำอธิบายเมื่อชี้ |
 | `weather.effect.overcast` | `src/timeControls.ts` | — | `Clouds are building: rain may come next month` | `เมฆตั้งเค้า เดือนหน้าฝนอาจตก` |  |
 | `weather.effect.rain` | `src/timeControls.ts` | — | `Rain fills the ground's water; traffic is a little slower and a few visitors stay away` | `ฝนเติมน้ำใต้ดิน รถช้าลงเล็กน้อย นักท่องเที่ยวลดลงบ้าง` |  |
@@ -1484,6 +1489,8 @@
 | `festival.card.title` | `src/festivalCard.ts` | — | `Next month's festival` | `เทศกาลเดือนหน้า` | การ์ดถามเจ้าเมืองล่วงหน้าหนึ่งเดือน |
 | `festival.card.close` | `src/festivalCard.ts` | — | `Close` | `ปิด` |  |
 | `festival.card.now` | `src/festivalCard.ts` | — | `This year's festival` | `เทศกาลปีนี้` | การ์ดค้างไว้หลังเทศกาลเริ่ม ให้ตอบสำหรับปีหน้าได้ |
+| `festival.chip` | `src/festivalCard.ts` | — | `Festival: {name}` | `เทศกาล: {name}` | ปุ่มเล็กข้างปุ่มข่าว เมื่อมีเทศกาลให้ตัดสินใจ คลิกเปิดการ์ด |
+| `festival.chip.hint` | `src/festivalCard.ts` | — | `How to hold next month's festival` | `เลือกวิธีจัดเทศกาลเดือนหน้า` | คำอธิบายเมื่อชี้ปุ่ม |
 | `festival.this_year.grand` | `src/festivalCard.ts` | — | `This year it is held grandly ({cost}). An answer now counts from next year.` | `ปีนี้จัดยิ่งใหญ่ ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
 | `festival.this_year.modest` | `src/festivalCard.ts` | — | `This year it is held modestly ({cost}). An answer now counts from next year.` | `ปีนี้จัดแบบเรียบง่าย ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
 | `festival.this_year.none` | `src/festivalCard.ts` | — | `This year the city holds nothing. An answer now counts from next year.` | `ปีนี้เมืองไม่จัด คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |

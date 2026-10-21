@@ -2,17 +2,20 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The festival card (docs/GAME_DESIGN.md section 5): a month before one of the province's festivals the news asks the
-// ruler how to hold it, on a frosted-glass card under the top bar that keeps the city running. Three choices, each with
-// its price and what it brings: grandly, modestly or not at all; what any festival costs besides money (rubbish and
-// traffic, Songkran's water, lanterns' and rockets' fires, krathong in the water) below them. A choice is the festival
-// command (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. When the
-// festival comes the news says how it was held (and where a fire its lanterns started), and the card stays, saying so,
-// until its ✕, Escape or the next festival's question: a month passes in two to eight seconds, so the ruler who was too
-// slow for this year still answers for the next. It only reads the city and sends commands.
+// The festival card (docs/GAME_DESIGN.md section 5): a month before one of a town's festivals a small chip by the News
+// button names it (owner, 21 Oct 2026: the card had opened over the middle of a new city, "มันมีอะไรมารกหน้าจอมากๆ"),
+// and a click on it opens the card beside it, frosted glass that keeps the city running. Three choices, each with its
+// price and what it brings: grandly, modestly or not at all; what any festival costs besides money (rubbish and traffic,
+// Songkran's water, lanterns' and rockets' fires, krathong in the water) below them. A choice is the festival command
+// (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. When the festival comes
+// the card says how it was held if it is open, else the news does unless it was held modestly as usual, never both; the chip goes once every festival it named
+// has come and the card is closed. A village holds its own festivals (src/festivals.ts FESTIVAL_TOWN_PEOPLE): no chip,
+// no card and no news for them. Fires from lanterns and rockets are always news, with where they started. It only reads
+// the city and sends commands.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index.js";
 import { hide, isShown, show } from "./motion.js";
+import { placeWindow } from "./windowPlacement.js";
 import { FESTIVAL_SCALES, FESTIVAL_SPECS, type FestivalId, type FestivalNews, type FestivalScale } from "./festivals.js";
 
 /** What the card needs of the game (src/game.js) */
@@ -60,7 +63,7 @@ export class FestivalCard {
   /** The festivals asked about, with their prices [modest, grand], and how each was held once it came */
   private readonly asked = new Map<FestivalId, { costs: [number, number]; held: Extract<FestivalNews, { type: "festival" }> | null }>();
 
-  constructor(private readonly element: HTMLElement, private readonly source: FestivalCardSource) {
+  constructor(private readonly element: HTMLElement, private readonly chip: HTMLElement, private readonly source: FestivalCardSource) {
     element.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
       if (target.closest(".festivalClose")) {
@@ -72,39 +75,83 @@ export class FestivalCard {
       if (!id || !scale || this.source.choiceOf(id) === scale) return;
       if (this.source.choose(id, scale)) this.render();
     });
-    element.ownerDocument.addEventListener("keydown", (event) => {
+    chip.addEventListener("click", () => {
+      if (this.isOpen) this.close();
+      else this.open();
+    });
+    const doc = element.ownerDocument;
+    doc.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.isOpen) this.close();
     });
+    // A click anywhere else puts the card away, as every window's does
+    doc.addEventListener("pointerdown", (event) => {
+      const target = event.target as Node | null;
+      if (this.isOpen && target && !element.contains(target) && !chip.contains(target)) this.close();
+    }, true);
     source.on("festivalAhead", (event) => {
       if (event.type !== "festivalAhead") return;
       // A new question takes the place of the festivals already held
       for (const [id, entry] of [...this.asked]) if (entry.held) this.asked.delete(id);
       this.asked.set(event.id, { costs: event.costs, held: null });
-      this.open();
+      // It never opens by itself (owner, 21 Oct 2026: "นี่บ่อยเกิน หรือไม่ต้องแสดงก็ได้"): the chip waits to be clicked, and
+      // an unanswered festival is held modestly
+      this.chip.dataset.fresh = "true";
+      this.renderChip();
+      if (this.isOpen) this.render();
     });
     source.on("festival", (event) => {
-      if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice) return;
-      source.news(festivalNewsText(event), event.scale !== "none" && !event.byPeople);
+      if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice || event.village) return;
       const entry = this.asked.get(event.id);
       if (entry) entry.held = event;
-      this.render();
+      // The card says how it was held when it is open; else the news does, but not of a festival held modestly as it is
+      // every year unless the ruler says otherwise (owner, 21 Oct 2026: "นี่บ่อยเกิน"): the bunting in the town shows it
+      const usual = event.scale === "modest" && !event.byPeople && !event.downgraded;
+      if (this.isOpen && entry) this.render();
+      else if (!usual) source.news(festivalNewsText(event), event.scale !== "none" && !event.byPeople);
+      if (!this.isOpen) this.forgetHeld();
     });
     source.on("festivalFire", (event) => {
       if (event.type !== "festivalFire") return;
       source.news(t("festival.news.fire", { name: t(`festival.${event.id}`) }), false, { x: event.x, y: event.y });
     });
-    onLanguageChange(() => this.render());
+    onLanguageChange(() => {
+      this.renderChip();
+      if (this.isOpen) this.render();
+    });
   }
+
+  /** Whether the chip is out, naming a festival to answer for */
+  get chipShown(): boolean { return !this.chip.hidden; }
 
   get isOpen(): boolean { return isShown(this.element); }
 
   open(): void {
+    if (!this.asked.size) return;
+    delete this.chip.dataset.fresh;
     this.render();
     show(this.element);
+    placeWindow(this.element);
+    this.chip.setAttribute("aria-expanded", "true");
   }
 
   close(): void {
     hide(this.element, true);
+    this.chip.setAttribute("aria-expanded", "false");
+    this.forgetHeld();
+  }
+
+  /** Once every festival asked about has come and the card is shut, nothing is left to answer: the chip goes */
+  private forgetHeld(): void {
+    if ([...this.asked.values()].every((entry) => entry.held)) this.asked.clear();
+    this.renderChip();
+  }
+
+  /** The chip by the News button: the festivals to answer for, or hidden when there are none */
+  private renderChip(): void {
+    const ids = [...this.asked.keys()];
+    this.chip.textContent = ids.length ? t("festival.chip", { name: ids.map((id) => t(`festival.${id}`)).join(" · ") }) : "";
+    this.chip.setAttribute("title", t("festival.chip.hint"));
+    this.chip.hidden = ids.length === 0;
   }
 
   /** The card's lines, for the festivals asked about */
@@ -156,15 +203,28 @@ export class FestivalCard {
   }
 }
 
-/** The card, made under the top bar if the page has none, listening to the city's festivals */
+/** The card and its chip, made if the page has none (the chip by the News button, else on the page), listening to the
+ * city's festivals */
 export function installFestivalCard(source: FestivalCardSource, doc: Document = document): FestivalCard {
   let element = doc.getElementById("festivalCard");
   if (!element) {
     element = doc.createElement("aside");
     element.id = "festivalCard";
     element.setAttribute("role", "dialog");
+    element.dataset.anchor = "festivalChip";
     element.hidden = true;
     doc.body.append(element);
   }
-  return new FestivalCard(element, source);
+  let chip = doc.getElementById("festivalChip");
+  if (!chip) {
+    chip = doc.createElement("button");
+    chip.id = "festivalChip";
+    chip.setAttribute("type", "button");
+    chip.className = "hudPill";
+    chip.hidden = true;
+    const news = doc.getElementById("newsLogButton");
+    if (news) news.before(chip);
+    else doc.body.append(chip);
+  }
+  return new FestivalCard(element, chip, source);
 }

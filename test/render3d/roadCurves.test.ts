@@ -9,7 +9,7 @@ import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves, type RoadWorkerLike } from '../../src/render3d/city/roadCurves.js';
 import { RoadWorkerState, type RoadRequest } from '../../src/render3d/city/roadBuild.js';
-import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { TileSnapshot, ROAD_GAP } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
 import { lateriteColour } from '../../src/render3d/models/road/laterite.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
@@ -45,8 +45,8 @@ describe('road curves', () => {
     lot!.geometry.computeBoundingBox();
     const box = lot!.geometry.boundingBox!;
     // As big as its tiles, three across, turned with it to face the road (rotation 0 here, the road to the south): from
-    // the road's edge, just in front of it, three tiles back ...
-    const ground = placed.ground(), front = ground.z + ground.depth / 2 + 0.6;
+    // the road's edge, ROAD_GAP in front of the building's front (tileModels.ts toRoadEdge), three tiles back ...
+    const ground = placed.ground(), front = ground.z + placed.front! + ROAD_GAP;
     expect(ground.rotation).toBeCloseTo(0);
     expect(box.max.z).toBeCloseTo(front, 4);
     expect(box.max.z).toBeLessThan(205 - 3);

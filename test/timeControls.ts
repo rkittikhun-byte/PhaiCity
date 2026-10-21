@@ -4,7 +4,7 @@
 
 // The time bar (src/timeControls.ts; owner, 20 Oct 2026): pause and 1x 2x 3x, each the game's speed command.
 
-import { hasKey } from "../src/i18n/index";
+import { hasKey, t } from "../src/i18n/index";
 import { currentSpeed, HAZE_SHOWN, setSpeed, skyOf, weatherTip } from "../src/timeControls";
 import { WEATHER_KINDS, type Weather, type WeatherKind } from "../src/weather";
 
@@ -45,9 +45,19 @@ describe("time bar", () => {
     for (const kind of WEATHER_KINDS) {
       expect(hasKey(skyOf(w(kind), false).word)).toBe(true);
       expect(hasKey(`weather.effect.${kind}`)).toBe(true);
-      // The season and the weather, then what it does
-      expect(weatherTip(w(kind), 7, undefined, false).split("\n")).toHaveLength(2);
+      expect(hasKey(`weather.month.${kind}`)).toBe(true);
+      // The season and the sky now, then the month's character and what it does
+      expect(weatherTip(w(kind), 7, undefined, false).split("\n")).toHaveLength(3);
     }
-    expect(weatherTip(w("sunny", 0.5), 2, undefined, false).split("\n")).toHaveLength(3);
+    expect(weatherTip(w("sunny", 0.5), 2, undefined, false).split("\n")).toHaveLength(4);
+  });
+
+  test("the word is the sky now, the tooltip also the month's character (src/showers.ts)", () => {
+    const w = (kind: WeatherKind): Weather => ({ kind, rain: kind === "rain" ? 0.4 : 0, cloud: 0.3, fog: 0, smoke: 0, seed: 1 });
+    // A rainy month between its showers: a clear sky now, and a rainy month when pointed at
+    const tip = weatherTip(w("sunny"), 7, undefined, false, w("rain")).split("\n");
+    expect(tip[0]).toContain(t("weather.kind.sunny"));
+    expect(tip[1]).toBe(t("weather.month.rain"));
+    expect(tip[2]).toBe(t("weather.effect.rain"));
   });
 });
