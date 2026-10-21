@@ -15,7 +15,7 @@
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
 import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
-import { blockColumns, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
+import { blockColumns, blockPrice, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
 import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
@@ -678,8 +678,10 @@ export class AutoPlayer {
         }
       }
     }
-    // No room left on the city's land: a block more, and the building there
-    if (!this.buying) {
+    // No room left on the city's land: a block more, and the building there, when the treasury pays for both (a town that
+    // bought the land with the water works' money then could not build them, src/landBlocks.ts blockPrice)
+    const both = blockPrice(map as never) + (this.core.tools?.[tool]?.toolCost ?? 0);
+    if (!this.buying && (!map.landBlocks || this.core.simulation.budget.totalFunds >= both)) {
       this.buying = true;
       const land = this.buyLand();
       const built = land !== null && this.place(tool, land.x, land.y, 16);
