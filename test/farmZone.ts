@@ -193,3 +193,104 @@ describe("the land's choice of field", () => {
     expect(census.indPop).toBeCloseTo(FARM_ZONE.kinds.pond.jobs);
   });
 });
+
+describe("a month of the fields", () => {
+  const W = 30, H = 20;
+  const grown = (fields: FarmFields, list: Array<[number, number, number, any]>) => {
+    fields.found = list.map(([x, y, level, kind]) => ({ index: y * W + x, level, kind }));
+  };
+  const flat = () => ({ width: W, height: H, paintedZones: true, getTileValue: () => DIRT, getTileFlags: () => 0 }) as any;
+
+  test("sells its crop by level, the province's farmland and the ground's water, less in the dry season", () => {
+    const fields = new FarmFields(W, H);
+    fields.farmland = 3;
+    grown(fields, [[5, 5, 1, "paddy"]]);
+    const one = fields.month(flat(), 6, false, 0, [], null).income;
+    grown(fields, [[5, 5, 3, "paddy"]]);
+    const three = fields.month(flat(), 6, false, 0, [], null).income;
+    expect(three).toBeCloseTo(one * 3);
+    expect(fields.month(flat(), 0, true, 0, [], null).income).toBeCloseTo(three * FARM_ZONE.dryYield);
+    fields.farmland = 5;
+    expect(fields.month(flat(), 6, false, 0, [], null).income).toBeGreaterThan(three);
+    // ... more beside a cooperative, rice mill or cold store
+    fields.farmland = 3;
+    expect(fields.month(flat(), 6, false, 0, [{ x: 8, y: 5 }], null).income).toBeCloseTo(three * (1 + FARM_ZONE.hubBonus));
+  });
+
+  test("draws the groundwater, more in the dry season, and seeps chemicals into the ground", () => {
+    const fields = new FarmFields(W, H);
+    const stores = new Uint8Array(W * H).fill(150), natural = new Uint8Array(W * H).fill(5), poison = new Uint8Array(W * H);
+    fields.ground = { stores, natural };
+    grown(fields, [[5, 5, 2, "paddy"], [9, 5, 4, "field"]]);
+    fields.month(flat(), 6, false, 0, [], poison);
+    const wet = 150 - stores[5 * W + 5];
+    expect(wet).toBe(Math.round(FARM_ZONE.kinds.paddy.draw * 2));
+    stores.fill(150);
+    fields.month(flat(), 0, true, 0, [], poison);
+    expect(150 - stores[5 * W + 5]).toBe(Math.round(wet * FARM_ZONE.dryDraw));
+    expect(poison[5 * W + 9]).toBeGreaterThan(0);
+  });
+
+  test("burns its stubble from February to April unless the ruler forbids it; orchards and ponds never", () => {
+    const fields = new FarmFields(W, H);
+    grown(fields, [[5, 5, 2, "paddy"], [15, 5, 2, "orchard"]]);
+    expect(fields.month(flat(), 6, false, 0, [], null).burning).toBe(0);
+    expect(fields.pollutionAt(5, 5)).toBe(0);
+    expect(fields.month(flat(), 2, false, 0, [], null).burning).toBe(1);
+    expect(fields.pollutionAt(5, 5)).toBe(FARM_ZONE.haze);
+    expect(fields.pollutionAt(15, 5)).toBe(0);
+    expect(fields.firstBurning()).toEqual({ x: 5, y: 5 });
+    fields.noBurning = true;
+    const sold = fields.month(flat(), 2, false, 0, [], null);
+    expect(sold.burning).toBe(0);
+    expect(fields.pollutionAt(5, 5)).toBe(0);
+  });
+
+  test("a pond muddies the water beside it; every field adds to the land's value round it and brings a few visitors", () => {
+    const fields = new FarmFields(W, H);
+    const map = { ...flat(), getTileValue: (_x: number, y: number) => (y === 6 ? RIVER : DIRT) };
+    grown(fields, [[5, 5, 3, "pond"]]);
+    const month = fields.month(map, 6, false, 0, [], null);
+    expect(fields.pollutionAt(5, 6)).toBe(FARM_ZONE.kinds.pond.mud);
+    expect(fields.pollutionAt(5, 4)).toBe(0);
+    expect(fields.landValueAt(5, 5)).toBe(FARM_ZONE.landValue);
+    expect(fields.landValueAt(5, 9)).toBe(0);
+    expect(month.visitors).toBe(Math.round(3 * FARM_ZONE.visitors));
+    expect(month.agroIncome).toBeGreaterThan(0);
+  });
+
+  test("lets fields grow while the town and the market want more food", () => {
+    const fields = new FarmFields(W, H);
+    fields.farmland = 0;
+    grown(fields, [[5, 5, 2, "paddy"]]);
+    fields.month(flat(), 6, false, FARM_ZONE.feeds * 10, [], null);
+    expect(fields.room).toBe(8);
+    fields.farmland = 2;
+    fields.month(flat(), 6, false, FARM_ZONE.feeds * 10, [], null);
+    expect(fields.room).toBe(8 + 2 * FARM_ZONE.exportPerLevel);
+    expect(fields.topLevel(1)).toBe(FARM_ZONE.eraTop[0]);
+    expect(fields.topLevel(5)).toBe(5);
+  });
+});
+
+describe("the fields in the city", () => {
+  test("grow in a year of the simulation, give work, and sell into the year's farm income", () => {
+    Random.seed(11);
+    const { map, sim, commands } = city();
+    for (let y = ROAD_Y + 1; y <= ROAD_Y + 6; y++) for (let x = 4; x <= 20; x++) paint(commands, x, y);
+    for (let step = 0; step < 48 * 16; step++) {
+      sim._simulate(sim._constructSimData());
+      sim._updateTime();
+    }
+    let levels = 0;
+    for (let y = ROAD_Y + 1; y <= ROAD_Y + 6; y++) for (let x = 4; x <= 20; x++) levels += Math.max(0, fieldLevelOf(map.getTileValue(x, y)));
+    expect(levels).toBeGreaterThan(20);
+    expect(sim._farming.fields.found.length).toBeGreaterThan(20);
+    expect(sim.budget.farmIncome + sim.budget.farmFund).toBeGreaterThan(0);
+    // Every field grown is of the kind its land chose, and none is higher than the era allows
+    for (const field of sim._farming.fields.found) {
+      expect(map.farmKinds[field.index]).toBeGreaterThan(0);
+      expect(field.level).toBeLessThanOrEqual(FARM_ZONE.eraTop[0]);
+    }
+  });
+});

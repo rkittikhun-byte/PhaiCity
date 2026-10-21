@@ -393,9 +393,17 @@ export class FarmFields {
     result.agroIncome = result.visitors * AGRO_SPEND;
     // How many more levels the town and the market beyond it take: what lets fields grow in the month's scans
     this.room = Math.floor(people / spec.feeds + this.farmland * spec.exportPerLevel - result.levels);
-    this.ways = wayField(map, spec.reach);
+    // ... and each tile's way to a road, for the next month's scans (none to work out with no fields)
+    this.ways = this.found.length || this.empty ? wayField(map, spec.reach) : null;
     this.last = result;
     return result;
+  }
+
+  /** Where the first field burning its stubble this month is, for the news */
+  firstBurning(): { x: number; y: number } | null {
+    if (!this.last.burning || !FIELD_BURNING_MONTHS.length) return null;
+    const field = this.found.find((f) => this.spec.kinds[f.kind].burns);
+    return field ? { x: field.index % this.width, y: Math.floor(field.index / this.width) } : null;
   }
 
   /** Haze and mud on a tile this month, which the pollution scan adds (src/blockMapUtils.js) */

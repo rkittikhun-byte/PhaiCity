@@ -44,6 +44,8 @@ import {
   POLLUTION_TAX_SMOKE, policyUpkeep, SONGKRAN_VISITORS, TOLL_RAISE, TOLL_SHOPS, WATER_SAVING, WATER_SAVING_PULL
 } from './policies.ts';
 import { BURNING_MONTHS, FACTORIES_PER_FARM, Farming, SHOPS_PER_HARBOUR } from './farming.ts';
+import { isFieldValue } from './farmZone.ts';
+import { FARM_ZONE } from './provinceRules.ts';
 import { isRoadTile, roadLevelAt, roadSpec, tollsThisMonth } from './roadLevels.ts';
 import { canalLandValues, growCanals } from './canals.ts';
 import { Random } from './random.ts';
@@ -130,6 +132,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._monthsSinceToxicWarning = 12;
   // ... and its farms and fishing harbours (src/farming.ts)
   this._farming = new Farming(this._map.width, this._map.height, this.resources);
+  // ... with its farm zone's numbers (src/farmZone.ts)
+  this._farming.fields.spec = this.rules.farmZone || FARM_ZONE;
   this._monthsSinceHazeWarning = 12;
   this._monthsSinceDirtyWarning = 12;
   this._waterManager.drought = this.rules.drought || NO_DROUGHT;
@@ -436,6 +440,9 @@ Simulation.prototype.init = function() {
   this._repairManager.addAction(MINE, 15, 3);
   this._mapScanner.addAction(FARM, this._farming.farmFound.bind(this._farming));
   this._mapScanner.addAction(HARBOUR, this._farming.harbourFound.bind(this._farming));
+  // ... and the farm zone's fields (src/farmZone.ts)
+  this._mapScanner.addAction(function(tile) { return isFieldValue(tile.getValue()); },
+                             this._farming.fieldFound.bind(this._farming));
   this._repairManager.addAction(FARM, 15, 3);
   this._repairManager.addAction(HARBOUR, 15, 3);
   this._mapScanner.addAction(CIVIC, this._civicFound.bind(this));
@@ -663,6 +670,8 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var canals = this._canalLand || null, width = this._map.width;
   // ... the house's reach in tiles a step of distance, longer on a map at real scale
   var step = BlockMapUtils.nearnessStep(this._map);
+  // ... and the countryside round the farm zone's fields (src/farmZone.ts)
+  var farmFields = this._farming.fields;
   // ... and the festivals held round the ruler's house, for a few months after (src/festivals.ts)
   var map = this._map;
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
@@ -671,6 +680,7 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
                                                 return (house ? houseLandValue(house, x, y, step) : 0) + green +
                                                        transit.landValueAt(x, y) +
                                                        (canals ? canals[y * width + x] : 0) +
+                                                       farmFields.landValueAt(x, y) +
                                                        festivalLandValue(map, x, y, step);
                                               });
 };
@@ -713,7 +723,8 @@ Simulation.prototype._weatherMonth = function() {
   var month = this.getDate().month;
   var climate = this._climate();
   var previous = this._map.weather || startingWeather(climate, month, Random.getState(), this._cityTime >> 2);
-  var farms = this._farming.farms.length;
+  // ... the farm zone's burning fields counting as a farm for every nine (src/farmZone.ts)
+  var farms = this._farming.farms.length + this._farming.fields.last.burning / FIELDS_A_FARM;
   var burning = BURNING_MONTHS.indexOf(month) >= 0 && !this._farming.noBurning ?
                 Math.min(FIELD_SMOKE_MOST, farms * FIELD_SMOKE_PER_FARM) : 0;
   var weather = nextWeather(previous, climate, month, this._cityTime >> 2, burning);
@@ -825,6 +836,9 @@ Simulation.prototype._policiesMonth = function() {
 // Smoke the city's own fields put in the air while their stubble burns, a farm's and at most (src/weather.ts)
 var FIELD_SMOKE_PER_FARM = 0.03;
 var FIELD_SMOKE_MOST = 0.3;
+// The farm zone's fields that make a farm's smoke, and the people a level of homes counts (docs/ZONE_PAINT.md)
+var FIELDS_A_FARM = 9;
+var PEOPLE_A_HOME_LEVEL = 20;
 // Dry months before rain makes the news of the year's first rains
 var FIRST_RAINS_AFTER = 3;
 
@@ -968,13 +982,23 @@ Simulation.prototype._farmingMonth = function() {
     water.stores && water.natural ? {stores: water.stores, natural: water.natural} : null, this._mining.ground,
     function(x, y) { return pollution.worldGet(x, y) + sewage; });
   this.budget.farmFund += month.income;
-  this._valves.farmFactories = this._farming.farms.length * FACTORIES_PER_FARM;
+  // The farm zone's fields (src/farmZone.ts): their crop, the farm visitors' spending, and the factories they ask for;
+  // the food the town's people eat, its residents a level at a time as the census counts them
+  var fields = this._farming.fields;
+  var dryMonths = (this.rules.drought && this.rules.drought.months) || [];
+  fields.noBurning = this._farming.noBurning;
+  fields.ground = water.stores && water.natural ? {stores: water.stores, natural: water.natural} : null;
+  var grown = fields.month(this._map, this.getDate().month, dryMonths.indexOf(this.getDate().month + 1) !== -1,
+                           this._census.resPop * PEOPLE_A_HOME_LEVEL, this._farming.farms, this._mining.ground);
+  this.budget.farmFund += grown.income;
+  this.budget.tourismFund += grown.agroIncome;
+  this._valves.farmFactories = this._farming.farms.length * FACTORIES_PER_FARM + grown.levels * fields.spec.factoriesPerLevel;
   this._valves.fishMarkets = this._farming.harbours.length * SHOPS_PER_HARBOUR;
 
   this._monthsSinceHazeWarning++;
   this._monthsSinceDirtyWarning++;
-  var farm = this._farming.farms[0];
-  if (month.burning && farm && this._monthsSinceHazeWarning >= 12) {
+  var farm = this._farming.farms[0] || (grown.burning > 0 ? fields.firstBurning() : null);
+  if ((month.burning || grown.burning > 0) && farm && this._monthsSinceHazeWarning >= 12) {
     this._monthsSinceHazeWarning = 0;
     this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.HAZE, data: {x: farm.x, y: farm.y}});
   }
