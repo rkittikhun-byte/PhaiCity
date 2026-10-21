@@ -39,6 +39,9 @@ export class Placement implements PlacementFields {
   /** How wide its model is drawn across the way it runs (its own x), as a share: a bridge on a real-scale city map is
    *  as narrow as the road or railway drawn up to it (TileSnapshot.narrowBridge); 1 or none, as built */
   declare across?: number;
+  /** The other buildings drawn with it for its tile: a painted plot's terrace of shophouse bays (frontage.ts,
+   * FrontagePlacement), each a placement of its own with the tile's index */
+  declare parts?: Placement[];
   constructor(fields: PlacementFields) { Object.assign(this, fields); }
   /** What a tool in hand would put down: a building of size × size tiles centred at (x, z), before it is built, so its
    * outline stands where and as the building will (overlay.ts) */
@@ -90,5 +93,26 @@ export class RoadsidePlacement extends Placement {
     return target.makeRotationY(this.rotation)
       .scale(size.set((this.footprint[0] * 10 - inset) * f, height * f, (this.footprint[1] * 10 - inset) * f))
       .setPosition(this.x, y + height * f / 2, this.z);
+  }
+}
+
+/** The ground a plot's frontage buildings stand on together (frontage.ts): its middle, turn and sides in world units */
+export interface FrontageGround { x: number; z: number; rotation: number; width: number; depth: number }
+
+/** A painted plot drawn by its frontage (frontage.ts): the first of its buildings, standing against its road, with the
+ * others as its parts; its ground and its box from afar are the whole run's, so the far view shows the terrace whole */
+export class FrontagePlacement extends RoadsidePlacement {
+  declare frontage: FrontageGround;
+  constructor(fields: PlacementFields, frontage: FrontageGround, parts: Placement[]) {
+    super(fields);
+    this.frontage = frontage;
+    this.parts = parts;
+  }
+  override ground(): { x: number; z: number; rotation: number; width: number; depth: number } { return { ...this.frontage }; }
+  override farBox(target: Matrix4, height: number, inset: number, y = this.baseY ?? 0): Matrix4 {
+    const f = this.fill ?? 1, g = this.frontage, edge = inset * 0.2;
+    return target.makeRotationY(g.rotation)
+      .scale(size.set(Math.max(0.5, g.width - edge), height * f, Math.max(0.5, g.depth - edge * 2)))
+      .setPosition(g.x, y + height * f / 2, g.z);
   }
 }

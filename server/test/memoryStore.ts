@@ -128,6 +128,8 @@ export class MemoryStore implements Store {
   }
 
   async putSave(claimId: number, expectedRevision: number, data: unknown, stats: CityStats): Promise<number> {
+    // (the database's CHECK city_saves_normal_mode, migrations/002_normal_mode.sql)
+    if ((data as { _gameLevel?: unknown } | null)?._gameLevel !== 1) throw new ConflictError("not_normal_mode");
     const current = this.saves.get(claimId)?.revision ?? 0;
     if (current !== expectedRevision) throw new ConflictError("stale_revision");
     this.saves.set(claimId, { revision: current + 1, data, stats });

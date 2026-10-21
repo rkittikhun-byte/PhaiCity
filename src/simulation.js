@@ -282,6 +282,10 @@ Simulation.prototype.save = function(saveData) {
 Simulation.prototype.load = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
     this[saveProps[i]] = saveData[saveProps[i]];
+  // PhaiCity: the saved level is the city's mode for good (src/gameModes.ts): the disasters and the evaluation, made
+  // before the save was read, take it too
+  this.disasterManager._gameLevel = this._gameLevel;
+  this.evaluation.gameLevel = '' + this._gameLevel;
 
   this._map.load(saveData);
   this.evaluation.load(saveData);

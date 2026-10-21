@@ -17,7 +17,7 @@ import { BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, Cyli
   IcosahedronGeometry, InstancedMesh, type Material, Matrix4, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mapEra } from '../../era.js';
-import { FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode, type FarmKind } from '../../farmZone.js';
+import { FARM_ERA_LOOKS, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode, type FarmKind } from '../../farmZone.js';
 import { FARM, FIELD_BASE } from '../../tileValues.js';
 import { SCENE } from '../../theme/tokens.js';
 import { getRegionKit } from '../regional/index.js';
@@ -68,16 +68,9 @@ export function cropHeight(month: number): number {
   return Math.min(1, 0.25 + (m - 4) * 0.12);
 }
 
-/** What stands among the fields in each era (one for so many grown fields) */
-const ERA_PROPS: Readonly<Record<number, ReadonlyArray<[Prop, number]>>> = {
-  1: [['buffalo', 9], ['hut', 23]],
-  2: [['granary', 17], ['buffalo', 19], ['hut', 37]],
-  3: [['tractor', 13], ['greenhouse', 21], ['granary', 41]],
-  4: [['harvester', 11], ['greenhouse', 17]],
-  5: [['drone', 7], ['solar', 9], ['greenhouse', 29]],
-};
-type Prop = 'buffalo' | 'hut' | 'granary' | 'tractor' | 'greenhouse' | 'harvester' | 'drone' | 'solar' | 'row' | 'tree' |
-  'trunk' | 'aerator';
+/** What stands among the fields in each era (src/farmZone.ts FARM_ERA_LOOKS), and what every field of a kind has */
+const ERA_PROPS = FARM_ERA_LOOKS;
+type Prop = FarmLook | 'row' | 'tree' | 'trunk' | 'aerator';
 
 /** A stable number for a tile, for which fields get which prop */
 const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>> 15; return Math.imul(h, 2246822519) >>> 0; };

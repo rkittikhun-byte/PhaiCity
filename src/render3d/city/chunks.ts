@@ -165,6 +165,8 @@ export class CityChunks {
   private cell(chunk:Chunk,n:number):void {
     const x=chunk.x+n%16,y=chunk.y+Math.floor(n/16);if(x>=this.snapshot.width||y>=this.snapshot.height)return;
     const i=y*this.snapshot.width+x,p=this.snapshot.placement(i,this.region);this.setCoarse(i,p);if(p)chunk.placements.push(p);
+    // ... and the other buildings of its tile (a terrace of shophouse bays, frontage.ts), on its ground
+    if(p?.parts)for(const part of p.parts){part.baseY=p.baseY;part.outside=p.outside;chunk.placements.push(part);}
     const v=this.snapshot.values[i],wet=v>=2&&v<=20||v===64||v===65||v===224||v===225||v===208||v===209||v>=828&&v<=832||v>=948&&v<=951;
     matrix.makeScale(10,1,10).setPosition((x+.5)*10,-.025,(y+.5)*10);this.ground.setMatrixAt(i,wet?zero:matrix);
   }

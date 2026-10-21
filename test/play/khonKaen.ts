@@ -5,7 +5,7 @@
 // Plays a new Mueang Khon Kaen city for years with the auto player (src/core/autoPlayer.ts) and prints each year's
 // people, money and accounts, to check the game's balance. It only runs when asked, as it takes about 3 s a year:
 //   PHAICITY_PLAY=1 npx jest --coverage=false test/play
-// PHAICITY_YEARS sets the years (10), PHAICITY_PLOTS=1 adds what holds each kind and level of plot back each year,
+// PHAICITY_YEARS sets the years (10), PHAICITY_MODE the mode (normal), PHAICITY_PLOTS=1 adds what holds each kind and level of plot back each year,
 // PHAICITY_PLAY_OUT a file for the whole report as JSON, PHAICITY_PLAY_SAVE a file of the city as the game saves it.
 
 import * as fs from "fs";
@@ -20,11 +20,15 @@ import { MapGenerator } from "../../src/mapGenerator.js";
 import { checkRulesData, resolveRules } from "../../src/provinceRules";
 import { keepHigherRank, RANKS, rankForCityClass } from "../../src/rulerRank";
 import { encodeMap } from "../../src/cityStorage";
+import { MODE_RULES, type Mode, startingFundsIn } from "../../src/gameModes";
+import { trainedOf } from "../../src/trainedPeople";
 
 const read = (path: string) => JSON.parse(fs.readFileSync(path, "utf8"));
 
-/** A new city on a district's map, set up as the game's start screen sets one up (src/splashScreen.js startProvince) */
+/** A new city on a district's map, set up as the game's start screen sets one up (src/splashScreen.js startProvince), in
+ * the mode PHAICITY_MODE names (normal, the online game's) */
 async function newCity(districtId: string, provinceId: string, region: string) {
+  const level = MODE_RULES[(process.env.PHAICITY_MODE || "normal") as Mode].level;
   const whole = read(`data/maps/district/${districtId}.json`);
   const preset = isDistrictMap(whole) ? await framePreset(whole, firstFrame(whole, whole.town, DISTRICT_BLOCK)) : whole;
   const layer = (encoded: string | undefined) => (encoded ? decodePresetLayer(encoded, preset.width, preset.height) : null);
@@ -45,11 +49,11 @@ async function newCity(districtId: string, provinceId: string, region: string) {
   provinceLevels(measured[provinceId], entry).forEach((r) => { resources[r.id] = r.level; });
   // The ruler's rank follows the city's class and is never lost, as in the game (src/game.js)
   let rank: string = "muen";
-  const core: CityCore = new CityCore({ map, seed: 11, rules, resources,
+  const core: CityCore = new CityCore({ map, seed: 11, level, rules, resources,
     hooks: { rank: () => Math.max(0, RANKS.indexOf(rank as never)) } } as never);
   core.on("month", () => { rank = keepHigherRank(rank as never, rankForCityClass(core.simulation.evaluation.cityClass)); });
   (core as unknown as { rank: () => string }).rank = () => rank;
-  core.simulation.budget.setFunds(startingFunds(preset.stats) || 20000);
+  core.simulation.budget.setFunds(startingFundsIn(startingFunds(preset.stats) || 20000, level));
   return core;
 }
 
@@ -63,6 +67,13 @@ const row = (y: PlayerYear) => {
 (process.env.PHAICITY_PLAY ? test : test.skip)("play Mueang Khon Kaen for years", async () => {
   const core = await newCity("TH-40-mueang-khon-kaen", "TH-40", "northeast");
   const player = new AutoPlayer(core, { town: core.map.town });
+  // When each era came, in game years and months from the start (docs/GAME_DESIGN.md 6, the status table)
+  const start = core.simulation._cityTime;
+  core.on("era", ({ era }) => {
+    const months = Math.round((core.simulation._cityTime - start) / 4);
+    process.stdout.write(`  >> era ${era} after ${Math.floor(months / 12)} years ${months % 12} months
+`);
+  });
   player.start();
   const years: PlayerYear[] = [];
   for (let n = 0; n < Number(process.env.PHAICITY_YEARS || 10); n++) {
@@ -76,6 +87,9 @@ const row = (y: PlayerYear) => {
       const sides = Object.entries(era.factors).map(([k, f]) => `${k} ${pc(f.value)}/${pc(f.target)}`).join(", ");
       const eras = Array.from((core.map as { buildingEras?: Uint8Array }).buildingEras ?? []).filter(e => e > 0);
       const byEra = [1, 2, 3, 4, 5].map(e => eras.filter(x => x === e).length).join("/");
+      const trained = trainedOf(core.map);
+      process.stdout.write(`  trained: ${trained.technician} technicians, ${trained.nurse} nurses, ${trained.engineer} engineers, ${trained.doctor} doctors
+`);
       process.stdout.write(`  era ${era.era} score ${pc(era.score)}% = people ${pc(era.peopleDone)}% x quality ${pc(era.quality)}%` +
         `${era.heldBy ? ` (held by ${era.heldBy})` : ""}; buildings by era ${byEra}
   ${sides}; missing ${era.symbols.filter(x => !x.has).map(x => x.key).join(", ") || "none"}

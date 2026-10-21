@@ -15,6 +15,7 @@ import { WASTE_FROM, type WasteMonth } from "./waste";
 import type { EraScore } from "./eraScore";
 import { EraCard } from "./eraCard";
 import { percentOf } from "./eraReport";
+import { TRAINED_KINDS, type TrainedState, trainedOf } from "./trainedPeople";
 
 /** How the money reads in the status: ฿16,295. Anything that is not a number is shown as it is. */
 export function statusMoney(text: string): string {
@@ -183,6 +184,38 @@ export function showWaste(simulation: { addEventListener(event: string, listener
   render();
 }
 
+
+/** Where the people the city's schools trained are kept (src/trainedPeople.ts map.trained), and what tells when a
+ * month has turned and a class graduated */
+export interface TrainedSource {
+  map: { trained?: TrainedState | null };
+  on(type: "month" | "trained", listener: () => void): () => void;
+}
+
+/**
+ * The trained people block (docs/GAME_DESIGN.md 6.1): technicians, nurses, engineers and doctors, once the city has any
+ * or its schools are training some; pointing at it names them and the class to come in January.
+ */
+export function showTrained(core: TrainedSource, doc: Document = document): void {
+  const render = (): void => {
+    const block = doc.getElementById("statusTrained");
+    const state = core.map.trained;
+    if (!block) return;
+    const counts = trainedOf(core.map);
+    const cohort = state ? TRAINED_KINDS.reduce((sum, kind) => sum + state.cohort[kind], 0) : 0;
+    block.hidden = !state || (TRAINED_KINDS.every((kind) => counts[kind] === 0) && cohort < 1 &&
+      !Object.keys(state.worked).length);
+    if (block.hidden) return;
+    const whole = Object.fromEntries(TRAINED_KINDS.map((kind) => [kind, counts[kind].toLocaleString("en-US")]));
+    const value = block.querySelector(".statValue");
+    if (value) value.textContent = t("status.trained_value", whole);
+    block.title = t("status.trained_title", { ...whole, cohort: Math.round(cohort).toLocaleString("en-US") });
+  };
+  core.on("month", render);
+  core.on("trained", render);
+  onLanguageChange(render);
+  render();
+}
 
 /** Where the city's era score is kept (src/eraScore.ts map.eraScore), and what tells when a month has turned */
 export interface EraSource {

@@ -23,6 +23,7 @@ import { houseStanding } from "./rulerHouse.js";
 import { festivalCheer } from "./festivals.js";
 import { isRoadTile } from "./roadTiles.js";
 import { roadLevelAt } from "./roadLevels.js";
+import { modeRule } from "./gameModes.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -74,12 +75,16 @@ function servedShares(map: Legacy, objects: Objects): { water: number; power: nu
 
 /** Whether the city has what an era symbol asks */
 function hasSymbol(key: SymbolKey, map: Legacy, objects: Objects): boolean {
-  const civic = Object.values(map.civicKinds || {}) as string[];
-  const kinds = (field: string): string[] => Object.values(map[field] || {}) as string[];
-  const all = objects.all();
+  // (a building still being built is not had yet, src/construction.ts)
+  const sites = map.sites || {};
+  const kinds = (field: string): string[] =>
+    Object.entries(map[field] || {}).filter(([tile]) => !(tile in sites)).map(([, kind]) => kind as string);
+  const civic = kinds("civicKinds");
+  const all = objects.all().filter(b => !(b.id in sites));
   switch (key) {
     case "ruler_house": return !map.rulerHouse || houseStanding(map);
     case "shops": return all.filter(b => b.kind === "shop").length >= SHOPS_WANTED;
+    case "water_tower": return all.some(b => b.kind === "water_tower");
     case "water_works": return all.some(b => b.kind === "water_works");
     case "power_plant": return all.some(b => b.kind === "power_plant");
     case "school": return civic.some(k => /school|kindergarten|college|university/.test(k));
@@ -138,13 +143,15 @@ export function scoreEra(map: Legacy, sim: Legacy, objects: Objects, era: Era = 
     factors[factor] = { value, target, done, weight };
     quality += weight * done;
   }
-  const peopleDone = clamp01(people / rule.people);
+  // The people the era wants, scaled by the city's mode (src/gameModes.ts)
+  const peopleWanted = Math.round(rule.people * modeRule(sim._gameLevel).people);
+  const peopleDone = clamp01(people / peopleWanted);
   let month = clamp01(peopleDone * quality);
   let heldBy: Factor | null = null;
   for (const [factor, floor] of Object.entries(FLOORS) as [Factor, number][]) {
     if (factors[factor].value < floor && month > FLOOR_CAP) { month = FLOOR_CAP; heldBy = factor; }
   }
-  return { era, month, people, peopleWanted: rule.people, peopleDone, quality: clamp01(quality), factors, symbols, heldBy };
+  return { era, month, people, peopleWanted, peopleDone, quality: clamp01(quality), factors, symbols, heldBy };
 }
 
 /** What the era system tells the game: the transition began, or a new era came */

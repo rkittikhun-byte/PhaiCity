@@ -15,7 +15,7 @@ const SIZE = 70;
 
 function newCity(saved: unknown = null) {
   const map = new (GameMap as unknown as new (w: number, h: number) => any)(SIZE, SIZE);
-  const core = new CityCore({ map, saved, seed: 3 });
+  const core = new CityCore({ sandbox: true, map, saved, seed: 3 });
   core.simulation.budget.setFunds(500000);
   // Railways too, before the ruler's house stands (src/rulerHouse.ts)
   core.map.needsRulerHouse = false;

@@ -7,7 +7,10 @@
 // the game's balance. It plays through commands as a person does (src/cityCommands.ts): the district office, a power
 // plant and water works beside the roads near the town, zones painted along the roads nearest the town (homes, shops
 // and factories mixed), then each year the services its people ask for and more zones while money allows, and it
-// answers the festival card a month before each festival as a sensible ruler would (answerFestivals). No DOM.
+// answers the festival card a month before each festival as a sensible ruler would (answerFestivals). It asks what the
+// city cannot build yet (src/unlocks.ts) before it tries, and waits for it: a building it wanted is tried again each month
+// once it is unlocked, a locked service lets the next ones go first, and it paves the town's roads once it has the
+// technicians (docs/GAME_DESIGN.md 6). No DOM.
 
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
@@ -19,6 +22,10 @@ import { besideRoad } from "../cityCommands.js";
 import { isRoadTile } from "../roadLevels.js";
 import { cellsOf } from "../zoneCells.js";
 import { serviceProblem } from "../services.js";
+import { roadLevelAt } from "../roadLevels.js";
+import { houseSpec } from "../rulerHouse.js";
+import type { TrainedKind } from "../trainedPeople.js";
+import { unlockCity } from "../unlocks.js";
 import type { FestivalNews, FestivalScale } from "../festivals.js";
 import { FARM_PAINT_TOOL, fieldLevelOf, isFieldValue, kindOfCode, wayField } from "../farmZone.js";
 import { isOpenLand } from "../plots.js";
@@ -211,6 +218,23 @@ const FARM_FROM = 12;
  *  before the year's taxes (src/festivals.ts) */
 const FESTIVAL_KEEP = 250;
 
+/** The schools that train each kind of trained people, the first tried first (src/trainedPeople.ts TRAINING) */
+const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
+  technician: ["secondary_school", "vocational_college"], nurse: ["vocational_college"],
+  engineer: ["university"], doctor: ["university"],
+};
+
+/** What is kept in the treasury past the price of a building the era score asks for */
+const ERA_ASK_SPARE = 300;
+/** Road tiles nearest the town raised a level a year, once the city may lay the level (src/unlocks.ts) */
+const PAVE_EACH_YEAR = 400;
+/** ... while the treasury keeps this much */
+const PAVE_KEEP = 800;
+/** Water towers put up a year while the village has no water works and is short of water */
+const TOWERS_A_YEAR = 4;
+/** A month of steps, when the buildings waiting for their unlock are tried again */
+const STEPS_PER_MONTH = 16 * 4;
+
 /** The festival card's question (src/festivals.ts festivalAhead): which festival, how it stands, its prices now */
 type FestivalAsk = Extract<FestivalNews, { type: "festivalAhead" }>;
 
@@ -220,12 +244,14 @@ type FestivalAsk = Extract<FestivalNews, { type: "festivalAhead" }>;
  * grandly while the treasury would still be over its reserve after paying for it and living is short; not at all when
  * money is tight, the treasury left with less than FESTIVAL_KEEP; else modestly. A treasury that cannot pay even the
  * modest price answers modestly too: the temples and the people then hold it themselves, which lets nobody down, where
- * a festival not held would (src/festivals.ts festivalMonth).
+ * a festival not held would (src/festivals.ts festivalMonth). keep: what the ruler is saving for (a school, a hospital),
+ * which a festival may not eat into.
  */
-export function festivalAnswer(costs: readonly [number, number], funds: number, livingShort: boolean, reserve: number): FestivalScale {
+export function festivalAnswer(costs: readonly [number, number], funds: number, livingShort: boolean, reserve: number,
+                               keep = FESTIVAL_KEEP): FestivalScale {
   const [modest, grand] = costs;
   if (livingShort && funds - grand >= reserve) return "grand";
-  return funds >= modest && funds - modest < FESTIVAL_KEEP ? "none" : "modest";
+  return funds >= modest && funds - modest < Math.max(FESTIVAL_KEEP, keep) ? "none" : "modest";
 }
 
 export class AutoPlayer {
@@ -238,6 +264,16 @@ export class AutoPlayer {
   private asked = 0;
   /** The festivals the news asked about at the last month's turn, answered after the step (answerFestivals) */
   private readonly asks: FestivalAsk[] = [];
+  /** Buildings wanted but not yet unlocked, tried again each month: [tool, x, y] */
+  private readonly later: Array<[string, number, number]> = [];
+  /** The services of SERVICES built, by their place in it */
+  private readonly servicesDone = new Set<number>();
+  /** The locks noted this year, so each is noted once */
+  private readonly noted = new Set<string>();
+  /** The price of what the player saves for this year (a service, a school), which festivals do not eat into */
+  private savingFor = 0;
+  /** The trained people a building waited for this year, whose school the player builds (trainingGoal) */
+  private readonly wantTrained = new Set<TrainedKind>();
 
   constructor(private readonly core: CityCore, private readonly options: PlayerOptions) {
     core.on("festivalAhead", (ask) => { this.asks.push(ask); });
@@ -248,7 +284,10 @@ export class AutoPlayer {
     const { x, y } = this.options.town;
     this.place("ruler_house", x, y);
     this.place("coal", x + PLANT_FROM, y);
-    this.place("waterworks", x - 10, y + 8);
+    // A village's water tower, whose well waters the roads beside it, and the water works once the market town may
+    // build them and the plant's months are over (src/unlocks.ts, src/construction.ts)
+    this.place("watertower", x - 4, y + 4, 12);
+    this.soon("waterworks", x - 10, y + 8);
     this.paint(this.options.paintFirst ?? 6000);
     this.paintFarms(FARM_FIRST);
   }
@@ -266,8 +305,10 @@ export class AutoPlayer {
         this.note(`budget window: ฿${budget.totalFunds}`);
       }
       if (this.asks.length) this.answerFestivals();
+      if (this.later.length && step % STEPS_PER_MONTH === 0) this.tryLater();
     }
     this.year++;
+    this.noted.clear();
     const population = sim.evaluation.cityPop;
     const { x, y } = this.options.town;
     // First what the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
@@ -275,8 +316,12 @@ export class AutoPlayer {
     // it and nothing else but power, water and rubbish is bought
     const valves = sim._valves ?? {};
     let saving = false;
+    this.savingFor = 0;
+    const saveFor = (price: number): void => { saving = true; this.savingFor = Math.max(this.savingFor, price); };
     for (const [cap, tool, dx, dy] of CAPS) {
       if (!valves[cap]) continue;
+      // (one the city cannot build yet is not saved for: what unlocks it comes first, src/unlocks.ts)
+      if (this.waits(tool)) continue;
       const price = core.tools?.[tool]?.toolCost ?? 0;
       if (budget.totalFunds >= price + 500 && this.place(tool, x + dx, y + dy)) continue;
       saving = true;
@@ -288,7 +333,12 @@ export class AutoPlayer {
     const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
     const water = sim._waterManager, short = water && water.supply > 0 && water.used >= water.supply * MORE_WATER_USED;
     if ((short || dry + wet > 0 && dry / (dry + wet) >= MORE_WATER_AT) && budget.totalFunds > 2000) {
-      this.place("waterworks", x - 10 - this.year, y + 8);
+      // ... a village's water towers while it may not build works yet (src/unlocks.ts)
+      if (this.waits("waterworks")) {
+        for (let n = 0; n < TOWERS_A_YEAR; n++) this.place("watertower", x + ((this.year * 7 + n * 5) % 25) - 12, y + ((n * 9) % 25) - 12, 14);
+      } else {
+        this.place("waterworks", x - 10 - this.year, y + 8);
+      }
     }
     // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
     const waste = sim._waste;
@@ -305,23 +355,51 @@ export class AutoPlayer {
       const house = core.map.rulerHouse;
       if (house && budget.totalFunds > (this.options.reserve ?? 3000)) this.apply("ruler_house_upgrade", house.x, house.y);
       // The services its people ask for, in turn; one the office is not yet high enough for waits (serviceProblem)
-      while (this.next < SERVICES.length && population >= SERVICES[this.next][0] && budget.totalFunds > (this.options.reserve ?? 3000)) {
-        const [, tool] = SERVICES[this.next];
-        if (!this.place(tool, x + ((this.next * 7) % 41) - 20, y + ((this.next * 11) % 41) - 20)) break;
-        this.next++;
+      // ... and one the city cannot build yet waits while the next ones go up (src/unlocks.ts)
+      // ... built while the treasury pays for them, saving for the next rather than painting more (in the normal mode
+      // the treasury seldom holds the reserve)
+      for (let i = this.next; i < SERVICES.length && population >= SERVICES[i][0]; i++) {
+        if (this.servicesDone.has(i)) continue;
+        const [, tool] = SERVICES[i];
+        if (this.waits(tool)) continue;
+        const price = core.tools?.[tool]?.toolCost ?? 0;
+        if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
+        if (!this.place(tool, x + ((i * 7) % 41) - 20, y + ((i * 11) % 41) - 20)) break;
+        this.servicesDone.add(i);
       }
+      while (this.servicesDone.has(this.next)) this.next++;
       // ... and more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
       // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health)
       const factors = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
+      // ... the first it can afford, else it saves for it rather than painting more (a ruler reading the era card)
       for (const [side, tools] of ERA_ASKS) {
         const f = factors?.[side];
-        if (!f || f.value >= f.target || budget.totalFunds <= (this.options.reserve ?? 3000)) continue;
-        // (only those the district office is high enough for: place() buys land when a building finds no room)
-        const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null);
+        if (!f || f.value >= f.target) continue;
+        // (only those the district office is high enough for and the city can build: place() buys land when a
+        // building finds no room)
+        const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null && !this.waits(tool));
         if (!allowed.length) continue;
+        const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE);
         const n = this.asked++;
-        allowed.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
+        if (!affordable.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) &&
+          affordable.length < allowed.length) {
+          saveFor(Math.min(...allowed.map((tool) => core.tools?.[tool]?.toolCost ?? 0)) + ERA_ASK_SPARE);
+        }
       }
+      // ... and the school that trains the people a building waits for, the district office raised for it first when
+      // it must be, saving for them rather than painting more (src/trainedPeople.ts)
+      const goal = this.trainingGoal();
+      if (goal) {
+        const house = core.map.rulerHouse, level = house?.level ?? 0;
+        const raise = serviceProblem(goal, level) !== null;
+        const price = raise ? houseSpec(level + 1).price - houseSpec(level).price : core.tools?.[goal]?.toolCost ?? 0;
+        const n = this.asked++;
+        this.note(`training: ${raise ? `district office for ${goal}` : goal} (฿${price}, treasury ฿${budget.totalFunds})`);
+        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
+        else if (raise && house) this.apply("ruler_house_upgrade", house.x, house.y);
+        else if (!raise) this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20);
+      }
+      this.wantTrained.clear();
       // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
       // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
       while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {
@@ -329,6 +407,8 @@ export class AutoPlayer {
         if (!this.place("bus_stop", x + ((n * 5) % 13) - 6, y + ((n * 3) % 13) - 6, 12)) break;
       }
     }
+    // The town's roads paved, nearest first, once the city has the technicians for it (src/unlocks.ts)
+    if (!saving) this.pave();
     // More zones while money allows, and a block of land more when the town's own is nearly all painted
     // ... and taxes a little higher while every kind of zone is wanted, as a ruler of a growing town would set them
     const wanted = Math.min(valves.resValve ?? 0, valves.comValve ?? 0, valves.indValve ?? 0);
@@ -388,7 +468,7 @@ export class AutoPlayer {
     // Festivals asked about together are paid together
     let funds = core.simulation.budget.totalFunds;
     for (const ask of this.asks.splice(0)) {
-      const [modest, grand] = ask.costs, scale = festivalAnswer(ask.costs, funds, short, reserve);
+      const [modest, grand] = ask.costs, scale = festivalAnswer(ask.costs, funds, short, reserve, this.savingFor);
       const price = scale === "grand" ? grand : scale === "modest" && funds >= modest ? modest : 0;
       funds -= price;
       if (scale === ask.scale) continue;
@@ -397,6 +477,73 @@ export class AutoPlayer {
         this.note(`festival ${ask.id} ${scale} (฿${price}, treasury ฿${core.simulation.budget.totalFunds}${short ? ", living short" : ""})`, this.year + 1);
       }
     }
+  }
+
+  /** Whether the city cannot build the tool yet (src/unlocks.ts), noting why once a year */
+  private waits(tool: string): boolean {
+    const lock = this.core.commands.lock(tool);
+    if (!lock) return false;
+    if (lock.reason === "unlock.trained") this.wantTrained.add(lock.params.kind as TrainedKind);
+    const why = `${tool} waits: ${lock.reason} ${JSON.stringify(lock.params)}`;
+    if (!this.noted.has(why)) { this.noted.add(why); this.note(why); }
+    return true;
+  }
+
+  /**
+   * The school to build for the trained people a building waited for this year: the first of its kind's schools the
+   * city has none of and may build, or what one of them needs first; null when there is none to build yet (the
+   * university waits for its era) or the rank does not allow the district office it needs
+   */
+  private trainingGoal(): string | null {
+    const core = this.core, city = unlockCity(core.map), rank = core.commands.rank();
+    for (const kind of this.wantTrained) {
+      for (const school of TRAINS[kind]) {
+        if (city.count(school) > 0) continue;
+        const lock = core.commands.lock(school);
+        const goal = !lock ? school : lock.reason === "unlock.first" && core.tools?.[String(lock.params.need)] &&
+          !core.commands.lock(String(lock.params.need)) ? String(lock.params.need) : null;
+        if (!goal) continue;
+        // (the district office's next level needs the ruler's rank, src/rulerHouse.ts)
+        const level = core.map.rulerHouse?.level ?? 0;
+        if (serviceProblem(goal, level) !== null && houseSpec(level + 1).rank > rank) continue;
+        return goal;
+      }
+    }
+    return null;
+  }
+
+  /** A building now, or once the city can build it (tryLater) */
+  private soon(tool: string, x: number, y: number): void {
+    if (this.waits(tool)) this.later.push([tool, x, y]);
+    else this.place(tool, x, y);
+  }
+
+  /** The buildings waiting for their unlock, those now unlocked tried */
+  private tryLater(): void {
+    for (const wanted of this.later.splice(0)) {
+      const [tool, x, y] = wanted;
+      if (this.core.commands.lock(tool)) this.later.push(wanted);
+      else this.place(tool, x, y);
+    }
+  }
+
+  /** Up to PAVE_EACH_YEAR laterite road tiles nearest the town raised to asphalt, while money allows */
+  private pave(): void {
+    const core = this.core, map = core.map, budget = core.simulation.budget, reserve = PAVE_KEEP;
+    if (core.commands.lock("road_asphalt") || budget.totalFunds <= reserve) return;
+    const { x: tx, y: ty } = this.options.town, tiles: Array<{ x: number; y: number; d: number }> = [];
+    for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+      if (isRoadTile(map.getTileValue(x, y)) && roadLevelAt(map, x, y) === 1 && ownsLand(map, x, y)) {
+        tiles.push({ x, y, d: Math.hypot(x - tx, y - ty) });
+      }
+    }
+    tiles.sort((a, b) => a.d - b.d);
+    let paved = 0;
+    for (const { x, y } of tiles.slice(0, PAVE_EACH_YEAR)) {
+      if (budget.totalFunds <= reserve) break;
+      if (this.apply("road_upgrade", x, y, true)) paved++;
+    }
+    if (paved) this.note(`paved ${paved} road tiles`);
   }
 
   /** Buying land for a building that found no room, so a failure there does not buy again */
@@ -423,6 +570,7 @@ export class AutoPlayer {
   private place(tool: string, cx: number, cy: number, reach = 40): boolean {
     const map = this.core.map;
     this.failures.clear();
+    if (this.waits(tool)) return false;
     for (let r = 0; r <= reach; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
@@ -441,8 +589,9 @@ export class AutoPlayer {
       this.buying = false;
       if (built) return true;
     }
-    // Still no room: plots cleared for it beside a road, as a player knocks houses down for a stadium or a port
-    if (reach > 16 && (tool === "landfill" || CAPS.some(([, waited]) => waited === tool)) && this.clearFor(tool, cx, cy)) return true;
+    // Still no room: plots cleared for it beside a road, as a player knocks houses down for a stadium or a port, or for
+    // what the town could not build before its land was painted (src/unlocks.ts: water works, schools, hospitals)
+    if (reach > 16 && (this.core.tools?.[tool]?.size ?? 1) >= 3 && this.clearFor(tool, cx, cy)) return true;
     const reasons = [...this.failures].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([why, n]) => `${why} ×${n}`);
     this.note(`${tool}: no place (${reasons.join(", ")})`);
     return false;

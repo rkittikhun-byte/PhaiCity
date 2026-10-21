@@ -25,6 +25,24 @@ import { FIELD_BASE, FIELD_LAST, WATER_HIGH, WATER_LOW } from "./tileValues";
 export { FARM_KINDS };
 export type { FarmKind };
 
+/** What stands among the fields in each era, one for so many grown fields (src/render3d/city/farmFields.ts draws them;
+ * the era card lists the next era's, docs/GAME_DESIGN.md 7.2): buffalo and field huts in the farming village, granaries
+ * in the market town, tractors and greenhouses, harvesters, and at last a smart farm's drones and solar panels */
+export const FARM_ERA_LOOKS: Readonly<Record<number, ReadonlyArray<readonly [FarmLook, number]>>> = {
+  1: [["buffalo", 9], ["hut", 23]],
+  2: [["granary", 17], ["buffalo", 19], ["hut", 37]],
+  3: [["tractor", 13], ["greenhouse", 21], ["granary", 41]],
+  4: [["harvester", 11], ["greenhouse", 17]],
+  5: [["drone", 7], ["solar", 9], ["greenhouse", 29]],
+};
+export type FarmLook = "buffalo" | "hut" | "granary" | "tractor" | "greenhouse" | "harvester" | "drone" | "solar";
+
+/** The looks an era brings to the fields that the era before did not have */
+export function newFarmLooks(era: number): FarmLook[] {
+  const before = new Set((FARM_ERA_LOOKS[era - 1] ?? []).map(([look]) => look));
+  return (FARM_ERA_LOOKS[era] ?? []).map(([look]) => look).filter((look) => !before.has(look));
+}
+
 /** The brush that paints the farm zone and the one that rubs it out (src/farmTool.ts) */
 export const FARM_PAINT_TOOL = "zone_farm";
 export const FARM_ERASE_TOOL = "farm_erase";

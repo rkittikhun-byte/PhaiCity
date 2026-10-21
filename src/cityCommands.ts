@@ -19,7 +19,7 @@
 import { CANAL_TOOL, isBridgeTile, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { canDig, MINE_KINDS } from "./mining";
-import { isRoadTile } from "./roadLevels";
+import { isRoadTile, roadLevelAt, ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { cutTile, LostTiles } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
@@ -38,13 +38,15 @@ import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
 import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, syncCellPlots, tileRasterKeys, zoneCode } from "./zoneCells";
-import { PAINT_PRICE_SHARE } from "./plots";
-import { BUILDING_UPGRADE_TOOL, levelProblem } from "./buildingLevels";
+import { PAINT_PRICE_SHARE, PAINT_TOOLS } from "./plots";
+import { BUILDING_UPGRADE_TOOL, LEVEL_GROUPS, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
 import { ALLBITS, BIT_MASK, BULLBIT } from "./tileFlags";
 import { DIRT, LASTRAIL, RAILBASE, TREEBASE, WOODS2 } from "./tileValues";
 import { type TileChange, UndoHistory, type UndoStep } from "./undoHistory";
 import { placesBuilding } from "./gameTools.js";
+import { type UnlockCity, type UnlockLock, unlockProblem } from "./unlocks";
+import { upgradeAt } from "./buildingUpgradeTool";
 
 export const TOOL_NAMES = [
   "residential", "commercial", "industrial", "road", "rail", "wire", "park", "bulldozer",
@@ -152,6 +154,8 @@ export interface CommandOutcome {
   toolResult?: number | null;
   /** For undo: whether there was a recent step to take back. */
   undone?: boolean;
+  /** What fills the reason, for a tool not yet unlocked (src/unlocks.ts: its era, the trained people it needs, ...) */
+  detail?: Record<string, string | number>;
 }
 
 interface CommandTool {
@@ -280,6 +284,33 @@ export interface CommandTarget {
   /** The ruler's answers for the festivals, and the festivals the province keeps (src/festivals.ts). Without it there
    * are none. */
   readonly festivals?: { readonly state: FestivalState; calendar(): Festival[] };
+  /** The city the unlock table is asked against (src/unlocks.ts): its era, trained people and buildings. Without it, or
+   * when it gives none, nothing is locked. */
+  unlocks?(): UnlockCity | undefined;
+  /** A building just put down by a tool, centred at (x, y), stands as a construction site for its months, none for
+   * some (src/construction.ts); what undoes it */
+  startSite?(x: number, y: number, tool: string): () => void;
+}
+
+/**
+ * Why a tool may not be used yet at (x, y) for want of its era, trained people or what must stand first (src/unlocks.ts),
+ * or null. The upgrade tools ask the row of the level they would build: the road's next level, the building's next one.
+ */
+export function lockProblem(city: Pick<CommandTarget, "unlocks" | "map" | "width" | "height">, tool: string, x: number,
+                            y: number, known?: UnlockCity): UnlockLock | null {
+  const unlocks = known ?? city.unlocks?.();
+  if (!unlocks) return null;
+  let asked: string | null = tool;
+  const map = city.map as unknown as (Parameters<typeof upgradeAt>[0] & { roadLevels?: Uint8Array | null }) | undefined;
+  if (tool === UPGRADE_TOOL) {
+    const value = map ? city.map!.getTile(x, y).getRawValue() & BIT_MASK : -1;
+    asked = map && isRoadTile(value) ? ROAD_TOOLS[roadLevelAt({ width: city.width, height: city.height,
+      roadLevels: map.roadLevels }, x, y)] ?? null : null;
+  } else if (tool === BUILDING_UPGRADE_TOOL) {
+    const next = map ? upgradeAt(map, x, y) : null;
+    asked = next ? LEVEL_GROUPS[next.group].levels[next.level - 1]?.tool ?? null : null;
+  }
+  return asked ? unlockProblem(asked, unlocks) : null;
 }
 
 /** Why a tool may not be used at (x, y): outside the province, or null when it may. */
@@ -730,6 +761,28 @@ export class CityCommands {
     if (changed) city.waterChanged?.();
   }
 
+  /** Why a tool cannot be built yet (src/unlocks.ts), the same the commands refuse it with, or null: for the tool
+   * buttons and the auto player, which ask before they try */
+  lock(tool: string, x = 0, y = 0): UnlockLock | null {
+    return lockProblem(this.city, tool, x, y, this.unlocksNow());
+  }
+
+  /** The ruler's rank, 0 (หมื่น) and up, as the city's host tells it (src/rulerRank.ts) */
+  rank(): number {
+    return this.city.rank?.() ?? 0;
+  }
+
+  /** Commands accepted so far, which change what the city has */
+  private changes = 0;
+  /** The city the unlock table was last asked against, kept while no command changed it and its time stood still:
+   * a player trying a building at many places asks it at each (its buildings are looked over once) */
+  private unlocks: { key: string; city: UnlockCity | undefined } | null = null;
+  private unlocksNow(): UnlockCity | undefined {
+    const key = `${this.city.cityTime?.() ?? 0}:${this.changes}`;
+    if (this.unlocks?.key !== key) this.unlocks = { key, city: this.city.unlocks?.() };
+    return this.unlocks.city;
+  }
+
   /** Whether "undo" would take something back now. */
   canUndo(): boolean {
     return this.city.map !== undefined && this.history.canUndo(this.city.cityTime?.() ?? 0);
@@ -775,6 +828,12 @@ export class CityCommands {
   }
 
   apply(command: Command): CommandOutcome {
+    const outcome = this.applyOne(command);
+    if (outcome.accepted) this.changes++;
+    return outcome;
+  }
+
+  private applyOne(command: Command): CommandOutcome {
     const problem = commandProblem(command, this.city.width, this.city.height);
     if (problem) return { accepted: false, reason: problem };
     const city = this.city;
@@ -803,6 +862,9 @@ export class CityCommands {
           (tool.rulerHouse && city.map ? houseRoadProblem({ width: city.width, height: city.height,
             getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
         if (refused) return { accepted: false, reason: refused, toolResult: null };
+        // ... and what the city cannot build yet (src/unlocks.ts): its era, trained people, what must stand first
+        const lock = lockProblem(city, command.tool, command.x, command.y, this.unlocksNow());
+        if (lock) return { accepted: false, reason: lock.reason, detail: lock.params, toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
         tool.doTool(command.x, command.y, city.blockMaps);
@@ -818,6 +880,8 @@ export class CityCommands {
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
         // (a city with no map of its own, as some tests drive, keeps no list)
         const keptBack = applied && map && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
+        // ... a construction site for its months, or none (src/construction.ts)
+        const siteBack = applied && map && placesBuilding(command.tool, tool) ? city.startSite?.(command.x, command.y, command.tool) : null;
         // A road or railway drawn in metres loses what ran over a tile the bulldozer cleared (src/roads/roadCut.ts)
         const cutBack = applied && map && command.tool === "bulldozer" ? this.cutGraphs(before) : [];
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
@@ -870,6 +934,7 @@ export class CityCommands {
           const cost = fundsBefore - city.budget.totalFunds;
           this.history.record(command.stroke ?? null, changes, cost, city.cityTime?.() ?? 0);
           if (keptBack) (this.history.last()!.also ??= []).push(keptBack);
+          if (siteBack) (this.history.last()!.also ??= []).push(siteBack);
           if (cutBack.length) (this.history.last()!.also ??= []).push(...cutBack);
         }
         return { accepted: true, toolResult: tool.result };
@@ -941,6 +1006,9 @@ export class CityCommands {
         // A new city builds the ruler's house first, as with every other zone tool (src/rulerHouse.ts)
         const houseFirst = houseProblem(city.houseMap, "zone_residential", city.rank?.() ?? 0);
         if (houseFirst) return { accepted: false, reason: houseFirst };
+        // ... and factories once there is power for them (src/unlocks.ts)
+        const lock = command.zone ? lockProblem(city, PAINT_TOOLS[command.zone], 0, 0, this.unlocksNow()) : null;
+        if (lock) return { accepted: false, reason: lock.reason, detail: lock.params };
         const layout = cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
         const code = command.zone ? zoneCode(command.zone) : 0, painted = map.zoneCells ?? (map.zoneCells = new Map());
         const cells = [...new Set(command.cells)].filter((key) => layout.byKey.has(key) && (painted.get(key) ?? 0) !== code);

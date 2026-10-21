@@ -18,7 +18,7 @@ function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
   map.tileSizeM = 16;
   map.paintedZones = true;
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(1000000);
   (core.map as any).needsRulerHouse = false;
   return core;
@@ -28,7 +28,7 @@ function city() {
 function saveAndOpen(core: CityCore) {
   const saved = JSON.parse(JSON.stringify({ ...core.save(), width: core.map.width, height: core.map.height,
     version: (Storage as any).CURRENT_VERSION }));
-  return { saved, again: new CityCore({ map: new (GameMap as any)(saved.width, saved.height), saved }) };
+  return { saved, again: new CityCore({ sandbox: true, map: new (GameMap as any)(saved.width, saved.height), saved }) };
 }
 
 describe("the roads as drawn in a save", () => {
@@ -103,7 +103,7 @@ describe("the roads as drawn in a save", () => {
     delete old.roads;
     (Storage as any).transitionOldSave(old);
     expect(old.roads.segments.length).toBe(2);
-    const again = new CityCore({ map: new (GameMap as any)(60, 40), saved: old });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved: old });
     const graph = again.map.roadGraph;
     const ends = [...graph.segments.values()].map((s: any) => [[graph.node(s.a).x, graph.node(s.a).z], [graph.node(s.b).x, graph.node(s.b).z], s.shape, s.piece]);
     expect(ends).toContainEqual([[2.5 * 16, 10.5 * 16], [40.5 * 16, 10.5 * 16], "line", 1]);
@@ -118,7 +118,7 @@ describe("the roads as drawn in a save", () => {
     const old = JSON.parse(JSON.stringify({ ...core.save(), width: 60, height: 40, version: 4 }));
     (Storage as any).transitionOldSave(old);
     expect(old.roads).toBeUndefined();
-    const again = new CityCore({ map: new (GameMap as any)(60, 40), saved: old });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved: old });
     expect(again.map.roadGraph).toBeNull();
   });
 });
@@ -129,7 +129,7 @@ describe("the roads as drawn in a frame that grows", () => {
     const dx = from.x - to.x, dy = from.y - to.y;
     const map = (MapGenerator as any).fromPresetCells(96, 96, new Uint8Array(96 * 96));
     map.tileSizeM = 16;
-    const core = new CityCore({ map, seed: 5 });
+    const core = new CityCore({ sandbox: true, map, seed: 5 });
     core.simulation.budget.setFunds(500000);
     expect(core.apply({ type: "road", tool: "road", from: [20 * 16 + 3, 44 * 16 + 5], to: [70 * 16 + 9, 48 * 16 + 1], stroke: 2 })
       .toolResult).toBe(0);
@@ -141,7 +141,7 @@ describe("the roads as drawn in a frame that grows", () => {
     const fresh = (MapGenerator as any).fromPresetCells(160, 160, new Uint8Array(160 * 160)), freshData: any = {};
     fresh.save(freshData);
     const moved = reframeSave(save, from, to, { map: freshData.map, inside: null, national: null, roadLevels: null }, 32);
-    const again = new CityCore({ map: new (GameMap as any)(160, 160), saved: moved });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(160, 160), saved: moved });
     const ends = [...again.map.roadGraph.nodes.values()].map((n: any) => [n.x, n.z]);
     expect(ends).toEqual([[(20 + dx) * 16 + 3, (44 + dy) * 16 + 5], [(70 + dx) * 16 + 9, (48 + dy) * 16 + 1]]);
     expect(again.map.getTileValue(20 + dx, 44 + dy)).toBe(core.map.getTileValue(20, 44));

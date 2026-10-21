@@ -19,7 +19,7 @@ import { DIRT, RIVER, WOODS } from "../src/tileValues";
 function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
   map.tileSizeM = 16;
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(100000);
   (core.map as any).needsRulerHouse = false;
   return core;
@@ -35,7 +35,7 @@ const bare = (size: number): number[] => Array(size * size).fill(DIRT);
 /** Every tile of the map */
 const allTiles = (core: CityCore): number[] => [...Array(60 * 40)].map((_, i) => core.map.getTile(i % 60, Math.floor(i / 60)).getRawValue());
 const reopen = (saved: Record<string, unknown>): CityCore =>
-  new CityCore({ map: new (GameMap as any)(60, 40), saved: JSON.parse(JSON.stringify({ ...saved, width: 60, height: 40 })) });
+  new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved: JSON.parse(JSON.stringify({ ...saved, width: 60, height: 40 })) });
 /** What a move changes, to tell two cities apart */
 const state = (core: CityCore) => {
   const m = mapOf(core);
@@ -152,7 +152,7 @@ describe("moving a building to another block", () => {
     const homes: Array<[number, number]> = [];
     const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
     map.tileSizeM = 16;
-    const core = new CityCore({ map, seed: 11, hooks: { houseBuilt: (x, y) => homes.push([x, y]) } });
+    const core = new CityCore({ sandbox: true, map, seed: 11, hooks: { houseBuilt: (x, y) => homes.push([x, y]) } });
     core.simulation.budget.setFunds(100000);
     const m = mapOf(core);
     road(core, 20, 5, 40);

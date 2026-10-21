@@ -7,6 +7,8 @@
 // - once a cycle the water runs from every powered water works along the roads it touches: pipes lie under roads;
 // - a works gives as much as the groundwater under it allows (src/groundwater.ts), less in a month of the province's
 //   dry season, and the towers on the pipes make up some of what the dry season takes;
+// - a tower no works' pipe reaches pumps its own well, a village's water (ประปาหมู่บ้าน, docs/GAME_DESIGN.md
+//   6.4): a little, from the ground under it, along the roads beside it;
 // - each zone the next scan reaches takes one share when a road with water touches it, until the supply runs out;
 // - once a month the rain fills the ground again, as much as the month's weather brings (src/weather.ts: in a dry
 //   month only rain or a storm, a little), and each works draws from the ground around it as much as the city took,
@@ -30,6 +32,8 @@ import { rainRecharge, type Weather } from "./weather";
 export const WORKS_SUPPLY = 80;
 /** Zones' worth of the dry season's loss that each water tower on the pipes makes up */
 export const TOWER_STORE = 10;
+/** Zones a water tower off the pipes serves from its own well with full ground under it: a village's water */
+export const TOWER_WELL = 8;
 /** What a works pumping its fullest takes from the ground under its centre in a month (src/groundwater.ts units) */
 export const DRAW_PER_MONTH = 10;
 /** A works whose ground holds less than this share of what its land holds sends the news a warning */
@@ -103,6 +107,8 @@ export class WaterManager {
   /** How much further the water goes because people pay for it and save it: the water fee (src/budget.js), 0–0.3,
    * and the ruler's water saving (src/policies.ts) */
   saving = 0;
+  /** The towers that pumped their own wells at the last scan, which draw on the ground under them */
+  private wells: Source[] = [];
   /** How much faster the rain fills the ground: the ruler's green zoning (src/policies.ts) */
   recharge = 1;
   /** The month's weather (src/weather.ts), which the simulation sets; without it the rain falls as it always did,
@@ -284,27 +290,53 @@ export class WaterManager {
         reach(source.x + 2, source.y + k);
       }
     }
-    while (queue.length) {
-      const i = queue.pop() as number;
-      const x = i % width;
-      const y = (i - x) / width;
-      reach(x + 1, y);
-      reach(x - 1, y);
-      reach(x, y + 1);
-      reach(x, y - 1);
+    const flood = (): void => {
+      while (queue.length) {
+        const i = queue.pop() as number;
+        const x = i % width;
+        const y = (i - x) / width;
+        reach(x + 1, y);
+        reach(x - 1, y);
+        reach(x, y + 1);
+        reach(x, y - 1);
+      }
+    };
+    flood();
+
+    // A tower the works' pipes do not reach pumps its own well along the roads beside it, a village's water (its pump
+    // stands on the tower's own tile, which the power along the roads does not mark: towers count as powered)
+    const onPipes = (x: number, y: number): boolean => this.view.hasWater(x + 1, y) || this.view.hasWater(x - 1, y) ||
+      this.view.hasWater(x, y + 1) || this.view.hasWater(x, y - 1);
+    const wells = this.sources.filter((source) => source.tower && !onPipes(source.x, source.y));
+    let welled = 0;
+    this.wells = [];
+    for (const source of wells) {
+      const ground = this.stores ? pumpFactor(this.stores, this.map.width, this.map.height, source.x, source.y, 1) : 0.5;
+      const clean = this.poison ? this.poison.cleanWater(source.x, source.y) : 1;
+      const gives = TOWER_WELL * ground * clean * (dry ? 1 - this.drought.share : 1);
+      if (gives <= 0) continue;
+      const before = queue.length;
+      reach(source.x + 1, source.y);
+      reach(source.x - 1, source.y);
+      reach(source.x, source.y + 1);
+      reach(source.x, source.y - 1);
+      if (queue.length === before && !onPipes(source.x, source.y)) continue; // no road beside it to carry the water
+      welled += gives;
+      this.wells.push(source);
     }
+    flood();
 
     // The towers on the pipes give back what they stored through the rains
     let stored = 0;
     if (lost > 0) {
       for (const source of this.sources) {
-        if (!source.tower) continue;
+        if (!source.tower || this.wells.includes(source)) continue;
         const { x, y } = source;
         if (this.view.hasWater(x + 1, y) || this.view.hasWater(x - 1, y) || this.view.hasWater(x, y + 1) ||
             this.view.hasWater(x, y - 1)) stored += TOWER_STORE;
       }
     }
-    this.supply = Math.floor((works + Math.min(lost, stored)) * (1 - this.festivalUse) * (1 + this.saving));
+    this.supply = Math.floor((works + welled + Math.min(lost, stored)) * (1 - this.festivalUse) * (1 + this.saving));
   }
 
   /** A month of the ground: the month's rain fills it, and each works draws as much as was used. */
@@ -319,6 +351,11 @@ export class WaterManager {
     if (rain > 0) rechargeGroundwater(stores, natural, this.recharge * rain);
 
     let low: Source | null = null;
+    // (the towers' wells draw as a works does, as much less as they give)
+    for (const well of this.wells) {
+      const pumped = pumpFactor(stores, width, height, well.x, well.y, 1) * taken * TOWER_WELL / WORKS_SUPPLY;
+      if (pumped > 0) drawGroundwater(stores, natural, width, height, well.x, well.y, DRAW_PER_MONTH * pumped);
+    }
     for (const source of this.sources) {
       if (source.tower || !source.powered) continue;
       const pumped = this.worksFactor(source.x, source.y, month) * taken;

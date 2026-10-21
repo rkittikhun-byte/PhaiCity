@@ -134,7 +134,8 @@ var openStart = function() {
   var reqDistrict = getRequestedDistrict();
   if (reqDistrict) {
     var provId = reqDistrict.slice(0, 5);
-    startProvince.call(this, provId, 'ขอนแก่น', Simulation.LEVEL_EASY, reqDistrict);
+    // (a new city plays the normal mode unless its player chose another, src/gameModes.ts)
+    startProvince.call(this, provId, 'ขอนแก่น', Simulation.LEVEL_MED, reqDistrict);
     return;
   }
 
@@ -152,7 +153,7 @@ var openStart = function() {
     }.bind(this),
     deleteCity: deleteCity,
     practice: function() {
-      launch.call(this, MapGenerator(), Simulation.LEVEL_EASY, t('practice.city'), 'practice');
+      launch.call(this, MapGenerator(), Simulation.LEVEL_MED, t('practice.city'), 'practice');
     }.bind(this)
   // The opening story plays every time the game opens, and can be skipped (owner decision, 11 Oct 2026), after the
   // title page whose "Enter the game" click lets the music start at once (src/titleGate.ts, owner 12 Oct 2026)

@@ -131,7 +131,7 @@ describe("city objects", () => {
   test("the ruler's buildings come from the list of those put down, with where each stands in metres", () => {
     const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
     map.tileSizeM = 16;
-    const core = new CityCore({ map, seed: 11 });
+    const core = new CityCore({ sandbox: true, map, seed: 11 });
     core.simulation.budget.setFunds(1000000);
     (core.map as any).needsRulerHouse = false;
     core.apply({ type: "build", tool: "police", x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });

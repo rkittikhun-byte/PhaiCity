@@ -27,17 +27,29 @@ export const ERA_KINDS = ['home_1', 'home_2', 'home_3', 'home_4', 'home_5', 'sho
   'power_plant', 'waste', 'station', 'market'] as const;
 export type EraKind = typeof ERA_KINDS[number];
 
+/** The era models by frontage (frontage.ts; art/buildings/scripts/lib/builder.py FRONTAGE): a shophouse bay one 4 m
+ * cell wide in its place in a terrace, in the era's lower row (bay1) and its taller one (bay2), and a 12 m house */
+export const BAY_PLACES = ['one', 'left', 'mid', 'mid2', 'right'] as const;
+export type BayPlace = typeof BAY_PLACES[number];
+export const FRONTAGE_KINDS = [...[1, 2].flatMap(h => BAY_PLACES.map(p => `bay${h}_${p}`)), 'house12_1', 'house12_2'] as const;
+export type FrontageKind = typeof FRONTAGE_KINDS[number];
+
 export interface EraIndex {
   readonly version: number;
   readonly tileMetres: number;
-  readonly kinds: Readonly<Record<string, { tiles: number }>>;
+  /** Each kind's tiles; a frontage kind's frontage and depth in metres too */
+  readonly kinds: Readonly<Record<string, { tiles: number; width?: number; depth?: number }>>;
   /** era<n> -> region -> kind -> its height (metres) and triangles */
   readonly buildings: Readonly<Record<string, Readonly<Record<string, Readonly<Record<string, { height: number; triangles: number }>>>>>>;
 }
 
 /** The era models the index lists, asked by era, region and kind */
 export class EraModels {
-  constructor(readonly index: EraIndex) {}
+  /** Whether the index has any frontage models (frontage.ts: shophouse bays, the 12 m house) */
+  readonly hasFrontage: boolean;
+  constructor(readonly index: EraIndex) {
+    this.hasFrontage = Object.values(index.buildings).some(era => Object.values(era).some(region => 'bay1_one' in region));
+  }
   /** The model's height in metres, null when there is none for that era and region */
   height(era: number, region: string, kind: string): number | null {
     return this.index.buildings[`era${era}`]?.[region]?.[kind]?.height ?? null;

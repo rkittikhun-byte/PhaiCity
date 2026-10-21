@@ -366,6 +366,15 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   value near the venue, and costs money, rubbish and krathong dirt in the water, Songkran's water, traffic and, while
   disasters are on, fire. It is saved as `festivals`, its year's cost is a budget line (`budget.festivalCost`), the auto player answers the
   card, and the 3D view dresses the town (`src/render3d/city/festivals3d.ts`).
+- **What can be built yet, and modes (owner, 21 Oct 2026):** `docs/GAME_DESIGN.md` section 6. Every tool has a row of
+  data in `src/unlocks.ts` (the era that brings it, the trained people it needs, what must stand first, its months as a
+  construction site); `CityCommands` refuses a locked tool with that reason (`commands.lock(tool)`), and the dock greys
+  it with a lock and the reason in words (`src/unlockLabels.ts`, `game.refreshLocks`). Trained people come from the city's
+  own schools (`src/trainedPeople.ts`, the core's "trained" system, saved as `trained`); a big building stands as a site
+  for its months and the map scan passes it by (`src/construction.ts`, `map.sites`, saved); a village's water towers pump
+  their own wells (`TOWER_WELL`, the water works come in era 2). Easy, normal and hard (`src/gameModes.ts`) sit on
+  `Simulation.LEVEL_*`; new cities are normal, an online city always (the server refuses another). Tests of other things
+  build a sandbox city (`CoreSetup.sandbox`) where anything can be built at once.
 - **Rubbish and wastewater (owner, 13 Oct 2026):** `docs/WASTE.md`, `src/waste.ts`. Five kinds on one 3×3 of tiles
   (992–1000, `gameMap.wasteKinds`, saved; RENDERER_SPEC 6I), chosen above the rubbish button: landfill, incinerator,
   recycling plant, waste power plant, wastewater plant. Each month people and visitors make rubbish, which the working

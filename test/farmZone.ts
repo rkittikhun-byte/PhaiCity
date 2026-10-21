@@ -11,13 +11,14 @@ import { CityCommands } from "../src/cityCommands";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
 import { drawModeOf, isFarmTool, isPaintTool, showsZoneGrid } from "../src/drawModes";
 import {
-  FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, fieldFillRegion, hubKind, fieldLevelOf, fieldOutcome, fieldTile, FIELD_FLAGS,
+  FARM_ERA_LOOKS, FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, fieldFillRegion, hubKind, newFarmLooks, fieldLevelOf, fieldOutcome, fieldTile, FIELD_FLAGS,
   isFieldValue, kindCode, pickKind, wayField, wayToRoad,
 } from "../src/farmZone";
 import * as fs from "fs";
 import * as path from "path";
 import { Farming } from "../src/farming";
 import { GameMap } from "../src/gameMap.js";
+import { FREE_TOOLS, UNLOCKS } from "../src/unlocks";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import { checkRulesData, DEFAULT_RULES, FARM_ZONE, resolveRules } from "../src/provinceRules";
@@ -330,5 +331,16 @@ describe("the 3 × 3 farm building", () => {
     expect(problems).toEqual([]);
     expect(resolveRules(data, "northeast", "TH-40").farmZone.kinds.paddy.sale).toBe(0.07);
     expect(resolveRules(data, "south", null).farmZone.kinds.pond.sale).toBe(0.12);
+  });
+});
+
+describe("the farm zone in the unlock table", () => {
+  test("is open from the farming village, its eraser free, and its look moves on with each era", () => {
+    expect(UNLOCKS.zone_farm).toEqual({ era: 1 });
+    expect(FREE_TOOLS).toContain(FARM_ERASE_TOOL);
+    expect(newFarmLooks(2)).toEqual(["granary"]);
+    expect(newFarmLooks(3)).toEqual(["tractor", "greenhouse"]);
+    expect(newFarmLooks(5)).toEqual(["drone", "solar"]);
+    for (const era of [1, 2, 3, 4, 5]) for (const [look] of FARM_ERA_LOOKS[era]) expect(hasKey(`farm.look.${look}`)).toBe(true);
   });
 });

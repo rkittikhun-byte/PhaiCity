@@ -4,6 +4,8 @@
 
 // era-buildings.html: every era building (art/buildings, assets/models/buildings) by era and region, the whole set
 // in rows or one at a time to orbit, by day or by night, drawn with the city's own material (eraBuildingMaterial).
+// The frontage kinds (frontage.ts: shophouse bays and the 12 m house) show alone, or as the city stands them: a terrace
+// of bays side by side (left end, middles taking turns, right end) beside the bay that stands alone.
 
 import {
   AmbientLight, BufferAttribute, BufferGeometry, DirectionalLight, Group, Mesh, PerspectiveCamera, PlaneGeometry,
@@ -12,7 +14,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, loadEraIndex, serializeEraScene } from '../city/eraBuildings.js';
+import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene } from '../city/eraBuildings.js';
 import { eraBuildingMaterial, setNightMode } from '../materials/library.js';
 import { SCENE } from '../../theme/tokens.js';
 
@@ -27,8 +29,23 @@ const NAMES: Record<string, [string, string]> = {
   police: ['สถานีตำรวจ', 'Police'], fire: ['ดับเพลิง', 'Fire'], water_works: ['ประปา', 'Water works'],
   power_plant: ['โรงไฟฟ้า', 'Power plant'], waste: ['จัดการขยะ', 'Waste'], station: ['สถานี', 'Station'],
   market: ['ตลาด', 'Market'],
+  terrace1: ['ตึกแถว (แถวเตี้ย) ต่อกัน', 'Terrace, lower row'], terrace2: ['ตึกแถว (แถวสูง) ต่อกัน', 'Terrace, taller row'],
+  house12_1: ['บ้านหน้ากว้าง 12 ม. ระดับต้น', '12 m house, lower levels'],
+  house12_2: ['บ้านหน้ากว้าง 12 ม. ระดับสูง', '12 m house, higher levels'],
 };
+const PLACE_NAMES: Record<string, [string, string]> = {
+  one: ['คูหาเดียว', 'alone'], left: ['ห้องหัว ซ้าย', 'left end'], mid: ['ห้องกลาง', 'middle'],
+  mid2: ['ห้องกลาง แบบ 2', 'middle (2)'], right: ['ห้องท้าย ขวา', 'right end'],
+};
+for (const kind of FRONTAGE_KINDS) {
+  const m = /^bay(\d)_(\w+)$/.exec(kind);
+  if (m) NAMES[kind] = [`ตึกแถว${m[1] === '1' ? 'เตี้ย' : 'สูง'} ${PLACE_NAMES[m[2]][0]}`, `Shophouse bay (${m[1] === '1' ? 'lower' : 'taller'} row), ${PLACE_NAMES[m[2]][1]}`];
+}
+/** A terrace as the city stands one (frontage.ts): left end, the two middles in turn, right end, and the bay alone */
+const TERRACE = ['left', 'mid', 'mid2', 'mid', 'mid2', 'right'];
+const terraceOf = (row: string): string[] => [...TERRACE.map(p => `bay${row}_${p}`), `bay${row}_one`];
 const GROUPS: [string, string, string][] = [['home', 'บ้าน', 'Homes'], ['shop', 'ร้านค้า', 'Shops'],
+  ['frontage', 'ตามหน้ากว้างที่ทา (ช่อง 4 ม.)', 'By painted frontage (4 m cells)'],
   ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services']];
 
 function el<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
@@ -100,27 +117,37 @@ async function start(): Promise<void> {
     current = kind;
     const mine = ++token, era = el<HTMLSelectElement>('era').value, region = el<HTMLSelectElement>('region').value;
     document.querySelectorAll<HTMLButtonElement>('nav button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
-    const kinds = kind === 'all' ? [...ERA_KINDS] : [kind];
+    const have = index!.buildings[`era${era}`]?.[region] ?? {};
+    const frontage = Boolean(have.bay1_one);
+    const terrace = /^terrace(\d)$/.exec(kind);
+    const kinds = kind === 'all' ? [...ERA_KINDS, ...(frontage ? [...terraceOf('1'), ...terraceOf('2'), 'house12_1', 'house12_2'] : [])]
+      : terrace ? terraceOf(terrace[1]) : [kind];
     readout.textContent = thai ? 'กำลังโหลด…' : 'Loading…';
-    const groups = await Promise.all(kinds.map(k => model(era, region, k)));
+    const groups = await Promise.all(kinds.map(k => have[k] ? model(era, region, k) : Promise.resolve(new Group())));
     if (mine !== token) return;
     shown.clear();
     const cursor: Record<number, number> = {};
     kinds.forEach((k, i) => {
-      const g = groups[i], tiles = index!.kinds[k]?.tiles ?? 1, size = tiles * 16;
-      if (kind === 'all') {
-        const row = k.startsWith('home') ? 0 : k.startsWith('shop') ? 1 : k.startsWith('factory') ? 2 : 3;
-        const x = cursor[row] ?? 0;
-        g.position.set(x + size / 2, 0, row < 3 ? row * 40 : 0);
+      const g = groups[i], tiles = index!.kinds[k]?.tiles ?? 1, size = index!.kinds[k]?.width ?? tiles * 16;
+      const front = (FRONTAGE_KINDS as readonly string[]).includes(k);
+      if (kind === 'all' || terrace) {
+        // the frontage kinds in rows of their own in front of the set, each terrace's bays flush side by side
+        const row = front ? (k.startsWith('bay1') ? 4 : k.startsWith('bay2') ? 5 : 6) : k.startsWith('home') ? 0 : k.startsWith('shop') ? 1 : k.startsWith('factory') ? 2 : 3;
+        const x = cursor[row] ?? 0, alone = k.endsWith('_one');
+        const gap = alone ? 4 : 0;
+        g.position.set(x + gap + size / 2, 0, row < 3 ? row * 40 : row === 3 ? 0 : terrace ? 0 : 60 + (row - 4) * 24);
         if (row === 3) { const n = ERA_KINDS.indexOf(k as typeof ERA_KINDS[number]) - 14; g.position.set(260 + (n % 5) * 54, 0, Math.floor(n / 5) * 54); }
-        cursor[row] = x + size + 5;
+        if (row === 6) g.position.x = (cursor[6] ?? 0) + size / 2;
+        cursor[row] = x + gap + size + (front && !alone ? 0 : 5);
       }
       shown.add(g);
     });
     frame();
-    const entry = kind === 'all' ? null : index!.buildings[`era${era}`]?.[region]?.[kind];
-    readout.textContent = entry ? `${thai ? NAMES[kind][0] : NAMES[kind][1]} · ${entry.height} ${thai ? 'ม.' : 'm'} · ${entry.triangles.toLocaleString()} ${thai ? 'สามเหลี่ยม' : 'triangles'}`
-      : (thai ? '24 แบบของยุคและภาคนี้' : 'All 24 of this era and region');
+    const entry = kind === 'all' || terrace ? null : have[kind];
+    const width = index!.kinds[kind]?.width;
+    readout.textContent = entry ? `${thai ? NAMES[kind][0] : NAMES[kind][1]} · ${entry.height} ${thai ? 'ม.' : 'm'}${width ? ` · ${thai ? 'หน้ากว้าง' : 'frontage'} ${width} ${thai ? 'ม.' : 'm'}` : ''} · ${entry.triangles.toLocaleString()} ${thai ? 'สามเหลี่ยม' : 'triangles'}`
+      : terrace ? (thai ? NAMES[kind][0] : NAMES[kind][1]) + (frontage ? '' : thai ? ' · ยังไม่มีในยุคและภาคนี้' : ' · not built for this era and region yet')
+      : (thai ? `${frontage ? 36 : 24} แบบของยุคและภาคนี้` : `All ${frontage ? 36 : 24} of this era and region`);
   }
 
   const nav = el<HTMLElement>('kinds');
@@ -129,6 +156,15 @@ async function start(): Promise<void> {
   nav.append(all);
   for (const [prefix, th, en] of GROUPS) {
     const h = document.createElement('h2'); h.dataset.th = th; h.dataset.en = en; nav.append(h);
+    if (prefix === 'frontage') {
+      for (const kind of ['terrace1', 'terrace2', ...FRONTAGE_KINDS]) {
+        const b = document.createElement('button');
+        b.dataset.kind = kind; b.dataset.th = NAMES[kind][0]; b.dataset.en = NAMES[kind][1];
+        b.addEventListener('click', () => show(kind));
+        nav.append(b);
+      }
+      continue;
+    }
     for (const kind of ERA_KINDS) {
       const service = !/^(home|shop|factory)_/.test(kind);
       if (prefix === 'service' ? !service : !kind.startsWith(prefix)) continue;

@@ -4,11 +4,12 @@
 
 import {
   CITY_KEYS, dimmed, HEAT, heatLevel, isMapLayer, KIND_COLOURS, layerPixels, MAP_LAYERS, mapScale, POWERED,
-  powerCounts, stringId, tileAtPoint, tileColour, tileKind, UNPOWERED,
+  powerCounts, stringId, tileAtPoint, tileColour, tileKind, toolLayer, UNPOWERED,
 } from "../src/cityMap";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
+import { MINE_TOOLS } from "../src/mining";
 import { Simulation } from "../src/simulation.js";
 
 type Map = { width: number; height: number; getTileValue(x: number, y: number): number;
@@ -105,5 +106,14 @@ describe("city map", () => {
     for (const key of ["map.title", "map.hint", "map.close", "map.key.powered", "map.key.unpowered", "map.key.low",
       "map.key.high", "map.power_count", "menu.map"]) expect(hasKey(key)).toBe(true);
     expect(isMapLayer("nope")).toBe(false);
+  });
+
+  test("show the poisoned ground while any ore's tool is in hand, as the water tools show the groundwater", () => {
+    // The dock hands over the chosen ore's tool (src/toolDock.ts), never "mine" once an ore is picked
+    for (const tool of [...Object.values(MINE_TOOLS), "mine"]) expect([tool, toolLayer(tool)]).toEqual([tool, "toxic"]);
+    for (const tool of ["waterworks", "watertower", "water"]) expect(toolLayer(tool)).toBe("groundwater");
+    for (const tool of ["industrial", "zone_industrial", "coal"]) expect(toolLayer(tool)).toBe("pollution");
+    for (const tool of ["road", "bulldozer", "farm", "", null, undefined]) expect(toolLayer(tool)).toBeNull();
+    expect(isMapLayer(toolLayer("oil_well"))).toBe(true);
   });
 });

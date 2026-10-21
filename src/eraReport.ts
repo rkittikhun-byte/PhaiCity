@@ -66,6 +66,8 @@ export interface EraReport {
 /** What the player can do for a side that is short (one plain line each, docs/i18n/UI_STRINGS.md era.hint.*) */
 function factorHint(factor: Factor, era: Era): string {
   if (factor === "education" && ERA_RULES[era].education.higher > 0) return "era.hint.education_higher";
+  // (a village's water is its towers' wells: the water works come with the market town, src/unlocks.ts)
+  if (factor === "water" && era === 1) return "era.hint.water_village";
   return `era.hint.${factor}`;
 }
 

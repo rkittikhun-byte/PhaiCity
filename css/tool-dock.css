@@ -279,6 +279,14 @@ body.toolDockReady #toolTray::before {
 .trayCard.unavailable {
   opacity: 0.45 !important; cursor: not-allowed !important; border-style: dashed !important; transform: none !important;
 }
+/* A tool the city cannot build yet (src/unlocks.ts): grey, with a lock on its picture; pointing at it says why */
+.trayCard.locked .cardThumb { position: relative; }
+.trayCard.locked .cardThumb img { filter: grayscale(1); }
+.trayCard.locked .cardThumb::after {
+  content: ""; position: absolute; right: 2px; top: 2px; width: 11px; height: 11px; background: var(--ph-sand-800);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 7V5a4 4 0 0 1 8 0v2h1.5v8.5h-11V7zm2 0h4V5a2 2 0 0 0-4 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 7V5a4 4 0 0 1 8 0v2h1.5v8.5h-11V7zm2 0h4V5a2 2 0 0 0-4 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 
 /* Active Tool Capsule (Pill) */
 #activeToolPill {

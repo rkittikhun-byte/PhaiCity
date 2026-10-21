@@ -15,7 +15,7 @@ function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
   map.tileSizeM = 16;
   map.paintedZones = true;
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(100000);
   return core;
 }
