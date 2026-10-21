@@ -12,9 +12,10 @@
 // - at Loy Krathong, krathong with their candles drifting along the canals and rivers near the town;
 // - at Yi Peng, sky lanterns rising into the night sky and drifting with the wind;
 // - at Bun Bang Fai, rockets going up from beside the town on trails of smoke.
-// A grand festival has more of each. A month passes in a few seconds, so each festival's look stays until the first night
-// after it began is over (at most MAX_SHOW_SECONDS), and then fades; the bunting along the roads is the newest festival's. No temple or palace ornaments,
-// no images: lanterns, flags, krathong and rockets only.
+// A grand festival has more of each. Each festival's look shows only while it is held, its month, and fades in a few
+// seconds after (owner, 21 Oct 2026, of Bun Bang Fai's smoke still hanging over a town in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร";
+// docs/design/LOOK_BOOK.md); the bunting along the roads is the newest festival's. No temple or palace ornaments, no
+// images: lanterns, flags, krathong and rockets only.
 // Light on the graphics card: every kind of thing is one instanced mesh (nine draws in all), placed again only when
 // the festivals or the roads change; only the moving things (krathong, sky lanterns, smoke) are moved each frame, a few
 // hundred at most. Colours from src/theme/tokens.ts SCENE.festival.
@@ -81,9 +82,6 @@ export const MAX_PENNANTS = 2400, MAX_LANTERNS = 900, MAX_CORDS = 2 * 2 * MAX_PO
  * the town's nearest lake, river or canal; Mueang Khon Kaen's is about 800 m off) */
 export const VENUE_TILES = 4, BUNTING_RADIUS = 400;
 const KRATHONG_METRES = 1500;
-/** A town stays dressed at most this long (seconds of the view's clock) after a festival began; it fades in and out
- * (owner, 21 Oct 2026, of Bun Bang Fai's smoke still hanging over a town in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร") */
-export const MAX_SHOW_SECONDS = 45;
 const FADE_IN = 2, FADE_OUT = 3;
 /** The roads are looked over again this often while the town is dressed, for new ones */
 const REPLACE_SECONDS = 15;
@@ -95,7 +93,7 @@ const hash = (n: number): number => {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
 
-interface Show { id: string; scale: string; since: number; sawNight: boolean; leaving: number | null }
+interface Show { id: string; scale: string; since: number; leaving: number | null }
 interface Krathong { tile: number; to: number; x: number; z: number; tx: number; tz: number; steps: number; spread: number }
 
 const tMatrix = new Matrix4(), tPos = new Vector3(), tScale = new Vector3(), tQuat = new Quaternion(), tColour = new Color();
@@ -198,7 +196,7 @@ export class CityFestivals {
    * game is paused); wind, the way the sky lanterns drift (src/wind.ts).
    */
   update(lines: ReadonlyArray<FestivalLine>, night: number, seconds: number, wind: { x: number; y: number } = { x: 1, y: 0 }): void {
-    this.follow(night, seconds);
+    this.follow(seconds);
     if (!this.shows.size) {
       if (this.root.visible) this.clear();
       return;
@@ -218,21 +216,20 @@ export class CityFestivals {
     this.drawRockets(look.rockets, look.strength.rockets, seconds);
   }
 
-  /** Which festivals are shown: those held, and those held lately until the first night after they began is over */
-  private follow(night: number, seconds: number): void {
+  /** Which festivals are shown: those held, and for FADE_OUT seconds those that were */
+  private follow(seconds: number): void {
     const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.quiet && FESTIVAL_TOUCHES[h.id]);
     for (const h of held) {
       const show = this.shows.get(h.id);
-      if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, sawNight: night > 0.5, leaving: null });
+      if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, leaving: null });
       else if (show.leaving === null) show.scale = h.scale;
     }
     for (const show of [...this.shows.values()]) {
-      if (night > 0.5) show.sawNight = true;
-      const age = seconds - show.since, stillHeld = held.some((h) => h.id === show.id);
-      if (show.leaving === null && !stillHeld && ((show.sawNight && night < 0.3) || age >= MAX_SHOW_SECONDS)) show.leaving = seconds;
+      const stillHeld = held.some((h) => h.id === show.id);
+      if (show.leaving === null && !stillHeld) show.leaving = seconds;
       if (show.leaving !== null && seconds - show.leaving >= FADE_OUT) this.shows.delete(show.id);
       // A festival held again (next year) before its look faded starts afresh
-      if (show.leaving !== null && stillHeld) this.shows.set(show.id, { ...show, since: seconds, leaving: null, sawNight: night > 0.5 });
+      if (show.leaving !== null && stillHeld) this.shows.set(show.id, { ...show, since: seconds, leaving: null });
     }
   }
 

@@ -8,7 +8,7 @@
 // own festival, and never writes the map.
 
 import type { InstancedMesh } from 'three';
-import { CityFestivals, FESTIVAL_TOUCHES, MAX_KRATHONG, MAX_POLES, MAX_SHOW_SECONDS, MAX_SKY_LANTERNS, MODEST_SHARE,
+import { CityFestivals, FESTIVAL_TOUCHES, MAX_KRATHONG, MAX_POLES, MAX_SKY_LANTERNS, MODEST_SHARE,
   POLE_SPACING, VENUE_TILES, type FestivalLine, type FestivalViewMap } from '../../src/render3d/city/festivals3d';
 import { FESTIVAL_IDS } from '../../src/festivals';
 import { RIVER } from '../../src/tileValues';
@@ -135,29 +135,22 @@ describe('the festivals in the 3D view', () => {
     view.dispose();
   });
 
-  test('the town stays dressed after the festival until its night is over, then the lights fade away', () => {
+  test('the town is dressed only while the festival is held, and the look fades within seconds after', () => {
+    // Owner, 21 Oct 2026, of Bun Bang Fai's smoke still in the sky in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร"
     const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest' }]);
     const view = new CityFestivals(map, ground);
     view.update(lines, 0, 1);
+    view.update(lines, 1, 30);
     expect(view.counts().flags).toBeGreaterThan(0);
+    expect(view.shown).toEqual(['songkran']);
+    // The month is over: the flags come down over a few seconds, night or day
     map.festivals.held = [];
-    // The month is over by day: still dressed, through the night
-    view.update(lines, 0, 10);
-    view.update(lines, 1, 25);
+    view.update(lines, 1, 31);
     expect(view.shown).toEqual(['songkran']);
-    // Morning: the flags come down over a few seconds
-    view.update(lines, 0, 35);
-    expect(view.shown).toEqual(['songkran']);
-    view.update(lines, 0, 39);
+    view.update(lines, 1, 35);
     expect(view.shown).toEqual([]);
     expect(view.root.visible).toBe(false);
-    // ... and never longer than MAX_SHOW_SECONDS, night or not
-    map.festivals.held = [{ id: 'silk', scale: 'grand' }];
-    view.update(lines, 0, 200);
-    map.festivals.held = [];
-    view.update(lines, 0, 200 + MAX_SHOW_SECONDS + 1);
-    view.update(lines, 0, 200 + MAX_SHOW_SECONDS + 5);
-    expect(view.shown).toEqual([]);
+    expect(Object.values(view.counts()).every((n) => n === 0)).toBe(true);
     view.dispose();
   });
 
@@ -171,24 +164,19 @@ describe('the festivals in the 3D view', () => {
     view.dispose();
   });
 
-  test("a new festival's bunting takes the road, while the last one's krathong stay on the water through their night", () => {
+  test("a new festival's bunting takes the road, and the last one's look fades with its month", () => {
     const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'modest' }]);
     const view = new CityFestivals(map, ground);
     view.update(lines, 1, 1);
-    // Khon Kaen's silk festival comes the month after Loy Krathong, in the same night
+    expect(view.counts().krathong).toBeGreaterThan(0);
+    // Khon Kaen's silk festival comes the month after Loy Krathong
     map.festivals.held = [{ id: 'silk', scale: 'modest' }];
     view.update(lines, 1, 5);
     view.update(lines, 1, 9);
-    expect(view.shown.sort()).toEqual(['loy_krathong', 'silk']);
+    expect(view.shown).toEqual(['silk']);
     expect(view.counts().flags).toBeGreaterThan(0);
     expect(view.counts().lanterns).toBe(0);
-    expect(view.counts().krathong).toBeGreaterThan(0);
-    // Morning: Loy Krathong's night is over and its krathong go; the silk banners stay while the silk festival is held
-    view.update(lines, 0, 30);
-    view.update(lines, 0, 35);
-    expect(view.shown).toEqual(['silk']);
     expect(view.counts().krathong).toBe(0);
-    expect(view.counts().flags).toBeGreaterThan(0);
     view.dispose();
   });
 });
