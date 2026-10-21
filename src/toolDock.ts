@@ -302,13 +302,13 @@ export function installToolDock(doc: Document = document): void {
         renderModes(modesWrap, "road", doc);
       }
 
-      // Special handling for Zones: 4 direct tools (บ้าน, ร้านค้า, อุตสาหกรรม, ลบสี)
+      // Special handling for Zones: 4 direct tools (homes, shops, factories and the eraser)
       if (currentCategory === "zones") {
         const zoneItems = [
-          { tool: "residential", paintTool: "zone_residential", icon: "residential", title: "บ้าน (ที่อยู่อาศัย)" },
-          { tool: "commercial", paintTool: "zone_commercial", icon: "commercial", title: "ร้านค้า (พาณิชย์)" },
-          { tool: "industrial", paintTool: "zone_industrial", icon: "industrial", title: "โรงงาน (อุตสาหกรรม)" },
-          { tool: "zone_erase", paintTool: "zone_erase", icon: "zone_erase", title: "ลบสี (ยกเลิกผังเมือง)" },
+          { tool: "residential", paintTool: "zone_residential", icon: "residential", title: t("dock.zone.residential") },
+          { tool: "commercial", paintTool: "zone_commercial", icon: "commercial", title: t("dock.zone.commercial") },
+          { tool: "industrial", paintTool: "zone_industrial", icon: "industrial", title: t("dock.zone.industrial") },
+          { tool: "zone_erase", paintTool: "zone_erase", icon: "zone_erase", title: t("dock.zone.erase") },
         ];
 
         for (const item of zoneItems) {
@@ -409,7 +409,7 @@ export function installToolDock(doc: Document = document): void {
         } else if (hasChoices) {
           const badge = doc.createElement("span");
           badge.className = "cardPrice hasChoices";
-          badge.textContent = price ? `${price} ▾` : "เลือก ▾";
+          badge.textContent = price ? `${price} ▾` : t("dock.choose");
           thumb.appendChild(badge);
         }
         thumb.appendChild(thumbImg);

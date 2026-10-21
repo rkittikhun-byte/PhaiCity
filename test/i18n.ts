@@ -158,3 +158,38 @@ describe("game code", () => {
     expect([...used].filter((key) => !hasKey(key))).toEqual([]);
   });
 });
+
+// Never hardcode UI text (CLAUDE.md): the game's own modules write no Thai words into a string, every one comes through
+// t(). Comments may quote the owner in Thai; the street names are bilingual data (each Thai name has its English one),
+// and in-world 3D signs (src/render3d) stay Thai on purpose. ฿ is the baht sign of both languages, not a word.
+describe("no Thai words written into the code", () => {
+  const THAI = /[\u0E01-\u0E3A\u0E40-\u0E5B]/;
+  const ALLOWED = new Set(["src/streetNames.ts", "src/i18n/strings.ts"]);
+  const folders = ["src", "src/core", "src/objects", "src/audio", "src/geo"];
+
+  it("in the game's modules outside the 3D view", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ts = require("typescript");
+    const found: string[] = [];
+    for (const folder of folders) {
+      for (const name of fs.readdirSync(path.join(root, folder))) {
+        const file = `${folder}/${name}`;
+        if (!/\.(ts|js)$/.test(name) || ALLOWED.has(file)) continue;
+        const text = fs.readFileSync(path.join(root, file), "utf8");
+        const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false);
+        const visit = (node: any): void => {
+          const literal = node.kind === ts.SyntaxKind.StringLiteral
+            || node.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+            || node.kind === ts.SyntaxKind.TemplateHead || node.kind === ts.SyntaxKind.TemplateMiddle
+            || node.kind === ts.SyntaxKind.TemplateTail;
+          if (literal && THAI.test(node.text)) {
+            found.push(`${file}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1} ${node.text}`);
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(source);
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});

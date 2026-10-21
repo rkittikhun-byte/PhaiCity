@@ -22,7 +22,7 @@ import { decodePresetCells, decodePresetHeights, decodePresetLayer, decodePreset
 import { firstFrame } from './cityFrame.ts';
 import { DISTRICT_BLOCK, framePreset, isDistrictMap, presetHeights } from './geo/districtFrame.ts';
 import { startingFunds } from './geo/provinceProfile.ts';
-import { t } from './i18n/index.ts';
+import { getLanguage, t } from './i18n/index.ts';
 import { MapGenerator } from './mapGenerator.js';
 import { openStartScreen } from './provincePicker.ts';
 import { showTitleGate } from './titleGate.ts';
@@ -134,8 +134,12 @@ var openStart = function() {
   var reqDistrict = getRequestedDistrict();
   if (reqDistrict) {
     var provId = reqDistrict.slice(0, 5);
-    // (a new city plays the normal mode unless its player chose another, src/gameModes.ts)
-    startProvince.call(this, provId, 'ขอนแก่น', Simulation.LEVEL_MED, reqDistrict);
+    // (a new city plays the normal mode unless its player chose another, src/gameModes.ts), named after its
+    // province in the player's language
+    var self = this;
+    provinceName(provId).then(function(name) {
+      startProvince.call(self, provId, name, Simulation.LEVEL_MED, reqDistrict);
+    });
     return;
   }
 
@@ -213,6 +217,17 @@ var startProvince = function(provinceId, cityName, difficulty, districtId) {
     markLoadingStep('map', 'failed');
     markLoadingStep('heights', 'failed');
     launch.call(self, MapGenerator(), difficulty, cityName, 'practice');
+  });
+};
+
+
+// A province's name in the player's language, or its id when the list cannot be read
+var provinceName = function(provinceId) {
+  return fetchJson('data/thailand-provinces.json').then(function(data) {
+    var province = data.provinces.find(function(p) { return p.id === provinceId; });
+    return province ? (getLanguage() === 'en' ? province.nameEn : province.nameTh) : provinceId;
+  }).catch(function() {
+    return provinceId;
   });
 };
 

@@ -1754,6 +1754,11 @@
 | `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | |
 | `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | |
 | `dock.back` | `src/toolDock.ts` | — | `Back` | `ย้อนกลับ` | |
+| `dock.zone.residential` | `src/toolDock.ts` | — | `Homes (residential)` | `บ้าน (ที่อยู่อาศัย)` | การ์ดในถาดเขตเมือง |
+| `dock.zone.commercial` | `src/toolDock.ts` | — | `Shops (commercial)` | `ร้านค้า (พาณิชย์)` | |
+| `dock.zone.industrial` | `src/toolDock.ts` | — | `Factories (industry)` | `โรงงาน (อุตสาหกรรม)` | |
+| `dock.zone.erase` | `src/toolDock.ts` | — | `Erase zoning` | `ลบสี (ยกเลิกผังเมือง)` | |
+| `dock.choose` | `src/toolDock.ts` | — | `Choose ▾` | `เลือก ▾` | ป้ายราคาของการ์ดที่มีตัวเลือกแต่ไม่มีราคา |
 | `wind.season.northeast_monsoon` | `src/game.js` | — | `Northeast Monsoon` | `มรสุมตะวันออกเฉียงเหนือ` | |
 | `wind.season.hot_season` | `src/game.js` | — | `Hot Season` | `ฤดูร้อน` | |
 | `wind.season.southwest_monsoon` | `src/game.js` | — | `Southwest Monsoon` | `มรสุมตะวันตกเฉียงใต้` | |
