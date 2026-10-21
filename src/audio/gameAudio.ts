@@ -8,6 +8,7 @@
 import type { CityView, TileRect } from "../cityView";
 import * as Messages from "../messages";
 import type { PlayOptions } from "./engine";
+import { BELL_VOLUME, TempleBells, templeInView } from "./templeBells.js";
 
 export interface SoundPlayer {
   play(id: string, options?: PlayOptions): void;
@@ -278,6 +279,8 @@ export interface GameLike {
   gameMap: TileSource;
   /** The sky now (src/rainSpells.ts), whose rain and thunder the ambience follows */
   skyNow?: SkyHeard | null;
+  /** The game's clock (src/dayClock.ts), whose dawn and dusk ring the temple bell (src/audio/templeBells.ts) */
+  dayClock?: { hour: number } | null;
   /** The 2D or 3D view (src/cityView.ts): its width for panning, and the tiles on screen for ambience. */
   cityView: Pick<CityView, "width" | "visibleTiles">;
 }
@@ -321,6 +324,7 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
   }
   game.inputStatus.addEventListener(Messages.SAVE_REQUESTED, () => player.play("ui.save"));
 
+  const bells = new TempleBells();
   const updateAmbience = (): void => {
     let rect: TileRect | null;
     try {
@@ -334,7 +338,9 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
     const levels = ambienceLevels(stats, sky.raining);
     for (const id of AMBIENCE_BEDS) player.setLoop(id, levels[id] ?? 0);
     const oneShot = pickAmbientOneShot(stats, sky.raining, Math.random, sky.thunder);
-    if (oneShot) player.play(oneShot);
+    if (oneShot) player.play(oneShot);    // The temple bell at dawn and dusk, softly, with a temple on screen (docs/GAME_DESIGN.md 9.5)
+    if (game.dayClock && bells.ring(game.dayClock.hour, game.simulation.getDate().month,
+      templeInView(game.gameMap as Parameters<typeof templeInView>[0], rect))) player.play("event.temple_bell", { volume: BELL_VOLUME });
   };
   const timer = window.setInterval(updateAmbience, AMBIENCE_INTERVAL_MS);
   updateAmbience();
