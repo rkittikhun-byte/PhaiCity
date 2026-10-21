@@ -287,6 +287,9 @@ export interface CommandTarget {
   /** The city the unlock table is asked against (src/unlocks.ts): its era, trained people and buildings. Without it, or
    * when it gives none, nothing is locked. */
   unlocks?(): UnlockCity | undefined;
+  /** A building just put down by a tool, centred at (x, y), stands as a construction site for its months, none for
+   * some (src/construction.ts); what undoes it */
+  startSite?(x: number, y: number, tool: string): () => void;
 }
 
 /**
@@ -819,6 +822,8 @@ export class CityCommands {
         if (applied && tool.buildingLevel) city.setBuildingLevel?.(command.x, command.y, tool.buildingLevel.level);
         // (a city with no map of its own, as some tests drive, keeps no list)
         const keptBack = applied && map && placesBuilding(command.tool, tool) ? this.keepBuilding(command, tool.size ?? 1) : null;
+        // ... a construction site for its months, or none (src/construction.ts)
+        const siteBack = applied && map && placesBuilding(command.tool, tool) ? city.startSite?.(command.x, command.y, command.tool) : null;
         // A road or railway drawn in metres loses what ran over a tile the bulldozer cleared (src/roads/roadCut.ts)
         const cutBack = applied && map && command.tool === "bulldozer" ? this.cutGraphs(before) : [];
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
@@ -871,6 +876,7 @@ export class CityCommands {
           const cost = fundsBefore - city.budget.totalFunds;
           this.history.record(command.stroke ?? null, changes, cost, city.cityTime?.() ?? 0);
           if (keptBack) (this.history.last()!.also ??= []).push(keptBack);
+          if (siteBack) (this.history.last()!.also ??= []).push(siteBack);
           if (cutBack.length) (this.history.last()!.also ??= []).push(...cutBack);
         }
         return { accepted: true, toolResult: tool.result };

@@ -74,9 +74,12 @@ function servedShares(map: Legacy, objects: Objects): { water: number; power: nu
 
 /** Whether the city has what an era symbol asks */
 function hasSymbol(key: SymbolKey, map: Legacy, objects: Objects): boolean {
-  const civic = Object.values(map.civicKinds || {}) as string[];
-  const kinds = (field: string): string[] => Object.values(map[field] || {}) as string[];
-  const all = objects.all();
+  // (a building still being built is not had yet, src/construction.ts)
+  const sites = map.sites || {};
+  const kinds = (field: string): string[] =>
+    Object.entries(map[field] || {}).filter(([tile]) => !(tile in sites)).map(([, kind]) => kind as string);
+  const civic = kinds("civicKinds");
+  const all = objects.all().filter(b => !(b.id in sites));
   switch (key) {
     case "ruler_house": return !map.rulerHouse || houseStanding(map);
     case "shops": return all.filter(b => b.kind === "shop").length >= SHOPS_WANTED;

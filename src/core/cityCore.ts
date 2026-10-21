@@ -24,6 +24,7 @@ import { eraMonth } from "../eraScore.js";
 import type { Era } from "../era.js";
 import { festivalMonth, type FestivalNews } from "../festivals.js";
 import { trainingCity, trainMonth, type TrainedYear } from "../trainedPeople.js";
+import { type SiteDone, sitesMonth } from "../construction.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -53,7 +54,9 @@ export type CoreEvent =
   | FestivalNews
   /** The year turned: the year's class of trained people graduated from the city's schools, and some left
    * (src/trainedPeople.ts) */
-  | ({ type: "trained" } & TrainedYear);
+  | ({ type: "trained" } & TrainedYear)
+  /** A construction site's months are over: its building works from now on (src/construction.ts) */
+  | ({ type: "siteDone" } & SiteDone);
 type Listener<T extends CoreEvent["type"]> = (event: Extract<CoreEvent, { type: T }>) => void;
 
 /** A command the city accepted, and the step it came at: replaying them makes the same city */
@@ -149,6 +152,10 @@ export class CityCore {
     this.addSystem({ name: "trained", monthly: core => {
       const year = trainMonth(core.map, trainingCity(core.simulation), Math.floor(core.simulation._cityTime / 4));
       if (year) core.emit({ type: "trained", ...year });
+    } });
+    // The big buildings whose months as a construction site are over (docs/GAME_DESIGN.md 6.1)
+    this.addSystem({ name: "construction", monthly: core => {
+      for (const done of sitesMonth(core.map, core.simulation._cityTime)) core.emit({ type: "siteDone", ...done });
     } });
     this.simulation.addEventListener(Messages.DATE_UPDATED, (date: { month: number; year: number }) => {
       for (const system of this.systems) system.monthly?.(this);
