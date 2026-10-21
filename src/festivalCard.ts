@@ -80,7 +80,9 @@ export class FestivalCard {
       // A new question takes the place of the festivals already held
       for (const [id, entry] of [...this.asked]) if (entry.held) this.asked.delete(id);
       this.asked.set(event.id, { costs: event.costs, held: null });
-      this.open();
+      // It no longer opens by itself (owner, 21 Oct 2026: "นี่บ่อยเกิน หรือไม่ต้องแสดงก็ได้"): an unanswered festival is held
+      // modestly, and the card waits to be opened from a chip of its own (ไม้ไผ่26)
+      if (this.isOpen) this.render();
     });
     source.on("festival", (event) => {
       if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice) return;
