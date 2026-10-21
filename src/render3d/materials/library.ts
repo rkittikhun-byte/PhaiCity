@@ -413,6 +413,18 @@ function configureCityLOD(material: Material, coarse: boolean): void {
     // Rain wets the ground, roofs and leaves, not the water
     if (material.userData.materialKey !== 'water_river') addCityWetness(shader);
     if (sway) shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>${CITY_SWAY}`);
+    // Leaves keep their cover as they get smaller on the screen: a leaf card's alpha, averaged down the mip chain, falls
+    // under the alpha test and the tree thins to its dark twigs and its fruit (owner, 21 Oct 2026: trees seen as black
+    // specks with red and yellow dots), so it is raised by the mip level the leaves are drawn at
+    if (sway && material.userData.materialKey === 'foliage_tropical') shader.fragmentShader = shader.fragmentShader
+      .replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
+        #ifdef USE_ALPHAMAP
+          {
+            vec2 leafTexel = vAlphaMapUv * vec2(textureSize(alphaMap, 0));
+            float leafMip = 0.5 * log2(max(max(dot(dFdx(leafTexel), dFdx(leafTexel)), dot(dFdy(leafTexel), dFdy(leafTexel))), 1.0));
+            diffuseColor.a *= 1.0 + leafMip * 0.3;
+          }
+        #endif`);
     shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround; uniform vec3 cityWind; uniform float cityTime;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;
         #ifdef USE_INSTANCING
@@ -487,7 +499,7 @@ function configureCityLOD(material: Material, coarse: boolean): void {
         if (${coarse ? 'threshold < cityDetail' : 'threshold >= cityDetail'}) discard;
         }`);
   };
-  material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${sway}:${program}`;
+  material.customProgramCacheKey = () => `phaicity-city-lod:${coarse}:${sway}:${material.userData.materialKey === 'foliage_tropical' ? 'leaves:' : ''}${program}`;
   material.userData.cityLODWrapper=material.onBeforeCompile;material.userData.cityLODCoarse=coarse;
 }
 /** Untextured, vertex-coloured surface for merged provincial terrain and compacted earth. */

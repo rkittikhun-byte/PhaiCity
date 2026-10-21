@@ -8,13 +8,14 @@
 // - strings of paper lanterns, or of small flags, hung between bamboo poles along the streets round the ruler's house
 //   (the town without one) and the town's built-up blocks, and across them now and then, lit at night (owner, 21 Oct
 //   2026: single flags along every road near the house read as litter, "มันมีอะไรมารกหน้าจอมากๆ"); none along open road
-//   with nothing built beside it, and none for a village's own festival (src/festivals.ts festivalsShown);
+//   with nothing built beside it, and none for a festival the people hold quietly (src/festivals.ts festivalsShown);
 // - at Loy Krathong, krathong with their candles drifting along the canals and rivers near the town;
 // - at Yi Peng, sky lanterns rising into the night sky and drifting with the wind;
 // - at Bun Bang Fai, rockets going up from beside the town on trails of smoke.
-// A grand festival has more of each. A month passes in a few seconds, so each festival's look stays until the first night
-// after it began is over (at most a few minutes), and then fades; the bunting along the roads is the newest festival's. No temple or palace ornaments,
-// no images: lanterns, flags, krathong and rockets only.
+// A grand festival has more of each. Each festival's look shows only while it is held, its month, and fades in a few
+// seconds after (owner, 21 Oct 2026, of Bun Bang Fai's smoke still hanging over a town in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร";
+// docs/design/LOOK_BOOK.md); the bunting along the roads is the newest festival's. No temple or palace ornaments, no
+// images: lanterns, flags, krathong and rockets only.
 // Light on the graphics card: every kind of thing is one instanced mesh (nine draws in all), placed again only when
 // the festivals or the roads change; only the moving things (krathong, sky lanterns, smoke) are moved each frame, a few
 // hundred at most. Colours from src/theme/tokens.ts SCENE.festival.
@@ -31,7 +32,7 @@ import { FIELD_BASE, FIELD_LAST } from '../../tileValues.js';
 export interface FestivalViewMap {
   readonly width: number;
   readonly height: number;
-  readonly festivals?: { readonly held?: ReadonlyArray<{ readonly id: string; readonly scale: string; readonly village?: boolean }> } | null;
+  readonly festivals?: { readonly held?: ReadonlyArray<{ readonly id: string; readonly scale: string; readonly quiet?: boolean }> } | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number } | null;
   readonly town?: { readonly x: number; readonly y: number } | null;
   /** Each tile's canal level, 0 where none was dug (src/canals.ts): a krathong keeps to a canal's middle */
@@ -81,8 +82,6 @@ export const MAX_PENNANTS = 2400, MAX_LANTERNS = 900, MAX_CORDS = 2 * 2 * MAX_PO
  * the town's nearest lake, river or canal; Mueang Khon Kaen's is about 800 m off) */
 export const VENUE_TILES = 4, BUNTING_RADIUS = 400;
 const KRATHONG_METRES = 1500;
-/** A town stays dressed at most this long (seconds of the view's clock) after a festival began; it fades in and out */
-export const MAX_SHOW_SECONDS = 240;
 const FADE_IN = 2, FADE_OUT = 3;
 /** The roads are looked over again this often while the town is dressed, for new ones */
 const REPLACE_SECONDS = 15;
@@ -94,7 +93,7 @@ const hash = (n: number): number => {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
 
-interface Show { id: string; scale: string; since: number; sawNight: boolean; leaving: number | null }
+interface Show { id: string; scale: string; since: number; leaving: number | null }
 interface Krathong { tile: number; to: number; x: number; z: number; tx: number; tz: number; steps: number; spread: number }
 
 const tMatrix = new Matrix4(), tPos = new Vector3(), tScale = new Vector3(), tQuat = new Quaternion(), tColour = new Color();
@@ -197,7 +196,7 @@ export class CityFestivals {
    * game is paused); wind, the way the sky lanterns drift (src/wind.ts).
    */
   update(lines: ReadonlyArray<FestivalLine>, night: number, seconds: number, wind: { x: number; y: number } = { x: 1, y: 0 }): void {
-    this.follow(night, seconds);
+    this.follow(seconds);
     if (!this.shows.size) {
       if (this.root.visible) this.clear();
       return;
@@ -217,21 +216,20 @@ export class CityFestivals {
     this.drawRockets(look.rockets, look.strength.rockets, seconds);
   }
 
-  /** Which festivals are shown: those held, and those held lately until the first night after they began is over */
-  private follow(night: number, seconds: number): void {
-    const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.village && FESTIVAL_TOUCHES[h.id]);
+  /** Which festivals are shown: those held, and for FADE_OUT seconds those that were */
+  private follow(seconds: number): void {
+    const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.quiet && FESTIVAL_TOUCHES[h.id]);
     for (const h of held) {
       const show = this.shows.get(h.id);
-      if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, sawNight: night > 0.5, leaving: null });
+      if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, leaving: null });
       else if (show.leaving === null) show.scale = h.scale;
     }
     for (const show of [...this.shows.values()]) {
-      if (night > 0.5) show.sawNight = true;
-      const age = seconds - show.since, stillHeld = held.some((h) => h.id === show.id);
-      if (show.leaving === null && !stillHeld && ((show.sawNight && night < 0.3) || age >= MAX_SHOW_SECONDS)) show.leaving = seconds;
+      const stillHeld = held.some((h) => h.id === show.id);
+      if (show.leaving === null && !stillHeld) show.leaving = seconds;
       if (show.leaving !== null && seconds - show.leaving >= FADE_OUT) this.shows.delete(show.id);
       // A festival held again (next year) before its look faded starts afresh
-      if (show.leaving !== null && stillHeld) this.shows.set(show.id, { ...show, since: seconds, leaving: null, sawNight: night > 0.5 });
+      if (show.leaving !== null && stillHeld) this.shows.set(show.id, { ...show, since: seconds, leaving: null });
     }
   }
 
@@ -473,11 +471,12 @@ export class CityFestivals {
   private drawRockets(wanted: number, strength: number, seconds: number): void {
     const venue = this.venue, s = this.size;
     if (!wanted || !venue) { this.rocket.count = 0; this.smoke.count = 0; return; }
-    const cycle = 11, climb = 6, height = 220 * s;
+    // ... over the town, not across the sky: they go up beside it and come down near it
+    const cycle = 11, climb = 6, height = 90 * s;
     let puffs = 0, heads = 0;
     for (let r = 0; r < wanted; r++) {
       const t = (seconds + r * cycle / wanted) % cycle, round = Math.floor((seconds + r * cycle / wanted) / cycle);
-      const a = hash(round * 7 + r) * Math.PI * 2, from = 60 * s, lean = 0.25 + hash(round * 13 + r) * 0.2;
+      const a = hash(round * 7 + r) * Math.PI * 2, from = 30 * s, lean = 0.1 + hash(round * 13 + r) * 0.1;
       const x0 = venue.x + Math.cos(a) * from, z0 = venue.z + Math.sin(a) * from, y0 = this.ground.sample(x0, z0);
       const at = (u: number): [number, number, number] => {
         const k = Math.min(1, Math.max(0, u));

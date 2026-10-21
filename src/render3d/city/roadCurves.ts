@@ -15,7 +15,7 @@ import { roadReach, smoothLine, type Point } from '../../roadGeometry.js';
 import { graphLines, type GraphLines } from '../../roads/graphLines.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import { CITY_TILE_M } from '../../units.js';
-import { isRail, isRoad, ROAD_GAP, type TileSnapshot } from './tileModels.js';
+import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
@@ -589,10 +589,9 @@ export class RoadCurves {
   }
 
   /**
-   * The lot of each building stood against its road (owner, 18 Oct 2026: a road drawn past the ruler's house was refused
-   * on ground that looked open, as the house is drawn smaller than its 3 × 3 tiles): its whole tiles, lawn under a
-   * building of the ruler's, a yard under a works, so what it takes up is what the map shows. Zones' plots show their
-   * own cells.
+   * The lot of each building stood against its road: lawn under a building of the ruler's, a yard under a works, as big
+   * as the building drawn on it (owner, 21 Oct 2026), and the place every tile it takes shows as taken (owner, 18 Oct
+   * 2026: a road drawn past the ruler's house was refused on ground that looked open). Zones' plots show their own cells.
    */
   /** The corners of each lot (world units, round it), by every tile of the building it lies under */
   private lotRects = new Map<number, Point[]>();
@@ -609,19 +608,13 @@ export class RoadCurves {
       const size = Math.max(p.footprint[0], p.footprint[1]);
       if (size < 3) continue;
       const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
-      // As big as its tiles, but turned with it to face its road (owner, 18 Oct 2026: "ที่ว่าการอำเภอ ทำมันวาดเขียวๆ ไม่ขนาน
-      // กับถนน"): from the road's edge in front of it (tileModels.ts toRoadEdge: ROAD_GAP before its front) back as deep as
-      // wide ...
-      const ground = p.ground(), side = size * 10, sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
-      const front = (p.front ?? ground.depth / 2) + ROAD_GAP, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
-      // ... and reaching over every tile the building takes, which stand square to the map whatever way it is turned, so
-      // none lies bare beside it (owner, 18 Oct 2026: "สี่เหลี่ยมสีแดงๆ ... ไม่ติดกับสิ่งก่อสร้างอะไรเลย")
+      // As big as what is built on it and no more (owner, 21 Oct 2026: "พื้นที่รอบข้าง object มันเกินที่ๆ กำหนดหรือป่าว ต้องย่อให้
+      // เท่าๆ กับที่สร้างได้พอดี"; it once reached over every tile the building takes, squared to the map, and from there to
+      // the road): its drawn front, sides and back (tileModels.ts toRoadEdge, Placement.front), turned with it
+      const ground = p.ground(), sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
+      const front = p.front ?? ground.depth / 2, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
       const x0 = i % width - 1, y0 = Math.floor(i / width) - 1;
-      let uMin = -side / 2, uMax = side / 2, vMin = front - side, vMax = front;
-      for (const [cx, cz] of [[x0, y0], [x0 + size, y0], [x0 + size, y0 + size], [x0, y0 + size]]) {
-        const dx = cx * 10 - ground.x, dz = cz * 10 - ground.z, u = cos * dx - sin * dz, v = sin * dx + cos * dz;
-        uMin = Math.min(uMin, u); uMax = Math.max(uMax, u); vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
-      }
+      const uMin = -(p.side ?? front), uMax = p.side ?? front, vMin = -(p.back ?? front), vMax = front;
       const rect = [at(uMin, vMin), at(uMax, vMin), at(uMax, vMax), at(uMin, vMax)];
       for (let ty = 0; ty < size; ty++) for (let tx = 0; tx < size; tx++) this.lotRects.set((y0 + ty) * width + x0 + tx, rect);
       // A quad about every half tile, so the lot lies on hills

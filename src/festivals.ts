@@ -9,8 +9,10 @@
 // three layers as every other rule (src/provinceRules.ts). What each festival is like (its draw, price, cheer, fire
 // risk and waste) is FESTIVAL_SPECS below, and the data may change any of it for a region or a province.
 //
-// A village under FESTIVAL_TOWN_PEOPLE people holds its festivals itself, free and unasked. In a town, a month before a
-// festival the news asks the ruler how to hold it: modestly, grandly or not at all. The answer is a
+// Most festivals pass quietly: the temples and the people hold them themselves, free, unasked and unseen, as a village
+// under FESTIVAL_TOWN_PEOPLE people always does. A town makes an event of two or three in an era (FESTIVAL_EVENTS,
+// festivalEvents, owner 21 Oct 2026: "เอาในแต่ละยุค มี 2-3 ครั้งกำลังดี"), and a month before one the news asks the
+// ruler how to hold it: modestly, grandly or not at all. The answer is a
 // command ({ type: "festival", id, scale }, src/cityCommands.ts), kept with the city (gameMap.festivals, saved as
 // festivals) and standing for the years after until the ruler changes it; a festival nobody answered for is held
 // modestly. At the month's turn the core's "festivals" system (src/core/cityCore.ts) holds it: it pays for it (counted
@@ -23,13 +25,13 @@
 // commands make the same city.
 
 import {
-  DEFAULT_RULES, type Festival, FESTIVAL_IDS, type FestivalEntry, type FestivalId, type FestivalSpec, isFestivalId,
+  DEFAULT_RULES, type Festival, FESTIVAL_EVENTS, FESTIVAL_IDS, type FestivalEntry, type FestivalId, type FestivalSpec, isFestivalId,
   festivalCalendar,
 } from "./provinceRules";
 import { Random } from "./random";
 import { houseStanding, type HouseMap } from "./rulerHouse";
 
-export { FESTIVAL_IDS, FESTIVAL_SPECS, festivalCalendar, isFestivalId } from "./provinceRules";
+export { FESTIVAL_EVENTS, FESTIVAL_IDS, FESTIVAL_SPECS, festivalCalendar, isFestivalId } from "./provinceRules";
 export type { Festival, FestivalEntry, FestivalId, FestivalSpec } from "./provinceRules";
 
 /** How the ruler holds a festival */
@@ -99,9 +101,10 @@ export interface HeldFestival {
   cost: number;
   /** The treasury could not pay, so the temples and the people held it themselves, modestly */
   byPeople?: true;
-  /** Held by a village under FESTIVAL_TOWN_PEOPLE people itself: no cost, no question, no news and no dressing in the
-   * 3D view, as the people hold their own */
-  village?: true;
+  /** Held quietly by the temples and the people themselves, as a village under FESTIVAL_TOWN_PEOPLE people always does
+   * and a town does those it makes no event of (festivalEvents): no cost, no question, no news and no dressing in the 3D
+   * view; its visitors come as they would to one held modestly, and the people's cheer is a modest one's */
+  quiet?: true;
 }
 
 /** The festivals as the city keeps them (gameMap.festivals, saved as festivals) */
@@ -118,10 +121,12 @@ export interface FestivalState {
   venue: { x: number; y: number } | null;
   /** The month (cityTime / 4) last worked out, so a month is never held twice */
   at: number;
+  /** The month (cityTime / 4) from which the town may make an event of a festival again (festivalEvents); -1, at once */
+  nextEvent: number;
 }
 
 export function newFestivalState(): FestivalState {
-  return { choices: {}, held: [], cheer: 0, glow: 0, venue: null, at: -1 };
+  return { choices: {}, held: [], cheer: 0, glow: 0, venue: null, at: -1, nextEvent: -1 };
 }
 
 const finite = (value: unknown, low: number, high: number, fallback = 0): number =>
@@ -142,7 +147,7 @@ export function readFestivals(saved: unknown): FestivalState {
       const held = h as Partial<HeldFestival> | null;
       if (!held || !isFestivalId(held.id) || !isFestivalScale(held.scale)) continue;
       state.held.push({ id: held.id, scale: held.scale, cost: finite(held.cost, 0, 1e9), ...(held.byPeople ? { byPeople: true as const } : {}),
-        ...(held.village ? { village: true as const } : {}) });
+        ...(held.quiet || (held as { village?: unknown }).village ? { quiet: true as const } : {}) });
     }
   }
   state.cheer = finite(s.cheer, -MAX_CHEER, MAX_CHEER);
@@ -150,6 +155,7 @@ export function readFestivals(saved: unknown): FestivalState {
   const venue = s.venue as { x?: unknown; y?: unknown } | null | undefined;
   state.venue = venue && Number.isInteger(venue.x) && Number.isInteger(venue.y) ? { x: venue.x as number, y: venue.y as number } : null;
   state.at = Number.isInteger(s.at) ? s.at as number : -1;
+  state.nextEvent = Number.isInteger(s.nextEvent) ? s.nextEvent as number : -1;
   return state;
 }
 
@@ -166,6 +172,7 @@ export function writeFestivals(state: FestivalState | null | undefined): Record<
     glow: state.glow,
     venue: state.venue ? { ...state.venue } : null,
     at: state.at,
+    nextEvent: state.nextEvent,
   };
 }
 
@@ -224,9 +231,9 @@ export interface FestivalMap extends HouseMap {
 
 /** What the month's festivals tell the city's listeners (src/core/cityCore.ts CoreEvent) */
 export type FestivalNews =
-  /** A festival held this month: downgraded, a grand one the treasury could not pay held modestly; village, one a
-   * village under FESTIVAL_TOWN_PEOPLE held itself, which nobody needs telling about */
-  | { type: "festival"; id: FestivalId; scale: FestivalScale; cost: number; byPeople: boolean; downgraded: boolean; village?: true }
+  /** A festival held this month: downgraded, a grand one the treasury could not pay held modestly; quiet, one the people
+   * held themselves (HeldFestival.quiet), which nobody needs telling about */
+  | { type: "festival"; id: FestivalId; scale: FestivalScale; cost: number; byPeople: boolean; downgraded: boolean; quiet?: true }
   /** A festival next month: the ruler is asked how to hold it, at these prices [modest, grand] */
   | { type: "festivalAhead"; id: FestivalId; scale: FestivalScale; costs: [number, number] }
   /** Lanterns or rockets came down burning at (x, y) */
@@ -278,13 +285,15 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
   if (!calendar.length) return [];
 
   const month = sim.getDate().month, people = peopleNow(sim), venue = venueOf(map), news: FestivalNews[] = [];
-  const village = people < FESTIVAL_TOWN_PEOPLE;
+  const town = people >= FESTIVAL_TOWN_PEOPLE;
+  const events = town ? festivalEvents(state, festivalsIn(calendar, month), monthIndex, map.town ?? null) : null;
+  if (events) state.nextEvent = events.nextEvent;
   for (const festival of festivalsIn(calendar, month)) {
-    if (village) {
-      // The village's own: held modestly by its temple and its people, cheering them, and nothing more to it
+    if (!events?.ids.has(festival.id)) {
+      // The people's own: held modestly by the temples and the people, cheering them, and nothing more to it
       state.cheer = clamp(state.cheer + festival.cheer[pairIndex("modest") + 1], -MAX_CHEER, MAX_CHEER);
-      state.held.push({ id: festival.id, scale: "modest", cost: 0, byPeople: true, village: true });
-      news.push({ type: "festival", id: festival.id, scale: "modest", cost: 0, byPeople: true, downgraded: false, village: true });
+      state.held.push({ id: festival.id, scale: "modest", cost: 0, byPeople: true, quiet: true });
+      news.push({ type: "festival", id: festival.id, scale: "modest", cost: 0, byPeople: true, downgraded: false, quiet: true });
       continue;
     }
     let scale = scaleOf(state, festival), cost = festivalCost(festival, scale, people), downgraded = false, byPeople = false;
@@ -316,13 +325,51 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
       if (at) news.push({ type: "festivalFire", id: festival.id, x: at.x, y: at.y });
     }
   }
-  // Next month's festivals: the ruler of a town is asked a month before
-  if (village) return news;
+  // Next month's events: the ruler of a town is asked a month before
+  if (!town) return news;
+  const ahead = festivalEvents(state, festivalsIn(calendar, month + 1), monthIndex + 1, map.town ?? null);
   for (const festival of festivalsIn(calendar, month + 1)) {
-    if (!festival.choice) continue;
+    if (!festival.choice || !ahead.ids.has(festival.id)) continue;
     news.push({ type: "festivalAhead", id: festival.id, scale: scaleOf(state, festival), costs: festivalPrices(festival, sim) });
   }
   return news;
+}
+
+/** A number in [0, 1) from a few whole numbers: the town's dice for its festivals, the same for the same town and month
+ * every time, never Math.random nor the city's Random (which would change everything else that draws from it) */
+function dice(...parts: number[]): number {
+  let h = 0x9e3779b9;
+  for (const n of parts) {
+    h = Math.imul(h ^ (n | 0), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    h ^= h >>> 16;
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * Which of a month's festivals a town makes an event of (FESTIVAL_EVENTS; owner, 21 Oct 2026: two or three in an era):
+ * from state.nextEvent on, the festivals of the first month whose `event` the town's dice for that month allow (the big
+ * ones nearly always, New Year never), and the month from which the next may come, a gap of about an era's months over perEra later,
+ * give or take its spread. The same for the same town, state and month, so the ruler is asked a month before about the
+ * very festival that will be the event.
+ */
+export function festivalEvents(state: Pick<FestivalState, "nextEvent">, festivals: readonly Festival[], monthIndex: number,
+                               town: { x: number; y: number } | null): { ids: Set<FestivalId>; nextEvent: number } {
+  const ids = new Set<FestivalId>();
+  let nextEvent = state.nextEvent;
+  if (monthIndex < nextEvent) return { ids, nextEvent };
+  const tx = town?.x ?? 0, ty = town?.y ?? 0;
+  for (const festival of festivals) {
+    if (!festival.choice || dice(tx, ty, monthIndex, FESTIVAL_IDS.indexOf(festival.id)) >= festival.event) continue;
+    ids.add(festival.id);
+  }
+  // (two in one month, Loy Krathong and Yi Peng in the North, are one occasion)
+  if (ids.size) {
+    const gap = FESTIVAL_EVENTS.eraMonths / FESTIVAL_EVENTS.perEra, spread = gap * FESTIVAL_EVENTS.spread;
+    nextEvent = monthIndex + Math.round(gap - spread + dice(ty, tx, monthIndex, 7) * 2 * spread);
+  }
+  return { ids, nextEvent };
 }
 
 // --- What the simulation reads this month --------------------------------------------------------------------------
@@ -394,7 +441,7 @@ export function festivalCheer(map: { festivals?: FestivalState | null }): number
   return map.festivals?.cheer ?? 0;
 }
 
-/** The festivals being held this month, as the 3D view draws them: those the town holds, not a village's own */
+/** The festivals being held this month, as the 3D view draws them: the town's events, not those held quietly */
 export function festivalsShown(map: { festivals?: FestivalState | null }): HeldFestival[] {
-  return (map.festivals?.held ?? []).filter((h) => h.scale !== "none" && !h.village);
+  return (map.festivals?.held ?? []).filter((h) => h.scale !== "none" && !h.quiet);
 }

@@ -139,7 +139,7 @@ describe("the festival card", () => {
 
   test("a village's own festival is told nothing about, and shows no chip", () => {
     const { element, chip, send, news } = setUp();
-    send(held("songkran", { cost: 0, byPeople: true, village: true }));
+    send(held("songkran", { cost: 0, byPeople: true, quiet: true }));
     expect(news).toEqual([]);
     expect(chip.hidden).toBe(true);
     expect(element.hidden).toBe(true);

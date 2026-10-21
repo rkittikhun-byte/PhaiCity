@@ -20,6 +20,11 @@ import { TerrainDetail } from './terrain-detail.js';
 import { besideCanal } from './canals.js';
 import { LOD_HYSTERESIS, lodDistance } from './lod.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
+/** How much lighter or darker the open land of a real-scale city map is at (x, z) world units: a few overlapping waves
+ * some 50 to 120 m long, so the ground varies as fields do and no tile's square shows (owner, 21 Oct 2026) */
+export function smoothPatch(x:number,z:number):number {
+  return (Math.sin(x*.061+z*.023)+Math.sin(z*.052-x*.031+1.7)+Math.sin((x+z)*.037+4.1))*.008;
+}
 /** The fewest tiles of the far ground a frame fills in, however slow the frame (ProvinceSurface.update) */
 const MIN_FILL=32;
 type RoadPoint=readonly [number,number,number];
@@ -199,7 +204,10 @@ export class ProvinceSurface {
     // ... and under a power line its neighbours' too, as its poles stand on the land (tileModels.ts power 'open')
     if(!cover&&this.snapshot.curves&&(isCurved(v)||isPower(v)))cover=this.neighbourCover(x,y);
     out.setHex(wet?0x487c89:isWoods(v)?(city?0x4f6d3b:0x88966b):cover?COVER_COLOURS[cover]??this.landColour():this.landColour());
-    if(!wet){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(city?(patch%7-3)*.006:0,0,(patch%9-4)*.006);}
+    // ... a little lighter or darker in 3-tile patches on a province map; on a real-scale city map the patches would be a
+    // 48 m checkerboard (owner, 21 Oct 2026: "ทำไมยังเห็นรอยเป็นช่องๆ อยู่"), so there the ground varies smoothly instead
+    // (ground, smoothPatch)
+    if(!wet&&!city){const patch=tileSeed(Math.floor(x/3),Math.floor(y/3));out.offsetHSL(0,0,(patch%9-4)*.006);}
     return out;
   }
   /**
@@ -211,15 +219,26 @@ export class ProvinceSurface {
     const {width:w,height:h,values}=this.snapshot;let r=0,g=0,b=0,n=0,outside=0,tiles=0;
     for(let y=cy-1;y<=cy;y++)for(let x=cx-1;x<=cx;x++){
       if(x<0||y<0||x>=w||y>=h)continue;tiles++;if(!this.terrain.inside(x,y))outside++;
-      if(isWaterNeighbor(values[y*w+x])!==wet)continue;this.tileShade(x,y,scratch);r+=scratch.r;g+=scratch.g;b+=scratch.b;n++;
     }
-    if(n)out.setRGB(r/n,g/n,b/n);return tiles?outside/tiles:0;
+    // ... on a real-scale city map the open land's colour blended over the 4 × 4 tiles round the corner and varied in soft
+    // patches (smoothPatch), so a field's or a wood's edge along a slanted road fades over a tile or two instead of
+    // stepping tile by tile, and no square shows (owner, 21 Oct 2026: "ทำไมยังเห็นรอยเป็นช่องๆ อยู่")
+    const reach=this.snapshot.paintedZones&&!wet?2:1;
+    for(let y=cy-reach;y<cy+reach;y++)for(let x=cx-reach;x<cx+reach;x++){
+      if(x<0||y<0||x>=w||y>=h||isWaterNeighbor(values[y*w+x])!==wet)continue;
+      this.tileShade(x,y,scratch);r+=scratch.r;g+=scratch.g;b+=scratch.b;n++;
+    }
+    if(n)out.setRGB(r/n,g/n,b/n);
+    if(reach>1)out.offsetHSL(0,0,smoothPatch(cx*10,cy*10));
+    return tiles?outside/tiles:0;
   }
   /** A tile's ground: four triangles round its centre, the centre in the tile's own colour, the corners blended. */
   private ground(c:SurfaceChunk,x:number,y:number,wet:boolean,height:(x:number,z:number)=>number):void {
     const own=this.tileShade(x,y,new Color()),ownOutside=this.terrain.inside(x,y)?0:1,cx=(x+.5)*10,cz=(y+.5)*10;
     const corners=[[x,y],[x+1,y],[x+1,y+1],[x,y+1]].map(([px,py])=>{
       const shade=own.clone(),outside=this.corner(px,py,wet,shade);return{x:px*10,z:py*10,shade,outside};});
+    // ... on a city map its middle the corners' blend too, as the near ground's (terrain-detail.ts) is, so no tile shows
+    if(this.snapshot.paintedZones&&!wet)own.setRGB(0,0,0).add(corners[0].shade).add(corners[1].shade).add(corners[2].shade).add(corners[3].shade).multiplyScalar(.25);
     for(let k=0;k<4;k++){const a=corners[k],b=corners[(k+1)%4];
       for(const p of[{x:cx,z:cz,shade:own,outside:ownOutside},b,a]){
         c.positions.push(p.x,height(p.x,p.z),p.z);c.colors.push(p.shade.r,p.shade.g,p.shade.b);c.outside.push(p.outside);c.fade.push(0);c.ground.push(1);}}

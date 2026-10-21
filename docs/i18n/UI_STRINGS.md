@@ -318,6 +318,8 @@
 | `draw.mode.free.hint` | `src/drawModes.ts` | — | `Drag: it follows the mouse` | `ลากเมาส์ วางตามทางที่ลาก` |  |
 | `draw.mode.grid` | `src/drawModes.ts` | — | `Grid` | `ตาราง` |  |
 | `draw.mode.grid.hint` | `src/drawModes.ts` | — | `Drag a rectangle: roads round it and every 7 tiles across it` | `ลากเป็นสี่เหลี่ยม ได้ถนนรอบกรอบและทุก 7 ช่องในกรอบ` |  |
+| `draw.mode.strip` | `src/drawModes.ts` | — | `Along the road` | `ตามถนน` | โหมดแรกของแปรงโซน ระบายเป็นแถบติดถนน (21 ต.ค. 2026) |
+| `draw.mode.strip.hint` | `src/drawModes.ts` | — | `Drag along a road to paint every cell against it, 6 cells (24 m) at a time, from the road to the back of the plot` | `ลากไปตามถนน ระบายทุกช่องที่ติดถนน ครั้งละ 6 ช่อง (24 เมตร) ตั้งแต่ขอบถนนถึงท้ายแปลง` |  |
 | `draw.mode.brush` | `src/drawModes.ts` | — | `Brush` | `ระบาย` |  |
 | `draw.mode.brush.hint` | `src/drawModes.ts` | — | `Drag over the cells to paint` | `ลากผ่านช่องที่จะระบาย` |  |
 | `draw.mode.circle` | `src/drawModes.ts` | — | `Round brush` | `แปรงกลม` | ระบายทุกช่องในรัศมี 8 ม. |

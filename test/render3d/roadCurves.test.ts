@@ -9,7 +9,7 @@ import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { RoadCurves, type RoadWorkerLike } from '../../src/render3d/city/roadCurves.js';
 import { RoadWorkerState, type RoadRequest } from '../../src/render3d/city/roadBuild.js';
-import { TileSnapshot, ROAD_GAP } from '../../src/render3d/city/tileModels.js';
+import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, networkOf, roadReach } from '../../src/roadGeometry.js';
 import { lateriteColour } from '../../src/render3d/models/road/laterite.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
@@ -30,7 +30,7 @@ function slanted(): { snapshot: TileSnapshot; tiles: Array<[number, number]> } {
 }
 
 describe('road curves', () => {
-  test('a building stood against its road, drawn smaller than its tiles, lies on a lot as big as them, turned with it', () => {
+  test('a building stood against its road lies on a lot as big as it is drawn and no bigger, turned with it', () => {
     // A road along row 20, and a civic 3 x 3 (the ruler's house's tiles 414-422) on rows 16-18 above it
     const W = 40, snapshot = new TileSnapshot(W, 40);
     for (let x = 5; x < 36; x++) snapshot.values[20 * W + x] = 66;
@@ -44,20 +44,18 @@ describe('road curves', () => {
     expect(lot).toBeDefined();
     lot!.geometry.computeBoundingBox();
     const box = lot!.geometry.boundingBox!;
-    // As big as its tiles, three across, turned with it to face the road (rotation 0 here, the road to the south): from
-    // the road's edge, ROAD_GAP in front of the building's front (tileModels.ts toRoadEdge), three tiles back ...
-    const ground = placed.ground(), front = ground.z + placed.front! + ROAD_GAP;
+    // As big as the building drawn on it and no more (owner, 21 Oct 2026: "ต้องย่อให้เท่าๆ กับที่สร้างได้พอดี"), turned with it
+    // to face the road (rotation 0 here, the road to the south): from its front to its back, its sides
+    const ground = placed.ground(), front = placed.front!;
     expect(ground.rotation).toBeCloseTo(0);
-    expect(box.max.z).toBeCloseTo(front, 4);
+    expect(box.max.z).toBeCloseTo(ground.z + front, 4);
+    expect(box.min.z).toBeCloseTo(ground.z - front, 4);
+    expect(box.min.x).toBeCloseTo(ground.x - front, 4);
+    expect(box.max.x).toBeCloseTo(ground.x + front, 4);
     expect(box.max.z).toBeLessThan(205 - 3);
-    expect(box.min.x).toBeLessThanOrEqual(ground.x - 15 + 1e-4);
-    expect(box.max.x).toBeGreaterThanOrEqual(ground.x + 15 - 1e-4);
-    // ... and over every tile the building takes, whole (x 190-220, z 160-190), which the tiles' squares to the map reach
-    // out of a lot that is turned: none lies bare beside it, and the overlay shows the whole lot where one is taken
-    expect(box.min.x).toBeLessThanOrEqual(190 + 1e-4);
-    expect(box.max.x).toBeGreaterThanOrEqual(220 - 1e-4);
-    expect(box.min.z).toBeLessThanOrEqual(160 + 1e-4);
-    expect(box.max.z).toBeGreaterThanOrEqual(190 - 1e-4);
+    // ... never bigger than the tiles it takes (x 190-220, z 160-190), which all show as taken
+    expect(box.max.x - box.min.x).toBeLessThanOrEqual(30);
+    expect(box.max.z - box.min.z).toBeLessThanOrEqual(30);
     for (let k = 0; k < 9; k++) {
       const rect = curves.lotAt((16 + Math.floor(k / 3)) * W + 19 + k % 3);
       expect(rect).not.toBeNull();

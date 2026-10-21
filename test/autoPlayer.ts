@@ -163,9 +163,10 @@ describe("the auto player", () => {
     core.simulation.budget.setFunds(265);
     const year = player.playYear();
     const answers = core.log.filter((logged) => logged.command.type === "festival").map((logged) => logged.command);
-    expect(answers).toEqual([{ type: "festival", id: "songkran", scale: "none" }, { type: "festival", id: "loy_krathong", scale: "none" }]);
+    // (one event a season: Songkran's, src/festivals.ts festivalEvents; the rest pass quietly, unasked)
+    expect(answers).toEqual([{ type: "festival", id: "songkran", scale: "none" }]);
     expect(player.log.filter((line) => line.includes("festival songkran none"))).toHaveLength(1);
-    expect(core.map.festivals?.choices).toEqual({ songkran: "none", loy_krathong: "none" });
+    expect(core.map.festivals?.choices).toEqual({ songkran: "none" });
     expect(year.accounts.costs.festivals).toBe(0);
   });
 
