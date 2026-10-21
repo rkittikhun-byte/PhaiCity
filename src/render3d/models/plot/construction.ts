@@ -36,8 +36,8 @@ export function buildConstructionStage(
   const storey = 3.0;
 
   b.feature('site-ground-and-foundation', () => {
-    // Compacted laterite earth pad (inside the building margin, MODEL_SPEC 9.3) and concrete foundation slab
-    b.tone(0x9e7352, W + 0.2, 0.08, span - 1.1, 0, 0.04, 0, b.stone);
+    // Compacted laterite earth pad and concrete foundation slab
+    b.tone(0x9e7352, W + 0.3, 0.08, span - 1.1, 0, 0.04, 0, b.stone);
     b.body(0xa9a59c, W - 0.6, 0.45, D - 0.6, 0, 0, zc, 0.08);
     // Blue/green corrugated sheet-metal construction fence along the street front (+Z), leaving a truck gate
     const gateW = footprint[0] > 1 ? 3.8 : 2.6;
