@@ -54,8 +54,11 @@ export const GRAND_HOMECOMING = 1.3;
 export const GRAND_WATER = 1.5;
 /** Traffic a festival's month adds on the roads (src/traffic.js), held modestly and grandly */
 export const FESTIVAL_TRAFFIC: readonly [number, number] = [1.05, 1.15];
-/** The costs are for a town of this many people; a town of twice as many pays twice as much again */
+/** The costs are for a town of this many people; a town pays in step with its people, as its taxes come in (a village of
+ * 2,000 a tenth, a city of 40,000 twice), but never less than COST_LEAST of the price (21 Oct 2026, docs/GAME_DESIGN.md
+ * 6.5: a village of 1,000 paid ฿780 a year for its four festivals out of ฿200 of taxes) */
 export const COST_PEOPLE = 20000;
+export const COST_LEAST = 0.1;
 /** People for each of the census's population units (src/valves.js totalPop; src/services.ts peopleOf) */
 const PEOPLE_PER_UNIT = 160;
 /** The cheer and the land value fade each month to this share of what they were */
@@ -184,7 +187,7 @@ export function scaleOf(state: FestivalState | null | undefined, festival: Festi
 export function festivalCost(festival: FestivalSpec, scale: FestivalScale, people: number): number {
   const base = fromPair(festival.cost, scale);
   if (base <= 0) return 0;
-  return Math.round(base * (1 + Math.max(0, people) / COST_PEOPLE) / 10) * 10;
+  return Math.round(base * Math.max(COST_LEAST, Math.max(0, people) / COST_PEOPLE) / 10) * 10;
 }
 
 // --- The month ----------------------------------------------------------------------------------------------------

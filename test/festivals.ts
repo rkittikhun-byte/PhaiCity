@@ -13,7 +13,7 @@ import { CityCommands, commandProblem, type Command } from "../src/cityCommands"
 import { yearAccounts } from "../src/core/autoPlayer";
 import { CityCore, STEPS_PER_YEAR } from "../src/core/cityCore";
 import {
-  calendarOf, CHEER_KEEP, chooseFestival, COST_PEOPLE, type Festival, FESTIVAL_IDS, FESTIVAL_NO_CHOICE, FESTIVAL_NOT_HERE,
+  calendarOf, CHEER_KEEP, chooseFestival, COST_LEAST, COST_PEOPLE, type Festival, FESTIVAL_IDS, FESTIVAL_NO_CHOICE, FESTIVAL_NOT_HERE,
   FESTIVAL_SPECS, festivalCalendar, festivalCheer, festivalCost, festivalLandValue, festivalMonth, type FestivalNews,
   festivalProblem, festivalsIn, festivalsRun, festivalsShown, festivalTraffic, festivalVisits, festivalWaste, GLOW_RADIUS,
   GRAND_DRAW, MAX_CHEER, NATIONAL_FESTIVALS, newFestivalState, readFestivals, scaleOf, writeFestivals,
@@ -49,8 +49,8 @@ function city(rules: Rules | null = rulesOf("northeast", "TH-40"), resources: Re
   map.festivals = newFestivalState();
   const sim: any = new (Simulation as any)(map, 0, 3, null, rules, resources);
   sim.budget.setFunds(50000);
-  // No people yet, so each festival costs its own price
-  sim._census.totalPop = 0;
+  // A town of COST_PEOPLE people (160 a census unit), so each festival costs its own price
+  sim._census.totalPop = COST_PEOPLE / 160;
   return { map, sim };
 }
 
@@ -155,10 +155,14 @@ describe("a festival's month", () => {
   test("costs more held grandly and in a bigger town, nothing not held", () => {
     const songkran = FESTIVAL_SPECS.songkran;
     expect(festivalCost(songkran, "none", 5000)).toBe(0);
-    expect(festivalCost(songkran, "modest", 0)).toBe(200);
-    expect(festivalCost(songkran, "grand", 0)).toBe(1200);
-    expect(festivalCost(songkran, "grand", COST_PEOPLE)).toBe(2400);
-    expect(festivalCost(songkran, "modest", 10000)).toBeGreaterThan(festivalCost(songkran, "modest", 1000));
+    expect(festivalCost(songkran, "modest", COST_PEOPLE)).toBe(200);
+    expect(festivalCost(songkran, "grand", COST_PEOPLE)).toBe(1200);
+    expect(festivalCost(songkran, "grand", 2 * COST_PEOPLE)).toBe(2400);
+    expect(festivalCost(songkran, "modest", 10000)).toBeGreaterThan(festivalCost(songkran, "modest", 4000));
+    // ... in step with the town's people, as its taxes are (6.5: a village paid four times its taxes), never under a tenth
+    expect(festivalCost(songkran, "modest", 4000)).toBe(40);
+    expect(festivalCost(songkran, "grand", 0)).toBe(Math.round(1200 * COST_LEAST / 10) * 10);
+    expect(festivalCost(songkran, "modest", 1000)).toBe(festivalCost(songkran, "modest", 0));
   });
 
   test("is held as the ruler answered: paid for, the people cheered, the land round the venue raised, once a month", () => {
@@ -488,7 +492,8 @@ describe("a province city's festivals in the core", () => {
     expect(first.map.festivals.choices).toEqual({ songkran: "grand", silk: "none" });
     // What they cost, paid in their months, is the budget's festivals line once the year's taxes come in
     const paid = first.news.reduce((sum, n) => sum + (n.type === "festival" ? n.cost : 0), 0);
-    expect(paid).toBeGreaterThan(1000);
+    // (a new town's: at least a tenth of each price, COST_LEAST, a grand Songkran and two modest festivals)
+    expect(paid).toBeGreaterThanOrEqual(160);
     expect(first.core.simulation.budget.festivalCost).toBe(paid);
     expect(yearAccounts(first.core.simulation.budget as never).costs.festivals).toBe(paid);
     // The same seed and the same commands at the same steps make the same city
