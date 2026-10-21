@@ -62,13 +62,17 @@ export interface ProviderUser {
 
 /** A rule of the database was broken; code says which (the API answers 409 with it). */
 export class ConflictError extends Error {
-  readonly code: "province_taken" | "already_ruling" | "stale_revision";
+  readonly code: ConflictCode;
 
-  constructor(code: "province_taken" | "already_ruling" | "stale_revision") {
+  constructor(code: ConflictCode) {
     super(code);
     this.code = code;
   }
 }
+
+/** The rules: one ruler per province, one province per player, a save replaces only the revision it read, and an online
+ * city plays the normal mode (its save's _gameLevel is 1) */
+export type ConflictCode = "province_taken" | "already_ruling" | "stale_revision" | "not_normal_mode";
 
 export interface Store {
   /** Resolves when the database answers (for /api/health). */
@@ -102,6 +106,7 @@ export interface Store {
   releaseClaim(id: number): Promise<void>;
 
   getSave(claimId: number): Promise<{ revision: number; data: unknown } | null>;
-  /** Replaces the save if its revision is still expectedRevision (0 for none yet); throws ConflictError("stale_revision"). */
+  /** Replaces the save if its revision is still expectedRevision (0 for none yet); throws ConflictError("stale_revision"),
+   * or ConflictError("not_normal_mode") for a city not in the normal mode. */
   putSave(claimId: number, expectedRevision: number, data: unknown, stats: CityStats): Promise<number>;
 }

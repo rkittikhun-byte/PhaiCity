@@ -205,13 +205,24 @@ export class PgStore implements Store {
 
   async putSave(claimId: number, expectedRevision: number, data: unknown, stats: CityStats): Promise<number> {
     const json = [JSON.stringify(data), JSON.stringify(stats)];
-    const { rows } = expectedRevision === 0
-      ? await this.pool.query(`INSERT INTO city_saves (claim_id, revision, data, stats) VALUES ($1, 1, $2::jsonb, $3::jsonb)
-          ON CONFLICT (claim_id) DO NOTHING RETURNING revision`, [claimId, ...json])
-      : await this.pool.query(`UPDATE city_saves SET revision = revision + 1, data = $3::jsonb, stats = $4::jsonb,
-          updated_at = now() WHERE claim_id = $1 AND revision = $2 RETURNING revision`, [claimId, expectedRevision, ...json]);
+    let rows;
+    try {
+      ({ rows } = await this.saveQuery(claimId, expectedRevision, json));
+    } catch (error) {
+      // A city not in the normal mode (CHECK city_saves_normal_mode)
+      if ((error as { constraint?: string }).constraint === "city_saves_normal_mode") throw new ConflictError("not_normal_mode");
+      throw error;
+    }
     if (!rows[0]) throw new ConflictError("stale_revision");
     await this.pool.query("UPDATE province_claims SET last_played_at = now() WHERE id = $1", [claimId]);
     return Number(rows[0].revision);
+  }
+
+  private saveQuery(claimId: number, expectedRevision: number, json: string[]) {
+    return expectedRevision === 0
+      ? this.pool.query(`INSERT INTO city_saves (claim_id, revision, data, stats) VALUES ($1, 1, $2::jsonb, $3::jsonb)
+          ON CONFLICT (claim_id) DO NOTHING RETURNING revision`, [claimId, ...json])
+      : this.pool.query(`UPDATE city_saves SET revision = revision + 1, data = $3::jsonb, stats = $4::jsonb,
+          updated_at = now() WHERE claim_id = $1 AND revision = $2 RETURNING revision`, [claimId, expectedRevision, ...json]);
   }
 }

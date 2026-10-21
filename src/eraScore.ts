@@ -23,6 +23,7 @@ import { houseStanding } from "./rulerHouse.js";
 import { festivalCheer } from "./festivals.js";
 import { isRoadTile } from "./roadTiles.js";
 import { roadLevelAt } from "./roadLevels.js";
+import { modeRule } from "./gameModes.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -140,13 +141,15 @@ export function scoreEra(map: Legacy, sim: Legacy, objects: Objects, era: Era = 
     factors[factor] = { value, target, done, weight };
     quality += weight * done;
   }
-  const peopleDone = clamp01(people / rule.people);
+  // The people the era wants, scaled by the city's mode (src/gameModes.ts)
+  const peopleWanted = Math.round(rule.people * modeRule(sim._gameLevel).people);
+  const peopleDone = clamp01(people / peopleWanted);
   let month = clamp01(peopleDone * quality);
   let heldBy: Factor | null = null;
   for (const [factor, floor] of Object.entries(FLOORS) as [Factor, number][]) {
     if (factors[factor].value < floor && month > FLOOR_CAP) { month = FLOOR_CAP; heldBy = factor; }
   }
-  return { era, month, people, peopleWanted: rule.people, peopleDone, quality: clamp01(quality), factors, symbols, heldBy };
+  return { era, month, people, peopleWanted, peopleDone, quality: clamp01(quality), factors, symbols, heldBy };
 }
 
 /** What the era system tells the game: the transition began, or a new era came */

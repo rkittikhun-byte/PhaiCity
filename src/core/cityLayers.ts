@@ -28,6 +28,7 @@ import { calendarOf, newFestivalState, readFestivals, writeFestivals } from "../
 import { newTrainedState, readTrained, writeTrained } from "../trainedPeople.js";
 import { unlockCity } from "../unlocks.js";
 import { readSites, startSite, writeSites } from "../construction.js";
+import { modeRule } from "../gameModes.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -338,9 +339,11 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     },
     // ... and what the city can build yet: its era, its trained people and its buildings (src/unlocks.ts)
     // (a sandbox city, as tests and the debug window may make one, can build anything at once: map.sandbox, not saved)
-    unlocks: () => (map.sandbox ? undefined : unlockCity(map)),
+    // ... the trained people needed scaled by the city's mode (src/gameModes.ts)
+    unlocks: () => (map.sandbox ? undefined : unlockCity(map, modeRule(simulation._gameLevel).trained)),
     // ... and a big building's months as a construction site (src/construction.ts)
-    startSite: (x: number, y: number, tool: string) => (map.sandbox ? () => undefined : startSite(map, x, y, tool, simulation._cityTime)),
+    startSite: (x: number, y: number, tool: string) => (map.sandbox ? () => undefined : startSite(map, x, y, tool, simulation._cityTime,
+      modeRule(simulation._gameLevel).buildTime)),
     // ... and the festivals the province keeps, and the ruler's answers (src/festivals.ts)
     festivals: { get state() { return map.festivals; }, calendar: () => calendarOf(simulation) },
     // ... and what is kept by a building's centre tile, carried along when the move command takes it to another block:

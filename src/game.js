@@ -22,6 +22,7 @@ import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
 import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
+import { MODE_RULES, modeChoosable, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
 import { showDemandAndPeople, showEra, showServices, showTourism, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
@@ -198,6 +199,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // tiles (a province map's own land and town, the kinds of each building, road levels …), the simulation, its
   // objects and the commands that change it
   var coreGame = this;
+  // A city of an online world is always normal (src/gameModes.ts); a saved city keeps the level it was saved with
+  if (!modeChoosable(this.worldId))
+    difficulty = MODE_RULES[ONLINE_MODE].level;
   this.core = new CityCore({
     map: this.gameMap, saved: savedGame, level: difficulty, speed: this.defaultSpeed,
     rules: rules || null, resources: resources || null,
@@ -210,9 +214,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   });
   this.simulation = this.core.simulation;
 
-  // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
-  if (!savedGame && gameMap.startingFunds)
-    this.simulation.budget.setFunds(gameMap.startingFunds);
+  // A new province city starts with that province's treasury (src/geo/provinceProfile.ts), and every new city with
+  // more or less of it by its mode (src/gameModes.ts)
+  if (!savedGame)
+    this.simulation.budget.setFunds(startingFundsIn(gameMap.startingFunds || this.simulation.budget.totalFunds,
+                                                    this.simulation._gameLevel));
 
   this.name = name || 'MyTown';
   this.everClicked = false;
