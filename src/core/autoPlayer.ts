@@ -610,7 +610,10 @@ export class AutoPlayer {
     const core = this.core, city = unlockCity(core.map), rank = core.commands.rank();
     for (const kind of this.wantTrained) {
       for (const school of TRAINS[kind]) {
-        if (city.count(school) > 0) continue;
+        // (a school the city has trains them already: their classes come, and the money goes to what the era card asks,
+        // not to a district office for the next school; a health centre's nurses kept a town short of care for years
+        // while it saved for a vocational college, docs/GAME_DESIGN.md 6.5)
+        if (city.count(school) > 0) break;
         const lock = core.commands.lock(school);
         const goal = !lock ? school : lock.reason === "unlock.first" && core.tools?.[String(lock.params.need)] &&
           !core.commands.lock(String(lock.params.need)) ? String(lock.params.need) : null;
