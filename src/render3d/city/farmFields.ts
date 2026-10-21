@@ -199,7 +199,7 @@ export class CityFarmFields {
     switch (field.kind) {
       case 'paddy': outer.setHex(F.dike); paddyColour(month, field.level, inner); return true;
       case 'pond': outer.setHex(F.dike); inner.setHex(F.pond); return true;
-      case 'orchard': outer.setHex(F.orchard).lerp(colour(F.earth), 0.55); return false;
+      case 'orchard': outer.setHex(F.crop).lerp(colour(F.earth), 0.3); return false;
       default: outer.setHex(F.earth); return false;
     }
   }

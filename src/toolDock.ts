@@ -370,12 +370,14 @@ export function installToolDock(doc: Document = document): void {
 
           trayCards.appendChild(card);
         }
-        return;
       }
 
+      // ... then the rest of the category's tools as cards of their own: in the zones, the farm zone's brush and eraser
+      // (src/farmZone.ts), shown where homes, shops and factories are painted
+      const zoneCards = currentCategory === "zones" ? new Set(["residential", "commercial", "industrial"]) : null;
       for (const toolId of cat.tools) {
         const orig = source(toolId);
-        if (!orig || orig.hidden) continue;
+        if (!orig || orig.hidden || zoneCards?.has(toolId)) continue;
 
         const family = toolChoicesFor(toolId);
         const hasChoices = Boolean(family?.length);
