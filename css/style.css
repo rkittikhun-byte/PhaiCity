@@ -1935,6 +1935,8 @@ body #cityStatus {
 body #cityStatus.initialHidden { display: none; }
 body #cityStatus .stat { display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 9px; }
 body #cityStatus .stat + .stat { border-left: 1px solid rgba(var(--ph-sand-800-rgb), 0.12); }
+/* (a block the status bar has nothing for yet is set hidden, src/cityStatus.ts: the display above must not show it) */
+body #cityStatus .stat[hidden] { display: none; }
 body #cityStatus .statTopic { font-size: 8.5px; line-height: 1.3; color: var(--hud-dim); }
 body #cityStatus .statValue { font-size: 10.5px; line-height: 1.3; color: var(--hud-text); }
 body #cityStatus .statPercent { font-size: 8.5px; }
