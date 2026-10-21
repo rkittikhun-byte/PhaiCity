@@ -20,13 +20,13 @@ import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
 import { isRoadTile } from "../roadLevels.js";
-import { cellsOf } from "../zoneCells.js";
+import { cellsOf, plotTileOfCell } from "../zoneCells.js";
 import { CHILDREN_SHARE, isServiceKind, SERVICE_SPECS, serviceProblem } from "../services.js";
 import { ERA_RULES } from "../eraRules.js";
 import { roadLevelAt } from "../roadLevels.js";
 import { houseSpec } from "../rulerHouse.js";
 import type { TrainedKind } from "../trainedPeople.js";
-import { unlockCity } from "../unlocks.js";
+import { POWER_TOOLS, unlockCity } from "../unlocks.js";
 import type { FestivalNews, FestivalScale } from "../festivals.js";
 import { FARM_PAINT_TOOL, fieldLevelOf, isFieldValue, kindOfCode, wayField } from "../farmZone.js";
 import { isOpenLand } from "../plots.js";
@@ -204,6 +204,8 @@ const BUS_PEOPLE = 1500;
 const PARK_EVERY = 8;
 /** Another power plant goes up when the city uses this share of its plants' power */
 const MORE_POWER_AT = 0.85;
+/** ... while the treasury holds this much */
+const PLANT_FROM_FUNDS = 3500;
 /** ... and another water works when this share of its buildings went without water, or this share of its supply is taken */
 const MORE_WATER_AT = 0.15;
 const MORE_WATER_USED = 0.9;
@@ -244,6 +246,9 @@ const ERA_ASK_SPARE = 300;
 const PAVE_EACH_YEAR = 400;
 /** ... while the treasury keeps this much */
 const PAVE_KEEP = 800;
+/** Spots cleared for a building before the player gives up on it for the year (clearFor): a cleared spot that still
+ *  refuses the building has lost its plots for nothing */
+const CLEAR_TRIES = 3;
 /** Water towers put up a year while the village has no water works and is short of water */
 const TOWERS_A_YEAR = 4;
 /** A month of steps, when the buildings waiting for their unlock are tried again */
@@ -350,9 +355,12 @@ export class AutoPlayer {
       if (budget.totalFunds >= price + 500 && this.place(tool, x + dx, y + dy)) continue;
       saving = true;
     }
-    // Then what keeps the town running: a power plant more when it uses nearly all its power (src/powerManager.js load)
+    // Then what keeps the town running: a power plant more when it uses nearly all its power (src/powerManager.js load),
+    // none more while one is still being built (src/construction.ts)
     const load = sim._powerManager?.load ?? 0;
-    if (load >= MORE_POWER_AT && budget.totalFunds > 3500) this.place("coal", x + PLANT_FROM, y + 8);
+    const plantBuilding = Object.values((core.map as { sites?: Record<string, { tool: string }> | null }).sites ?? {})
+      .some((site) => POWER_TOOLS.includes(site.tool));
+    if (load >= MORE_POWER_AT && !plantBuilding && budget.totalFunds > PLANT_FROM_FUNDS) this.place("coal", x + PLANT_FROM, y + 8);
     // ... a water works more when many buildings went without or the supply is nearly all taken (src/waterManager.ts)
     const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
     const water = sim._waterManager, short = water && water.supply > 0 && water.used >= water.supply * MORE_WATER_USED;
@@ -697,7 +705,8 @@ export class AutoPlayer {
   }
 
   /**
-   * Room for a building of the tool's size made on painted plots beside a road, the nearest (cx, cy): their cells
+   * Room for a building of the tool's size made on painted plots beside a road within 30 tiles of (cx, cy), where the
+   * fewest and least grown plots stand: their cells
    * cleared (the eraser takes a plot and its building back, src/zoneCells.ts), then the building put there. Only plots,
    * open land and the city's own land; no road, service or other building is taken.
    */
@@ -707,22 +716,42 @@ export class AutoPlayer {
     const isRoad = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && isRoadTile(map.getTileValue(x, y));
     const free = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && ownsLand(map, x, y) &&
       (map.getTileValue(x, y) === 0 || plotOf(map, x, y) !== null);
+    // The spots where it would fit once their plots are cleared, those that take the fewest and least grown plots first
+    // (a ruler clears young plots rather than the town's grown shops), then the nearest: each tile's plot counts its
+    // level and one more
+    const spots: Array<{ x: number; y: number; loss: number; d: number }> = [];
     for (let r = 0; r <= 30; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
           const x = cx + dx, y = cy + dy, left = x - 1, top = y - 1;
-          let ok = besideRoad(map.width, map.height, isRoad, x, y, size);
-          for (let ty = top; ok && ty < top + size; ty++) for (let tx = left; ok && tx < left + size; tx++) ok = free(tx, ty);
-          if (!ok) continue;
-          const keys = cellsOf(map).cells.filter((c) => {
-            const tx = Math.floor(c.x / 10), ty = Math.floor(c.z / 10);
-            return tx >= left && tx < left + size && ty >= top && ty < top + size && map.zoneCells?.get?.(c.key);
-          }).map((c) => c.key);
-          for (let i = 0; i < keys.length; i += 4000) core.apply({ type: "zoneCells", zone: null, cells: keys.slice(i, i + 4000) });
-          if (this.apply(tool, x, y)) { this.note(`cleared ${keys.length} cells for ${tool}`); return true; }
+          let ok = besideRoad(map.width, map.height, isRoad, x, y, size), loss = 0;
+          for (let ty = top; ok && ty < top + size; ty++) {
+            for (let tx = left; ok && tx < left + size; tx++) {
+              ok = free(tx, ty);
+              loss += ok ? (plotOf(map, tx, ty)?.level ?? -1) + 1 : 0;
+            }
+          }
+          if (ok) spots.push({ x, y, loss, d: r });
         }
       }
+    }
+    if (!spots.length) return false;
+    spots.sort((a, b) => a.loss - b.loss || a.d - b.d);
+    // The painted cells and the tiles they stand on and belong to: a plot behind the row facing the road takes its cells
+    // from beside the road (src/zoneCells.ts plotTileOfCell), so clearing only the cells on the tiles left such a plot
+    // standing, and a 4 × 4 power plant never found room (the easy town stayed at 11,700 people with one plant full)
+    const painted = cellsOf(map).cells.filter((c) => map.zoneCells?.get?.(c.key)).map((c) => ({
+      key: c.key, tile: Math.floor(c.z / 10) * map.width + Math.floor(c.x / 10), plot: plotTileOfCell(map as never, c) }));
+    for (const { x, y } of spots.slice(0, CLEAR_TRIES)) {
+      const left = x - 1, top = y - 1;
+      const inside = (tile: number) => {
+        const tx = tile % map.width, ty = Math.floor(tile / map.width);
+        return tile >= 0 && tx >= left && tx < left + size && ty >= top && ty < top + size;
+      };
+      const keys = painted.filter((c) => inside(c.tile) || inside(c.plot)).map((c) => c.key);
+      for (let i = 0; i < keys.length; i += 4000) core.apply({ type: "zoneCells", zone: null, cells: keys.slice(i, i + 4000) });
+      if (this.apply(tool, x, y)) { this.note(`cleared ${keys.length} cells for ${tool}`); return true; }
     }
     return false;
   }

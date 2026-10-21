@@ -6,7 +6,7 @@
 // people, money and accounts, to check the game's balance. It only runs when asked, as it takes about 3 s a year:
 //   PHAICITY_PLAY=1 npx jest --coverage=false test/play
 // PHAICITY_YEARS sets the years (10), PHAICITY_MODE the mode (normal), PHAICITY_PLOTS=1 adds what holds each kind and level of plot back each year,
-// PHAICITY_PLAY_OUT a file for the whole report as JSON, PHAICITY_PLAY_SAVE a file of the city as the game saves it.
+// PHAICITY_SEED the city's seed (11), PHAICITY_PLAY_OUT a file for the whole report as JSON, PHAICITY_PLAY_SAVE a file of the city as the game saves it.
 
 import * as fs from "fs";
 import { AutoPlayer, type PlayerYear, plotReport } from "../../src/core/autoPlayer";
@@ -49,7 +49,7 @@ async function newCity(districtId: string, provinceId: string, region: string) {
   provinceLevels(measured[provinceId], entry).forEach((r) => { resources[r.id] = r.level; });
   // The ruler's rank follows the city's class and is never lost, as in the game (src/game.js)
   let rank: string = "muen";
-  const core: CityCore = new CityCore({ map, seed: 11, level, rules, resources,
+  const core: CityCore = new CityCore({ map, seed: Number(process.env.PHAICITY_SEED || 11), level, rules, resources,
     hooks: { rank: () => Math.max(0, RANKS.indexOf(rank as never)) } } as never);
   core.on("month", () => { rank = keepHigherRank(rank as never, rankForCityClass(core.simulation.evaluation.cityClass)); });
   (core as unknown as { rank: () => string }).rank = () => rank;
