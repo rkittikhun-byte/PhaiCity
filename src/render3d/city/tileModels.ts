@@ -25,6 +25,9 @@ import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZo
 import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
 import { tileMetres, unitsPerMetre } from '../../units.js';
+import { UNLOCKS } from '../../unlocks.js';
+import { RAMPS } from '../../theme/tokens.js';
+import { siteId } from '../models/plot/site.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -158,7 +161,7 @@ export class TileSnapshot implements CityMapReader {
   private nowSec = 0;
   readonly construction = new Map<number, { startSec: number; stage: 'stage_1' | 'stage_2' }>();
   /** The live map, read for whether homes, shops and factories are painted tile by tile (src/plots.ts) and its roads' levels */
-  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'roadGraph' | 'railGraph' | 'buildings' | 'tileSizeM' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds'> | null = null;
+  source: Pick<CityMapReader, 'paintedZones' | 'roadLevels' | 'roadPieces' | 'roadPaths' | 'roadGraph' | 'railGraph' | 'buildings' | 'tileSizeM' | 'civicKinds' | 'rulerHouse' | 'landCover' | 'wasteKinds' | 'powerKinds' | 'mineKinds' | 'stationKinds' | 'sites'> | null = null;
   get paintedZones(): boolean { return this.source?.paintedZones === true; }
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   get roadPieces(): Uint16Array | null { return this.source?.roadPieces ?? null; }
@@ -181,6 +184,8 @@ export class TileSnapshot implements CityMapReader {
     const count = map.changeCount ? map.changeCount() : -1;
     // ... and a building moved on its tiles (the move tool) changes no tile: its centre is looked at again
     changed.push(...this.posesMoved(map));
+    // ... and a big building's site that came or was finished changes no tile either (src/construction.ts)
+    changed.push(...this.sitesMoved(map));
     if (count >= 0 && count === this.seenChanges && !this.initialSync) {
       if (rl) for (let i = 0; i < rl.length; i++) if (rl[i] !== this.levelsCopy[i]) { this.levelsCopy[i] = rl[i]; changed.push(i); }
       changed.push(...this.paintMoved(map));
@@ -307,6 +312,19 @@ export class TileSnapshot implements CityMapReader {
     this.poseCopy = now;
     return moved;
   }
+  /** The centre tiles of the construction sites when last looked at, sorted and joined */
+  private sitesSeen = '';
+  /** The centre tiles whose construction site came or went since the last look (src/construction.ts map.sites): a site
+   * finished changes no tile, but its building is drawn in its place */
+  private sitesMoved(map: CityMapReader): number[] {
+    const keys = map.sites ? Object.keys(map.sites).sort() : [];
+    const sign = keys.join(',');
+    if (sign === this.sitesSeen) return [];
+    const before = new Set(this.sitesSeen ? this.sitesSeen.split(',') : []), now = new Set(keys);
+    this.sitesSeen = sign;
+    if (this.initialSync) return [];
+    return [...[...before].filter(k => !now.has(k)), ...keys.filter(k => !before.has(k))].map(Number);
+  }
   /** Advances active 3D plot construction sequences (stage_1 foundation -> stage_2 scaffolding/crane -> finished building). */
   stepConstruction(seconds: number): number[] {
     this.nowSec = seconds;
@@ -380,6 +398,23 @@ export class TileSnapshot implements CityMapReader {
     }
     let side=2;for(const candidate of [1,3,0])if(scores[candidate]>scores[side])side=candidate;
     return side;
+  }
+  /**
+   * A big building still being built (src/construction.ts): its construction site in its place, the size of its tiles
+   * (3 x 3, 4 x 4 or the airport's 6 x 6), with a tower crane on one of four tiles or more or of half a year's work or
+   * more, turned toward its road; null when the building on these tiles is done.
+   */
+  private sitePlacement(i:number,x:number,y:number,size:number,region:RegionId):Placement|null {
+    const site=this.source?.sites?.[i];
+    if(!site||size<3)return null;
+    const s=size>=6?6:size>=4?4:3,id=siteId(s);
+    if(!registry[id])return null;
+    const crane=s>=4||(UNLOCKS[site.tool]?.months??0)>=6?1:0;
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,s)];
+    const cx=(x-1+s/2)*10,cz=(y-1+s/2)*10;
+    return new Placement({index:i,x:cx,z:cz,id,kind:'services',footprint:[s,s],height:crane?16:6,color:RAMPS.sand[400],
+      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:0,
+        variant:crane,state:'closed',waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
   }
   /** A regional power plant on tiles 745–760 (centre 750, src/powerPlants.ts): `power.solar`, `power.wind`, `power.gas`,
    * `power.hydro`, or `power.coal` (`lignite`), picked from `gameMap.powerKinds` and turned toward its road. */
@@ -621,6 +656,9 @@ export class TileSnapshot implements CityMapReader {
     const zone=Boolean(this.flags[i]&ZONEBIT),[w,h]=zone?entry.footprint:[1,1];
     const plot=this.paintedZones&&!zone?plotOf(this,x,y):null;
     if(plot)return this.plotPlacement(i,x,y,plot,region,hash);
+    // A big building still being built is its construction site until it is done (src/construction.ts)
+    const site=zone?this.sitePlacement(i,x,y,w,region):null;
+    if(site)return site;
     const house=zone?this.housePlacement(i,x,y,region,hash):null;
     if(house)return house;
     const power=zone?this.powerPlacement(i,x,y,region,hash):null;

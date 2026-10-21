@@ -27,6 +27,7 @@ import { CANAL_PIECE_ID, CANAL_PIECE_LEVELS, createCanalPiece } from './water/ca
 import { createCommercialBlock, createEmptyCommercialZone, COM_ZONE_SPECS } from './commercial/zones.js';
 import { createIndustrialBlock, createEmptyIndustrialZone, IND_ZONE_SPECS } from './industrial/zones.js';
 import { createPlot, PLOT_SPECS } from './plot/index.js';
+import { createSite, SITE_SIZES, SITE_VARIANTS, siteId } from './plot/site.js';
 import type { RegionId, RegionTier } from '../regional/types.js';
 import { createTree, TREE_FOOTPRINTS, TREE_KINDS } from './vegetation/trees.js';
 import { createPark, PARK_IDS, PARK_TILES } from './vegetation/parks.js';
@@ -161,6 +162,12 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   ...Object.fromEntries(PLOT_SPECS.map(spec => [spec.id, {
     factory: (options?: ModelOptions) => createPlot(spec.id, options), category: spec.category, footprint: spec.footprint,
     tiles: [], budget: spec.budget, regionTier: spec.regionTier, variants: spec.variants,
+  } as ModelRegistration])),
+  // A big building's construction site (src/construction.ts): placed by the city view from map.sites, by its size;
+  // variant 1 has a tower crane.
+  ...Object.fromEntries(SITE_SIZES.map(size => [siteId(size), {
+    factory: (options?: ModelOptions) => createSite(size, options), category: 'services', footprint: [size, size],
+    tiles: [], budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R3', variants: SITE_VARIANTS,
   } as ModelRegistration])),
   'debug.region_house': { factory: createRegionHouse, category: 'debug', footprint: [1, 1], tiles: [],
     budget: TRIANGLE_BUDGETS.prop, regionTier: 'R1' },

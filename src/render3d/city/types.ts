@@ -47,6 +47,9 @@ export interface CityMapReader {
   readonly powerKinds?: Readonly<Record<string, string>> | null;
   readonly mineKinds?: Readonly<Record<string, string>> | null;
   readonly stationKinds?: Readonly<Record<string, string>> | null;
+  /** The big buildings still being built, by centre tile (src/construction.ts): the view draws a construction site there
+   * until the map lets it go */
+  readonly sites?: Readonly<Record<string, { readonly tool: string; readonly ready: number }>> | null;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
 }

@@ -395,7 +395,7 @@ export class PlotBuilder extends CommercialBuilder {
 
   anchor(name: string, x: number, y: number, z: number): void { this.anchorPoints.push([name, x, y, z]); }
 
-  finishPlot(id: string, category: PlotCategory, tier: RegionTier, level: number, labels: { th: readonly string[]; en: readonly string[] },
+  finishPlot(id: string, category: PlotCategory | 'services', tier: RegionTier, level: number, labels: { th: readonly string[]; en: readonly string[] },
     metadata: Record<string, unknown> = {}, footprint: readonly [number, number] = [1, 1]): Group {
     if (this.signs.length) this.flushSigns();
     const root = this.finish(id, category, footprint, [], this.options);
