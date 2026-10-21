@@ -102,6 +102,25 @@ steps, lamps, trees, boats) are instanced and thin out far away, so a notebook k
 - The model gallery has `water.canal`, a straight piece two tiles long of each level (variant 1–5).
 - Every colour comes from the material library or the theme (`SCENE`), none written in code.
 
+## Dug in metres (21 Oct 2026)
+
+Since 21 Oct 2026 the canal tool draws in metres as the roads and railways do (docs/METRE_DRAWING_PLAN.md, step 1's
+leftovers): every mode (straight, chain, curve, S-curve, free, grid) sends one `road` command a drawn line with
+`tool: 'canal'`, which digs the tiles its line passes through the canal tool (water, bridges over the straight roads
+and railways it crosses, refused at junctions, corners and buildings), priced by its length (฿40 a 16 m tile's length,
+`linePrice`), and keeps it as dug in `gameMap.canalGraph`, a road graph of its own (a canal under a road's bridge is no
+junction), once every tile it passes is water or a bridge. The bulldozer filling a tile cuts the canal there, so does
+anything else that fills one (`LostTiles`), undo puts it back, saves keep it as `canalLines`, and a growing district
+frame moves it. The canal tool snaps to the canals' junctions, ends and lines (`canalNetwork` in `src/game.js`) and shows
+its length, angle and price as the roads do.
+
+In 3D a canal dug in metres follows the line it was dug as (`src/roads/canalLines.ts` `canalGraphLines`, read by
+`CityCanals.draw`): its line stops at the edge of a river it was dug across and opens into it there, two pieces meeting
+nearly straight on are one line, and wherever else canals meet or one turns at a node is a junction with its pad of water
+and curved banks. Canals dug before keep their lines through their tiles, and a tile canal's end beside a canal dug in
+metres runs on to meet it in a junction. A road crossing a canal at a slant still gets the tile bridge models, square to
+the map (docs/METRE_DRAWING_PLAN.md "ยังรอจากขั้น 1").
+
 ## Risks
 
 - The road 3D files (`src/render3d/city/roadCurves.ts`, `roadBuild.ts`) are being changed in the main folder right

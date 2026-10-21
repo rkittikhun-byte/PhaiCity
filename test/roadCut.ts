@@ -91,3 +91,57 @@ describe("bulldozing roads drawn in metres", () => {
     expect(JSON.stringify(graphOf(again).toJSON())).toBe(JSON.stringify(graphOf(first).toJSON()));
   });
 });
+
+describe("roads drawn in metres that lose a tile some other way", () => {
+  /** A tile lost as a flood or a tornado takes it: rubble, or a road fallen apart (src/road.js) */
+  const lose = (core: CityCore, x: number, y: number) => core.map.setTile(x, y, 44, 0);
+
+  test("are cut there once the city has stepped, the rest staying where it was drawn and drawn from the graph", () => {
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    core.apply({ type: "road", tool: "road", from: [8, 488], to: [904, 488], stroke: 2 });
+    lose(core, 28, 10);
+    // ... before the step, the stroke is left to its tiles
+    expect(drawnRuns(core).map((run) => run.piece)).toEqual([2]);
+    core.step();
+    const graph = graphOf(core), ends = [...graph.segments.values()].filter((s) => s.piece === 1)
+      .flatMap((s) => [graph.node(s.a), graph.node(s.b)]).map((n) => [n.x, n.z]).sort((p, q) => p[0] - q[0]);
+    expect(ends).toHaveLength(4);
+    expect(ends[0]).toEqual([8, 168]);
+    expect(ends[1][0]).toBeCloseTo(448 - 0.25, 2);
+    expect(ends[2][0]).toBeCloseTo(464 + 0.25, 2);
+    expect(ends[3]).toEqual([904, 168]);
+    expect(drawnRuns(core).map((run) => run.piece).sort()).toEqual([1, 1, 2]);
+  });
+
+  test("undone with a stroke drawn after the loss, a road cut there is cut there again", () => {
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    core.apply({ type: "road", tool: "road", from: [8, 488], to: [904, 488], stroke: 2 });
+    lose(core, 28, 10);
+    core.step();
+    expect(graphOf(core).segments.size).toBe(3);
+    // A third road is drawn, the first is cut where a tile is lost after it, and the third is undone: the graph goes
+    // back to before the third, the first whole across the tile still lost, and it is cut there again at once
+    core.apply({ type: "road", tool: "road", from: [8, 328], to: [904, 328], stroke: 3 });
+    lose(core, 40, 10);
+    core.step();
+    expect(graphOf(core).segments.size).toBe(5);
+    core.apply({ type: "undo" });
+    const cut = JSON.stringify(graphOf(core).toJSON());
+    expect(graphOf(core).segments.size).toBe(4);
+    expect(drawnRuns(core).map((run) => run.piece).sort()).toEqual([1, 1, 1, 2]);
+    core.step();
+    expect(JSON.stringify(graphOf(core).toJSON())).toBe(cut);
+  });
+
+  test("a tile a road was never laid on is not cut for", () => {
+    const core = city();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    // A road put straight into the graph over tiles never laid (as a save from before might hold one)
+    graphOf(core).add({ from: [8, 328], to: [904, 328], level: 1, piece: 9 });
+    const json = JSON.stringify(graphOf(core).toJSON());
+    core.step();
+    expect(JSON.stringify(graphOf(core).toJSON())).toBe(json);
+  });
+});

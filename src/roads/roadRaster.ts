@@ -71,6 +71,40 @@ export function segmentTiles(graph: RoadGraph, id: number, map: RasterMap): numb
   return tiles;
 }
 
+/** How far inside a tile the middle line must run for the tile to be one the road cannot stand without (metres) */
+const DEEP_M = 0.5;
+/** Steps the middle line is looked at in for the tiles it runs deep into (metres) */
+const DEEP_STEP_M = 0.25;
+
+/**
+ * The tiles a segment's middle line runs at least DEEP_M into (tile index), whatever it was cut from: the tiles of a
+ * piece of a road are among those laid for the road it was cut from (segmentTiles of the whole), where the corner
+ * tiles of their staircase may not be (they follow the points the line is looked at in, which a cut moves)
+ */
+export function deepTiles(graph: RoadGraph, id: number, map: RasterMap): number[] {
+  const size = map.tileSizeM, n = Math.max(2, Math.ceil(graph.length(id) / DEEP_STEP_M)), out = new Set<number>();
+  for (let k = 0; k <= n; k++) {
+    const [x, z] = graph.pointAt(id, k / n), tx = Math.floor(x / size), ty = Math.floor(z / size);
+    if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) continue;
+    if (Math.min(x - tx * size, (tx + 1) * size - x, z - ty * size, (ty + 1) * size - z) < DEEP_M) continue;
+    out.add(ty * map.width + tx);
+  }
+  return [...out];
+}
+
+/**
+ * Whether a segment still lies on tiles of its kind (isKind: a road, a railway, a canal's water): every tile it was
+ * laid on (segmentTiles), or for a piece of one cut where another road met it, every tile it runs deep into. A road
+ * a flood or the bulldozer took a tile of does not stand.
+ */
+export function segmentStands(graph: RoadGraph, id: number, map: RasterMap, isKind: (i: number) => boolean): boolean {
+  const tiles = segmentTiles(graph, id, map);
+  if (tiles.length > 0 && tiles.every(isKind)) return true;
+  // ... a piece too short to run deep into any tile standing while one of its tiles is still of its kind
+  const deep = deepTiles(graph, id, map);
+  return deep.every(isKind) && (deep.length > 0 || tiles.some(isKind));
+}
+
 /** How far a point lies from the straight line through a and b */
 function offLine(p: Vec, a: Vec, b: Vec): number {
   const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
