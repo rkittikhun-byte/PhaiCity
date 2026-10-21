@@ -43,7 +43,9 @@ export const ERA_RULES: Readonly<Record<Era, EraRule>> = {
     // owner, 21 Oct 2026: the first eras slower for a real reason, docs/GAME_DESIGN.md 6.5)
     symbols: ["ruler_house", "shops", "water_tower", "literate"] },
   2: { people: 10000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
-    targets: { water: 0.8, power: 0.8, jobs: 0.85, education: 0.5, health: 0.4, safety: 0.65, clean: 0.65, living: 0.5 },
+    // (a market town's schooling and care a step below the factory town's: a town growing by thousands a year kept
+    // missing 50% and 40% by a few points for years after its technicians came, docs/GAME_DESIGN.md 6.5; 22 Oct 2026)
+    targets: { water: 0.8, power: 0.8, jobs: 0.85, education: 0.4, health: 0.3, safety: 0.65, clean: 0.65, living: 0.5 },
     // ... and a factory town needs its first technicians, a secondary school's first classes (owner, 21 Oct 2026: "ยุคไม่ควร
     // เร่ง"; a town given power and water on time left the market town in eight months, docs/GAME_DESIGN.md 6.6)
     symbols: ["power_plant", "water_works", "school", "technicians"] },
