@@ -49,7 +49,10 @@ import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlant
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
 import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
-import { drawModeOf, isAreaMode, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { drawModeOf, isAreaMode, isFarmTool, isPaintTool, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
+import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, fieldFillRegion, fieldOutcome } from './farmZone.ts';
+import { FARM_ZONE } from './provinceRules.ts';
+import { SCENE } from './theme/tokens.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
@@ -286,6 +289,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   var landButton = document.getElementById('landButton');
   if (landButton)
     landButton.hidden = !this.gameMap.landBlocks;
+  // The farm zone is painted only where homes, shops and factories are (src/farmZone.ts)
+  var farmZoneButton = document.getElementById('farmZoneButton');
+  if (farmZoneButton)
+    farmZoneButton.hidden = !this.gameMap.paintedZones;
 
   // Every change the player makes goes through this one entry point as a plain command (src/cityCommands.ts), which
   // the core builds the same way for every city (src/core/cityLayers.ts commandTarget)
@@ -327,8 +334,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     var button = document.querySelector('.toolButton[data-tool="' + kind + '"]');
     setToolChoices(kind, [
       {tool: PAINT_TOOLS[kind], available: true, colour: button ? button.getAttribute('data-colour') : undefined, size: 1},
-      {tool: ERASE_TOOL, available: true, colour: '#8c8c8c', size: 1, note: 'choice.erase_note'}]);
+      {tool: ERASE_TOOL, available: true, colour: ERASER_COLOUR, size: 1, note: 'choice.erase_note'}]);
   });
+  // ... and the farm zone's brush, where the province has farmland, with its own eraser (src/farmZone.ts)
+  if (cityMap.paintedZones)
+    setToolChoices(FARM_PAINT_TOOL, [
+      {tool: FARM_PAINT_TOOL, available: farmLevel(simulation.resources) >= 1, colour: FARM_COLOUR, size: 1},
+      {tool: FARM_ERASE_TOOL, available: true, colour: ERASER_COLOUR, size: 1, note: 'choice.erase_note'}]);
   // The mine button's places are the ores the province has; those it lacks are left out
   setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
     .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
@@ -1069,10 +1081,26 @@ Game.prototype.cellsInArea = function(from, to) {
 };
 
 
+// The farm zone's numbers in this province (src/provinceRules.ts FarmZoneSpec)
+Game.prototype.farmZoneRules = function() {
+  return (this.simulation.rules && this.simulation.rules.farmZone) || FARM_ZONE;
+};
+
+
+// The tiles a fill of the brush in hand paints: a zone's along its road (src/plots.ts), the farm zone's over the open
+// land with a way to a road (src/farmZone.ts)
+Game.prototype.paintFill = function(tile, toolName) {
+  if (isFarmTool(toolName))
+    return fieldFillRegion(this.gameMap, tile.x, tile.y, toolName === FARM_ERASE_TOOL, this.farmZoneRules().reach);
+  return fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
+};
+
+
 // On a map whose zones go a cell at a time (owner, 14 Oct 2026; src/zoneCells.ts), the zone brushes and the eraser
 // paint the 4 m cells along the roads rather than whole tiles
 Game.prototype.isCellBrush = function(toolName) {
-  return this.gameMap.cellZones === true && isPaintTool(toolName) && typeof this.cityView.pointAt === 'function';
+  return this.gameMap.cellZones === true && isPaintTool(toolName) && !isFarmTool(toolName) &&
+         typeof this.cityView.pointAt === 'function';
 };
 
 
@@ -1296,6 +1324,8 @@ Game.prototype.refreshPrices = function() {
   PLOT_KINDS.forEach(function(kind) {
     prices[PAINT_TOOLS[kind]] = Math.max(1, Math.round(prices[kind] * PAINT_PRICE_SHARE));
   });
+  // ... and a tile of the farm zone what the province's rules say (src/farmZone.ts)
+  prices[FARM_PAINT_TOOL] = this.farmZoneRules().price;
   showToolPrices(prices);
 };
 
@@ -1603,6 +1633,10 @@ Game.prototype.handleTool = function(data) {
       command.shape = 'free';
     var outcome = this.applyCommand(command);
     result = outcome.toolResult;
+    // The farm zone needs a cart track to a road within reach (src/farmZone.ts)
+    if (toolName === FARM_PAINT_TOOL && outcome.accepted && result === tool.TOOLRESULT_FAILED &&
+        fieldOutcome(this.gameMap, tileCoords.x, tileCoords.y, this.farmZoneRules().reach) === 'no_way')
+      showCornerNote(t('tool.needs_way', {reach: this.farmZoneRules().reach}), OUTSIDE_NOTE_MS);
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
     if (outcome.reason === NEEDS_ROAD_BESIDE) {
       showCornerNote(t('tool.needs_road'), OUTSIDE_NOTE_MS);
@@ -1957,6 +1991,10 @@ Game.prototype.areaCentresFor = function(drag, size) {
 };
 
 
+// The erasers' grey, and the farm zone's olive from the theme (src/theme/tokens.ts)
+var ERASER_COLOUR = '#8c8c8c';
+var FARM_COLOUR = '#' + SCENE.farm.zone.toString(16).padStart(6, '0');
+
 // The first tile value of the zones and buildings (src/tileValues.ts), which a line may not be laid over
 var BUILDING_TILES = 240;
 
@@ -1980,7 +2018,7 @@ Game.prototype.handleToolPoint = function(data) {
   var mode = drawModeOf(toolName);
   if (mode === 'fill') {
     this.applyTiles(toolName === UPGRADE_TOOL ? this.upgradeLineTiles(tile, data.x, data.y) :
-                    fillRegion(this.gameMap, tile.x, tile.y, tool.plotKind || null), data.stroke, data.x);
+                    this.paintFill(tile, toolName), data.stroke, data.x);
     this.resetDraft();
     return;
   }
@@ -2871,7 +2909,7 @@ Game.prototype.drawPreview = function(tile) {
     }
   } else if (mode === 'fill') {
     tiles = toolName === UPGRADE_TOOL ? this.upgradeLineTiles(tile, this.inputStatus.mouseX, this.inputStatus.mouseY) :
-            fillRegion(this.gameMap, tile.x, tile.y, this.inputStatus.currentTool.plotKind || null);
+            this.paintFill(tile, toolName);
   }
   var guide = null;
   var angle = null, endAngle = null, heading = null;

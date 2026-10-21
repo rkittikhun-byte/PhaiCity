@@ -150,6 +150,25 @@ export const SCENE = {
     /** The vegetarian festival's yellow flags */
     vegetarian: [RAMPS.gold[300], RAMPS.gold[400]],
   },
+  /**
+   * The farm zone (src/farmZone.ts, src/render3d/city/farmFields.ts; docs/GAME_DESIGN.md section 7): its paint, the
+   * concept's olive between the homes' green and the factories' gold, and the paddies, fields, orchards and ponds that
+   * grow on it. Read by the renderer now.
+   */
+  farm: {
+    /** The paint on the ground and the brush */
+    zone: 0xa59630,
+    /** A paddy's water when planted, its young rice, the ripe rice before the harvest and the stubble after */
+    paddyWater: RAMPS.water[300], paddyYoung: RAMPS.rice[400], paddyRipe: RAMPS.gold[400], stubble: RAMPS.gold[600],
+    /** The dikes between paddies, and the bare earth of a field */
+    dike: 0xa8794a, earth: 0xb86a40,
+    /** A crop field's rows, an orchard's trees, a pond's water */
+    crop: RAMPS.rice[500], orchard: RAMPS.rice[700], pond: 0x7f9b97,
+    /** Huts and granaries of thatch and teak; the machines' paint; solar panels */
+    thatch: 0xe3ac5b, teak: 0x845438, machine: RAMPS.chili[500], solar: RAMPS.lavender[700],
+    /** A buffalo */
+    buffalo: RAMPS.sand[700],
+  },
 } as const;
 
 // --- css/theme.css --------------------------------------------------------------------------------------------------

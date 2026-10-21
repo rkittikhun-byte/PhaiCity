@@ -90,6 +90,8 @@ export interface Rules {
   weather: Climate;
   /** The festivals kept, by id, with whatever of each festival's numbers the layers change (src/festivals.ts) */
   festivals: Partial<Record<FestivalId, FestivalEntry>>;
+  /** The farm zone's numbers (src/farmZone.ts, docs/GAME_DESIGN.md section 7) */
+  farmZone: FarmZoneSpec;
 }
 
 /** What one layer changes; anything left out comes from the layer below. */
@@ -105,6 +107,156 @@ export interface RulesPatch {
   weather?: Partial<Climate>;
   /** Festivals added or changed, or taken away (null); the rest come from the layer below */
   festivals?: FestivalsPatch;
+  /** Any of the farm zone's numbers, and of each kind of field's; the rest comes from the layer below */
+  farmZone?: FarmZonePatch;
+}
+
+// --- The farm zone (src/farmZone.ts, docs/GAME_DESIGN.md section 7) -------------------------------------------------
+
+/** The kinds of field the game grows where the farm zone is painted, chosen by the land */
+export const FARM_KINDS = ["paddy", "field", "orchard", "pond"] as const;
+export type FarmKind = typeof FARM_KINDS[number];
+
+/** What one kind of field is like, a 16 m tile at a time */
+export interface FarmKindSpec {
+  /** Baht a month a level sells, before the province's farmland, the ground's water and the season */
+  sale: number;
+  /** Work a level gives, as industrial population (a factory plot's level gives an eighth) */
+  jobs: number;
+  /** Groundwater a level draws from under it a month (src/groundwater.ts units; more in the dry season) */
+  draw: number;
+  /** Chemicals a level puts into the poisoned ground a month (src/mining.ts, which cleans 1 a month away) */
+  chemicals: number;
+  /** Whether its stubble is burned in the burning months, February to April */
+  burns: boolean;
+  /** Mud a month it puts into the water beside it, as pollution there */
+  mud: number;
+  /** The ground's water (0–1 of full) it needs to rise past level 2 */
+  ground: number;
+}
+
+export interface FarmZoneSpec {
+  /** Baht to paint a 16 m tile */
+  price: number;
+  /** Tiles a field may lie from a road, along a way over open land and fields (a cart track, the dikes) */
+  reach: number;
+  /** The highest level a field reaches in each era, eras 1 to 5 */
+  eraTop: number[];
+  /** People a level of fields feeds: the town's own food */
+  feeds: number;
+  /** Levels the market beyond the town takes for each level of the province's farmland (0–5) */
+  exportPerLevel: number;
+  /** Ponds lie this many tiles from water or nearer; paddies this many, at most paddyRise metres above it, or where the
+   * ground holds paddyGround of its water; orchards where it holds orchardGround; fields elsewhere */
+  pondReach: number;
+  paddyReach: number;
+  paddyRise: number;
+  paddyGround: number;
+  orchardGround: number;
+  /** What the dry season leaves of a field's sales, and how much more groundwater it draws then */
+  dryYield: number;
+  dryDraw: number;
+  /** A cooperative, rice mill or cold store (the 3 × 3 farm building) raises the sales of the fields this many tiles round
+   * it by hubBonus (0.5: half as much again) */
+  hubReach: number;
+  hubBonus: number;
+  /** Land value added within two tiles of a grown field, and visitors a month a level brings (agro-tourism) */
+  landValue: number;
+  visitors: number;
+  /** Haze of a burning field on the tiles round it */
+  haze: number;
+  /** Farm-goods factories a level of fields asks for */
+  factoriesPerLevel: number;
+  kinds: Record<FarmKind, FarmKindSpec>;
+}
+
+export interface FarmZonePatch extends Partial<Omit<FarmZoneSpec, "kinds">> {
+  kinds?: Partial<Record<FarmKind, Partial<FarmKindSpec>>>;
+}
+
+/** The game's own farm zone, before the region's and the province's */
+export const FARM_ZONE: FarmZoneSpec = {
+  price: 3, reach: 8, eraTop: [2, 3, 4, 5, 5], feeds: 12, exportPerLevel: 40,
+  pondReach: 1, paddyReach: 10, paddyRise: 5, paddyGround: 0.55, orchardGround: 0.35,
+  dryYield: 0.5, dryDraw: 2, hubReach: 12, hubBonus: 0.5, landValue: 6, visitors: 0.3, haze: 30, factoriesPerLevel: 0.004,
+  kinds: {
+    paddy: { sale: 0.06, jobs: 0.08, draw: 1, chemicals: 0.5, burns: true, mud: 0, ground: 0.4 },
+    field: { sale: 0.05, jobs: 0.06, draw: 1, chemicals: 0.6, burns: true, mud: 0, ground: 0.15 },
+    orchard: { sale: 0.08, jobs: 0.07, draw: 1, chemicals: 0.4, burns: false, mud: 0, ground: 0.25 },
+    pond: { sale: 0.1, jobs: 0.05, draw: 0, chemicals: 0.2, burns: false, mud: 12, ground: 0 },
+  },
+};
+
+/** The range each farm zone number may take (whole: a whole number) */
+const FARM_RANGES: Readonly<Record<string, { min: number; max: number; whole?: boolean }>> = {
+  price: { min: 0, max: 1000 }, reach: { min: 1, max: 32, whole: true }, feeds: { min: 1, max: 1000 },
+  exportPerLevel: { min: 0, max: 1000 }, pondReach: { min: 0, max: 4, whole: true }, paddyReach: { min: 0, max: 64, whole: true },
+  paddyRise: { min: 0, max: 100 }, paddyGround: { min: 0, max: 1 }, orchardGround: { min: 0, max: 1 },
+  dryYield: { min: 0, max: 1 }, dryDraw: { min: 0, max: 5 }, hubReach: { min: 0, max: 64, whole: true },
+  hubBonus: { min: 0, max: 5 }, landValue: { min: 0, max: 100 }, visitors: { min: 0, max: 100 },
+  haze: { min: 0, max: 255, whole: true }, factoriesPerLevel: { min: 0, max: 1 },
+};
+const FARM_KIND_RANGES: Readonly<Record<string, { min: number; max: number }>> = {
+  sale: { min: 0, max: 10 }, jobs: { min: 0, max: 1 }, draw: { min: 0, max: 32 }, chemicals: { min: 0, max: 32 },
+  mud: { min: 0, max: 255 }, ground: { min: 0, max: 1 },
+};
+
+/** A layer's farm zone, checked: what is valid is kept, the rest is reported in problems */
+export function checkFarmZonePatch(raw: unknown, where: string, problems: string[]): FarmZonePatch {
+  const patch: Record<string, unknown> = {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    problems.push(`${where}: not an object`);
+    return patch;
+  }
+  const inRange = (value: unknown, range: { min: number; max: number; whole?: boolean }): boolean =>
+    typeof value === "number" && Number.isFinite(value) && value >= range.min && value <= range.max &&
+    (!range.whole || Number.isInteger(value));
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (key.startsWith("_")) continue;
+    const at = `${where}.${key}`;
+    if (key === "eraTop") {
+      if (Array.isArray(value) && value.length === 5 && value.every((n) => Number.isInteger(n) && n >= 1 && n <= 5)) patch.eraTop = [...value];
+      else problems.push(`${at}: must list 5 levels, each 1–5`);
+    } else if (key === "kinds") {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) { problems.push(`${at}: not an object`); continue; }
+      const kinds: Record<string, Record<string, unknown>> = {};
+      for (const [kind, entry] of Object.entries(value as Record<string, unknown>)) {
+        if (kind.startsWith("_")) continue;
+        if (!(FARM_KINDS as readonly string[]).includes(kind)) { problems.push(`${at}.${kind}: unknown kind (one of ${FARM_KINDS.join(", ")})`); continue; }
+        if (typeof entry !== "object" || entry === null || Array.isArray(entry)) { problems.push(`${at}.${kind}: not an object`); continue; }
+        const kept: Record<string, unknown> = {};
+        for (const [name, number] of Object.entries(entry as Record<string, unknown>)) {
+          if (name.startsWith("_")) continue;
+          if (name === "burns") {
+            if (typeof number === "boolean") kept.burns = number;
+            else problems.push(`${at}.${kind}.burns: must be true or false`);
+          } else if (FARM_KIND_RANGES[name]) {
+            if (inRange(number, FARM_KIND_RANGES[name])) kept[name] = number;
+            else problems.push(`${at}.${kind}.${name}: must be ${FARM_KIND_RANGES[name].min}–${FARM_KIND_RANGES[name].max}`);
+          } else {
+            problems.push(`${at}.${kind}.${name}: unknown`);
+          }
+        }
+        kinds[kind] = kept;
+      }
+      patch.kinds = kinds;
+    } else if (FARM_RANGES[key]) {
+      const range = FARM_RANGES[key];
+      if (inRange(value, range)) patch[key] = value;
+      else problems.push(`${at}: must be ${range.whole ? "a whole number " : ""}${range.min}–${range.max}`);
+    } else {
+      problems.push(`${at}: unknown`);
+    }
+  }
+  return patch as FarmZonePatch;
+}
+
+/** A layer's farm zone over the one below: the numbers it gives, and each kind's numbers it gives */
+export function applyFarmZone(below: FarmZoneSpec, patch: FarmZonePatch | undefined): FarmZoneSpec {
+  if (!patch) return below;
+  const kinds = { ...below.kinds };
+  for (const kind of FARM_KINDS) if (patch.kinds?.[kind]) kinds[kind] = { ...kinds[kind], ...patch.kinds[kind] };
+  return { ...below, ...patch, kinds };
 }
 
 export interface RulesData {
@@ -124,6 +276,7 @@ export const DEFAULT_RULES: Rules = {
   weather: DEFAULT_CLIMATE,
   // The country's own festivals, kept in every province
   festivals: { new_year: {}, songkran: {}, loy_krathong: {} },
+  farmZone: FARM_ZONE,
 };
 
 // The range each kind of number may take
@@ -219,6 +372,9 @@ export function checkPatch(raw: unknown, where: string, problems: string[]): Rul
       case "festivals":
         patch.festivals = checkFestivalsPatch(value, `${where}.festivals`, problems);
         break;
+      case "farmZone":
+        patch.farmZone = checkFarmZonePatch(value, `${where}.farmZone`, problems);
+        break;
       case "seasons":
         if (!Array.isArray(value)) {
           problems.push(`${where}.seasons: not a list`);
@@ -297,6 +453,8 @@ function apply(rules: Rules, patch: RulesPatch | undefined): Rules {
     weather: { ...rules.weather, ...patch.weather },
     // ... and its festivals only those it names
     festivals: applyFestivals(rules.festivals, patch.festivals),
+    // ... and its farm zone only the numbers it gives
+    farmZone: applyFarmZone(rules.farmZone ?? FARM_ZONE, patch.farmZone),
   };
 }
 

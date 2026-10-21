@@ -55,7 +55,7 @@ export const TOOL_NAMES = [
   "motorway", "tollway", "road_upgrade", "ruler_house", "ruler_house_upgrade", "kindergarten", "primary_school",
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
-  "zone_residential", "zone_commercial", "zone_industrial", "zone_erase",
+  "zone_residential", "zone_commercial", "zone_industrial", "zone_erase", "zone_farm", "farm_erase",
   "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade", "canal",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
@@ -313,7 +313,8 @@ export function mineProblem(city: Pick<CommandTarget, "resources">, kind: string
 export function farmProblem(city: Pick<CommandTarget, "resources" | "isWaterAt">, tool: string, x: number,
                             y: number): string | null {
   const resources = city.resources ?? {};
-  if (tool === "farm") return farmLevel(resources) >= 1 ? null : NO_RESOURCE;
+  // ... and the farm zone's brush (src/farmZone.ts) where the province has farmland
+  if (tool === "farm" || tool === "zone_farm") return farmLevel(resources) >= 1 ? null : NO_RESOURCE;
   if (tool !== "fishing") return null;
   if (fisheryLevel(resources) < 1) return NO_RESOURCE;
   const isWaterAt = city.isWaterAt;

@@ -275,6 +275,17 @@
 | `choice.zone_commercial` | `src/toolLevels.ts` | — | `Shops` | `ร้านค้า` |  |
 | `choice.zone_industrial` | `src/toolLevels.ts` | — | `Industry` | `โรงงาน` |  |
 | `choice.zone_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบเขต` |  |
+| `tool.zone_farm` | `src/toolLevels.ts` | — | `Paint Farmland {price}` | `ทาโซนเกษตร {price}` | โซนที่สี่: นา ไร่ สวน บ่อปลา ทาทีละช่อง 16 ม. เกมเลือกชนิดตามพื้นที่ (Claude Code 21 ต.ค. 2026, docs/GAME_DESIGN.md ข้อ 7) |
+| `tool.farm_erase` | `src/toolLevels.ts` | — | `Erase Farmland {price}` | `ลบโซนเกษตร {price}` |  |
+| `choice.zone_farm` | `src/toolLevels.ts` | — | `Farmland` | `ไร่นา สวน` |  |
+| `choice.farm_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบ` |  |
+| `about.zone.farm` | `src/toolShortcuts.ts` | — | `Farmland: paddies, crop fields, orchards and fish ponds, chosen by the land; it needs a cart track to a road nearby, not a road beside it. It feeds the town and sells its crop, but draws the groundwater, its chemicals seep into the ground and its stubble burns from February to April.` | `โซนเกษตร: นา ไร่ สวน บ่อปลา เกมเลือกตามพื้นที่ ไม่ต้องติดถนน แค่มีทางเกวียนไปถึงถนนไม่ไกล เลี้ยงคนในเมืองและขายผลผลิต แต่ใช้น้ำใต้ดิน สารเคมีลงดิน และเผาตอซังช่วง ก.พ.–เม.ย.` | คำอธิบายในป้ายเครื่องมือ |
+| `tool.needs_way` | `src/game.js` | — | `Farmland needs a way to a road within {reach} tiles` | `โซนเกษตรต้องมีทางไปถึงถนนภายใน {reach} ช่อง` | ป้ายมุมเมื่อทาไกลถนนเกินไป |
+| `farm.kind.paddy` | `src/inspect.ts` | — | `Rice paddy` | `นาข้าว` | ชนิดแปลงเกษตรที่เกมเลือก |
+| `farm.kind.field` | `src/inspect.ts` | — | `Crop field` | `ไร่` |  |
+| `farm.kind.orchard` | `src/inspect.ts` | — | `Orchard` | `สวน` |  |
+| `farm.kind.pond` | `src/inspect.ts` | — | `Fish pond` | `บ่อปลา` |  |
+| `farm.kind.empty` | `src/inspect.ts` | — | `Farmland, not yet planted` | `โซนเกษตรที่ยังไม่ได้ปลูก` |  |
 | `choice.erase_note` | `src/toolLevels.ts` | — | `free` | `ฟรี` | แทนราคาในช่องลบเขต |
 | `choice.move_note` | `src/game.js` | — | `a tenth of its price` | `10% ของราคาอาคาร` | แทนราคาในช่องย้ายอาคาร |
 | `choice.title.bulldozer` | `src/toolLevels.ts` | — | `Bulldoze or move a building` | `รื้อถอน หรือย้ายอาคาร` |  |
@@ -1719,6 +1730,7 @@
 | `dock.group.bus_stop` | `src/toolDock.ts` | — | `Public transport` | `ขนส่งสาธารณะ` | |
 | `dock.group.port` | `src/toolDock.ts` | — | `Port & airport` | `ท่าเรือและสนามบิน` | |
 | `dock.group.farm` | `src/toolDock.ts` | — | `Farms & fishing` | `เกษตรและประมง` | |
+| `dock.group.zone_farm` | `src/toolDock.ts` | — | `Farmland` | `โซนเกษตร` | นา ไร่ สวน บ่อปลา (docs/GAME_DESIGN.md ข้อ 7) |
 | `dock.group.mine` | `src/toolDock.ts` | — | `Mines & wells` | `เหมืองและบ่อน้ำมัน` | |
 | `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | |
 | `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | |
