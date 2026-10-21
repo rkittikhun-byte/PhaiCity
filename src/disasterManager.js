@@ -18,6 +18,7 @@ import { Random } from './random.ts';
 import { SPRITE_AIRPLANE } from './spriteConstants.ts';
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
+import { NUCLEAR_KIND } from "./plantBlocks.ts";
 import { ZoneUtils } from './zoneUtils.js';
 
 var DisasterManager = EventEmitter(function(map, spriteManager, gameLevel) {
@@ -100,7 +101,10 @@ DisasterManager.prototype.scenarioDisaster = function() {
 DisasterManager.prototype.makeMeltdown = function() {
   for (var x = 0; x < (this._map.width - 1); x++) {
     for (var y = 0; y < (this._map.height - 1); y++) {
-      if (this._map.getTileValue(x, y) === TileValues.NUCLEAR) {
+      // (PhaiCity: or a 3x3 plant whose kind is nuclear, src/plantBlocks.ts)
+      var value = this._map.getTileValue(x, y);
+      if (value === TileValues.NUCLEAR ||
+          value === TileValues.PLANT3 && (this._map.powerKinds || {})[y * this._map.width + x] === NUCLEAR_KIND) {
         this.doMeltdown(x, y);
         return;
       }

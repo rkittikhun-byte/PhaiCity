@@ -355,7 +355,18 @@ export const BUS_STOP         = 1021;
 export const FIELD_BASE       = CHURCH7BASE;
 export const FIELD_LAST       = CHURCH7BASE + 5;
 
-// tiles 1016-1019 and 1022-1023 unused
+// PhaiCity: power plants that take only the tiles their model covers (owner, 21 Oct 2026: "ให้ระบบจำลองกินที่เท่าตัวโมเดล
+// จริง", src/plantBlocks.ts, docs/POWER_PLANTS.md): a 3x3 for the plants drawn with an era's model (48 m) on tiles the
+// original game left between its explosion and its chimney smoke (870-878, never placed), and a 2x2 for the plants
+// drawn by the program (32 m) on the seventh 3x3's last four tiles; the map records each one's kind (gameMap.powerKinds)
+export const PLANT3_BASE      = 870;
+export const PLANT3           = 874; // Centre of a 3x3 power plant (tiles 870--878)
+export const PLANT3_LAST      = 878;
+export const PLANT2_BASE      = 1016;
+export const PLANT2           = 1019; // Centre of a 2x2 power plant (tiles 1016--1019), its bottom right as (1, 1)
+export const PLANT2_LAST      = 1019;
+
+// tiles 1022-1023 unused
 
 export const TILE_COUNT     = 1024;
 

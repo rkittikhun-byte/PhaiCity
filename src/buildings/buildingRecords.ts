@@ -15,19 +15,22 @@ import { PLANT_TOOLS } from "../powerPlants";
 import { SERVICE_KINDS } from "../services";
 import { STATION_KINDS } from "../transit";
 import { WASTE_KINDS } from "../waste";
-import { AIRPORT, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, MINE, NUCLEAR, POLICESTATION, PORT, POWERPLANT, STADIUM,
+import { NUCLEAR_KIND } from "../plantBlocks";
+import { AIRPORT, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, MINE, NUCLEAR, PLANT2, PLANT3, POLICESTATION, PORT, POWERPLANT, STADIUM,
   STATION, WASTE, WATER_TOWER, WATER_WORKS } from "../tileValues";
 import { tileMetres, unitsPerMetre } from "../units";
 import { type PlacedBuilding, PlacedBuildings } from "./placedBuildings";
 
 /** The record kept by centre tile for which kind of building stands on a centre of this value */
 export const KIND_FIELDS: Readonly<Record<number, string>> = {
-  [POWERPLANT]: "powerKinds", [MINE]: "mineKinds", [CIVIC]: "civicKinds", [WASTE]: "wasteKinds", [STATION]: "stationKinds",
+  [POWERPLANT]: "powerKinds", [PLANT3]: "powerKinds", [PLANT2]: "powerKinds", [MINE]: "mineKinds", [CIVIC]: "civicKinds", [WASTE]: "wasteKinds", [STATION]: "stationKinds",
 };
 
 /** The ruler's buildings by the value of their centre tile: the tool that builds the plain one, and its size */
 const CENTRES: ReadonlyMap<number, { tool: string; size: number }> = new Map([
   [AIRPORT, { tool: "airport", size: 6 }], [POWERPLANT, { tool: "coal", size: 4 }], [NUCLEAR, { tool: "nuclear", size: 4 }],
+  // (the plants on only the tiles their model covers, src/plantBlocks.ts)
+  [PLANT3, { tool: "coal", size: 3 }], [PLANT2, { tool: "solar", size: 2 }],
   [MINE, { tool: "limestone_mine", size: 3 }], [FARM, { tool: "farm", size: 3 }], [HARBOUR, { tool: "fishing", size: 3 }],
   [FIRESTATION, { tool: "fire", size: 3 }], [POLICESTATION, { tool: "police", size: 3 }], [PORT, { tool: "port", size: 4 }],
   [CIVIC, { tool: "ruler_house", size: 3 }], [STADIUM, { tool: "stadium", size: 4 }], [FULLSTADIUM, { tool: "stadium", size: 4 }],
@@ -41,7 +44,8 @@ export function toolOfCentre(value: number, kind?: string | null, level?: number
   const centre = CENTRES.get(value);
   if (!centre) return null;
   let tool = centre.tool;
-  if (kind && value === POWERPLANT) tool = PLANT_TOOLS[kind as keyof typeof PLANT_TOOLS] ?? tool;
+  if (kind && (value === POWERPLANT || value === PLANT3 || value === PLANT2))
+    tool = kind === NUCLEAR_KIND ? "nuclear" : PLANT_TOOLS[kind as keyof typeof PLANT_TOOLS] ?? tool;
   else if (kind && value === MINE) tool = MINE_TOOLS[kind as keyof typeof MINE_TOOLS] ?? tool;
   else if (kind && (value === CIVIC || value === WASTE || value === STATION)) tool = kind;
   const group = groupOfCentre(value);
@@ -191,7 +195,8 @@ export function carryRecords(map: CarryMap, from: number, to: number): () => voi
 /** The record by tile a tool's building keeps its kind in */
 function fieldOfTool(tool: string): string | null {
   const among = (list: readonly string[]): boolean => list.includes(tool);
-  if (among(Object.values(PLANT_TOOLS))) return "powerKinds";
+  // (a nuclear plant on a 3x3 keeps its kind too, src/plantBlocks.ts)
+  if (among(Object.values(PLANT_TOOLS)) || tool === "nuclear") return "powerKinds";
   if (among(Object.values(MINE_TOOLS))) return "mineKinds";
   if (tool === "ruler_house" || among(SERVICE_KINDS)) return "civicKinds";
   if (among(WASTE_KINDS)) return "wasteKinds";

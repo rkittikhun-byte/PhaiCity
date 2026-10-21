@@ -221,6 +221,12 @@ stands where, and the renderer only reads it.
 - Choose the model by the kind at the plant's centre; every tile of the 4×4 belongs to that plant.
 - Smoke only from lignite (heavy) and gas (light). A dam stands beside water, so its model faces the water side;
   wind turbines turn. Nuclear (816–826) is unchanged.
+- **Plants on only the tiles their model covers (21 Oct 2026, `src/plantBlocks.ts`, docs/POWER_PLANTS.md).** A plant built
+  now is a 3×3 on tiles 870–878 (centre 874) or a 2×2 on 1016–1019 (centre 1019, its bottom right), each with ZONEBIT on
+  its centre and its kind in `gameMap.powerKinds` (`"nuclear"` for a nuclear plant). Draw a 3×3 with its era's model where
+  its era has one (`eraKindFor`), else the kind's model filling the block; draw a 2×2 always with the kind's model filling
+  it (`tileModels.ts` `powerPlacement`, `plantShare`). Nothing of either reaches past its block. The 4×4s above stay
+  as they were for plants built before.
 
 ## 6E. Mines and oil wells (added 13 Oct 2026)
 

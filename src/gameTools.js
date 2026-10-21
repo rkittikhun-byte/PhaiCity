@@ -39,6 +39,7 @@ import { PlotTool } from './plotTool.ts';
 import { FarmTool } from './farmTool.ts';
 import { FARM_ERASE_TOOL, FARM_PAINT_TOOL } from './farmZone.ts';
 import { FARM_ZONE } from './provinceRules.ts';
+import { NUCLEAR_KIND, sizePlantTool } from './plantBlocks.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 import { MOVE_TOOL, MoveTool } from './moveTool.ts';
@@ -155,10 +156,12 @@ function GameTools(map, rules) {
     tools[PAINT_TOOLS[kind]].clearWoodsCost = rules.clearWoodsCost;
   });
 
-  // What kind of plant each power tool builds; the map records it where it stands (src/cityCommands.ts)
+  // What kind of plant each power tool builds; the map records it where it stands (src/cityCommands.ts). Each lays
+  // the block its kind takes in the city's era, a 3x3 or a 2x2 (src/plantBlocks.ts), not the old 4x4
   POWER_KINDS.forEach(function(kind) {
-    tools[PLANT_TOOLS[kind]].powerKind = kind;
+    sizePlantTool(tools[PLANT_TOOLS[kind]], kind);
   });
+  sizePlantTool(tools.nuclear, NUCLEAR_KIND);
   MINE_KINDS.forEach(function(kind) {
     tools[MINE_TOOLS[kind]].mineKind = kind;
   });

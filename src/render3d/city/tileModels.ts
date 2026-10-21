@@ -9,7 +9,7 @@ import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { BIT_MASK, POWERBIT, ZONEBIT } from '../../tileFlags.js';
 import { cellPlotPose, type CellMap } from '../../zoneCells.js';
-import { CIVIC, FARM, HARBOUR, MINE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
+import { CIVIC, FARM, HARBOUR, MINE, PLANT2, PLANT2_BASE, PLANT3, PLANT3_BASE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, readPlotValue } from '../../plots.js';
@@ -57,6 +57,10 @@ export function makeTileTable(): readonly TileResolution[] {
     for (let i = 0; i < size * size; i++) if (table[start+i].kind === 'debug') table[start+i] = { kind, id: null, footprint:[size,size], density:1 };
   // The extended 3 × 3s (water works, mines, farms, harbours, waste, stations) are generic buildings until registered
   for (let start = 956; start <= 1010; start += 9) for (let i=0;i<9;i++) if (table[start+i].kind==='debug') table[start+i] = { kind:'services', id:null, footprint:[3,3], density:1 };
+  // The power plants on only the tiles their model covers (src/plantBlocks.ts): a 3 × 3 among the dust's tiles, a 2 × 2
+  // on the seventh 3 × 3's last four
+  for (let i = 0; i < 9; i++) table[PLANT3_BASE + i] = { kind: 'services', id: null, footprint: [3, 3], density: 1 };
+  for (let i = 0; i < 4; i++) table[PLANT2_BASE + i] = { kind: 'services', id: null, footprint: [2, 2], density: 1 };
   // A demolition's dust (tiles 860-883, a bulldozer's or an explosion's) and a fire (56-63) have no model of their own: they
   // show as the rubble they turn into, never as the white test box (owner, 19 Oct 2026: "มันมีกล่องสี่เหลี่ยมได้ยังไง")
   for (const [from, to] of [[860, 883], [56, 63]] as const)
@@ -133,6 +137,12 @@ export type RoadNear = { x: number; z: number; tx: number; tz: number; reach: nu
 
 /** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at fill (default BUILDING_SCALE):
  * its middle and its turn, its front to the road */
+/** On a city map, the share of its size the program's model of a plant on a 3 × 3 or a 2 × 2 is drawn at, made n/4 as
+ * big first (src/plantBlocks.ts): it fills its block, half a metre clear of the block's edge all round (a 16 m tile of
+ * a 10-unit one, the model 39 units on four) */
+export const plantShare = (n: number): number => (n * 16 - 1) / (9.75 * n);
+/** The share of its model's size a placement is drawn at on a city map: its own, or its id's (CITY_MODEL_SCALE) */
+export const shareOf = (p: Placement): number => p.share ?? (p.id ? CITY_MODEL_SCALE[p.id] ?? 1 : 1);
 export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNear, fill = BUILDING_SCALE): { x: number; z: number; rotation: number } {
   const half = size * 5 * fill;
   let nx = -near.tz, nz = near.tx;
@@ -457,7 +467,7 @@ export class TileSnapshot implements CityMapReader {
   private sitePlacement(i:number,x:number,y:number,size:number,region:RegionId):Placement|null {
     const site=this.source?.sites?.[i];
     if(!site||size<3)return null;
-    const s=size>=6?6:size>=4?4:3,id=siteId(s);
+    const s=size>=6?6:size>=4?4:size>=3?3:2,id=siteId(s);
     if(!registry[id])return null;
     const crane=s>=4||(UNLOCKS[site.tool]?.months??0)>=6?1:0;
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,s)];
@@ -469,17 +479,24 @@ export class TileSnapshot implements CityMapReader {
   /** A regional power plant on tiles 745–760 (centre 750, src/powerPlants.ts): `power.solar`, `power.wind`, `power.gas`,
    * `power.hydro`, or `power.coal` (`lignite`), picked from `gameMap.powerKinds` and turned toward its road. */
   private powerPlacement(i:number,x:number,y:number,region:RegionId,hash:number):Placement|null {
-    if(this.values[i]!==POWERPLANT)return null;
+    // The old 4 × 4, or a plant on only the tiles its model covers (src/plantBlocks.ts): a 3 × 3 drawn with its era's
+    // model where its era has one, a 2 × 2 always drawn by the program; each a nuclear one when its kind says so
+    const v=this.values[i],n=v===POWERPLANT?4:v===PLANT3?3:v===PLANT2?2:0;
+    if(!n)return null;
     const pk=this.source?.powerKinds?.[i]??'lignite';
     const id=pk==='lignite'?'power.coal':`power.${pk}`;
     if(!registry[id])return null;
     const heights:Record<string,number>={lignite:44,solar:8,wind:36,gas:28,hydro:16};
     const colors:Record<string,number>={lignite:0xa2b8b4,solar:0x365b8c,wind:0xdbe3e6,gas:0xb5bfc4,hydro:0x7ea1b5};
-    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,4)];
-    const cx=(x+1)*10,cz=(y+1)*10;
-    return new Placement({index:i,x:cx,z:cz,id,kind:'services',footprint:[4,4],height:heights[pk]??30,color:colors[pk]??0xa2b8b4,
-      water:false,rotation,scale:1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,
-        variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,n)];
+    const cx=(x-1+n/2)*10,cz=(y-1+n/2)*10;
+    // The program's models are made for the old 4 × 4: on a smaller block it is drawn n/4 as big, and on a city map filling
+    // its block (PLANT_SHARE), not at the share the old block drew it at (CITY_MODEL_SCALE)
+    const p=new Placement({index:i,x:cx,z:cz,id,kind:'services',footprint:[n,n],height:(heights[pk]??(pk==='nuclear'?55:30))*n/4,
+      color:colors[pk]??0xa2b8b4,water:false,rotation,scale:n/4,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,
+        seed:hash%SEED_BUCKETS,variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
+    if(n<4){p.share=plantShare(n);if(n===2)p.procedural=true;}
+    return p;
   }
   /** A school or hospital on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its
    * gate toward its road. The ruler's house keeps its own placement; a kind without a model stays generic. */
@@ -569,11 +586,13 @@ export class TileSnapshot implements CityMapReader {
   private toEra(p:Placement|null):Placement|null {
     if(!p||!this.eraModels||p.index<0)return p;
     const state=p.options.state;
-    if(state==='stage_1'||state==='stage_2')return p;
+    if(state==='stage_1'||state==='stage_2'||p.procedural)return p;
     const era=this.eraOf(p.index),kind=eraKindFor(p.id,p.eraKind,era);
     if(!kind)return p;
     const height=this.eraModels.height(era,p.options.region??'central',kind);
     if(height===null)return p;
+    // (a 3 × 3 plant drawn by its era's model is drawn as the era models are, at their size: plantBlocks.ts)
+    if(p.share!==undefined){p.scale=1;p.share=undefined;}
     p.id=eraModelId(era,kind);p.height=height;p.options={...p.options,seed:0,variant:0,state:'closed'};
     if(!this.realUnits){p.scale*=BUILDING_SCALE;p.fill=(p.fill??1)*BUILDING_SCALE;}
     return p;
@@ -658,7 +677,7 @@ export class TileSnapshot implements CityMapReader {
   private atRealSize(p:Placement|null):Placement|null {
     const units=this.realUnits;
     if(!p||!units||units>=1||TILING_KINDS.has(p.kind))return p;
-    const factor=p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    const factor=shareOf(p);
     p.scale*=units*factor;p.fill=units*factor;p.height*=factor;return p;
   }
   /**
@@ -677,7 +696,7 @@ export class TileSnapshot implements CityMapReader {
     const p=this.placement(i,region);
     if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return null;
     const size=Math.max(p.footprint[0],p.footprint[1]);
-    const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    const factor=this.realUnits?shareOf(p):1;
     // againstRoad moves a kept pose out by this much for a model drawn bigger: take it off again
     const delta=size*5*BUILDING_SCALE*(factor-1),nx=-Math.sin(p.rotation),nz=-Math.cos(p.rotation);
     return [Math.round((p.x-nx*delta)*100)/100,Math.round((p.z-nz*delta)*100)/100,Math.round(p.rotation*1000)/1000];
@@ -697,7 +716,7 @@ export class TileSnapshot implements CityMapReader {
     // aligned with and facing its road; not the ground, roads, railways, power lines and shores
     if(['terrain','road','rail','shore','debug','veg','park'].includes(p.kind)||
       !zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
-    const factor=this.realUnits&&p.id?(CITY_MODEL_SCALE[p.id]??1):1;
+    const factor=this.realUnits?shareOf(p):1;
     const scale=BUILDING_SCALE*factor;
     // Where the player put it down in metres, or where the game kept it standing (gameMap.buildings)
     const kept=this.placedPose(p.index);

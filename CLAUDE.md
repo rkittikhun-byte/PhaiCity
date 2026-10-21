@@ -274,6 +274,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   lignite (the old coal plant), gas, dam, solar and wind, all on the coal plant's tiles and chosen in the tool levels
   card above the power button (`setToolChoices` in `src/toolLevels.ts`, the button's `data-active-tool`); the map
   records each plant's kind (`gameMap.powerKinds`, saved with the `buildings` since 20 Oct 2026; renderers read it, RENDERER_SPEC 6D).
+  Since 21 Oct 2026 a new plant takes only the tiles its model covers (owner: "ให้ระบบจำลองกินที่เท่าตัวโมเดลจริง"): a 3×3
+  (870–878) where its era draws it with the era's model, else a 2×2 (1016–1019), by kind and era (`src/plantBlocks.ts`);
+  older plants keep their 4×4, and the water works its 3×3, which its model already fills.
   Dams and wind farms need the province's resource, dams water beside them (`plantProblem` in `CityCommands`);
   lignite and gas burn fuel paid at the year's end. **Mines and oil wells** (`docs/MINING.md`, `src/mining.ts`): one
   3×3 building (tiles 965–973) per ore the province has, chosen above the mine button; with power it pays royalties

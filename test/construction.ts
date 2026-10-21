@@ -75,7 +75,7 @@ describe("construction sites", () => {
     for (let y = 30; y < 37; y++) tool("road", 40, y);
     tool("ruler_house", 42, 33);
     tool("ruler_house_upgrade", 42, 33);
-    tool("coal", 10, 10);
+    tool("coal", 11, 10); // a village's 3 x 3 on 10..12, touching the school (src/plantBlocks.ts)
     map.sites = {};
     expect(tool("secondary_school", 14, 10).toolResult).toBe(0);
     expect(isSite(map, 10 * map.width + 14)).toBe(true);

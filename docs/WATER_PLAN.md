@@ -81,6 +81,13 @@ Most of the fall comes in the first two or three years. A works serving half of 
   house's granary halves the share (`docs/RULER_HOUSE.md`).
 - No upkeep yet (`src/budget.js` has the water fee's income but no water works line).
 
+## ขนาดที่ดิน (เจ้าของ 21 ต.ค. 2026: "ให้ระบบจำลองกินที่เท่าตัวโมเดลจริง เริ่มที่โรงไฟฟ้ากับโรงประปา")
+
+โรงประปากิน 3 × 3 ช่อง (48 ม.) เท่าเดิม เพราะโมเดลของยุค (`water_works` ใน `art/buildings`) กว้าง 3 ช่องพอดีทุกยุคทุกภาค
+(รั้วที่ 23.4 ม. จากกลาง มีบ่อตกตะกอน บ่อกรอง ถังน้ำใส โรงสูบ และโรงเก็บสารเคมีอยู่ในนั้นแล้ว) จึงไม่มีที่ว่างเหลือให้ย่อ
+โมเดลโปรแกรม (`water.works`, กว้างราว 28 ม.) วาดเฉพาะตอนโมเดลของยุคยังโหลดไม่เสร็จ จึงไม่ใช้ตัดสินขนาด
+หอถังสูงกิน 1 ช่องและโมเดลอยู่ในช่องนั้นพอดี ส่วนโรงไฟฟ้าย่อเหลือ 3 × 3 หรือ 2 × 2 แล้ว (`docs/POWER_PLANTS.md`)
+
 ## Graphics (3D view)
 
 Built (prompt W1 of `docs/3d/CODEX_PROMPTS.md`, done by Claude Code since 13 Oct 2026):

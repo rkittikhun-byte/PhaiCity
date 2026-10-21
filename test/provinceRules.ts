@@ -176,13 +176,13 @@ describe("province rules in a city", () => {
     const sim: any = new (Simulation as any)(map, 0, 3, null, rules);
     sim.budget.setFunds(100000);
     const tools: any = new (GameTools as any)(map);
-    build(tools, sim, "coal", 10, 10); // tiles 9–12
+    build(tools, sim, "coal", 11, 10); // a village's 3 x 3, tiles 10–12 (src/plantBlocks.ts)
     for (let k = 0; k < 6; k++) build(tools, sim, "residential", 14 + 3 * k, 10); // rows 9–11, touching the plant
     for (let x = 13; x < 34; x++) build(tools, sim, "road", x, 12);
     for (let k = 0; k < 4; k++) build(tools, sim, "commercial", 14 + 3 * k, 14); // rows 13–15
     for (let x = 13; x < 34; x++) build(tools, sim, "road", x, 16);
     for (let k = 0; k < 4; k++) build(tools, sim, "industrial", 14 + 3 * k, 18); // rows 17–19
-    for (let y = 13; y <= 17; y++) build(tools, sim, "wire", 12, y); // down the plant's side to the shops and factories
+    for (let y = 12; y <= 17; y++) build(tools, sim, "wire", 12, y); // down from the plant to the shops and factories
     for (let step = 0; step < years * 768; step++) {
       const simData = sim._constructSimData();
       sim._simulate(simData);

@@ -147,8 +147,9 @@ export function missingViewFunctions(view: object): string[] {
 }
 
 /**
- * The map tiles a tool covers when the mouse is on a tile: tools bigger than 2×2 have the mouse one tile in from
- * their top-left corner (zones and buildings are placed by that tile, src/buildingTool.js).
+ * The map tiles a tool covers when the mouse is on a tile: tools of 2×2 and more have the mouse one tile in from
+ * their top-left corner (zones and buildings are placed by that tile, src/buildingTool.js; the 2×2 power plant,
+ * src/plantBlocks.ts, is the first 2×2).
  */
 export function toolFootprint(hover: ToolHover): TileRect {
   if (hover.area) return { ...hover.area };
@@ -157,7 +158,7 @@ export function toolFootprint(hover: ToolHover): TileRect {
     const ys = hover.path.map((t) => t.y);
     return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
   }
-  const offset = hover.size > 2 ? 1 : 0;
+  const offset = hover.size > 1 ? 1 : 0;
   const x0 = hover.tile.x - offset;
   const y0 = hover.tile.y - offset;
   return { x0, y0, x1: x0 + hover.size - 1, y1: y0 + hover.size - 1 };
@@ -183,7 +184,7 @@ export function areaCentres(start: TilePoint, end: TilePoint, size: number): Til
 
 /** Every tile the zones at these centres cover. */
 export function areaFootprint(centres: readonly TilePoint[], size: number): TileRect {
-  const offset = size > 2 ? 1 : 0;
+  const offset = size > 1 ? 1 : 0;
   const xs = centres.map((c) => c.x);
   const ys = centres.map((c) => c.y);
   const x0 = Math.min(...xs) - offset;

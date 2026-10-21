@@ -138,11 +138,12 @@ describe("city objects", () => {
     core.apply({ type: "tool", tool: "gas", x: 40, y: 10, stroke: 2 });
     const objects = new CityObjects(60, 40);
     objects.scan(core.map as any, 3);
-    const police = objects.at(19, 16)!, plant = objects.at(41, 11)!;
+    // (an early era's gas plant takes a 2 x 2, 39..40 x 9..10: src/plantBlocks.ts)
+    const police = objects.at(19, 16)!, plant = objects.at(39, 9)!;
     expect(police.kind).toBe("police");
     expect(police.placed).toMatchObject({ x: 330.4, z: 251.7, rot: 0.5, tool: "police" });
     expect(plant).toBeInstanceOf(PowerPlant);
-    expect(plant.placed).toMatchObject({ tool: "gas", x: 656, z: 176, rot: null });
+    expect(plant.placed).toMatchObject({ tool: "gas", x: 640, z: 160, rot: null });
     // Moved along its road: the same object, where it stands now
     core.apply({ type: "move", id: 1, x: 334, z: 250, rot: 1.25, stroke: 3 });
     const { added, removed } = objects.scan(core.map as any, 4);

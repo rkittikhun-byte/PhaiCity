@@ -17,6 +17,11 @@ export interface PlacementFields {
   footprint: readonly [number, number]; height: number; color: number; kind: string; water: boolean;
   scale: number; powered: boolean;
   baseY?: number; outside?: boolean; fill?: number;
+  /** The share of its model's size it is drawn at on a real-scale city map, where its id's (tileModels.ts
+   * CITY_MODEL_SCALE) does not fit: a power plant on a 3 × 3 or a 2 × 2 (tileModels.ts plantShare) */
+  share?: number;
+  /** Drawn by the program's model whatever its era: a 2 × 2 power plant, which no era model fits (src/plantBlocks.ts) */
+  procedural?: boolean;
   /** What its building is among the era models when the model id alone does not say (eraBuildings.ts eraKindFor):
    * a painted plot's or lot's kind and level (home_3, shop_5 ...) or a station's kind (station.metro_station) */
   eraKind?: string;
@@ -36,6 +41,8 @@ export class Placement implements PlacementFields {
    * a real-scale city map (10/16 of a 16 m tile, TileSnapshot.atRealSize) or smaller against its road */
   declare fill?: number;
   declare eraKind?: string;
+  declare share?: number;
+  declare procedural?: boolean;
   /** How far ahead of its middle its front stands as drawn (world units), for a building stood against its road
    * (tileModels.ts toRoadEdge): its lot and driveway reach to there (roadCurves.ts) */
   declare front?: number;

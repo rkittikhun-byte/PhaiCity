@@ -78,29 +78,30 @@ describe("moving a building on its block", () => {
 describe("moving a building to another block", () => {
   test("a power plant takes its tiles, its kind and its era along, and one undo puts it all back", () => {
     const core = city(), m = mapOf(core);
-    // A gas plant on the block 39-42 x 9-12, its centre (40, 10), in the third era
-    core.apply({ type: "build", tool: "gas", x: 656, z: 176, rot: 0, stroke: 1 });
-    const from = at(40, 10), to = at(49, 10), tiles = block(core, 39, 9, 4);
+    // A gas plant on the block 39-40 x 9-10, its centre (40, 10): an early era's gas plant takes a 2 x 2
+    // (src/plantBlocks.ts)
+    core.apply({ type: "build", tool: "gas", x: 640, z: 160, rot: 0, stroke: 1 });
+    const from = at(40, 10), to = at(49, 10), tiles = block(core, 39, 9, 2);
     expect(m.powerKinds).toEqual({ [from]: "gas" });
     m.buildingEras = new Uint8Array(60 * 40);
     m.buildingEras[from] = 3;
     const before = funds(core);
-    // ... to the block 48-51 x 9-12
-    const out = core.apply({ type: "move", id: 1, x: 800, z: 180, rot: 1.5, stroke: 2 });
+    // ... to the block 48-49 x 9-10
+    const out = core.apply({ type: "move", id: 1, x: 784, z: 160, rot: 1.5, stroke: 2 });
     expect(out).toMatchObject({ accepted: true, toolResult: 0 });
     expect(before - funds(core)).toBe(movePrice(core.tools.gas));
-    expect(block(core, 48, 9, 4)).toEqual(tiles);
-    expect(block(core, 39, 9, 4)).toEqual(bare(4));
-    expect(placed(core).get(1)).toMatchObject({ x: 800, z: 180, rot: 1.5, tile: to });
+    expect(block(core, 48, 9, 2)).toEqual(tiles);
+    expect(block(core, 39, 9, 2)).toEqual(bare(2));
+    expect(placed(core).get(1)).toMatchObject({ x: 784, z: 160, rot: 1.5, tile: to });
     expect(placed(core).atTile(from)).toBeUndefined();
     expect(placed(core).atTile(to)?.id).toBe(1);
     expect(m.powerKinds).toEqual({ [to]: "gas" });
     expect([m.buildingEras[from], m.buildingEras[to]]).toEqual([0, 3]);
     // Undo: the tiles, the records, where it stood and the money
     expect(core.apply({ type: "undo" })).toMatchObject({ undone: true });
-    expect(block(core, 39, 9, 4)).toEqual(tiles);
-    expect(block(core, 48, 9, 4)).toEqual(bare(4));
-    expect(placed(core).get(1)).toMatchObject({ x: 656, z: 176, rot: 0, tile: from });
+    expect(block(core, 39, 9, 2)).toEqual(tiles);
+    expect(block(core, 48, 9, 2)).toEqual(bare(2));
+    expect(placed(core).get(1)).toMatchObject({ x: 640, z: 160, rot: 0, tile: from });
     expect(placed(core).atTile(to)).toBeUndefined();
     expect(m.powerKinds).toEqual({ [from]: "gas" });
     expect([m.buildingEras[from], m.buildingEras[to]]).toEqual([3, 0]);
@@ -109,13 +110,13 @@ describe("moving a building to another block", () => {
 
   test("a move a tile over, onto its own tiles, lifts them first", () => {
     const core = city();
-    core.apply({ type: "build", tool: "gas", x: 656, z: 176, rot: 0, stroke: 1 });
-    const tiles = block(core, 39, 9, 4), before = block(core, 39, 9, 5);
-    expect(core.apply({ type: "move", id: 1, x: 672, z: 176, rot: 0, stroke: 2 }).accepted).toBe(true);
-    expect(block(core, 40, 9, 4)).toEqual(tiles);
-    expect([9, 10, 11, 12].map((y) => core.map.getTile(39, y).getRawValue())).toEqual([DIRT, DIRT, DIRT, DIRT]);
+    core.apply({ type: "build", tool: "gas", x: 640, z: 160, rot: 0, stroke: 1 });
+    const tiles = block(core, 39, 9, 2), before = block(core, 39, 9, 3);
+    expect(core.apply({ type: "move", id: 1, x: 656, z: 160, rot: 0, stroke: 2 }).accepted).toBe(true);
+    expect(block(core, 40, 9, 2)).toEqual(tiles);
+    expect([9, 10].map((y) => core.map.getTile(39, y).getRawValue())).toEqual([DIRT, DIRT]);
     core.apply({ type: "undo" });
-    expect(block(core, 39, 9, 5)).toEqual(before);
+    expect(block(core, 39, 9, 3)).toEqual(before);
   });
 
   test("a school and a fire post take their kind and level along, and stay the same objects", () => {
@@ -183,14 +184,14 @@ describe("moving a building to another block", () => {
     const core = city(), m = mapOf(core);
     road(core, 20, 5, 45);
     core.apply({ type: "build", tool: "ruler_house", x: 168, z: 296, rot: 0, stroke: 1 });
-    core.apply({ type: "build", tool: "gas", x: 656, z: 176, rot: 0, stroke: 2 });
+    core.apply({ type: "build", tool: "gas", x: 640, z: 160, rot: 0, stroke: 2 });
     core.apply({ type: "build", tool: "kindergarten", x: 168, z: 488, rot: 0, stroke: 3 });
     core.apply({ type: "build", tool: "landfill", x: 408, z: 488, rot: 0, stroke: 4 });
     m.rulerHouse.wings = [];
     m.buildingEras = new Uint8Array(60 * 40);
     m.buildingEras[at(40, 10)] = 2;
     (core.simulation as any)._waste.fill[at(25, 30)] = 500;
-    for (const [id, x, z] of [[1, 488, 296], [2, 800, 180], [3, 264, 488], [4, 600, 488]]) {
+    for (const [id, x, z] of [[1, 488, 296], [2, 784, 160], [3, 264, 488], [4, 600, 488]]) {
       expect(core.apply({ type: "move", id, x, z, rot: 0.25, stroke: 10 + id }).accepted).toBe(true);
     }
     expect((core.simulation as any)._waste.fill).toEqual({ [at(37, 30)]: 500 });
@@ -216,7 +217,7 @@ describe("moving a building to another block", () => {
     const core = city();
     road(core, 20, 5, 45);
     core.apply({ type: "build", tool: "ruler_house", x: 168, z: 296, rot: 0, stroke: 1 });
-    core.apply({ type: "build", tool: "gas", x: 656, z: 176, rot: 0, stroke: 2 });
+    core.apply({ type: "build", tool: "gas", x: 640, z: 160, rot: 0, stroke: 2 });
     core.apply({ type: "build", tool: "fire_post", x: 408, z: 488, rot: 0, stroke: 3 });
     core.apply({ type: "move", id: 1, x: 488, z: 296, rot: 0, stroke: 4 });
     core.run(40);
