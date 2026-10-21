@@ -142,7 +142,7 @@
 | `tool.rare_earth_mine` | `src/toolLevels.ts` | — | `Rare Earth Mine {price}` | `เหมืองแร่หายาก {price}` |  |
 | `tool.lignite_mine` | `src/toolLevels.ts` | — | `Lignite Mine {price}` | `เหมืองลิกไนต์ {price}` |  |
 | `tool.oil_well` | `src/toolLevels.ts` | — | `Oil and Gas Well {price}` | `บ่อน้ำมันและก๊าซ {price}` |  |
-| `tool.farm` | `index.html` | — | `Farm {price}` | `ไร่นา {price}` | อาคาร 3x3 (Claude Code 13 ต.ค. 2026) |
+| `tool.farm` | `index.html` | — | `Farm Co-op {price}` | `สหกรณ์การเกษตร {price}` | อาคาร 3x3 ตั้งแต่ 21 ต.ค. 2026 เป็นสหกรณ์ โรงสี หรือห้องเย็นของโซนเกษตรรอบ ๆ (docs/GAME_DESIGN.md ข้อ 7.3) |
 | `tool.fishing` | `index.html` | — | `Fishing Harbour {price}` | `ท่าเรือประมง {price}` | อาคาร 3x3 ติดน้ำ |
 | `tool.road_asphalt` | `src/toolLevels.ts` | — | `Asphalt Road {price}` | `ถนนลาดยาง {price}` | ต่อช่อง เลือกในการ์ดเหนือปุ่มถนน (Claude Code 13 ต.ค. 2026) |
 | `tool.road_concrete2` | `src/toolLevels.ts` | — | `Concrete Road, 2 lanes {price}` | `ถนนคอนกรีต 2 เลน {price}` |  |
@@ -190,7 +190,7 @@
 | `choice.waterworks` | `src/toolLevels.ts` | — | `Water works` | `โรงผลิตน้ำ` |  |
 | `choice.watertower` | `src/toolLevels.ts` | — | `Water tower` | `หอถังสูง` |  |
 | `choice.title.farm` | `src/toolLevels.ts` | — | `Farms and fishing` | `เกษตรและประมง` |  |
-| `choice.farm` | `src/toolLevels.ts` | — | `Farm` | `ไร่นา` |  |
+| `choice.farm` | `src/toolLevels.ts` | — | `Co-op` | `สหกรณ์` |  |
 | `choice.fishing` | `src/toolLevels.ts` | — | `Harbour` | `ท่าเรือประมง` |  |
 | `choice.none.farm` | `src/toolLevels.ts` | — | `This province has no farmland or fishing` | `จังหวัดนี้ไม่มีที่ดินเกษตรหรือแหล่งประมง` | ปุ่มเกษตรจาง |
 | `choice.title.port` | `src/toolLevels.ts` | — | `Long-distance transport: port or airport` | `การเดินทางไกล: ท่าเรือหรือสนามบิน` |  |
@@ -275,6 +275,28 @@
 | `choice.zone_commercial` | `src/toolLevels.ts` | — | `Shops` | `ร้านค้า` |  |
 | `choice.zone_industrial` | `src/toolLevels.ts` | — | `Industry` | `โรงงาน` |  |
 | `choice.zone_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบเขต` |  |
+| `tool.zone_farm` | `src/toolLevels.ts` | — | `Paint Farmland {price}` | `ทาโซนเกษตร {price}` | โซนที่สี่: นา ไร่ สวน บ่อปลา ทาทีละช่อง 16 ม. เกมเลือกชนิดตามพื้นที่ (Claude Code 21 ต.ค. 2026, docs/GAME_DESIGN.md ข้อ 7) |
+| `tool.farm_erase` | `src/toolLevels.ts` | — | `Erase Farmland {price}` | `ลบโซนเกษตร {price}` |  |
+| `choice.zone_farm` | `src/toolLevels.ts` | — | `Farmland` | `ไร่นา สวน` |  |
+| `choice.farm_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบ` |  |
+| `about.zone.farm` | `src/toolShortcuts.ts` | — | `Farmland: paddies, crop fields, orchards and fish ponds, chosen by the land; it needs a cart track to a road nearby, not a road beside it. It feeds the town and sells its crop, but draws the groundwater, its chemicals seep into the ground and its stubble burns from February to April.` | `โซนเกษตร: นา ไร่ สวน บ่อปลา เกมเลือกตามพื้นที่ ไม่ต้องติดถนน แค่มีทางเกวียนไปถึงถนนไม่ไกล เลี้ยงคนในเมืองและขายผลผลิต แต่ใช้น้ำใต้ดิน สารเคมีลงดิน และเผาตอซังช่วง ก.พ.–เม.ย.` | คำอธิบายในป้ายเครื่องมือ |
+| `tool.needs_way` | `src/game.js` | — | `Farmland needs a way to a road within {reach} tiles` | `โซนเกษตรต้องมีทางไปถึงถนนภายใน {reach} ช่อง` | ป้ายมุมเมื่อทาไกลถนนเกินไป |
+| `farm.kind.paddy` | `src/inspect.ts` | — | `Rice paddy` | `นาข้าว` | ชนิดแปลงเกษตรที่เกมเลือก |
+| `farm.kind.field` | `src/inspect.ts` | — | `Crop field` | `ไร่` |  |
+| `farm.kind.orchard` | `src/inspect.ts` | — | `Orchard` | `สวน` |  |
+| `farm.kind.pond` | `src/inspect.ts` | — | `Fish pond` | `บ่อปลา` |  |
+| `farm.kind.empty` | `src/inspect.ts` | — | `Farmland, not yet planted` | `โซนเกษตรที่ยังไม่ได้ปลูก` |  |
+| `farm.hub.cooperative` | `src/inspect.ts` | — | `Farm cooperative` | `สหกรณ์การเกษตร` | อาคาร 3x3 ในย่านไร่ หรือไม่มีแปลงรอบ ๆ |
+| `farm.hub.rice_mill` | `src/inspect.ts` | — | `Rice mill` | `โรงสีข้าว` | ในย่านนา |
+| `farm.look.buffalo` | `src/eraCard.ts` | — | `Buffalo in the fields` | `ควายไถนา` | สิ่งที่แปลงเกษตรได้ในยุคถัดไป (docs/GAME_DESIGN.md ข้อ 7.2) |
+| `farm.look.hut` | `src/eraCard.ts` | — | `Field huts` | `ห้างนา` |  |
+| `farm.look.granary` | `src/eraCard.ts` | — | `Granaries in the fields` | `ยุ้งฉางกลางนา` |  |
+| `farm.look.tractor` | `src/eraCard.ts` | — | `Tractors in the fields` | `รถไถในไร่นา` |  |
+| `farm.look.greenhouse` | `src/eraCard.ts` | — | `Greenhouses` | `โรงเรือนเกษตร` |  |
+| `farm.look.harvester` | `src/eraCard.ts` | — | `Combine harvesters` | `รถเกี่ยวข้าว` |  |
+| `farm.look.drone` | `src/eraCard.ts` | — | `Farm drones` | `โดรนเกษตร` |  |
+| `farm.look.solar` | `src/eraCard.ts` | — | `Solar panels on the farms` | `แผงโซลาร์ในไร่นา` |  |
+| `farm.hub.cold_store` | `src/inspect.ts` | — | `Cold store` | `ห้องเย็น` | ในย่านสวนและบ่อปลา |
 | `choice.erase_note` | `src/toolLevels.ts` | — | `free` | `ฟรี` | แทนราคาในช่องลบเขต |
 | `choice.move_note` | `src/game.js` | — | `a tenth of its price` | `10% ของราคาอาคาร` | แทนราคาในช่องย้ายอาคาร |
 | `choice.title.bulldozer` | `src/toolLevels.ts` | — | `Bulldoze or move a building` | `รื้อถอน หรือย้ายอาคาร` |  |
@@ -940,7 +962,7 @@
 | `about.building.nuclear` | `about.html` | `Nuclear Power: More expensive than coal power...` | `Nuclear Power Plant: High-output, clean energy with zero smoke, though costly and catastrophic if meltdown occurs.` | `โรงไฟฟ้านิวเคลียร์: จ่ายไฟได้มหาศาล ไร้ควันพิษ แต่ราคาสูงมากและมีความเสี่ยงร้ายแรงหากหลอมละลาย` | คำอธิบายอาคาร |
 | `about.building.power_kinds` | `about.html` | — | `Kinds of power plant: press the Power Plant button and choose above the tools: lignite (much power, heavy smoke, fuel every year), gas (the most power, little smoke, fuel every year), a dam (clean but dear, beside water, weak in the dry season), solar (clean, weak in the rains) or wind (clean, noisy). Dams and wind farms only where the province has them.` | `ชนิดโรงไฟฟ้า: กดปุ่มโรงไฟฟ้าแล้วเลือกในการ์ดเหนือแถบเครื่องมือ ลิกไนต์ (ไฟมาก ควันพิษมาก ค่าเชื้อเพลิงทุกปี) ก๊าซ (ไฟมากที่สุด ควันน้อย ค่าเชื้อเพลิงทุกปี) เขื่อน (สะอาดแต่แพง ต้องติดน้ำ หน้าแล้งไฟลด) แสงอาทิตย์ (สะอาด หน้าฝนไฟลด) และลม (สะอาด เสียงดัง) เขื่อนและลมสร้างได้เฉพาะจังหวัดที่มี` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.mines` | `about.html` | — | `Mines: press the Mine button and choose an ore the province has. A working mine needs power, pays royalties every year and gives work, but raises dust, most kinds poison the ground and its water for years, oil wells now and then spill, and the province's ore runs out sooner the more mines dig it.` | `เหมือง: กดปุ่มเหมืองแล้วเลือกแร่ที่จังหวัดมี เหมืองต้องมีไฟฟ้า ให้ค่าภาคหลวงทุกปีและมีงานให้คน แต่มีฝุ่น แร่ส่วนใหญ่ทำให้ดินและน้ำใต้ดินปนเปื้อนนานหลายปี บ่อน้ำมันรั่วได้ และยิ่งเปิดหลายเหมือง แร่ในจังหวัดยิ่งหมดเร็ว` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
-| `about.building.farm` | `about.html` | — | `Farm: sells its crop every month, more on wet ground and in a farming province, and calls for factories that process farm goods. It pumps the groundwater around it, its chemicals seep into the ground, and from February to April its stubble fires spread haze.` | `ไร่นา: ขายผลผลิตทุกเดือน ได้มากบนดินชุ่มน้ำและในจังหวัดเกษตร ดึงโรงงานแปรรูปเกษตร แต่สูบน้ำใต้ดินรอบ ๆ สารเคมีลงดิน และช่วง ก.พ.–เม.ย. การเผาไร่ทำให้เกิดหมอกควัน` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
+| `about.building.farm` | `about.html` | — | `Farm co-op: a cooperative among crop fields, a rice mill among paddies, a cold store among orchards and fish ponds. The farm zone's fields round it sell their crop for half as much again; it sells a crop of its own, calls for factories that process farm goods, pumps the groundwater around it, its chemicals seep into the ground, and from February to April its stubble fires spread haze.` | `สหกรณ์การเกษตร: เป็นสหกรณ์ในย่านไร่ เป็นโรงสีในย่านนา เป็นห้องเย็นในย่านสวนและบ่อปลา แปลงในโซนเกษตรรอบ ๆ ขายผลผลิตได้ราคาดีขึ้นครึ่งหนึ่ง และยังขายผลผลิตของตัวเอง ดึงโรงงานแปรรูปเกษตร แต่สูบน้ำใต้ดินรอบ ๆ สารเคมีลงดิน และช่วง ก.พ.–เม.ย. การเผาไร่ทำให้เกิดหมอกควัน` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026; บทใหม่ 21 ต.ค. 2026) |
 | `about.building.fishing` | `about.html` | — | `Fishing Harbour: built beside water, it sells its catch every month and calls for markets and eating places. Too many harbours empty the province's fish, which grow back slowly, and dirty water halves the catch.` | `ท่าเรือประมง: ตั้งติดน้ำ ขายปลาทุกเดือน และดึงตลาดกับร้านอาหาร แต่ถ้ามีท่าเรือมากเกิน ปลาในจังหวัดจะหมด ฟื้นตัวช้า และน้ำเสียทำให้จับปลาได้ลดลงครึ่งหนึ่ง` | คำอธิบายอาคาร |
 | `about.building.ruler_house` | `about.html` | — | `{office}: a new city's first building, beside a road; until it stands only roads can be built. The city's centre moves to it and the land near it is worth more. It rises a level for each rank, for the difference in price, and costs more upkeep at each level. If it burns or is bulldozed, its gains are gone until it is built again. In a district's town it is the District Office, in a province's the Provincial Hall.` | `{office}: อาคารแรกของเมืองใหม่ ต้องตั้งติดถนน ก่อนสร้างเสร็จสร้างได้แค่ถนน ใจกลางเมืองย้ายมาที่นี่และที่ดินรอบ ๆ ราคาสูงขึ้น ยกระดับได้ขั้นละหนึ่งยศ จ่ายส่วนต่าง ค่าบำรุงสูงขึ้นทุกขั้น ถ้าไฟไหม้หรือถูกรื้อ ผลดีทั้งหมดหายไปจนกว่าจะสร้างใหม่ เมืองในอำเภอเรียกที่ว่าการอำเภอ เมืองระดับจังหวัดเรียกศาลากลางจังหวัด` | คำอธิบายอาคาร (Claude Code 13 ต.ค. 2026) |
 | `about.building.ruler_house_wings` | `about.html` | — | `Annexes of the {office_short}: from its second level it has room for annexes, one more at each level, chosen in its window: a treasury, a planning office, a warning tower, a granary and city tank, a culture court, a front garden (and later a council hall and a trade office). Each costs its price and an upkeep, and comes off without a refund.` | `ส่วนต่อเติม{office_short}: ตั้งแต่ขั้นที่ 2 มีช่องต่อเติมเพิ่มขั้นละหนึ่ง เลือกในหน้าต่างของอาคาร ได้แก่ คลังเมือง กองผังเมือง หอเตือนภัย ยุ้งฉางและถังน้ำเมือง ลานวัฒนธรรม สวนด้านหน้า (หอประชุมเมืองและสำนักการค้าจะมาภายหลัง) แต่ละอย่างมีค่าสร้างและค่าบำรุง รื้อออกได้แต่ไม่ได้เงินคืน` |  |
@@ -1724,6 +1746,7 @@
 | `dock.group.bus_stop` | `src/toolDock.ts` | — | `Public transport` | `ขนส่งสาธารณะ` | |
 | `dock.group.port` | `src/toolDock.ts` | — | `Port & airport` | `ท่าเรือและสนามบิน` | |
 | `dock.group.farm` | `src/toolDock.ts` | — | `Farms & fishing` | `เกษตรและประมง` | |
+| `dock.group.zone_farm` | `src/toolDock.ts` | — | `Farmland` | `โซนเกษตร` | นา ไร่ สวน บ่อปลา (docs/GAME_DESIGN.md ข้อ 7) |
 | `dock.group.mine` | `src/toolDock.ts` | — | `Mines & wells` | `เหมืองและบ่อน้ำมัน` | |
 | `dock.group.road` | `src/toolDock.ts` | — | `Roads` | `ถนน` | |
 | `dock.group.ruler_house` | `src/toolDock.ts` | — | `Ruler's house` | `ที่ว่าการ` | |

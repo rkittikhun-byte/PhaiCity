@@ -22,6 +22,8 @@ export const TOOL_ICONS = [
   ['airport', 'สนามบิน', 'Airport', 'violet'],
   ['bulldozer', 'รื้อถอน', 'Bulldozer', 'salmon'],
   ['zone_erase', 'ลบสี', 'Erase zoning', 'salmon'],
+  ['zone_farm', 'โซนเกษตร', 'Farmland', '#a59630'],
+  ['farm_erase', 'ลบโซนเกษตร', 'Erase farmland', 'salmon'],
   ['query', 'ตรวจสอบ', 'Query', 'cyan'],
   ['gas', 'โรงไฟฟ้าก๊าซ', 'Gas power', '#6f9fc4'],
   ['hydro', 'เขื่อนไฟฟ้า', 'Hydro dam', '#2a7fd4'],

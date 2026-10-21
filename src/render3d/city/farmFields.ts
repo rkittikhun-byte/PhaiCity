@@ -1,0 +1,397 @@
+/* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+ * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
+ */
+
+// The farm zone's fields (src/farmZone.ts, docs/GAME_DESIGN.md section 7) as the concept art shows them round the
+// village: rice paddies inside their dikes, their water green and then gold with the planting and harvest months; rows
+// of cane and cassava on red earth; orchards of trees in rows; square fish ponds with aerators. What stands among them
+// follows the city's era: buffalo and field huts, then granaries, tractors and greenhouses, harvesters, and at last a
+// smart farm's drones and solar panels; the huts and granaries take the region's dress (src/render3d/regional/).
+//
+// Cheap by design: every field's ground is one mesh of coloured quads over the land, recoloured when the month turns and
+// built again only when fields change (a little after, so a month of growth is one rebuild); everything standing on them
+// is instanced, a few draw calls for the whole zone, and hidden when the camera is far away. It reads the map and never
+// writes it.
+
+import { BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
+  IcosahedronGeometry, InstancedMesh, type Material, Matrix4, Mesh, MeshStandardMaterial, Object3D } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mapEra } from '../../era.js';
+import { FARM_ERA_LOOKS, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode, type FarmKind } from '../../farmZone.js';
+import { FARM, FIELD_BASE } from '../../tileValues.js';
+import { SCENE } from '../../theme/tokens.js';
+import { getRegionKit } from '../regional/index.js';
+import type { RegionId } from '../regional/types.js';
+import { mergeByMaterial, type GeometryPart } from '../util/geometry.js';
+
+export interface FarmViewMap {
+  readonly width: number;
+  readonly height: number;
+  readonly farmKinds?: Uint8Array | null;
+  readonly era?: unknown;
+  getTileValue(x: number, y: number): number;
+}
+
+/** Beyond this camera distance (world units) only the fields' ground is drawn */
+export const FARM_DETAIL_DISTANCE = 1600;
+/** Seconds the fields wait after a change before they are drawn again, so a month's growth is one rebuild */
+const REBUILD_AFTER = 0.6;
+/** Above the land: the dikes and bare earth, and what lies inside them */
+const LIFT = 0.05, INNER_LIFT = 0.09;
+const UNITS = 10;
+
+const colour = (hex: number): Color => new Color().setHex(hex);
+const F = SCENE.farm;
+
+/** How the month (0 January) colours a paddy: dry stubble after the harvest, the burning months' earth, flooded for the
+ * planting in May, green through the rains, gold for the harvest in October and November (the Northeast's rain-fed rice) */
+export function paddyColour(month: number, level: number, out = new Color()): Color {
+  const m = ((month % 12) + 12) % 12;
+  const water = colour(F.paddyWater), young = colour(F.paddyYoung), ripe = colour(F.paddyRipe), stubble = colour(F.stubble);
+  const earth = colour(F.earth);
+  if (m === 0 || m === 11) out.copy(stubble);
+  else if (FIELD_BURNING_MONTHS.includes(m)) out.copy(stubble).lerp(earth, 0.5);
+  else if (m === 4) out.copy(water);
+  else if (m === 5) out.copy(water).lerp(young, 0.5);
+  else if (m <= 7) out.copy(young);
+  else if (m === 8) out.copy(young).lerp(ripe, 0.35);
+  else out.copy(ripe);
+  // A field just started is thinner: more of the earth shows through
+  if (level <= 1) out.lerp(earth, 0.18);
+  return out;
+}
+
+/** How tall a crop field's rows stand in a month (0–1): cut in the dry season, growing with the rains */
+export function cropHeight(month: number): number {
+  const m = ((month % 12) + 12) % 12;
+  if (m <= 3) return 0.15;
+  return Math.min(1, 0.25 + (m - 4) * 0.12);
+}
+
+/** What stands among the fields in each era (src/farmZone.ts FARM_ERA_LOOKS), and what every field of a kind has */
+const ERA_PROPS = FARM_ERA_LOOKS;
+type Prop = FarmLook | 'row' | 'tree' | 'trunk' | 'aerator';
+
+/** A stable number for a tile, for which fields get which prop */
+const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>> 15; return Math.imul(h, 2246822519) >>> 0; };
+
+interface Field { index: number; level: number; kind: FarmKind | null }
+
+export class CityFarmFields {
+  readonly root = new Group();
+  private readonly details = new Group();
+  private ground: Mesh | null = null;
+  private readonly groundMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  private readonly materials = new Map<number, MeshStandardMaterial>();
+  private readonly meshes = new Map<string, InstancedMesh[]>();
+  private fields: Field[] = [];
+  /** The tiles drawn as fields last time, to hear when one stops being one */
+  private drawn = new Uint8Array(0);
+  private dirtyAt: number | null = 0;
+  private shownMonth = -1;
+  private shownEra = 0;
+  private drones: Array<{ mesh: InstancedMesh; n: number; x: number; y: number; z: number }> = [];
+  /** Each prop's shapes, merged by material once and shared by every rebuild */
+  private readonly shapeCache = new Map<Prop, Group>();
+
+  /** metre: world units a metre (a real-scale city map's), for the region's props built in metres */
+  constructor(private readonly map: FarmViewMap, private readonly terrain: { sample(x: number, z: number): number },
+              private readonly region: RegionId = 'central', private readonly metre: number = 0.625) {
+    this.root.name = 'farm_fields';
+    this.details.name = 'farm_details';
+    this.root.add(this.details);
+  }
+
+  /** The ground moved: draw the fields on it again */
+  invalidate(seconds = 0): void { this.dirtyAt ??= seconds; }
+
+  /**
+   * Each frame, with the tiles whose values changed: the fields drawn again a little after they changed, their colours
+   * when the month turns, their props when the era does, and the props only near the camera. Returns the 3 × 3 farm
+   * buildings' centres whose fields changed, which the chunks draw again as a cooperative, rice mill or cold store.
+   */
+  update(changed: readonly number[], month: number, distance: number, seconds: number): number[] {
+    const size = this.map.width * this.map.height;
+    if (this.drawn.length !== size) this.drawn = new Uint8Array(size);
+    for (const i of changed) {
+      if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0) { this.dirtyAt ??= seconds; break; }
+    }
+    const era = mapEra(this.map as { era?: unknown });
+    let hubs: number[] = [];
+    if (this.dirtyAt !== null && seconds - this.dirtyAt >= REBUILD_AFTER - (this.ground ? 0 : REBUILD_AFTER)) {
+      this.dirtyAt = null;
+      hubs = this.rebuild(month, era);
+    } else if (month !== this.shownMonth || era !== this.shownEra) {
+      this.recolour(month);
+      if (era !== this.shownEra) this.props(era, month);
+      this.shownMonth = month;
+      this.shownEra = era;
+    }
+    this.details.visible = distance < FARM_DETAIL_DISTANCE && this.fields.length > 0;
+    // The drones of a smart farm hover and bob
+    for (const d of this.drones) {
+      const m = new Matrix4().makeTranslation(d.x, d.y + Math.sin(seconds * 2 + d.x) * 0.25, d.z);
+      d.mesh.setMatrixAt(d.n, m);
+      d.mesh.instanceMatrix.needsUpdate = true;
+    }
+    return hubs;
+  }
+
+  /** How many of each thing are drawn, for tests and the bench */
+  counts(): Record<string, number> {
+    const out: Record<string, number> = { fields: this.fields.length };
+    for (const [name, list] of this.meshes) out[name] = list[0]?.count ?? 0;
+    return out;
+  }
+
+  dispose(): void {
+    this.clearProps();
+    for (const group of this.shapeCache.values()) group.traverse((child) => { if (child instanceof Mesh) child.geometry.dispose(); });
+    this.shapeCache.clear();
+    this.ground?.geometry.dispose();
+    this.groundMaterial.dispose();
+    this.materials.forEach((m) => m.dispose());
+  }
+
+  private valueAt(i: number): number {
+    return this.map.getTileValue(i % this.map.width, Math.floor(i / this.map.width)) & 1023;
+  }
+
+  /** The fields found again, their ground built, and their props; the farm buildings near any that changed */
+  private rebuild(month: number, era: number): number[] {
+    const { width, height } = this.map, kinds = this.map.farmKinds;
+    const before = this.drawn, now = new Uint8Array(width * height), fields: Field[] = [];
+    let changedHub = false;
+    for (let i = 0; i < width * height; i++) {
+      const v = this.valueAt(i);
+      if (v < FIELD_BASE || v > FIELD_BASE + 5) continue;
+      const level = v - FIELD_BASE, kind = level > 0 ? kindOfCode(kinds?.[i] ?? 0) : null;
+      fields.push({ index: i, level, kind });
+      now[i] = 1 + level * 5 + (kind ? 1 + ['paddy', 'field', 'orchard', 'pond'].indexOf(kind) : 0);
+    }
+    for (let i = 0; i < now.length && !changedHub; i++) if (now[i] !== before[i]) changedHub = true;
+    this.drawn = now;
+    this.fields = fields;
+    this.buildGround(month);
+    this.props(era, month);
+    this.shownMonth = month;
+    this.shownEra = era;
+    if (!changedHub) return [];
+    const hubs: number[] = [];
+    for (let i = 0; i < width * height; i++) if (this.valueAt(i) === FARM) hubs.push(i);
+    return hubs;
+  }
+
+  /** The colour of a field's ground: its outer part (dikes, earth) and its inner part (water, crop) */
+  private tones(field: Field, month: number, outer: Color, inner: Color): boolean {
+    if (field.level === 0 || !field.kind) {
+      outer.setHex(F.zone).lerp(colour(F.earth), 0.35);
+      return false;
+    }
+    switch (field.kind) {
+      case 'paddy': outer.setHex(F.dike); paddyColour(month, field.level, inner); return true;
+      case 'pond': outer.setHex(F.dike); inner.setHex(F.pond); return true;
+      case 'orchard': outer.setHex(F.crop).lerp(colour(F.earth), 0.3); return false;
+      default: outer.setHex(F.earth); return false;
+    }
+  }
+
+  private buildGround(month: number): void {
+    this.ground?.geometry.dispose();
+    if (this.ground) this.root.remove(this.ground);
+    this.ground = null;
+    if (!this.fields.length) return;
+    const positions: number[] = [], colours: number[] = [], outer = new Color(), inner = new Color();
+    const quad = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color): void => {
+      // Two quads a side, so the patch follows the land within the tile
+      const n = 2;
+      for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+        const xa = x0 + (x1 - x0) * a / n, xb = x0 + (x1 - x0) * (a + 1) / n;
+        const za = z0 + (z1 - z0) * b / n, zb = z0 + (z1 - z0) * (b + 1) / n;
+        const p = (x: number, z: number) => { positions.push(x, this.terrain.sample(x, z) + lift, z); colours.push(c.r, c.g, c.b); };
+        p(xa, za); p(xa, zb); p(xb, za);
+        p(xb, za); p(xa, zb); p(xb, zb);
+      }
+    };
+    for (const field of this.fields) {
+      const x = field.index % this.map.width, y = Math.floor(field.index / this.map.width);
+      const x0 = x * UNITS, z0 = y * UNITS, x1 = x0 + UNITS, z1 = z0 + UNITS;
+      const insideToo = this.tones(field, month, outer, inner);
+      quad(x0, z0, x1, z1, LIFT, outer);
+      if (insideToo) {
+        const inset = field.kind === 'pond' ? 1.4 : 0.7;
+        quad(x0 + inset, z0 + inset, x1 - inset, z1 - inset, INNER_LIFT, inner);
+      }
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(colours), 3));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+    this.ground = new Mesh(geometry, this.groundMaterial);
+    this.ground.name = 'farm_fields/ground';
+    this.ground.receiveShadow = true;
+    this.root.add(this.ground);
+  }
+
+  /** The month turned: the paddies' colours again, and the crop rows' height */
+  private recolour(month: number): void {
+    if (!this.ground) return;
+    const attribute = this.ground.geometry.getAttribute('color') as BufferAttribute, outer = new Color(), inner = new Color();
+    let v = 0;
+    const paint = (c: Color, count: number) => { for (let k = 0; k < count; k++, v++) attribute.setXYZ(v, c.r, c.g, c.b); };
+    for (const field of this.fields) {
+      const insideToo = this.tones(field, month, outer, inner);
+      paint(outer, 24);
+      if (insideToo) paint(inner, 24);
+    }
+    attribute.needsUpdate = true;
+    this.props(this.shownEra || mapEra(this.map as { era?: unknown }), month);
+  }
+
+  private material(hex: number, options: { transparent?: boolean; opacity?: number } = {}): MeshStandardMaterial {
+    const key = hex + (options.transparent ? 0x1000000 : 0);
+    let m = this.materials.get(key);
+    if (!m) this.materials.set(key, m = new MeshStandardMaterial({ color: hex, roughness: 0.9, metalness: 0, ...options }));
+    return m;
+  }
+
+  private clearProps(): void {
+    for (const list of this.meshes.values()) for (const mesh of list) { mesh.parent?.remove(mesh); mesh.dispose(); }
+    this.meshes.clear();
+    this.drones = [];
+  }
+
+  /** The things standing on the fields: crop rows, orchard trees, pond aerators, and the era's buffalo, huts, machines */
+  private props(era: number, month: number): void {
+    this.clearProps();
+    if (!this.fields.length) return;
+    const place: Record<string, Matrix4[]> = {};
+    const add = (prop: Prop, m: Matrix4): void => { (place[prop] ??= []).push(m); };
+    const o = new Object3D();
+    const at = (x: number, z: number, lift: number, sx = 1, sy = 1, sz = 1, turn = 0): Matrix4 => {
+      o.position.set(x, this.terrain.sample(x, z) + lift, z);
+      o.rotation.set(0, turn, 0);
+      o.scale.set(sx, sy, sz);
+      o.updateMatrix();
+      return o.matrix.clone();
+    };
+    const grown = this.fields.filter((f) => f.level > 0 && f.kind);
+    const rows = cropHeight(month);
+    for (const f of grown) {
+      const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), cx = (x + 0.5) * UNITS, cz = (y + 0.5) * UNITS;
+      const along = (hashOf(Math.floor(x / 4) + Math.floor(y / 4) * 977) & 1) ? 0 : Math.PI / 2;
+      if (f.kind === 'field') {
+        const tall = (0.3 + 0.5 * rows) * (0.7 + 0.1 * f.level);
+        for (let r = 0; r < 4; r++) {
+          const off = -3.4 + r * 2.27, dx = along ? 0 : off, dz = along ? off : 0;
+          add('row', at(cx + dx, cz + dz, tall / 2, 8.6, tall, 0.9, along));
+        }
+      } else if (f.kind === 'orchard') {
+        const grownUp = 0.6 + 0.12 * f.level;
+        for (const [dx, dz] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) {
+          add('trunk', at(cx + dx, cz + dz, 0.9 * grownUp, grownUp, grownUp, grownUp));
+          add('tree', at(cx + dx, cz + dz, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
+        }
+      } else if (f.kind === 'pond' && f.level >= 2) {
+        add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, hashOf(f.index) % 6));
+      }
+    }
+    // The era's things, one among so many grown fields, at a field's edge by its dike
+    const drones: Array<[number, number, number]> = [];
+    for (const [prop, every] of ERA_PROPS[Math.max(1, Math.min(5, era))] ?? []) {
+      for (const f of grown) {
+        const h = hashOf(f.index * 31 + every);
+        if (h % every) continue;
+        // Machines and buffalo on paddies and crop fields, greenhouses on fields and orchards, granaries and huts anywhere
+        if ((prop === 'buffalo' || prop === 'tractor' || prop === 'harvester') && f.kind !== 'paddy' && f.kind !== 'field') continue;
+        if (prop === 'greenhouse' && f.kind !== 'field' && f.kind !== 'orchard') continue;
+        if (f.kind === 'pond' && prop !== 'solar' && prop !== 'drone') continue;
+        const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width);
+        const cx = (x + 0.5) * UNITS + ((h >> 8) % 5 - 2), cz = (y + 0.5) * UNITS + ((h >> 12) % 5 - 2), turn = (h >> 16) % 628 / 100;
+        if (prop === 'drone') drones.push([cx, this.terrain.sample(cx, cz) + 5, cz]);
+        else add(prop, at(cx, cz, prop === 'buffalo' ? INNER_LIFT : LIFT, 1, 1, 1, turn));
+      }
+    }
+    for (const [prop, matrices] of Object.entries(place)) this.instance(prop as Prop, matrices);
+    if (drones.length) {
+      const list = this.instance('drone', drones.map(([x, y, z]) => new Matrix4().makeTranslation(x, y, z)));
+      for (const mesh of list) drones.forEach(([x, y, z], n) => this.drones.push({ mesh, n, x, y, z }));
+    }
+  }
+
+  /** The shapes of a prop, each with its material: plain boxes and cones, or the region's own (granaries, hut roofs) */
+  private shapes(prop: Prop): GeometryPart[] {
+    const m = this.metre, part = (geometry: BufferGeometry, hex: number, extra: { transparent?: boolean; opacity?: number } = {}) =>
+      ({ geometry, material: this.material(hex, extra) as Material });
+    switch (prop) {
+      case 'row': return [part(new BoxGeometry(1, 1, 1), F.crop)];
+      case 'trunk': return [part(new CylinderGeometry(0.16, 0.22, 1.8, 5), F.teak)];
+      case 'tree': return [part(new IcosahedronGeometry(1, 0), F.orchard)];
+      case 'aerator': return [part(new CylinderGeometry(0.18, 0.18, 0.5, 6), F.machine),
+        part(new BoxGeometry(1.8, 0.12, 0.3), F.machine)];
+      case 'buffalo': return [part(mergeGeometries([new BoxGeometry(1.5 * m * 1.6, 0.9 * m * 1.6, 0.7 * m * 1.6).translate(0, 1.1 * m * 1.6, 0),
+        new BoxGeometry(0.5 * m * 1.6, 0.5 * m * 1.6, 0.5 * m * 1.6).translate(0.95 * m * 1.6, 1.2 * m * 1.6, 0),
+        ...[[-0.5, -0.25], [-0.5, 0.25], [0.5, -0.25], [0.5, 0.25]].map(([lx, lz]) =>
+          new BoxGeometry(0.18 * m * 1.6, 0.7 * m * 1.6, 0.18 * m * 1.6).translate(lx * m * 1.6, 0.35 * m * 1.6, lz * m * 1.6))])!, F.buffalo)];
+      case 'hut': {
+        // A field hut (ห้างนา), 3.6 m across, on four posts under the region's roof in thatch; built in metres
+        const kit = getRegionKit(this.region);
+        const posts = mergeGeometries([[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([px, pz]) =>
+          new BoxGeometry(0.12, 1.6, 0.12).translate(px * 0.95, 0.8, pz * 0.95)))!;
+        const floor = new BoxGeometry(2.1, 0.08, 2.1).translate(0, 0.7, 0);
+        const roof = kit.roofs[kit.defaults.roofForm]([2.4, 2.4], { baseY: 1.6, pitch: kit.defaults.pitch, material: 'thatch_grass', detail: 'low' });
+        return [part(mergeGeometries([posts, floor])!, F.teak), ...roof].map((p) => scaled(p, 1.5 * m));
+      }
+      case 'granary': {
+        // The region's granary (ยุ้งฉาง) where its kit has one, else a hut's shape closed in
+        const kit = getRegionKit(this.region), builder = kit.props.rice_granary ?? kit.props.rice_barn;
+        if (builder) return builder({ seed: 3 }).map((p) => scaled(p, 1.8 * m));
+        return this.shapes('hut');
+      }
+      case 'tractor': return [part(mergeGeometries([new BoxGeometry(2.6 * m, 1.1 * m, 1.4 * m).translate(0, 1.1 * m, 0),
+        new BoxGeometry(1.1 * m, 1.1 * m, 1.2 * m).translate(-0.5 * m, 2.1 * m, 0)])!, F.machine),
+        part(mergeGeometries([[-0.8, 0.8], [0.9, 0.8]].flatMap(([wx, r]) => [-1, 1].map((side) =>
+          new CylinderGeometry(r * m, r * m, 0.4 * m, 10).rotateX(Math.PI / 2).translate(wx * m, r * m, side * 0.85 * m))))!, F.buffalo)];
+      case 'harvester': return [part(mergeGeometries([new BoxGeometry(4.2 * m, 2.2 * m, 2.6 * m).translate(0, 1.9 * m, 0),
+        new BoxGeometry(1.4 * m, 1.2 * m, 3.4 * m).translate(2.6 * m, 0.8 * m, 0)])!, F.paddyRipe),
+        part(new BoxGeometry(1.2 * m, 1.2 * m, 1.2 * m).translate(-1 * m, 3.6 * m, 0), F.machine)];
+      case 'greenhouse': return [part(new CylinderGeometry(2.6, 2.6, 8, 10, 1, true, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2)
+        .translate(0, 0, 0), F.paddyWater, { transparent: true, opacity: 0.55 })];
+      case 'drone': return [part(mergeGeometries([new BoxGeometry(0.5, 0.18, 0.5),
+        ...[[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]].map(([rx, rz]) =>
+          new CylinderGeometry(0.28, 0.28, 0.04, 8).translate(rx, 0.1, rz))])!, F.solar)];
+      case 'solar': return [part(mergeGeometries([new BoxGeometry(5, 0.12, 2.4).rotateX(-0.45).translate(0, 1.3, 0),
+        new BoxGeometry(0.15, 1.2, 0.15).translate(-2, 0.6, 0), new BoxGeometry(0.15, 1.2, 0.15).translate(2, 0.6, 0)])!, F.solar)];
+      default: return [part(new ConeGeometry(1, 1, 4), F.thatch)];
+    }
+  }
+
+  /** One instanced mesh for each material of a prop, holding every place it stands; its shapes made once */
+  private instance(prop: Prop, matrices: Matrix4[]): InstancedMesh[] {
+    let group = this.shapeCache.get(prop);
+    if (!group) this.shapeCache.set(prop, group = mergeByMaterial(`farm.${prop}`, this.shapes(prop)));
+    const list: InstancedMesh[] = [];
+    for (const child of group.children) {
+      if (!(child instanceof Mesh)) continue;
+      const mesh = new InstancedMesh(child.geometry, child.material as Material, matrices.length);
+      matrices.forEach((matrix, n) => mesh.setMatrixAt(n, matrix));
+      if (prop === 'drone') mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+      mesh.computeBoundingSphere();
+      mesh.name = `farm_fields/${prop}`;
+      mesh.castShadow = prop !== 'row' && prop !== 'drone';
+      mesh.receiveShadow = true;
+      this.details.add(mesh);
+      list.push(mesh);
+    }
+    this.meshes.set(prop, list);
+    return list;
+  }
+}
+
+/** A part of the region's kit, built in metres, scaled into world units */
+function scaled(part: GeometryPart, by: number): GeometryPart {
+  const transform = new Matrix4().makeScale(by, by, by);
+  return { geometry: part.geometry, material: part.material, transform: part.transform ? transform.multiply(part.transform) : transform };
+}

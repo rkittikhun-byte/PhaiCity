@@ -16,6 +16,7 @@ import { eraReport } from "./eraReport.js";
 import { hide, isShown, show } from "./motion.js";
 import { placeWindow } from "./windowPlacement.js";
 import { eraUnlocks } from "./unlocks.js";
+import { newFarmLooks } from "./farmZone.js";
 import { unlockNames } from "./unlockLabels.js";
 
 /** Where the era score is kept, and what tells when a month has turned (src/core/cityCore.ts) */
@@ -188,7 +189,9 @@ export class EraCard {
         ? t("era.card.symbols", { next: t(`era.name.${report.nextEra}`) }) : t("era.card.symbols_last")), symbols);
     }
     // ... and what it lets the city build
-    const unlocked = report.nextEra ? unlockNames(eraUnlocks(report.nextEra)) : [];
+    // ... with the look the farm zone's fields take in it (src/farmZone.ts FARM_ERA_LOOKS)
+    const unlocked = report.nextEra ? [...unlockNames(eraUnlocks(report.nextEra)),
+      ...newFarmLooks(report.nextEra).map((look) => t(`farm.look.${look}`))] : [];
     if (unlocked.length) {
       element.append(el("div", "eraSection", t("era.card.unlocks", { next: t(`era.name.${report.nextEra}`) })),
         el("p", "eraUnlocks", unlocked.join(" · ")));

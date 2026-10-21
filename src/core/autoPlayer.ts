@@ -27,6 +27,9 @@ import { houseSpec } from "../rulerHouse.js";
 import type { TrainedKind } from "../trainedPeople.js";
 import { unlockCity } from "../unlocks.js";
 import type { FestivalNews, FestivalScale } from "../festivals.js";
+import { FARM_PAINT_TOOL, fieldLevelOf, isFieldValue, kindOfCode, wayField } from "../farmZone.js";
+import { isOpenLand } from "../plots.js";
+import { FARM_ZONE } from "../provinceRules.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
@@ -153,6 +156,8 @@ export interface PlayerYear {
   demand: [number, number, number];
   /** Plots by kind, how many at each level 0–5 */
   plots: Record<"residential" | "commercial" | "industrial", number[]>;
+  /** The farm zone (src/farmZone.ts): tiles painted, how many have grown and their levels, by kind */
+  fields: { painted: number; grown: number; levels: number; byKind: Record<string, number> };
 }
 
 export interface PlayerOptions {
@@ -202,6 +207,13 @@ const MORE_WATER_USED = 0.9;
 /** Factories stand this far from the town's middle at least (world units, 10 a tile), the power plants further */
 const FACTORIES_FROM = 100;
 const PLANT_FROM = 24;
+/** The farm zone painted round the town while it is a farming village or a market town (src/farmZone.ts): at the start,
+ * then each year as many tiles as the fields' room for more food asks, no more than FARM_EACH_YEAR, behind the tiles that
+ * face a road (left for the zones) and no nearer the town's middle than FARM_FROM tiles */
+const FARM_FIRST = 300;
+const FARM_EACH_YEAR = 300;
+const FARM_UNTIL_ERA = 2;
+const FARM_FROM = 12;
 /** A festival that would leave the treasury less than this is not held: money is tight, and a fire or a flood may come
  *  before the year's taxes (src/festivals.ts) */
 const FESTIVAL_KEEP = 250;
@@ -277,6 +289,7 @@ export class AutoPlayer {
     this.place("watertower", x - 4, y + 4, 12);
     this.soon("waterworks", x - 10, y + 8);
     this.paint(this.options.paintFirst ?? 6000);
+    this.paintFarms(FARM_FIRST);
   }
 
   /** A year of the city, then what the year's people ask for */
@@ -409,6 +422,11 @@ export class AutoPlayer {
       const painted = this.paint(wanted);
       if (painted < wanted / 2 && this.buyLand() !== null) this.paint(wanted - painted);
     }
+    // ... and the fields round a farming village, as many as its people and the market would eat
+    const fields = sim._farming?.fields;
+    if (!saving && fields && (core.map.era ?? 1) <= FARM_UNTIL_ERA && budget.totalFunds > EXPAND_FROM) {
+      this.paintFarms(Math.min(FARM_EACH_YEAR, Math.max(0, fields.room - fields.empty)));
+    }
     const map = core.map, plots = { residential: [0, 0, 0, 0, 0, 0], commercial: [0, 0, 0, 0, 0, 0], industrial: [0, 0, 0, 0, 0, 0] };
     for (let ty = 0; ty < map.height; ty++) {
       for (let tx = 0; tx < map.width; tx++) {
@@ -416,7 +434,19 @@ export class AutoPlayer {
         if (plot) plots[plot.kind as keyof typeof plots][plot.level]++;
       }
     }
+    const farm = { painted: 0, grown: 0, levels: 0, byKind: {} as Record<string, number> };
+    for (let i = 0; i < map.width * map.height; i++) {
+      const level = fieldLevelOf(map.getTileValue(i % map.width, Math.floor(i / map.width)));
+      if (level < 0) continue;
+      farm.painted++;
+      if (!level) continue;
+      farm.grown++;
+      farm.levels += level;
+      const kind = kindOfCode(map.farmKinds?.[i] ?? 0) ?? "?";
+      farm.byKind[kind] = (farm.byKind[kind] ?? 0) + 1;
+    }
     return {
+      fields: farm,
       year: this.year, population, funds: budget.totalFunds, built: this.built - builtBefore, accounts: yearAccounts(budget),
       cityClass: sim.evaluation.cityClass, approval: sim.evaluation.cityYes,
       landValue: sim._census.landValueAverage, pollution: sim._census.pollutionAverage,
@@ -664,6 +694,34 @@ export class AutoPlayer {
     this.failures.clear();
     for (const { x, y } of parks.values()) if (this.apply("park", x, y, true)) parked++;
     this.note(`painted ${painted} cells, ${parked} parks` + (parks.size && !parked ? ` (${[...this.failures].map(([w, n]) => `${w} ×${n}`).join(", ")})` : ""));
+    return painted;
+  }
+
+  /** Up to n tiles of the farm zone painted, the nearest the town first past FARM_FROM tiles, on open land of the city's own
+   *  with a way to a road that does not face the road itself (src/farmZone.ts) */
+  private paintFarms(n: number): number {
+    const core = this.core, map = core.map;
+    if (!map.paintedZones || n <= 0) return 0;
+    const reach = core.simulation.rules?.farmZone?.reach ?? FARM_ZONE.reach;
+    const ways = wayField(map, reach), owns = canBuildIn(map), { x: tx, y: ty } = this.options.town;
+    const spots: Array<{ x: number; y: number; d: number }> = [];
+    for (let y = 1; y < map.height - 1; y++) {
+      for (let x = 1; x < map.width - 1; x++) {
+        const i = y * map.width + x, d = Math.hypot(x - tx, y - ty);
+        if (ways[i] < 2 || d < FARM_FROM || !isOpenLand(map.getTileValue(x, y)) || !ownsLand(map, x, y) || !owns(x, y)) continue;
+        spots.push({ x, y, d });
+      }
+    }
+    spots.sort((a, b) => a.d - b.d);
+    const budget = core.simulation.budget, before = budget.totalFunds, stroke = 900000 + this.year;
+    let painted = 0;
+    for (const { x, y } of spots) {
+      if (painted >= n || budget.totalFunds < EXPAND_FROM / 2) break;
+      const out = core.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x, y, stroke });
+      if (out.accepted && out.toolResult === 0 && isFieldValue(map.getTileValue(x, y))) painted++;
+    }
+    this.built += before - budget.totalFunds;
+    this.note(`painted ${painted} farm zone tiles ฿${before - budget.totalFunds}`);
     return painted;
   }
 

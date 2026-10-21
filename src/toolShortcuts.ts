@@ -53,6 +53,7 @@ export const UNDO_CODE = "KeyZ";
 /** What each tool does, for its tooltip: the About page's description (after its "Name: "), or a hint of its own. */
 export const TOOL_DESCRIPTIONS: Record<string, string> = {
   residential: "about.zone.res",
+  zone_farm: "about.zone.farm",
   commercial: "about.zone.com",
   industrial: "about.zone.ind",
   road: "about.infra.road_rail",

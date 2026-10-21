@@ -10,6 +10,7 @@
 import { isSite, monthsLeft } from "./construction.js";
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { CANAL_NEEDS, isCanalAt } from "./canals.js";
+import { fieldKindAt, fieldLevelOf, hubKind, isFieldValue } from "./farmZone.js";
 import { ownsLand } from "./landBlocks.js";
 import type { Fact } from "./objects/cityObject.js";
 import type { CityObjects } from "./objects/cityObjects.js";
@@ -160,7 +161,8 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     // A police or fire station is named by its level (src/buildingLevels.ts)
     const group = groupOfCentre(map.getTileValue(building.x, building.y));
     const title = group ? `tool.${levelSpec(group, buildingLevelAt(map, building.x, building.y, group)).tool}`
-      : titleOf(building.kind, building.sort(map));
+      // ... and a farm by what it is to the fields round it: a cooperative, a rice mill or a cold store (src/farmZone.ts)
+      : building.kind === "farm" ? `farm.hub.${hubKind(map, building.x, building.y)}` : titleOf(building.kind, building.sort(map));
     return { title: { key: title, params: { price: "" } }, sector: building.sector,
       street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect };
   }
@@ -201,6 +203,13 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     if (level === 1) facts.push({ key: "object.fact.canal_soon" });
     else if (next) facts.push({ key: "object.fact.canal_next", params: { people: next.people, value: next.landValue } });
     return { title: { key: "object.kind.canal" }, facts: [...facts, ...outside], rect };
+  }
+  // A field of the farm zone: the kind its land grows and its level (src/farmZone.ts)
+  if (isFieldValue(value)) {
+    const level = fieldLevelOf(value), kind = level > 0 ? fieldKindAt(map, x, y) : null;
+    const facts: Fact[] = level > 0 ? [{ key: "object.fact.level", params: { level } }] : [];
+    return { title: { key: kind ? `farm.kind.${kind}` : "farm.kind.empty" },
+      facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect };
   }
   if (value >= TREEBASE && value <= LASTTREE || value >= WOODS && value < WOODS2) {
     return { title: { key: "object.kind.woods" }, facts: outside, rect };

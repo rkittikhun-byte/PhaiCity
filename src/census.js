@@ -74,6 +74,8 @@ Census.prototype.clearCensus = function() {
   this.resPop = 0;
   this.comPop = 0;
   this.indPop = 0;
+  // PhaiCity: work in the farm zone's fields (src/farmZone.ts), jobs that are not counted as people
+  this.farmPop = 0;
   this.resZonePop = 0;
   this.comZonePop = 0;
   this.indZonePop = 0;

@@ -350,8 +350,12 @@ export const STATION_BASE     = CHURCH6BASE;
 export const STATION          = CHURCH6; // Centre of a station (tiles 1001--1009)
 export const STATION_LAST     = CHURCH6BASE + 8;
 export const BUS_STOP         = 1021;
+// PhaiCity: the farm zone's fields (src/farmZone.ts, docs/GAME_DESIGN.md section 7) take the seventh 3x3's first six
+// tiles (CHURCH7, never placed), one a field's level, 0 painted and empty; the map records each field's kind
+export const FIELD_BASE       = CHURCH7BASE;
+export const FIELD_LAST       = CHURCH7BASE + 5;
 
-// tiles 1022-1023 unused
+// tiles 1016-1019 and 1022-1023 unused
 
 export const TILE_COUNT     = 1024;
 

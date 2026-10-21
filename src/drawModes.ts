@@ -12,6 +12,7 @@
 
 import { t } from "./i18n/index";
 import { ERASE_TOOL, PAINT_TOOLS } from "./plots";
+import { FARM_ERASE_TOOL, FARM_PAINT_TOOL } from "./farmZone";
 import { ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 
 export const LINE_MODES = ["straight", "chain", "curve", "curve2", "free", "grid"] as const;
@@ -28,7 +29,9 @@ export const POINTS_NEEDED: Readonly<Partial<Record<DrawMode, number>>> = { stra
 
 // ... and canals (src/canals.ts), dug the way a road is drawn
 const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire", "canal"]);
-const PAINT_TOOL_NAMES = new Set<string>([...Object.values(PAINT_TOOLS), ERASE_TOOL]);
+// ... and the farm zone's brush and eraser, which paint whole 16 m tiles (src/farmZone.ts)
+const FARM_TOOL_NAMES = new Set<string>([FARM_PAINT_TOOL, FARM_ERASE_TOOL]);
+const PAINT_TOOL_NAMES = new Set<string>([...Object.values(PAINT_TOOLS), ERASE_TOOL, ...FARM_TOOL_NAMES]);
 const GROUP_MODES: Readonly<Record<ModeGroup, readonly DrawMode[]>> = { line: LINE_MODES, paint: PAINT_MODES };
 // Zones are painted by dragging a rectangle over them (owner, 15 Oct 2026: "บ้าน ร้านค้า อุสาหกรรม การวาด ต้องเป็น drag แล้ว
 // คลุมได้")
@@ -48,7 +51,10 @@ export const isPaintTool = (tool: string | null | undefined): boolean => modeGro
 
 /** Whether the grid of tiles that can take painted zones shows with this tool in hand: the brushes only, so a road is
  * drawn over open land as in Cities: Skylines (owner, 14 Oct 2026: "การวาดถนน ทำไมมันเป็นช่องแบบนี้นะ") */
-export const showsZoneGrid = (tool: string | null | undefined): boolean => isPaintTool(tool);
+export const showsZoneGrid = (tool: string | null | undefined): boolean => isPaintTool(tool) && !isFarmTool(tool);
+
+/** Whether a tool is the farm zone's brush or eraser, which paint whole tiles even where the zones go a cell at a time */
+export const isFarmTool = (tool: string | null | undefined): boolean => !!tool && FARM_TOOL_NAMES.has(tool);
 
 function loadModes(): Record<ModeGroup | "upgrade", DrawMode> {
   const modes: Record<ModeGroup | "upgrade", DrawMode> = { ...DEFAULTS, upgrade: DEFAULTS.line };

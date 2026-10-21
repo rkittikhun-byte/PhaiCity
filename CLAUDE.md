@@ -284,6 +284,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   chemicals and burn stubble into haze from February to April; harbours sell their catch, ask for markets and use
   up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts but water and forest, whose levels the simulation
   does not read yet (`docs/PROVINCE_PROFILE.md`).
+- **Farm zone (โซนเกษตร, owner 21 Oct 2026):** `docs/GAME_DESIGN.md` section 7, `src/farmZone.ts`. A fourth zone painted a
+  16 m tile at a time on a city map (`zone_farm`, eraser `farm_erase`, in the zones tray), needing a cart track to a road
+  within reach; the level is the tile value (1010–1015), the kind the land chooses (paddy, field, orchard, pond) is kept in
+  `gameMap.farmKinds` (saved). Fields grow in the map scan and act each month through `Farming.fields`; their work is the
+  census's `farmPop` (the era score's jobs, not people); the 3 × 3 farm is their cooperative, rice mill or cold store
+  (`hubKind`). Numbers in the rules' `farmZone`; the 3D view draws them in `src/render3d/city/farmFields.ts`.
 - **Road levels (ชนิดถนน, owner 13 Oct 2026):** `docs/ROADS.md`, `src/roadLevels.ts`. Eight levels, laterite to tollway,
   chosen above the road button, with an upgrade tool that raises a road one level for the difference. The map keeps
   each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads

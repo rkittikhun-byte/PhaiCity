@@ -16,6 +16,7 @@
 //   eating places (shops), and gives work.
 // No DOM, nothing random: the simulation's census and saved state only.
 
+import { FarmFields } from "./farmZone";
 import { drawGroundwater, pumpFactor } from "./groundwater";
 import { NO_BURNING_YIELD } from "./policies";
 import { FARM_BASE, FARM_LAST } from "./tileValues";
@@ -101,6 +102,7 @@ interface Place {
 
 interface CensusLike {
   indPop: number;
+  farmPop?: number;
   farmCount?: number;
   harbourCount?: number;
 }
@@ -126,13 +128,18 @@ export class Farming {
    * while the fish spawn */
   noBurning = false;
   closedSeason = false;
+  /** The farm zone's fields (src/farmZone.ts), found by the same scan */
+  readonly fields: FarmFields;
 
   constructor(private readonly width: number, private readonly height: number, private resources: Resources = {}) {
     this.haze = new Uint8Array(width * height);
+    this.fields = new FarmFields(width, height);
+    this.fields.farmland = farmLevel(resources);
   }
 
   setResources(resources: Resources): void {
     this.resources = resources;
+    this.fields.farmland = farmLevel(resources);
   }
 
   save(saveData: Record<string, unknown>): void {
@@ -149,6 +156,13 @@ export class Farming {
   clearCycle(): void {
     this.farms = [];
     this.harbours = [];
+    this.fields.clearCycle();
+  }
+
+  /** The scan found a field of the farm zone (src/farmZone.ts) */
+  fieldFound(map: Parameters<FarmFields["fieldFound"]>[0], x: number, y: number, simData: { census: CensusLike }): void {
+    if (farmLevel(this.resources) <= 0) return;
+    this.fields.fieldFound(map, x, y, simData.census);
   }
 
   farmFound(_map: unknown, x: number, y: number, simData: { census: CensusLike }): void {
@@ -198,9 +212,10 @@ export class Farming {
     return result;
   }
 
-  /** Haze on a tile this month, for the pollution scan (src/blockMapUtils.js) */
+  /** Haze on a tile this month, for the pollution scan (src/blockMapUtils.js): the farms' and the fields' stubble
+   * fires, and the mud the fish ponds let into the water */
   hazeAt(x: number, y: number): number {
-    return this.haze[y * this.width + x];
+    return this.haze[y * this.width + x] + this.fields.pollutionAt(x, y);
   }
 }
 

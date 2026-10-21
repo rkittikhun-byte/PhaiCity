@@ -36,6 +36,9 @@ import { BuildingUpgradeTool } from './buildingUpgradeTool.ts';
 import { LandTool } from './landTool.ts';
 import { ERASE_TOOL, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { PlotTool } from './plotTool.ts';
+import { FarmTool } from './farmTool.ts';
+import { FARM_ERASE_TOOL, FARM_PAINT_TOOL } from './farmZone.ts';
+import { FARM_ZONE } from './provinceRules.ts';
 import * as TileValues from "./tileValues.ts";
 import { WireTool } from './wireTool.js';
 import { MOVE_TOOL, MoveTool } from './moveTool.ts';
@@ -136,6 +139,11 @@ function GameTools(map, rules) {
     tools[PAINT_TOOLS[kind]] = new PlotTool(map, kind);
   });
   tools[ERASE_TOOL] = new PlotTool(map, null);
+  // ... and the farm zone's brush and eraser, at the province's price a tile and reach (src/farmZone.ts)
+  var farmZone = rules.farmZone || FARM_ZONE;
+  tools[FARM_PAINT_TOOL] = new FarmTool(map, false, farmZone.price, farmZone.reach);
+  tools[FARM_PAINT_TOOL].clearWoodsCost = rules.clearWoodsCost;
+  tools[FARM_ERASE_TOOL] = new FarmTool(map, true);
 
   TOOL_COSTS.forEach(function(name) {
     tools[name].costFactor = rules.cost[name];

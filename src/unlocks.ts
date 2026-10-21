@@ -50,6 +50,9 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   // ... factories only once there is power for them (a village's factories mill its crops)
   industrial: { era: 1, first: ["power_plant"] }, zone_industrial: { era: 1, first: ["power_plant"] },
   farm: { era: 1 }, fishing: { era: 1 },
+  // ... and the farm zone's paddies, fields, orchards and ponds (src/farmZone.ts), whose look moves on by era
+  // (FARM_ERA_LOOKS, the era card)
+  zone_farm: { era: 1 },
   // (a school, a health post or a plant takes months to build: nothing grows without power, and a village waits for it)
   kindergarten: { era: 1, months: 2 }, primary_school: { era: 1, months: 3 }, health_centre: { era: 1, months: 3 },
   police_box: { era: 1 }, fire_post: { era: 1 }, police: { era: 1 }, fire: { era: 1 },
@@ -101,7 +104,7 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
 };
 
 /** Tools never locked: they build nothing that needs a reason, or the rank already decides them */
-export const FREE_TOOLS: readonly string[] = ["bulldozer", "park", "zone_erase", "ruler_house", "ruler_house_upgrade",
+export const FREE_TOOLS: readonly string[] = ["bulldozer", "park", "zone_erase", "farm_erase", "ruler_house", "ruler_house_upgrade",
   "road_upgrade", "building_upgrade", "building_move", "land", "query"];
 
 /** The tools a city may build from an era on that it could not before, in the table's order (the era card) */

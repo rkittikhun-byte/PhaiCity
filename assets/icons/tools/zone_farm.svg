@@ -1,0 +1,10 @@
+<!-- PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
+     Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <g stroke="#1d2925" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Four paddies inside their dikes, a stalk of rice over them -->
+    <path fill="#a59630" d="M5 22h17v10H5zM26 22h17v10H26zM5 34h17v10H5zM26 34h17v10H26z"/>
+    <path fill="none" stroke="#fff4d6" stroke-width="2" d="M10 26v3M15 26v3M31 26v3M36 26v3M10 38v3M15 38v3M31 38v3M36 38v3"/>
+    <path fill="none" d="M24 18V4m0 4c-4 0-6 2-7 5m7-1c4 0 6-2 7-5"/>
+  </g>
+</svg>
