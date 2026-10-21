@@ -88,7 +88,7 @@ const row = (y: PlayerYear) => {
       const eras = Array.from((core.map as { buildingEras?: Uint8Array }).buildingEras ?? []).filter(e => e > 0);
       const byEra = [1, 2, 3, 4, 5].map(e => eras.filter(x => x === e).length).join("/");
       const trained = trainedOf(core.map);
-      process.stdout.write(`  trained: ${trained.technician} technicians, ${trained.nurse} nurses, ${trained.engineer} engineers, ${trained.doctor} doctors
+      process.stdout.write(`  trained: ${trained.literate} literate, ${trained.technician} technicians, ${trained.nurse} nurses, ${trained.engineer} engineers, ${trained.doctor} doctors
 `);
       process.stdout.write(`  era ${era.era} score ${pc(era.score)}% = people ${pc(era.peopleDone)}% x quality ${pc(era.quality)}%` +
         `${era.heldBy ? ` (held by ${era.heldBy})` : ""}; buildings by era ${byEra}
