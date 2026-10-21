@@ -30,7 +30,7 @@ function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
   map.tileSizeM = 16;
   map.paintedZones = true;
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(1000000);
   (core.map as any).needsRulerHouse = false;
   return core;
@@ -40,7 +40,7 @@ function city() {
 function saveAndOpen(core: CityCore) {
   const saved = JSON.parse(JSON.stringify({ ...core.save(), width: core.map.width, height: core.map.height,
     version: (Storage as any).CURRENT_VERSION }));
-  return new CityCore({ map: new (GameMap as any)(saved.width, saved.height), saved });
+  return new CityCore({ sandbox: true, map: new (GameMap as any)(saved.width, saved.height), saved });
 }
 
 const graphOf = (core: CityCore, rail = false): RoadGraph => (core.map as any)[rail ? "railGraph" : "roadGraph"];
