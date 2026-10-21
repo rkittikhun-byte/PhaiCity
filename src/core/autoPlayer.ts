@@ -234,6 +234,7 @@ const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
 const SYMBOL_TOOLS: Readonly<Record<string, string>> = {
   water_tower: "watertower", water_works: "waterworks", power_plant: "coal", school: "primary_school",
   literate: "primary_school", hospital: "community_hospital", secondary_school: "secondary_school",
+  technicians: "secondary_school",
 };
 
 /** The era score's short sides are built for this much past their aim, for the year's growth to come, with no more
@@ -576,6 +577,12 @@ export class AutoPlayer {
     const core = this.core, score = (core.map as { eraScore?: { symbols?: Array<{ key: string; has: boolean }> } }).eraScore;
     const city = unlockCity(core.map), level = core.map.rulerHouse?.level ?? 0, tools: string[] = [];
     for (const { key, has } of score?.symbols ?? []) {
+      // The first technicians come from a secondary school's classes: none more while one teaches, and the district
+      // office it needs first through the training goal (trainingGoal)
+      if (key === "technicians" && !has) {
+        if (city.count("secondary_school") + city.count("vocational_college") > 0) continue;
+        if (serviceProblem("secondary_school", level) !== null) { this.wantTrained.add("technician"); continue; }
+      }
       const tool = SYMBOL_TOOLS[key];
       if (has || !tool || tools.includes(tool) || city.count(tool) > 0) continue;
       if (serviceProblem(tool, level) !== null || this.waits(tool)) continue;

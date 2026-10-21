@@ -1400,6 +1400,7 @@
 | `era.symbol.water_works` | `src/cityStatus.ts` | — | `a water works` | `โรงประปา` |  |
 | `era.symbol.power_plant` | `src/cityStatus.ts` | — | `a power plant` | `โรงไฟฟ้า` |  |
 | `era.symbol.school` | `src/cityStatus.ts` | — | `a school` | `โรงเรียน` |  |
+| `era.symbol.technicians` | `src/eraCard.ts` | — | `{need} technicians (now {have})` | `ช่าง {need} คน (ตอนนี้ {have})` | ผู้จบมัธยมหรืออาชีวะรุ่นแรก ๆ (`src/trainedPeople.ts`) |
 | `era.symbol.hospital` | `src/cityStatus.ts` | — | `a hospital` | `โรงพยาบาล` |  |
 | `era.symbol.secondary_school` | `src/cityStatus.ts` | — | `a secondary school or higher` | `โรงเรียนมัธยมขึ้นไป` |  |
 | `era.symbol.paved_roads` | `src/cityStatus.ts` | — | `half the roads paved` | `ถนนลาดยางครึ่งเมือง` |  |
@@ -1446,6 +1447,7 @@
 | `era.symbol_hint.water_works` | `src/eraReport.ts` | — | `Services › Water supply: a water works beside a road` | `บริการเมือง › ประปา: สร้างโรงผลิตน้ำประปาติดถนน` |  |
 | `era.symbol_hint.power_plant` | `src/eraReport.ts` | — | `Services › Power plant: any kind, beside a road` | `บริการเมือง › โรงไฟฟ้า: แบบใดก็ได้ ติดถนน` |  |
 | `era.symbol_hint.school` | `src/eraReport.ts` | — | `Services › Education: any school` | `บริการเมือง › การศึกษา: โรงเรียนแบบใดก็ได้` |  |
+| `era.symbol_hint.technicians` | `src/eraReport.ts` | — | `Services › Education: a secondary school or vocational college with power (needs a higher ruler's house); after a year of teaching, a class finishes every January` | `บริการเมือง › การศึกษา: สร้างโรงเรียนมัธยมหรือวิทยาลัยอาชีวะที่มีไฟ (ต้องยกระดับที่ว่าการก่อน) สอนครบปีแล้วจะมีนักเรียนจบทุกเดือนมกราคม` |  |
 | `era.symbol_hint.hospital` | `src/eraReport.ts` | — | `Services › Healthcare: a hospital (it may need a higher ruler's house first)` | `บริการเมือง › สาธารณสุข: โรงพยาบาล (อาจต้องยกระดับที่ว่าการก่อน)` |  |
 | `era.symbol_hint.secondary_school` | `src/eraReport.ts` | — | `Services › Education: a secondary school or higher (needs a higher ruler's house)` | `บริการเมือง › การศึกษา: โรงเรียนมัธยมขึ้นไป (ต้องยกระดับที่ว่าการก่อน)` |  |
 | `era.symbol_hint.paved_roads` | `src/eraReport.ts` | — | `Raise laterite roads to paved ones with the road upgrade, above the road button` | `ยกระดับถนนลูกรังเป็นลาดยางด้วยเครื่องมืออัปเกรดถนน เหนือปุ่มถนน` |  |
