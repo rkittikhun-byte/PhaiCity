@@ -17,7 +17,7 @@ import { scoreEra } from "../src/eraScore";
 import { buildingAt } from "../src/objects/buildings";
 import {
   BUILD_MONTHS, FOUND_PEOPLE, GATHER_MONTHS, GROW_MONTHS, festivalTemple, neediest, peopleGrid, reachTiles, readTemples,
-  TEMPLE_IN_THE_WAY, TEMPLE_KIND, templeAt, templeCheer, templeMonth, templesOf, writeTemples,
+  TEMPLE_APART_M, TEMPLE_CAPACITY, TEMPLE_IN_THE_WAY, TEMPLE_KIND, templeAt, templeCheer, templeMonth, templesOf, writeTemples,
 } from "../src/temples";
 
 const W = 90, H = 90, M = 16;
@@ -127,6 +127,26 @@ describe("a community builds its temple", () => {
     homes(map, row(far, 42, 6));
     months(map, 40, GATHER_MONTHS + 1);
     expect(templesOf(map).temples).toHaveLength(2);
+  });
+
+  test("a town more than one temple can look after builds another, a neighbourhood away", () => {
+    const { map } = city([2 * M, 40.5 * M], [88 * M, 40.5 * M]);
+    homes(map, row(36, 42, 6));
+    months(map, 0, GATHER_MONTHS + BUILD_MONTHS + 1);
+    expect(templesOf(map).temples).toHaveLength(1);
+    // 20,000 people within its reach: it looks after TEMPLE_CAPACITY of them
+    const town: Array<[number, number]> = [];
+    for (const y of [42, 43, 44, 45, 46]) town.push(...row(20, y, 40));
+    homes(map, town, 5);
+    months(map, 20, 3 * (GATHER_MONTHS + BUILD_MONTHS + 1));
+    const temples = templesOf(map).temples;
+    expect(temples.length).toBeGreaterThanOrEqual(2);
+    const apart = TEMPLE_APART_M / M;
+    for (let a = 0; a < temples.length; a++) for (let b = a + 1; b < temples.length; b++) {
+      expect(Math.hypot(temples[a].tile % W - temples[b].tile % W, Math.floor(temples[a].tile / W) - Math.floor(temples[b].tile / W))).toBeGreaterThanOrEqual(apart);
+    }
+    expect(templesOf(map).served).toBeLessThanOrEqual(1);
+    expect(TEMPLE_CAPACITY).toBe(6000);
   });
 
   test("grows a level with its people, at most every GROW_MONTHS", () => {

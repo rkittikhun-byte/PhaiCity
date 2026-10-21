@@ -37,6 +37,11 @@ export const TEMPLE_IN_THE_WAY = "the temple's ground is in the way";
 /** How far a temple serves, as the half side of a square round it (metres): the area of a circle of about 800 m,
  * as far as people walk to their temple */
 export const TEMPLE_REACH_M = 700;
+/** How many people one temple looks after: in a town a temple's reach holds more, and the rest build another nearby,
+ * as every neighbourhood of a Thai town has its own temple */
+export const TEMPLE_CAPACITY = 6000;
+/** How close another temple may stand (metres): a neighbourhood's own, not the next street's */
+export const TEMPLE_APART_M = 400;
 /** The people in homes with no temple within reach that make a community build one */
 export const FOUND_PEOPLE = 400;
 /** The months the community gathers before it builds, and the months it builds */
@@ -246,15 +251,17 @@ const within = (map: TempleMap, t: Temple, x: number, y: number, r: number): boo
   Math.abs(t.tile % map.width - x) <= r && Math.abs(Math.floor(t.tile / map.width) - y) <= r;
 
 /** The community most in want of a temple: the most people no temple serves within a temple's reach of one tile, and
- * their heart (where their middle lies) */
-export function neediest(map: TempleMap, people: Float32Array, temples: readonly Temple[]): { x: number; y: number; people: number; unserved: Float32Array } {
+ * their heart (where their middle lies). A temple serves the share `shares` of the people in its reach (TEMPLE_CAPACITY
+ * of them at most) */
+export function neediest(map: TempleMap, people: Float32Array, temples: readonly Temple[],
+  shares: readonly number[] = temples.map(() => 1)): { x: number; y: number; people: number; unserved: Float32Array } {
   const r = reachTiles(map), unserved = people.slice();
-  for (const t of temples) {
-    const tx = t.tile % map.width, ty = Math.floor(t.tile / map.width);
+  temples.forEach((t, k) => {
+    const tx = t.tile % map.width, ty = Math.floor(t.tile / map.width), left = 1 - shares[k];
     for (let y = Math.max(0, ty - r); y <= Math.min(map.height - 1, ty + r); y++) {
-      unserved.fill(0, y * map.width + Math.max(0, tx - r), y * map.width + Math.min(map.width - 1, tx + r) + 1);
+      for (let x = Math.max(0, tx - r); x <= Math.min(map.width - 1, tx + r); x++) unserved[y * map.width + x] *= left;
     }
-  }
+  });
   const sums = new Sums(map.width, map.height, unserved);
   let best = { x: -1, y: -1, people: 0 };
   for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
@@ -349,16 +356,19 @@ function blockTiles(map: TempleMap, cx: number, cy: number): number[] {
 }
 
 /**
- * The places round (hx, hy) (within half a temple's reach) where a temple may stand, facing its road: along the
+ * The places round (hx, hy) (within a temple's reach) where a temple may stand, facing its road: along the
  * roads drawn in metres when the map has them (turned to a slanted road, on its turned outline's tiles), else on
- * square blocks beside a road tile. Each with the people no temple serves it would serve (`unserved`).
+ * square blocks beside a road tile, none nearer another temple than TEMPLE_APART_M. Each with the people no temple
+ * serves it would serve (`unserved`).
  */
-export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Float32Array): TempleSpot[] {
-  const metres = tileMetres(map), r = reachTiles(map), near = Math.max(2, Math.floor(r / 2));
+export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Float32Array,
+  temples: readonly Temple[] = []): TempleSpot[] {
+  const metres = tileMetres(map), r = reachTiles(map), near = r;
   const sums = new Sums(map.width, map.height, unserved), painted = paintedTiles(map);
-  const spots = new Map<string, TempleSpot>();
+  const spots = new Map<string, TempleSpot>(), apart = Math.round(TEMPLE_APART_M / metres);
   const free = (tiles: readonly number[]): boolean => tiles.every((i) => freeTile(map, i, painted));
   const add = (spot: Omit<TempleSpot, "serves">): void => {
+    if (temples.some((t) => Math.hypot(t.tile % map.width - spot.cx, Math.floor(t.tile / map.width) - spot.cy) < apart)) return;
     const key = `${spot.cx},${spot.cy},${spot.rot === null ? "-" : spot.rot.toFixed(2)}`;
     if (!spots.has(key)) spots.set(key, { ...spot, serves: sums.around(spot.cx, spot.cy, r) });
   };
@@ -462,19 +472,34 @@ export type TempleNews =
   | { type: "templeGrew"; x: number; y: number; level: number };
 
 /** The people each temple serves, and the share of all home people some temple serves */
-export function servedBy(map: TempleMap, people: Float32Array, temples: readonly Temple[]): { each: number[]; share: number; total: number } {
+export function servedBy(map: TempleMap, people: Float32Array, temples: readonly Temple[]):
+  { each: number[]; shares: number[]; share: number; total: number } {
   const r = reachTiles(map), each = temples.map(() => 0);
-  let total = 0, served = 0;
+  let total = 0;
   for (let i = 0; i < people.length; i++) {
     const p = people[i];
     if (!p) continue;
     total += p;
     const x = i % map.width, y = Math.floor(i / map.width);
-    let any = false;
-    temples.forEach((t, k) => { if (within(map, t, x, y, r)) { each[k] += p; any = true; } });
-    if (any) served += p;
+    temples.forEach((t, k) => { if (within(map, t, x, y, r)) each[k] += p; });
   }
-  return { each, share: total > 0 ? served / total : 0, total };
+  // ... each temple looks after TEMPLE_CAPACITY at most: the share of its reach's people it serves
+  const shares = each.map((n) => n > TEMPLE_CAPACITY ? TEMPLE_CAPACITY / n : 1);
+  let served = 0;
+  for (let i = 0; i < people.length; i++) if (people[i]) served += people[i] * servedShare(map, temples, shares, i, r).share;
+  return { each, shares, share: total > 0 ? served / total : 0, total };
+}
+
+/** The share of a tile's people the temples serve (1 less the share none of them reaches) and the best level among them */
+function servedShare(map: TempleMap, temples: readonly Temple[], shares: readonly number[], i: number, r: number): { share: number; level: number } {
+  const x = i % map.width, y = Math.floor(i / map.width);
+  let left = 1, level = 0;
+  temples.forEach((t, k) => {
+    if (!within(map, t, x, y, r)) return;
+    left *= 1 - shares[k];
+    level = Math.max(level, t.level);
+  });
+  return { share: 1 - left, level };
 }
 
 /**
@@ -501,9 +526,11 @@ export function templeMonth(map: TempleMap, now: number, month: number): TempleN
   });
   // The cheer: each home's best temple, and the great Buddhist days
   state.served = served.share;
-  state.cheer = templeCheerOf(map, people, working, served.total, HOLY_MONTHS.includes(month));
+  state.cheer = templeCheerOf(map, people, working, served.shares, served.total, HOLY_MONTHS.includes(month));
   // A community with no temple: it gathers while it holds enough people, and builds when it has gathered (one at a time)
-  const need = neediest(map, people, state.temples);
+  // (a temple still being built will look after its people: counted full)
+  const shares = state.temples.map((t) => { const k = working.indexOf(t); return k >= 0 ? served.shares[k] : 1; });
+  const need = neediest(map, people, state.temples, shares);
   if (need.people < FOUND_PEOPLE) {
     state.gathering = 0;
     return news;
@@ -511,7 +538,7 @@ export function templeMonth(map: TempleMap, now: number, month: number): TempleN
   if (state.temples.some((t) => isBuilding(map, t))) return news;
   state.gathering++;
   if (state.gathering < GATHER_MONTHS) return news;
-  const spot = bestSpot(templeSpots(map, need.x, need.y, need.unserved), need.x, need.y, map.width);
+  const spot = bestSpot(templeSpots(map, need.x, need.y, need.unserved, state.temples), need.x, need.y, map.width);
   if (!spot) return news;
   layTemple(map, spot, now);
   state.gathering = 0;
@@ -521,17 +548,16 @@ export function templeMonth(map: TempleMap, now: number, month: number): TempleN
 
 /** The cheer the temples give (points of 100): each home's people by its best temple's level, over all home people,
  * at most MAX_TEMPLE_CHEER, and on a great Buddhist day HOLY_CHEER more for those a temple serves */
-function templeCheerOf(map: TempleMap, people: Float32Array, temples: readonly Temple[], total: number, holy: boolean): number {
+function templeCheerOf(map: TempleMap, people: Float32Array, temples: readonly Temple[], shares: readonly number[], total: number,
+  holy: boolean): number {
   if (!temples.length || total <= 0) return 0;
   const r = reachTiles(map);
   let sum = 0, served = 0;
   for (let i = 0; i < people.length; i++) {
     const p = people[i];
     if (!p) continue;
-    const x = i % map.width, y = Math.floor(i / map.width);
-    let level = 0;
-    for (const t of temples) if (t.level > level && within(map, t, x, y, r)) level = t.level;
-    if (level) { sum += p * CHEER_BY_LEVEL[level]; served += p; }
+    const { share, level } = servedShare(map, temples, shares, i, r);
+    if (level) { sum += p * share * CHEER_BY_LEVEL[level]; served += p * share; }
   }
   return Math.min(MAX_TEMPLE_CHEER, sum / total) + (holy ? HOLY_CHEER * served / total : 0);
 }
