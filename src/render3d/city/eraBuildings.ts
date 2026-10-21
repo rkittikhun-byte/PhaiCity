@@ -26,6 +26,9 @@ export const ERA_KINDS = ['home_1', 'home_2', 'home_3', 'home_4', 'home_5', 'sho
   'factory_1', 'factory_2', 'factory_3', 'factory_4', 'ruler_house', 'school', 'hospital', 'police', 'fire', 'water_works',
   'power_plant', 'waste', 'station', 'market'] as const;
 export type EraKind = typeof ERA_KINDS[number];
+/** A temple's era models by its level (src/temples.ts; art/buildings/scripts/buildings/temples.py), a set of their own */
+export const TEMPLE_KINDS = ['temple_1', 'temple_2', 'temple_3'] as const;
+export type TempleKind = typeof TEMPLE_KINDS[number];
 
 /** The era models by frontage (frontage.ts; art/buildings/scripts/lib/builder.py FRONTAGE): a shophouse bay one 4 m
  * cell wide in its place in a terrace, in the era's lower row (bay1) and its taller one (bay2), and a 12 m house */
@@ -72,13 +75,14 @@ const HOSPITALS = new Set(['health_centre', 'community_hospital', 'provincial_ho
  * water mill, a steam house, a lignite plant, a gas plant, a clean future plant; its station a landing, a halt, a
  * railway station, then elevated rail), so a solar farm or a dam keeps its own.
  */
-export function eraKindFor(id: string | null, hint: string | undefined, era: number): EraKind | null {
+export function eraKindFor(id: string | null, hint: string | undefined, era: number): EraKind | TempleKind | null {
   if (hint) {
     if (hint.startsWith('station.')) {
       const sk = hint.slice(8);
       if (sk === 'train_station') return era === 2 || era === 3 ? 'station' : null;
       return era >= 4 ? 'station' : null;
     }
+    if ((TEMPLE_KINDS as readonly string[]).includes(hint)) return hint as TempleKind;
     return (ERA_KINDS as readonly string[]).includes(hint) ? hint as EraKind : null;
   }
   if (!id) return null;

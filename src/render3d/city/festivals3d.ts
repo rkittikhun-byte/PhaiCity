@@ -265,13 +265,15 @@ export class CityFestivals {
     return { bunting: kind === null ? null : { kind, colours, share: most }, krathong, sky, rockets, strength };
   }
 
-  /** Where the venue is (the ruler's house, else the town), and the bunting along the roads near it, and the water */
+  /** Where the venue is (where the festival was held: a temple's festival at the temple, src/temples.ts; else the ruler's
+   * house, else the town), and the bunting along the roads near it, and the water */
   private place(lines: ReadonlyArray<FestivalLine>, sign: string, seconds: number): void {
     this.placedFor = sign;
     this.placedAt = seconds;
     this.placedLines = lines;
     this.strengthShown = -1;
-    const at = this.map.rulerHouse ?? this.map.town ?? { x: this.map.width / 2, y: this.map.height / 2 };
+    const held = (this.map as { festivals?: { venue?: { x: number; y: number } | null } | null }).festivals?.venue;
+    const at = held ?? this.map.rulerHouse ?? this.map.town ?? { x: this.map.width / 2, y: this.map.height / 2 };
     const vx = (at.x + 0.5) * 10, vz = (at.y + 0.5) * 10;
     this.venue = { x: vx, z: vz };
     const look = this.touches(seconds), bunting = look.bunting;

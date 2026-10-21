@@ -19,6 +19,7 @@ import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
 import { createRulerHouse, createRulerWing, RULER_HOUSE_ID, RULER_HOUSE_LEVELS, RULER_HOUSE_WINGS, rulerWingId } from './civic/ruler-house.js';
 import { createSchool, SCHOOL_BUDGETS, SCHOOL_KINDS, schoolId } from './civic/schools.js';
+import { createTemple, TEMPLE_ID, TEMPLE_LEVELS } from './civic/temple.js';
 import { createHospitalCivic, HOSPITAL_BUDGETS, HOSPITAL_KINDS, hospitalId } from './civic/hospitals.js';
 import { createWaste, WASTE_BUDGETS, WASTE_KINDS, wasteId } from './waste/waste.js';
 import { createWaterWorks, WATER_WORKS_ID, WATER_WORKS_TILES } from './water/water-works.js';
@@ -112,6 +113,10 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     factory: (options?: ModelOptions) => createRulerWing(wing, options), category: 'services', footprint: [1, 1], tiles: [],
     budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R1',
   } as ModelRegistration])),
+  // A temple on the civic 3×3 (src/temples.ts), from gameMap.civicKinds, variant = its level; the program's own until its
+  // era's model from Blender has loaded (city/tileModels.ts templePlacement)
+  [TEMPLE_ID]: { factory: createTemple, category: 'services', footprint: [3, 3], tiles: [],
+    budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R2', variants: TEMPLE_LEVELS },
   // Schools share the civic 3×3 and are placed the same way, from gameMap.civicKinds (RENDERER_SPEC 6H).
   ...Object.fromEntries(SCHOOL_KINDS.map(kind => [schoolId(kind), {
     factory: (options?: ModelOptions) => createSchool(kind, options), category: 'services', footprint: [3, 3], tiles: [],

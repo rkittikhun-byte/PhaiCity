@@ -51,7 +51,8 @@ export function compoundSides(b: PlacedBuilding, width: number, tileSizeM: numbe
 /** The buildings that are fenced: those of two tiles and up whose centre still stands on the map */
 export function fencedBuildings(map: CompoundMap): PlacedBuilding[] {
   return (map.buildings?.all() ?? []).filter((b) => {
-    if (b.size < 2) return false;
+    // (a temple's wall is its model's own กำแพงแก้ว, src/temples.ts)
+    if (b.size < 2 || b.tool === 'temple') return false;
     const x = b.tile % map.width, y = Math.floor(b.tile / map.width);
     return map.getTile ? map.getTile(x, y).isZone() : true;
   });
