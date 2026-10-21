@@ -408,6 +408,26 @@ export class AutoPlayer {
         this.place("coal", x + PLANT_FROM, y + 8);
       }
     }
+    // ... then, when a building it wants waits for trained people whose school needs a higher district office (the
+    // community hospital's nurses, from a vocational college that needs the office of level 3), money set aside for the
+    // office before the era card's asks and the services, as for a power plant: a town that spent each year's money on health posts never held the ฿2,800, so its
+    // nurses never came and the community hospital waited for years (docs/GAME_DESIGN.md 6.5). The services its people
+    // ask for are looked at first, so a locked one says what it waits for (waits, trainingGoal).
+    let goal: string | null = null;
+    if (!saving) {
+      for (let i = this.next; i < SERVICES.length && population >= SERVICES[i][0]; i++) {
+        if (!this.servicesDone.has(i)) this.waits(SERVICES[i][1]);
+      }
+      goal = this.trainingGoal();
+      const house = core.map.rulerHouse, level = house?.level ?? 0;
+      if (goal && house && serviceProblem(goal, level) !== null) {
+        const price = houseSpec(level + 1).price - houseSpec(level).price;
+        this.note(`training: district office for ${goal} (฿${price}, treasury ฿${budget.totalFunds})`);
+        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
+        else this.apply("ruler_house_upgrade", house.x, house.y);
+        goal = null;
+      }
+    }
     if (!saving) {
       // First more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
       // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health), before the
@@ -441,6 +461,15 @@ export class AutoPlayer {
           short -= isServiceKind(tool) ? SERVICE_SPECS[tool].places : short;
         }
       }
+      // ... then the school itself, with money set aside for it before the services its people ask for by their numbers,
+      // the district office's own rise and more zones (src/trainedPeople.ts); the era card's asks come first
+      if (goal && !saving) {
+        const price = core.tools?.[goal]?.toolCost ?? 0, n = this.asked++;
+        this.note(`training: ${goal} (฿${price}, treasury ฿${budget.totalFunds})`);
+        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
+        else this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20);
+      }
+      if (!saving) this.wantTrained.clear();
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
       // money is kept for what the era card asks
       const house = core.map.rulerHouse;
@@ -459,20 +488,6 @@ export class AutoPlayer {
         this.servicesDone.add(i);
       }
       while (this.servicesDone.has(this.next)) this.next++;
-      // ... and the school that trains the people a building waits for, the district office raised for it first when
-      // it must be, saving for them rather than painting more (src/trainedPeople.ts)
-      const goal = this.trainingGoal();
-      if (goal) {
-        const house = core.map.rulerHouse, level = house?.level ?? 0;
-        const raise = serviceProblem(goal, level) !== null;
-        const price = raise ? houseSpec(level + 1).price - houseSpec(level).price : core.tools?.[goal]?.toolCost ?? 0;
-        const n = this.asked++;
-        this.note(`training: ${raise ? `district office for ${goal}` : goal} (฿${price}, treasury ฿${budget.totalFunds})`);
-        if (budget.totalFunds < price + ERA_ASK_SPARE) saveFor(price + ERA_ASK_SPARE);
-        else if (raise && house) this.apply("ruler_house_upgrade", house.x, house.y);
-        else if (!raise) this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20);
-      }
-      this.wantTrained.clear();
       // A bus more on a road near the middle for every BUS_PEOPLE people: riders leave their cars, so the roads carry
       // less traffic and its smoke (src/transit.ts, src/busStopTool.ts)
       while ((core.map.buses?.length ?? 0) < Math.floor(population / BUS_PEOPLE) && budget.totalFunds > (this.options.reserve ?? 3000)) {

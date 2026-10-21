@@ -99,6 +99,30 @@ describe("the auto player", () => {
     expect(factories()).toBeGreaterThan(0);
   });
 
+  test("raises the district office for the school its trained people need before the services (6.5)", () => {
+    Random.seed(5);
+    const map = (MapGenerator as any).fromPresetCells(80, 60, new Uint8Array(80 * 60), null);
+    Object.assign(map, { tileSizeM: 16, paintedZones: true, cellZones: true, town: { x: 40, y: 30 } });
+    const core = new CityCore({ map, seed: 5, hooks: { rank: () => 2 } });
+    core.simulation.budget.setFunds(30000);
+    for (let x = 2; x < 78; x++) core.apply({ type: "tool", tool: "road", x, y: 28 });
+    for (let y = 4; y < 56; y++) core.apply({ type: "tool", tool: "road", x: 40, y });
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 300, paintEachYear: 300 });
+    player.start();
+    // The primary school done, a market town whose roads wait for technicians, who come from the secondary school,
+    // which needs the district office of level 2
+    core.run(16 * 4 * 4);
+    core.map.era = 2;
+    expect(core.map.rulerHouse?.level).toBe(1);
+    (player as unknown as { wantTrained: Set<string> }).wantTrained.add("technician");
+    player.playYear();
+    const year = player.log.filter((line) => line.startsWith("year 1:"));
+    const planned = year.findIndex((line) => line.startsWith("year 1: training: district office for secondary_school"));
+    expect(planned).toBeGreaterThanOrEqual(0);
+    expect(year.slice(planned + 1).some((line) => line.includes("ruler_house_upgrade at"))).toBe(true);
+    expect(core.map.rulerHouse?.level).toBeGreaterThanOrEqual(2);
+  });
+
   test("answers through the festival command, and a festival not held costs the year nothing", () => {
     Random.seed(5);
     const core = town({ tourism: 3 });
