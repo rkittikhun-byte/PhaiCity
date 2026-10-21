@@ -17,7 +17,7 @@ import { createNuclear } from './services/nuclear.js';
 import { createGas, createHydro, createSolar, createWind } from './services/solar.js';
 import { createSeaport } from './transport/seaport.js';
 import { createAirport } from './transport/airport.js';
-import { createRulerHouse, RULER_HOUSE_ID, RULER_HOUSE_LEVELS } from './civic/ruler-house.js';
+import { createRulerHouse, createRulerWing, RULER_HOUSE_ID, RULER_HOUSE_LEVELS, RULER_HOUSE_WINGS, rulerWingId } from './civic/ruler-house.js';
 import { createSchool, SCHOOL_BUDGETS, SCHOOL_KINDS, schoolId } from './civic/schools.js';
 import { createHospitalCivic, HOSPITAL_BUDGETS, HOSPITAL_KINDS, hospitalId } from './civic/hospitals.js';
 import { createWaste, WASTE_BUDGETS, WASTE_KINDS, wasteId } from './waste/waste.js';
@@ -107,6 +107,11 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
   // The city view picks it from gameMap.civicKinds, not by tile; variant = level 1–6, state = its wings.
   [RULER_HOUSE_ID]: { factory: createRulerHouse, category: 'services', footprint: [3, 3], tiles: [],
     budget: TRIANGLE_BUDGETS.special, regionTier: 'R1', variants: RULER_HOUSE_LEVELS },
+  // ... and each of its wings alone, which the city view stands round the house's era model (city/tileModels.ts).
+  ...Object.fromEntries(RULER_HOUSE_WINGS.map(wing => [rulerWingId(wing), {
+    factory: (options?: ModelOptions) => createRulerWing(wing, options), category: 'services', footprint: [1, 1], tiles: [],
+    budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R1',
+  } as ModelRegistration])),
   // Schools share the civic 3×3 and are placed the same way, from gameMap.civicKinds (RENDERER_SPEC 6H).
   ...Object.fromEntries(SCHOOL_KINDS.map(kind => [schoolId(kind), {
     factory: (options?: ModelOptions) => createSchool(kind, options), category: 'services', footprint: [3, 3], tiles: [],

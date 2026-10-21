@@ -28,6 +28,7 @@ import { tileMetres, unitsPerMetre } from '../../units.js';
 import { UNLOCKS } from '../../unlocks.js';
 import { RAMPS } from '../../theme/tokens.js';
 import { siteId } from '../models/plot/site.js';
+import { parseRulerWings, rulerWingId, type RulerHouseWing } from '../models/civic/ruler-house.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
@@ -139,6 +140,26 @@ export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNe
   const gap = near.reach + .6 + half;
   return { x: near.x + nx * gap, z: near.z + nz * gap, rotation: Math.atan2(-nx, -nz) };
 }
+/** How much of its lot the era model of the ruler's house fills at each level, 1–6 (owner, 21 Oct 2026: its level and
+ * wings had gone from the 3D view since the era models came): it grows grander as it rises, leaving the ring round it
+ * for its wings */
+export const HOUSE_ERA_SCALES = [0.65, 0.674, 0.698, 0.722, 0.746, 0.77] as const;
+/** The era house's own fence stands this share of the way from its lot's middle to the lot's edge (art/buildings) */
+const HOUSE_FENCE_SHARE = 23.4 / 24;
+/** Where each wing stands round the house, [x, z] in the era lot's metres from its middle, front +Z, given `ring`, how
+ * far the middle of the free ring between the house's fence and the lot's edge lies from the lot's middle: the wide ones
+ * in front either side of the gate, the granary and the offices down the sides, the council hall and the tower behind,
+ * each keeping its place whatever else is built. Each is set by the middle of its model's footprint
+ * (models/civic/ruler-house.ts), so it sits in the middle of the ring. */
+const WING_PLACES: Readonly<Record<RulerHouseWing, (ring: number) => readonly [number, number]>> = {
+  front_garden: ring => [-12, ring + 0.45], culture_court: ring => [12, ring + 0.52],
+  granary: ring => [-ring + 0.3, 10], planning_office: ring => [-ring, -4],
+  treasury: ring => [ring, 10], trade_office: ring => [ring, -4],
+  council_hall: ring => [-12, -ring - 0.1], warning_tower: ring => [12, -ring - 0.19],
+};
+/** Far-view heights of the wings (their models are 3–14 m) */
+const WING_HEIGHTS: Readonly<Record<RulerHouseWing, number>> = { council_hall: 4, treasury: 4, planning_office: 4,
+  warning_tower: 14, granary: 5, culture_court: 4, front_garden: 4, trade_office: 6 };
 /** The industrial model each kind of mine (src/mining.ts MINE_KINDS) borrows until prompt M1 gives mines their own: an oil
  * well, a potash or a rare-earth works the plant of tanks, towers and pipe racks, a gem field a small regional workshop, a
  * dug pit the processing hall with its tanks and chimney */
@@ -528,6 +549,28 @@ export class TileSnapshot implements CityMapReader {
     if(!this.realUnits){p.scale*=BUILDING_SCALE;p.fill=(p.fill??1)*BUILDING_SCALE;}
     return p;
   }
+  /**
+   * The ruler's house drawn with its era's model (RENDERER_SPEC 6H; owner, 21 Oct 2026): the model a little bigger at
+   * each level (HOUSE_ERA_SCALES) and each wing it has built standing round it on the lot (WING_PLACES), as parts of its
+   * placement, turned with it. The era models have the house alone, so without this its level and wings did not show.
+   * Its middle, turn and lot stay the house's, so its ground, driveway and kept pose are as before.
+   */
+  private houseCompound(p:Placement|null):Placement|null {
+    const house=this.source?.rulerHouse;
+    if(!p||!house||p.index!==house.y*this.width+house.x||!p.id?.startsWith('era.')||!p.id.endsWith('.ruler_house'))return p;
+    const level=Math.min(6,Math.max(1,Math.round(house.level||1))),grow=HOUSE_ERA_SCALES[level-1];
+    // The era model is in metres (3 tiles of 16 m) and drawn at `metre` world units a metre; the wings' models too
+    const metre=p.scale,half=1.5*(this.eraModels?.index.tileMetres??16),ring=half*(1+grow*HOUSE_FENCE_SHARE)/2;
+    p.scale=metre*grow;p.height*=grow;
+    const cos=Math.cos(p.rotation),sin=Math.sin(p.rotation);
+    p.parts=parseRulerWings((house.wings??[]).join(',')).map(wing=>{
+      const [u,v]=WING_PLACES[wing](ring),x=p.x+(u*cos+v*sin)*metre,z=p.z+(-u*sin+v*cos)*metre;
+      return new RoadsidePlacement({index:p.index,x,z,id:rulerWingId(wing),kind:'services',footprint:[1,1],height:WING_HEIGHTS[wing],
+        color:p.color,water:false,rotation:p.rotation,scale:metre,fill:p.fill,powered:p.powered,
+        options:{...p.options,seed:0,variant:0,state:'closed',worldOrigin:[x,z],worldRotationY:p.rotation}});
+    });
+    return p;
+  }
   /** Plain roads and railways are drawn as smooth curves (roadCurves.ts): their tiles have no model of their own here,
    * only the far view's ground, so nothing covers the curve */
   curves=false;
@@ -542,7 +585,7 @@ export class TileSnapshot implements CityMapReader {
     const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
     const front=this.frontage(p);
     if(front)return front;
-    return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
+    return this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p);
   }
   /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */
   private wiresOnly(i:number,region:RegionId):Placement|null {

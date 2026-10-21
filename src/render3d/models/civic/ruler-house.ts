@@ -648,6 +648,24 @@ const WINGS: Readonly<Record<RulerHouseWing, (b: CivicBuilder) => void>> = {
   granary, culture_court: cultureCourt, front_garden: frontGarden, trade_office: tradeOffice,
 };
 
+/** One wing alone, on a tile of its own, front +Z (`civic.ruler_wing_<wing>`): the city view stands the wings round the
+ * era model of the ruler's house (city/tileModels.ts houseCompound), which has none of its own. */
+export const rulerWingId = (wing: RulerHouseWing): string => `civic.ruler_wing_${wing}`;
+
+export function createRulerWing(wing: RulerHouseWing, options: ModelOptions = {}) {
+  // (the same for every seed: every house's wing of a kind shares one prototype)
+  const b = new CivicBuilder({ ...options, seed: 0 });
+  b.feature(`wing-${wing}`, () => WINGS[wing](b));
+  if (b.signs.length) b.flushSigns();
+  const root = b.finish(rulerWingId(wing), 'services', [1, 1], [], options);
+  b.lights.forEach((at, i) => {
+    const anchor = new Object3D();
+    anchor.name = `anchor_light_${i}`; anchor.position.set(at.x, at.y, at.z); root.add(anchor);
+  });
+  Object.assign(root.userData, { regionTier: 'R1', kit: b.kit.id, wing, components: b.components, entranceFacing: '+Z' });
+  return root;
+}
+
 /** civic.ruler_house: variant = level 1–6, state = the annexes built ("treasury,front_garden"), region = the kit. */
 export function createRulerHouse(options: ModelOptions = {}) {
   const b = new CivicBuilder(options), level = rulerHouseLevel(options.variant), wings = parseRulerWings(options.state);
