@@ -476,6 +476,7 @@
 | `camera.top` | `src/cameraModes.ts` | — | `Look straight down, north up` | `มองตรงจากบน หันทิศเหนือขึ้น` |  |
 | `camera.whole` | `src/cameraModes.ts` | — | `See the whole city` | `ดูทั้งเมือง` |  |
 | `tool.needs_road` | `src/game.js` | — | `Buildings stand beside a road: put it next to one` | `อาคารต้องตั้งติดถนน วางให้ชิดถนน` | แผนที่ที่ทาเขตทีละช่อง (src/cityCommands.ts roadBesideProblem) |
+| `tool.line_in_the_way` | `src/game.js` | — | `A road or railway runs through the lot: move it back from the road` | `มีถนนหรือทางรถไฟผ่านในที่ดิน เลื่อนให้ห่างถนน` | อาคารที่หันตามถนนเฉียงทับถนน (src/cityCommands.ts buildSite) |
 | `move.tip.find` | `src/game.js` | — | `Click a building to move it` | `คลิกอาคารที่จะย้าย` | ป้ายข้างเมาส์ของเครื่องมือย้าย |
 | `move.tip.pick` | `src/game.js` | — | `Click to pick it up` | `คลิกเพื่อยกอาคารนี้` |  |
 | `move.tip.place` | `src/game.js` | — | `Click to put it here: {price}` | `คลิกเพื่อวางที่นี่ {price}` | R หมุนเมื่อไม่ติดถนน |

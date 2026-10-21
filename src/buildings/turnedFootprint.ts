@@ -198,12 +198,16 @@ export const RAIL_REACH_M = 2.5;
 
 /**
  * The road or railway whose body comes inside the outline, or null: on a map whose roads are drawn in metres from their
- * graphs (`reachOf` a road level's reach in metres), else from the road tiles whose middle lies inside it
+ * graphs (`reachOf` a road level's reach in metres), and the lines read from the tiles as drawn (`drawn`, in metres:
+ * the roads and railways that came with the map or were laid a tile at a time), else from the road tiles whose middle
+ * lies inside it. A staircase of tiles along a slanted road pokes past the road as drawn, which a building's outline
+ * stands against (src/game.js buildingPose), so its tiles alone would refuse every turned building beside it.
  */
 export function lineInOutline(o: Outline, map: FootprintMap & { roadGraph?: LineGraph | null; railGraph?: LineGraph | null },
-  reachOf: (level: number) => number, isLineTile: (value: number) => boolean): "road" | "rail" | null {
+  reachOf: (level: number) => number, isLineTile: (value: number) => boolean,
+  drawn?: ReadonlyArray<LineBody & { rail: boolean }> | null): "road" | "rail" | null {
   const size = tileSizeOf(map);
-  if (map.roadGraph || map.railGraph) {
+  if (map.roadGraph || map.railGraph || drawn) {
     for (const [graph, kind] of [[map.roadGraph, "road"], [map.railGraph, "rail"]] as const) {
       if (!graph) continue;
       for (const [id, s] of graph.segments) {
@@ -211,6 +215,7 @@ export function lineInOutline(o: Outline, map: FootprintMap & { roadGraph?: Line
         if (bodyMeets(o, { points: graph.polyline(id, 2), reach })) return kind;
       }
     }
+    for (const body of drawn ?? []) if (bodyMeets(o, body)) return body.rail ? "rail" : "road";
     return null;
   }
   return outlineTiles(o, map.width, map.height, size)

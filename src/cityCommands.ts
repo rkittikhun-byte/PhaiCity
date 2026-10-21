@@ -24,6 +24,7 @@ import { RoadGraph } from "./roads/roadGraph";
 import { cutTile, LostTiles } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { lineOnGraph, linePrice } from "./roads/roadDraw";
+import { drawnRoads, graphLines } from "./roads/graphLines";
 import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
 import { bodyMeets, drawnPoints, familyValue, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
@@ -34,7 +35,7 @@ import { TileUtils } from "./tileUtils.js";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
 import { besideWater, canBuildKind, POWER_KINDS } from "./powerPlants";
 import { changeWing, type HouseMap, houseProblem, houseRoadProblem, houseStanding, NEEDS_ROAD, WINGS, wingProblem } from "./rulerHouse";
-import { roadReach } from "./roadGeometry";
+import { realUnits, roadReach } from "./roadGeometry";
 import { changePolicy, POLICIES, type PolicyMap, policyProblem, trimPolicies } from "./policies";
 import { chooseFestival, type Festival, FESTIVAL_IDS, FESTIVAL_SCALES, festivalProblem, type FestivalState } from "./festivals";
 import { STATION_KINDS, transitProblem } from "./transit";
@@ -93,6 +94,8 @@ export const NO_MONEY_FOR_CELLS = "not enough money";
 export const NEEDS_ROAD_BESIDE = "needs a road beside it";
 /** Why a turned building was refused: a road or railway runs inside its fence (src/buildings/turnedFootprint.ts) */
 export const LINE_IN_THE_WAY = "a road or railway is in the way";
+/** A road or railway as drawn, in metres, and how far its body reaches either side of its line */
+type DrawnBody = { points: [number, number][]; reach: number; rail: boolean };
 /** Why a road or railway was refused: it would run inside the ruler's house's fence */
 export const HOUSE_IN_THE_WAY = "the ruler's house is in the way";
 /** The most cells one command paints */
@@ -635,28 +638,9 @@ export class CityCommands {
   /** A building put down in metres (the "build" command): laid on the block round the tile its middle lies on, as the
    * tool lays it, and kept as put down (gameMap.buildings, which the 3D view reads) until undone */
   private build(command: Extract<Command, { type: "build" }>): CommandOutcome {
-    const city = this.city, map = city.map, tool = city.tools[command.tool];
-    if (!map || !tool) return { accepted: false, reason: `no ${command.tool} tool` };
-    if (!placesBuilding(command.tool, tool)) return { accepted: false, reason: "not a building" };
-    const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
-    const { cx, cy } = blockOf(command.x, command.z, size, metres);
-    if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { accepted: false, reason: "outside the map" };
-    // Turned to a slanted road, a 3 x 3 takes the tiles its turned outline covers, not its square block: none where a
-    // road or railway runs inside the outline (its fence, src/render3d/city/compounds.ts), and not the tiles of the
-    // outline a road already holds at its edge (src/buildings/turnedFootprint.ts)
-    let turned: { tool: string; x: number; y: number; tiles: { x: number; y: number }[] } | null = null;
-    if (turnsFootprint(size, command.rot)) {
-      const outline = outlineOf(command.x, command.z, command.rot, size, metres), units = unitsPerMetre(metres);
-      const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null };
-      const footprintMap = { width: city.width, height: city.height, tileSizeM: metres,
-        getTileValue: (x: number, y: number) => map.getTile(x, y).getRawValue() & BIT_MASK,
-        roadGraph: graphs.roadGraph ?? null, railGraph: graphs.railGraph ?? null };
-      if (lineInOutline(outline, footprintMap, (level) => roadReach(level, units) / units,
-        (v) => isRoadTile(v) || isRailTile(v))) return { accepted: false, reason: LINE_IN_THE_WAY };
-      const tiles = outlineTiles(outline, city.width, city.height, metres).map((i) => ({ x: i % city.width, y: Math.floor(i / city.width) }))
-        .filter((t) => (t.x === cx && t.y === cy) || !isRoadTile(footprintMap.getTileValue(t.x, t.y)) && !isRailTile(footprintMap.getTileValue(t.x, t.y)));
-      turned = { tool: command.tool, x: cx, y: cy, tiles };
-    }
+    const site = this.buildSite(command);
+    if ("reason" in site) return { accepted: false, reason: site.reason };
+    const { cx, cy, turned } = site;
     // Laid by the tool, which keeps it in gameMap.buildings where it was put down (keepBuilding), and the 3D view reads
     // it there (step 2.4); undo takes it away with its tiles
     this.placing = { x: command.x, z: command.z, rot: command.rot };
@@ -743,7 +727,8 @@ export class CityCommands {
       if (newOutline) {
         const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null }, units = unitsPerMetre(metres);
         if (lineInOutline(newOutline, { width, height, tileSizeM: metres, getTileValue: value, roadGraph: graphs.roadGraph ?? null,
-          railGraph: graphs.railGraph ?? null }, (level) => roadReach(level, units) / units, (v) => isRoadTile(v) || isRailTile(v))) {
+          railGraph: graphs.railGraph ?? null }, (level) => roadReach(level, units) / units, (v) => isRoadTile(v) || isRailTile(v),
+          this.drawnBodies())) {
           return { reason: LINE_IN_THE_WAY };
         }
         next = outlineTiles(newOutline, width, height, metres).map((i) => ({ x: i % width, y: Math.floor(i / width) }))
@@ -845,6 +830,87 @@ export class CityCommands {
       if (cut) backs.push(() => graph.undo(mark));
     }
     return backs;
+  }
+
+  /**
+   * Where the build command lays its building: the tile its middle lies on, and the tiles of its outline when it is
+   * turned to a slanted road. Turned, a 3 x 3 takes the tiles its turned outline covers, not its square block: none
+   * where a road or railway runs inside the outline (its fence, src/render3d/city/compounds.ts), and not the tiles of
+   * the outline a road already holds at its edge (src/buildings/turnedFootprint.ts)
+   */
+  private buildSite(command: Extract<Command, { type: "build" }>):
+    { reason: string } | { cx: number; cy: number; turned: { tool: string; x: number; y: number; tiles: { x: number; y: number }[] } | null } {
+    const city = this.city, map = city.map, tool = city.tools[command.tool];
+    if (!map || !tool) return { reason: `no ${command.tool} tool` };
+    if (!placesBuilding(command.tool, tool)) return { reason: "not a building" };
+    const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
+    const { cx, cy } = blockOf(command.x, command.z, size, metres);
+    if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { reason: "outside the map" };
+    if (!turnsFootprint(size, command.rot)) return { cx, cy, turned: null };
+    const outline = outlineOf(command.x, command.z, command.rot, size, metres), units = unitsPerMetre(metres);
+    const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null };
+    const footprintMap = { width: city.width, height: city.height, tileSizeM: metres,
+      getTileValue: (x: number, y: number) => map.getTile(x, y).getRawValue() & BIT_MASK,
+      roadGraph: graphs.roadGraph ?? null, railGraph: graphs.railGraph ?? null };
+    if (lineInOutline(outline, footprintMap, (level) => roadReach(level, units) / units,
+      (v) => isRoadTile(v) || isRailTile(v), this.drawnBodies())) return { reason: LINE_IN_THE_WAY };
+    const tiles = outlineTiles(outline, city.width, city.height, metres).map((i) => ({ x: i % city.width, y: Math.floor(i / city.width) }))
+      .filter((t) => (t.x === cx && t.y === cy) || !isRoadTile(footprintMap.getTileValue(t.x, t.y)) && !isRailTile(footprintMap.getTileValue(t.x, t.y)));
+    return { cx, cy, turned: { tool: command.tool, x: cx, y: cy, tiles } };
+  }
+
+  /**
+   * Why the build command would be refused, the money and what the tool clears aside, or null: the same checks it
+   * makes, so a building's outline is red, with this reason, exactly where a click would not put it down (src/game.js)
+   */
+  quoteBuild(command: Extract<Command, { type: "build" }>): { reason: string; detail?: Record<string, string | number> } | null {
+    const problem = commandProblem(command, this.city.width, this.city.height);
+    if (problem) return { reason: problem };
+    const site = this.buildSite(command);
+    if ("reason" in site) return { reason: site.reason };
+    return this.toolProblem({ type: "tool", tool: command.tool, x: site.cx, y: site.cy }, site.turned?.tiles ?? null);
+  }
+
+  /** The roads and railways as drawn (src/roads/graphLines.ts drawnRoads, what the 3D view draws and a building stands
+   * against, src/game.js networkLines), in metres with their bodies' reach; worked out again only when a road or
+   * railway tile changes */
+  private drawnCache: { changes: number; key: string; bodies: DrawnBody[] } | null = null;
+  private drawnBodies(): DrawnBody[] | null {
+    const map = this.city.map as unknown as (NonNullable<CommandTarget["map"]> & { changeCount?: () => number;
+      roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null; roadLevels?: ArrayLike<number> | null;
+      roadPieces?: ArrayLike<number> | null; roadPaths?: Record<number, unknown> | null; tileSizeM?: number | null }) | undefined;
+    if (!map) return null;
+    const width = this.city.width, height = this.city.height, changes = map.changeCount?.() ?? -1;
+    if (this.drawnCache && changes !== -1 && this.drawnCache.changes === changes) return this.drawnCache.bodies;
+    const value = (i: number): number => map.getTile(i % width, Math.floor(i / width)).getRawValue() & BIT_MASK;
+    // ... a tile changing elsewhere (a home growing) leaves them: the lines' tiles, their levels and pieces, and the
+    // graphs (a few milliseconds, against a fifth of a second for the lines of a district's map)
+    const levels = map.roadLevels, pieces = map.roadPieces;
+    let hash = 0;
+    for (let i = 0; i < width * height; i++) {
+      const v = value(i);
+      if (isRoadTile(v) || isRailTile(v)) hash = (Math.imul(hash, 31) + i * 1031 + v * 7 + (levels?.[i] ?? 0) * 3 + (pieces?.[i] ?? 0)) | 0;
+    }
+    const key = `${hash}:${map.roadGraph?.segments.size ?? 0}:${map.railGraph?.segments.size ?? 0}`;
+    if (this.drawnCache && this.drawnCache.key === key) {
+      this.drawnCache.changes = changes;
+      return this.drawnCache.bodies;
+    }
+    const metres = tileMetres(map), units = unitsPerMetre(metres), real = realUnits(metres), toMetres = metres / 10;
+    const level = (i: number): number => levels ? levels[i] || 1 : 1, piece = (i: number): number => pieces ? pieces[i] : 0;
+    const paths = map.roadPaths;
+    const bodies: DrawnBody[] = [];
+    for (const rail of [false, true]) {
+      const graph = rail ? map.railGraph : map.roadGraph;
+      const drawnGraph = graph && graph.segments.size ? graphLines(graph, { width, height, tileSizeM: metres, value, piece, level }, rail) : null;
+      const drawn = drawnRoads({ width, height, value, level, piece, path: (p) => (paths?.[p] as never) ?? null }, drawnGraph, rail);
+      for (const line of drawn.lines) {
+        bodies.push({ points: line.points.map((p) => [p[0] * toMetres, p[1] * toMetres] as [number, number]),
+          reach: rail ? RAIL_REACH_M : roadReach(line.level, real) / units, rail });
+      }
+    }
+    this.drawnCache = { changes, key, bodies };
+    return bodies;
   }
 
   /** Where the build command in hand puts its building down, in metres */
@@ -960,6 +1026,40 @@ export class CityCommands {
     return outcome;
   }
 
+  /**
+   * Why a tool command would be refused before its tool runs, or null: the ruler's house first, a higher house for the
+   * higher services and levels, a station's railway and rank, the province, the city's land and the temples' ground, a
+   * plant's or mine's resource, a road beside a building, and what the city cannot build yet (src/unlocks.ts). turned:
+   * the tiles a building turned to a slanted road takes (buildSite)
+   */
+  private toolProblem(command: Extract<Command, { type: "tool" }>, turned: { x: number; y: number }[] | null):
+    { reason: string; detail?: Record<string, string | number> } | null {
+    const city = this.city, tool = city.tools[command.tool];
+    if (!tool) return { reason: `no ${command.tool} tool` };
+    const houseMap = city.houseMap;
+    const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
+    const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
+      serviceProblem(command.tool, houseLevel) ?? levelProblem(command.tool, houseLevel) ??
+      (command.tool === BUILDING_UPGRADE_TOOL && city.map ? upgradeProblem(city.map as unknown as Parameters<typeof upgradeProblem>[0],
+        command.x, command.y, houseLevel) : null) ??
+      transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
+        (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
+      placeProblem(city, command.x, command.y, tool.size ?? 1, turned) ??
+      // ... and no tool touches a temple's ground: it is the community's (src/temples.ts)
+      templeProblem(city.map as never, command.x, command.y, tool.size ?? 1, turned) ??
+      plantProblem(city, tool.powerKind, command.x, command.y, tool.size ?? 4) ?? mineProblem(city, tool.mineKind) ??
+      farmProblem(city, command.tool, command.x, command.y) ??
+      roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y, turned) ??
+      (tool.rulerHouse && city.map && turned ? (besideTiles(city.width, city.height,
+        (x, y) => isRoadTile(city.map!.getTile(x, y).getRawValue() & BIT_MASK), turned) ? null : NEEDS_ROAD) : null) ??
+      (tool.rulerHouse && city.map && !turned ? houseRoadProblem({ width: city.width, height: city.height,
+        getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
+    if (refused) return { reason: refused };
+    // ... and what the city cannot build yet (src/unlocks.ts): its era, trained people, what must stand first
+    const lock = lockProblem(city, command.tool, command.x, command.y, this.unlocksNow());
+    return lock ? { reason: lock.reason, detail: lock.params } : null;
+  }
+
   private applyOne(command: Command): CommandOutcome {
     const problem = commandProblem(command, this.city.width, this.city.height);
     if (problem) return { accepted: false, reason: problem };
@@ -975,31 +1075,11 @@ export class CityCommands {
         const lays = tool.roadLevel ? isRoadTile : command.tool === "rail" ? isRailTile : null;
         const line = command.stroke === undefined ? null : `${command.stroke}:${command.part ?? 0}`;
         if (lays && line !== null && city.map) this.followPath(line, command.x, command.y, command.shape, command.controls);
-        const houseMap = city.houseMap;
-        const houseLevel = houseMap && houseStanding(houseMap) ? houseMap.rulerHouse?.level ?? 0 : 0;
         // A building put down turned to a slanted road takes its turned outline's tiles (the build command worked them out)
         const turned = this.turned && this.turned.tool === command.tool && this.turned.x === command.x &&
           this.turned.y === command.y ? this.turned.tiles : null;
-        const refused = houseProblem(houseMap, command.tool, city.rank?.() ?? 0) ??
-          serviceProblem(command.tool, houseLevel) ?? levelProblem(command.tool, houseLevel) ??
-          (command.tool === BUILDING_UPGRADE_TOOL && city.map ? upgradeProblem(city.map as unknown as Parameters<typeof upgradeProblem>[0],
-            command.x, command.y, houseLevel) : null) ??
-          transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
-            (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
-          placeProblem(city, command.x, command.y, tool.size ?? 1, turned) ??
-          // ... and no tool touches a temple's ground: it is the community's (src/temples.ts)
-          templeProblem(city.map as never, command.x, command.y, tool.size ?? 1, turned) ??
-          plantProblem(city, tool.powerKind, command.x, command.y, tool.size ?? 4) ?? mineProblem(city, tool.mineKind) ??
-          farmProblem(city, command.tool, command.x, command.y) ??
-          roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y, turned) ??
-          (tool.rulerHouse && city.map && turned ? (besideTiles(city.width, city.height,
-            (x, y) => isRoadTile(city.map!.getTile(x, y).getRawValue() & BIT_MASK), turned) ? null : NEEDS_ROAD) : null) ??
-          (tool.rulerHouse && city.map && !turned ? houseRoadProblem({ width: city.width, height: city.height,
-            getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);
-        if (refused) return { accepted: false, reason: refused, toolResult: null };
-        // ... and what the city cannot build yet (src/unlocks.ts): its era, trained people, what must stand first
-        const lock = lockProblem(city, command.tool, command.x, command.y, this.unlocksNow());
-        if (lock) return { accepted: false, reason: lock.reason, detail: lock.params, toolResult: null };
+        const refused = this.toolProblem(command, turned);
+        if (refused) return { accepted: false, reason: refused.reason, ...(refused.detail ? { detail: refused.detail } : {}), toolResult: null };
         const map = city.map;
         const fundsBefore = city.budget.totalFunds;
         // (the building tool lays the turned tiles, src/buildingTool.js)

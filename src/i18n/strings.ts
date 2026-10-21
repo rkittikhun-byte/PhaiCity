@@ -417,6 +417,7 @@ export const STRINGS: Record<string, Translation> = {
   "camera.top": { en: "Look straight down, north up", th: "มองตรงจากบน หันทิศเหนือขึ้น" },
   "camera.whole": { en: "See the whole city", th: "ดูทั้งเมือง" },
   "tool.needs_road": { en: "Buildings stand beside a road: put it next to one", th: "อาคารต้องตั้งติดถนน วางให้ชิดถนน" },
+  "tool.line_in_the_way": { en: "A road or railway runs through the lot: move it back from the road", th: "มีถนนหรือทางรถไฟผ่านในที่ดิน เลื่อนให้ห่างถนน" },
   "move.tip.find": { en: "Click a building to move it", th: "คลิกอาคารที่จะย้าย" },
   "move.tip.pick": { en: "Click to pick it up", th: "คลิกเพื่อยกอาคารนี้" },
   "move.tip.place": { en: "Click to put it here: {price}", th: "คลิกเพื่อวางที่นี่ {price}" },

@@ -20,7 +20,7 @@ import { bindGraphicsQuality } from './graphicsQuality.ts';
 import { BaseTool } from './baseTool.js';
 import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
-import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { besideRoad, CityCommands, LINE_IN_THE_WAY, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
 import { MODE_RULES, modeChoosable, modeRule, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
 import { siteMonths } from './construction.ts';
@@ -1775,11 +1775,8 @@ Game.prototype.handleTool = function(data) {
   } else {
     var command = {type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y, stroke: data.stroke};
     // A building against its road is put down in metres where its outline stood (src/cityCommands.ts build)
-    if (pose !== null) {
-      var perUnit = tileMetres(this.gameMap) / 10;
-      command = {type: 'build', tool: toolName, x: Math.round(pose[0] * perUnit * 100) / 100,
-                 z: Math.round(pose[1] * perUnit * 100) / 100, rot: pose[2], stroke: data.stroke};
-    }
+    if (pose !== null)
+      command = this.buildCommand(toolName, pose, data.stroke);
     // A road or railway drawn freely follows the mouse, its tiles smoothed (src/roadPieces.ts RoadPath)
     if (modeGroupOf(toolName) === 'line' && toolName !== UPGRADE_TOOL)
       command.shape = 'free';
@@ -1846,6 +1843,12 @@ Game.prototype.handleTool = function(data) {
     // The ruler's house first, only one, and its next level for a higher rank (src/rulerHouse.ts)
     if (HOUSE_REASONS.indexOf(outcome.reason) !== -1) {
       showCornerNote(houseNote(outcome.reason, this.gameMap), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
+    // ... and whatever else refuses a building put down against its road says why, as its red outline did (refusalNote)
+    if (pose !== null && !outcome.accepted) {
+      showCornerNote(this.refusalNote(outcome, toolName, tileCoords.x, tileCoords.y), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }
@@ -2053,6 +2056,14 @@ Game.prototype.calculateMouseForPaint = function() {
     return isRoadTile(cityMap.getTileValue(x, y));
   }, tile.x, tile.y, hover.size))
     hover.colour = OUTSIDE_COLOUR;
+  // ... and a building put down against its road is red, with why, exactly where the build command would refuse it: the
+  // same checks, its turned outline's tiles and the roads as drawn among them (src/cityCommands.ts quoteBuild)
+  if (pose !== null && hover.building) {
+    var refusal = this.core.commands.quoteBuild(this.buildCommand(this.inputStatus.toolName, pose));
+    hover.colour = refusal !== null ? OUTSIDE_COLOUR : this.inputStatus.toolColour || 'yellow';
+    if (refusal !== null)
+      this.writeDrawTip([this.refusalNote(refusal, this.inputStatus.toolName, tile.x, tile.y)]);
+  }
 
   // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
   if (this.isCellBrush(this.inputStatus.toolName)) {
@@ -2640,6 +2651,34 @@ Game.prototype.moveNote = function(reason, b) {
   if (reason === NEEDS_RAIL)
     return t('transit.note.needs_rail');
   return t('move.note.blocked');
+};
+
+
+// The build command that puts a building down where its outline stands against its road (buildingPose: world units and
+// its turn), in metres
+Game.prototype.buildCommand = function(toolName, pose, stroke) {
+  var perUnit = tileMetres(this.gameMap) / 10;
+  var command = {type: 'build', tool: toolName, x: Math.round(pose[0] * perUnit * 100) / 100,
+                 z: Math.round(pose[1] * perUnit * 100) / 100, rot: pose[2]};
+  if (stroke !== undefined)
+    command.stroke = stroke;
+  return command;
+};
+
+
+// Why a building may not be put down there, in words: what the city cannot build yet, the ruler's house first, a higher
+// house, a road or railway in its lot, and the move tool's reasons (moveNote) for the rest
+Game.prototype.refusalNote = function(refusal, toolName, x, y) {
+  var lock = lockOf(refusal);
+  if (lock)
+    return lockedTitle(toolName, lock);
+  if (HOUSE_REASONS.indexOf(refusal.reason) !== -1)
+    return houseNote(refusal.reason, this.gameMap);
+  if (refusal.reason === NEEDS_HOUSE_LEVEL)
+    return t('service.note.needs_house', {level: houseNeeded(this.gameMap, toolName, x, y)});
+  if (refusal.reason === LINE_IN_THE_WAY)
+    return t('tool.line_in_the_way');
+  return this.moveNote(refusal.reason, {tool: toolName});
 };
 
 
