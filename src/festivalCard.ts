@@ -9,8 +9,8 @@
 // Songkran's water, lanterns' and rockets' fires, krathong in the water) below them. A choice is the festival command
 // (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. When the festival comes
 // the card says how it was held if it is open, else the news does unless it was held modestly as usual, never both; the chip goes once every festival it named
-// has come and the card is closed. A village holds its own festivals (src/festivals.ts FESTIVAL_TOWN_PEOPLE): no chip,
-// no card and no news for them. Fires from lanterns and rockets are always news, with where they started. It only reads
+// has come and the card is closed. The festivals the people hold quietly (src/festivals.ts: a village's, and a town's
+// all but two or three an era): no chip, no card and no news for them. Fires from lanterns and rockets are always news, with where they started. It only reads
 // the city and sends commands.
 
 import { formatMoney, onLanguageChange, t } from "./i18n/index.js";
@@ -100,7 +100,7 @@ export class FestivalCard {
       if (this.isOpen) this.render();
     });
     source.on("festival", (event) => {
-      if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice || event.village) return;
+      if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice || event.quiet) return;
       const entry = this.asked.get(event.id);
       if (entry) entry.held = event;
       // The card says how it was held when it is open; else the news does, but not of a festival held modestly as it is
