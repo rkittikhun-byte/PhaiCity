@@ -19,7 +19,8 @@ import { fuelShare, plantFuel, plantPower, plantSmokes, powerKindAt } from './po
 import { NOT_ENOUGH_POWER } from './messages.ts';
 import { Random } from './random.ts';
 import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
-import { NUCLEAR, POWERPLANT } from "./tileValues.ts";
+import { NUCLEAR, PLANT2, PLANT3, POWERPLANT } from "./tileValues.ts";
+import { isPlantCentre, NUCLEAR_KIND } from "./plantBlocks.ts";
 import { conductsPower } from "./roadTiles.ts";
 
 // PhaiCity: the plants on the coal plant's tiles are of five kinds now, each with its own power (src/powerPlants.ts)
@@ -46,7 +47,7 @@ PowerManager.prototype.setTilePower = function(x, y) {
   var tile = this._map.getTile(x, y);
   var tileValue = tile.getValue();
 
-  if (tileValue === NUCLEAR || tileValue === POWERPLANT ||
+  if (tileValue === NUCLEAR || tileValue === POWERPLANT || isPlantCentre(tileValue) ||
       this.powerGridMap.worldGet(x, y) > 0) {
     tile.addFlags(POWERBIT);
     return;
@@ -157,8 +158,8 @@ PowerManager.prototype.coalPowerFound = function(map, x, y, simData) {
 
   this._powerStack.push(new Position(x, y));
 
-  // Only plants that burn fuel smoke
-  if (!plantSmokes(kind))
+  // Only plants that burn fuel smoke (the 2D view's chimneys, which only the old 4x4 has)
+  if (!plantSmokes(kind) || isPlantCentre(map.getTileValue(x, y)))
     return;
 
   // Ensure animation runs
@@ -192,11 +193,25 @@ PowerManager.prototype.nuclearPowerFound = function(map, x, y, simData) {
 };
 
 
+// PhaiCity: a plant on only the tiles its model covers, a 3x3 or a 2x2 (src/plantBlocks.ts): its kind's power as on the
+// old 4x4, and a nuclear plant's (its kind recorded as "nuclear") as the old nuclear plant's, meltdown and all
+PowerManager.prototype.sizedPlantFound = function(map, x, y, simData) {
+  if ((map.powerKinds || {})[y * map.width + x] === NUCLEAR_KIND)
+    this.nuclearPowerFound(map, x, y, simData);
+  else
+    this.coalPowerFound(map, x, y, simData);
+};
+
+
 PowerManager.prototype.registerHandlers = function(mapScanner, repairManager) {
   mapScanner.addAction(POWERPLANT, this.coalPowerFound.bind(this));
   mapScanner.addAction(NUCLEAR, this.nuclearPowerFound.bind(this));
+  mapScanner.addAction(PLANT3, this.sizedPlantFound.bind(this));
+  mapScanner.addAction(PLANT2, this.sizedPlantFound.bind(this));
   repairManager.addAction(POWERPLANT, 7, 4);
   repairManager.addAction(NUCLEAR, 7, 4);
+  repairManager.addAction(PLANT3, 7, 3);
+  repairManager.addAction(PLANT2, 7, 2);
 };
 
 

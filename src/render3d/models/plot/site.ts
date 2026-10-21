@@ -16,7 +16,7 @@ import { point } from '../../regional/geometry.js';
 import type { ModelOptions } from '../registry.js';
 import { PlotBuilder } from './builder.js';
 
-export const SITE_SIZES = [3, 4, 6] as const;
+export const SITE_SIZES = [2, 3, 4, 6] as const;
 export type SiteSize = typeof SITE_SIZES[number];
 export const siteId = (size: SiteSize): string => `site.building_${size}`;
 /** 0 a site without a crane, 1 one with */

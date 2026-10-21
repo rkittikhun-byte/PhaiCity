@@ -28,6 +28,7 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { chancePerCycle, DEFAULT_CLIMATE, DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
+import { NUCLEAR_KIND, plantCentreOf } from './plantBlocks.ts';
 import { BUS_STOP, CIVIC, COALBASE, FARM, HARBOUR, MINE, STATION, WASTE } from './tileValues.ts';
 import { Transit } from './transit.ts';
 import {
@@ -88,6 +89,12 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // The ruler's house, while a festival's month makes noise at its culture court (set before each pollution scan)
   this._festivalHouse = null;
   this._plantPollution = function(x, y, tileValue) {
+    // (a plant on only the tiles its model covers, src/plantBlocks.ts; a nuclear one pollutes as the old one, not at all)
+    var sized = plantCentreOf(x, y, tileValue);
+    if (sized && (map.powerKinds || {})[sized.y * map.width + sized.x] === NUCLEAR_KIND)
+      return 0;
+    if (sized)
+      return plantPollution(powerKindAt(map.powerKinds, sized.y * map.width + sized.x));
     var index = tileValue - COALBASE;
     var centreX = x - (index % 4) + 1;
     var centreY = y - Math.floor(index / 4) + 1;

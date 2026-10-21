@@ -6,7 +6,7 @@ import { MapScanner } from '../src/mapScanner.js';
 import { MiscTiles } from '../src/miscTiles.js';
 import { Random } from '../src/random.js';
 import { ANIMBIT, BULLBIT } from '../src/tileFlags.js';
-import { LASTRUBBLE, RUBBLE, TINYEXP, TINYEXPLAST } from '../src/tileValues.js';
+import { LASTRUBBLE, PLANT3_BASE, PLANT3_LAST, RUBBLE, TINYEXP, TINYEXPLAST } from '../src/tileValues.js';
 import { TILE_TABLE } from '../src/render3d/city/tileModels.js';
 
 describe('demolition dust (owner, 19 Oct 2026: white boxes where something was bulldozed)', () => {
@@ -26,7 +26,11 @@ describe('demolition dust (owner, 19 Oct 2026: white boxes where something was b
   });
 
   it('is drawn in 3D as the rubble it becomes, never as the test box', () => {
-    for (let value = 860; value <= 883; value++) expect(TILE_TABLE[value].id).toBe('terrain.rubble');
+    // (but for the 3 x 3 power plant's tiles, which lie among them: src/plantBlocks.ts)
+    for (let value = 860; value <= 883; value++) {
+      if (value >= PLANT3_BASE && value <= PLANT3_LAST) expect(TILE_TABLE[value].footprint).toEqual([3, 3]);
+      else expect(TILE_TABLE[value].id).toBe('terrain.rubble');
+    }
     for (let value = 56; value <= 63; value++) expect(TILE_TABLE[value].id).toBe('terrain.rubble');
   });
 });

@@ -103,6 +103,7 @@ phaicity/
 | แผนที่ขนาดจริง กรอบอำเภอ ซื้อที่ดิน | `docs/CITY_SCALE.md`, `docs/DISTRICT_FRAME.md`, `docs/LAND.md` |
 | ระบายเขต แปลง และการโต | `docs/ZONE_PAINT.md` (ช่องเขต: ข้อ 4 ของไฟล์นี้) |
 | ระดับถนน คลอง | `docs/ROADS.md`, `docs/CANALS.md` (การวาด: ข้อ 5 ของไฟล์นี้ และ `docs/METRE_DRAWING_PLAN.md`) |
+| เอาตาราง 16 ม. ออกจากระบบจำลอง (จราจรบนกราฟ ไฟ น้ำ รูปฐาน ค่ารอบ ๆ) | `docs/NO_GRID_PLAN.md` |
 | ไฟฟ้า ประปา ขยะ | `docs/POWER_PLANTS.md`, `docs/WATER_PLAN.md`, `docs/WASTE.md` |
 | โรงเรียน โรงพยาบาล ขนส่งสาธารณะ | `docs/SERVICES.md`, `docs/TRANSIT.md` |
 | ทรัพยากรจังหวัด เกษตร เหมือง ท่องเที่ยว | `docs/PROVINCE_PROFILE.md`, `docs/FARMING.md`, `docs/MINING.md`, `docs/TOURISM.md` |

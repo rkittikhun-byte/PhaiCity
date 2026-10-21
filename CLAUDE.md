@@ -15,6 +15,9 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
   - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
   - `docs/METRE_DRAWING_PLAN.md` (owner, 20 Oct 2026) — roads, then buildings, then zones drawn and stored in metres with
     the tiles derived from them for the simulation, and the new technology for a 4-star game; follow it step by step.
+  - `docs/NO_GRID_PLAN.md` (owner, 21 Oct 2026: the project's biggest job) — its step 4 in full: every place the 16 m
+    grid still lives, then traffic as trips on the road graph, power and water along it, real footprints, distance-based
+    fields, and retiring the tile maps, each step playable and deterministic.
 
 **One theme for everything (owner, 18 Oct 2026):** every colour, light and size of the pages, icons and 3D comes from
 `src/theme/tokens.ts` (pages through the generated `css/theme.css`). Read `docs/STYLE_GUIDE.md` before any visual work;
@@ -274,6 +277,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   lignite (the old coal plant), gas, dam, solar and wind, all on the coal plant's tiles and chosen in the tool levels
   card above the power button (`setToolChoices` in `src/toolLevels.ts`, the button's `data-active-tool`); the map
   records each plant's kind (`gameMap.powerKinds`, saved with the `buildings` since 20 Oct 2026; renderers read it, RENDERER_SPEC 6D).
+  Since 21 Oct 2026 a new plant takes only the tiles its model covers (owner: "ให้ระบบจำลองกินที่เท่าตัวโมเดลจริง"): a 3×3
+  (870–878) where its era draws it with the era's model, else a 2×2 (1016–1019), by kind and era (`src/plantBlocks.ts`);
+  older plants keep their 4×4, and the water works its 3×3, which its model already fills.
   Dams and wind farms need the province's resource, dams water beside them (`plantProblem` in `CityCommands`);
   lignite and gas burn fuel paid at the year's end. **Mines and oil wells** (`docs/MINING.md`, `src/mining.ts`): one
   3×3 building (tiles 965–973) per ore the province has, chosen above the mine button; with power it pays royalties

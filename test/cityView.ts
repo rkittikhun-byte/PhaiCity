@@ -6,10 +6,10 @@ import { areaCentres, areaFootprint, clipToMap, MAX_AREA_ZONES, missingViewFunct
 import { CityView2D, TileCanvas } from "../src/cityView2d";
 
 describe("toolFootprint", () => {
-  test("puts the mouse one tile in from the corner of tools bigger than 2×2, like the buildings", () => {
+  test("puts the mouse one tile in from the corner of tools of 2×2 and more, like the buildings (the 2×2 power plant's tile is its bottom right)", () => {
     const at = (size: number) => toolFootprint({ tile: { x: 10, y: 20 }, size, colour: "lime" });
     expect(at(1)).toEqual({ x0: 10, y0: 20, x1: 10, y1: 20 });
-    expect(at(2)).toEqual({ x0: 10, y0: 20, x1: 11, y1: 21 });
+    expect(at(2)).toEqual({ x0: 9, y0: 19, x1: 10, y1: 20 });
     expect(at(3)).toEqual({ x0: 9, y0: 19, x1: 11, y1: 21 });
     expect(at(4)).toEqual({ x0: 9, y0: 19, x1: 12, y1: 22 });
     expect(at(6)).toEqual({ x0: 9, y0: 19, x1: 14, y1: 24 });

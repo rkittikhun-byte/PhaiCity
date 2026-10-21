@@ -9,7 +9,7 @@
 import { readPlotValue } from "../plots.js";
 import { ZONEBIT } from "../tileFlags.js";
 import {
-  AIRPORT, BUS_STOP, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, HHTHR, LHTHR, MINE, NUCLEAR,
+  AIRPORT, BUS_STOP, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, HHTHR, LHTHR, MINE, NUCLEAR, PLANT2, PLANT3,
   POLICESTATION, PORT, POWERPLANT, STADIUM, STATION, WASTE, WATER_TOWER, WATER_WORKS,
 } from "../tileValues.js";
 import { Building, CentralService, CityReader, CommunityBuilding, Fact, ObjectKind } from "./cityObject.js";
@@ -115,6 +115,9 @@ const CENTRES: ReadonlyArray<[number, number, (id: number, x: number, y: number)
   [AIRPORT, 6, (id, x, y) => new Plain("airport", id, x, y, 6)],
   [POWERPLANT, 4, (id, x, y) => new PowerPlant(id, x, y, 4, false)],
   [NUCLEAR, 4, (id, x, y) => new PowerPlant(id, x, y, 4, true)],
+  // ... and the plants on only the tiles their model covers, their kind (nuclear among them) recorded (src/plantBlocks.ts)
+  [PLANT3, 3, (id, x, y) => new PowerPlant(id, x, y, 3, false)],
+  [PLANT2, 2, (id, x, y) => new PowerPlant(id, x, y, 2, false)],
   [FIRESTATION, 3, (id, x, y) => new Plain("fire", id, x, y, 3)],
   [POLICESTATION, 3, (id, x, y) => new Plain("police", id, x, y, 3)],
   [STADIUM, 4, (id, x, y) => new Plain("stadium", id, x, y, 4)],

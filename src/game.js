@@ -1016,7 +1016,7 @@ Game.prototype.buildingTile = function(tile, size) {
     return road || tile;
   }
   // A one-tile building too (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน")
-  if (!map.cellZones || tile === null || !(size >= 3 || size === 1 && this.placesBuilding()))
+  if (!map.cellZones || tile === null || !(size >= 2 || size === 1 && this.placesBuilding()))
     return tile;
   // A bigger building's tile is its centre, one in from its top left; a one-tile building's is itself
   var offset = size > 1 ? 1 : 0;
@@ -1314,6 +1314,10 @@ Game.prototype.clearChoices = function(group) {
 
 
 Game.prototype.lockChoice = function(choice) {
+  // A power plant's place wears the size its kind takes in the city's era now, 3x3 or 2x2 (src/plantBlocks.ts)
+  var tool = this.core.tools && this.core.tools[choice.tool];
+  if (tool && tool.powerKind && !choice.action)
+    choice = Object.assign({}, choice, {size: tool.size});
   if (!choice.available || choice.action)
     return choice;
   var lock = this.core.commands.lock(choice.tool);

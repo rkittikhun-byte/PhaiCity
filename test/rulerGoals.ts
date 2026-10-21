@@ -99,7 +99,7 @@ describe("ruler's tasks", () => {
     const map = new (GameMap as unknown as new (w: number, h: number) => any)(120, 100);
     const sim: any = new (Simulation as any)(map, 0, 3, null);
     const tools: any = new (GameTools as any)(map);
-    for (const [tool, x, y] of [["coal", 10, 10], ["residential", 14, 10], ["residential", 60, 60]] as const) {
+    for (const [tool, x, y] of [["coal", 11, 10], ["residential", 14, 10], ["residential", 60, 60]] as const) {
       tools[tool].doTool(x, y, sim.blockMaps);
       tools[tool].modifyIfEnoughFunding(sim.budget);
     }

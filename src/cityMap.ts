@@ -11,7 +11,7 @@ import { CONDBIT, POWERBIT, ZONEBIT } from "./tileFlags";
 import {
   COALBASE, COALSMOKE1, COMBASE, FIRE, FIRESTBASE, FLOOD, FOOTBALLGAME1, FOUNTAIN, HBRDG0, INDBASE, LASTFIRE, LASTFLOOD,
   LASTPOWER, LASTRAIL, LASTRIVEDGE, LASTROAD, LASTRUBBLE, LASTTREE, LASTZONE, NUCLEARBASE, NUKESWIRL1, PORTBASE,
-  POWERBASE, RADAR0, RADTILE, RAILBASE, RESBASE, RIVER, ROADBASE, RUBBLE, TELEBASE, TINYEXP, TINYEXPLAST, TREEBASE,
+  PLANT2_BASE, PLANT2_LAST, PLANT3_BASE, PLANT3_LAST, POWERBASE, RADAR0, RADTILE, RAILBASE, RESBASE, RIVER, ROADBASE, RUBBLE, TELEBASE, TINYEXP, TINYEXPLAST, TREEBASE,
   FARM_BASE, FARM_LAST, HARBOUR_BASE, HARBOUR_LAST, MINE_BASE, MINE_LAST, VBRDG0, WASTE_BASE, WASTE_LAST, STATION_BASE, STATION_LAST, BUS_STOP, WATER_TOWER, WATER_WORKS_BASE, WATER_WORKS_LAST, WOODS, WOODS2, WOODS5,
 } from "./tileValues";
 import type { WaterView } from "./waterManager";
@@ -93,6 +93,8 @@ export function tileKind(value: number): TileKind {
   if (value >= HBRDG0 && value < RADAR0) return "road"; // the opening bridge
   if (value >= RADAR0 && value < FOUNTAIN) return "service"; // the airport's radar
   if (value >= FOUNTAIN && value < TELEBASE) return "park";
+  // (a 3x3 power plant's tiles lie among the dust's, src/plantBlocks.ts)
+  if (value >= PLANT3_BASE && value <= PLANT3_LAST || value >= PLANT2_BASE && value <= PLANT2_LAST) return "powerPlant";
   if (value >= TINYEXP && value <= TINYEXPLAST) return "fire";
   if (value >= TELEBASE && value < COALSMOKE1) return "industrial"; // factory animations
   if (value >= COALSMOKE1 && value < FOOTBALLGAME1) return "powerPlant"; // coal plant smoke

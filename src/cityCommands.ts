@@ -326,11 +326,11 @@ export function placeProblem(city: Pick<CommandTarget, "canBuildAt" | "ownsLand"
 
 /** Why a kind of power plant may not be built at (x, y): the province lacks its resource, or a dam has no water. */
 export function plantProblem(city: Pick<CommandTarget, "resources" | "isWaterAt">, kind: string | undefined,
-                             x: number, y: number): string | null {
+                             x: number, y: number, size = 4): string | null {
   if (!kind || !isOneOf(POWER_KINDS, kind)) return null;
   if (!canBuildKind(kind, city.resources ?? {})) return NO_RESOURCE;
   const isWaterAt = city.isWaterAt;
-  if (kind === "hydro" && isWaterAt && !besideWater(x, y, isWaterAt)) return NEEDS_WATER;
+  if (kind === "hydro" && isWaterAt && !besideWater(x, y, isWaterAt, size)) return NEEDS_WATER;
   return null;
 }
 
@@ -354,7 +354,8 @@ export function farmProblem(city: Pick<CommandTarget, "resources" | "isWaterAt">
 
 /** The tiles a tool covers when used at (x, y), as src/cityView.ts toolFootprint and src/buildingTool.js see it. */
 export function footprint(x: number, y: number, size: number): Array<{ x: number; y: number }> {
-  const offset = size > 2 ? 1 : 0;
+  // (a 2x2 building's tile is its bottom right, one in from its top left as every building's: src/plantBlocks.ts)
+  const offset = size > 1 ? 1 : 0;
   const tiles = [];
   for (let dy = 0; dy < size; dy++) {
     for (let dx = 0; dx < size; dx++) tiles.push({ x: x - offset + dx, y: y - offset + dy });
@@ -665,7 +666,7 @@ export class CityCommands {
     if (to === b.tile) return { b, to, left, top, cost: movePrice(tool) };
     if (left < 0 || top < 0 || left + size > width || top + size > height) return { reason: "outside the map" };
     // (the ruler's rank and the one high-speed station were asked when it was built)
-    const refused = placeProblem(city, cx, cy, size) ?? plantProblem(city, tool.powerKind, cx, cy) ??
+    const refused = placeProblem(city, cx, cy, size) ?? plantProblem(city, tool.powerKind, cx, cy, size) ??
       farmProblem(city, b.tool, cx, cy) ?? transitProblem(b.tool, cx, cy, Infinity, city.isRailAt ?? (() => true), null) ??
       roadBesideProblem(city, b.tool, size, cx, cy) ??
       (tool.rulerHouse ? houseRoadProblem({ width, height, getTileValue: (tx, ty) => tiles.getTile(tx, ty).getRawValue() & BIT_MASK },
@@ -857,7 +858,7 @@ export class CityCommands {
           transitProblem(command.tool, command.x, command.y, city.rank?.() ?? 5, city.isRailAt ?? (() => true),
             (houseMap as unknown as Parameters<typeof transitProblem>[5]) ?? null) ??
           placeProblem(city, command.x, command.y, tool.size ?? 1) ??
-          plantProblem(city, tool.powerKind, command.x, command.y) ?? mineProblem(city, tool.mineKind) ??
+          plantProblem(city, tool.powerKind, command.x, command.y, tool.size ?? 4) ?? mineProblem(city, tool.mineKind) ??
           farmProblem(city, command.tool, command.x, command.y) ?? roadBesideProblem(city, command.tool, tool.size ?? 1, command.x, command.y) ??
           (tool.rulerHouse && city.map ? houseRoadProblem({ width: city.width, height: city.height,
             getTileValue: (x, y) => city.map!.getTile(x, y).getRawValue() & BIT_MASK }, command.x, command.y) : null);

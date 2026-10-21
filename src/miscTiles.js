@@ -13,7 +13,7 @@
 
 import { Random } from './random.ts';
 import { TileUtils } from './tileUtils.js';
-import { DIRT, IZB, RADTILE, TINYEXP, TINYEXPLAST } from "./tileValues.ts";
+import { DIRT, IZB, PLANT3_BASE, PLANT3_LAST, RADTILE, TINYEXP, TINYEXPLAST } from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
 
 var xDelta = [-1,  0,  1,  0 ];
@@ -78,7 +78,8 @@ var radiationFound = function(map, x, y, simData) {
 // 19 Oct 2026); the scan now ends it whatever draws the city.
 var isDemolitionDust = function(tile) {
   var value = tile.getValue();
-  return value >= TINYEXP && value <= TINYEXPLAST;
+  // (a 3x3 power plant's tiles lie among the dust's, src/plantBlocks.ts)
+  return value >= TINYEXP && value <= TINYEXPLAST && !(value >= PLANT3_BASE && value <= PLANT3_LAST);
 };
 
 

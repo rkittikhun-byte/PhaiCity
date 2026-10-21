@@ -46,7 +46,7 @@ describe("city map", () => {
       tools[tool].modifyIfEnoughFunding(sim.budget);
       expect(tools[tool].result).toBe(0);
     };
-    build("coal", 10, 10); // tiles 9–12
+    build("coal", 11, 10); // a village's 3 x 3, tiles 10–12 (src/plantBlocks.ts)
     build("residential", 14, 10); // touches the plant
     build("residential", 60, 60); // far from any power
     for (let step = 0; step < 16 * 40; step++) sim._simulate(sim._constructSimData());

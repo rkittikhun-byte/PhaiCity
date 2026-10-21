@@ -117,7 +117,7 @@ function play(sim: Sim, years: number): void {
 function buildTown(commands: CityCommands, x0: number, y0: number): { refused: number; failed: number } {
   const orders: Command[] = [
     { type: "setting", setting: "autoBudget", on: true },
-    { type: "tool", tool: "coal", x: x0 + 1, y: y0 + 1 }, // plant on x0..x0+3, y0..y0+3
+    { type: "tool", tool: "coal", x: x0 + 2, y: y0 + 2 }, // a village's 3 x 3 on x0+1..x0+3, y0+1..y0+3 (src/plantBlocks.ts)
   ];
   // Homes in a row touching the plant (zones pass power on), shops and factories below, roads between the rows
   for (let k = 0; k < 8; k++) orders.push({ type: "tool", tool: "residential", x: x0 + 5 + 3 * k, y: y0 + 1 });

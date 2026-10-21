@@ -113,6 +113,12 @@ BulldozerTool.prototype.doTool = function(x, y, blockMaps) {
     var centerY = y + deltaY;
 
     switch (zoneSize) {
+      // PhaiCity: a 2x2 power plant (src/plantBlocks.ts)
+      case 2:
+        this._emitEvent(SOUND_EXPLOSIONLOW);
+        this.putRubble(centerX - 1, centerY - 1, 2);
+        break;
+
       case 3:
         this._emitEvent(SOUND_EXPLOSIONHIGH);
         this.putRubble(centerX - 1, centerY - 1, 3);

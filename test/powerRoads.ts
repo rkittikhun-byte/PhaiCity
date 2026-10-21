@@ -29,8 +29,9 @@ const powered = (core: CityCore, x: number, y: number): boolean => (core.map.get
 describe("power along the roads", () => {
   test("a plant beside a road powers a zone beside it far away, with no power lines", () => {
     const core = city();
-    // A coal plant at the road's west end, its tiles 17–20 down to the road's row less one: (4..7, 16..19)
-    expect(core.apply({ type: "tool", tool: "coal", x: 5, y: 17 }).accepted).toBe(true);
+    // A coal plant at the road's west end, down to the road's row less one: a village's 3 x 3 on (4..6, 17..19)
+    // (src/plantBlocks.ts)
+    expect(core.apply({ type: "tool", tool: "coal", x: 5, y: 18 }).accepted).toBe(true);
     // Homes 100 tiles away, beside the road (centre (105, 18): tiles 104..106, 17..19)
     expect(core.apply({ type: "tool", tool: "residential", x: 105, y: 18 }).accepted).toBe(true);
     // ... and homes nowhere near a road
