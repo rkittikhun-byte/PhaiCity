@@ -19,7 +19,7 @@ import { frontagePieces, mapFrontagePlan, type FrontagePlan, type FrontagePlot }
 import { roadReach } from '../../roadGeometry.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
-import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
+import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
@@ -140,22 +140,51 @@ export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNe
   const gap = near.reach + .6 + half;
   return { x: near.x + nx * gap, z: near.z + nz * gap, rotation: Math.atan2(-nx, -nz) };
 }
+/** A building's front stands this far (world units) from the edge of the road it faces */
+export const ROAD_GAP = .4;
+/** How far at most a building is slid along the way it faces to stand against its road (world units: 2.5 tiles) */
+const SLIDE_MAX = 25;
+/**
+ * How far to slide a building along the way it faces (its front (sin, cos) of its turn) so its front, `front` world units
+ * ahead of its middle (x, z), stands ROAD_GAP from the edge of the road it faces, as Cities: Skylines stands a building
+ * (owner, 21 Oct 2026: "object ก็ไม่ชิดกับถนน"): on a slanted road the square block of tiles the game gives a building
+ * must keep off the road's staircase of tiles, so the place it was put down stands back from the road, the ruler's
+ * house a quarter of a tile to a whole tile with a driveway reaching out to it; and an era model drawn deeper than its
+ * place stood over the road. Only a road running across its front counts, looked for ahead of it, the nearest first;
+ * 0 when there is none within SLIDE_MAX, so a building beside no road, or at a corner with its side to the road, stays
+ * where it was put.
+ */
+export function slideToRoad(x: number, z: number, rotation: number, front: number,
+                            snap: (x: number, z: number, reach: number) => RoadNear | null): number {
+  const fx = Math.sin(rotation), fz = Math.cos(rotation);
+  for (let ahead = 0; ahead <= SLIDE_MAX; ahead += 5) {
+    const near = snap(x + fx * (front + ahead), z + fz * (front + ahead), 6);
+    // ... a road across its front, not one along its side
+    if (!near || Math.abs(near.tx * fx + near.tz * fz) > 0.35) continue;
+    const middle = (near.x - x) * fx + (near.z - z) * fz;
+    if (middle <= 0) continue;
+    const slide = middle - near.reach - ROAD_GAP - front;
+    if (Math.abs(slide) <= SLIDE_MAX) return slide;
+  }
+  return 0;
+}
 /** How much of its lot the era model of the ruler's house fills at each level, 1–6 (owner, 21 Oct 2026: its level and
  * wings had gone from the 3D view since the era models came): it grows grander as it rises, leaving the ring round it
  * for its wings */
 export const HOUSE_ERA_SCALES = [0.65, 0.674, 0.698, 0.722, 0.746, 0.77] as const;
 /** The era house's own fence stands this share of the way from its lot's middle to the lot's edge (art/buildings) */
 const HOUSE_FENCE_SHARE = 23.4 / 24;
-/** Where each wing stands round the house, [x, z] in the era lot's metres from its middle, front +Z, given `ring`, how
- * far the middle of the free ring between the house's fence and the lot's edge lies from the lot's middle: the wide ones
- * in front either side of the gate, the granary and the offices down the sides, the council hall and the tower behind,
+/** Where each wing stands round the house, [x, z] in the era lot's metres from the house's middle, front +Z, given `ring`,
+ * how far the middle of the free ring between the house's fence and the lot's edge lies from the middle: the house's
+ * front stands against its road (slideToRoad), so none stands in front of it (owner, 21 Oct 2026): the granary, the
+ * treasury and the offices down the sides, the council hall, the garden, the culture court and the tower in a row behind,
  * each keeping its place whatever else is built. Each is set by the middle of its model's footprint
  * (models/civic/ruler-house.ts), so it sits in the middle of the ring. */
 const WING_PLACES: Readonly<Record<RulerHouseWing, (ring: number) => readonly [number, number]>> = {
-  front_garden: ring => [-12, ring + 0.45], culture_court: ring => [12, ring + 0.52],
-  granary: ring => [-ring + 0.3, 10], planning_office: ring => [-ring, -4],
-  treasury: ring => [ring, 10], trade_office: ring => [ring, -4],
-  council_hall: ring => [-12, -ring - 0.1], warning_tower: ring => [12, -ring - 0.19],
+  granary: ring => [-ring + 0.3, 6], planning_office: ring => [-ring, -8],
+  treasury: ring => [ring, 6], trade_office: ring => [ring, -8],
+  council_hall: ring => [-18, -ring - 0.1], front_garden: ring => [-6, -ring + 0.45],
+  culture_court: ring => [6, -ring + 0.52], warning_tower: ring => [18, -ring - 0.19],
 };
 /** Far-view heights of the wings (their models are 3–14 m) */
 const WING_HEIGHTS: Readonly<Record<RulerHouseWing, number>> = { council_hall: 4, treasury: 4, planning_office: 4,
@@ -553,7 +582,8 @@ export class TileSnapshot implements CityMapReader {
    * The ruler's house drawn with its era's model (RENDERER_SPEC 6H; owner, 21 Oct 2026): the model a little bigger at
    * each level (HOUSE_ERA_SCALES) and each wing it has built standing round it on the lot (WING_PLACES), as parts of its
    * placement, turned with it. The era models have the house alone, so without this its level and wings did not show.
-   * Its middle, turn and lot stay the house's, so its ground, driveway and kept pose are as before.
+   * Its middle, turn and lot stay the house's, so its ground, driveway and kept pose are as before; its front is its
+   * fence's, which toRoadEdge stands against the road.
    */
   private houseCompound(p:Placement|null):Placement|null {
     const house=this.source?.rulerHouse;
@@ -561,7 +591,7 @@ export class TileSnapshot implements CityMapReader {
     const level=Math.min(6,Math.max(1,Math.round(house.level||1))),grow=HOUSE_ERA_SCALES[level-1];
     // The era model is in metres (3 tiles of 16 m) and drawn at `metre` world units a metre; the wings' models too
     const metre=p.scale,half=1.5*(this.eraModels?.index.tileMetres??16),ring=half*(1+grow*HOUSE_FENCE_SHARE)/2;
-    p.scale=metre*grow;p.height*=grow;
+    p.scale=metre*grow;p.height*=grow;p.front=half*grow*HOUSE_FENCE_SHARE*metre;
     const cos=Math.cos(p.rotation),sin=Math.sin(p.rotation);
     p.parts=parseRulerWings((house.wings??[]).join(',')).map(wing=>{
       const [u,v]=WING_PLACES[wing](ring),x=p.x+(u*cos+v*sin)*metre,z=p.z+(-u*sin+v*cos)*metre;
@@ -585,7 +615,30 @@ export class TileSnapshot implements CityMapReader {
     const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
     const front=this.frontage(p);
     if(front)return front;
-    return this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p);
+    return this.toRoadEdge(this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p));
+  }
+  /**
+   * A building of the ruler's stood with its front against the edge of the road it faces (slideToRoad), its parts (the
+   * house's wings) with it; homes, shops and factories stand by their painted cells (cellPlotPose), and a building with no
+   * road across its front stays where it is. Its front is kept on the placement for its lot and driveway (roadCurves.ts).
+   */
+  private toRoadEdge(p:Placement|null):Placement|null {
+    if(!p||!p.posed||!this.roadSnap||['residential','commercial','industrial'].includes(p.kind))return p;
+    const front=p.front??this.frontOf(p);
+    p.front=front;
+    const slide=slideToRoad(p.x,p.z,p.rotation,front,this.roadSnap);
+    if(Math.abs(slide)<1e-3)return p;
+    const dx=Math.sin(p.rotation)*slide,dz=Math.cos(p.rotation)*slide;
+    for(const q of [p,...(p.parts??[])]){q.x+=dx;q.z+=dz;q.options={...q.options,worldOrigin:[q.x,q.z]};}
+    return p;
+  }
+  /** How far ahead of its middle a building's front stands as drawn (world units): an era model is in metres, its tiles
+   * 16 m each less half a metre clear (art/buildings/PLAN.md), the others 10 model units a tile less half a unit clear
+   * (their sites are 29 units on 3 tiles), filling `fill` of it */
+  private frontOf(p:Placement):number {
+    const era=parseEraId(p.id),kind=era?this.eraModels?.index.kinds[era.kind]:undefined;
+    if(kind)return (kind.tiles*(this.eraModels!.index.tileMetres??16)/2-.5)*p.scale;
+    return (Math.max(p.footprint[0],p.footprint[1])*5-.5)*(p.fill??1);
   }
   /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */
   private wiresOnly(i:number,region:RegionId):Placement|null {

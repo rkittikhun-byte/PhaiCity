@@ -9,7 +9,8 @@
 // three layers as every other rule (src/provinceRules.ts). What each festival is like (its draw, price, cheer, fire
 // risk and waste) is FESTIVAL_SPECS below, and the data may change any of it for a region or a province.
 //
-// A month before a festival the news asks the ruler how to hold it: modestly, grandly or not at all. The answer is a
+// A village under FESTIVAL_TOWN_PEOPLE people holds its festivals itself, free and unasked. In a town, a month before a
+// festival the news asks the ruler how to hold it: modestly, grandly or not at all. The answer is a
 // command ({ type: "festival", id, scale }, src/cityCommands.ts), kept with the city (gameMap.festivals, saved as
 // festivals) and standing for the years after until the ruler changes it; a festival nobody answered for is held
 // modestly. At the month's turn the core's "festivals" system (src/core/cityCore.ts) holds it: it pays for it (counted
@@ -59,6 +60,11 @@ export const FESTIVAL_TRAFFIC: readonly [number, number] = [1.05, 1.15];
  * 6.5: a village of 1,000 paid ฿780 a year for its four festivals out of ฿200 of taxes) */
 export const COST_PEOPLE = 20000;
 export const COST_LEAST = 0.1;
+/** Below this many people a village holds its festivals itself (owner, 21 Oct 2026: a new city's first screen was a
+ * festival card over the map, "มันมีอะไรมารกหน้าจอมากๆ"): the temple and the people hold each one modestly, at no cost
+ * to the treasury and with the cheer of one held modestly, and the ruler is not asked; from this many people on the
+ * town's festivals are the ruler's to hold */
+export const FESTIVAL_TOWN_PEOPLE = 500;
 /** People for each of the census's population units (src/valves.js totalPop; src/services.ts peopleOf) */
 const PEOPLE_PER_UNIT = 160;
 /** The cheer and the land value fade each month to this share of what they were */
@@ -93,6 +99,9 @@ export interface HeldFestival {
   cost: number;
   /** The treasury could not pay, so the temples and the people held it themselves, modestly */
   byPeople?: true;
+  /** Held by a village under FESTIVAL_TOWN_PEOPLE people itself: no cost, no question, no news and no dressing in the
+   * 3D view, as the people hold their own */
+  village?: true;
 }
 
 /** The festivals as the city keeps them (gameMap.festivals, saved as festivals) */
@@ -132,7 +141,8 @@ export function readFestivals(saved: unknown): FestivalState {
     for (const h of s.held as unknown[]) {
       const held = h as Partial<HeldFestival> | null;
       if (!held || !isFestivalId(held.id) || !isFestivalScale(held.scale)) continue;
-      state.held.push({ id: held.id, scale: held.scale, cost: finite(held.cost, 0, 1e9), ...(held.byPeople ? { byPeople: true as const } : {}) });
+      state.held.push({ id: held.id, scale: held.scale, cost: finite(held.cost, 0, 1e9), ...(held.byPeople ? { byPeople: true as const } : {}),
+        ...(held.village ? { village: true as const } : {}) });
     }
   }
   state.cheer = finite(s.cheer, -MAX_CHEER, MAX_CHEER);
@@ -214,8 +224,9 @@ export interface FestivalMap extends HouseMap {
 
 /** What the month's festivals tell the city's listeners (src/core/cityCore.ts CoreEvent) */
 export type FestivalNews =
-  /** A festival held this month: downgraded, a grand one the treasury could not pay held modestly */
-  | { type: "festival"; id: FestivalId; scale: FestivalScale; cost: number; byPeople: boolean; downgraded: boolean }
+  /** A festival held this month: downgraded, a grand one the treasury could not pay held modestly; village, one a
+   * village under FESTIVAL_TOWN_PEOPLE held itself, which nobody needs telling about */
+  | { type: "festival"; id: FestivalId; scale: FestivalScale; cost: number; byPeople: boolean; downgraded: boolean; village?: true }
   /** A festival next month: the ruler is asked how to hold it, at these prices [modest, grand] */
   | { type: "festivalAhead"; id: FestivalId; scale: FestivalScale; costs: [number, number] }
   /** Lanterns or rockets came down burning at (x, y) */
@@ -267,7 +278,15 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
   if (!calendar.length) return [];
 
   const month = sim.getDate().month, people = peopleNow(sim), venue = venueOf(map), news: FestivalNews[] = [];
+  const village = people < FESTIVAL_TOWN_PEOPLE;
   for (const festival of festivalsIn(calendar, month)) {
+    if (village) {
+      // The village's own: held modestly by its temple and its people, cheering them, and nothing more to it
+      state.cheer = clamp(state.cheer + festival.cheer[pairIndex("modest") + 1], -MAX_CHEER, MAX_CHEER);
+      state.held.push({ id: festival.id, scale: "modest", cost: 0, byPeople: true, village: true });
+      news.push({ type: "festival", id: festival.id, scale: "modest", cost: 0, byPeople: true, downgraded: false, village: true });
+      continue;
+    }
     let scale = scaleOf(state, festival), cost = festivalCost(festival, scale, people), downgraded = false, byPeople = false;
     if (scale === "grand" && sim.budget.totalFunds < cost) {
       scale = "modest";
@@ -297,7 +316,8 @@ export function festivalMonth(map: FestivalMap, sim: FestivalSim): FestivalNews[
       if (at) news.push({ type: "festivalFire", id: festival.id, x: at.x, y: at.y });
     }
   }
-  // Next month's festivals: the ruler is asked a month before
+  // Next month's festivals: the ruler of a town is asked a month before
+  if (village) return news;
   for (const festival of festivalsIn(calendar, month + 1)) {
     if (!festival.choice) continue;
     news.push({ type: "festivalAhead", id: festival.id, scale: scaleOf(state, festival), costs: festivalPrices(festival, sim) });
@@ -374,7 +394,7 @@ export function festivalCheer(map: { festivals?: FestivalState | null }): number
   return map.festivals?.cheer ?? 0;
 }
 
-/** The festivals being held this month, as the 3D view draws them: those the city holds */
+/** The festivals being held this month, as the 3D view draws them: those the town holds, not a village's own */
 export function festivalsShown(map: { festivals?: FestivalState | null }): HeldFestival[] {
-  return (map.festivals?.held ?? []).filter((h) => h.scale !== "none");
+  return (map.festivals?.held ?? []).filter((h) => h.scale !== "none" && !h.village);
 }

@@ -3,12 +3,13 @@
  */
 
 // The festivals in the 3D view (src/render3d/city/festivals3d.ts): it reads what the map holds this month and dresses
-// the town, lanterns or flags along the roads near the ruler's house, krathong on the water, sky lanterns at night and
-// rockets, more of them for a grand festival, and never writes the map.
+// the town, strings of lanterns or flags between poles along the streets near the ruler's house and the built-up blocks,
+// krathong on the water, sky lanterns at night and rockets, more of them for a grand festival, nothing for a village's
+// own festival, and never writes the map.
 
 import type { InstancedMesh } from 'three';
-import { CityFestivals, FESTIVAL_TOUCHES, MAX_BUNTING, MAX_KRATHONG, MAX_SHOW_SECONDS, MAX_SKY_LANTERNS, MODEST_SHARE,
-  type FestivalLine, type FestivalViewMap } from '../../src/render3d/city/festivals3d';
+import { CityFestivals, FESTIVAL_TOUCHES, MAX_KRATHONG, MAX_POLES, MAX_SHOW_SECONDS, MAX_SKY_LANTERNS, MODEST_SHARE,
+  POLE_SPACING, VENUE_TILES, type FestivalLine, type FestivalViewMap } from '../../src/render3d/city/festivals3d';
 import { FESTIVAL_IDS } from '../../src/festivals';
 import { RIVER } from '../../src/tileValues';
 
@@ -21,13 +22,17 @@ const ROWS = [105, 205, 305], LINES: FestivalLine[] = [
 /** How far a point is from the nearest road's middle */
 const offRoad = (x: number, z: number): number => Math.min(...ROWS.map((r) => Math.abs(z - r)), ...ROWS.map((c) => Math.abs(x - c)));
 
+/** Tiles with homes on them: a row along the north side of the road at z 205 (tile row 20), x 8–13; and the ruler's
+ * house, its 3 × 3 round (20, 18) */
+const built = (x: number, y: number): boolean => y === 21 && x >= 8 && x <= 13 || Math.abs(x - 20) <= 1 && Math.abs(y - 18) <= 1;
+
 /** A 40 × 40 map with a river down column 30 and roads every 10 tiles, the ruler's house at (20, 18) */
-function town(held: { id: string; scale: string }[]) {
+function town(held: { id: string; scale: string; village?: boolean }[]) {
   const width = 40, height = 40;
   const festivals = { held: held.map((h) => Object.freeze({ ...h })) };
-  const map: FestivalViewMap & { festivals: { held: { id: string; scale: string }[] } } = {
+  const map: FestivalViewMap & { festivals: { held: { id: string; scale: string; village?: boolean }[] } } = {
     width, height, festivals, rulerHouse: Object.freeze({ x: 20, y: 18 }), town: { x: 5, y: 5 },
-    getTileValue: (x: number) => x === 30 ? RIVER : 0,
+    getTileValue: (x: number, y: number) => x === 30 ? RIVER : built(x, y) ? 250 : 0,
   };
   const ground = { sample: () => 2, water: new Float32Array(width * height).fill(NaN) };
   return { map, ground, lines: LINES };
@@ -47,24 +52,53 @@ describe('the festivals in the 3D view', () => {
     view.dispose();
   });
 
-  test('Loy Krathong hangs lanterns along the road, not the railway, and floats krathong on the river', () => {
+  test("a village's own festival dresses nothing", () => {
+    const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest', village: true }]);
+    const view = new CityFestivals(map, ground);
+    for (let t = 0; t <= 5; t += 0.5) view.update(lines, 1, t);
+    expect(view.root.visible).toBe(false);
+    expect(Object.values(view.counts()).every((n) => n === 0)).toBe(true);
+    view.dispose();
+  });
+
+  test('Loy Krathong strings lanterns between poles on the streets by the house and the homes, and floats krathong', () => {
     const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'modest' }]);
     const before = JSON.stringify(map);
     const view = new CityFestivals(map, ground);
     for (let t = 0; t <= 5; t += 0.05) view.update(lines, 1, t);
     const counts = view.counts();
-    expect(counts.lanterns).toBe(Math.round(MAX_BUNTING * MODEST_SHARE));
+    expect(counts.poles).toBeGreaterThan(4);
+    expect(counts.poles).toBeLessThanOrEqual(Math.round(MAX_POLES * MODEST_SHARE));
+    // Every pole holds a cord, each cord in two halves
+    expect(counts.cords).toBeGreaterThanOrEqual(counts.poles);
+    expect(counts.cords % 2).toBe(0);
+    expect(counts.lanterns).toBeGreaterThan(counts.cords);
     expect(counts.flags).toBe(0);
     expect(counts.krathong).toBe(Math.round(MAX_KRATHONG * MODEST_SHARE));
     expect(counts.skyLanterns).toBe(0);
-    // Every lantern beside the road near the house, none along the railway
-    const lanterns = view.root.getObjectByName('festival_lanterns') as InstancedMesh;
-    const m = lanterns.instanceMatrix.array;
-    for (let i = 0; i < lanterns.count; i++) {
-      const x = m[i * 16 + 12], z = m[i * 16 + 14];
-      expect(offRoad(x, z)).toBeLessThan(8);
+    const at = (name: string): [number, number, number][] => {
+      const mesh = view.root.getObjectByName(name) as InstancedMesh, m = mesh.instanceMatrix.array, out: [number, number, number][] = [];
+      for (let i = 0; i < mesh.count; i++) out.push([m[i * 16 + 12], m[i * 16 + 13], m[i * 16 + 14]]);
+      return out;
+    };
+    // Every pole beside a road, none by the railway, and each by the house or by a home
+    const poles = at('festival_poles');
+    for (const [x, , z] of poles) {
+      expect(offRoad(x, z)).toBeLessThan(5);
       expect(z).toBeLessThan(380);
-      expect(Math.hypot(x - 205, z - 185)).toBeLessThan(270);
+      const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
+      let nearHome = false;
+      for (let y = ty - 1; y <= ty + 1; y++) for (let x2 = tx - 1; x2 <= tx + 1; x2++) nearHome ||= built(x2, y);
+      expect(Math.hypot(x - 205, z - 185) <= VENUE_TILES * 10 + 1 || nearHome).toBe(true);
+    }
+    // ... the homes' street dressed too, though far from the house; the open streets to the east not at all
+    expect(poles.some(([x, , z]) => x < 140 && Math.abs(z - 205) < 5)).toBe(true);
+    expect(poles.some(([x]) => x > 290)).toBe(false);
+    // Every lantern hangs between two poles of a span, under the poles' tops
+    for (const [x, y, z] of at('festival_lanterns')) {
+      const near = poles.filter(([px, , pz]) => Math.hypot(px - x, pz - z) <= POLE_SPACING * 1.6 + 1);
+      expect(near.length).toBeGreaterThanOrEqual(2);
+      expect(y).toBeLessThan(2 + 5);
     }
     // ... and the krathong on the river's tiles
     const krathong = view.root.getObjectByName('festival_krathong') as InstancedMesh;
@@ -82,8 +116,20 @@ describe('the festivals in the 3D view', () => {
     expect(view.counts().skyLanterns).toBe(0);
     view.update(lines, 1, 4);
     const counts = view.counts();
-    expect(counts.lanterns).toBeGreaterThan(Math.round(MAX_BUNTING * MODEST_SHARE));
-    expect(counts.lanterns).toBeLessThanOrEqual(MAX_BUNTING);
+    expect(counts.poles).toBeLessThanOrEqual(MAX_POLES);
+    // In a town built up all over, a grand festival dresses more of its streets than a modest one
+    const dressed = (scale: string) => {
+      const big = town([{ id: 'yi_peng', scale }]), all = new CityFestivals({ ...big.map, getTileValue: () => 250 }, ground);
+      all.update(lines, 1, 4);
+      const n = all.counts();
+      all.dispose();
+      return n;
+    };
+    const grand = dressed('grand'), modest = dressed('modest');
+    expect(grand.poles).toBeGreaterThan(modest.poles);
+    expect(grand.poles).toBeLessThanOrEqual(MAX_POLES);
+    expect(modest.poles).toBeLessThanOrEqual(Math.round(MAX_POLES * MODEST_SHARE));
+    expect(grand.lanterns).toBeGreaterThan(modest.lanterns);
     expect(counts.skyLanterns).toBe(MAX_SKY_LANTERNS);
     expect(counts.rockets + counts.smoke).toBeGreaterThan(0);
     view.dispose();
