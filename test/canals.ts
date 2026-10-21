@@ -8,6 +8,10 @@
 import type { TilePoint } from "../src/cityView";
 import { CityCore } from "../src/core/cityCore";
 import { linePath } from "../src/drawPaths";
+import { MapGenerator } from "../src/mapGenerator.js";
+import { canalGraphLines } from "../src/roads/canalLines";
+import type { RoadGraph } from "../src/roads/roadGraph";
+import { Storage } from "../src/storage.js";
 import { GameMap } from "../src/gameMap.js";
 import { isRoadTile } from "../src/roadLevels";
 import { CANAL_LAND_VALUE, CANAL_RISE_MONTHS, canalLandValues, canalMarkStands, canalTarget, growCanals, isCanalAt } from "../src/canals";
@@ -133,6 +137,110 @@ describe("canals", () => {
     expect(value(core, 15, 12)).toBe(HBRIDGE);
     core.apply({ type: "tool", tool: "park", x: 15, y: 8 });
     expect(value(core, 15, 8)).toBe(RIVER);
+  });
+});
+
+describe("canals drawn in metres (docs/METRE_DRAWING_PLAN.md, step 1's leftovers)", () => {
+  /** A bare 16 m city map, 60 × 40 tiles (960 × 640 m) */
+  function cityMap(saved: unknown = null) {
+    const map = saved ? new (GameMap as any)(60, 40) : (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
+    if (!saved) { map.tileSizeM = 16; map.paintedZones = true; }
+    const core = new CityCore({ map, saved, seed: 5 });
+    core.simulation.budget.setFunds(500000);
+    core.map.needsRulerHouse = false;
+    return core;
+  }
+  const dig = (core: CityCore, from: [number, number], to: [number, number], stroke: number, c?: [[number, number], [number, number]]) =>
+    core.apply({ type: "road", tool: "canal" as any, from, to, ...(c ? { c1: c[0], c2: c[1] } : {}), stroke });
+  const canalGraph = (core: CityCore): RoadGraph => core.map.canalGraph;
+  const sameOpen = (core: CityCore) => cityMap(JSON.parse(JSON.stringify({ ...core.save(), width: 60, height: 40,
+    version: (Storage as any).CURRENT_VERSION })));
+
+  test("a canal is dug on the tiles its line passes, priced by its length, and kept as dug in a graph of its own", () => {
+    const core = cityMap(), before = funds(core);
+    expect(dig(core, [8, 168], [904, 168], 1)).toEqual({ accepted: true, toolResult: 0 });
+    for (let x = 0; x <= 56; x++) expect(isCanalAt(core.map, x, 10)).toBe(true);
+    expect(value(core, 57, 10)).toBe(DIRT);
+    // 896 m at ฿40 a 16 m tile, not the 57 tiles it lies on
+    expect(before - funds(core)).toBe(Math.round(40 * 896 / 16));
+    expect(canalGraph(core).segments.size).toBe(1);
+    expect(core.map.roadGraph ?? null).toBeNull();
+    // ... a slanted one is water joined side to side, which boats and the ground's water follow
+    dig(core, [40.5, 220.25], [700.25, 600.5], 2);
+    const wet: Array<[number, number]> = [];
+    for (let y = 12; y < 40; y++) for (let x = 0; x < 60; x++) if (isCanalAt(core.map, x, y)) wet.push([x, y]);
+    expect(wet.length).toBeGreaterThan(40);
+    for (const [x, y] of wet) expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isCanalAt(core.map, x + dx, y + dy))).toBe(true);
+  });
+
+  test("a road it crosses is bridged, the canal going on under it in its own graph and the road in the road graph", () => {
+    const core = cityMap();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    expect(dig(core, [456, 8], [456, 600], 2)).toEqual({ accepted: true, toolResult: 0 });
+    expect(value(core, 28, 10)).toBe(HBRIDGE);
+    expect(canalGraph(core).segments.size).toBe(1);
+    expect(core.map.roadGraph.segments.size).toBe(1);
+  });
+
+  test("one refused somewhere (a junction in the way) is dug where it can be and kept as its tiles alone", () => {
+    const core = cityMap();
+    core.apply({ type: "road", tool: "road", from: [8, 168], to: [904, 168], stroke: 1 });
+    core.apply({ type: "road", tool: "road", from: [456, 8], to: [456, 600], stroke: 2 });
+    const junction = value(core, 28, 10);
+    const out = dig(core, [400.5, 120.25], [520.25, 216.5], 3);
+    expect(out.accepted).toBe(true);
+    expect(out.toolResult).toBeNull();
+    expect(value(core, 28, 10)).toBe(junction);
+    expect(isCanalAt(core.map, 25, 7)).toBe(true);
+    expect(canalGraph(core)?.segments.size ?? 0).toBe(0);
+  });
+
+  test("the bulldozer filling a tile cuts the canal there, the rest staying as dug; undo puts it back whole", () => {
+    const core = cityMap();
+    dig(core, [8, 168], [904, 168], 1);
+    const json = JSON.stringify(canalGraph(core).toJSON());
+    core.apply({ type: "tool", tool: "bulldozer", x: 28, y: 10, stroke: 2 });
+    expect(value(core, 28, 10)).toBe(DIRT);
+    expect(canalGraph(core).segments.size).toBe(2);
+    core.apply({ type: "undo" });
+    expect(JSON.stringify(canalGraph(core).toJSON())).toBe(json);
+    expect(isCanalAt(core.map, 28, 10)).toBe(true);
+  });
+
+  test("saves keep the canals as dug, to the millimetre, and a canal dug after opening joins them the same", () => {
+    const core = cityMap();
+    dig(core, [8, 168], [904, 168], 1);
+    dig(core, [60.5, 520.25], [880.75, 430.5], 2, [[250, 330], [520, 640]]);
+    const again = sameOpen(core);
+    expect(JSON.stringify(canalGraph(again).toJSON())).toBe(JSON.stringify(canalGraph(core).toJSON()));
+    expect(isCanalAt(again.map, 20, 10)).toBe(true);
+    dig(core, [456, 8], [456, 600], 9);
+    dig(again, [456, 8], [456, 600], 9);
+    expect(JSON.stringify(canalGraph(again).toJSON())).toBe(JSON.stringify(canalGraph(core).toJSON()));
+    expect(canalGraph(again).segments.size).toBeGreaterThan(4);
+  });
+
+  test("the lines the view and the tool follow are the canal as dug: cut at a river, joined where canals meet", () => {
+    const core = cityMap();
+    // The land's own river down column 30
+    for (let y = 0; y < 40; y++) core.map.setTile(30, y, RIVER, 0);
+    dig(core, [8, 168], [904, 168], 1);
+    dig(core, [200.5, 168], [200.5, 600], 2);
+    const map = core.map, width = 60;
+    const lines = canalGraphLines(canalGraph(core), { width, height: 40, tileSizeM: 16,
+      canal: (i) => canalMarkStands(map, i % width, Math.floor(i / width)),
+      wet: (i) => [2, 3, 4].includes(map.getTileValue(i % width, Math.floor(i / width))) || canalMarkStands(map, i % width, Math.floor(i / width)) });
+    const U = 10 / 16;
+    // The east-west canal in two lines either side of the river, at its edges; the T a junction
+    const across = lines.lines.filter((l) => l.every((p) => Math.abs(p[1] - 168 * U) < 1e-6));
+    expect(across.length).toBe(3);
+    const xs = across.flatMap((l) => [l[0][0], l[l.length - 1][0]]).sort((p, q) => p - q);
+    expect(xs.some((x) => Math.abs(x - 300) < 0.01)).toBe(true);
+    expect(xs.some((x) => Math.abs(x - 310) < 0.01)).toBe(true);
+    expect(lines.junctions).toHaveLength(1);
+    expect(lines.junctions[0][0]).toBeCloseTo(200.5 * U, 6);
+    // ... and the river's tile is the river's
+    expect(lines.tiles.includes(10 * width + 30)).toBe(false);
   });
 });
 

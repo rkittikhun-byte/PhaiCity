@@ -2,12 +2,13 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 // Street names written along the roads, as in Cities: Skylines (src/streetNames.ts names them): white letters lying
-// on the road, turned to read left to right from wherever the camera looks, shown only near the ground. It reads the
-// map and never writes it.
+// on the road, turned to read left to right from wherever the camera looks, shown only near the ground; on a road drawn
+// in metres they lie on the road as drawn, along it (onDrawnRoad). It reads the map and never writes it.
 import { CanvasTexture, Group, LinearFilter, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 import type { Camera } from 'three';
 import type { TileRect } from '../../cityView.js';
-import { findStreets, labelSpots, type Street, type StreetMap } from '../../streetNames.js';
+import { type DrawnRoads, findStreets, labelSpots, onDrawnRoad, type Street, type StreetMap } from '../../streetNames.js';
+import { tileMetres } from '../../units.js';
 import { loadThaiSignFont } from '../materials/signs.js';
 import type { CityHeightField } from './heightfield.js';
 
@@ -75,11 +76,15 @@ export class StreetLabels {
       const v = this.map.getTileValue(x, y);
       if (v >= 64 && v < 208) hash = Math.imul(hash ^ (y * width + x + 1) ^ ((levels?.[y * width + x] ?? 1) << 24), 0x01000193) >>> 0;
     }
-    const signature = String(hash);
+    // ... and the roads as drawn in metres, which the names lie on
+    const drawn = (this.map as { roadGraph?: (DrawnRoads & { version?: number }) | null }).roadGraph ?? null;
+    const signature = `${hash}:${drawn?.version ?? -1}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.streets = findStreets(this.map);
-    this.spots = this.streets.flatMap(street => labelSpots(street, width).map((spot, i) => ({ key: `${street.id}:${i}`, street, ...spot })));
+    const metres = tileMetres(this.map as { tileSizeM?: number | null });
+    this.spots = this.streets.flatMap(street => labelSpots(street, width).map((spot, i) =>
+      ({ key: `${street.id}:${i}`, street, ...onDrawnRoad(spot, drawn, metres) })));
     this.relabel();
   }
   private place(visible: TileRect): void {

@@ -16,10 +16,10 @@ import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsK
 import { RoadGraph } from "../roads/roadGraph.js";
 import { PlacedBuildings } from "../buildings/placedBuildings.js";
 import { carryKey, carryRecords, readBuildingRecords, writeBuildings } from "../buildings/buildingRecords.js";
-import { segmentTiles } from "../roads/roadRaster.js";
+import { segmentStands } from "../roads/roadRaster.js";
 import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
-import { canalMarkStands, canalsKept, newCanals } from "../canals.js";
+import { canalMarkStands, canalsKept, isBridgeTile, isWaterTile, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
@@ -61,6 +61,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts, docs/METRE_DRAWING_PLAN.md)
     map.roadGraph = readGraph(saved.roads);
     map.railGraph = readGraph(saved.rails);
+    // ... and the canals drawn in metres, their graph of their own (docs/CANALS.md)
+    map.canalGraph = readGraph(saved.canalLines);
     // ... and the ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts)
     map.buildings = saved.buildings ? PlacedBuildings.fromJSON(saved.buildings) : null;
     // ... and the canals the player dug (src/canals.ts)
@@ -137,13 +139,12 @@ function readGraph(saved: unknown): RoadGraph | null {
 
 /** A road or rail graph as a save keeps it: the strokes whose every segment still lies on roads (or railways), those
  * bulldozed in part being their tiles' lines from then on (src/roads/graphLines.ts) */
-function graphKept(map: Legacy, graph: RoadGraph | null | undefined, rail: boolean): ReturnType<RoadGraph["toJSON"]> | undefined {
+function graphKept(map: Legacy, graph: RoadGraph | null | undefined, kind: (value: number) => boolean):
+  ReturnType<RoadGraph["toJSON"]> | undefined {
   if (!graph || !graph.segments.size) return undefined;
-  const raster = { width: map.width, height: map.height, tileSizeM: tileMetres(map) }, kind = rail ? isAnyRail : isAnyRoad;
-  const standing = (id: number): boolean => {
-    const tiles = segmentTiles(graph, id, raster);
-    return tiles.length > 0 && tiles.every((i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
-  };
+  const raster = { width: map.width, height: map.height, tileSizeM: tileMetres(map) };
+  const standing = (id: number): boolean =>
+    segmentStands(graph, id, raster, (i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
   const gone = new Set<number>();
   for (const id of graph.segments.keys()) if (!standing(id)) gone.add(graph.segment(id).piece ?? -id);
   const kept = RoadGraph.fromJSON(graph.toJSON());
@@ -228,8 +229,10 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     roadPieces: map.roadPieces && map.roadPieces.some((piece: number) => piece > 0) ? encodePresetLayer(map.roadPieces) : undefined,
     roadPaths: roadPathsKept(map.roadPaths, piecesOnLines(map)),
     // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
-    roads: graphKept(map, map.roadGraph, false),
-    rails: graphKept(map, map.railGraph, true),
+    roads: graphKept(map, map.roadGraph, isAnyRoad),
+    rails: graphKept(map, map.railGraph, isAnyRail),
+    // ... and the canals drawn in metres, on their water or the bridges over it
+    canalLines: graphKept(map, map.canalGraph, (v) => isWaterTile(v) || isBridgeTile(v)),
     // ... and every ruler's building where it was put down, those still standing, each with its kind and level
     buildings: writeBuildings(map),
     // ... and the canals the player dug and each one's level, where they are still water or bridged (src/canals.ts)

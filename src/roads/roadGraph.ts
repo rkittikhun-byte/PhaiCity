@@ -96,6 +96,37 @@ export function bezierAt(p: readonly Vec[], t: number): [number, number] {
   ];
 }
 
+/** The way a cubic Bézier goes at t (its derivative) */
+function bezierWay(p: readonly Vec[], t: number): [number, number] {
+  const u = 1 - t;
+  return [
+    3 * (u * u * (p[1][0] - p[0][0]) + 2 * u * t * (p[2][0] - p[1][0]) + t * t * (p[3][0] - p[2][0])),
+    3 * (u * u * (p[1][1] - p[0][1]) + 2 * u * t * (p[2][1] - p[1][1]) + t * t * (p[3][1] - p[2][1])),
+  ];
+}
+
+/**
+ * Where two roads p and q (each four control points, a line's inner ones on it) cross exactly, from a crossing (t along
+ * p, u along q) found on straight pieces of them, by Newton's method on both at once, so each road can be cut there
+ * into pieces of exactly its own shape; the guess when it does not settle (roads that only touch)
+ */
+export function exactCrossing(p: readonly Vec[], q: readonly Vec[], t: number, u: number): [number, number] {
+  let s = t, v = u;
+  for (let k = 0; k < 24; k++) {
+    const a = bezierAt(p, s), b = bezierAt(q, v), fx = a[0] - b[0], fz = a[1] - b[1];
+    if (Math.hypot(fx, fz) < 1e-9) break;
+    const da = bezierWay(p, s), db = bezierWay(q, v), det = db[0] * da[1] - da[0] * db[1];
+    if (Math.abs(det) < 1e-12) return [t, u];
+    // [da, -db] · [ds, dv] = -f
+    s += (fx * db[1] - db[0] * fz) / det;
+    v += (fx * da[1] - da[0] * fz) / det;
+    if (s < -0.05 || s > 1.05 || v < -0.05 || v > 1.05) return [t, u];
+  }
+  const a = bezierAt(p, s), b = bezierAt(q, v);
+  if (Math.hypot(a[0] - b[0], a[1] - b[1]) > 1e-6) return [t, u];
+  return [Math.min(1, Math.max(0, s)), Math.min(1, Math.max(0, v))];
+}
+
 /** A cubic Bézier cut at t into two of exactly its shape (de Casteljau) */
 export function splitBezier(p: readonly Vec[], t: number): [[Vec, Vec, Vec, Vec], [Vec, Vec, Vec, Vec]] {
   const p01 = lerp(p[0], p[1], t), p12 = lerp(p[1], p[2], t), p23 = lerp(p[2], p[3], t);
@@ -267,7 +298,8 @@ export class RoadGraph {
     // Where it crosses the roads already there, along itself (t) and along each of them
     const ownControls = curve ? [[pa.x, pa.z], road.c1!, road.c2!, [pb.x, pb.z]] as Vec[] : null;
     const at = (t: number): [number, number] => ownControls ? bezierAt(ownControls, t) : lerp([pa.x, pa.z], [pb.x, pb.z], t);
-    const crossings = this.crossingsOf(at, curve ? CURVE_STEPS : 1, a, b);
+    const crossings = this.crossingsOf(ownControls ?? [[pa.x, pa.z], lerp([pa.x, pa.z], [pb.x, pb.z], 1 / 3),
+      lerp([pa.x, pa.z], [pb.x, pb.z], 2 / 3), [pb.x, pb.z]], curve ? CURVE_STEPS : 1, a, b);
     // Split each road it crosses at the crossing, nearest the start first, and collect the nodes along the new road
     const stops: { t: number; node: number }[] = [{ t: 0, node: a }];
     for (const c of crossings) {
@@ -308,6 +340,23 @@ export class RoadGraph {
       made.push(seg.id);
     }
     return { segments: made, split };
+  }
+
+  /**
+   * What adding a road would make, without keeping it: look is shown what add gives on the graph with the road in it,
+   * and the graph is then taken back to just what it was, its ids, version and the mark kept for undo included. So the
+   * tiles a road is laid on, and its preview, are those of the road as the graph will hold it, joined to a node or bent
+   * through an end it crosses beside (END_M), not only of the line drawn.
+   */
+  tryAdd<T>(road: DrawnRoad, look: (result: AddResult) => T): T {
+    const watched = this.watched, version = this.version, mark = this.mark();
+    try {
+      return look(this.add(road));
+    } finally {
+      this.undo(mark);
+      this.watched = watched;
+      this.version = version;
+    }
   }
 
   /**
@@ -436,11 +485,13 @@ export class RoadGraph {
     return mid;
   }
 
-  /** Where a new road (a point at t from 0 to 1, in `steps` straight pieces) crosses the roads there, but not at its own
-   * ends' nodes: t along it, the segment, and u along that */
-  private crossingsOf(at: (t: number) => [number, number], steps: number, a: number, b: number):
+  /** Where a new road (its four control points, looked at in `steps` straight pieces) crosses the roads there, but not
+   * at its own ends' nodes: t along it, the segment, and u along that, both exact (exactCrossing), so neither road
+   * leaves its own shape where they are cut to meet */
+  private crossingsOf(own: readonly Vec[], steps: number, a: number, b: number):
     { t: number; segment: number; u: number }[] {
     const found: { t: number; segment: number; u: number }[] = [];
+    const at = (t: number): [number, number] => bezierAt(own, t);
     const pts: [number, number][] = [];
     for (let i = 0; i <= steps; i++) pts.push(at(i / steps));
     const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
@@ -454,12 +505,14 @@ export class RoadGraph {
       for (let i = 1; i < pts.length; i++) for (let j = 1; j < other.length; j++) {
         const c = crossing(pts[i - 1], pts[i], other[j - 1], other[j]);
         if (!c) continue;
-        const t = (i - 1 + c[0]) / (pts.length - 1), u = (j - 1 + c[1]) / (other.length - 1);
+        const guessT = (i - 1 + c[0]) / (pts.length - 1);
+        const guessU = s.shape === "curve" ? this.refine(id, at(guessT), (j - 1 + c[1]) / (other.length - 1)) : c[1];
+        const [t, u] = steps === 1 && s.shape === "line" ? [guessT, guessU] : exactCrossing(own, controls(this, s), guessT, guessU);
         const point = at(t);
         // Its own ends are already joined (endNode)
         const na = this.node(a), nb = this.node(b);
         if (Math.hypot(point[0] - na.x, point[1] - na.z) <= END_M || Math.hypot(point[0] - nb.x, point[1] - nb.z) <= END_M) continue;
-        found.push({ t, segment: id, u: s.shape === "curve" ? this.refine(id, point, u) : u });
+        found.push({ t, segment: id, u });
       }
     }
     // Nearest the start first
