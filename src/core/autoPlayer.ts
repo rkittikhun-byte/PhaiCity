@@ -411,6 +411,7 @@ export class AutoPlayer {
       this.note(`${tool}: saving for it (฿${price}, treasury ฿${budget.totalFunds})`);
       saving = true;
     }
+    const capSaving = saving;
     // Then what keeps the town running: power and water planned ahead (planCapacity), before the year's taxes go
     // anywhere else; what it cannot build yet is saved for (reserve)
     this.planCapacity(true);
@@ -427,11 +428,6 @@ export class AutoPlayer {
     if ((nearlyFull || room * WASTE_SPECS.landfill.takes < made || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
       this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
     }
-    // ... then the year's zones, as many as the power and water leave room for (paintAhead), with up to half the money
-    // past what is kept for them: before the era card's asks and the services, which are saved for and so would leave
-    // nothing (the town painted no zones after its first year, and grew only by its plots rising), but not while a kind
-    // of zone waits for its stadium, port or airport
-    if (!saving) this.paintAhead();
     // ... and what the era card says the next era still needs (src/eraScore.ts symbols), as a ruler reading it builds:
     // the first it can build, else money saved for it (a water works the market town waited a year for while its water
     // was not yet short, docs/GAME_DESIGN.md 6.5)
@@ -517,6 +513,15 @@ export class AutoPlayer {
         else this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20);
       }
       if (!saving) this.wantTrained.clear();
+    }
+    // ... then the year's zones, as many as the power and water leave room for (paintAhead), with up to half the money
+    // past what is kept for them: after the era card's asks and the schools for trained people, but before the services
+    // by numbers and the district office's rise, and even while those are saved for (saved for, they left nothing: the
+    // town painted no zones after its first year, and grew only by its plots rising); not while a kind of zone waits for
+    // its stadium, port or airport. Painted before the era card's asks, the town outgrew its schools and stayed a market
+    // town (education 34% of the 50% aimed at)
+    if (!capSaving) this.paintAhead();
+    if (!saving) {
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
       // money is kept for what the era card asks
       const house = core.map.rulerHouse;
@@ -641,7 +646,9 @@ export class AutoPlayer {
       }
     }
     // ... and the stadium, port or airport a kind of zone will soon wait for, unless it waits for more than the
-    // technicians a secondary school brings (the airport's engineers are years away)
+    // technicians a secondary school brings (the airport's engineers are years away): kept from the zones and the
+    // services by numbers only, not from what the era card asks (kept as needed now, a stadium's ฿5,000 held the
+    // nurses' district office and the health posts back for three years, and the town's care fell to a third)
     const city = unlockCity(core.map);
     for (const [tool, at, count] of CAP_AT) {
       const share = Math.min(1, Math.max(0, (count(census) / at - CAP_AHEAD) / (1 - CAP_AHEAD)));
@@ -650,7 +657,6 @@ export class AutoPlayer {
       if (lock && !(lock.reason === "unlock.trained" && lock.params.kind === "technician")) continue;
       const keep = Math.round(((core.tools?.[tool]?.toolCost ?? 0) + CAPACITY_SPARE) * share);
       kept += keep;
-      if (!lock) keptNow += keep;
       if (yearEnd) this.note(`${tool}: keeping ฿${keep} for it`);
     }
     this.kept = kept;
