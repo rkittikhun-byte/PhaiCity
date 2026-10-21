@@ -40,8 +40,7 @@ PhaiCity ได้รับการยกระดับสู่มาตร�
 
 | ไฟล์ | หน้าที่สำคัญ |
 | :--- | :--- |
-| [`src/render3d/city/index.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/city/index.ts) | ศูนย์กลางการเรนเดอร์เมือง 3D, Day/Night Cycle, การเชื่อมต่อ Hotspots & กล้อง |
-| [`src/render3d/city/hotspots.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/city/hotspots.ts) | ระบบ 3D Hotspot Pins, Modal การ์ดแลนด์มาร์ก, และ Cinematic Drone Tour Controller |
+| [`src/render3d/city/index.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/city/index.ts) | ศูนย์กลางการเรนเดอร์เมือง 3D, Day/Night Cycle และกล้อง |
 | [`src/render3d/city/roadCurves.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/city/roadCurves.ts) | ถนนเส้นโค้งเรียบเนียน (Cities: Skylines style) พร้อมระบบค้นหา AABB |
 | [`src/render3d/city/pedestrians.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/city/pedestrians.ts) | คนเดินถนน (160 คน), รถยนต์บนถนน (28 คัน), ต้นไม้ประจำถิ่นอีสาน (ต้นคูน, จามจุรี, ตาลโตนด) |
 | [`src/render3d/materials/library.ts`](file:///d:/DesktopServer/www/phaicity/src/render3d/materials/library.ts) | คลัง Material 3D, ฟังก์ชัน `setNightMode(night, nightFactor)` |
