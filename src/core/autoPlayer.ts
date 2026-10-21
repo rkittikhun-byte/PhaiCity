@@ -51,6 +51,8 @@ export function yearAccounts(budget: Budget): YearAccounts {
     taxes: budget.taxIncome ?? 0, water: budget.waterIncome ?? 0, tourism: budget.tourismIncome ?? 0,
     mining: budget.miningIncome ?? 0, farms: budget.farmIncome ?? 0, recycling: budget.recyclingIncome ?? 0,
     tolls: budget.tollIncome ?? 0, pollutionTax: budget.pollutionTaxIncome ?? 0,
+    // ... and the state's grant for the city's people (src/gameModes.ts)
+    grant: budget.grantIncome ?? 0,
   };
   const costs: Record<string, number> = {
     roads: budget.roadSpend ?? 0, police: budget.policeSpend ?? 0, fire: budget.fireSpend ?? 0,
@@ -384,25 +386,9 @@ export class AutoPlayer {
       break;
     }
     if (!saving) {
-      // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts)
-      const house = core.map.rulerHouse;
-      if (house && budget.totalFunds > (this.options.reserve ?? 3000)) this.apply("ruler_house_upgrade", house.x, house.y);
-      // The services its people ask for, in turn; one the office is not yet high enough for waits (serviceProblem)
-      // ... and one the city cannot build yet waits while the next ones go up (src/unlocks.ts)
-      // ... built while the treasury pays for them, saving for the next rather than painting more (in the normal mode
-      // the treasury seldom holds the reserve)
-      for (let i = this.next; i < SERVICES.length && population >= SERVICES[i][0]; i++) {
-        if (this.servicesDone.has(i)) continue;
-        const [, tool] = SERVICES[i];
-        if (this.waits(tool)) continue;
-        const price = core.tools?.[tool]?.toolCost ?? 0;
-        if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
-        if (!this.place(tool, x + ((i * 7) % 41) - 20, y + ((i * 11) % 41) - 20)) break;
-        this.servicesDone.add(i);
-      }
-      while (this.servicesDone.has(this.next)) this.next++;
-      // ... and more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
-      // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health)
+      // First more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
+      // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health), before the
+      // services the people ask for by their numbers alone (a town short of care built a big police station first)
       const factors = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
       // ... the first it can afford, else it saves for it rather than painting more (a ruler reading the era card)
       for (const [side, tools] of ERA_ASKS) {
@@ -432,6 +418,24 @@ export class AutoPlayer {
           short -= isServiceKind(tool) ? SERVICE_SPECS[tool].places : short;
         }
       }
+      // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
+      // money is kept for what the era card asks
+      const house = core.map.rulerHouse;
+      if (house && !saving && budget.totalFunds > (this.options.reserve ?? 3000)) this.apply("ruler_house_upgrade", house.x, house.y);
+      // The services its people ask for, in turn; one the office is not yet high enough for waits (serviceProblem)
+      // ... and one the city cannot build yet waits while the next ones go up (src/unlocks.ts)
+      // ... built while the treasury pays for them, saving for the next rather than painting more (in the normal mode
+      // the treasury seldom holds the reserve)
+      for (let i = this.next; !saving && i < SERVICES.length && population >= SERVICES[i][0]; i++) {
+        if (this.servicesDone.has(i)) continue;
+        const [, tool] = SERVICES[i];
+        if (this.waits(tool)) continue;
+        const price = core.tools?.[tool]?.toolCost ?? 0;
+        if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
+        if (!this.place(tool, x + ((i * 7) % 41) - 20, y + ((i * 11) % 41) - 20)) break;
+        this.servicesDone.add(i);
+      }
+      while (this.servicesDone.has(this.next)) this.next++;
       // ... and the school that trains the people a building waits for, the district office raised for it first when
       // it must be, saving for them rather than painting more (src/trainedPeople.ts)
       const goal = this.trainingGoal();

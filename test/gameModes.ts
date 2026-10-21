@@ -13,12 +13,13 @@ import { ERA_RULES } from "../src/eraRules";
 import { GameMap } from "../src/gameMap.js";
 import { levelsFor, MODE_RULES, modeChoosable, modeOfLevel, modeRule, startingFundsIn } from "../src/gameModes";
 import { MapGenerator } from "../src/mapGenerator.js";
+import { Budget } from "../src/budget.js";
 
 describe("the modes", () => {
   test("follow section 6.3, on the game's old levels", () => {
-    expect(MODE_RULES.easy).toEqual({ level: 0, trained: 0.5, buildTime: 0.5, schooling: 0.5, funds: 1.5, people: 0.75 });
-    expect(MODE_RULES.normal).toEqual({ level: 1, trained: 1, buildTime: 1, schooling: 1, funds: 1, people: 1 });
-    expect(MODE_RULES.hard).toEqual({ level: 2, trained: 1.5, buildTime: 1.5, schooling: 1.5, funds: 0.7, people: 1.25 });
+    expect(MODE_RULES.easy).toEqual({ level: 0, trained: 0.5, buildTime: 0.5, schooling: 0.5, funds: 1.5, people: 0.75, grant: 0.04 });
+    expect(MODE_RULES.normal).toEqual({ level: 1, trained: 1, buildTime: 1, schooling: 1, funds: 1, people: 1, grant: 0.03 });
+    expect(MODE_RULES.hard).toEqual({ level: 2, trained: 1.5, buildTime: 1.5, schooling: 1.5, funds: 0.7, people: 1.25, grant: 0.02 });
     expect([0, 1, 2, 7, undefined].map(modeOfLevel)).toEqual(["easy", "normal", "hard", "normal", "normal"]);
     expect(startingFundsIn(20000, 0)).toBe(30000);
     expect(startingFundsIn(20000, 2)).toBe(14000);
@@ -55,5 +56,26 @@ describe("the modes", () => {
     expect(again.simulation.disasterManager._gameLevel).toBe(2);
     expect(again.simulation.evaluation.gameLevel).toBe("2");
     expect(commandProblem({ type: "level", level: 0 }, 10, 10)).toMatch(/unknown command/);
+  });
+});
+
+describe("the state's grant (docs/TAXES.md, 21 Oct 2026)", () => {
+  test("pays a sum for each of the city's people, more in the easy mode and less in the hard one, as its own budget line", () => {
+    // 1,000 home units, 50 shop and 25 factory units: (1000 + 75 × 8) × 20 = 32,000 people (src/services.ts peopleOf)
+    const census = { resPop: 1000, comPop: 50, indPop: 25, totalPop: 1075, landValueAverage: 0, roadTotal: 0, railTotal: 0,
+      policeStationPop: 0, fireStationPop: 0 };
+    const grants = [0, 1, 2].map((level) => {
+      const budget = new (Budget as any)();
+      budget.collectTax(level, census);
+      return budget.grantIncome;
+    });
+    expect(grants).toEqual([MODE_RULES.easy.grant, MODE_RULES.normal.grant, MODE_RULES.hard.grant].map((g) => Math.floor(32000 * g)));
+    expect(grants[0]).toBeGreaterThan(grants[1]);
+    expect(grants[1]).toBeGreaterThan(grants[2]);
+    // ... no land value, so no taxes: the grant is the year's whole income, a line of its own
+    const budget = new (Budget as any)();
+    budget.collectTax(1, census);
+    expect(budget.taxIncome).toBe(0);
+    expect(budget.taxFund).toBe(grants[1]);
   });
 });

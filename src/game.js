@@ -473,6 +473,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       fuelCost: this.simulation.budget.fuelCost,
       miningIncome: this.simulation.budget.miningIncome,
       farmIncome: this.simulation.budget.farmIncome,
+      // ... and the state's grant for each of the city's people (src/gameModes.ts)
+      grantIncome: this.simulation.budget.grantIncome,
       tollIncome: this.simulation.budget.tollIncome,
       houseCost: this.simulation.budget.houseCost,
       // The shops' and factories' taxes and the two fees (src/budget.js)

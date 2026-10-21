@@ -442,6 +442,7 @@ export const STRINGS: Record<string, Translation> = {
   "budget.pollution_tax": { en: "Pollution tax:", th: "ภาษีมลพิษ:" },
   "budget.mining": { en: "Mine royalties:", th: "ค่าภาคหลวงจากเหมือง:" },
   "budget.farming": { en: "Farms and fishing:", th: "รายได้จากเกษตรและประมง:" },
+  "budget.grant": { en: "State grant per resident:", th: "เงินอุดหนุนรายหัวจากรัฐ:" },
   "budget.tolls": { en: "Tolls:", th: "ค่าผ่านทางด่วน:" },
   "budget.cashflow": { en: "Net Cashflow:", th: "กระแสเงินสดสุทธิ:" },
   "budget.previous_funds": { en: "Previous Balance:", th: "เงินคลังปีก่อน:" },

@@ -7,7 +7,7 @@
 // the taxes' multiplier, the roads' upkeep and the chance of disasters in src/budget.js and src/disasterManager.js), and
 // it also scales, from this one table: the trained people a building needs (src/unlocks.ts) and an era's symbols ask
 // (src/eraScore.ts), its months as a construction site (src/construction.ts), the months a new school teaches before
-// its first class finishes (src/trainedPeople.ts), the treasury a new city starts with and the people each era wants
+// its first class finishes (src/trainedPeople.ts), the state's grant for each of the city's people (src/budget.js), the treasury a new city starts with and the people each era wants
 // (src/eraRules.ts). The level is saved with the city (src/simulation.js) and no command changes it. A city of an online
 // world is always normal: the province card offers no choice there, and the server refuses any other
 // (server/src/validate.ts).
@@ -29,12 +29,14 @@ export interface ModeRule {
   funds: number;
   /** Times the people each era wants */
   people: number;
+  /** The state's grant for each of the city's people, in baht a year (src/budget.js; docs/TAXES.md) */
+  grant: number;
 }
 
 export const MODE_RULES: Readonly<Record<Mode, ModeRule>> = {
-  easy: { level: 0, trained: 0.5, buildTime: 0.5, schooling: 0.5, funds: 1.5, people: 0.75 },
-  normal: { level: 1, trained: 1, buildTime: 1, schooling: 1, funds: 1, people: 1 },
-  hard: { level: 2, trained: 1.5, buildTime: 1.5, schooling: 1.5, funds: 0.7, people: 1.25 },
+  easy: { level: 0, trained: 0.5, buildTime: 0.5, schooling: 0.5, funds: 1.5, people: 0.75, grant: 0.04 },
+  normal: { level: 1, trained: 1, buildTime: 1, schooling: 1, funds: 1, people: 1, grant: 0.03 },
+  hard: { level: 2, trained: 1.5, buildTime: 1.5, schooling: 1.5, funds: 0.7, people: 1.25, grant: 0.02 },
 };
 
 /** The mode of a new city when nobody chose, and always online */

@@ -14,6 +14,8 @@
 import { EventEmitter } from './eventEmitter.js';
 import * as Messages from './messages.ts';
 import { MiscUtils } from './miscUtils.js';
+import { modeRule } from './gameModes.ts';
+import { peopleOf } from './services.ts';
 
 // Cost of maintaining 1 police station
 var policeMaintenanceCost = 100;
@@ -58,6 +60,8 @@ var Budget = EventEmitter(function() {
   // ... and the farms' and harbours' sales (src/farming.ts)
   this.farmFund = 0;
   this.farmIncome = 0;
+  // ... and the state's grant for each of the city's people, last year's (src/gameModes.ts grant, docs/TAXES.md)
+  this.grantIncome = 0;
   // ... and the tollways' tolls (src/roadLevels.ts)
   this.tollFund = 0;
   this.tollIncome = 0;
@@ -119,7 +123,8 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
                  'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
-                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost', 'festivalFund', 'festivalCost'];
+                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost', 'festivalFund', 'festivalCost',
+                 'grantIncome'];
 
 Budget.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
@@ -138,6 +143,7 @@ Budget.prototype.load = function(saveData) {
   this.miningIncome = this.miningIncome || 0;
   this.farmFund = this.farmFund || 0;
   this.farmIncome = this.farmIncome || 0;
+  this.grantIncome = this.grantIncome || 0;
   this.tollFund = this.tollFund || 0;
   this.tollIncome = this.tollIncome || 0;
   this.houseCost = this.houseCost || 0;
@@ -346,6 +352,11 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   this.farmIncome = Math.floor(this.farmFund);
   this.farmFund = 0;
   this.taxFund += this.farmIncome;
+  // ... and the state's grant for each of the city's people (เงินอุดหนุนรายหัว, src/gameModes.ts; 21 Oct 2026,
+  // docs/TAXES.md): a Thai town's schools, health posts and festivals are paid for in good part by the state, by its
+  // people, so the money grows with the town and not with its land's value alone
+  this.grantIncome = Math.floor((peopleOf(census) || 0) * modeRule(gameLevel).grant);
+  this.taxFund += this.grantIncome;
   // ... and what recycling sold (src/waste.ts)
   this.recyclingIncome = Math.floor(this.wasteFund);
   this.wasteFund = 0;

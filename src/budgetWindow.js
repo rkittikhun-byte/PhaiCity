@@ -176,6 +176,8 @@ BudgetWindow.prototype.open = function(budgetData) {
   var miningIncome = budgetData.miningIncome || 0;
   // ... and the farms' and fishing harbours' sales (src/farming.ts)
   var farmIncome = budgetData.farmIncome || 0;
+  // ... and the state's grant for the city's people (src/gameModes.ts)
+  var grantIncome = budgetData.grantIncome || 0;
   // ... and the tollways' tolls (src/roadLevels.ts)
   var tollIncome = budgetData.tollIncome || 0;
   // ... and what the ruler's house and its wings cost is taken from them (src/rulerHouse.ts)
@@ -195,7 +197,7 @@ BudgetWindow.prototype.open = function(budgetData) {
   var transitCost = budgetData.transitCost || 0;
   // ... but the festivals were paid in their own months (src/festivals.ts): their line only says what they cost
   var festivalCost = budgetData.festivalCost || 0;
-  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - tollIncome -
+  $('#taxesCollected').text(formatMoney(taxesCollected - tourismIncome - miningIncome - farmIncome - grantIncome - tollIncome -
                                         waterIncome - recyclingIncome - pollutionTaxIncome + fuelCost + houseCost +
                                         educationCost + healthCost + wasteCost + policyCost + transitCost));
   $('#transitCost').text(formatMoney(transitCost));
@@ -222,6 +224,8 @@ BudgetWindow.prototype.open = function(budgetData) {
   $('#tollInfo').prop('hidden', tollIncome <= 0);
   $('#farmIncome').text(formatMoney(farmIncome));
   $('#farmInfo').prop('hidden', farmIncome <= 0);
+  $('#grantIncome').text(formatMoney(grantIncome));
+  $('#grantInfo').prop('hidden', grantIncome <= 0);
   $('#miningIncome').text(formatMoney(miningIncome));
   $('#miningInfo').prop('hidden', miningIncome <= 0);
   $('#fuelCost').text(formatMoney(fuelCost));
