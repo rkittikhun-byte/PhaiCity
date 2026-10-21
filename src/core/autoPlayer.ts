@@ -204,8 +204,9 @@ const BUS_PEOPLE = 1500;
 const PARK_EVERY = 8;
 /** Another power plant goes up when the city uses this share of its plants' power */
 const MORE_POWER_AT = 0.85;
-/** ... while the treasury holds this much */
+/** ... while the treasury holds this much; and once they give all they have (zones go without), saved for */
 const PLANT_FROM_FUNDS = 3500;
+const POWER_OUT = 0.99;
 /** ... and another water works when this share of its buildings went without water, or this share of its supply is taken */
 const MORE_WATER_AT = 0.15;
 const MORE_WATER_USED = 0.9;
@@ -360,7 +361,9 @@ export class AutoPlayer {
     const load = sim._powerManager?.load ?? 0;
     const plantBuilding = Object.values((core.map as { sites?: Record<string, { tool: string }> | null }).sites ?? {})
       .some((site) => POWER_TOOLS.includes(site.tool));
-    if (load >= MORE_POWER_AT && !plantBuilding && budget.totalFunds > PLANT_FROM_FUNDS) this.place("coal", x + PLANT_FROM, y + 8);
+    const plantPrice = (core.tools?.coal?.toolCost ?? 0) + ERA_ASK_SPARE;
+    const plantPlaced = load >= MORE_POWER_AT && !plantBuilding && budget.totalFunds > PLANT_FROM_FUNDS &&
+      this.place("coal", x + PLANT_FROM, y + 8);
     // ... a water works more when many buildings went without or the supply is nearly all taken (src/waterManager.ts)
     const census = sim._census, dry = census.dryZoneCount ?? 0, wet = census.wateredZoneCount ?? 0;
     const water = sim._waterManager, short = water && water.supply > 0 && water.used >= water.supply * MORE_WATER_USED;
@@ -392,6 +395,18 @@ export class AutoPlayer {
       if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) continue;
       saveFor(price + ERA_ASK_SPARE);
       break;
+    }
+    // ... then a power plant more once the plants give all they have and zones go without (the factories painted by them
+    // stay empty and the town has no jobs for newcomers), saved for before anything else is bought: a town that spends
+    // each year's money on health posts and schools seldom holds ฿3,500 at a year's end, and the normal mode's towns
+    // stayed at 11,000–15,000 people with their one plant full from the second year to the tenth (docs/GAME_DESIGN.md 6.5)
+    if (!saving && load >= POWER_OUT && !plantBuilding && !plantPlaced && !this.waits("coal")) {
+      if (budget.totalFunds < plantPrice) {
+        saveFor(plantPrice);
+        this.note(`power: saving for a plant (฿${plantPrice}, treasury ฿${budget.totalFunds})`);
+      } else {
+        this.place("coal", x + PLANT_FROM, y + 8);
+      }
     }
     if (!saving) {
       // First more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
