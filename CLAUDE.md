@@ -15,6 +15,9 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
   - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
   - `docs/METRE_DRAWING_PLAN.md` (owner, 20 Oct 2026) — roads, then buildings, then zones drawn and stored in metres with
     the tiles derived from them for the simulation, and the new technology for a 4-star game; follow it step by step.
+  - `docs/NO_GRID_PLAN.md` (owner, 21 Oct 2026: the project's biggest job) — its step 4 in full: every place the 16 m
+    grid still lives, then traffic as trips on the road graph, power and water along it, real footprints, distance-based
+    fields, and retiring the tile maps, each step playable and deterministic.
 
 **One theme for everything (owner, 18 Oct 2026):** every colour, light and size of the pages, icons and 3D comes from
 `src/theme/tokens.ts` (pages through the generated `css/theme.css`). Read `docs/STYLE_GUIDE.md` before any visual work;
