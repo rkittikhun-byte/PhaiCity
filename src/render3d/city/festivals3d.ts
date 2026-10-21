@@ -5,28 +5,33 @@
 // The festivals in the 3D view (docs/GAME_DESIGN.md section 5; src/festivals.ts). The core holds a festival at its
 // month's turn and keeps what it held on the map (gameMap.festivals.held); the view only reads that, never writes it,
 // and dresses the town for it:
-// - paper lanterns, or flags, along the roads round the ruler's house (the town without one), lit at night;
+// - strings of paper lanterns, or of small flags, hung between bamboo poles along the streets round the ruler's house
+//   (the town without one) and the town's built-up blocks, and across them now and then, lit at night (owner, 21 Oct
+//   2026: single flags along every road near the house read as litter, "มันมีอะไรมารกหน้าจอมากๆ"); none along open road
+//   with nothing built beside it, and none for a village's own festival (src/festivals.ts festivalsShown);
 // - at Loy Krathong, krathong with their candles drifting along the canals and rivers near the town;
 // - at Yi Peng, sky lanterns rising into the night sky and drifting with the wind;
 // - at Bun Bang Fai, rockets going up from beside the town on trails of smoke.
 // A grand festival has more of each. A month passes in a few seconds, so each festival's look stays until the first night
 // after it began is over (at most a few minutes), and then fades; the bunting along the roads is the newest festival's. No temple or palace ornaments,
 // no images: lanterns, flags, krathong and rockets only.
-// Light on the graphics card: every kind of thing is one instanced mesh (seven draws in all), placed again only when
+// Light on the graphics card: every kind of thing is one instanced mesh (nine draws in all), placed again only when
 // the festivals or the roads change; only the moving things (krathong, sky lanterns, smoke) are moved each frame, a few
 // hundred at most. Colours from src/theme/tokens.ts SCENE.festival.
 
-import { Color, ConeGeometry, CylinderGeometry, DoubleSide, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedMesh,
-  type Material, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, DynamicDrawUsage, Float32BufferAttribute,
+  Group, IcosahedronGeometry, InstancedMesh, type Material, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion,
+  Vector3 } from 'three';
 import { SCENE } from '../../theme/tokens.js';
 import { isWaterTile } from '../../canals.js';
 import { halfWidth, type Point } from '../../roadGeometry.js';
+import { FIELD_BASE, FIELD_LAST } from '../../tileValues.js';
 
 /** What the view reads of the map */
 export interface FestivalViewMap {
   readonly width: number;
   readonly height: number;
-  readonly festivals?: { readonly held?: ReadonlyArray<{ readonly id: string; readonly scale: string }> } | null;
+  readonly festivals?: { readonly held?: ReadonlyArray<{ readonly id: string; readonly scale: string; readonly village?: boolean }> } | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number } | null;
   readonly town?: { readonly x: number; readonly y: number } | null;
   /** Each tile's canal level, 0 where none was dug (src/canals.ts): a krathong keeps to a canal's middle */
@@ -57,13 +62,25 @@ export const FESTIVAL_TOUCHES: Readonly<Record<string, Touches>> = {
   vegetarian: { bunting: 'flag', colours: F.vegetarian },
 };
 
-/** The most of each thing, held grandly; a modest festival has MODEST_SHARE of them */
-export const MAX_BUNTING = 240, MAX_KRATHONG = 140, MAX_SKY_LANTERNS = 120, MAX_ROCKETS = 2;
+/** The most of each thing, held grandly; a modest festival has MODEST_SHARE of them. The bunting's poles: a pole stands
+ * every POLE_SPACING metres along a street, on both sides */
+export const MAX_POLES = 120, MAX_KRATHONG = 140, MAX_SKY_LANTERNS = 120, MAX_ROCKETS = 2;
 export const MODEST_SHARE = 0.5;
 const PUFFS_PER_ROCKET = 28;
-/** How far round the venue the town is dressed (world units: 10 a tile), and how far its people go to float krathong
- * (metres: the town's nearest lake, river or canal; Mueang Khon Kaen's is about 800 m off) */
-const BUNTING_RADIUS = 260, KRATHONG_METRES = 1500;
+/** The bunting, in metres: poles this far apart along a street and this tall, the cords hung from their tops sagging this
+ * much (more across the street), a flag every PENNANT_GAP along a cord and a lantern every LANTERN_GAP; a string across the
+ * street at every ACROSS_EVERY-th pair of poles */
+export const POLE_SPACING = 16;
+const POLE_HEIGHT = 5, SAG = 0.6, SAG_ACROSS = 1.1, PENNANT_GAP = 1, LANTERN_GAP = 2.4, ACROSS_EVERY = 2;
+/** Small things are drawn this much bigger than they are, so they read from the usual height over the town */
+const READ = 1.6;
+/** Flags and lanterns at most, for the most poles (a cord between two poles has about 14 flags or 5 lanterns) */
+export const MAX_PENNANTS = 2400, MAX_LANTERNS = 900, MAX_CORDS = 2 * 2 * MAX_POLES;
+/** The streets dressed: within VENUE_TILES tiles of the venue, or with something built within a tile of the pole, never
+ * farther than BUNTING_RADIUS world units (10 a tile) from the venue; how far its people go to float krathong (metres:
+ * the town's nearest lake, river or canal; Mueang Khon Kaen's is about 800 m off) */
+export const VENUE_TILES = 4, BUNTING_RADIUS = 400;
+const KRATHONG_METRES = 1500;
 /** A town stays dressed at most this long (seconds of the view's clock) after a festival began; it fades in and out */
 export const MAX_SHOW_SECONDS = 240;
 const FADE_IN = 2, FADE_OUT = 3;
@@ -81,10 +98,28 @@ interface Show { id: string; scale: string; since: number; sawNight: boolean; le
 interface Krathong { tile: number; to: number; x: number; z: number; tx: number; tz: number; steps: number; spread: number }
 
 const tMatrix = new Matrix4(), tPos = new Vector3(), tScale = new Vector3(), tQuat = new Quaternion(), tColour = new Color();
-const UP = new Vector3(0, 1, 0), ALONG = new Vector3(1, 0, 0);
-/** A flag leans out from its road, as bunting sags, so it shows from the camera above the town */
-const FLAG_LEAN = 0.95;
+const UP = new Vector3(0, 1, 0), ALONG = new Vector3(1, 0, 0), tDir = new Vector3();
+/** A flag blows out from its cord, so it shows from the camera above the town */
+const FLAG_LEAN = 0.9;
 const tLean = new Quaternion();
+
+/** Whether a tile has something built on it: a home, shop, factory or any building of the ruler's, not a field */
+export const isBuilt = (value: number): boolean => value >= 240 && !(value >= FIELD_BASE && value <= FIELD_LAST);
+
+/** One piece of the bunting: where it is, how it is turned, its size, and a flag's or lantern's colour */
+interface Piece { x: number; y: number; z: number; q: Quaternion; sx: number; sy: number; sz: number; colour: number }
+/** A pole the bunting may hang from: on which line, the how-many-th along it, which side of the road, and where */
+interface Pole { line: number; k: number; side: number; x: number; z: number; d: number }
+type Bunted = { poles: Piece[]; cords: Piece[]; hung: Piece[]; flag: boolean };
+const NO_BUNTING = (): Bunted => ({ poles: [], cords: [], hung: [], flag: true });
+
+/** A flag: a small pennant hanging from its cord, along +X, its point down */
+function pennantGeometry(width: number, drop: number): BufferGeometry {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute([-width / 2, 0, 0, width / 2, 0, 0, 0, -drop, 0], 3));
+  geometry.setAttribute('normal', new Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+  return geometry;
+}
 
 /** A mesh of instances whose colour each instance may set, drawn only while some are shown */
 function instanced(geometry: ConstructorParameters<typeof InstancedMesh>[0], material: Material, count: number,
@@ -107,6 +142,8 @@ export class CityFestivals {
   private placedLines: ReadonlyArray<FestivalLine> | null = null;
   private readonly lantern: InstancedMesh;
   private readonly flag: InstancedMesh;
+  private readonly pole: InstancedMesh;
+  private readonly cord: InstancedMesh;
   private readonly krathongBase: InstancedMesh;
   private readonly krathongFlame: InstancedMesh;
   private readonly skyLantern: InstancedMesh;
@@ -115,8 +152,8 @@ export class CityFestivals {
   private readonly lanternMaterial: MeshBasicMaterial;
   private readonly flameMaterial: MeshBasicMaterial;
   private readonly skyMaterial: MeshBasicMaterial;
-  /** The bunting's places: x, y, z and its turn, and how much of the dressing it belongs to */
-  private bunting: { x: number; y: number; z: number; turn: number; colour: number; flag: boolean; side: number }[] = [];
+  /** The bunting as placed: its poles, its cords and the flags or lanterns on them */
+  private bunting: Bunted = NO_BUNTING();
   private krathong: Krathong[] = [];
   private venue: { x: number; z: number } | null = null;
   private strengthShown = -1;
@@ -127,12 +164,17 @@ export class CityFestivals {
   constructor(private readonly map: FestivalViewMap, private readonly ground: FestivalGround, private readonly size = 1,
               private readonly units: number | null = null) {
     this.root.name = 'festivals';
-    // About twice their real size, so they read from the usual height over the town (a real 40 cm flag is lost at once)
-    const s = size * 2;
+    // About twice their real size, so they read from the usual height over the town (a real 40 cm flag is lost at once);
+    // the bunting READ times
+    const s = size * 2, r = size * READ;
     this.lanternMaterial = new MeshBasicMaterial({ toneMapped: false });
-    this.lantern = instanced(new IcosahedronGeometry(0.3 * s, 1).scale(1, 1.25, 1), this.lanternMaterial, MAX_BUNTING, 'festival_lanterns');
-    this.flag = instanced(new PlaneGeometry(0.6 * s, 0.42 * s).translate(0.3 * s, 0, 0),
-      new MeshStandardMaterial({ roughness: 0.85, side: DoubleSide }), MAX_BUNTING, 'festival_flags');
+    this.lantern = instanced(new IcosahedronGeometry(0.28 * r, 1).scale(1, 1.25, 1), this.lanternMaterial, MAX_LANTERNS, 'festival_lanterns');
+    this.flag = instanced(pennantGeometry(0.62 * r, 0.75 * r), new MeshStandardMaterial({ roughness: 0.85, side: DoubleSide }),
+      MAX_PENNANTS, 'festival_flags');
+    // A pole one unit tall from its foot, and a cord one unit long along +X, as thin as a rope seen from the usual height
+    this.pole = instanced(new CylinderGeometry(0.06 * r, 0.08 * r, 1, 5).translate(0, 0.5, 0),
+      new MeshStandardMaterial({ color: F.pole, roughness: 0.9 }), MAX_POLES, 'festival_poles');
+    this.cord = instanced(new BoxGeometry(1, 0.05 * r, 0.05 * r), new MeshBasicMaterial({ color: F.cord }), MAX_CORDS, 'festival_cords');
     this.krathongBase = instanced(new CylinderGeometry(0.25 * s, 0.18 * s, 0.12 * s, 8),
       new MeshStandardMaterial({ color: F.krathong, roughness: 0.9 }), MAX_KRATHONG, 'festival_krathong');
     this.flameMaterial = new MeshBasicMaterial({ color: F.candle, toneMapped: false });
@@ -144,7 +186,7 @@ export class CityFestivals {
       MAX_ROCKETS * PUFFS_PER_ROCKET, 'festival_rocket_smoke');
     this.rocket = instanced(new IcosahedronGeometry(0.25 * s, 0), new MeshBasicMaterial({ color: F.flame, toneMapped: false }),
       MAX_ROCKETS, 'festival_rockets');
-    this.root.add(this.lantern, this.flag, this.krathongBase, this.krathongFlame, this.skyLantern, this.smoke, this.rocket);
+    this.root.add(...this.meshes());
   }
 
   /** The festivals the view dresses the town for now */
@@ -177,7 +219,7 @@ export class CityFestivals {
 
   /** Which festivals are shown: those held, and those held lately until the first night after they began is over */
   private follow(night: number, seconds: number): void {
-    const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && FESTIVAL_TOUCHES[h.id]);
+    const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.village && FESTIVAL_TOUCHES[h.id]);
     for (const h of held) {
       const show = this.shows.get(h.id);
       if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, sawNight: night > 0.5, leaving: null });
@@ -235,33 +277,7 @@ export class CityFestivals {
     const vx = (at.x + 0.5) * 10, vz = (at.y + 0.5) * 10;
     this.venue = { x: vx, z: vz };
     const look = this.touches(seconds), bunting = look.bunting;
-    // Bunting every few metres along both sides of the roads near the venue, the nearest first
-    const s = this.size, spacing = 9 * s, out: { d: number; x: number; z: number; turn: number; side: number }[] = [];
-    for (const line of lines) {
-      if (line.rail) continue;
-      const reach = halfWidth(line.level ?? 1, this.units) + 0.9 * s;
-      let carried = 0, side = 0;
-      for (let i = 1; i < line.points.length; i++) {
-        const [ax, az] = line.points[i - 1], [bx, bz] = line.points[i], len = Math.hypot(bx - ax, bz - az);
-        if (len < 1e-6) continue;
-        if (Math.min(Math.hypot(ax - vx, az - vz), Math.hypot(bx - vx, bz - vz)) > BUNTING_RADIUS + len) { carried += len; continue; }
-        const nx = -(bz - az) / len, nz = (bx - ax) / len, turn = Math.atan2(-(bz - az), bx - ax);
-        for (let t = (spacing - (carried % spacing)) % spacing; t < len; t += spacing) {
-          const px = ax + (bx - ax) * t / len, pz = az + (bz - az) * t / len, d = Math.hypot(px - vx, pz - vz);
-          side = 1 - side;
-          if (d > BUNTING_RADIUS) continue;
-          const sideSign = side ? 1 : -1;
-          out.push({ d, x: px + nx * reach * sideSign, z: pz + nz * reach * sideSign, turn, side });
-        }
-        carried += len;
-      }
-    }
-    out.sort((a, b) => a.d - b.d);
-    const count = bunting ? Math.min(out.length, Math.round(MAX_BUNTING * bunting.share)) : 0;
-    this.bunting = out.slice(0, count).map((p, k) => ({
-      x: p.x, z: p.z, y: this.ground.sample(p.x, p.z) + (bunting!.kind === 'lantern' ? 3.4 : 3.8) * s, turn: p.turn, side: p.side,
-      colour: bunting!.colours[Math.floor(hash(k * 7 + 3) * bunting!.colours.length)], flag: bunting!.kind === 'flag',
-    }));
+    this.bunting = bunting ? this.string(lines, vx, vz, bunting) : NO_BUNTING();
     // The water near the town, for the krathong: river tiles and dug canals
     const { width, height } = this.map, tx = Math.floor(at.x), ty = Math.floor(at.y), water: number[] = [];
     // ... tiles of 10 world units, which are 10 / units metres on a real-scale city map (a world unit a metre elsewhere)
@@ -273,7 +289,7 @@ export class CityFestivals {
     }
     // ... the nearest first, so a town by a river floats its krathong at its own landing
     water.sort((a, b) => Math.hypot(a % width - tx, Math.floor(a / width) - ty) - Math.hypot(b % width - tx, Math.floor(b / width) - ty));
-    const wanted = look.krathong;
+    const wanted = look.krathong, s = this.size;
     const wet = new Set(water);
     if (this.krathong.length !== wanted || !this.krathong.every((k) => wet.has(k.tile))) {
       this.krathong = [];
@@ -288,23 +304,108 @@ export class CityFestivals {
     }
   }
 
+  /**
+   * The bunting along the streets near the venue: a pole every POLE_SPACING metres on both sides of a street where it is
+   * near the venue or has something built beside it, the nearest first, as many as the festival asks; a cord from each
+   * pole to the next along its side, and across the street now and then, sagging between them, with flags or lanterns
+   * hung along it. A pole with no cord to another is left out, so nothing stands alone.
+   */
+  private string(lines: ReadonlyArray<FestivalLine>, vx: number, vz: number,
+                 bunting: { kind: Bunting; colours: readonly number[]; share: number }): Bunted {
+    const s = this.size, spacing = POLE_SPACING * s, { width, height } = this.map;
+    const builtNear = (x: number, z: number): boolean => {
+      const tx = Math.floor(x / 10), ty = Math.floor(z / 10);
+      for (let y = ty - 1; y <= ty + 1; y++) for (let x2 = tx - 1; x2 <= tx + 1; x2++) {
+        if (x2 >= 0 && y >= 0 && x2 < width && y < height && isBuilt(this.map.getTileValue(x2, y) & 1023)) return true;
+      }
+      return false;
+    };
+    const candidates: Pole[] = [];
+    lines.forEach((line, n) => {
+      if (line.rail) return;
+      const reach = halfWidth(line.level ?? 1, this.units) + 0.6 * s;
+      let carried = 0, k = 0;
+      for (let i = 1; i < line.points.length; i++) {
+        const [ax, az] = line.points[i - 1], [bx, bz] = line.points[i], len = Math.hypot(bx - ax, bz - az);
+        if (len < 1e-6) continue;
+        const nx = -(bz - az) / len, nz = (bx - ax) / len;
+        for (let t = (spacing - (carried % spacing)) % spacing; t < len; t += spacing, k++) {
+          const px = ax + (bx - ax) * t / len, pz = az + (bz - az) * t / len, d = Math.hypot(px - vx, pz - vz);
+          if (d > BUNTING_RADIUS) continue;
+          for (const side of [-1, 1]) {
+            const x = px + nx * reach * side, z = pz + nz * reach * side;
+            if (d <= VENUE_TILES * 10 || builtNear(x, z)) candidates.push({ line: n, k, side, x, z, d });
+          }
+        }
+        carried += len;
+      }
+    });
+    candidates.sort((a, b) => a.d - b.d);
+    const keyOf = (p: { line: number; k: number; side: number }): string => `${p.line}:${p.k}:${p.side}`;
+    const chosen = new Map(candidates.slice(0, Math.round(MAX_POLES * bunting.share)).map((p) => [keyOf(p), p]));
+    // The cords: along each side to the next pole, and across the street at every ACROSS_EVERY-th pair
+    const spans: [Pole, Pole, number][] = [];
+    for (const p of chosen.values()) {
+      const next = chosen.get(keyOf({ ...p, k: p.k + 1 }));
+      if (next && Math.hypot(next.x - p.x, next.z - p.z) < spacing * 1.6) spans.push([p, next, SAG]);
+      const other = p.side < 0 ? chosen.get(keyOf({ ...p, side: 1 })) : undefined;
+      if (other && p.k % ACROSS_EVERY === 0) spans.push([p, other, SAG_ACROSS]);
+    }
+    const top = POLE_HEIGHT * s, flag = bunting.kind === 'flag', base = new Map<Pole, number>(), out = NO_BUNTING();
+    out.flag = flag;
+    for (const [a, b] of spans) for (const p of [a, b]) {
+      if (base.has(p)) continue;
+      const y = this.ground.sample(p.x, p.z);
+      base.set(p, y);
+      out.poles.push({ x: p.x, y, z: p.z, q: new Quaternion(), sx: 1, sy: top, sz: 1, colour: 0 });
+    }
+    let n = 0;
+    for (const [a, b, sag] of spans) {
+      const ya = base.get(a)! + top * 0.96, yb = base.get(b)! + top * 0.96, dx = b.x - a.x, dz = b.z - a.z;
+      const len = Math.hypot(dx, dz), drop = sag * s;
+      const at = (u: number): [number, number, number] => [a.x + dx * u, ya + (yb - ya) * u - drop * 4 * u * (1 - u), a.z + dz * u];
+      // The cord in two straight halves, down to its lowest point and up again
+      for (const [u0, u1] of [[0, 0.5], [0.5, 1]]) {
+        const [x0, y0, z0] = at(u0), [x1, y1, z1] = at(u1), l = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+        const q = new Quaternion().setFromUnitVectors(ALONG, tDir.set(x1 - x0, y1 - y0, z1 - z0).normalize());
+        out.cords.push({ x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: (z0 + z1) / 2, q, sx: l, sy: 1, sz: 1, colour: 0 });
+      }
+      const gap = (flag ? PENNANT_GAP : LANTERN_GAP) * s, count = Math.max(1, Math.floor(len / gap) - 1);
+      const turn = new Quaternion().setFromUnitVectors(ALONG, tDir.set(dx, 0, dz).normalize());
+      for (let i = 1; i <= count; i++) {
+        const u = i / (count + 1), [x, y, z] = at(u), colour = bunting.colours[Math.floor(hash(n * 7 + 3) * bunting.colours.length)];
+        n++;
+        if (flag) {
+          // Each flag blown a little out from the cord, the other way from the last, so the string shows from above
+          const q = turn.clone().multiply(tLean.setFromAxisAngle(ALONG, (n % 2 ? 1 : -1) * FLAG_LEAN));
+          out.hung.push({ x, y, z, q, sx: 1, sy: 1, sz: 1, colour });
+        } else {
+          out.hung.push({ x, y: y - 0.45 * READ * s, z, q: new Quaternion(), sx: 1, sy: 1, sz: 1, colour });
+        }
+      }
+    }
+    out.poles.length = Math.min(out.poles.length, MAX_POLES);
+    out.cords.length = Math.min(out.cords.length, MAX_CORDS);
+    out.hung.length = Math.min(out.hung.length, flag ? MAX_PENNANTS : MAX_LANTERNS);
+    return out;
+  }
+
   private drawBunting(strength: number): void {
     this.strengthShown = strength;
-    let lanterns = 0, flags = 0;
-    for (const b of this.bunting) {
-      const mesh = b.flag ? this.flag : this.lantern, n = b.flag ? flags++ : lanterns++;
-      tQuat.setFromAxisAngle(UP, b.turn);
-      if (b.flag) tQuat.multiply(tLean.setFromAxisAngle(ALONG, b.side ? FLAG_LEAN : -FLAG_LEAN));
-      tPos.set(b.x, b.y, b.z);
-      tScale.setScalar(Math.max(0.001, strength));
-      mesh.setMatrixAt(n, tMatrix.compose(tPos, tQuat, tScale));
-      mesh.setColorAt(n, tColour.set(b.colour));
-    }
-    for (const [mesh, count] of [[this.lantern, lanterns], [this.flag, flags]] as const) {
-      mesh.count = count;
+    const k = Math.max(0.001, strength), { poles, cords, hung, flag } = this.bunting;
+    const put = (mesh: InstancedMesh, pieces: readonly Piece[], coloured: boolean): void => {
+      pieces.forEach((p, i) => {
+        mesh.setMatrixAt(i, tMatrix.compose(tPos.set(p.x, p.y, p.z), p.q, tScale.set(p.sx * k, p.sy * k, p.sz * k)));
+        if (coloured) mesh.setColorAt(i, tColour.set(p.colour));
+      });
+      mesh.count = pieces.length;
       mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
+      if (coloured && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    };
+    put(this.pole, poles, false);
+    put(this.cord, cords, false);
+    put(flag ? this.flag : this.lantern, hung, true);
+    (flag ? this.lantern : this.flag).count = 0;
   }
 
   /** Krathong drift from tile to tile along the water, slowly, each to a neighbour of the water it is on */
@@ -406,21 +507,26 @@ export class CityFestivals {
   }
 
   private clear(): void {
-    for (const mesh of [this.lantern, this.flag, this.krathongBase, this.krathongFlame, this.skyLantern, this.smoke, this.rocket]) mesh.count = 0;
+    for (const mesh of this.meshes()) mesh.count = 0;
     this.root.visible = false;
     this.placedFor = '';
     this.krathong = [];
-    this.bunting = [];
+    this.bunting = NO_BUNTING();
   }
 
   /** How many of each thing are drawn now (tests, the metrics) */
-  counts(): Record<'lanterns' | 'flags' | 'krathong' | 'skyLanterns' | 'smoke' | 'rockets', number> {
-    return { lanterns: this.lantern.count, flags: this.flag.count, krathong: this.krathongBase.count,
+  counts(): Record<'poles' | 'cords' | 'lanterns' | 'flags' | 'krathong' | 'skyLanterns' | 'smoke' | 'rockets', number> {
+    return { poles: this.pole.count, cords: this.cord.count, lanterns: this.lantern.count, flags: this.flag.count, krathong: this.krathongBase.count,
       skyLanterns: this.skyLantern.count, smoke: this.smoke.count, rockets: this.rocket.count };
   }
 
+  /** Every mesh it draws with, the bunting's first */
+  private meshes(): InstancedMesh[] {
+    return [this.pole, this.cord, this.lantern, this.flag, this.krathongBase, this.krathongFlame, this.skyLantern, this.smoke, this.rocket];
+  }
+
   dispose(): void {
-    for (const mesh of [this.lantern, this.flag, this.krathongBase, this.krathongFlame, this.skyLantern, this.smoke, this.rocket]) {
+    for (const mesh of this.meshes()) {
       mesh.geometry.dispose();
       (mesh.material as Material).dispose();
       mesh.dispose();

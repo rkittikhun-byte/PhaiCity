@@ -1,20 +1,29 @@
 /* PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING. */
 
-/* The festival card (src/festivalCard.ts, docs/GAME_DESIGN.md section 5): frosted glass under the top bar, the city
-   running behind it, asking the ruler how to hold next month's festival. Colours from the theme (docs/STYLE_GUIDE.md). */
+/* The festival chip by the News button and its card (src/festivalCard.ts, docs/GAME_DESIGN.md section 5): the chip names
+   a town's next festival; the card opens beside it in frosted glass (src/windowPlacement.ts), the city running behind it,
+   asking the ruler how to hold it. Colours from the theme (docs/STYLE_GUIDE.md). */
+body #festivalChip { gap: 5px; color: var(--ph-gold-deep); }
+/* A small dot until the card has been opened, so a new question is seen without anything over the map */
+body #festivalChip[data-fresh="true"]::before {
+  content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ph-accent);
+}
+body #festivalChip[aria-expanded="true"] { background: var(--ph-accent-soft); }
 body #festivalCard {
-  position: fixed; top: 92px; left: 50%; z-index: 16; width: 340px; max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 200px); overflow-y: auto; box-sizing: border-box; padding: 10px 12px 10px;
-  transform: translateX(-50%); font: 400 11px/1.45 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
+  position: fixed; top: 52px; right: 12px; z-index: 16; width: 320px; max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 150px) !important; overflow-y: auto; box-sizing: border-box; padding: 10px 12px 10px;
+  font: 400 11px/1.45 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
   background: var(--hud-glass-strong); color: var(--hud-text); border: 1px solid var(--hud-edge); border-radius: 14px;
   -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); box-shadow: var(--hud-shadow);
-  animation: festivalIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: festivalIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
+/* (placed beside its chip, its left and top set by windowPlacement.ts) */
+body #festivalCard.docked { right: auto; }
 body #festivalCard[hidden] { display: none; }
 body #festivalCard.motionLeave { animation: festivalOut 0.2s ease-in forwards; }
-@keyframes festivalIn { from { opacity: 0; transform: translate(-50%, -10px); } }
-@keyframes festivalOut { to { opacity: 0; transform: translate(-50%, -10px); } }
+@keyframes festivalIn { from { opacity: 0; transform: translateY(-10px); } }
+@keyframes festivalOut { to { opacity: 0; transform: translateY(-10px); } }
 body #festivalCard .festivalHeader {
   display: flex; align-items: center; gap: 8px; height: auto; padding: 0; background: transparent; background-image: none;
   color: var(--hud-dim); font-family: inherit;
