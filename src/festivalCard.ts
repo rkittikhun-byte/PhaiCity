@@ -93,6 +93,8 @@ export class FestivalCard {
       // A new question takes the place of the festivals already held
       for (const [id, entry] of [...this.asked]) if (entry.held) this.asked.delete(id);
       this.asked.set(event.id, { costs: event.costs, held: null });
+      // It never opens by itself (owner, 21 Oct 2026: "นี่บ่อยเกิน หรือไม่ต้องแสดงก็ได้"): the chip waits to be clicked, and
+      // an unanswered festival is held modestly
       this.chip.dataset.fresh = "true";
       this.renderChip();
       if (this.isOpen) this.render();
