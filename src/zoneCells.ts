@@ -564,7 +564,11 @@ export function cellsOf(map: CellMap, owns: (x: number, y: number) => boolean = 
 /**
  * Exact world pose (x, z, rotation) for a plot or lot building of `size` tiles and `scale` fill at (tx, ty) on a
  * cellZones map: centered along the road on the painted cells belonging to that plot, its front edge (+Z) aligned with
- * the road's row-0 edge, and turned to face the road along its curve.
+ * the road's row-0 edge, and turned to face the road along its curve; and `cells`, how many cells along the road the
+ * painted run reaches from its first to its last, for a building as wide as it (docs/METRE_DRAWING_PLAN.md 3.3:
+ * a shophouse bay a cell, a 12 m house on three, eraBuildings.ts frontageVariant). `depthHalf`: half the building's
+ * depth in world units, when it is not `size` tiles of 10 model units at `scale` (an era model is in metres, a tile 16 m
+ * deep, so it stands its whole plot deep from the road's edge).
  */
 export function cellPlotPose(
   map: CellMap,
@@ -572,7 +576,8 @@ export function cellPlotPose(
   ty: number,
   size: number,
   scale: number,
-): { x: number; z: number; rotation: number } | null {
+  depthHalf?: number,
+): { x: number; z: number; rotation: number; cells: number } | null {
   if (!map.cellZones || !map.zoneCells || !map.zoneCells.size) return null;
   const layout = cellsOf(map);
   const paint = map.zoneCells;
@@ -648,11 +653,12 @@ export function cellPlotPose(
   const midAlong = (minAlong + maxAlong) / 2;
   // Its front: the road's edge for a plot beside the road, the front of its rows for the plot behind it
   const frontEdge = minAcross - ((minRow % PLOT_ROWS) + 0.5) * layout.cellUnits;
-  const centerAcross = frontEdge + half;
+  const centerAcross = frontEdge + (depthHalf ?? half);
   return {
     x: ref.x + rx * midAlong + nx * centerAcross,
     z: ref.z + rz * midAlong + nz * centerAcross,
     rotation: Math.atan2(-nx, -nz),
+    cells: Math.round((maxAlong - minAlong) / layout.cellUnits) + 1,
   };
 }
 
@@ -704,7 +710,9 @@ export function paintNear(map: CellPlotMap, tiles: Iterable<number>, reach = 6):
   return false;
 }
 
-/** The share of a tile's cells one zone must cover for the tile to become that zone's plot */
+/** The share of a tile's cells one zone must cover for the tile to become that zone's plot; fewer do when they reach
+ * every one of its PLOT_ROWS rows, one column of them 4 m along the road and the plot's 16 m deep being a shophouse
+ * bay's plot (docs/METRE_DRAWING_PLAN.md 3.3: "ตึกแถว 1×4 ช่อง") */
 export const PLOT_COVER = 0.28;
 
 /** A map whose tiles the painted cells turn into plots */
@@ -741,12 +749,17 @@ export function syncCellPlots(map: CellPlotMap, layout: CellLayout, tiles?: Iter
     const x = tile % map.width, y = (tile - x) / map.width;
     if (isLineRoad(map.getTileValue(x, y))) continue;
     const allCells = layout.byPlotTile.get(tile) ?? layout.byTile.get(tile) ?? [];
-    const counts = [0, 0, 0, 0];
-    for (const index of allCells) counts[map.zoneCells?.get(layout.cells[index].key) ?? 0]++;
+    // ... and the rows each zone's cells reach, one bit a row
+    const counts = [0, 0, 0, 0], rows = [0, 0, 0, 0];
+    for (const index of allCells) {
+      const code = map.zoneCells?.get(layout.cells[index].key) ?? 0;
+      counts[code]++; rows[code] |= 1 << (layout.cells[index].row % PLOT_ROWS);
+    }
     let best = 1;
     for (let code = 2; code <= 3; code++) if (counts[code] > counts[best]) best = code;
     const minCells = Math.max(2, Math.ceil(PLOT_COVER * allCells.length));
-    const qualifies = allCells.length > 0 && counts[best] >= minCells;
+    const deep = counts[best] >= PLOT_ROWS && rows[best] === (1 << PLOT_ROWS) - 1;
+    const qualifies = allCells.length > 0 && (counts[best] >= minCells || deep);
     const kind = qualifies ? zoneOfCode(best) : null;
     const value = map.getTileValue(x, y), plot = (map.getTileFlags(x, y) & ZONE_BIT) ? null : plotKindOfValue(value);
     if (kind && plot === kind) continue;

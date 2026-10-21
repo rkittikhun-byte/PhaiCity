@@ -12,9 +12,10 @@ import { cellPlotPose, type CellMap } from '../../zoneCells.js';
 import { CIVIC, FARM, HARBOUR, MINE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
-import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotOf, readPlotValue } from '../../plots.js';
+import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, readPlotValue } from '../../plots.js';
 import type { CityMapReader } from './types.js';
-import { Placement, type PlacementFields } from './placement.js';
+import { FrontagePlacement, Placement, RoadsidePlacement, type PlacementFields } from './placement.js';
+import { frontagePieces, mapFrontagePlan, type FrontagePlan, type FrontagePlot } from './frontage.js';
 import { roadReach } from '../../roadGeometry.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
@@ -178,6 +179,7 @@ export class TileSnapshot implements CityMapReader {
     changed.push(...this.posesMoved(map));
     if (count >= 0 && count === this.seenChanges && !this.initialSync) {
       if (rl) for (let i = 0; i < rl.length; i++) if (rl[i] !== this.levelsCopy[i]) { this.levelsCopy[i] = rl[i]; changed.push(i); }
+      changed.push(...this.paintMoved(map));
       return changed;
     }
     this.seenChanges = count;
@@ -199,12 +201,89 @@ export class TileSnapshot implements CityMapReader {
           }
         }
         changed.push(i);
+        if (v !== this.values[i]) this.planStale = true;
         if ((f|this.flags[i]) & ZONEBIT) zonesChanged=true;
         this.values[i]=v; this.flags[i]=f; this.levelsCopy[i]=lv;
       }
     }
+    const first = this.initialSync;
     this.initialSync = false;
-    if(zonesChanged) this.coverZones(); return changed;
+    if(zonesChanged) this.coverZones();
+    if (first) this.paintSeen = (map as { zoneCellsVersion?: number }).zoneCellsVersion ?? 0;
+    else changed.push(...this.paintMoved(map));
+    return changed;
+  }
+  /** The painted cells' count of changes when last looked at (src/zoneCells.ts zoneCellsVersion), and the plots'
+   * frontage worked out from them (frontage.ts), again when a tile or the paint changes */
+  private paintSeen = 0;
+  private plan: FrontagePlan | null = null;
+  private planStale = true;
+  /** The plots whose frontage buildings the paint changed since the last look: painting cells beside a grown plot
+   * changes no tile, but adds a bay to its terrace or makes its run a house's */
+  private paintMoved(map: CityMapReader): number[] {
+    const paint = (map as { zoneCellsVersion?: number }).zoneCellsVersion ?? 0;
+    if (paint === this.paintSeen) return [];
+    this.paintSeen = paint;
+    const before = this.planStale ? null : this.plan;
+    this.planStale = true;
+    if (!this.frontageOn()) return [];
+    const now = this.frontagePlan();
+    if (!now) return [];
+    const moved: number[] = [];
+    const columnsOf = (plan: FrontagePlan | null, tile: number): string =>
+      (plan?.byOwner.get(tile) ?? []).map(k => { const c = plan!.columns[k]; return `${c.x.toFixed(2)},${c.z.toFixed(2)}`; }).join(';');
+    for (const tile of new Set([...(before?.byOwner.keys() ?? []), ...now.byOwner.keys()]))
+      if (!before || columnsOf(before, tile) !== columnsOf(now, tile)) moved.push(tile);
+    return moved;
+  }
+  /** Whether plots are drawn by their frontage: on a map painted in cells, once the era models with frontage kinds
+   * are in */
+  private frontageOn(): boolean {
+    return Boolean(this.eraModels?.hasFrontage && (this.source as CellMap | null)?.cellZones && this.paintedZones);
+  }
+  /** The columns of painted cells and the plots that draw them (frontage.ts), worked out once per change */
+  frontagePlan(): FrontagePlan | null {
+    if (!this.planStale) return this.plan;
+    this.planStale = false;
+    const source = this.source as CellMap | null;
+    this.plan = source ? mapFrontagePlan(source, tile => {
+      const v = this.values[tile];
+      return this.flags[tile] & ZONEBIT ? null : plotKindOfValue(v);
+    }) : null;
+    return this.plan;
+  }
+  /** What the plot on a tile is to its frontage, null when there is none */
+  private frontagePlotAt(tile: number): FrontagePlot | null {
+    const x = tile % this.width, y = Math.floor(tile / this.width), plot = plotOf(this, x, y);
+    return plot ? { kind: plot.kind, level: plot.level, lot: lotOf(this, x, y) !== null, era: this.eraOf(tile) } : null;
+  }
+  /**
+   * A painted plot drawn by its frontage (frontage.ts, docs/METRE_DRAWING_PLAN.md 3.3): its shophouse bays, one on each
+   * painted cell along its road and joined into a terrace with the next plot's, or its 12 m house, each at its real
+   * size against the road; null when nothing fits or a model is missing, so the plot keeps its full-tile model.
+   */
+  private frontage(p: Placement | null): Placement | null {
+    if (!p || p.footprint[0] !== 1 || p.index < 0 || (p.kind !== 'residential' && p.kind !== 'commercial') ||
+      !p.id?.startsWith('era.') || !this.frontageOn()) return null;
+    const plan = this.frontagePlan(), plot = plan ? this.frontagePlotAt(p.index) : null;
+    if (!plan || !plot) return null;
+    const metre = unitsPerMetre(tileMetres(this.source!));
+    const pieces = frontagePieces(plan, p.index, plot, metre, tile => this.frontagePlotAt(tile));
+    if (!pieces?.length) return null;
+    const region = p.options.region ?? 'central', era = plot.era;
+    const placed: Placement[] = [];
+    for (const piece of pieces) {
+      const height = this.eraModels!.height(era, region, piece.kind);
+      if (height === null) return null;
+      placed.push(new RoadsidePlacement({ ...p, id: eraModelId(era, piece.kind), x: piece.x, z: piece.z, rotation: piece.rotation,
+        height, scale: metre, fill: metre, eraKind: piece.kind,
+        options: { ...p.options, seed: 0, variant: 0, state: 'closed', worldOrigin: [piece.x, piece.z], worldRotationY: piece.rotation } }));
+    }
+    const first = pieces[0], last = pieces[pieces.length - 1];
+    const ground = { x: (first.x + last.x) / 2, z: (first.z + last.z) / 2, rotation: first.rotation,
+      width: Math.hypot(last.x - first.x, last.z - first.z) + first.width, depth: first.depth };
+    const [main, ...parts] = placed;
+    return new FrontagePlacement({ ...main }, ground, parts);
   }
   /** The map's count of changes to its buildings when last looked at, and where each one stood then, by centre tile */
   private posesSeen = -1;
@@ -418,6 +497,8 @@ export class TileSnapshot implements CityMapReader {
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
     const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
+    const front=this.frontage(p);
+    if(front)return front;
     return p&&this.curves&&this.roadSnap?this.againstRoad(p):p;
   }
   /** A power line over a curved road: its poles and wires alone, the road drawn by the curve under them */
@@ -482,9 +563,12 @@ export class TileSnapshot implements CityMapReader {
       const rot=kept[2],nx=-Math.sin(rot),nz=-Math.cos(rot),delta=size*5*BUILDING_SCALE*(factor-1);
       return p.againstRoad(kept[0]+nx*delta,kept[1]+nz*delta,rot,scale);
     }
+    // Half its depth: an era model is in metres, a tile 16 m deep, the others 10 model units a tile (scale turns
+    // either into world units), so an era building stands its whole plot deep from the road's edge, not 3 m into it
+    const depthHalf=size*(p.id?.startsWith('era.')?8:5)*scale;
     if(zoned&&size<3&&(this.source as CellMap|null)?.cellZones){
       const tx=p.index%this.width,ty=Math.floor(p.index/this.width);
-      const cellPose=cellPlotPose(this.source as unknown as CellMap,tx,ty,size,scale);
+      const cellPose=cellPlotPose(this.source as unknown as CellMap,tx,ty,size,scale,depthHalf);
       if(cellPose)return p.againstRoad(cellPose.x,cellPose.z,cellPose.rotation,scale);
     }
     const near=this.roadSnap!(p.x,p.z,size*5+28);
@@ -492,8 +576,7 @@ export class TileSnapshot implements CityMapReader {
     if(zoned&&size<3){
       let nx=-near.tz,nz=near.tx;
       if(nx*(p.x-near.x)+nz*(p.z-near.z)<0){nx=-nx;nz=-nz;}
-      const half=size*5*scale;
-      const gap=near.reach+.4+half;
+      const gap=near.reach+.4+depthHalf;
       return p.againstRoad(near.x+nx*gap,near.z+nz*gap,Math.atan2(-nx,-nz),scale);
     }
     // Drawn smaller than its tiles (owner, 14 Oct 2026: "ลด scale ของที่ว่าการอำเภอ ลงอีก"), its front against the road

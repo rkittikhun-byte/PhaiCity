@@ -6,7 +6,10 @@
     blender -b --factory-startup --python-exit-code 1 -P art/buildings/scripts/export_game.py -- [era1 ...] [--region R]
 
 Reads the sets' .blend files (blend/era<n>/era<n>_<region>.blend, made by build.py) and writes
-assets/models/buildings/era<n>/<region>/<kind>.glb and assets/models/buildings/index.json. Each building becomes two
+assets/models/buildings/era<n>/<region>/<kind>.glb and assets/models/buildings/index.json. With --frontage it reads the
+frontage sets instead (era<n>_<region>_frontage.blend: shophouse bays and the 12 m house, PLAN.md "Frontage") and
+writes only their kinds, so the era's other glbs stay as they are; the index keeps every entry it had. Each building
+becomes two
 meshes with its palette colours baked into vertex colours and no materials of its own: `body` (everything) and
 `windows` (window glass, lamps and lit screens, which the game lights at night). The ink outline is dropped and loose
 parts are merged. Units stay metres; the game scales a 16 m tile to its 10 units.
@@ -26,7 +29,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 
 from lib import palette  # noqa: E402
-from lib.builder import KINDS, TILES  # noqa: E402
+from lib.builder import BAY_M, FRONTAGE, FRONTAGE_DEPTH_M, FRONTAGE_WIDTH, KINDS, TILES  # noqa: E402
 from lib.regions import REGIONS  # noqa: E402
 
 ERAS = ('era1', 'era2', 'era3', 'era4', 'era5')
@@ -38,6 +41,8 @@ COMPRESSION = {'export_draco_mesh_compression_enable': True, 'export_draco_mesh_
 # Triangles a building may have in the game, by its tiles: the city repeats a plot's building many times, so the
 # props are thinned first (down to a fifth), then the building itself (down to about a third).
 GAME_BUDGET = {1: 4500, 2: 11000, 3: 16000}
+# ... a frontage building's by its frontage: a shophouse bay repeats along every shop street, so it is kept light
+FRONTAGE_GAME_BUDGET = {BAY_M: 1300, 12.0: 3400}
 WINDOW_COLOURS = {'window_dark', 'window_lit', 'lamp', 'screen_lit', 'glass_dark'}
 
 
@@ -65,7 +70,8 @@ def tris_of(obj):
 
 def thinning(root, meshes):
     """Decimate ratios per object so the building fits GAME_BUDGET: props first, then the building; the yard never."""
-    budget = GAME_BUDGET[int(root.get('phaicity_tiles', 1))]
+    width = root.get('phaicity_width')
+    budget = FRONTAGE_GAME_BUDGET[float(width)] if width else GAME_BUDGET[int(root.get('phaicity_tiles', 1))]
     count = {o.name: tris_of(o) for o in meshes}
     total = sum(count.values())
     if total <= budget:
@@ -148,13 +154,13 @@ def baked(root):
     return out
 
 
-def export_set(era, region, index):
-    path = os.path.join(ART, 'blend', era, '%s_%s.blend' % (era, region))
+def export_set(era, region, index, frontage=False):
+    path = os.path.join(ART, 'blend', era, '%s_%s%s.blend' % (era, region, '_frontage' if frontage else ''))
     if not os.path.exists(path):
         print('MISSING %s' % path)
         return
     bpy.ops.wm.open_mainfile(filepath=path)
-    for kind in KINDS:
+    for kind in (FRONTAGE if frontage else KINDS):
         bid = '%s_%s_%s' % (era, region, kind)
         root = bpy.data.objects.get(bid)
         if root is None:
@@ -183,6 +189,7 @@ def export_set(era, region, index):
 def main():
     args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     eras = [a for a in args if a in ERAS] or list(ERAS)
+    frontage = '--frontage' in args
     regions = list(REGIONS)
     if '--region' in args:
         regions = [args[args.index('--region') + 1]]
@@ -193,10 +200,13 @@ def main():
             index = json.load(f).get('buildings', {})
     for era in eras:
         for region in regions:
-            export_set(era, region, index)
+            export_set(era, region, index, frontage)
     os.makedirs(OUT, exist_ok=True)
+    kinds = {k: {'tiles': TILES[k]} for k in KINDS}
+    # a frontage kind's frontage and depth in metres (the renderer stands one per run of painted cells)
+    kinds.update({k: {'tiles': 1, 'width': FRONTAGE_WIDTH[k], 'depth': FRONTAGE_DEPTH_M} for k in FRONTAGE})
     with open(index_path, 'w', encoding='utf-8') as f:
-        json.dump({'version': 1, 'tileMetres': 16, 'kinds': {k: {'tiles': TILES[k]} for k in KINDS},
+        json.dump({'version': 1, 'tileMetres': 16, 'kinds': kinds,
                    'buildings': index}, f, ensure_ascii=False, indent=1, sort_keys=True)
     print('Saved: %s' % index_path)
 

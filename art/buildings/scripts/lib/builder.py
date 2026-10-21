@@ -33,6 +33,24 @@ TILES = {k: 1 for k in KINDS}
 TILES.update({'home_5': 2, 'shop_5': 2, 'factory_4': 2})
 TILES.update({k: 3 for k in KINDS[14:]})
 
+# Frontage variants (docs/METRE_DRAWING_PLAN.md 3.3, PLAN.md "Frontage"): a painted plot's building by how many 4 m
+# cells run side by side along its road, a plot (16 m) deep. A shophouse bay (ห้องแถว/ตึกแถว คูหาเดียว) is one cell
+# wide, so a run of cells is a terrace of bays: `one` stands alone (end walls both sides), `left` and `right` end a
+# terrace (an end wall on that side, seen from the street), `mid` and `mid2` are the middle bays, party walls flush at
+# both sides (two of them so a long terrace is not one bay repeated). bay1 is the era's lower row (the lower shop
+# levels), bay2 its taller one. A house of three cells (12 m) is house12_1 (lower levels) or house12_2.
+BAY_M = 4.0
+FRONTAGE_DEPTH_M = 16.0
+BAY_PLACES = ('one', 'left', 'mid', 'mid2', 'right')
+FRONTAGE = tuple('bay%d_%s' % (h, place) for h in (1, 2) for place in BAY_PLACES) + ('house12_1', 'house12_2')
+FRONTAGE_WIDTH = {k: (12.0 if k.startswith('house12') else BAY_M) for k in FRONTAGE}
+
+
+def bay_ends(kind):
+    """(left, right): whether a bay kind has its end wall on its left (-X, seen from the street) and right side."""
+    place = kind.split('_', 1)[1]
+    return place in ('one', 'left'), place in ('one', 'right')
+
 
 class Build:
     def __init__(self, spec, region):
@@ -42,6 +60,10 @@ class Build:
         self.tiles = spec['tiles']
         self.size = self.tiles * TILE_M
         self.half = self.size / 2 - MARGIN
+        # A frontage building is its frontage wide and a plot deep: a bay's party walls lie on its sides (x = ±2 m),
+        # flush with the next bay's, so it keeps no margin there
+        self.width = spec.get('width') or self.size
+        self.depth = FRONTAGE_DEPTH_M if spec.get('width') else self.size
         self.main = Part('building')
         self.props = Part('props')
         self.yard = Part('yard')
@@ -49,13 +71,17 @@ class Build:
     @property
     def rect(self):
         """The whole buildable footprint (x0, y0, x1, y1)."""
+        if self.spec.get('width'):
+            hy = self.depth / 2 - MARGIN
+            return (-self.width / 2, -hy, self.width / 2, hy)
         h = self.half
         return (-h, -h, h, h)
 
     def ground(self, mat='dirt', rect=None, z=0.04):
         """Ground cover over the footprint (or a part of it), a few centimetres high."""
         e = self.size / 2 - 0.05
-        x0, y0, x1, y1 = rect or (-e, -e, e, e)
+        ex, ey = (self.width / 2, self.depth / 2 - 0.05) if self.spec.get('width') else (e, e)
+        x0, y0, x1, y1 = rect or (-ex, -ey, ex, ey)
         kit.block(self.yard, x0, y0, 0.0, x1, y1, z, mat)
         return self
 
@@ -70,12 +96,15 @@ def registry(era):
     items = []
 
     def building(kind, level, th, en):
-        if kind not in KINDS:
-            raise ValueError('Unknown kind %s (builder.KINDS)' % kind)
+        if kind not in KINDS and kind not in FRONTAGE:
+            raise ValueError('Unknown kind %s (builder.KINDS, builder.FRONTAGE)' % kind)
 
         def deco(fn):
-            items.append({'kind_id': 'era%d_%s' % (era, kind), 'era': era, 'kind': kind, 'level': level,
-                          'tiles': TILES[kind], 'th': th, 'en': en, 'build': fn})
+            spec = {'kind_id': 'era%d_%s' % (era, kind), 'era': era, 'kind': kind, 'level': level,
+                    'tiles': TILES.get(kind, 1), 'th': th, 'en': en, 'build': fn}
+            if kind in FRONTAGE:
+                spec['width'] = FRONTAGE_WIDTH[kind]
+            items.append(spec)
             return fn
         return deco
     return items, building
