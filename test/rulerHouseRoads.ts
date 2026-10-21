@@ -5,7 +5,9 @@
 // A new city puts its ruler's house down where the game shows its outline against a road (owner, 22 Oct 2026: "ฉันวาง
 // ที่ว่าการอำเภอไม่ได้"): beside a straight road and beside a slanted one laid a tile at a time, as the laterite road a
 // district's map comes with, whose staircase of tiles pokes past the road as drawn; with trees in the lot. The outline
-// is red, with the reason, exactly where the build command refuses it (CityCommands.quoteBuild).
+// is red, with the reason, exactly where the build command refuses it (CityCommands.quoteBuild). The same for a 3 x 3
+// service, at slants from 11° to 45°, wherever along the road the mouse is: put down, it touches the road and takes
+// none of its tiles.
 
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
@@ -21,13 +23,16 @@ const W = 60, H = 50, M = 16, PER_UNIT = M / 10;
 
 /** A new city on a bare 16 m map grown over with trees, its ruler's house still to build, with roads laid a tile at a
  * time along these tiles (no road graph, as the roads a district's map comes with) */
-function city(roads: Array<[number, number]>) {
+function city(roads: Array<[number, number]>, tool = "ruler_house") {
   const map = (MapGenerator as any).fromPresetCells(W, H, new Uint8Array(W * H));
   Object.assign(map, { tileSizeM: M, paintedZones: true, cellZones: true });
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) map.setTile(x, y, WOODS, BLBNBIT);
-  const core = new CityCore({ map, seed: 3 });
-  core.simulation.budget.setFunds(21000);
-  expect((core.map as any).needsRulerHouse).toBe(true);
+  // (a service in a city whose house stands and which may build anything)
+  const service = tool !== "ruler_house";
+  const core = new CityCore({ map, seed: 3, ...(service ? { sandbox: true } : {}) });
+  core.simulation.budget.setFunds(service ? 1000000 : 21000);
+  if (service) (core.map as any).needsRulerHouse = false;
+  else expect((core.map as any).needsRulerHouse).toBe(true);
   for (const [x, y] of roads) core.apply({ type: "tool", tool: "road", x, y } as any);
   for (const [x, y] of roads) expect(isRoadTile(core.map.getTileValue(x, y))).toBe(true);
   return core;
@@ -53,7 +58,8 @@ function lines(core: CityCore) {
 
 /** Where the game puts a 3 x 3 against a road (src/game.js buildingPose): `along` world units along the line, on the side
  * `side` (1 or -1), as the build command it sends */
-function pose(core: CityCore, line: { points: [number, number][]; level: number }, along: number, side: number) {
+function pose(core: CityCore, line: { points: [number, number][]; level: number }, along: number, side: number,
+  tool = "ruler_house") {
   const map: any = core.map, pts = line.points;
   let walked = 0;
   for (let i = 1; i < pts.length; i++) {
@@ -75,7 +81,7 @@ function pose(core: CityCore, line: { points: [number, number][]; level: number 
       if (clear && beside) { gap += back * 10 / M; break; }
     }
     const x = Math.round((rx + nx * gap) * 100) / 100, z = Math.round((rz + nz * gap) * 100) / 100;
-    return { type: "build", tool: "ruler_house", x: Math.round(x * PER_UNIT * 100) / 100,
+    return { type: "build", tool, x: Math.round(x * PER_UNIT * 100) / 100,
       z: Math.round(z * PER_UNIT * 100) / 100, rot: Math.round(Math.atan2(-nx, -nz) * 1000) / 1000, stroke: 1 };
   }
   throw new Error("no line");
@@ -83,14 +89,15 @@ function pose(core: CityCore, line: { points: [number, number][]; level: number 
 
 /** Every place along the road's middle, five tiles clear of its ends (where one bends into the outline), on both sides:
  * the quote and the build agree, and how many were put down */
-function placeAlong(roads: Array<[number, number]>) {
-  const probe = city(roads), [line] = lines(probe);
+function placeAlong(roads: Array<[number, number]>, tool = "ruler_house") {
+  const probe = city(roads, tool), [line] = lines(probe);
   let length = 0;
   for (let i = 1; i < line.points.length; i++) length += Math.hypot(line.points[i][0] - line.points[i - 1][0], line.points[i][1] - line.points[i - 1][1]);
   let placed = 0, tried = 0;
-  for (let along = 50; along <= length - 50; along += 7) {
+  // (the mouse anywhere along the road, never on the 2 m steps exactly)
+  for (let along = 50; along <= length - 50; along += 6.3) {
     for (const side of [1, -1]) {
-      const core = city(roads), command = pose(core, lines(core)[0], along, side) as any;
+      const core = city(roads, tool), command = pose(core, lines(core)[0], along, side, tool) as any;
       const quote = core.commands.quoteBuild(command);
       const out = core.apply(command);
       tried++;
@@ -98,7 +105,14 @@ function placeAlong(roads: Array<[number, number]>) {
       expect([command, quote?.reason ?? null]).toEqual([command, out.accepted ? null : out.reason]);
       if (out.accepted && out.toolResult === 0) {
         placed++;
-        expect((core.map as any).rulerHouse).not.toBeNull();
+        if (tool === "ruler_house") expect((core.map as any).rulerHouse).not.toBeNull();
+        // every road tile is still a road, and the tiles it took touch one
+        const map: any = core.map, road = new Set(roads.map(([x, y]) => y * W + x)), taken: number[] = [];
+        for (const i of road) expect([i, isRoadTile(map.getTileValue(i % W, Math.floor(i / W)))]).toEqual([i, true]);
+        for (let i = 0; i < W * H; i++) if (!road.has(i) && map.getTileValue(i % W, Math.floor(i / W)) !== WOODS) taken.push(i);
+        // (turned, the tiles of its outline but those the road holds at its edge: src/buildings/turnedFootprint.ts)
+        expect(taken.length).toBeGreaterThanOrEqual(5);
+        expect(taken.some((i) => [1, -1, W, -W].some((d) => road.has(i + d)))).toBe(true);
       }
     }
   }
@@ -118,6 +132,16 @@ describe("a new city's ruler's house", () => {
     for (const run of [2, 3]) {
       const { placed, tried } = placeAlong(staircase(5, 8, 40, run));
       expect([run, placed]).toEqual([run, tried]);
+    }
+  });
+
+  test("and a 3 x 3 service are put down turned beside roads at slants from 11° to 45°", () => {
+    // (the house at 27° and 18° above)
+    for (const tool of ["ruler_house", "police"]) {
+      for (const run of tool === "police" ? [1, 2, 3, 5] : [1, 5]) {
+        const { placed, tried } = placeAlong(staircase(5, 8, 40, run), tool);
+        expect([tool, run, placed]).toEqual([tool, run, tried]);
+      }
     }
   });
 
