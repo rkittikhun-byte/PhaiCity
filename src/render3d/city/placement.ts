@@ -18,7 +18,7 @@ export interface PlacementFields {
   scale: number; powered: boolean;
   baseY?: number; outside?: boolean; fill?: number;
   /** The share of its model's size it is drawn at on a real-scale city map, where its id's (tileModels.ts
-   * CITY_MODEL_SCALE) does not fit: a power plant on a 3 × 3 or a 2 × 2 (tileModels.ts plantShare) */
+   * CITY_MODEL_SCALE) does not fit: a power plant on a 3 × 3 or a 2 × 2 (tileModels.ts PLANT_SHARE) */
   share?: number;
   /** Drawn by the program's model whatever its era: a 2 × 2 power plant, which no era model fits (src/plantBlocks.ts) */
   procedural?: boolean;

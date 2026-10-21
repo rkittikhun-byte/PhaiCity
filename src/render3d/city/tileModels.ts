@@ -135,14 +135,16 @@ const CITY_MODEL_SCALE: Readonly<Record<string, number>> = {
 /** The nearest point of a road's middle line, the way it runs there and how far the road reaches either side */
 export type RoadNear = { x: number; z: number; tx: number; tz: number; reach: number };
 
-/** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at fill (default BUILDING_SCALE):
- * its middle and its turn, its front to the road */
-/** On a city map, the share of its size the program's model of a plant on a 3 × 3 or a 2 × 2 is drawn at, made n/4 as
- * big first (src/plantBlocks.ts): it fills its block, half a metre clear of the block's edge all round (a 16 m tile of
- * a 10-unit one, the model 39 units on four) */
-export const plantShare = (n: number): number => (n * 16 - 1) / (9.75 * n);
+/** How big the program's model of a plant on a 3 × 3 or a 2 × 2 is drawn (src/plantBlocks.ts): made for the old 4 × 4
+ * (39 units), it is drawn as every building of n tiles is, 10 units a tile less half a unit clear of its edge all round */
+export const plantScale = (n: number): number => (n * 10 - 1) / 39;
+/** ... and on a city map it fills its 16 m tiles as it fills the 10-unit ones, not at the share the old block drew it at
+ * (CITY_MODEL_SCALE) */
+export const PLANT_SHARE = 16 / 10;
 /** The share of its model's size a placement is drawn at on a city map: its own, or its id's (CITY_MODEL_SCALE) */
 export const shareOf = (p: Placement): number => p.share ?? (p.id ? CITY_MODEL_SCALE[p.id] ?? 1 : 1);
+/** Where a building of size tiles whose tiles' middle is (x, z) stands against that road, drawn at fill (default BUILDING_SCALE):
+ * its middle and its turn, its front to the road */
 export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNear, fill = BUILDING_SCALE): { x: number; z: number; rotation: number } {
   const half = size * 5 * fill;
   let nx = -near.tz, nz = near.tx;
@@ -490,12 +492,12 @@ export class TileSnapshot implements CityMapReader {
     const colors:Record<string,number>={lignite:0xa2b8b4,solar:0x365b8c,wind:0xdbe3e6,gas:0xb5bfc4,hydro:0x7ea1b5};
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,rotation=FACING_ROTATION[this.roadSide(x,y,n)];
     const cx=(x-1+n/2)*10,cz=(y-1+n/2)*10;
-    // The program's models are made for the old 4 × 4: on a smaller block it is drawn n/4 as big, and on a city map filling
-    // its block (PLANT_SHARE), not at the share the old block drew it at (CITY_MODEL_SCALE)
+    // The program's models are made for the old 4 × 4: on a smaller block it is drawn to fill it (plantScale), and on a
+    // city map its 16 m tiles (PLANT_SHARE)
     const p=new Placement({index:i,x:cx,z:cz,id,kind:'services',footprint:[n,n],height:(heights[pk]??(pk==='nuclear'?55:30))*n/4,
-      color:colors[pk]??0xa2b8b4,water:false,rotation,scale:n/4,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,
+      color:colors[pk]??0xa2b8b4,water:false,rotation,scale:n<4?plantScale(n):1,powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,
         seed:hash%SEED_BUCKETS,variant:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
-    if(n<4){p.share=plantShare(n);if(n===2)p.procedural=true;}
+    if(n<4){p.share=PLANT_SHARE;if(n===2)p.procedural=true;}
     return p;
   }
   /** A school or hospital on the civic 3 × 3 (RENDERER_SPEC 6H): `civic.<kind>` from civicKinds once that model is registered, its

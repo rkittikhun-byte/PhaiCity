@@ -10,7 +10,7 @@ import { Box3, Vector3 } from 'three';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { EraModels, eraKindFor, type EraIndex } from '../../src/render3d/city/eraBuildings.js';
-import { plantShare, TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { PLANT_SHARE, plantScale, TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { disposeModel } from '../../src/render3d/util/geometry.js';
 import { NUCLEAR_KIND, plantBlockSize } from '../../src/plantBlocks.js';
@@ -83,7 +83,9 @@ describe('sized power plants in the city view', () => {
     const p = city(2, 'gas', 4, true).placement(CENTRE, 'central')!;
     expect(p.id).toBe('power.gas');
     expect(p.procedural).toBe(true);
-    expect(plantShare(2)).toBeCloseTo(31 / 19.5, 5);
+    // 10 units a tile less half a unit clear, as ไม้ไผ่26's road edge reads every building's front (tileModels.ts frontOf)
+    expect(plantScale(2) * 39 / 2).toBeCloseTo(2 * 5 - 0.5, 5);
+    expect(PLANT_SHARE).toBe(1.6);
   });
 
   it('draws a 2 x 2 site while a 2 x 2 plant is being built', () => {
