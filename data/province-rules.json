@@ -1,9 +1,10 @@
 {
-  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when only rain or a storm fills the ground, a little) is 0-0.9. weather (src/weather.ts) lists twelve numbers 0-1 for each month, January first: rain, the chance the month is wet; storm, the share of wet months that are storms (heavy rain); fog, the share of dry months that are foggy; smoke, the haze of burning fields and forests; and flood, the chance a storm month floods low land beside the water (only while disasters are on). festivals (src/festivals.ts) adds a region's or province's festivals to the country's own (New Year, Songkran, Loy Krathong), by id, each with its month 1-12 and any of its numbers to change (draw, homecoming, waterUse, and pairs for modest and grand: cost, land, fire, rubbish, dirt; cheer has not held, modest, grand); null takes one away. Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
+  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when only rain or a storm fills the ground, a little) is 0-0.9. weather (src/weather.ts) lists twelve numbers 0-1 for each month, January first: rain, the chance the month is wet; storm, the share of wet months that are storms (heavy rain); fog, the share of dry months that are foggy; smoke, the haze of burning fields and forests; and flood, the chance a storm month floods low land beside the water (only while disasters are on). festivals (src/festivals.ts) adds a region's or province's festivals to the country's own (New Year, Songkran, Loy Krathong), by id, each with its month 1-12 and any of its numbers to change (draw, homecoming, waterUse, and pairs for modest and grand: cost, land, fire, rubbish, dirt; cheer has not held, modest, grand); null takes one away. farmZone (src/farmZone.ts, docs/GAME_DESIGN.md section 7) changes any of the farm zone's numbers (price a tile, reach in tiles, eraTop, feeds, exportPerLevel, the land's choice of kind, dryYield, dryDraw, hubReach, hubBonus, landValue, visitors, haze, factoriesPerLevel) and, under kinds, any of a paddy's, field's, orchard's or pond's (sale, jobs, draw, chemicals, burns, mud, ground). Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
   "version": 1,
   "regions": {
     "north": {
       "_note": "Tourism: shops are wanted. Thick forest: clearing woods costs more. Yi Peng's sky lanterns rise with Loy Krathong.",
+      "farmZone": { "_note": "Maize on the hills, burned before the rains: more haze", "kinds": { "field": { "sale": 0.06 } }, "haze": 40 },
       "demand": { "commercial": 1.4 },
       "clearWoodsCost": 5,
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 },
@@ -18,6 +19,7 @@
     },
     "northeast": {
       "_note": "Cheap land and farm industry. Droughts: a long dry season for the water works, fires in the hot season. Bun Bang Fai's rockets ask the sky for the rains in May.",
+      "farmZone": { "_note": "Jasmine rice on the low land, cassava and cane on the dry uplands", "kinds": { "paddy": { "sale": 0.07 }, "field": { "sale": 0.06 } }, "orchardGround": 0.4 },
       "cost": { "residential": 0.6, "commercial": 0.6, "industrial": 0.6 },
       "demand": { "industrial": 1.3 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.4 },
@@ -33,6 +35,7 @@
     },
     "central": {
       "_note": "Trade: shops are wanted. Floods in the rainy season.",
+      "farmZone": { "_note": "Irrigated paddies, two crops a year: the dry season takes less", "kinds": { "paddy": { "sale": 0.08 } }, "dryYield": 0.7 },
       "demand": { "commercial": 1.4 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
       "weather": {
@@ -46,6 +49,7 @@
     },
     "east": {
       "_note": "Industry and seaports. High pollution.",
+      "farmZone": { "_note": "Durian and rambutan orchards", "kinds": { "orchard": { "sale": 0.12 } } },
       "demand": { "industrial": 1.4 },
       "cost": { "port": 0.5 },
       "industryPollution": 1.5,
@@ -60,6 +64,7 @@
     },
     "west": {
       "_note": "Hydropower: power plants give more. Little flat land: roads and rail cost more.",
+      "farmZone": { "_note": "Sugar cane and cassava", "kinds": { "field": { "sale": 0.06 } } },
       "powerPlantOutput": 1.5,
       "cost": { "road": 1.5, "rail": 1.5 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
@@ -73,6 +78,7 @@
     },
     "south": {
       "_note": "Tourism and seaports. Storms at the end of the year. The vegetarian festival in October.",
+      "farmZone": { "_note": "Rubber and oil palm, shrimp ponds by the coast", "kinds": { "orchard": { "sale": 0.1 }, "pond": { "sale": 0.12 }, "paddy": { "sale": 0.05 } } },
       "demand": { "commercial": 1.3 },
       "cost": { "port": 0.5 },
       "drought": { "months": [2, 3, 4], "share": 0.15 },

@@ -448,3 +448,27 @@ export function farmKindsKept(map: FieldMap): Uint8Array | null {
   }
   return any ? kept : null;
 }
+
+// --- The 3 × 3 farm building: the fields' cooperative, rice mill or cold store (docs/GAME_DESIGN.md 7.3) ---------------
+
+/** What a 3 × 3 farm building is, by the fields round it: a rice mill among paddies, a cold store among orchards and
+ * ponds, a cooperative among crop fields or with no fields near (as every farm of a city saved before the farm zone) */
+export const HUB_KINDS = ["cooperative", "rice_mill", "cold_store"] as const;
+export type HubKind = typeof HUB_KINDS[number];
+const HUB_OF: Readonly<Record<FarmKind, HubKind>> = { paddy: "rice_mill", field: "cooperative", orchard: "cold_store", pond: "cold_store" };
+
+/** The kind of the 3 × 3 farm building centred on (x, y): the most grown fields' within reach tiles of it */
+export function hubKind(map: FieldMap, x: number, y: number, reach: number = FARM_ZONE.hubReach): HubKind {
+  const levels: Record<HubKind, number> = { cooperative: 0, rice_mill: 0, cold_store: 0 };
+  const kinds = map.farmKinds;
+  if (!kinds) return "cooperative";
+  for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+    const tx = x + dx, ty = y + dy;
+    if (!inside(map, tx, ty)) continue;
+    const level = fieldLevelOf(map.getTileValue(tx, ty)), kind = kindOfCode(kinds[ty * map.width + tx]);
+    if (level > 0 && kind) levels[HUB_OF[kind]] += level;
+  }
+  let best: HubKind = "cooperative";
+  for (const kind of HUB_KINDS) if (levels[kind] > levels[best]) best = kind;
+  return best;
+}

@@ -11,9 +11,12 @@ import { CityCommands } from "../src/cityCommands";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
 import { drawModeOf, isFarmTool, isPaintTool, showsZoneGrid } from "../src/drawModes";
 import {
-  FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, fieldFillRegion, fieldLevelOf, fieldOutcome, fieldTile, FIELD_FLAGS,
+  FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, fieldFillRegion, hubKind, fieldLevelOf, fieldOutcome, fieldTile, FIELD_FLAGS,
   isFieldValue, kindCode, pickKind, wayField, wayToRoad,
 } from "../src/farmZone";
+import * as fs from "fs";
+import * as path from "path";
+import { Farming } from "../src/farming";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
@@ -292,5 +295,40 @@ describe("the fields in the city", () => {
       expect(map.farmKinds[field.index]).toBeGreaterThan(0);
       expect(field.level).toBeLessThanOrEqual(FARM_ZONE.eraTop[0]);
     }
+  });
+});
+
+describe("the 3 × 3 farm building", () => {
+  test("is a rice mill among paddies, a cold store among orchards and ponds, a cooperative among fields or alone", () => {
+    const { map } = city();
+    expect(hubKind(map, 20, 20)).toBe("cooperative");
+    map.farmKinds = new Uint8Array(map.width * map.height);
+    const grow = (x: number, y: number, level: number, kind: any) => {
+      map.setTile(x, y, fieldTile(level), FIELD_FLAGS);
+      map.farmKinds[y * map.width + x] = kindCode(kind);
+    };
+    grow(22, 20, 2, "paddy");
+    expect(hubKind(map, 20, 20)).toBe("rice_mill");
+    grow(23, 20, 2, "orchard");
+    grow(24, 20, 1, "pond");
+    expect(hubKind(map, 20, 20)).toBe("cold_store");
+    // ... fields beyond its reach do not count
+    grow(20 + FARM_ZONE.hubReach + 1, 20, 5, "field");
+    expect(hubKind(map, 20, 20)).toBe("cold_store");
+    for (const key of ["farm.hub.cooperative", "farm.hub.rice_mill", "farm.hub.cold_store"]) expect(hasKey(key)).toBe(true);
+  });
+
+  test("a farm of a city saved before the farm zone still sells its own crop", () => {
+    const farming = new Farming(20, 20, { farmland: 3 });
+    farming.farms = [{ x: 10, y: 10 }];
+    expect(farming.month(6, [], null, null, () => 0).income).toBeGreaterThan(0);
+  });
+
+  test("the regions' farm zones in the rules file are all valid", () => {
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data", "province-rules.json"), "utf8"));
+    const { data, problems } = checkRulesData(raw);
+    expect(problems).toEqual([]);
+    expect(resolveRules(data, "northeast", "TH-40").farmZone.kinds.paddy.sale).toBe(0.07);
+    expect(resolveRules(data, "south", null).farmZone.kinds.pond.sale).toBe(0.12);
   });
 });
