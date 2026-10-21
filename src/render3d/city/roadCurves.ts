@@ -606,7 +606,8 @@ export class RoadCurves {
       const p = this.snapshot.placement(i, 'central');
       if (!p || !p.posed || ['residential', 'commercial', 'industrial'].includes(p.kind)) continue;
       const size = Math.max(p.footprint[0], p.footprint[1]);
-      if (size < 3) continue;
+      // (from a 2 × 2 up: the 2 × 2 power plant, src/plantBlocks.ts)
+      if (size < 2) continue;
       const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
       // As big as what is built on it and no more (owner, 21 Oct 2026: "พื้นที่รอบข้าง object มันเกินที่ๆ กำหนดหรือป่าว ต้องย่อให้
       // เท่าๆ กับที่สร้างได้พอดี"; it once reached over every tile the building takes, squared to the map, and from there to

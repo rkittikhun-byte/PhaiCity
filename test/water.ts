@@ -330,7 +330,7 @@ describe("the water supply in the simulation", () => {
       tools[tool].doTool(x, y, sim.blockMaps);
       expect(tools[tool].modifyIfEnoughFunding(sim.budget)).toBe(true);
     };
-    build("coal", 11, 11); // the plant on 10..13
+    build("coal", 12, 11); // a village's 3 x 3 on 11..13 (src/plantBlocks.ts)
     build("waterworks", 15, 11); // touching the plant, so powered
     for (let x = 14; x < 40; x++) build("road", x, 13); // touches the works' bottom side
     for (let k = 0; k < 6; k++) build("residential", 18 + 3 * k, 15);

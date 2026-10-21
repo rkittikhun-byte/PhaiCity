@@ -113,7 +113,9 @@ function gapToRoad(p: Placement, r: ReturnType<typeof road>, front = frontOf(p))
 }
 
 const KINDS: [string, number][] = [['ruler_house', 3], ['primary_school', 3], ['health_centre', 3], ['police', 3], ['fire', 3],
-  ['waterworks', 3], ['coal', 4], ['landfill', 3], ['incinerator', 3]];
+  // (a power plant takes only the tiles its model covers: an era-2 lignite plant a 3 x 3, a solar farm a 2 x 2,
+  // src/plantBlocks.ts)
+  ['waterworks', 3], ['coal', 3], ['solar', 2], ['landfill', 3], ['incinerator', 3]];
 
 describe('buildings against their road', () => {
   jest.setTimeout(120000);

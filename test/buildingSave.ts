@@ -44,8 +44,9 @@ describe("buildings kept in saves", () => {
       // The police station still where it was put down
       ["police", 330.4, 251.7, 0.5, at(20, 15), "", 2],
       ["fire_post", 25 * 16 + 8, 20 * 16 + 8, null, at(25, 20), "", 1],
-      // The gas plant at its block's middle, not yet turned (the view stands it against its road)
-      ["gas", 41 * 16, 11 * 16, null, at(40, 10), "gas", 0],
+      // The gas plant at its block's middle, not yet turned (the view stands it against its road): an early era's
+      // gas plant takes a 2 x 2, 39..40 x 9..10 (src/plantBlocks.ts)
+      ["gas", 40 * 16, 10 * 16, null, at(40, 10), "gas", 0],
       ["kindergarten", 100, 304, 1.2, at(10, 30), "kindergarten", 0],
     ]));
     expect(rows).toHaveLength(4);
@@ -79,7 +80,7 @@ describe("buildings kept in saves", () => {
     const again = reopen(saved);
     const got = placed(again).all().map((b) => [b.tool, b.x, b.z, b.rot, b.size, b.tile]);
     expect(got).toEqual(expect.arrayContaining([
-      ["gas", 656, 176, null, 4, at(40, 10)],
+      ["gas", 640, 160, null, 2, at(40, 10)],
       ["landfill", 112, 312, 0.3, 3, at(10, 30)],
       ["fire_post", 25 * 16 + 8, 30 * 16 + 8, null, 3, at(25, 30)],
     ]));

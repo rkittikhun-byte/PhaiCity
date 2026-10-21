@@ -17,6 +17,7 @@ import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 
 import { ZoneUtils } from './zoneUtils.js';
+import { bodyMeets, inFamily, laidOutline, turnedOwnerAt, turnedTilesOf } from './buildings/turnedFootprint.ts';
 
 // PhaiCity: cost and level for the road levels (src/roadLevels.ts); the old road is laterite at ฿10 a tile
 var RoadTool = ConnectingTool(function(map, cost, level) {
@@ -35,6 +36,31 @@ RoadTool.prototype.clearRightOfWay = function(x, y) {
       (v >= TileValues.HBRIDGE && v <= TileValues.LASTROAD) ||
       (v >= TileValues.HPOWER && v <= TileValues.LASTRAIL))
     return;
+
+  // PhaiCity: a tile of a building turned to a slanted road (src/buildings/turnedFootprint.ts). A road whose body stays
+  // outside the building's outline (its fence) only runs through the tile at its edge, which the building gives up; one
+  // that comes inside meets the building as a road meets a square one: the ruler's house stands, the rest is cleared
+  var owner = turnedOwnerAt(this._map, x, y);
+  if (owner) {
+    var centreX = owner.b.tile % this._map.width, centreY = Math.floor(owner.b.tile / this._map.width);
+    var centreValue = this._worldEffects.getTileValue(centreX, centreY);
+    var own = owner.b.tile === y * this._map.width + x || inFamily(v, centreValue, owner.b.size);
+    if (own) {
+      if (this.lineBody && owner.b.tile !== y * this._map.width + x && !bodyMeets(owner.outline, this.lineBody)) {
+        this._worldEffects.setTile(x, y, TileValues.DIRT);
+        this.addBulldozeCost(v, 1);
+        return;
+      }
+      var house = this._map.rulerHouse;
+      if (house && house.x === centreX && house.y === centreY)
+        return;
+      var tiles = turnedTilesOf(this._map, owner.b.tile, centreValue) || [];
+      for (var n = 0; n < tiles.length; n++)
+        this._worldEffects.setTile(tiles[n] % this._map.width, Math.floor(tiles[n] / this._map.width), TileValues.DIRT);
+      this.addBulldozeCost(v, this.bulldozerCost);
+      return;
+    }
+  }
 
   // Find if (x, y) is part of a multi-tile zone (3×3, 4×4, or 6×6) by checking the centre tile or nearby centre tiles
   var cx = -1, cy = -1, zSize = 0;
@@ -57,6 +83,9 @@ RoadTool.prototype.clearRightOfWay = function(x, y) {
           var nt = this._worldEffects.getTile(nx, ny);
           if (!nt.isZone()) continue;
           var nv = nt.getValue();
+          // (a turned building's tiles are its outline's, found above, not the square round its centre)
+          var placed = this._map.buildings && this._map.buildings.atTile(ny * this._map.width + nx);
+          if (placed && laidOutline(this._map, placed)) continue;
           var s = ZoneUtils.checkZoneSize(nv) || ZoneUtils.checkBigZone(nv).zoneSize;
           if (s >= 3 && x >= nx - 1 && x < nx - 1 + s && y >= ny - 1 && y < ny - 1 + s) {
             cx = nx; cy = ny; zSize = s;

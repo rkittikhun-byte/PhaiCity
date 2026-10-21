@@ -79,7 +79,8 @@ describe("zone cells", () => {
     Random.seed(4);
     const core = city();
     // A power plant beside the road: power runs along it to the plots (src/powerManager.js)
-    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 7 }).accepted).toBe(true);
+    // (a village's 3 x 3 on rows 7..9, beside the road on row 10: src/plantBlocks.ts)
+    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 8 }).accepted).toBe(true);
     // Homes along the road's south side, tiles 10..30 (x 100..310), rows 11..13 (z 110..140)
     const layout = cellsOf(core.map);
     const keys = layout.cells.filter(c => c.x > 100 && c.x < 310 && c.z > 106 && c.z < 140).map(c => c.key);
@@ -123,7 +124,7 @@ describe("zone cells", () => {
     };
     // No power plant yet: every home says so
     expect([...whys()]).toEqual(["power"]);
-    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 7 }).accepted).toBe(true);
+    expect(core.apply({ type: "tool", tool: "coal" as any, x: 45, y: 8 }).accepted).toBe(true);
     core.run(16 * 8);
     expect(whys().has("power")).toBe(false);
     // ... and the level checklist (src/plotChecklist.ts) names each reason in both languages

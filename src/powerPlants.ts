@@ -118,10 +118,11 @@ export function powerKindAt(kinds: Readonly<Record<string, string>> | null | und
   return (POWER_KINDS as readonly string[]).includes(kind ?? "") ? kind as PowerKind : "lignite";
 }
 
-/** Whether a 4 × 4 plant centred on (x, y), the game's way (its top left at x − 1, y − 1), has water beside it. */
-export function besideWater(x: number, y: number, isWater: (x: number, y: number) => boolean): boolean {
-  for (let k = -1; k <= 2; k++) {
-    if (isWater(x + k, y - 2) || isWater(x + k, y + 3) || isWater(x - 2, y + k) || isWater(x + 3, y + k)) return true;
+/** Whether a plant of `size` tiles (4 × 4 before src/plantBlocks.ts) centred on (x, y), the game's way (its top left at
+ * x − 1, y − 1), has water beside it. */
+export function besideWater(x: number, y: number, isWater: (x: number, y: number) => boolean, size = 4): boolean {
+  for (let k = -1; k <= size - 2; k++) {
+    if (isWater(x + k, y - 2) || isWater(x + k, y + size - 1) || isWater(x - 2, y + k) || isWater(x + size - 1, y + k)) return true;
   }
   return false;
 }

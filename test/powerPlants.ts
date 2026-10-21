@@ -16,7 +16,7 @@ import {
 } from "../src/powerPlants";
 import { BASE_PRICES } from "../src/provinceRules";
 import { Simulation } from "../src/simulation.js";
-import { POWERPLANT, RIVER } from "../src/tileValues";
+import { PLANT2, RIVER } from "../src/tileValues";
 
 const JANUARY = 0;
 const APRIL = 3;
@@ -110,7 +110,8 @@ describe("power plants in the city", () => {
     for (let x = 5; x < 20; x++) wet.map.setTile(x, 8, RIVER, 0); // a river along the row above it
     const built = wet.commands.apply({ type: "tool", tool: "hydro", x: 10, y: 10 });
     expect([built.accepted, built.toolResult]).toEqual([true, 0]);
-    expect(wet.map.getTileValue(10, 10)).toBe(POWERPLANT);
+    // (a dam takes a 2 x 2, src/plantBlocks.ts)
+    expect(wet.map.getTileValue(10, 10)).toBe(PLANT2);
     expect(wet.map.powerKinds[10 * 64 + 10]).toBe("hydro");
     void map;
   });

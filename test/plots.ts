@@ -171,7 +171,7 @@ describe("painted zones", () => {
     Random.seed(7);
     const { map, sim, commands } = city();
     commands.apply({ type: "setting", setting: "autoBudget", on: true });
-    commands.apply({ type: "tool", tool: "coal", x: 3, y: 3 }); // x 2..5, y 2..5
+    commands.apply({ type: "tool", tool: "coal", x: 4, y: 4 }); // a village's 3 x 3, x 3..5, y 3..5 (src/plantBlocks.ts)
     commands.apply({ type: "tool", tool: "wire", x: 6, y: ROAD_Y }); // power across the road
     let stroke = 10;
     for (let x = 6; x <= 30; x++) {

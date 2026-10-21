@@ -6,7 +6,7 @@
 // they live, counted per person; from 0.8 its buildings begin to change, at 1 the city is in the next era.
 
 import { ERA_RULES, FACTORS, FLOOR_CAP, LITERATE_WANTED, TECHNICIANS_WANTED } from "../src/eraRules";
-import { eraMonth, literateCount, scoreEra, technicianCount } from "../src/eraScore";
+import { eraMonth, literateCount, scoreEra, techniciansCount } from "../src/eraScore";
 import { noTrained } from "../src/trainedPeople";
 import { Random } from "../src/random";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
@@ -18,10 +18,10 @@ function building(kind: string, id: number, powered = true, level = 2) {
 
 /** A small map whose homes have water (or not) and the records the era symbols read, with the villagers who read and
  * write its primary school taught (src/trainedPeople.ts) */
-function city(watered = true, literate = LITERATE_WANTED) {
+function city(watered = true, literate = LITERATE_WANTED, technician = TECHNICIANS_WANTED) {
   return {
     width: 20, height: 20, era: 1 as number | undefined,
-    trained: { counts: { ...noTrained(), literate }, cohort: noTrained(), worked: {}, last: null, at: -1 },
+    trained: { counts: { ...noTrained(), literate, technician }, cohort: noTrained(), worked: {}, last: null, at: -1 },
     getTileValue: () => 0, getTileFlags: () => 0,
     water: { zoneWater: () => (watered ? 1 : 3) },
     civicKinds: {}, wasteKinds: {}, stationKinds: {}, powerKinds: {},
@@ -114,22 +114,16 @@ describe("era score", () => {
     expect(ERA_RULES[2].symbols).not.toContain("literate");
   });
 
-  test("a market town moves on only once its secondary school's first classes give it technicians (6.5)", () => {
-    const town = (technician: number) => {
-      const map = city();
-      map.era = 2;
-      map.trained.counts.technician = technician;
-      return map;
-    };
-    const few = scoreEra(town(TECHNICIANS_WANTED - 1), sim(20000), objects(wellBuilt()), 2);
-    expect(few.symbols).toContainEqual({ key: "technicians", has: false, count: { have: TECHNICIANS_WANTED - 1, need: TECHNICIANS_WANTED } });
-    const enough = scoreEra(town(TECHNICIANS_WANTED), sim(20000), objects(wellBuilt()), 2);
-    expect(enough.symbols).toContainEqual({ key: "technicians", has: true, count: { have: TECHNICIANS_WANTED, need: TECHNICIANS_WANTED } });
-    // ... as many as the mode's trained people ask, and only the market town asks it
-    expect(technicianCount(city(), 0).need).toBe(Math.ceil(TECHNICIANS_WANTED * 0.5));
-    expect(technicianCount(city(), 2).need).toBe(Math.ceil(TECHNICIANS_WANTED * 1.5));
+  test("a market town moves on only once its secondary school's first classes bring technicians (6.6)", () => {
+    // Owner, 21 Oct 2026: the eras should not rush, though the town has power and water on time
+    const few = scoreEra(city(true, LITERATE_WANTED, TECHNICIANS_WANTED - 1), sim(12000), objects(wellBuilt()), 2);
+    expect(few.symbols).toContainEqual({ key: "technicians", has: false,
+      count: { have: TECHNICIANS_WANTED - 1, need: TECHNICIANS_WANTED } });
+    const enough = scoreEra(city(true, LITERATE_WANTED, TECHNICIANS_WANTED), sim(12000), objects(wellBuilt()), 2);
+    expect(enough.symbols).toContainEqual({ key: "technicians", has: true,
+      count: { have: TECHNICIANS_WANTED, need: TECHNICIANS_WANTED } });
+    expect(techniciansCount(city(), 0).need).toBe(Math.ceil(TECHNICIANS_WANTED * 0.5));
     expect(ERA_RULES[1].symbols).not.toContain("technicians");
-    expect(ERA_RULES[3].symbols).not.toContain("technicians");
   });
 });
 

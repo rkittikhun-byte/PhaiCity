@@ -71,7 +71,7 @@ describe("schools and hospitals", () => {
 
   test("give places with power, which become the city's levels, and cost their upkeep", () => {
     const { map, sim, tool } = city();
-    tool("coal", 10, 10);
+    tool("coal", 11, 10); // a village's 3 x 3 on 10..12 (src/plantBlocks.ts)
     tool("primary_school", 14, 10);
     tool("health_centre", 50, 30); // no power out there
     // The power scan comes every fifth cycle at this speed

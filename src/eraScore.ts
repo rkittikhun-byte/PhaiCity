@@ -15,8 +15,7 @@
 import { type Era, isEra, mapEra } from "./era.js";
 import {
   ADVANCE_CHANCE, CLEAN_SHARE, ERA_RULES, FACTORS, type Factor, FLOOR_CAP, FLOORS, LITERATE_WANTED, PAVED_SHARE,
-  TECHNICIANS_WANTED,
-  RENOVATE_CHANCE, SCORE_MONTHS, SHOPS_WANTED, type SymbolKey, TRANSITION_START,
+  RENOVATE_CHANCE, SCORE_MONTHS, SHOPS_WANTED, type SymbolKey, TECHNICIANS_WANTED, TRANSITION_START,
 } from "./eraRules.js";
 import { trainedOf } from "./trainedPeople.js";
 import type { Building } from "./objects/cityObject.js";
@@ -83,15 +82,15 @@ export function literateCount(map: Legacy, level: unknown): { have: number; need
   return { have: trainedOf(map).literate, need: Math.ceil(LITERATE_WANTED * modeRule(level).trained) };
 }
 
-/** The technicians the technicians symbol wants in a mode, and the city has */
-export function technicianCount(map: Legacy, level: unknown): { have: number; need: number } {
+/** ... and the technicians the technicians symbol wants */
+export function techniciansCount(map: Legacy, level: unknown): { have: number; need: number } {
   return { have: trainedOf(map).technician, need: Math.ceil(TECHNICIANS_WANTED * modeRule(level).trained) };
 }
 
 /** An era symbol: whether the city has what it asks, and for one that counts, how many */
 function symbolOf(key: SymbolKey, map: Legacy, sim: Legacy, objects: Objects): EraSymbol {
   if (key === "literate" || key === "technicians") {
-    const count = (key === "literate" ? literateCount : technicianCount)(map, sim._gameLevel);
+    const count = (key === "literate" ? literateCount : techniciansCount)(map, sim._gameLevel);
     return { key, has: count.have >= count.need, count };
   }
   return { key, has: hasSymbol(key, map, objects) };

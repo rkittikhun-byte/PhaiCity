@@ -55,6 +55,19 @@ var checkBigZone = function(tileValue) {
       result = {zoneSize: 6, deltaX: 0, deltaY: 0};
       break;
 
+    // PhaiCity: a 2x2 power plant's other tiles, its centre being its bottom right (src/plantBlocks.ts)
+    case TileValues.PLANT2_BASE:
+      result = {zoneSize: 2, deltaX: 1, deltaY: 1};
+      break;
+
+    case TileValues.PLANT2_BASE + 1:
+      result = {zoneSize: 2, deltaX: 0, deltaY: 1};
+      break;
+
+    case TileValues.PLANT2_BASE + 2:
+      result = {zoneSize: 2, deltaX: 1, deltaY: 0};
+      break;
+
     case TileValues.AIRPORT + 1:
       result = {zoneSize: 6, deltaX: -1, deltaY: 0};
       break;
@@ -125,6 +138,12 @@ var checkBigZone = function(tileValue) {
 
 
 var checkZoneSize = function(tileValue) {
+  // PhaiCity: the power plants that take only the tiles their model covers (src/plantBlocks.ts)
+  if (tileValue >= TileValues.PLANT2_BASE && tileValue <= TileValues.PLANT2_LAST)
+    return 2;
+  if (tileValue >= TileValues.PLANT3_BASE && tileValue <= TileValues.PLANT3_LAST)
+    return 3;
+
   if ((tileValue >= TileValues.RESBASE - 1        && tileValue <= TileValues.PORTBASE - 1) ||
       (tileValue >= TileValues.LASTPOWERPLANT + 1 && tileValue <= TileValues.POLICESTATION + 4) ||
       (tileValue >= TileValues.CHURCH1BASE && tileValue <= TileValues.CHURCH7LAST)) {

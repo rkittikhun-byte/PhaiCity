@@ -12,7 +12,8 @@
  */
 
 import { BURNBIT, CONDBIT } from "./tileFlags.ts";
-import { RUBBLE, ROADBASE } from "./tileValues.ts";
+import { DIRT, RUBBLE, ROADBASE } from "./tileValues.ts";
+import { familyValue, inFamily, laidOutline, outlineTiles } from "./buildings/turnedFootprint.ts";
 
 function RepairManager(map) {
   this._map = map;
@@ -32,6 +33,21 @@ RepairManager.prototype.addAction = function(criterion, period, zoneSize) {
 
 RepairManager.prototype.repairZone = function(x, y, zoneSize) {
   var centre = this._map.getTileValue(x, y);
+  // PhaiCity: a building turned to a slanted road mends the tiles of its turned outline that are bare or its own, never
+  // one a road or anything else took (src/buildings/turnedFootprint.ts)
+  var placed = this._map.buildings && this._map.buildings.atTile(y * this._map.width + x);
+  var outline = placed ? laidOutline(this._map, placed) : null;
+  if (outline) {
+    outlineTiles(outline, this._map.width, this._map.height, this._map.tileSizeM || 16).forEach(function(i) {
+      var tx = i % this._map.width, ty = Math.floor(i / this._map.width), tile = this._map.getTile(tx, ty);
+      if (tile.isZone() || tile.isAnimated())
+        return;
+      var value = tile.getValue();
+      if (value === DIRT || inFamily(value, centre, zoneSize))
+        this._map.setTile(tx, ty, familyValue(centre, zoneSize, tx - x, ty - y), CONDBIT | BURNBIT);
+    }, this);
+    return;
+  }
   var tileValue = centre - zoneSize - 2;
 
   for (var yy = -1; yy < zoneSize - 1; yy++) {

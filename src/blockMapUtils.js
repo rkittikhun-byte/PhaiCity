@@ -164,6 +164,11 @@ var getPollutionValue = function(tileValue, industryPollution, shopRubbish, plan
   if (tileValue <= TileValues.LASTPOWERPLANT)
       return plantPollution && tileValue >= TileValues.COALBASE ? plantPollution(x, y, tileValue) : 100;
 
+  // PhaiCity: so are the plants that take only the tiles their model covers, by their kind (src/plantBlocks.ts)
+  if (tileValue >= TileValues.PLANT3_BASE && tileValue <= TileValues.PLANT3_LAST ||
+      tileValue >= TileValues.PLANT2_BASE && tileValue <= TileValues.PLANT2_LAST)
+    return plantPollution ? plantPollution(x, y, tileValue) : 100;
+
   return 0;
 };
 

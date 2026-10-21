@@ -146,8 +146,8 @@ describe("mines in the city", () => {
     expect(commands.apply({ type: "tool", tool: "zinc_mine", x: 20, y: 20 }).toolResult).toBe(0);
     expect(map.getTileValue(20, 20)).toBe(MINE);
     expect(map.mineKinds[20 * 64 + 20]).toBe("zinc");
-    // A power plant beside it (its 4 x 4 on 15..18) passes power on
-    expect(commands.apply({ type: "tool", tool: "coal", x: 16, y: 20 }).toolResult).toBe(0);
+    // A power plant beside it (a village's 3 x 3 on 16..18, src/plantBlocks.ts) passes power on
+    expect(commands.apply({ type: "tool", tool: "coal", x: 17, y: 20 }).toolResult).toBe(0);
     const news: string[] = [];
     sim.addEventListener(Messages.FRONT_END_MESSAGE, (m: { subject: string }) => news.push(m.subject));
     for (let step = 0; step < 16 * 8; step++) sim._simulate(sim._constructSimData());

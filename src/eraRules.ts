@@ -14,8 +14,7 @@ export type Factor = typeof FACTORS[number];
 
 /** What a city must have to leave an era: each one a check the era's symbol counts (docs/GAME_DESIGN.md 1.4) */
 export type SymbolKey =
-  | "ruler_house" | "shops" | "water_tower" | "literate" | "water_works" | "power_plant" | "school" | "technicians" | "hospital"
-  | "secondary_school"
+  | "ruler_house" | "shops" | "water_tower" | "literate" | "technicians" | "water_works" | "power_plant" | "school" | "hospital" | "secondary_school"
   | "paved_roads" | "university_or_metro" | "recycling" | "clean_power";
 
 export interface EraRule {
@@ -45,8 +44,8 @@ export const ERA_RULES: Readonly<Record<Era, EraRule>> = {
     symbols: ["ruler_house", "shops", "water_tower", "literate"] },
   2: { people: 10000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
     targets: { water: 0.8, power: 0.8, jobs: 0.85, education: 0.5, health: 0.4, safety: 0.65, clean: 0.65, living: 0.5 },
-    // (... and a factory town needs its first technicians, from a secondary school or a vocational college's classes:
-    // the market town's slow years are its schooling, docs/GAME_DESIGN.md 6.5)
+    // ... and a factory town needs its first technicians, a secondary school's first classes (owner, 21 Oct 2026: "ยุคไม่ควร
+    // เร่ง"; a town given power and water on time left the market town in eight months, docs/GAME_DESIGN.md 6.6)
     symbols: ["power_plant", "water_works", "school", "technicians"] },
   3: { people: 50000, weights: WEIGHTS, education: { basic: 0.7, higher: 0.3 },
     targets: { water: 0.9, power: 0.9, jobs: 0.9, education: 0.7, health: 0.6, safety: 0.7, clean: 0.7, living: 0.6 },
@@ -81,6 +80,6 @@ export const SHOPS_WANTED = 5;
 /** The villagers who read and write (primary school graduates, src/trainedPeople.ts) the literate symbol wants in the
  * normal mode, times the mode's trained (src/gameModes.ts): a village school's first classes, two years or so of them */
 export const LITERATE_WANTED = 50;
-/** The technicians (secondary school and vocational college graduates, src/trainedPeople.ts) the technicians symbol wants
- * in the normal mode, times the mode's trained: a secondary school's first two classes or so (21 Oct 2026) */
-export const TECHNICIANS_WANTED = 40;
+/** The technicians (secondary school and college graduates) the technicians symbol wants in the normal mode, times the
+ * mode's trained: as many as the first paved roads take (src/unlocks.ts road_asphalt) */
+export const TECHNICIANS_WANTED = 20;

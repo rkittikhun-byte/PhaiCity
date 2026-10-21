@@ -452,7 +452,13 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       #undef USE_INSTANCING_COLOR
       #include <color_vertex>
       #define USE_INSTANCING_COLOR`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour; uniform float cityTime;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour; uniform float cityTime;\n' +
+        // The mask a tile a texel, blurred over about a tile and a half round a point (world units / 10), so the province's
+        // and the bought land's edges fade softly instead of stepping tile by tile (owner, 21 Oct 2026: "ที่สังเกต ช่อง หรือ
+        // ตารางยังไม่หายไปเลย")
+        'vec4 cityMaskSoft(vec2 cell) { vec2 s = 1.0 / cityMaskSize; float r = 0.75;\n' +
+        '  return (2.0 * texture2D(cityMask, cell * s) + texture2D(cityMask, (cell + vec2(r, r)) * s) + texture2D(cityMask, (cell + vec2(-r, r)) * s)\n' +
+        '    + texture2D(cityMask, (cell + vec2(r, -r)) * s) + texture2D(cityMask, (cell - vec2(r, r)) * s)) / 6.0; }')
       .replace('#include <color_fragment>', `#include <color_fragment>
         if (cityIsGround > 0.5) {
           float gMicro = sin(cityWorldXZ.x * 3.7 + sin(cityWorldXZ.y * 2.9)) * cos(cityWorldXZ.y * 4.1 - sin(cityWorldXZ.x * 3.1));
@@ -484,10 +490,10 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         float provinceLuma = dot(gl_FragColor.rgb, vec3(0.2126,0.7152,0.0722));
         float cityOutsideShade = cityProvince;
-        if (cityMaskOn > 0.5) cityOutsideShade = smoothstep(0.35, 0.65, texture2D(cityMask, cityWorldXZ / 10.0 / cityMaskSize).r);
+        if (cityMaskOn > 0.5) cityOutsideShade = smoothstep(0.3, 0.7, cityMaskSoft(cityWorldXZ / 10.0).r);
         gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.65)*0.45,cityOutsideShade);
         // Land the city has not bought, lightly (src/landBlocks.ts)
-        float cityUnowned = cityMaskOn > 0.5 ? smoothstep(0.35, 0.65, texture2D(cityMask, cityWorldXZ / 10.0 / cityMaskSize).b) * (1.0 - cityOutsideShade) : 0.0;
+        float cityUnowned = cityMaskOn > 0.5 ? smoothstep(0.25, 0.75, cityMaskSoft(cityWorldXZ / 10.0).b) * (1.0 - cityOutsideShade) : 0.0;
         gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb,vec3(provinceLuma),0.3)*0.78,cityUnowned);`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
         {
@@ -535,6 +541,9 @@ export function cityTerrainDetailMaterial():MeshStandardMaterial {
   const material=new MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:0.96});
   // Match the far Lambert terrain's sun/hemisphere irradiance; an extra HDRI contribution would reveal patch edges.
   material.envMapIntensity=0;
+  // ... and always over the far terrain it lies on, a hair above it: without, the two fought for the same depth as the
+  // camera rose and the near window showed as a square of stripes (owner, 21 Oct 2026: "ที่สังเกต ช่อง หรือ ตารางยังไม่หายไปเลย")
+  material.polygonOffset=true;material.polygonOffsetFactor=-2;material.polygonOffsetUnits=-2;
   material.name=token;material.userData={provinceSurface:true,terrainDetail:true};
   configureCityLOD(material,true);configureTerrainDetail(material);
   owned.add(material);cache.set(token,material);return material;
