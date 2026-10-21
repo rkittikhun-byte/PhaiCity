@@ -54,6 +54,9 @@ function copyStaticAssets() {
       {from: 'data', to: 'data', toType: 'dir', globOptions: {ignore: ['**/cache/**']}},
       'LICENSE',
       'COPYING',
+      // The icon (art/icon, scripts/icon/export.mjs); its PNGs come with assets/
+      'favicon.ico',
+      'manifest.webmanifest',
     ]
   });
 }
