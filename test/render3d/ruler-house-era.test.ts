@@ -3,7 +3,8 @@
  */
 
 // The ruler's house drawn with its era's model (RENDERER_SPEC 6H): the era models have the house alone, so the city view
-// makes it a little bigger at each level and stands each wing it has built round it on its lot, as its placement's parts.
+// makes it a little bigger at each level and stands each wing it has built beside and behind it on its lot, as its
+// placement's parts.
 
 import { Box3 } from 'three';
 import { readFileSync } from 'fs';
@@ -84,10 +85,10 @@ describe('the ruler\'s house with its era model', () => {
   it('turns the wings with the house', () => {
     const { snapshot, map } = city(3, ['culture_court']);
     const straight = snapshot.placement(CENTRE, 'central')!;
-    const ahead = straight.parts![0];
-    // the culture court stands in front (+Z), right of the gate
-    expect(ahead.z).toBeGreaterThan(straight.z);
-    expect(ahead.x).toBeGreaterThan(straight.x);
+    const court = straight.parts![0];
+    // the culture court stands behind (-Z), right of the middle: nothing stands in front, where the house meets its road
+    expect(court.z).toBeLessThan(straight.z);
+    expect(court.x).toBeGreaterThan(straight.x);
     expect(map.rulerHouse.wings).toEqual(['culture_court']);
   });
 
