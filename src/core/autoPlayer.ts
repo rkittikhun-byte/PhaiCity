@@ -18,10 +18,11 @@ import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
 import { blockColumns, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
 import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
-import { besideRoad } from "../cityCommands.js";
+import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
 import { isRoadTile } from "../roadLevels.js";
 import { cellsOf } from "../zoneCells.js";
-import { serviceProblem } from "../services.js";
+import { CHILDREN_SHARE, isServiceKind, SERVICE_SPECS, serviceProblem } from "../services.js";
+import { ERA_RULES } from "../eraRules.js";
 import { roadLevelAt } from "../roadLevels.js";
 import { houseSpec } from "../rulerHouse.js";
 import type { TrainedKind } from "../trainedPeople.js";
@@ -230,6 +231,11 @@ const SYMBOL_TOOLS: Readonly<Record<string, string>> = {
   literate: "primary_school", hospital: "community_hospital", secondary_school: "secondary_school",
 };
 
+/** The era score's short sides are built for this much past their aim, for the year's growth to come, with no more
+ * than ASK_MOST buildings a side a year */
+const ASK_AHEAD = 0.15;
+const ASK_MOST = 3;
+
 /** What is kept in the treasury past the price of a building the era score asks for */
 const ERA_ASK_SPARE = 300;
 /** Road tiles nearest the town raised a level a year, once the city may lay the level (src/unlocks.ts) */
@@ -296,6 +302,13 @@ export class AutoPlayer {
     // build them and the plant's months are over (src/unlocks.ts, src/construction.ts)
     this.place("watertower", x - 4, y + 4, 12);
     this.soon("waterworks", x - 10, y + 8);
+    // ... and a primary school, as the era card asks from the first day: a market town needs villagers who read and
+    // write, and only its classes over the years bring them (src/eraRules.ts literate, docs/GAME_DESIGN.md 6.5); it is
+    // the first of the services its people ask for
+    if (this.place("primary_school", x + 6, y - 6, 20)) {
+      const first = SERVICES.findIndex(([, tool]) => tool === "primary_school");
+      if (first >= 0) this.servicesDone.add(first);
+    }
     this.paint(this.options.paintFirst ?? 6000);
     this.paintFarms(FARM_FIRST);
   }
@@ -314,6 +327,7 @@ export class AutoPlayer {
       }
       if (this.asks.length) this.answerFestivals();
       if (this.later.length && step % STEPS_PER_MONTH === 0) this.tryLater();
+      if (this.cellsLater.length && step % STEPS_PER_MONTH === 0) this.paintLater();
     }
     this.year++;
     this.noted.clear();
@@ -394,15 +408,28 @@ export class AutoPlayer {
       for (const [side, tools] of ERA_ASKS) {
         const f = factors?.[side];
         if (!f || f.value >= f.target) continue;
+        // (none more while one of the side is still being built, whose places the score does not count yet: the first
+        // year built three primary schools for a village of 1,100, src/construction.ts)
+        if (this.building(side)) continue;
         // (only those the district office is high enough for and the city can build: place() buys land when a
         // building finds no room)
         const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null && !this.waits(tool));
         if (!allowed.length) continue;
-        const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE);
-        const n = this.asked++;
-        if (!affordable.some((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) &&
-          affordable.length < allowed.length) {
-          saveFor(Math.min(...allowed.map((tool) => core.tools?.[tool]?.toolCost ?? 0)) + ERA_ASK_SPARE);
+        // ... as many as the places short of the aim, and of the next year's growth (ASK_AHEAD), no more than ASK_MOST:
+        // a town growing by 3,000 people a year that built one health post a year stayed short of care for six years.
+        // The places are people cared for, or children's seats (the education side's basic share, src/eraScore.ts)
+        const era = Math.min(5, Math.max(1, core.map.era ?? 1)) as 1 | 2 | 3 | 4 | 5;
+        const base = side === "health" ? population : population * CHILDREN_SHARE / Math.max(0.1, ERA_RULES[era].education.basic);
+        let short = (f.target * (1 + ASK_AHEAD) - f.value) * base;
+        for (let built = 0; short > 0 && built < ASK_MOST; built++) {
+          const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE);
+          const n = this.asked++;
+          const tool = affordable.find((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
+          if (!tool) {
+            if (affordable.length < allowed.length) saveFor(Math.min(...allowed.map((tool) => core.tools?.[tool]?.toolCost ?? 0)) + ERA_ASK_SPARE);
+            break;
+          }
+          short -= isServiceKind(tool) ? SERVICE_SPECS[tool].places : short;
         }
       }
       // ... and the school that trains the people a building waits for, the district office raised for it first when
@@ -552,6 +579,36 @@ export class AutoPlayer {
   private soon(tool: string, x: number, y: number): void {
     if (this.waits(tool)) this.later.push([tool, x, y]);
     else this.place(tool, x, y);
+  }
+
+  /** Whether a school (education) or a hospital (health) of the city stands as a construction site */
+  private building(side: "health" | "education"): boolean {
+    const map = this.core.map as { sites?: Record<string, unknown> | null; civicKinds?: Record<string, string> | null };
+    return Object.keys(map.sites ?? {}).some((tile) => {
+      const kind = map.civicKinds?.[tile];
+      return isServiceKind(kind) && (SERVICE_SPECS[kind].field === "health") === (side === "health");
+    });
+  }
+
+  /** The zone cells painted once their zone is unlocked (paintLater), as a ruler paints the factories planned at the
+   *  start once the power plant is finished: the factories give the village its jobs, without which nobody moves in
+   *  (a town that never had the money to paint them again stayed at 2,500 people for 14 years) */
+  private readonly cellsLater: Array<[string, number[]]> = [];
+
+  /** The cells waiting for their zone's unlock painted, those whose zone is unlocked and the treasury pays for */
+  private paintLater(): void {
+    const core = this.core, budget = core.simulation.budget;
+    for (const wanted of this.cellsLater.splice(0)) {
+      const [zone, cells] = wanted;
+      const before = budget.totalFunds;
+      const outcome = core.commands.lock(`zone_${zone}`) ? null : core.apply({ type: "zoneCells", zone: zone as never, cells });
+      if (outcome?.accepted) {
+        this.built += before - budget.totalFunds;
+        this.note(`painted ${cells.length} ${zone} cells once unlocked`);
+      } else if (!outcome || outcome.reason !== NOTHING_TO_PAINT) {
+        this.cellsLater.push(wanted);
+      }
+    }
   }
 
   /** The buildings waiting for their unlock, those now unlocked tried */
@@ -717,10 +774,14 @@ export class AutoPlayer {
     for (const zone of ["residential", "commercial", "industrial"] as const) {
       const keys = free.filter((c) => zoneOf(c) === zone && !isPark(c)).map((c) => c.key);
       for (let i = 0; i < keys.length; i += 4000) {
-        const before = budget.totalFunds;
-        if (core.apply({ type: "zoneCells", zone, cells: keys.slice(i, i + 4000) }).accepted) {
-          painted += Math.min(4000, keys.length - i);
+        const before = budget.totalFunds, batch = keys.slice(i, i + 4000);
+        const outcome = core.apply({ type: "zoneCells", zone, cells: batch });
+        if (outcome.accepted) {
+          painted += batch.length;
           this.built += before - budget.totalFunds;
+        } else if (String(outcome.reason).startsWith("unlock.")) {
+          // (factories wait for a finished power plant, src/unlocks.ts: painted the month they may be, paintLater)
+          this.cellsLater.push([zone, batch]);
         }
       }
     }

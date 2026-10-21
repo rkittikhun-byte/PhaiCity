@@ -76,5 +76,5 @@ export const CLEAN_SHARE = 0.5;
 /** The shops the shops symbol wants */
 export const SHOPS_WANTED = 5;
 /** The villagers who read and write (primary school graduates, src/trainedPeople.ts) the literate symbol wants in the
- * normal mode, times the mode's trained (src/gameModes.ts): about the first class of a village school */
-export const LITERATE_WANTED = 30;
+ * normal mode, times the mode's trained (src/gameModes.ts): a village school's first classes, two years or so of them */
+export const LITERATE_WANTED = 50;

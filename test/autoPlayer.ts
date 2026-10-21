@@ -9,6 +9,7 @@ import { AutoPlayer, festivalAnswer, yearAccounts } from "../src/core/autoPlayer
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
+import { zoneCode } from "../src/zoneCells";
 
 /** A bare 16 m map painted a cell at a time, with a road through the town and a crossing road; with a province's
  *  resources it keeps the country's festivals (src/festivals.ts calendarOf), else none */
@@ -80,6 +81,22 @@ describe("the auto player", () => {
     core.run(16 * 4 * 7);
     player.playYear();
     expect(player.log.some((line) => line.includes("waterworks at"))).toBe(true);
+  });
+
+  test("opens a primary school at once, and paints the factories it planned once the power plant is finished (6.5)", () => {
+    Random.seed(5);
+    const core = town();
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 3000, paintEachYear: 0 });
+    player.start();
+    // The market town needs villagers who read and write, which only the years of a school bring
+    expect(player.log.some((line) => line.includes("primary_school at"))).toBe(true);
+    // The factories wait for a finished power plant (src/unlocks.ts) ...
+    const factories = () => [...(core.map.zoneCells?.values() ?? [])].filter((code) => code === zoneCode("industrial")).length;
+    expect(factories()).toBe(0);
+    // ... and are painted the month it is
+    player.playYear();
+    expect(player.log.some((line) => /painted \d+ industrial cells once unlocked/.test(line))).toBe(true);
+    expect(factories()).toBeGreaterThan(0);
   });
 
   test("answers through the festival command, and a festival not held costs the year nothing", () => {

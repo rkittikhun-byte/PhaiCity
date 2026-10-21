@@ -18,7 +18,7 @@ function building(kind: string, id: number, powered = true, level = 2) {
 
 /** A small map whose homes have water (or not) and the records the era symbols read, with the villagers who read and
  * write its primary school taught (src/trainedPeople.ts) */
-function city(watered = true, literate = 40) {
+function city(watered = true, literate = LITERATE_WANTED) {
   return {
     width: 20, height: 20, era: 1 as number | undefined,
     trained: { counts: { ...noTrained(), literate }, cohort: noTrained(), worked: {}, last: null, at: -1 },
