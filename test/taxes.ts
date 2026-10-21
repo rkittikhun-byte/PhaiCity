@@ -40,14 +40,16 @@ describe("taxes by kind of zone", () => {
   test("each kind pays its own rate, and the same rates pay as the one tax did", () => {
     const budget: any = new (Budget as any)();
     budget.collectTax(0, census({ wateredZoneCount: 0 }));
-    const same = budget.taxFund;
+    // (the state's grant for the people comes in with the taxes, a line of its own, src/gameModes.ts)
+    expect(budget.grantIncome).toBeGreaterThan(0);
+    const same = budget.taxFund - budget.grantIncome;
     // The one tax's sum: the population index times the land value, times the rate, times the easy level's 1.4, and
     // the game's yield (src/budget.js TAX_YIELD)
     expect(same).toBe(Math.floor(Math.floor((800 / 8 + 40 + 40) * 120 / 120) * 7 * 1.4 * TAX_YIELD));
     expect(budget.taxIncome).toBe(same);
     budget.setTaxes({ industrial: 0 });
     budget.collectTax(0, census({ wateredZoneCount: 0 }));
-    expect(budget.taxFund).toBeLessThan(same);
+    expect(budget.taxFund - budget.grantIncome).toBeLessThan(same);
     expect(budget.averageTax()).toBeCloseTo(14 / 3);
   });
 
