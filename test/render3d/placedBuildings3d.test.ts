@@ -58,15 +58,17 @@ describe('buildings put down in metres, in 3D', () => {
   });
 
   test('a building moved on its tiles is stood again where it was moved to, though no tile changed', () => {
+    // (square to the tiles, a quarter turn to another: a building turned off the quarter turns lays the tiles of its
+    // turned outline again where it goes, src/buildings/turnedFootprint.ts)
     const core = city();
-    core.apply({ type: 'build', tool: 'police', x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
+    core.apply({ type: 'build', tool: 'police', x: 330.4, z: 251.7, rot: 0, stroke: 1 });
     const snapshot = snapshotOf(core, null), tile = 15 * 60 + 20;
     expect(snapshot.sync(core.map as any)).toEqual([]);
-    core.apply({ type: 'move', id: 1, x: 334, z: 250, rot: 1.25, stroke: 2 });
+    core.apply({ type: 'move', id: 1, x: 334, z: 250, rot: Math.PI / 2, stroke: 2 });
     expect(snapshot.sync(core.map as any)).toEqual([tile]);
     const p = snapshot.placement(tile, 'central')!;
     expect(p.x).toBeCloseTo(334 * U, 3);
-    expect(p.rotation).toBeCloseTo(1.25, 4);
+    expect(p.rotation).toBeCloseTo(Math.PI / 2, 4);
     expect(snapshot.sync(core.map as any)).toEqual([]);
   });
 });
