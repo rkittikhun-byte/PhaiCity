@@ -40,8 +40,7 @@ export function createSolar(options: ModelOptions = {}) {
   b.plantSite();
   // Crushed gravel and low grass field base under the solar arrays
   b.colored(0x9ea596, () => b.box(36.8, 0.06, 36.8, 0, 0.09, 0, b.stone));
-  // inside its yard (plant-yard.ts) the yard's fence goes round the whole block instead
-  if (options.state !== 'yard') b.fence(18.6, 2.2);
+  b.fence(18.6, 2.2);
 
   b.feature('solar-pv-arrays', () => {
     const rowZs = [-15.2, -10.6, -6.0, -1.4, 3.2, 7.8];
@@ -106,7 +105,7 @@ export function createWind(options: ModelOptions = {}) {
   const b = new PowerPlantBuilder(options);
   b.plantSite();
   b.colored(0x889c78, () => b.box(37.5, 0.06, 37.5, 0, 0.09, 0, b.stone));
-  if (options.state !== 'yard') b.fence(18.6, 2.0);
+  b.fence(18.6, 2.0);
 
   const turbines = [[-11, -11], [11, -11], [-11, 4], [11, 4]] as const;
   b.feature('wind-turbines', () => {
@@ -142,7 +141,7 @@ export function createWind(options: ModelOptions = {}) {
 export function createGas(options: ModelOptions = {}) {
   const b = new PowerPlantBuilder(options);
   b.plantSite();
-  if (options.state !== 'yard') b.fence(18.6, 2.4);
+  b.fence(18.6, 2.4);
 
   b.feature('gas-turbine-halls', () => {
     for (const x of [-8.5, 3.5]) {

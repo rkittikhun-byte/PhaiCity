@@ -21,7 +21,6 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
-import { withPlantYard } from './plantYards.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
@@ -615,18 +614,10 @@ export class TileSnapshot implements CityMapReader {
     if(isFieldValue(this.values[i]))return null;
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
-    // (the id the tile reader gives a plant before its era model, for the yard it stands in: plantYards.ts)
-    const raw=this.placementOf(i,region,this.values[i]),plant=raw?.id??null;
-    const p=this.narrowBridge(this.atRealSize(this.toEra(raw)));
+    const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
     const front=this.frontage(p);
     if(front)return front;
-    // (its yard is one of its parts, so it stands against the road with it)
-    return this.toRoadEdge(this.plantYard(this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p),plant));
-  }
-  /** A power plant or a water works with its yard filling the rest of its block round its building (plantYards.ts;
-   * owner, 21 Oct 2026: "โรงไฟฟ้า ทำไมมีพื้นที่เยอะ"), in the era its building is drawn in */
-  private plantYard(p:Placement|null,plant:string|null):Placement|null {
-    return p?withPlantYard(p,plant,this.realUnits??BUILDING_SCALE,this.eraOf(p.index),this.eraModels):p;
+    return this.toRoadEdge(this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p));
   }
   /**
    * A building of the ruler's stood with its front against the edge of the road it faces (slideToRoad), its parts (the

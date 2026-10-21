@@ -30,7 +30,6 @@ import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
 import { loadPeople } from './people3d.js';
 import { EraModels, eraPrototypeProvider, loadEraIndex } from './eraBuildings.js';
-import { yardPrototypeProvider } from './plantYards.js';
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import { CityFestivals, type FestivalViewMap } from './festivals3d.js';
@@ -172,8 +171,6 @@ export class CityView3D implements CityView {
     // The era buildings (eraBuildings.ts, art/buildings) load on the page; everything else stays with the worker
     const eraModels=!this.headless&&typeof fetch!=='undefined';
     if(eraModels)provider=eraPrototypeProvider(provider);
-    // ... and the yards round its plants (plantYards.ts), with their lighter copies for far away
-    if(eraModels)provider=yardPrototypeProvider(provider);
     this.land=canalLand(setup.map);
     this.snapshot=new TileSnapshot(setup.map.width,setup.map.height);this.snapshot.source=this.land;this.snapshot.enableConstruction=!this.headless;this.snapshot.sync(this.land);this.snapshot.coverZones();
     this.snapshot.roadLevel=setup.roadLevel??1;

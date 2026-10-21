@@ -14,11 +14,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, eraKindFor, loadEraIndex, serializeEraScene } from '../city/eraBuildings.js';
-import { FENCED_BY_YARD, PLANT_YARDS } from '../city/plantYards.js';
-import { registry } from '../models/registry.js';
-import { createPlantYard, holeState, YARD_KINDS, YARD_MAIN_SHARE, YARD_TILE_METRES, YARD_TILES, type YardKind } from '../models/services/plant-yard.js';
-import { RAMPS } from '../../theme/tokens.js';
+import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene } from '../city/eraBuildings.js';
 import { eraBuildingMaterial, setNightMode } from '../materials/library.js';
 import { SCENE } from '../../theme/tokens.js';
 
@@ -48,19 +44,9 @@ for (const kind of FRONTAGE_KINDS) {
 /** A terrace as the city stands one (frontage.ts): left end, the two middles in turn, right end, and the bay alone */
 const TERRACE = ['left', 'mid', 'mid2', 'mid', 'mid2', 'right'];
 const terraceOf = (row: string): string[] => [...TERRACE.map(p => `bay${row}_${p}`), `bay${row}_one`];
-/** The plant yards (models/services/plant-yard.ts): each plant as the city draws it on its block, with or without its yard */
-const YARD_NAMES: Record<YardKind, [string, string]> = {
-  coal: ['โรงไฟฟ้าลิกไนต์', 'Lignite plant'], gas: ['โรงไฟฟ้าก๊าซ', 'Gas plant'], solar: ['โซลาร์ฟาร์ม', 'Solar farm'],
-  wind: ['ฟาร์มกังหันลม', 'Wind farm'], hydro: ['เขื่อนพลังน้ำ', 'Dam'], nuclear: ['โรงไฟฟ้านิวเคลียร์', 'Nuclear plant'],
-  water: ['ประปา', 'Water works'], waste_power: ['โรงไฟฟ้าจากขยะ', 'Waste power plant'],
-};
-NAMES.yards = ['ลานโรงไฟฟ้าและประปา ทั้งหมด', 'Every plant yard'];
-for (const kind of YARD_KINDS) NAMES[`yard_${kind}`] = YARD_NAMES[kind];
-const PLANT_OF = Object.fromEntries(Object.entries(PLANT_YARDS).map(([id, kind]) => [kind, id])) as Record<YardKind, string>;
 const GROUPS: [string, string, string][] = [['home', 'บ้าน', 'Homes'], ['shop', 'ร้านค้า', 'Shops'],
   ['frontage', 'ตามหน้ากว้างที่ทา (ช่อง 4 ม.)', 'By painted frontage (4 m cells)'],
-  ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services'],
-  ['yard', 'ลานโรงไฟฟ้าและประปา (บล็อกเต็ม)', 'Plant yards (the whole block)']];
+  ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services']];
 
 function el<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
 let thai = true;
@@ -126,54 +112,11 @@ async function start(): Promise<void> {
     camera.near = reach / 200; camera.far = reach * 20; camera.updateProjectionMatrix();
   }
 
-  /**
-   * A plant as the city draws it against its road (tileModels.ts, plantYards.ts): its building, an era model when its
-   * era has one, else its procedural model at the share of its tiles the city draws it, its front at its block's front
-   * (+Z), on its block's ground, and its yard round it; in metres
-   */
-  async function plantBlock(kind: YardKind, era: number, region: string, yard: boolean): Promise<Group> {
-    const out = new Group(), tiles = YARD_TILES[kind], half = tiles * YARD_TILE_METRES / 2, plant = PLANT_OF[kind];
-    const ground = new Mesh(new PlaneGeometry(2 * half, 2 * half).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: RAMPS.sand[300], roughness: 1 }));
-    ground.position.y = 0.01; ground.receiveShadow = true; out.add(ground);
-    const eraKind = eraKindFor(plant, undefined, era), have = eraKind ? index!.buildings[`era${era}`]?.[region]?.[eraKind] : undefined;
-    let main: Group, hw: number;
-    if (eraKind && have) {
-      main = await model(String(era), region, eraKind);
-      hw = index!.kinds[eraKind].tiles * YARD_TILE_METRES / 2 - 0.5;
-    } else {
-      const share = YARD_MAIN_SHARE[kind];
-      main = registry[plant].factory({ region: region as never, seed: 1, state: yard && FENCED_BY_YARD.has(plant) ? 'yard' : 'closed' });
-      main.scale.setScalar(share);
-      hw = (tiles * 5 - 0.5) * share;
-    }
-    const c = half - hw;
-    main.position.z = c; out.add(main);
-    if (yard) {
-      const root = createPlantYard(kind, { variant: era, state: holeState({ hw, c }) });
-      root.scale.setScalar(YARD_TILE_METRES / 10);
-      root.traverse(o => { if ((o as Mesh).isMesh) { (o as Mesh).castShadow = true; (o as Mesh).receiveShadow = true; } });
-      out.add(root);
-    }
-    return out;
-  }
-
   let token = 0, current = 'all';
   async function show(kind: string): Promise<void> {
     current = kind;
     const mine = ++token, era = el<HTMLSelectElement>('era').value, region = el<HTMLSelectElement>('region').value;
     document.querySelectorAll<HTMLButtonElement>('nav button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
-    if (kind === 'yards' || kind.startsWith('yard_')) {
-      readout.textContent = thai ? 'กำลังโหลด…' : 'Loading…';
-      const kinds = kind === 'yards' ? [...YARD_KINDS] : [kind.slice(5) as YardKind], yard = el<HTMLSelectElement>('yard').value === 'on';
-      const blocks = await Promise.all(kinds.map(k => plantBlock(k, Number(era), region, yard)));
-      if (mine !== token) return;
-      shown.clear();
-      blocks.forEach((g, i) => { g.position.set((i % 4) * 80, 0, Math.floor(i / 4) * 80); shown.add(g); });
-      frame();
-      readout.textContent = (thai ? NAMES[kind][0] : NAMES[kind][1]) + (thai ? ` · ยุค ${era} · บล็อก ${YARD_TILES[kinds[0]]} × ${YARD_TILES[kinds[0]]} ช่อง`
-        : ` · era ${era} · a ${YARD_TILES[kinds[0]]} × ${YARD_TILES[kinds[0]]} block`) + (yard ? '' : thai ? ' · ไม่มีลาน' : ' · without its yard');
-      return;
-    }
     const have = index!.buildings[`era${era}`]?.[region] ?? {};
     const frontage = Boolean(have.bay1_one);
     const terrace = /^terrace(\d)$/.exec(kind);
@@ -213,15 +156,6 @@ async function start(): Promise<void> {
   nav.append(all);
   for (const [prefix, th, en] of GROUPS) {
     const h = document.createElement('h2'); h.dataset.th = th; h.dataset.en = en; nav.append(h);
-    if (prefix === 'yard') {
-      for (const kind of ['yards', ...YARD_KINDS.map(k => `yard_${k}`)]) {
-        const b = document.createElement('button');
-        b.dataset.kind = kind; b.dataset.th = NAMES[kind][0]; b.dataset.en = NAMES[kind][1];
-        b.addEventListener('click', () => show(kind));
-        nav.append(b);
-      }
-      continue;
-    }
     if (prefix === 'frontage') {
       for (const kind of ['terrace1', 'terrace2', ...FRONTAGE_KINDS]) {
         const b = document.createElement('button');
@@ -245,7 +179,6 @@ async function start(): Promise<void> {
   if (params.get('region')) el<HTMLSelectElement>('region').value = params.get('region')!;
   el('era').addEventListener('change', () => show(current));
   el('region').addEventListener('change', () => show(current));
-  el('yard').addEventListener('change', () => show(current));
   el('time').addEventListener('change', () => {
     const night = el<HTMLSelectElement>('time').value === 'night';
     setNightMode(night);

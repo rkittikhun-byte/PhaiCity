@@ -13,7 +13,6 @@ import { createPolice } from './services/police.js';
 import { createFire } from './services/fire.js';
 import { createStadium, STADIUM_TILES } from './services/stadium.js';
 import { createCoal } from './services/coal.js';
-import { createPlantYard, YARD_ERAS, YARD_KINDS, YARD_TILES, yardId } from './services/plant-yard.js';
 import { createNuclear } from './services/nuclear.js';
 import { createGas, createHydro, createSolar, createWind } from './services/solar.js';
 import { createSeaport } from './transport/seaport.js';
@@ -150,12 +149,6 @@ export const registry: Readonly<Record<string, ModelRegistration>> = Object.free
     tiles: [], budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
   'power.nuclear': { factory: createNuclear, category: 'services', footprint: [4, 4],
     tiles: Array.from({ length: 16 }, (_, i) => 811 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
-  // The yard round a power plant or a water works, filling its block (models/services/plant-yard.ts): placed by the city
-  // view with the plant (city/tileModels.ts plantYard); variant = the era, state = the hole its main building stands on.
-  ...Object.fromEntries(YARD_KINDS.map(kind => [yardId(kind), {
-    factory: (options?: ModelOptions) => createPlantYard(kind, options), category: 'services',
-    footprint: [YARD_TILES[kind], YARD_TILES[kind]], tiles: [], budget: TRIANGLE_BUDGETS.lowRise, regionTier: 'R3', variants: YARD_ERAS,
-  } as ModelRegistration])),
   'port.seaport': { factory: createSeaport, category: 'transport', footprint: [4, 4],
     tiles: Array.from({ length: 16 }, (_, i) => 693 + i), budget: TRIANGLE_BUDGETS.special, regionTier: 'R3' },
   'port.airport': { factory: createAirport, category: 'transport', footprint: [6, 6],
