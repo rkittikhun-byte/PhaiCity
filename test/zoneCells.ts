@@ -23,7 +23,7 @@ function city() {
   map.tileSizeM = 16;
   map.paintedZones = true;
   map.cellZones = true;
-  const core = new CityCore({ map, seed: 3 });
+  const core = new CityCore({ sandbox: true, map, seed: 3 });
   core.simulation.budget.setFunds(50000);
   for (let x = 2; x < 58; x++) core.apply({ type: "tool", tool: "road", x, y: 10 });
   // A new city builds its ruler's house first
@@ -165,7 +165,7 @@ describe("zone cells", () => {
     expect(core.apply({ type: "zoneCells", zone: "commercial", cells: [123456789] }).accepted).toBe(false);
     const saved = JSON.parse(JSON.stringify({ ...core.save(), width: 60, height: 40 }));
     expect(saved.cellZones).toBe(true);
-    const again = new CityCore({ map: new (GameMap as any)(60, 40), saved });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved });
     expect([...again.map.zoneCells.keys()].sort()).toEqual([...keys].sort());
     const before = again.simulation.budget.totalFunds;
     expect(again.apply({ type: "zoneCells", zone: null, cells: keys.slice(0, 5) }).accepted).toBe(true);
@@ -196,7 +196,7 @@ describe("zone cells", () => {
     map.tileSizeM = 16;
     map.paintedZones = true;
     map.cellZones = true;
-    const core = new CityCore({ map, seed: 3 });
+    const core = new CityCore({ sandbox: true, map, seed: 3 });
     core.simulation.budget.setFunds(50000);
     for (let x = 2; x < 58; x++) core.apply({ type: "tool", tool: "road", x, y: 20 });
     let x = 20, y = 4;
@@ -235,7 +235,7 @@ describe("zone cells", () => {
 
   test("a map painted a tile at a time refuses cells", () => {
     const map = (MapGenerator as any).fromPresetCells(20, 20, new Uint8Array(400));
-    const core = new CityCore({ map, seed: 1 });
+    const core = new CityCore({ sandbox: true, map, seed: 1 });
     expect(core.apply({ type: "zoneCells", zone: "industrial", cells: [1] }).accepted).toBe(false);
   });
 
@@ -278,7 +278,7 @@ describe("zone cells", () => {
       map.tileSizeM = 16;
       map.paintedZones = true;
       map.cellZones = true;
-      const core = new CityCore({ map, seed: 3 });
+      const core = new CityCore({ sandbox: true, map, seed: 3 });
       core.simulation.budget.setFunds(500000);
       (core.map as any).needsRulerHouse = false;
       expect(core.apply({ type: "road", tool: "road", from: [100, 300], to: [1100, 520], stroke: 1 }).accepted).toBe(true);

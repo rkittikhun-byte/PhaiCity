@@ -7,6 +7,7 @@
 // the buildings begin to change, people times how well they live, each side of life against its aim with a tick or a
 // cross and one thing to do, what holds the score, and what the next era must have. It is drawn again each month,
 // when a new era comes and when the language changes; the era block, its ✕ or Escape closes it. It only reads the city.
+// Last, what the next era lets the city build (src/unlocks.ts eraUnlocks, docs/GAME_DESIGN.md 6.2).
 
 import { onLanguageChange, t } from "./i18n/index.js";
 import { SCORE_MONTHS } from "./eraRules.js";
@@ -14,6 +15,8 @@ import type { EraScore } from "./eraScore.js";
 import { eraReport } from "./eraReport.js";
 import { hide, isShown, show } from "./motion.js";
 import { placeWindow } from "./windowPlacement.js";
+import { eraUnlocks } from "./unlocks.js";
+import { unlockNames } from "./unlockLabels.js";
 
 /** Where the era score is kept, and what tells when a month has turned (src/core/cityCore.ts) */
 export interface EraCardSource {
@@ -183,6 +186,12 @@ export class EraCard {
       }
       element.append(el("div", "eraSection", report.nextEra
         ? t("era.card.symbols", { next: t(`era.name.${report.nextEra}`) }) : t("era.card.symbols_last")), symbols);
+    }
+    // ... and what it lets the city build
+    const unlocked = report.nextEra ? unlockNames(eraUnlocks(report.nextEra)) : [];
+    if (unlocked.length) {
+      element.append(el("div", "eraSection", t("era.card.unlocks", { next: t(`era.name.${report.nextEra}`) })),
+        el("p", "eraUnlocks", unlocked.join(" · ")));
     }
   }
 }

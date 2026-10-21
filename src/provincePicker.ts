@@ -18,6 +18,7 @@ import type { CityMeta } from "./cityStorage";
 import { groupViewBox, NationalMap, projectBox, projectNationalMap, ProjectedProvince, projectPoint } from "./geo/nationalMap";
 import { drawPresetMap, PRESET_COLORS, PresetMap, TRANSPORT_COLORS } from "./geo/presetMap";
 import { difficultyStars, fundsBonus, provinceResources, resourceNotes, startingFunds } from "./geo/provinceProfile";
+import { DEFAULT_MODE, levelsFor, MODE_RULES } from "./gameModes";
 import { hasTransport, provinceTransport, waterwayName } from "./geo/provinceTransport";
 import { formatYear, getLanguage, onLanguageChange, setLanguage, t } from "./i18n/index";
 import { renderLanguageButton } from "./languageFlag";
@@ -116,6 +117,9 @@ export interface StartOptions {
   provinceId?: string | null;
   /** The title page in front (src/titleGate.ts): the story waits until the player has entered. */
   gate?: Promise<void> | null;
+  /** The online world the new city is for: its mode is always normal, and the card offers no choice
+   * (src/gameModes.ts) */
+  worldId?: string | null;
 }
 
 type ViewBox = [number, number, number, number];
@@ -160,7 +164,9 @@ const REGION_COLORS: Record<string, string> = {
   south: "#6cc3a9",
 };
 
+/** The modes a new city may choose (src/gameModes.ts), normal chosen until the player picks another */
 const LEVELS: Array<[number, string]> = [[0, "start.diff.easy"], [1, "start.diff.med"], [2, "start.diff.hard"]];
+let worldId: string | null = null;
 
 interface View {
   overlay: HTMLElement;
@@ -1587,20 +1593,23 @@ function openCard(provinceId: string, focusName = true): void {
   const levels = element("div", "ppLevels");
   levels.setAttribute("role", "radiogroup");
   levels.setAttribute("aria-label", t("start.label.difficulty"));
-  for (const [level, key] of LEVELS) {
+  const offered = levelsFor(worldId);
+  for (const [level, key] of LEVELS.filter(([level]) => offered.includes(level as 0 | 1 | 2))) {
     const option = element("label", "ppLevel");
     const radio = element("input");
     radio.type = "radio";
     radio.name = "ppLevel";
     radio.value = String(level);
-    radio.checked = level === 0;
+    radio.checked = level === MODE_RULES[DEFAULT_MODE].level;
     option.append(radio, element("span", undefined, t(key)));
     levels.appendChild(option);
   }
 
+  levels.hidden = offered.length < 2;
+
   const start = button("ppStart", t("picker.start"), () => {
     const name = nameInput.value.trim() || localName(province);
-    const level = Number((levels.querySelector("input:checked") as HTMLInputElement | null)?.value ?? 0);
+    const level = Number((levels.querySelector("input:checked") as HTMLInputElement | null)?.value ?? MODE_RULES[DEFAULT_MODE].level);
     const districtId = districts.length ? districtSelect.value : undefined;
     leaveTo(() => actions?.start(province.id, name.slice(0, MAX_CITY_NAME_LENGTH), level, districtId));
   });
@@ -1626,7 +1635,8 @@ function openCard(provinceId: string, focusName = true): void {
     card.append(districtLabel);
     markDistrict(districtSelect.value);
   }
-  card.append(nameLabel, element("h4", undefined, t("start.label.difficulty")), levels, start,
+  // (online, one mode only: no choice shown)
+  card.append(nameLabel, ...(offered.length > 1 ? [element("h4", undefined, t("start.label.difficulty")), levels] : [levels]), start,
     element("h4", undefined, t("picker.neighbors")), neighbors);
   view.panel.replaceChildren(card);
   if (!cardOpen()) show(view.panel);
@@ -1712,6 +1722,7 @@ const EMERGE_MS = 1500;
 
 export function openStartScreen(startActions: StartActions, options: StartOptions = {}): void {
   actions = startActions;
+  worldId = options.worldId ?? null;
   music.play(THEME); // starts with the first click or key, as browsers require
   document.removeEventListener("keydown", onKeyDown);
   document.addEventListener("keydown", onKeyDown);

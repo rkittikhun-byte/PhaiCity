@@ -23,6 +23,8 @@ import { ownsLand } from "../landBlocks.js";
 import { eraMonth } from "../eraScore.js";
 import type { Era } from "../era.js";
 import { festivalMonth, type FestivalNews } from "../festivals.js";
+import { trainingCity, trainMonth, type TrainedYear } from "../trainedPeople.js";
+import { type SiteDone, sitesMonth } from "../construction.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -49,7 +51,12 @@ export type CoreEvent =
   | { type: "era"; era: Era }
   /** A festival held this month, one coming next month the ruler is asked about, a fire its lanterns or rockets set
    * (src/festivals.ts) */
-  | FestivalNews;
+  | FestivalNews
+  /** The year turned: the year's class of trained people graduated from the city's schools, and some left
+   * (src/trainedPeople.ts) */
+  | ({ type: "trained" } & TrainedYear)
+  /** A construction site's months are over: its building works from now on (src/construction.ts) */
+  | ({ type: "siteDone" } & SiteDone);
 type Listener<T extends CoreEvent["type"]> = (event: Extract<CoreEvent, { type: T }>) => void;
 
 /** A command the city accepted, and the step it came at: replaying them makes the same city */
@@ -73,6 +80,9 @@ export interface CoreSetup {
   tools?: Legacy;
   /** Seeds Random for a new city, so a test or the server can make the same city again */
   seed?: number;
+  /** Anything can be built at once, as before the unlock table and the construction sites (src/unlocks.ts): for tests
+   * of other things; never saved */
+  sandbox?: boolean;
   hooks?: CityHooks;
 }
 
@@ -99,6 +109,7 @@ export class CityCore {
     const saved = setup.saved ?? null;
     if (setup.seed !== undefined && !saved) Random.seed(setup.seed);
     this.map = setup.map;
+    if (setup.sandbox) this.map.sandbox = true;
     readCityLayers(this.map, saved);
     this.simulation = new SimulationClass(this.map, setup.level ?? SimulationStatics.LEVEL_EASY,
       setup.speed ?? SimulationStatics.SPEED_MED, saved, setup.rules ?? null, setup.resources ?? null);
@@ -136,6 +147,15 @@ export class CityCore {
     // The province's festivals, held as the ruler answered, and the next month's asked about (docs/GAME_DESIGN.md 5)
     this.addSystem({ name: "festivals", monthly: core => {
       for (const news of festivalMonth(core.map, core.simulation)) core.emit(news);
+    } });
+    // The people the city's schools train, a class a year (docs/GAME_DESIGN.md 6.1)
+    this.addSystem({ name: "trained", monthly: core => {
+      const year = trainMonth(core.map, trainingCity(core.simulation), Math.floor(core.simulation._cityTime / 4));
+      if (year) core.emit({ type: "trained", ...year });
+    } });
+    // The big buildings whose months as a construction site are over (docs/GAME_DESIGN.md 6.1)
+    this.addSystem({ name: "construction", monthly: core => {
+      for (const done of sitesMonth(core.map, core.simulation._cityTime)) core.emit({ type: "siteDone", ...done });
     } });
     this.simulation.addEventListener(Messages.DATE_UPDATED, (date: { month: number; year: number }) => {
       for (const system of this.systems) system.monthly?.(this);

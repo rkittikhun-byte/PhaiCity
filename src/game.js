@@ -22,7 +22,10 @@ import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
 import { besideRoad, CityCommands, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
-import { showDemandAndPeople, showEra, showServices, showTourism, showWaste } from './cityStatus.ts';
+import { MODE_RULES, modeChoosable, modeRule, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
+import { siteMonths } from './construction.ts';
+import { lockedTitle, lockOf, lockText, plainToolName } from './unlockLabels.ts';
+import { showDemandAndPeople, showEra, showServices, showTourism, showTrained, showWaste } from './cityStatus.ts';
 import { areaCentres, areaFootprint, SPRITE_UNITS_PER_TILE } from './cityView.ts';
 import { createCityView2D } from './cityView2d.ts';
 import { showCornerNote, showCornerNoteOnce } from './cornerNote.ts';
@@ -47,7 +50,7 @@ import { MapWindow } from './mapWindow.js';
 import { toolPrices } from './provinceRules.ts';
 import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlants.ts';
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
-import { clearToolChoices, pageChoice, setToolChoices } from './toolLevels.ts';
+import { clearToolChoices, pageChoice, setToolChoices, toolChoicesFor } from './toolLevels.ts';
 import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
 import { drawModeOf, isAreaMode, isPaintTool, isStraightMode, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
@@ -67,7 +70,7 @@ import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
 import { edgeScroll } from './edgeScroll.ts';
 import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
-import { relabelTools, showToolPrices } from './toolShortcuts.ts';
+import { relabelTools, showToolPrices, toolLabel } from './toolShortcuts.ts';
 import { CIVIC, LASTPOWER, LASTRAIL, MINE, POWERBASE, POWERPLANT, RAILBASE, STATION, WASTE, WATER_HIGH, WATER_LOW } from './tileValues.ts';
 import { NEEDS_RAIL, ONE_HSR, TRANSIT_KINDS, TRANSIT_NEEDS_RANK, TRANSIT_SPECS } from './transit.ts';
 import { WASTE_KINDS } from './waste.ts';
@@ -199,6 +202,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // tiles (a province map's own land and town, the kinds of each building, road levels …), the simulation, its
   // objects and the commands that change it
   var coreGame = this;
+  // A city of an online world is always normal (src/gameModes.ts); a saved city keeps the level it was saved with
+  if (!modeChoosable(this.worldId))
+    difficulty = MODE_RULES[ONLINE_MODE].level;
   this.core = new CityCore({
     map: this.gameMap, saved: savedGame, level: difficulty, speed: this.defaultSpeed,
     rules: rules || null, resources: resources || null,
@@ -211,9 +217,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   });
   this.simulation = this.core.simulation;
 
-  // A new province city starts with that province's treasury (src/geo/provinceProfile.ts)
-  if (!savedGame && gameMap.startingFunds)
-    this.simulation.budget.setFunds(gameMap.startingFunds);
+  // A new province city starts with that province's treasury (src/geo/provinceProfile.ts), and every new city with
+  // more or less of it by its mode (src/gameModes.ts)
+  if (!savedGame)
+    this.simulation.budget.setFunds(startingFundsIn(gameMap.startingFunds || this.simulation.budget.totalFunds,
+                                                    this.simulation._gameLevel));
 
   this.name = name || 'MyTown';
   this.everClicked = false;
@@ -238,7 +246,25 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.core.on('eraDawn', function(event) {
     eraGame._notificationBar.goodText(t('era.dawn', {era: t('era.name.' + event.era)}));
   });
+  // What the city can build yet (src/unlocks.ts) changes with its era, its trained people and its finished buildings:
+  // the year's graduates and a finished construction site make the news (docs/GAME_DESIGN.md 6)
+  this.core.on('trained', function(event) {
+    var g = event.graduates;
+    if (g.technician + g.nurse + g.engineer + g.doctor >= 1) {
+      var whole = function(n) { return Math.round(n).toLocaleString('en-US'); };
+      eraGame._notificationBar.goodText(t('news.trained', {technician: whole(g.technician), nurse: whole(g.nurse),
+        engineer: whole(g.engineer), doctor: whole(g.doctor)}));
+    }
+    eraGame.refreshLocks();
+  });
+  this.core.on('siteDone', function(event) {
+    eraGame._notificationBar.goodText(t('news.site_done', {name: plainToolName(event.tool)}));
+    eraGame.refreshLocks();
+  });
+  this.core.on('month', function() { eraGame.refreshLocks(); });
+  onLanguageChange(function() { eraGame.refreshLocks(); });
   this.core.on('era', function(event) {
+    eraGame.refreshLocks();
     eraGame._notificationBar.goodText(t('congrats.era', {name: eraGame.name, era: t('era.name.' + event.era)}));
     if (!eraGame.dialogOpen) {
       eraGame.dialogOpen = true;
@@ -254,6 +280,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   showServices(this.simulation);
   showWaste(this.simulation);
   showEra(this.core);
+  showTrained(this.core);
 
   // What draws the city (src/cityView.ts); the game talks to it in map tiles only.
   // Note: must create the view before inputStatus, which listens to the view's canvas
@@ -297,41 +324,41 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   // The power button's places above the tools are its kinds of plant, and the nuclear plant; those the province
   // cannot build wait
-  setToolChoices('coal', POWER_KINDS.map(function(kind) {
+  game.setChoices('coal', POWER_KINDS.map(function(kind) {
     return {tool: PLANT_TOOLS[kind], available: canBuildKind(kind, simulation.resources), colour: PLANT_COLOURS[kind]};
   }).concat([pageChoice('nuclear')]));
   // Buttons that group tools (docs/TOOLS_PLAN.md): safety, water, farms and harbours, long-distance transport
-  setToolChoices('waterworks', [pageChoice('waterworks'), pageChoice('watertower')]);
-  setToolChoices('farm', [pageChoice('farm', farmLevel(simulation.resources) >= 1),
+  game.setChoices('waterworks', [pageChoice('waterworks'), pageChoice('watertower')]);
+  game.setChoices('farm', [pageChoice('farm', farmLevel(simulation.resources) >= 1),
     pageChoice('fishing', fisheryLevel(simulation.resources) >= 1)]);
-  setToolChoices('port', [pageChoice('port'), pageChoice('airport')]);
+  game.setChoices('port', [pageChoice('port'), pageChoice('airport')]);
   // The rubbish button's places are its five buildings, the landfill first (src/waste.ts)
-  setToolChoices('landfill', WASTE_KINDS.map(function(kind) {
+  game.setChoices('landfill', WASTE_KINDS.map(function(kind) {
     return {tool: kind, available: true, colour: WASTE_COLOURS[kind]};
   }));
   // The road button's places are its levels, and the upgrade tool that raises a road one level at a time
-  setToolChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
+  game.setChoices('road', ROAD_TOOLS.map(function(tool) { return {tool: tool, available: true, colour: '#3a3a3a'}; })
     .concat([{tool: UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
   // On a map whose buildings stand against their roads the bulldozer's places are the bulldozer and the move tool,
   // which slides a building along its road (src/moveTool.ts, docs/METRE_DRAWING_PLAN.md 2.5)
   if (cityMap.cellZones)
-    setToolChoices('bulldozer', [pageChoice('bulldozer'),
+    game.setChoices('bulldozer', [pageChoice('bulldozer'),
       Object.assign(pageChoice(MOVE_TOOL), {note: 'choice.move_note'})]);
   else
-    clearToolChoices('bulldozer');
+    game.clearChoices('bulldozer');
   // On a map with painted zones the home, shop and factory buttons are brushes, with the eraser beside them
   PLOT_KINDS.forEach(function(kind) {
     if (!cityMap.paintedZones) {
-      clearToolChoices(kind);
+      game.clearChoices(kind);
       return;
     }
     var button = document.querySelector('.toolButton[data-tool="' + kind + '"]');
-    setToolChoices(kind, [
+    game.setChoices(kind, [
       {tool: PAINT_TOOLS[kind], available: true, colour: button ? button.getAttribute('data-colour') : undefined, size: 1},
       {tool: ERASE_TOOL, available: true, colour: '#8c8c8c', size: 1, note: 'choice.erase_note'}]);
   });
   // The mine button's places are the ores the province has; those it lacks are left out
-  setToolChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
+  game.setChoices('mine', MINE_KINDS.filter(function(kind) { return canDig(kind, simulation.resources); })
     .map(function(kind) { return {tool: MINE_TOOLS[kind], available: true, colour: MINE_COLOUR}; }));
   // The ruler's house button's places, and the tools held back until a new city has its house (src/rulerHouse.ts)
   this.refreshHouse();
@@ -1193,18 +1220,125 @@ var createView3D = function(game, view3d) {
 Game.prototype.applyCommand = function(command) {
   // Through the core, which keeps a log of the commands it accepts (src/core/cityCore.ts)
   var outcome = this.core.apply(command);
-  if (outcome.accepted)
+  if (outcome.accepted) {
     this._edits = (this._edits || 0) + 1;
+    // A building put down may be what another needs first (src/unlocks.ts)
+    this.scheduleLockRefresh();
+  }
   // Land bought near the edge of the frame of its district the city plays opens more of it (docs/DISTRICT_FRAME.md)
   if (outcome.accepted && command.type === 'land')
     this.growFrame();
   // Building outside the province, or a plant the province cannot have, is refused all the time, and says so where
   // the player looks (handleTool)
   if (!outcome.accepted && [OUTSIDE_PROVINCE, NO_RESOURCE, NEEDS_WATER, NEEDS_HOUSE_LEVEL, NEEDS_RAIL, ONE_HSR,
-                            TRANSIT_NEEDS_RANK].indexOf(outcome.reason) === -1 &&
+                            TRANSIT_NEEDS_RANK].indexOf(outcome.reason) === -1 && !lockOf(outcome) &&
       HOUSE_REASONS.indexOf(outcome.reason) === -1 && LAND_REASONS.indexOf(outcome.reason) === -1 && command.type !== 'wing')
     console.warn('Command refused: ' + outcome.reason, command);
   return outcome;
+};
+
+
+// The places of a button that groups tools (src/toolLevels.ts), each one the city cannot build yet greyed with its
+// reason (src/unlocks.ts); kept as given, so the locks can be asked again as the city changes (refreshLocks)
+Game.prototype.setChoices = function(group, list) {
+  this._choiceLists = this._choiceLists || {};
+  this._choiceLists[group] = list;
+  this.showChoices(group, true);
+};
+
+
+// A group's places with their locks, given again to the tools only when one changed: the cards are drawn anew each time
+Game.prototype.showChoices = function(group, always) {
+  var shown = this._choiceLists[group].map(this.lockChoice, this);
+  var key = JSON.stringify(shown);
+  this._choiceKeys = this._choiceKeys || {};
+  if (!always && this._choiceKeys[group] === key)
+    return false;
+  this._choiceKeys[group] = key;
+  setToolChoices(group, shown);
+  this.lockGroupButton(group);
+  return true;
+};
+
+
+Game.prototype.clearChoices = function(group) {
+  if (this._choiceLists)
+    delete this._choiceLists[group];
+  clearToolChoices(group);
+};
+
+
+Game.prototype.lockChoice = function(choice) {
+  if (!choice.available || choice.action)
+    return choice;
+  var lock = this.core.commands.lock(choice.tool);
+  if (lock)
+    return Object.assign({}, choice, {available: false, locked: true, reasonText: lockText(lock)});
+  // A big building says how long it stands as a construction site (src/construction.ts)
+  var months = siteMonths(choice.tool, modeRule(this.simulation._gameLevel).buildTime);
+  return months > 0 && !choice.note ?
+    Object.assign({}, choice, {noteText: t('site.choice_months', {price: toolLabel(choice.tool).price, months: months})}) : choice;
+};
+
+
+// A button whose every place is locked stays open to pointing and clicking, which shows each place's reason, greyed
+// with a lock and its first place's reason as its title
+Game.prototype.lockGroupButton = function(group) {
+  var button = document.querySelector('.toolButton[data-tool="' + group + '"]');
+  var list = toolChoicesFor(group) || [];
+  var first = list.find(function(choice) { return choice.locked; });
+  var allLocked = list.length > 0 && !list.some(function(choice) { return choice.available; }) && first !== undefined;
+  if (!button)
+    return;
+  button.classList.toggle('locked', allLocked);
+  if (allLocked) {
+    button.disabled = false;
+    button.dataset.lockTitle = t('unlock.locked_title', {name: plainToolName(first.tool), reason: first.reasonText});
+    button.title = button.dataset.lockTitle;
+  } else {
+    delete button.dataset.lockTitle;
+  }
+};
+
+
+// The tools the city cannot build yet asked again: every month, when the era changes, a class graduates or a site is
+// done, and a little after the player builds (scheduleLockRefresh)
+Game.prototype.refreshLocks = function() {
+  if (!this.core)
+    return;
+  var changed = false;
+  for (var group in this._choiceLists || {})
+    changed = this.showChoices(group, false) || changed;
+  // ... and the buttons of a tool of their own
+  var game = this;
+  document.querySelectorAll('#buttons .toolButton[data-tool]').forEach(function(button) {
+    var tool = button.getAttribute('data-tool');
+    if (toolChoicesFor(tool))
+      return;
+    var lock = game.core.commands.lock(tool);
+    var title = lock ? lockedTitle(tool, lock) : undefined;
+    if (button.dataset.lockTitle === title)
+      return;
+    changed = true;
+    button.classList.toggle('locked', lock !== null);
+    if (title)
+      button.dataset.lockTitle = title;
+    else
+      delete button.dataset.lockTitle;
+  });
+  if (changed)
+    relabelTools();
+};
+
+
+Game.prototype.scheduleLockRefresh = function() {
+  if (this._lockTimer)
+    return;
+  var game = this;
+  this._lockTimer = window.setTimeout(function() {
+    game._lockTimer = null;
+    game.refreshLocks();
+  }, 300);
 };
 
 
@@ -1220,7 +1354,7 @@ Game.prototype.refreshHouse = function() {
   var level = standing ? map.rulerHouse.level : 0;
   var next = Math.min(level + 1, MAX_HOUSE_LEVEL);
   var game = this;
-  setToolChoices(HOUSE_TOOL, [
+  game.setChoices(HOUSE_TOOL, [
     {tool: HOUSE_TOOL, available: !standing, colour: HOUSE_COLOUR, reason: 'house.reason.built'},
     {tool: HOUSE_UPGRADE_TOOL, available: standing && level < MAX_HOUSE_LEVEL && houseSpec(next).rank <= rank,
      colour: HOUSE_COLOUR, note: 'house.next.' + next,
@@ -1238,8 +1372,8 @@ Game.prototype.refreshHouse = function() {
     return {tool: kind, available: spec.house <= level, colour: SERVICE_COLOURS[spec.field],
             reason: 'service.reason.house.' + spec.house};
   };
-  setToolChoices('primary_school', EDUCATION_TOOLS.map(serviceChoice));
-  setToolChoices('health_centre', HEALTH_TOOLS.map(serviceChoice));
+  game.setChoices('primary_school', EDUCATION_TOOLS.map(serviceChoice));
+  game.setChoices('health_centre', HEALTH_TOOLS.map(serviceChoice));
   // Police and fire by level, the higher ones for a higher house, and the upgrade that raises a building a level
   // (src/buildingLevels.ts)
   var levelChoices = function(group, colour) {
@@ -1247,11 +1381,11 @@ Game.prototype.refreshHouse = function() {
       return {tool: spec.tool, available: spec.house <= level, colour: colour, reason: 'service.reason.house.' + spec.house};
     });
   };
-  setToolChoices('police', levelChoices('police', pageChoice('police').colour)
+  game.setChoices('police', levelChoices('police', pageChoice('police').colour)
     .concat(levelChoices('fire', pageChoice('fire').colour))
     .concat([{tool: BUILDING_UPGRADE_TOOL, available: true, colour: '#d9a400', note: 'choice.upgrade_note'}]));
   // Public transport, the metro and the high-speed rail station for a higher rank (src/transit.ts)
-  setToolChoices('bus_stop', TRANSIT_KINDS.map(function(kind) {
+  game.setChoices('bus_stop', TRANSIT_KINDS.map(function(kind) {
     var spec = TRANSIT_SPECS[kind];
     return {tool: kind, available: spec.rank <= rank, colour: TRANSIT_COLOURS[kind], size: kind === 'bus_stop' ? 1 : 3,
             reason: 'house.reason.rank.' + spec.rank};
@@ -1634,6 +1768,13 @@ Game.prototype.handleTool = function(data) {
     if (transitNotes[outcome.reason]) {
       showCornerNote(t(transitNotes[outcome.reason], TRANSIT_SPECS[toolName] ?
         {rank: t('rank.' + RANKS[TRANSIT_SPECS[toolName].rank])} : {}), OUTSIDE_NOTE_MS);
+      this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
+      return;
+    }
+    // What the city cannot build yet says why: its era, its trained people, what must stand first (src/unlocks.ts)
+    var lock = lockOf(outcome);
+    if (lock) {
+      showCornerNote(lockedTitle(toolName, lock), OUTSIDE_NOTE_MS);
       this.gameAudio.toolUsed(toolName, tool.TOOLRESULT_FAILED, x);
       return;
     }

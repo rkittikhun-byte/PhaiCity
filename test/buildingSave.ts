@@ -15,14 +15,14 @@ import { MapGenerator } from "../src/mapGenerator.js";
 function city() {
   const map = (MapGenerator as any).fromPresetCells(60, 40, new Uint8Array(60 * 40));
   map.tileSizeM = 16;
-  const core = new CityCore({ map, seed: 11 });
+  const core = new CityCore({ sandbox: true, map, seed: 11 });
   core.simulation.budget.setFunds(1000000);
   (core.map as any).needsRulerHouse = false;
   return core;
 }
 const placed = (core: CityCore): PlacedBuildings => (core.map as any).buildings;
 const reopen = (saved: Record<string, unknown>): CityCore =>
-  new CityCore({ map: new (GameMap as any)(60, 40), saved: JSON.parse(JSON.stringify({ ...saved, width: 60, height: 40 })) });
+  new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved: JSON.parse(JSON.stringify({ ...saved, width: 60, height: 40 })) });
 const at = (x: number, y: number): number => y * 60 + x;
 
 describe("buildings kept in saves", () => {

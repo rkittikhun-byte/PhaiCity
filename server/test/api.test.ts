@@ -201,11 +201,11 @@ describe("saves", () => {
     const claim = (await call("POST", "/api/worlds/1/claims", { cookie, body: { provinceId: "TH-50", cityName: "x" } })).data.claim;
     assert.equal((await call("GET", `/api/claims/${claim.id}/save`, { cookie })).data.error, "no_save");
     const put = (revision: number, data: unknown) => call("PUT", `/api/claims/${claim.id}/save`, { cookie, body: { revision, data, stats } });
-    assert.equal((await put(0, { name: "x", mapRle: "0*40000" })).data.revision, 1);
-    assert.equal((await put(1, { name: "x", mapRle: "0*39999,4" })).data.revision, 2);
-    assert.equal((await put(1, { name: "old" })).data.error, "stale_revision");
+    assert.equal((await put(0, { name: "x", mapRle: "0*40000", _gameLevel: 1 })).data.revision, 1);
+    assert.equal((await put(1, { name: "x", mapRle: "0*39999,4", _gameLevel: 1 })).data.revision, 2);
+    assert.equal((await put(1, { name: "old", _gameLevel: 1 })).data.error, "stale_revision");
     const saved = await call("GET", `/api/claims/${claim.id}/save`, { cookie });
-    assert.deepEqual(saved.data, { revision: 2, data: { name: "x", mapRle: "0*39999,4" } });
+    assert.deepEqual(saved.data, { revision: 2, data: { name: "x", mapRle: "0*39999,4", _gameLevel: 1 } });
     const provinces = await call("GET", "/api/worlds/1/provinces");
     assert.deepEqual(provinces.data.provinces[0].ruler.stats, stats);
   });
@@ -216,10 +216,23 @@ describe("saves", () => {
     const claim = (await call("POST", "/api/worlds/1/claims", { cookie: owner, body: { provinceId: "TH-50", cityName: "x" } })).data.claim;
     assert.equal((await call("GET", `/api/claims/${claim.id}/save`, { cookie: other })).data.error, "no_claim");
     assert.equal((await call("PUT", `/api/claims/${claim.id}/save`, { cookie: other, body: { revision: 0, data: {}, stats } })).data.error, "no_claim");
-    const bad = await call("PUT", `/api/claims/${claim.id}/save`, { cookie: owner, body: { revision: 0, data: {}, stats: { ...stats, rank: "governor" } } });
+    const bad = await call("PUT", `/api/claims/${claim.id}/save`, { cookie: owner, body: { revision: 0, data: { _gameLevel: 1 }, stats: { ...stats, rank: "governor" } } });
     assert.equal(bad.data.error, "bad_stats");
-    const big = await call("PUT", `/api/claims/${claim.id}/save`, { cookie: owner, body: { revision: 0, data: { map: "x".repeat(2.1 * 1024 * 1024) }, stats } });
+    const big = await call("PUT", `/api/claims/${claim.id}/save`, { cookie: owner, body: { revision: 0, data: { map: "x".repeat(2.1 * 1024 * 1024), _gameLevel: 1 }, stats } });
     assert.equal(big.status, 413);
+  });
+
+  test("an online city plays the normal mode: a save of any other level is refused, by the API and the store", async () => {
+    const cookie = await login();
+    const claim = (await call("POST", "/api/worlds/1/claims", { cookie, body: { provinceId: "TH-50", cityName: "x" } })).data.claim;
+    const put = (data: unknown) => call("PUT", `/api/claims/${claim.id}/save`, { cookie, body: { revision: 0, data, stats } });
+    for (const level of [0, 2, "1", undefined]) {
+      const refused = await put({ name: "x", _gameLevel: level });
+      assert.equal(refused.status, 400);
+      assert.equal(refused.data.error, "not_normal_mode");
+    }
+    assert.equal((await put({ name: "x", _gameLevel: 1 })).data.revision, 1);
+    await assert.rejects(store.putSave(claim.id, 1, { _gameLevel: 0 }, stats), { code: "not_normal_mode" });
   });
 });
 

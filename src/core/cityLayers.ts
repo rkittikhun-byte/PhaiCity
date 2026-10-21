@@ -25,6 +25,10 @@ import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
 import { calendarOf, newFestivalState, readFestivals, writeFestivals } from "../festivals.js";
+import { newTrainedState, readTrained, writeTrained } from "../trainedPeople.js";
+import { unlockCity } from "../unlocks.js";
+import { readSites, startSite, writeSites } from "../construction.js";
+import { modeRule } from "../gameModes.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
@@ -106,6 +110,10 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.weather = readWeather(saved.weather);
     // ... and the festivals: the ruler's answers, this month's and their afterglow (src/festivals.ts)
     map.festivals = readFestivals(saved.festivals);
+    // ... and the people its schools trained (src/trainedPeople.ts)
+    map.trained = readTrained(saved.trained);
+    // ... and its buildings still being built (src/construction.ts)
+    map.sites = readSites(saved.sites);
   } else {
     // A new city builds its ruler's house before anything else
     map.civicKinds = {};
@@ -184,6 +192,8 @@ export function ensureCityLayers(map: Legacy): void {
   map.buses = map.buses || [];
   map.zoneCells = map.zoneCells || new Map();
   map.festivals = map.festivals || newFestivalState();
+  map.trained = map.trained || newTrainedState();
+  map.sites = map.sites || {};
 }
 
 /** The pieces of the roads and railways on the map (src/roadPieces.ts) */
@@ -252,6 +262,10 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     weather: map.weather ? { ...map.weather } : undefined,
     // ... and the festivals (src/festivals.ts)
     festivals: writeFestivals(map.festivals),
+    // ... and the people its schools trained (src/trainedPeople.ts)
+    trained: writeTrained(map.trained),
+    // ... and its buildings still being built (src/construction.ts)
+    sites: writeSites(map.sites),
   };
 }
 
@@ -326,12 +340,19 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
       const value = map.getTileValue(x, y);
       return value >= RAILBASE && value <= LASTRAIL;
     },
+    // ... and what the city can build yet: its era, its trained people and its buildings (src/unlocks.ts)
+    // (a sandbox city, as tests and the debug window may make one, can build anything at once: map.sandbox, not saved)
+    // ... the trained people needed scaled by the city's mode (src/gameModes.ts)
+    unlocks: () => (map.sandbox ? undefined : unlockCity(map, modeRule(simulation._gameLevel).trained)),
+    // ... and a big building's months as a construction site (src/construction.ts)
+    startSite: (x: number, y: number, tool: string) => (map.sandbox ? () => undefined : startSite(map, x, y, tool, simulation._cityTime,
+      modeRule(simulation._gameLevel).buildTime)),
     // ... and the festivals the province keeps, and the ruler's answers (src/festivals.ts)
     festivals: { get state() { return map.festivals; }, calendar: () => calendarOf(simulation) },
     // ... and what is kept by a building's centre tile, carried along when the move command takes it to another block:
     // its records, a landfill's fill (src/waste.ts), and the view's home with the ruler's house
     carryBuilding: (from: number, to: number) => {
-      const house = map.rulerHouse, backs = [carryRecords(map, from, to)];
+      const house = map.rulerHouse, backs = [carryRecords(map, from, to), carryKey(map.sites ??= {}, from, to)];
       const fill = simulation._waste?.fill;
       if (fill) backs.push(carryKey(fill, from, to));
       const moved = map.rulerHouse !== house;

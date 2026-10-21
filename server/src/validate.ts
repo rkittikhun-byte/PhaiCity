@@ -10,6 +10,9 @@ import type { CityStats } from "./types.ts";
 export const NAME_MAX = 40;
 export const SAVE_MAX_BYTES = 2 * 1024 * 1024;
 export const RANKS = ["muen", "khun", "luang", "phra", "phraya", "chaophraya"];
+/** The game's level of every online city: normal, so every province plays by one rule (src/gameModes.ts, the game's
+ * Simulation.LEVEL_MED; docs/GAME_DESIGN.md 6.3). The database keeps the same rule (migrations/002_normal_mode.sql). */
+export const ONLINE_LEVEL = 1;
 
 export function positiveId(value: string, code = "bad_id"): number {
   if (!/^[1-9][0-9]{0,15}$/.test(value)) throw new HttpError(400, code);
@@ -46,11 +49,12 @@ export function stats(value: unknown): CityStats {
   return { population: s.population, funds: s.funds, year: s.year, month: s.month, rank: s.rank };
 }
 
-/** A save body: { revision, data, stats } with data a JSON object (the game's save). */
+/** A save body: { revision, data, stats } with data a JSON object (the game's save) of a city in the normal mode. */
 export function saveBody(value: unknown): { revision: number; data: Record<string, unknown>; stats: CityStats } {
   const body = value as { revision?: unknown; data?: unknown; stats?: unknown } | null;
   if (!body || typeof body !== "object") throw new HttpError(400, "bad_save");
   if (!isCount(body.revision, 2_000_000_000)) throw new HttpError(400, "bad_revision");
   if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) throw new HttpError(400, "bad_save");
+  if ((body.data as Record<string, unknown>)._gameLevel !== ONLINE_LEVEL) throw new HttpError(400, "not_normal_mode");
   return { revision: body.revision, data: body.data as Record<string, unknown>, stats: stats(body.stats) };
 }

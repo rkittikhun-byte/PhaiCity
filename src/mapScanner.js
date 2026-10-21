@@ -39,6 +39,10 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
   // PhaiCity: on a map with painted zones, each home, shop and factory tile is a plot that grows by itself
   // (src/plots.ts); a tile of an old 3x3 zone goes on as before
   var painted = this._map.paintedZones === true;
+  // PhaiCity: a building still being built gives and takes nothing until it is done: no service, power, places or
+  // upkeep (src/construction.ts)
+  var sites = this._map.sites || null;
+  var width = this._map.width;
 
   for (var y = 0; y < this._map.height; y++) {
     for (var x = startX; x < maxX; x++) {
@@ -61,6 +65,9 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
         // an unpowered zone once and could raise a false "brownouts" warning
         this._map.getTile(x, y, tile);
       }
+
+      if (sites !== null && tile.isZone() && sites[y * width + x] !== undefined)
+        continue;
 
       if (tile.isZone()) {
         simData.repairManager.checkTile(x, y, simData.cityTime);

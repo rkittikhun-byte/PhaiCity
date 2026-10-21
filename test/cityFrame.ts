@@ -59,7 +59,7 @@ describe("a district's frame", () => {
     const from = { x: 64, y: 32, width: 96, height: 96 }, to = { x: 32, y: 0, width: 160, height: 160 };
     const map = frameMap(from), dx = from.x - to.x, dy = from.y - to.y;
     map.town = { x: 40, y: 26 };
-    const core = new CityCore({ map, seed: 5 });
+    const core = new CityCore({ sandbox: true, map, seed: 5 });
     core.simulation.budget.setFunds(500000);
     expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 40, y: 26 }).accepted).toBe(true);
     for (let x = 20; x < 80; x++) core.apply({ type: "tool", tool: "road", x, y: 40, stroke: 1, shape: "straight",
@@ -81,7 +81,7 @@ describe("a district's frame", () => {
     expect(save.width).toBe(96);
     expect(moved.frame).toEqual(to);
 
-    const again = new CityCore({ map: new (GameMap as any)(160, 160), saved: moved });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(160, 160), saved: moved });
     // Every tile of the old frame in the same place on the district
     for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) {
       expect(again.map.getTileValue(x + dx, y + dy)).toBe(core.map.getTileValue(x, y));
@@ -130,11 +130,11 @@ describe("a district's frame", () => {
   test("a city map's save keeps the size of its tiles, and one saved before still opens with its land", () => {
     const map = frameMap({ x: 0, y: 0, width: 96, height: 96 });
     map.town = { x: 48, y: 48 };
-    const core = new CityCore({ map, seed: 2 });
+    const core = new CityCore({ sandbox: true, map, seed: 2 });
     const save = JSON.parse(JSON.stringify(core.save()));
     expect(save.tileSizeM).toBe(16);
     delete save.tileSizeM;
-    const again = new CityCore({ map: new (GameMap as any)(96, 96), saved: save });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(96, 96), saved: save });
     expect(again.map.tileSizeM).toBe(16);
     expect([...again.map.landBlocks]).toEqual([...core.map.landBlocks]);
   });

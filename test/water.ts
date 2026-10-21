@@ -18,7 +18,7 @@ import { GROUNDWATER_LOW, NOT_ENOUGH_WATER } from "../src/messages";
 import { BNCNBIT, BULLBIT, BURNBIT, POWERBIT, ZONEBIT } from "../src/tileFlags";
 import { DIRT, FREEZ, RIVER, ROADS, WATER_TOWER, WATER_WORKS, WATER_WORKS_BASE } from "../src/tileValues";
 import {
-  carriesWater, TOWER_STORE, WaterManager, WORKS_SUPPLY, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED,
+  carriesWater, TOWER_STORE, TOWER_WELL, WaterManager, WORKS_SUPPLY, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED,
 } from "../src/waterManager";
 
 interface TestMap {
@@ -220,6 +220,30 @@ describe("the water supply", () => {
     water.festivalUse = 0.15;
     water.doWaterScan(5, false);
     expect(water.supply).toBe(Math.floor(full * 0.85));
+  });
+
+  test("a tower no works' pipe reaches pumps its own small well, a village's water", () => {
+    const map = newMap(30, 12);
+    road(map, 4, 25, 7);
+    map.setTile(20, 8, WATER_TOWER, BURNBIT | BULLBIT); // beside the road
+    map.setTile(10, 2, WATER_TOWER, BURNBIT | BULLBIT); // no road beside it
+    const water = new WaterManager(map);
+    water.prepareGround(null);
+    water.findSources();
+    water.doWaterScan(5, false);
+    const well = TOWER_WELL * GROUNDWATER_MIN / GROUNDWATER_MAX;
+    expect(water.supply).toBe(Math.floor(well));
+    expect(water.view.hasWater(4, 7)).toBe(true);
+    // Without a road beside it, it pumps nothing; on the pipes of a works it only stores for the dry season
+    map.setTile(20, 8, DIRT, 0);
+    water.findSources();
+    water.doWaterScan(5, false);
+    expect(water.supply).toBe(0);
+    map.setTile(20, 8, WATER_TOWER, BURNBIT | BULLBIT);
+    putWorks(map, 5, 5);
+    water.findSources();
+    water.doWaterScan(5, false);
+    expect(water.supply).toBe(Math.floor(WORKS_SUPPLY * GROUNDWATER_MIN / GROUNDWATER_MAX));
   });
 
   test("pumping hard runs the ground low, and the rains fill it again", () => {
