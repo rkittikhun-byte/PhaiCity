@@ -13,7 +13,7 @@ import { pickTile } from '../../src/render3d/city/picking.js';
 import { registry } from '../../src/render3d/models/registry.js';
 import { roadForMask } from '../../src/render3d/models/road/interfaces.js';
 import { LATERITE_KINDS } from '../../src/render3d/models/road/laterite.js';
-import { cityLODMaterial, citySurfaceMaterial, isLibraryMaterial } from '../../src/render3d/materials/library.js';
+import { cityLODMaterial, citySurfaceMaterial, cityTerrainDetailMaterial, isLibraryMaterial } from '../../src/render3d/materials/library.js';
 import { countTriangles, disposeModel, visibleBounds } from '../../src/render3d/util/geometry.js';
 import { ZONEBIT } from '../../src/tileFlags.js';
 import { ProvinceTestCity } from '../../src/render3d/gallery/province-city.js';
@@ -32,6 +32,10 @@ describe('Province ground and appearance',()=>{
     const shader={vertexShader:'#include <common>\n#include <begin_vertex>',fragmentShader:'#include <common>\n#include <dithering_fragment>',uniforms:{}};
     cityLODMaterial(citySurfaceMaterial(),true).onBeforeCompile(shader as never,{} as never);
     expect(shader.fragmentShader).toContain('*0.45');expect(shader.vertexShader).toContain('cityProvince = cityOutside');
+    // The province's and the bought land's edges blurred over a tile and a half, not stepping tile by tile (owner, 21 Oct 2026)
+    // ... and the near ground's window always over the far ground under it, never fighting it for depth in stripes
+    expect(cityTerrainDetailMaterial().polygonOffset).toBe(true);expect(cityTerrainDetailMaterial().polygonOffsetFactor).toBeLessThan(0);
+    expect(shader.fragmentShader).toContain('cityMaskSoft(cityWorldXZ / 10.0).r');expect(shader.fragmentShader).toContain('cityMaskSoft(cityWorldXZ / 10.0).b');
   });
   it('keeps the leaves of a tree as it gets smaller on the screen, so far trees read as trees, not dark twigs and fruit',()=>{
     // Owner, 21 Oct 2026: trees seen from the usual height as black specks with red and yellow dots
