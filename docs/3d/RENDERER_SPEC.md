@@ -221,6 +221,17 @@ stands where, and the renderer only reads it.
 - Choose the model by the kind at the plant's centre; every tile of the 4×4 belongs to that plant.
 - Smoke only from lignite (heavy) and gas (light). A dam stands beside water, so its model faces the water side;
   wind turbines turn. Nuclear (816–826) is unchanged.
+- **The yard fills the block (owner, 21 Oct 2026: "โรงไฟฟ้า ทำไมมีพื้นที่เยอะ").** A plant's building is drawn at its
+  real size, smaller than its 64 m block (an era model 48 m, a procedural one 27–33 m), so the rest of the block is its
+  yard (`src/render3d/models/services/plant-yard.ts`, `city/plantYards.ts`): lignite a coal stockpile, conveyor, ash
+  pond, switchyard, truck yard and fence (a village's firewood, lignite heaps, timber poles and ox carts in era 1); gas
+  its tanks, pipe racks and switchyard; solar rows of panels; wind more turbines; a dam its reservoir, dam wall,
+  penstocks and spillway; nuclear a cooling tower, a second containment and a double fence. The water works and the
+  waste power plant (3×3) have one too, drawn only round their procedural models, as their era models fill their
+  48 m. The yard is a part of the plant's placement, turned with it, its block's front at the building's front, never
+  past the block and never on the building (`test/render3d/plant-yards.test.ts`); one prototype per kind, era and
+  hole, with lighter copies from afar. Inside a yard the procedural solar, wind and gas plants leave their own fence
+  out (`state: 'yard'`). `era-buildings.html` shows each plant on its block, with or without its yard.
 
 ## 6E. Mines and oil wells (added 13 Oct 2026)
 
