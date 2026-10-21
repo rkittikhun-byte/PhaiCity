@@ -220,8 +220,14 @@ const FESTIVAL_KEEP = 250;
 
 /** The schools that train each kind of trained people, the first tried first (src/trainedPeople.ts TRAINING) */
 const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
-  technician: ["secondary_school", "vocational_college"], nurse: ["vocational_college"],
+  literate: ["primary_school"], technician: ["secondary_school", "vocational_college"], nurse: ["vocational_college"],
   engineer: ["university"], doctor: ["university"],
+};
+
+/** The building that gives each era symbol (src/eraRules.ts), which the player builds when the era card lists it missing */
+const SYMBOL_TOOLS: Readonly<Record<string, string>> = {
+  water_tower: "watertower", water_works: "waterworks", power_plant: "coal", school: "primary_school",
+  literate: "primary_school", hospital: "community_hospital", secondary_school: "secondary_school",
 };
 
 /** What is kept in the treasury past the price of a building the era score asks for */
@@ -245,13 +251,15 @@ type FestivalAsk = Extract<FestivalNews, { type: "festivalAhead" }>;
  * money is tight, the treasury left with less than FESTIVAL_KEEP; else modestly. A treasury that cannot pay even the
  * modest price answers modestly too: the temples and the people then hold it themselves, which lets nobody down, where
  * a festival not held would (src/festivals.ts festivalMonth). keep: what the ruler is saving for (a school, a hospital),
- * which a festival may not eat into.
+ * which a festival may not eat into while the people live well enough.
  */
 export function festivalAnswer(costs: readonly [number, number], funds: number, livingShort: boolean, reserve: number,
                                keep = FESTIVAL_KEEP): FestivalScale {
   const [modest, grand] = costs;
   if (livingShort && funds - grand >= reserve) return "grand";
-  return funds >= modest && funds - modest < Math.max(FESTIVAL_KEEP, keep) ? "none" : "modest";
+  // (while living is short a festival not held would let the people down further: it waits for no savings, only for
+  // the treasury's last FESTIVAL_KEEP)
+  return funds >= modest && funds - modest < (livingShort ? FESTIVAL_KEEP : Math.max(FESTIVAL_KEEP, keep)) ? "none" : "modest";
 }
 
 export class AutoPlayer {
@@ -349,6 +357,17 @@ export class AutoPlayer {
     const made = rubbishOf(population / 1, 0);
     if ((nearlyFull || room * WASTE_SPECS.landfill.takes < made || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
       this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
+    }
+    // ... and what the era card says the next era still needs (src/eraScore.ts symbols), as a ruler reading it builds:
+    // the first it can build, else money saved for it (a water works the market town waited a year for while its water
+    // was not yet short, docs/GAME_DESIGN.md 6.5)
+    for (const tool of this.symbolTools()) {
+      const price = core.tools?.[tool]?.toolCost ?? 0;
+      if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
+      const n = this.asked++;
+      if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) continue;
+      saveFor(price + ERA_ASK_SPARE);
+      break;
     }
     if (!saving) {
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts)
@@ -477,6 +496,23 @@ export class AutoPlayer {
         this.note(`festival ${ask.id} ${scale} (฿${price}, treasury ฿${core.simulation.budget.totalFunds}${short ? ", living short" : ""})`, this.year + 1);
       }
     }
+  }
+
+  /**
+   * The buildings the era score finds missing among its symbols (src/eraScore.ts), that the city may build now and the
+   * district office is high enough for: a symbol the city lacks a building for (a primary school for the villagers who
+   * read and write, which only time brings once one stands)
+   */
+  private symbolTools(): string[] {
+    const core = this.core, score = (core.map as { eraScore?: { symbols?: Array<{ key: string; has: boolean }> } }).eraScore;
+    const city = unlockCity(core.map), level = core.map.rulerHouse?.level ?? 0, tools: string[] = [];
+    for (const { key, has } of score?.symbols ?? []) {
+      const tool = SYMBOL_TOOLS[key];
+      if (has || !tool || tools.includes(tool) || city.count(tool) > 0) continue;
+      if (serviceProblem(tool, level) !== null || this.waits(tool)) continue;
+      tools.push(tool);
+    }
+    return tools;
   }
 
   /** Whether the city cannot build the tool yet (src/unlocks.ts), noting why once a year */

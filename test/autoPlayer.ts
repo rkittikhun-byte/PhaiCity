@@ -63,6 +63,8 @@ describe("the auto player", () => {
     // ... and while it saves for a school or a hospital, a festival may not eat into that
     expect(festivalAnswer([400, 2400], 1500, false, reserve, 1800)).toBe("none");
     expect(festivalAnswer([400, 2400], 2300, false, reserve, 1800)).toBe("modest");
+    // ... unless the people's living is short of the era's aim, which a festival not held would only make worse
+    expect(festivalAnswer([400, 2400], 1500, true, reserve, 1800)).toBe("modest");
   });
 
   test("waits for what the city cannot build yet, and builds it once it can (docs/GAME_DESIGN.md 6)", () => {
@@ -85,8 +87,8 @@ describe("the auto player", () => {
     const core = town({ tourism: 3 });
     const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 3000, paintEachYear: 1000 });
     player.start();
-    // A treasury that could pay for Songkran but be left nearly empty
-    core.simulation.budget.setFunds(350);
+    // A treasury that could pay for Songkran but be left nearly empty (a new town's price: a tenth, src/festivals.ts)
+    core.simulation.budget.setFunds(265);
     const year = player.playYear();
     const answers = core.log.filter((logged) => logged.command.type === "festival").map((logged) => logged.command);
     expect(answers).toEqual([{ type: "festival", id: "songkran", scale: "none" }, { type: "festival", id: "loy_krathong", scale: "none" }]);
