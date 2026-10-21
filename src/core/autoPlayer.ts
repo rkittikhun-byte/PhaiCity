@@ -10,7 +10,10 @@
 // answers the festival card a month before each festival as a sensible ruler would (answerFestivals). It asks what the
 // city cannot build yet (src/unlocks.ts) before it tries, and waits for it: a building it wanted is tried again each month
 // once it is unlocked, a locked service lets the next ones go first, and it paves the town's roads once it has the
-// technicians (docs/GAME_DESIGN.md 6). No DOM.
+// technicians (docs/GAME_DESIGN.md 6). It plans as a ruler would (docs/GAME_DESIGN.md 6.6): power plants and water works
+// saved for and built before the town needs them, looked at each month (planCapacity), the stadium and port saved for
+// before their caps come, the year's zones as far as power, water and money allow (paintAhead), new sois cut off the
+// roads when the roadsides are full (laySois), and factories in a district of their own past a green band. No DOM.
 
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
@@ -255,8 +258,11 @@ const CELLS_A_PLOT = 12;
 const PAINT_MOST = 9000;
 /** ... with no more than this share of the money past what is kept for power and water */
 const PAINT_SHARE = 0.5;
-/** The zones wait for the era card's asks while education or health is below this share of what the era aims at */
+/** The zones wait for the era card's asks while education or health is below this share of what the era aims at, and
+ *  then take no more than PAINT_SHARE_CARE_SHORT of the money left: with half, the town of 35,000 had schools and care
+ *  for half its people and stayed a market town for its ten years */
 const CARE_FIRST_BELOW = 0.85;
+const PAINT_SHARE_CARE_SHORT = 0.25;
 /** A kind of zone's weight among a year's cells when it is not wanted at all (the valves, up to 1500–2000, at or below 0) */
 const UNWANTED_WEIGHT = 70;
 /** ... and the weight of one that waits for its stadium, port or airport, which takes none */
@@ -539,7 +545,7 @@ export class AutoPlayer {
     // nothing: the town painted no zones after its first year, and grew only by its plots rising; a stadium saved for
     // three years left room for 300 plots unpainted), only no more of the kind that waits for it. Painted before the era
     // card's asks, the town outgrew its schools and stayed a market town (education 34% of the 50% aimed at)
-    if (careShort) this.paintAhead(valves);
+    if (careShort) this.paintAhead(valves, PAINT_SHARE_CARE_SHORT);
     if (!saving) {
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
       // money is kept for what the era card asks
@@ -1002,7 +1008,7 @@ export class AutoPlayer {
    * town short of jobs paints factories and shops, not more homes nobody moves into. A block of land more when the
    * town's own is nearly all painted.
    */
-  private paintAhead(valves: Record<string, unknown>): void {
+  private paintAhead(valves: Record<string, unknown>, share = PAINT_SHARE): void {
     const core = this.core, sim = core.simulation, budget = sim.budget, map = core.map;
     if (!map.cellZones || !core.tools) return;
     const power = sim._powerManager, water = sim._waterManager;
@@ -1023,7 +1029,7 @@ export class AutoPlayer {
     const tool = core.tools.residential;
     const each = cellPrice(tool?.toolCost ?? 100, PAINT_PRICE_SHARE, tileMetres(map)) * (tool?.costFactor ?? 1);
     const keep = this.kept - this.capsKept;
-    const spare = Math.min(budget.totalFunds - keep - EXPAND_FROM / 3, (budget.totalFunds - keep) * PAINT_SHARE);
+    const spare = Math.min(budget.totalFunds - keep - EXPAND_FROM / 3, (budget.totalFunds - keep) * share);
     const cells = Math.floor(Math.min(PAINT_MOST, room * CELLS_A_PLOT, spare / Math.max(each, 0.01)));
     if (cells < CELLS_A_PLOT * 4) {
       this.note(`zones: none painted (room for ${Math.round(room)} plots, ฿${Math.round(spare)} to spare)`);
