@@ -47,6 +47,20 @@ The era buildings are in the game (owner: "นำเข้าเกมส์ ใ
   on the front edge of the first row of cells (`TileSnapshot.againstRoad`, `cellPlotPose`'s `depthHalf`).
 - Tests: `test/render3d/frontage.test.ts`, and the frontage case in `test/render3d/eraBuildings.test.ts`.
 
+## Temple models (22 Oct 2026; PLAN.md "Temples")
+
+- The temple sets (`blend/era<n>/era<n>_<region>_temple.blend`, built with `./run.sh <era> --temple`) are exported
+  with `export_game.py -- [era<n> ...] --temple`, which writes only `temple_1.glb`, `temple_2.glb` and `temple_3.glb`
+  into the same `assets/models/buildings/era<n>/<region>/` folders and adds them to `index.json` (`kinds`:
+  `temple_1` ... `temple_3`, `tiles: 3`); every other entry is kept. Budget 16,000 triangles each (15,000-16,000 after
+  the export).
+- Each is a 3x3 compound like the services: origin at the footprint centre on the ground, front +Z in the glTF (-Y in
+  Blender), metres (the game scales 16 m to a tile). The compound wall runs round the edge of the 47 m square (its
+  outer face 23.4 m, the coping 23.5 m from the centre) with the main gate in the middle of the front and side gates,
+  so the model itself shows the ground the temple reserves; nothing reaches past it, the yard's ground cover to the
+  tile's edge as on the other buildings.
+- The level is the community's: temple_1 a village's, temple_2 a town's, temple_3 the full compound.
+
 ## What is here
 
 | Path | What |

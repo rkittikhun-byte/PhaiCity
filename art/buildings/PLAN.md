@@ -20,6 +20,8 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   the owner: how a city moves between eras a little at a time and how buildings level up.
 - 21 Oct 2026: the frontage sets (see "Frontage"): shophouse bays and the 12 m house for every era and region, built,
   exported and drawn by the game along painted streets.
+- 22 Oct 2026: the temple sets (see "Temples"): three levels of temple compound for every era and region, built and
+  exported (90 glbs, `temple_1` ... `temple_3` in the index).
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 
@@ -132,6 +134,49 @@ in `lib/frontage_parts.py`), of 12 kinds, every one a plot deep (16 m):
     cannot go without losing the house on posts; the export's floor keeps them under 3,900.
 - A shop painted one column wide (one cell along the road, four back) now grows into a plot of its own
   (`src/zoneCells.ts` `syncCellPlots`), so a lone bay appears.
+
+## Temples (owner, 21 Oct 2026: every community has a temple and its temple changes with the era; built 22 Oct 2026)
+
+A third kind of set beside the era and frontage sets, `era<n>_<region>_temple` (`scripts/buildings/temples.py`, every
+era in one file; parts in `lib/temple_parts.py`, colours in the palette's "temples" group): a Thai Buddhist temple
+compound (วัด) at three levels, each a 3x3 (48 m square, everything within 47 x 47 m), origin at the centre on the
+ground, front -Y. The compound wall (กำแพงแก้ว) runs round the square's edge (its coping reaches 23.5 m from the
+centre) at every level, closed but for its gates, so it marks the reserved ground; the gates (ซุ้มประตู) stand in it
+with their roofs set back inside.
+
+| Kind | What it is |
+|---|---|
+| temple_1 | a village's first temple: a small hall (an Isan สิม) with eight sema stones, a sala, two monks' huts (กุฏิ), the bodhi tree, a drum and bell under a little roof, the main gate and a side gate |
+| temple_2 | an ordination hall in tiers with sema, a bell tower, a small chedi behind the hall, four huts, a bigger sala |
+| temple_3 | the full compound: the ordination hall with stepped tiers and (central, east, south, north) a colonnade with lean-to roofs, a viharn, a large chedi or prang, the sala, the bell tower, the hut row, a scripture hall (หอไตร) on posts in its pond (northeast, central, north; elsewhere a small pavilion), three gates |
+
+- Layout, the same at every level: the hall in the middle-back facing the main gate, the chedi behind it, the sala
+  front-left, the huts down the right side (facing the yard), the bodhi tree back-left, the bell tower front-right.
+- Eras: 1 timber halls with wooden shingles and carved wooden ornaments, thatched sala and huts on posts, a timber
+  and woven bamboo fence, dirt (laterite, sand) yards; 2 whitewashed brick halls with clay tiles, a plastered wall
+  with a coping, a white chedi, a timber sala, sand yards; 3 glazed tiers (orange with a green border in the centre)
+  with gold ช่อฟ้า ใบระกา หางหงส์ and lacquered gables, a gold-and-white chedi, the sala an open hall on columns,
+  paved courts; 4 the same in granite with lamps, a parking lane and solar on the huts; 5 white and gold, grass,
+  lotus ponds and planting, rounded huts and a louvred sala under solar roofs.
+- Regions: north (Lanna) dark red roofs in more tiers on red columns, a gold Lanna chedi, an open viharn with a dark
+  inside, plain naga balustrades; northeast a small sim with colour-band walls (abstract ฮูปแต้ม) and a square ธาตุ;
+  central bell chedi; east a Khmer-style sandstone prang at level 3 and fruit trees; south green roofs on heavier
+  columns and a Srivijaya chedi with corner stupas; west dark roofs and lacquer, a slender gold Mon chedi.
+- Rules (CLAUDE.md licence rule 8): ช่อฟ้า, ใบระกา and หางหงส์ only on the temple buildings (`temple_parts.gable_trim`,
+  used by nothing else; the huts keep their region's plain house roofs); no Buddha images or any figure, no flags, no
+  royal symbols, no text; doors and shutters closed, open halls dark inside; inspired by real temples, no replica.
+- Build: `./run.sh <era1..era5|all> [region] --temple [--force]` writes `blend/era<n>/era<n>_<region>_temple.blend`,
+  the glbs beside the era's, and one sheet `previews/era<n>_<region>_temple.png` (temple_1, temple_2, temple_3 left
+  to right). `TEMPLE_DEBUG=1` prints what each part of temple_3 adds. Export:
+  `blender -b --factory-startup --python-exit-code 1 -P scripts/export_game.py -- [era<n> ...] --temple`.
+- Budgets: 17,000-42,000 triangles in Blender (under the soft 45,000; the busiest are era 5 and the north); the
+  export thins them to 15,000-16,000 (props to a fifth, then the buildings to about half), which keeps the wall and
+  the roofs clean (checked by rendering the exported glbs).
+- Choices made without the owner (22 Oct 2026): the gates sit in the wall with their pillars from its outer face
+  inward and their roofs set back, so no part passes the 47 m square; the sala of eras 3-4 is an open hall in temple
+  tiers turned side-on with its stair toward the path; trees keep 4.7 m from the edge so their crowns stay inside;
+  every era keeps the region's chedi form (white or plastered before era 3), the east's prang only on temple_3 from
+  era 3; the north's temple_1-2 halls have two front tiers and a back one.
 
 ## Checklist
 
