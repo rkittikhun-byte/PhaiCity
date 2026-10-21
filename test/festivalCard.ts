@@ -124,10 +124,17 @@ describe("the festival card", () => {
 
     const shut = setUp();
     shut.send(ahead("songkran"));
-    shut.send(held("songkran"));
-    expect(shut.news).toEqual(["Songkran is held modestly (฿20)"]);
+    shut.send(held("songkran", { scale: "grand", cost: 100 }));
+    expect(shut.news).toEqual(["Songkran is held grandly (฿100): visitors fill the town"]);
     expect(shut.element.hidden).toBe(true);
     expect(shut.chip.hidden).toBe(true);
+    // ... but a festival held modestly as usual is no news; one the treasury could not pay for is
+    shut.send(ahead("loy_krathong"));
+    shut.send(held("loy_krathong"));
+    expect(shut.news.length).toBe(1);
+    expect(shut.chip.hidden).toBe(true);
+    shut.send(held("silk", { cost: 0, byPeople: true }));
+    expect(shut.news.length).toBe(2);
   });
 
   test("a village's own festival is told nothing about, and shows no chip", () => {

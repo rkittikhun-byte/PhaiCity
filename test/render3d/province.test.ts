@@ -4,7 +4,7 @@
 import { Euler, Matrix4, Mesh, PerspectiveCamera, Quaternion, Ray, Vector3, WebGLRenderer } from 'three';
 import { CityHeightField, HILL_EXAGGERATION, provinceColor } from '../../src/render3d/city/heightfield.js';
 import { CityCamera } from '../../src/render3d/city/camera.js';
-import { BUILDING_SCALE, TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { BUILDING_SCALE, TileSnapshot, ROAD_GAP } from '../../src/render3d/city/tileModels.js';
 import { halfWidth, realUnits, roadReach } from '../../src/roadGeometry.js';
 import { ProvinceSurface } from '../../src/render3d/city/province-surface.js';
 import { Placement, RoadsidePlacement } from '../../src/render3d/city/placement.js';
@@ -151,7 +151,8 @@ describe('Province ground and appearance',()=>{
     s.values[4*9+3]=1020;s.values[4*9+6]=210;
     const tower=s.placement(4*9+3,'central')!,wire=s.placement(4*9+6,'central')!;
     expect(tower).toBeInstanceOf(RoadsidePlacement);expect(tower.fill).toBeCloseTo(BUILDING_SCALE);
-    expect(Math.abs(tower.x-45)).toBeCloseTo(1.5+.6+5*BUILDING_SCALE);
+    // ... its front (its model's 9.5 units of a tile, drawn at BUILDING_SCALE) ROAD_GAP from the road's edge (tileModels.ts toRoadEdge)
+    expect(Math.abs(tower.x-45)).toBeCloseTo(1.5+ROAD_GAP+4.5*BUILDING_SCALE);
     expect(wire).not.toBeInstanceOf(RoadsidePlacement);
   });
   it('on a real-scale city map things are drawn at their real size, and roads and the ground still fill their tiles',()=>{

@@ -8,7 +8,7 @@
 // price and what it brings: grandly, modestly or not at all; what any festival costs besides money (rubbish and traffic,
 // Songkran's water, lanterns' and rockets' fires, krathong in the water) below them. A choice is the festival command
 // (src/cityCommands.ts) and stands for the years after; a festival not answered is held modestly. When the festival comes
-// the news says how it was held, or the card does if it is open, never both; the chip goes once every festival it named
+// the card says how it was held if it is open, else the news does unless it was held modestly as usual, never both; the chip goes once every festival it named
 // has come and the card is closed. A village holds its own festivals (src/festivals.ts FESTIVAL_TOWN_PEOPLE): no chip,
 // no card and no news for them. Fires from lanterns and rockets are always news, with where they started. It only reads
 // the city and sends commands.
@@ -101,9 +101,11 @@ export class FestivalCard {
       if (event.type !== "festival" || !FESTIVAL_SPECS[event.id].choice || event.village) return;
       const entry = this.asked.get(event.id);
       if (entry) entry.held = event;
-      // The card says how it was held when it is open; else the news does
+      // The card says how it was held when it is open; else the news does, but not of a festival held modestly as it is
+      // every year unless the ruler says otherwise (owner, 21 Oct 2026: "นี่บ่อยเกิน"): the bunting in the town shows it
+      const usual = event.scale === "modest" && !event.byPeople && !event.downgraded;
       if (this.isOpen && entry) this.render();
-      else source.news(festivalNewsText(event), event.scale !== "none" && !event.byPeople);
+      else if (!usual) source.news(festivalNewsText(event), event.scale !== "none" && !event.byPeople);
       if (!this.isOpen) this.forgetHeld();
     });
     source.on("festivalFire", (event) => {
