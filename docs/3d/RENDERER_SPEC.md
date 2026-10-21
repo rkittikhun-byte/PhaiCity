@@ -169,7 +169,7 @@ which the renderer only reads:
   there and turns the tool outline red). Draw them dimmed and less saturated, about 45% brightness, and the
   province's edge as a thin line between inside and outside tiles, visible from any zoom.
 - **Level-1 roads are laterite (ถนนลูกรัง).** The map starts with one laterite road to each neighbouring province; the
-  player's roads are level 1 too until road levels exist (asphalt, concrete: `docs/POLISH_BACKLOG.md`).
+  other levels (asphalt, concrete, motorway, tollway) are in section 6G (`docs/ROADS.md`).
 - **Slanted roads (owner, 13 Oct 2026).** The game lays roads tile by tile, so a slanted road is a staircase of
   corners. A corner whose neighbour on a side is the opposite corner is a step, and its road crosses that side at
   45°: steps in a row make one straight diagonal, a step beside a straight road eases into it (a 1:2 slope becomes
@@ -554,6 +554,62 @@ worker could take it later). A pool's meshes are as big as the batches it draws;
 moving camera fills the pools every frame (under a millisecond for 3,000 buildings here). The procedural models, roads
 and people have no levels yet. Raising the draw budget, now that pooled batches cost far less than they count, would
 give more of a big city detail in place of far boxes; not done, so the look is the same.
+
+### The people while the camera pans (21 Oct 2026)
+
+**A scripted pan** (`bench.ts`): `await phaicityBench.pan({speed: 4})` grows the town if it is not, puts the camera
+at 240 units from the usual angle on a straight line through the town centre, the town's radius and a quarter one side
+of it (1,012 units across for this town), lets it settle, then slides it `speed` units a frame to as far the other side
+(4 units a frame is 240 units a second at 60 frames, a brisk drag; 254 frames), nothing waiting for what it uncovers. It
+gives each frame's processor time for the whole `paint` and for `CityPedestrians.update` alone (median, 95th
+percentile, most, and the frames over 20 ms), and with the new people the scans' count of work, how many finished, and
+how far behind the camera the people shown were found.
+
+**Where it went.** Over the town a frame every 40 units or so took 60–330 ms in the people alone (25 of 254 frames over
+20 ms): each time the camera came over another 40-unit square, `CityPedestrians` found who lives and works round it again
+in one go, weighing every workplace for every resident (at the town centre about 7,700 residents and 930 workplaces,
+7 million pairs) and every road line for every worker, and between scans each walker walked its road from the start to
+find its place (the town's lines have up to 1,400 points).
+
+**What changed** (`peopleScan.ts`, the people drawn exactly as before):
+
+- **A job of small steps.** The scan is a generator of steps (a row of tiles, a household with its residents' workplaces
+  and lines), each counting its work; the view does up to 40,000 of its counted work or 2.5 ms a frame (`SCAN_BUDGET`,
+  `SCAN_BUDGET_MS`, the step under way finishing), and the people of the last scan finished walk on until it is done.
+  With nothing found yet (a city opening) it is done at once. A scan the camera has gone beyond (a jump, `centreOn`) is
+  dropped for one where the camera is; otherwise a scan finishes and the next starts where the camera is then.
+- **The same answer for far less work.** A resident's nearest workplace with room is found through squares of 4 × 4
+  tiles, ring by ring round the home's, until the next ring can hold none nearer, and stays the nearest while it has
+  room; a worker's line through squares of 80 units of the lines' middle points, only those in reach of both home and
+  work. Ties go to the first found, as before, so the households, workers, workplaces and lines are the same as
+  weighing every one in turn: `test/render3d/peopleScan.test.ts` keeps the old scan and checks it, and that a pan or a
+  jump settles on the people a whole scan at once shows. A whole scan at the town centre is now 126,000–236,000 counted
+  pieces of work, about 6 ms (20 ms the first time, before the browser has compiled it), about 21,000 a millisecond,
+  so 3–6 frames of the budget.
+- **Roads built again.** The worker's lines are new objects after a road is built; the walkers of an unchanged road (the
+  same points) keep walking it until the next scan is done, and a changed road has none until then.
+- **A place along a road** comes from its points' running lengths, worked out once a line, by halving: the same point
+  and the same way as walking it.
+
+**Before and after** (21 Oct 2026, the same machine, setup and town, `index.html?khonkaen&bench` on the dev server;
+three pans at 4 units a frame, and one at 12; other sessions shared the machine, so the paint varied by tens of
+milliseconds between runs, while the people's numbers held):
+
+| Pan | People ms: median, 95 %, most | People frames over 20 ms | Paint ms: median, 95 %, most |
+|---|---|---|---|
+| 4 a frame, before | 1.4–2.8, 62–115, 164–332 | 19–24 of 254 | 23–35, 107–167, 186–339 |
+| 4 a frame, after | 0.5–0.7, 2.2–3.6, 3.7–5.5 | 0 | 12–14, 27–74, 47–265 (55–60, 98–111, 165–226 on a busier run) |
+| 12 a frame, before | 5.1, 203, 244 | 22 of 86 | 39, 234, 276 |
+| 12 a frame, after | 1.3, 5.0, 7.2 | 0 | 40, 133, 144 |
+
+After, the people shown were found 28 units behind the camera at the middle of the pan and 52–60 at most (25 scans for
+the 25 squares crossed); at 12 a frame 48 and 119 (22 scans, as one finishing starts the next where the camera is
+then), still inside the 288 units each way a scan reaches.
+
+**What is left of the paint while panning** (the same pan, each part timed): the drawing about 6 ms and the chunks about
+5 ms a frame; `TileSnapshot.sync` reading the whole 480 × 480 map again whenever the simulation, still running behind
+the bench, changes a tile (15–24 ms, one frame in twenty); the street names (`streetLabels.ts`, up to 20 ms) and the
+trees round the camera (`CityFoliage.update`, up to 20 ms) when the camera reaches new ground. None of them is the people's.
 
 ## 9. What stays 2D for now
 

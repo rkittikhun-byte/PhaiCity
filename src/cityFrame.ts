@@ -158,7 +158,7 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   }
   // ... and the roads and railways as drawn, in metres (src/roads/roadGraph.ts)
   const metres = save.tileSizeM || CITY_TILE_M;
-  for (const field of ["roads", "rails"]) if (save[field]) out[field] = movedGraphData(save[field], dx * metres, dy * metres);
+  for (const field of ["roads", "rails", "canalLines"]) if (save[field]) out[field] = movedGraphData(save[field], dx * metres, dy * metres);
   // ... and the ruler's buildings where they were put down (src/buildings/placedBuildings.ts)
   if (save.buildings && Array.isArray(save.buildings.buildings)) {
     out.buildings = { ...save.buildings, buildings: save.buildings.buildings.map((row: unknown[]) =>

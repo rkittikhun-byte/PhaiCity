@@ -11,7 +11,7 @@ Guide for AI agents working in this repo: Claude Code directly, and Codex throug
   - The city simulation stays as is; only the rendering changes.
   - The roadmap is in `README.md`.
 - **Unified Architecture & Cities: Skylines Upgrade Docs (17 Oct 2026):**
-  - `docs/ARCHITECTURE.md` — Consolidated game systems, core architecture, map scales, district frames, zone cells, curved roads, and utilities.
+  - `docs/ARCHITECTURE.md` — Overview of the game systems, core architecture, map scales, district frames, zone cells, curved roads, and utilities, linking each system's own doc for its numbers and decisions (the system docs 78642f9 deleted on 17 Oct were restored and brought up to date on 21 Oct 2026).
   - `docs/CITIES_SKYLINES_ROADMAP.md` — Master blueprint for Three.js 3D visual sharpness, 60 FPS performance, and Cities: Skylines gameplay upgrades.
   - `docs/METRE_DRAWING_PLAN.md` (owner, 20 Oct 2026) — roads, then buildings, then zones drawn and stored in metres with
     the tiles derived from them for the simulation, and the new technology for a 4-star game; follow it step by step.
@@ -27,7 +27,7 @@ it wins over older style notes, and `test/theme.ts` rejects colours written anyw
 **Since 13 Oct 2026 Claude Code owns the whole project, graphics included** (owner: after Codex finished Prompt R5,
 "ไม่ต้องใช้ Codex อีกแล้ว สร้าง sub agent จัดการได้เองเลย"). Until then Codex owned the graphics (`src/render3d/**`,
 `assets/textures/**`, `assets/hdri/**`, `assets/icons/**`, `model-gallery.html`, `test/render3d/**`,
-`docs/3d/MODEL_STATUS.md`); its prompts in `docs/3d/CODEX_PROMPTS.md` that were never sent (W1, P1, M1, F1, RD1 and
+and its model status log, deleted on 17 Oct 2026); its prompts in `docs/3d/CODEX_PROMPTS.md` that were never sent (W1, P1, M1, F1, RD1 and
 the icons) are now Claude Code's own to-do list, built to the same specs.
 
 - **Codex only works when the owner asks it for a specific task** (`AGENTS.md`): on a branch of its own, touching only
@@ -167,7 +167,8 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     window's speeds are hidden.
   - The tools are a dock at the bottom middle that rises when the mouse comes to it; the tool in hand shows above it
     with five places for its levels (`src/toolLevels.ts`, levels still to design: `docs/POLISH_BACKLOG.md`).
-    Twenty-one buttons, the last buying land (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`; no power line since 15 Oct 2026: power
+    Seven groups of buttons (`TOOL_CATEGORIES` in `src/toolDock.ts`: the city with the ruler's house and buying land,
+    zones, roads, services, resources, the bulldozer, query), each opening a card of its tools (owner, 13 Oct 2026; `docs/TOOLS_PLAN.md`; no power line since 15 Oct 2026: power
     runs along the roads from a plant beside one, as water does, `src/powerManager.js`, `docs/POWER_PLANTS.md`): some group tools in the choices of that card
     (safety: police or fire; power: every kind and nuclear; water: works or tower; rubbish: five buildings; schools;
     hospitals; farms or harbours; port or airport; public transport: a stop and three stations), and a button wears the
@@ -272,16 +273,17 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   (`loadResources` in `src/splashScreen.js`). **Kinds of power plant** (`docs/POWER_PLANTS.md`, `src/powerPlants.ts`):
   lignite (the old coal plant), gas, dam, solar and wind, all on the coal plant's tiles and chosen in the tool levels
   card above the power button (`setToolChoices` in `src/toolLevels.ts`, the button's `data-active-tool`); the map
-  records each plant's kind (`gameMap.powerKinds`, saved as `powerKinds`; renderers read it, RENDERER_SPEC 6D).
+  records each plant's kind (`gameMap.powerKinds`, saved with the `buildings` since 20 Oct 2026; renderers read it, RENDERER_SPEC 6D).
   Dams and wind farms need the province's resource, dams water beside them (`plantProblem` in `CityCommands`);
   lignite and gas burn fuel paid at the year's end. **Mines and oil wells** (`docs/MINING.md`, `src/mining.ts`): one
   3×3 building (tiles 965–973) per ore the province has, chosen above the mine button; with power it pays royalties
   and gives work, raises dust, poisons the ground (`mining.ground`, the city map's toxic layer, spoiling water works)
-  and uses up the province's ore; `gameMap.mineKinds` (saved as `mineKinds`) says what each digs (RENDERER_SPEC 6E).
+  and uses up the province's ore; `gameMap.mineKinds` (saved with the `buildings`) says what each digs (RENDERER_SPEC 6E).
   **Farms and fishing harbours** (`docs/FARMING.md`, `src/farming.ts`): 3×3 buildings (974–982, 983–991) where the
   province has farmland or fishing; farms sell their crop, ask for farm-goods factories, pump groundwater, seep
   chemicals and burn stubble into haze from February to April; harbours sell their catch, ask for markets and use
-  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts.
+  up the province's fish (`fishStock`, saved), halved by dirty water. Every resource of the profile now counts but water and forest, whose levels the simulation
+  does not read yet (`docs/PROVINCE_PROFILE.md`).
 - **Road levels (ชนิดถนน, owner 13 Oct 2026):** `docs/ROADS.md`, `src/roadLevels.ts`. Eight levels, laterite to tollway,
   chosen above the road button, with an upgrade tool that raises a road one level for the difference. The map keeps
   each tile's level (`gameMap.roadLevels`, saved as `roadLevels`; renderers read it, RENDERER_SPEC 6G). Wider roads
@@ -305,14 +307,16 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   saved): a canal grows a level every three months while it stands, by the city's people and the land value along it
   (`growCanals`, `_canalsMonth`), and adds land value nearby. In 3D a canal is drawn along its smooth line with each
   level's banks and things (`src/render3d/city/canals.ts`, `models/water/canal.ts`); the rest of the view reads its
-  tiles as ground (`canalLand`).
+  tiles as ground (`canalLand`). Since 21 Oct 2026 canals are dug in metres like roads (`gameMap.canalGraph`, saved as
+  `canalLines`, `src/roads/canalLines.ts`); the road, rail and canal tools have a chain mode, and a drawn line lost to a
+  disaster or decay is cut there, never redrawn (`test/roadsStay.ts`).
 - **Ruler's house (จวนเจ้าเมือง, owner 13 Oct 2026):** `docs/RULER_HOUSE.md`, `src/rulerHouse.ts`. A new city's first
   building, beside a road: until it stands only the roads, the house and the bulldozer work (`houseProblem` and
   `houseRoadProblem` in `CityCommands`, the dock greys the rest with `body.houseFirst`); cities saved before it are not
   held back. One house, on the civic 3×3 (tiles 414–422,
   `gameMap.civicKinds`, `gameMap.rulerHouse` {x, y, level, wings}, saved), six levels by rank raised for the difference,
   wings chosen in its window (`src/houseWindow.ts`, a `wing` command): treasury, planning office, warning tower,
-  granary, culture court, front garden (council hall and trade office wait). It is the city's centre, raises land
+  granary, culture court, front garden, council hall (the trade office waits). It is the city's centre, raises land
   value near it, and ⌂ returns to it; its upkeep is a budget line. Renderers read it (RENDERER_SPEC 6H).
 - **Painted zones and drawing (owner 13 Oct 2026):** `docs/ZONE_PAINT.md`. On a real-scale city map
   (`gameMap.paintedZones`) homes, shops and factories are painted a 16 m tile at a time within three tiles of a road
@@ -434,7 +438,7 @@ Even before any server exists, all new code must keep this future possible:
   down: its real shape, water, coast and woods, its real railways and one laterite road to each neighbour
   (owner, 12 Oct 2026). No other real roads, and no buildings.
 - Read `docs/geo/GEO_SPEC.md` before touching `scripts/geo/`, `data/geo/` or `data/maps/`.
-  The prompts are in `docs/geo/CODEX_PROMPTS.md`.
+  The owner's review of rebuilt maps is GEO_SPEC section 12, step 8.
 - Only the data sources listed in GEO_SPEC section 3 are allowed:
   - Natural Earth (public domain)
   - OpenStreetMap (ODbL: visible in-game credit; derived data stays ODbL)

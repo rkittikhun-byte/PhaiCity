@@ -3,7 +3,8 @@
  */
 
 // How the tool in hand draws (โหมดวาด, owner 13 Oct 2026, docs/ZONE_PAINT.md), as Cities: Skylines' tool modes do:
-// roads, railways and power lines draw a straight line between two clicks, a curve bent by one or two clicks more,
+// roads, railways and power lines draw a straight line between two clicks, or one after another, each from where the last
+// ended, until Esc or a right click (ต่อเนื่อง, docs/METRE_DRAWING_PLAN.md 1.5), a curve bent by one or two clicks more,
 // follow the mouse freely, or lay a grid across a dragged rectangle (src/drawPaths.ts); the zone brushes of a map with
 // painted zones (src/plots.ts) paint under the mouse, paint every cell a round brush a few metres across passes over
 // (docs/METRE_DRAWING_PLAN.md 3.2), fill a dragged rectangle, or fill a whole stretch of empty land along a road. The mode is chosen in a row of the tool levels card (src/toolLevels.ts) and remembered in this browser.
@@ -14,16 +15,17 @@ import { ERASE_TOOL, PAINT_TOOLS } from "./plots";
 import { FARM_ERASE_TOOL, FARM_PAINT_TOOL } from "./farmZone";
 import { ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 
-export const LINE_MODES = ["straight", "curve", "curve2", "free", "grid"] as const;
+export const LINE_MODES = ["straight", "chain", "curve", "curve2", "free", "grid"] as const;
 export const PAINT_MODES = ["brush", "circle", "rectangle", "fill"] as const;
 export type DrawMode = typeof LINE_MODES[number] | typeof PAINT_MODES[number];
 /** The upgrade tool draws as the roads do, and may also take a whole road from junction to junction at a click ("fill",
  * docs/METRE_DRAWING_PLAN.md step 1's leftovers); its mode is its own, so the road tools never take that one */
-export const UPGRADE_MODES: readonly DrawMode[] = [...LINE_MODES, "fill"];
+export const UPGRADE_MODES: readonly DrawMode[] = [...LINE_MODES.filter((mode) => mode !== "chain"), "fill"];
 type ModeGroup = "line" | "paint";
 
-/** The clicks a clicked mode takes: the start and the end, and one or two bends between */
-export const POINTS_NEEDED: Readonly<Partial<Record<DrawMode, number>>> = { straight: 2, curve: 3, curve2: 4 };
+/** The clicks a clicked mode takes: the start and the end, and one or two bends between (a chain's next line takes one
+ * more, its start being where the last ended) */
+export const POINTS_NEEDED: Readonly<Partial<Record<DrawMode, number>>> = { straight: 2, chain: 2, curve: 3, curve2: 4 };
 
 // ... and canals (src/canals.ts), dug the way a road is drawn
 const LINE_TOOLS = new Set<string>([...ROAD_TOOLS, UPGRADE_TOOL, "rail", "wire", "canal"]);
@@ -127,7 +129,10 @@ export function setSnap(on: boolean): void {
 
 /** Modes a click works in: a point of a line, or a fill. */
 export const isClickMode = (mode: DrawMode | null): boolean =>
-  mode === "straight" || mode === "curve" || mode === "curve2" || mode === "fill";
+  mode === "straight" || mode === "chain" || mode === "curve" || mode === "curve2" || mode === "fill";
+
+/** Modes whose line is straight: one line, or a chain of them */
+export const isStraightMode = (mode: DrawMode | null): boolean => mode === "straight" || mode === "chain";
 
 /** Modes a dragged rectangle works in. */
 export const isAreaMode = (mode: DrawMode | null): boolean => mode === "rectangle" || mode === "grid";
@@ -135,6 +140,7 @@ export const isAreaMode = (mode: DrawMode | null): boolean => mode === "rectangl
 // Small line pictures of the modes, drawn in the text colour
 const ICONS: Readonly<Record<DrawMode, string>> = {
   straight: '<path d="M3 13 13 3"/><circle cx="3" cy="13" r="1.5"/><circle cx="13" cy="3" r="1.5"/>',
+  chain: '<path d="M2 13 7 5l7 3"/><circle cx="2" cy="13" r="1.5"/><circle cx="7" cy="5" r="1.5"/><circle cx="14" cy="8" r="1.5"/>',
   curve: '<path d="M3 13Q3 3 13 3"/><circle cx="3" cy="13" r="1.5"/><circle cx="13" cy="3" r="1.5"/>',
   curve2: '<path d="M2 13C8 13 8 3 14 3"/><circle cx="2" cy="13" r="1.5"/><circle cx="14" cy="3" r="1.5"/>',
   free: '<path d="M2 12c2-6 4 2 6-3s3-5 6-6"/>',

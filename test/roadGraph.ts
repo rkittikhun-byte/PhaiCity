@@ -66,6 +66,29 @@ describe("road graph", () => {
     for (const t of [0.05, 0.2, 0.4, 0.6, 0.8, 0.95]) expect(g.nearest(bezierAt(drawn, t), 1)!.distance).toBeLessThan(1e-3);
   });
 
+  test("a curve drawn across a curve twice, or a line across a curve, is cut into pieces of exactly its own shape", () => {
+    const g = new RoadGraph();
+    const old: Vec[] = [[60, 520], [250, 330], [520, 640], [880, 430]];
+    g.add({ from: old[0], to: old[3], c1: old[1], c2: old[2], level: 1, piece: 1 });
+    const twice: Vec[] = [[120, 610], [300, 380], [600, 380], [800, 620]];
+    const r = g.add({ from: twice[0], to: twice[3], c1: twice[1], c2: twice[2], level: 1, piece: 2 });
+    expect(r.split).toHaveLength(2);
+    expect(r.segments).toHaveLength(3);
+    g.add({ from: [430, 380], to: [470, 630], level: 1, piece: 3 });
+    // Every piece of each lies on the curve or line it was drawn as, to the millimetre a node is kept to
+    const offCurve = (p: Vec, c: Vec[]) => {
+      const alone = new RoadGraph(), [id] = alone.add({ from: c[0], to: c[3], c1: c[1], c2: c[2], level: 1 }).segments;
+      return alone.nearestOn(id, p).distance;
+    };
+    const offLine = (p: Vec) => Math.abs((p[0] - 430) * 250 - (p[1] - 380) * 40) / Math.hypot(40, 250);
+    for (const s of g.segments.values()) {
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        const p = g.pointAt(s.id, t);
+        expect(s.piece === 3 ? offLine(p) : offCurve(p, s.piece === 1 ? old : twice)).toBeLessThan(2e-3);
+      }
+    }
+  });
+
   test("an S-bend crossing a straight road twice splits it twice, and itself into three", () => {
     const g = new RoadGraph();
     g.add({ from: [0, 50], to: [300, 50], level: 2 });

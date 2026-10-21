@@ -141,6 +141,8 @@ export class CityCore {
       for (const system of this.systems) system.monthly?.(this);
       this.emit({ type: "month", month: date.month, year: date.year });
     });
+    // The roads drawn in metres watched on the tiles they lie on now, so one the first step takes a tile of is cut there
+    this.commands.cutLost();
   }
 
   /** Listens for one kind of event; returns the way to stop */
@@ -161,7 +163,11 @@ export class CityCore {
 
   /** A player's command, checked and applied (src/cityCommands.ts); accepted ones are logged */
   apply(command: Command): CommandOutcome {
+    // The roads drawn in metres cut where anything took a tile of them since the last step (a tornado), before the
+    // command changes them, and watched on their tiles as they are after it (src/roads/roadCut.ts LostTiles)
+    this.commands.cutLost();
     const outcome = this.commands.apply(command);
+    this.commands.cutLost();
     if (outcome.accepted) {
       this.log.push({ step: this.steps, command });
       this.emit({ type: "command", step: this.steps, command });
@@ -173,6 +179,8 @@ export class CityCore {
   step(): void {
     this.commands.settle();
     this.simulation._simulate(this.simulation._constructSimData());
+    // ... the roads drawn in metres cut where it took a tile of them (a flood, a road fallen apart)
+    this.commands.cutLost();
     this.steps++;
     this.simulation._updateTime();
   }
@@ -189,6 +197,7 @@ export class CityCore {
     const threshold = speed === SimulationStatics.SPEED_FAST ? 10 : speed === SimulationStatics.SPEED_MED ? 50 : 100;
     if (!sim.budget.awaitingValues && speed !== SimulationStatics.SPEED_PAUSED && now - sim._lastTickTime >= threshold) {
       sim._simulate(sim._constructSimData());
+      this.commands.cutLost();
       this.steps++;
       sim._lastTickTime = new Date(now);
     }
@@ -198,6 +207,8 @@ export class CityCore {
   /** The city as a save keeps it, apart from what only the game knows (its name, the ruler's rank, the news …) */
   save(): Record<string, unknown> {
     this.commands.settle();
+    // ... and the roads drawn in metres cut where anything else took a tile of them since (a tornado between steps)
+    this.commands.cutLost();
     this.objects.scan(this.map, this.simulation._cityTime);
     const data: Record<string, unknown> = { ...writeCityLayers(this.map), objects: this.objects.toJSON() };
     Tools.save(data);

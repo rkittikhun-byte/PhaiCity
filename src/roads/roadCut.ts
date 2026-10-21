@@ -9,6 +9,7 @@
 // from its tiles again. Plain code, no DOM: metres from the map's corner.
 
 import type { RoadGraph } from "./roadGraph";
+import { deepTiles, type RasterMap } from "./roadRaster";
 
 /** How far past the cleared tile the cut reaches (metres), so a cut road's end lies on the tile beside it */
 const PAST_M = 0.25;
@@ -41,6 +42,53 @@ export function spanOver(graph: RoadGraph, id: number, box: readonly [number, nu
     return lo;
   };
   return [first === 0 ? 0 : edge((first - 1) / steps, first / steps), last === steps ? 1 : edge((last + 1) / steps, last / steps)];
+}
+
+/**
+ * The roads drawn in metres cut where a tile under them was lost some other way than a command: a flood, a tornado,
+ * an earthquake, a road fallen apart for want of upkeep (src/road.js). The bulldozer cuts them as it clears (CityCommands
+ * cutGraphs); these are cut as soon as the city has stepped or is saved, so what is left stays where it was drawn and is
+ * still drawn from the graph, rather than going back to its tiles' lines and out of the save (src/core/cityLayers.ts).
+ *
+ * Each graph's roads are watched on the tiles they run deep into (roadRaster.ts deepTiles), those of them that are roads
+ * when the graph is next looked at after it changed, and those it was cut at before: undo puts back a road cut here
+ * with the stroke it came after, but not the tile, and the road is cut there again. Plain code, no DOM.
+ */
+export class LostTiles {
+  private readonly watched = new WeakMap<RoadGraph, { version: number; tiles: number[]; lost: Set<number>; changes?: number }>();
+  /** Each segment's deep tiles, by the segment itself: one never changes its shape (a cut, a split or undo makes new
+   * ones, whose ids may be those of others undone) */
+  private readonly deep = new WeakMap<object, number[]>();
+
+  /**
+   * Cuts the graph at every watched tile no longer of its kind (isKind, by tile index); whether it cut. changes: how
+   * many times any tile of the map has changed (GameMap changeCount), when known: nothing is looked at while it and the
+   * graph stay the same.
+   */
+  cut(graph: RoadGraph, map: RasterMap, isKind: (i: number) => boolean, changes?: number): boolean {
+    let seen = this.watched.get(graph);
+    if (seen && seen.version === graph.version && changes !== undefined && seen.changes === changes) return false;
+    if (!seen || seen.version !== graph.version) {
+      const lost = seen?.lost ?? new Set<number>(), tiles = new Set<number>();
+      for (const id of [...graph.segments.keys()].sort((p, q) => p - q)) {
+        const segment = graph.segment(id);
+        let own = this.deep.get(segment);
+        if (!own) this.deep.set(segment, own = deepTiles(graph, id, map));
+        for (const i of own) if (isKind(i) || lost.has(i)) tiles.add(i);
+      }
+      seen = { version: graph.version, tiles: [...tiles].sort((p, q) => p - q), lost };
+      this.watched.set(graph, seen);
+    }
+    let cut = false;
+    for (const i of seen.tiles) {
+      if (isKind(i)) { seen.lost.delete(i); continue; }
+      seen.lost.add(i);
+      cut = cutTile(graph, i % map.width, Math.floor(i / map.width), map.tileSizeM) || cut;
+    }
+    // (a cut changes the graph, which is looked at again next time)
+    seen.changes = changes;
+    return cut;
+  }
 }
 
 /**

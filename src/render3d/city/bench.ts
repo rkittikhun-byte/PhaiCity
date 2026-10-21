@@ -137,6 +137,24 @@ export interface BenchSample {
   lod: boolean; levels: number[];
 }
 export interface BenchPart { part: string; drawCalls: number; triangles: number; gpuMs: number | null }
+/** A scripted pan's processor times, a frame at a time: the whole paint and the people's part of it (CityPedestrians) */
+export interface BenchPan {
+  frames: number; speed: number; distance: number; from: { x: number; z: number }; to: { x: number; z: number };
+  paint: BenchSpread; people: BenchSpread;
+  /** Frames whose people took over 20 ms, and whose paint did */
+  peopleOver20: number; paintOver20: number;
+  /** The people's own count of work (CityPedestrians.scanWork) over the pan, and in its busiest frame, when it has one */
+  work?: { total: number; most: number };
+  /** Scans of who lives and works round the camera finished during the pan, and how far behind the camera the people
+   * shown were found (world units from where the scan shown looked to the camera's target) */
+  scans?: number; lag?: BenchSpread;
+}
+export interface BenchSpread { median: number; p95: number; max: number; mean: number }
+const spread = (values: number[]): BenchSpread => {
+  const s = [...values].sort((a, b) => a - b), at = (q: number) => s.length ? s[Math.min(s.length - 1, Math.floor(s.length * q))] : 0;
+  return { median: +at(.5).toFixed(2), p95: +at(.95).toFixed(2), max: +(s[s.length - 1] ?? 0).toFixed(2),
+    mean: +(s.reduce((a, b) => a + b, 0) / Math.max(1, s.length)).toFixed(2) };
+};
 export interface BenchOptions {
   plots?: number; era?: number | null; seed?: number; streets?: boolean; quality?: 'low' | 'medium' | 'high';
   poses?: readonly string[]; frames?: number; breakdown?: boolean; width?: number; height?: number;
@@ -319,6 +337,56 @@ export class CityBench {
         gpuMs: whole.gpuMs !== null && less.gpuMs !== null ? +(whole.gpuMs - less.gpuMs).toFixed(2) : null });
     }
     return out;
+  }
+  /**
+   * A scripted pan across the town (grown first if it is not): the camera at `distance` from the usual angle slides
+   * `speed` units a frame along a straight line through the town centre, from `reach` units one side of it to as far
+   * the other (by default the town's radius and a quarter), as a player drags the map, nothing waiting for the chunks or
+   * models it uncovers. Each frame's processor time for the whole paint and for the people in it.
+   */
+  async pan(options: { plots?: number; speed?: number; distance?: number; reach?: number; angle?: number; settle?: boolean } = {}): Promise<BenchPan> {
+    const { plots = 3000, speed = 4, distance = 240, angle = 0, settle = true } = options;
+    const view = this.view, n = view.navigation, people = view.pedestrians;
+    this.hold();
+    if (!this.town) {
+      this.status = 'growing';
+      this.grow(plots);
+      const building = view.snapshot.enableConstruction;
+      view.snapshot.enableConstruction = false; await this.frame(); view.snapshot.enableConstruction = building;
+    }
+    const town = this.town!, reach = options.reach ?? Math.max(200, town.radius * 10 * 1.25);
+    const cx = (town.centre.x + .5) * 10, cz = (town.centre.y + .5) * 10, ux = Math.cos(angle), uz = Math.sin(angle);
+    const from = { x: cx - ux * reach, z: cz - uz * reach }, to = { x: cx + ux * reach, z: cz + uz * reach };
+    n.reset(); n.distance = distance; n.target.set(from.x, 0, from.z); n.update(performance.now());
+    if (settle) { this.status = 'settling pan'; await this.settle(); }
+    // The people's own time, around their update alone
+    const update = people.update, times: number[] = [], paints: number[] = [], works: number[] = [], lags: number[] = [];
+    const scans = people.scansFinished;
+    let peopleMs = 0;
+    people.update = (...args: unknown[]) => { const t = performance.now(); update.apply(people, args); peopleMs = performance.now() - t; };
+    const frames = Math.max(1, Math.ceil(2 * reach / speed));
+    try {
+      for (let i = 0; i <= frames; i++) {
+        this.status = `panning ${i}/${frames}`;
+        const k = i / frames;
+        n.target.set(from.x + (to.x - from.x) * k, 0, from.z + (to.z - from.z) * k); n.update(performance.now());
+        const before = people.scanWork ?? 0;
+        peopleMs = 0;
+        await this.frame();
+        times.push(peopleMs); paints.push(this.paintMs); works.push((people.scanWork ?? 0) - before);
+        const at = people.scannedAt;
+        if (at) lags.push(Math.hypot(at.x - n.target.x, at.z - n.target.z));
+      }
+    } finally {
+      delete people.update;
+    }
+    this.status = 'panned';
+    const result: BenchPan = { frames: frames + 1, speed, distance, from: { x: Math.round(from.x), z: Math.round(from.z) },
+      to: { x: Math.round(to.x), z: Math.round(to.z) }, paint: spread(paints), people: spread(times),
+      peopleOver20: times.filter(t => t > 20).length, paintOver20: paints.filter(t => t > 20).length };
+    if (people.scanWork !== undefined) result.work = { total: works.reduce((a, b) => a + b, 0), most: Math.max(...works) };
+    if (people.scansFinished !== undefined) { result.scans = people.scansFinished - scans; result.lag = spread(lags); }
+    return result;
   }
   /** Grows the town, then measures each pose: the usual camera over the town centre and the whole town ('wide') */
   async run(options: BenchOptions = {}): Promise<CityBench['results']> {

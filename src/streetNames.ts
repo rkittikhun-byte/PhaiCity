@@ -293,6 +293,29 @@ export interface LabelSpot {
   run: number;
 }
 
+/** The roads as drawn in metres, as a label's spot is put onto them (src/roads/roadGraph.ts) */
+export interface DrawnRoads {
+  readonly segments: { readonly size: number };
+  nearest(p: readonly [number, number], reach: number): { segment: number; t: number; point: [number, number] } | null;
+  pointAt(id: number, t: number): [number, number];
+  length(id: number): number;
+}
+
+/**
+ * A label's spot put onto the road as drawn in metres it lies on (docs/METRE_DRAWING_PLAN.md 1.4: the names follow the
+ * road as drawn, not the staircase of its tiles), turned along it there; as it was where no drawn road runs within
+ * three quarters of a tile of it. tileSizeM: metres a tile.
+ */
+export function onDrawnRoad(spot: LabelSpot, graph: DrawnRoads | null | undefined, tileSizeM: number): LabelSpot {
+  if (!graph?.segments.size) return spot;
+  const near = graph.nearest([spot.x * tileSizeM, spot.y * tileSizeM], tileSizeM * 0.75);
+  if (!near) return spot;
+  // Its way there, a metre either side
+  const dt = Math.min(0.5, 1 / Math.max(1, graph.length(near.segment)));
+  const a = graph.pointAt(near.segment, Math.max(0, near.t - dt)), b = graph.pointAt(near.segment, Math.min(1, near.t + dt));
+  return { ...spot, x: near.point[0] / tileSizeM, y: near.point[1] / tileSizeM, angle: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+}
+
 /** Where to write a street's name: the straightest stretch round its middle, and again every `spacing` tiles. */
 export function labelSpots(street: Street, width: number, spacing = 32, minRun = 4): LabelSpot[] {
   const n = street.tiles.length;

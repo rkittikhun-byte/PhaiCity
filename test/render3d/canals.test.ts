@@ -10,6 +10,8 @@ import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { besideCanal, CANAL_DETAIL_DISTANCE, canalLand, CityCanals } from '../../src/render3d/city/canals.js';
 import type { CityMapReader } from '../../src/render3d/city/types.js';
 import { buildCanals, canalHalfWidth, createCanalPiece, cutAround } from '../../src/render3d/models/water/canal.js';
+import { RoadGraph } from '../../src/roads/roadGraph.js';
+import { segmentTiles } from '../../src/roads/roadRaster.js';
 
 const flat = { sample: () => 0 } as unknown as CityHeightField;
 const W = 40, H = 40, RIVER = 2, WOODS = 30;
@@ -101,6 +103,40 @@ describe('canals in 3D', () => {
       expect(p.getY(i)).toBeCloseTo(0.05, 5);
       expect(Math.abs(p.getX(i) - 205)).toBeLessThanOrEqual(3.5 * 0.625 + 1e-6);
     }
+    view.dispose();
+  });
+
+  test('a canal dug in metres is drawn along the line it was dug as, not the staircase of its tiles', () => {
+    // A slanted canal on a 16 m city map, dug on the tiles its line passes (src/roads/roadRaster.ts), and kept in the
+    // map's canal graph as the canal command keeps it
+    const map = newMap() as TestMap & { canalGraph: RoadGraph; tileSizeM: number };
+    const graph = new RoadGraph(), from: [number, number] = [40.5, 100.25], to: [number, number] = [560.25, 420.5];
+    const [id] = graph.add({ from, to, level: 1 }).segments;
+    for (const i of segmentTiles(graph, id, { width: W, height: H, tileSizeM: 16 })) { map.values[i] = RIVER; map.canals[i] = 3; }
+    map.canalsVersion++;
+    map.canalGraph = graph;
+    map.tileSizeM = 16;
+    const view = new CityCanals(map, flat, () => 0.625);
+    view.update(100);
+    const water = meshes(view).surfaces.find((mesh) => mesh.name.startsWith('canals/water'))!;
+    const p = water.geometry.getAttribute('position');
+    // Every bit of its water within its 3.5 m of the line as dug, and reaching both its ends
+    const a = [from[0] * 0.625, from[1] * 0.625], b = [to[0] * 0.625, to[1] * 0.625];
+    const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+    let first = Infinity, last = -Infinity;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) - a[0], z = p.getZ(i) - a[1];
+      expect(Math.abs(x * dz - z * dx) / len).toBeLessThanOrEqual(3.5 * 0.625 + 1e-3);
+      const along = (x * dx + z * dz) / len;
+      first = Math.min(first, along);
+      last = Math.max(last, along);
+    }
+    expect(first).toBeLessThan(1);
+    expect(last).toBeGreaterThan(len - 1);
+    // ... and drawn again when the graph changes though no tile does
+    graph.add({ from: [300.5, 300.25], to: [300.25, 600.5], level: 1 });
+    view.update(100);
+    expect(meshes(view).surfaces.length).toBeGreaterThan(0);
     view.dispose();
   });
 

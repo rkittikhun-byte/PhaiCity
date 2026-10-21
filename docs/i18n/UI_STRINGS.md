@@ -299,7 +299,9 @@
 | `choice.title.industrial` | `src/toolLevels.ts` | — | `Industry: paint the zone` | `อุตสาหกรรม: ระบายเขต` |  |
 | `draw.mode` | `src/drawModes.ts` | — | `Mode` | `วิธีวาด` | แถวโหมดในการ์ดเครื่องมือ (Claude Code 13 ต.ค. 2026) |
 | `draw.mode.straight` | `src/drawModes.ts` | — | `Straight` | `ตรง` |  |
-| `draw.mode.straight.hint` | `src/drawModes.ts` | — | `Click the start, then the end; the next line starts where it ended` | `คลิกจุดเริ่ม แล้วคลิกจุดปลาย เส้นต่อไปเริ่มจากปลายเดิม` |  |
+| `draw.mode.straight.hint` | `src/drawModes.ts` | — | `Click the start, then the end, or drag from one to the other` | `คลิกจุดเริ่ม แล้วคลิกจุดปลาย หรือลากจากจุดเริ่มไปจุดปลาย` |  |
+| `draw.mode.chain` | `src/drawModes.ts` | — | `Chain` | `ต่อเนื่อง` | เส้นตรงต่อกันทีละคลิก (Claude Code 21 ต.ค. 2026, METRE_DRAWING_PLAN 1.5) |
+| `draw.mode.chain.hint` | `src/drawModes.ts` | — | `Click the start, then each end: every line starts where the last ended, until Esc or a right click` | `คลิกจุดเริ่ม แล้วคลิกปลายทีละจุด เส้นต่อไปเริ่มจากปลายเส้นก่อน จนกด Esc หรือคลิกขวา` |  |
 | `draw.mode.curve` | `src/drawModes.ts` | — | `Curve` | `โค้ง` |  |
 | `draw.mode.curve.hint` | `src/drawModes.ts` | — | `Click the start, a point to bend towards, then the end` | `คลิกจุดเริ่ม จุดดัดโค้ง แล้วจุดปลาย` |  |
 | `draw.mode.curve2` | `src/drawModes.ts` | — | `S-curve` | `โค้งสองจุด` |  |
