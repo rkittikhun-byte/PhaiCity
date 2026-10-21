@@ -36,6 +36,9 @@ export class Placement implements PlacementFields {
    * a real-scale city map (10/16 of a 16 m tile, TileSnapshot.atRealSize) or smaller against its road */
   declare fill?: number;
   declare eraKind?: string;
+  /** How far ahead of its middle its front stands as drawn (world units), for a building stood against its road
+   * (tileModels.ts toRoadEdge): its lot and driveway reach to there (roadCurves.ts) */
+  declare front?: number;
   /** How wide its model is drawn across the way it runs (its own x), as a share: a bridge on a real-scale city map is
    *  as narrow as the road or railway drawn up to it (TileSnapshot.narrowBridge); 1 or none, as built */
   declare across?: number;

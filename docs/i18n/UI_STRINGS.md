@@ -1484,6 +1484,8 @@
 | `festival.card.title` | `src/festivalCard.ts` | — | `Next month's festival` | `เทศกาลเดือนหน้า` | การ์ดถามเจ้าเมืองล่วงหน้าหนึ่งเดือน |
 | `festival.card.close` | `src/festivalCard.ts` | — | `Close` | `ปิด` |  |
 | `festival.card.now` | `src/festivalCard.ts` | — | `This year's festival` | `เทศกาลปีนี้` | การ์ดค้างไว้หลังเทศกาลเริ่ม ให้ตอบสำหรับปีหน้าได้ |
+| `festival.chip` | `src/festivalCard.ts` | — | `Festival: {name}` | `เทศกาล: {name}` | ปุ่มเล็กข้างปุ่มข่าว เมื่อมีเทศกาลให้ตัดสินใจ คลิกเปิดการ์ด |
+| `festival.chip.hint` | `src/festivalCard.ts` | — | `How to hold next month's festival` | `เลือกวิธีจัดเทศกาลเดือนหน้า` | คำอธิบายเมื่อชี้ปุ่ม |
 | `festival.this_year.grand` | `src/festivalCard.ts` | — | `This year it is held grandly ({cost}). An answer now counts from next year.` | `ปีนี้จัดยิ่งใหญ่ ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
 | `festival.this_year.modest` | `src/festivalCard.ts` | — | `This year it is held modestly ({cost}). An answer now counts from next year.` | `ปีนี้จัดแบบเรียบง่าย ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |
 | `festival.this_year.none` | `src/festivalCard.ts` | — | `This year the city holds nothing. An answer now counts from next year.` | `ปีนี้เมืองไม่จัด คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า` |  |

@@ -9,7 +9,7 @@ import { isRoadTile, roadLevelAt, servesZones } from '../../roadLevels.js';
 import { cityDrawMaterial, cityToolMaterial, cityZoneGridMaterial } from '../materials/library.js';
 import type { CityHeightField } from './heightfield.js';
 import { smoothLine, type Point } from './roadCurves.js';
-import { BUILDING_SCALE, poseAgainstRoad, type RoadNear } from './tileModels.js';
+import { BUILDING_SCALE, poseAgainstRoad, type RoadNear, slideToRoad } from './tileModels.js';
 import { Placement } from './placement.js';
 import type { CityMapReader } from './types.js';
 
@@ -297,7 +297,11 @@ export class ToolOutline {
     if(near||hover.pose){
       // The building the tool would put down, stood against its road as the city view will draw it (placement.ts)
       const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!);
-      const g=Placement.ofTool(size,x,z).againstRoad(pose.x,pose.z,pose.rotation,BUILDING_SCALE).ground(),ground=this.terrain?.enabled?this.terrain.sample(g.x,g.z):0;
+      const g=Placement.ofTool(size,x,z).againstRoad(pose.x,pose.z,pose.rotation,BUILDING_SCALE).ground();
+      // ... its front against the road it faces, as the building will stand (tileModels.ts toRoadEdge)
+      const slide=this.snap?slideToRoad(g.x,g.z,g.rotation,g.depth/2,this.snap):0;
+      g.x+=Math.sin(g.rotation)*slide;g.z+=Math.cos(g.rotation)*slide;
+      const ground=this.terrain?.enabled?this.terrain.sample(g.x,g.z):0;
       const frame=new Group();frame.position.set(g.x,ground+.6,g.z);frame.rotation.y=g.rotation;
       const fill=new Mesh(new PlaneGeometry(g.width,g.depth).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));fill.renderOrder=10;frame.add(fill);
       // A bold white edge, which shows on any ground (owner: "เส้นมันจาง มองไม่เห็น")

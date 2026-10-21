@@ -290,7 +290,15 @@ building stands where.
   and so on, from the region kits.
 - Wings sit inside the same 3×3 around the main house: a small treasury building, a planning office, a warning tower
   (a slim lookout tower with a siren, no flags of real agencies), a granary and a water tank, a culture court (an open
-  pavilion with a stage), a front garden, a council hall, a trade office.
+  pavilion with a stage), a front garden, a council hall, a trade office. With the era models (21 Oct 2026) they stand
+  beside and behind the house, never in front: the house's fence stands against its road.
+- **Every building of the ruler's stands with its front against the road it faces (owner, 21 Oct 2026: "object ก็ไม่
+  ชิดกับถนน"; `tileModels.ts` `slideToRoad` / `toRoadEdge`):** its front (an era model's 47 m lot, the house's fence, a
+  model's own site) `ROAD_GAP` from the edge of a road running across it, slid along the way it faces, its wings with
+  it, its lawn and driveway reaching to there (`Placement.front`, `roadCurves.ts`) and the tool's outline the same.
+  On a slanted road the square block of tiles keeps off the road's staircase, so the place it was put down stands
+  back; only where it is drawn moves. A building with no road across its front stays where it was put.
+  `test/render3d/roadEdge.test.ts` measures each kind on a straight and a slanted road.
 - No palace or temple ornaments (ช่อฟ้า, ใบระกา, หางหงส์), no royal symbols or Garuda, no real government emblems
   or names. A plain Thai sign "จวนเจ้าเมือง" is fine.
 - Schools (added 13 Oct 2026): a kindergarten with a playground, a primary and a secondary school with a flagpole and

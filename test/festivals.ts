@@ -14,7 +14,7 @@ import { yearAccounts } from "../src/core/autoPlayer";
 import { CityCore, STEPS_PER_YEAR } from "../src/core/cityCore";
 import {
   calendarOf, CHEER_KEEP, chooseFestival, COST_LEAST, COST_PEOPLE, type Festival, FESTIVAL_IDS, FESTIVAL_NO_CHOICE, FESTIVAL_NOT_HERE,
-  FESTIVAL_SPECS, festivalCalendar, festivalCheer, festivalCost, festivalLandValue, festivalMonth, type FestivalNews,
+  FESTIVAL_SPECS, FESTIVAL_TOWN_PEOPLE, festivalCalendar, festivalCheer, festivalCost, festivalLandValue, festivalMonth, type FestivalNews,
   festivalProblem, festivalsIn, festivalsRun, festivalsShown, festivalTraffic, festivalVisits, festivalWaste, GLOW_RADIUS,
   GRAND_DRAW, MAX_CHEER, NATIONAL_FESTIVALS, newFestivalState, readFestivals, scaleOf, writeFestivals,
 } from "../src/festivals";
@@ -223,6 +223,32 @@ describe("a festival's month", () => {
     expect(sim.budget.totalFunds).toBe(0);
     // ... which the people cheer as their own, not the ruler's
     expect(map.festivals.cheer).toBeCloseTo(cheer * CHEER_KEEP, 5);
+  });
+
+  test("a village holds its own: free, unasked, cheering its people, with nothing to draw; from 500 people the ruler is asked", () => {
+    const { map, sim } = city();
+    sim._census.totalPop = (FESTIVAL_TOWN_PEOPLE - 1) / 160;
+    chooseFestival(map.festivals, "songkran", "grand");
+    atMonth(sim, 2);
+    // March: no question about April's Songkran
+    expect(festivalMonth(map, sim)).toEqual([]);
+    atMonth(sim, 3);
+    const funds = sim.budget.totalFunds;
+    expect(festivalMonth(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "modest", cost: 0, byPeople: true,
+      downgraded: false, village: true }]);
+    expect(sim.budget.totalFunds).toBe(funds);
+    expect(sim.budget.festivalFund ?? 0).toBe(0);
+    expect(map.festivals.cheer).toBe(FESTIVAL_SPECS.songkran.cheer[1]);
+    expect(map.festivals.glow).toBe(0);
+    expect(map.festivals.held).toEqual([{ id: "songkran", scale: "modest", cost: 0, byPeople: true, village: true }]);
+    expect(festivalsShown(map)).toEqual([]);
+    // ... kept so with the city
+    expect(readFestivals(JSON.parse(JSON.stringify(writeFestivals(map.festivals)))).held).toEqual(map.festivals.held);
+    // A town of 500: asked about May's rockets, and its Songkran held grandly as the ruler answered
+    sim._census.totalPop = FESTIVAL_TOWN_PEOPLE / 160;
+    atMonth(sim, 15);
+    expect(festivalMonth(map, sim)).toEqual([{ type: "festival", id: "songkran", scale: "grand", cost: 120, byPeople: false,
+      downgraded: false }, { type: "festivalAhead", id: "bun_bang_fai", scale: "modest", costs: [20, 100] }]);
   });
 
   test("what the year's festivals cost is counted for the budget window, apart from the taxes, and saved", () => {
@@ -466,6 +492,11 @@ describe("a province city's festivals in the core", () => {
     const core = new CityCore({ map, seed, rules: rulesOf("northeast", "TH-40"), resources: PROVINCE });
     map.landBlocks = null;
     core.simulation.budget.setFunds(20000);
+    // A town of 640 people as the festivals count them (4 of the census's units), past FESTIVAL_TOWN_PEOPLE, so its
+    // festivals are the ruler's to hold
+    const census = core.simulation._census as { totalPop: number };
+    let units = census.totalPop;
+    Object.defineProperty(census, "totalPop", { get: () => Math.max(4, units), set: (v: number) => { units = v; }, configurable: true });
     const news: FestivalNews[] = [];
     for (const type of ["festival", "festivalAhead", "festivalFire"] as const) core.on(type, (e) => news.push(e as FestivalNews));
     let next = 0;

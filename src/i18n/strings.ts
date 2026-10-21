@@ -1309,6 +1309,8 @@ export const STRINGS: Record<string, Translation> = {
   "festival.card.title": { en: "Next month's festival", th: "เทศกาลเดือนหน้า" },
   "festival.card.close": { en: "Close", th: "ปิด" },
   "festival.card.now": { en: "This year's festival", th: "เทศกาลปีนี้" },
+  "festival.chip": { en: "Festival: {name}", th: "เทศกาล: {name}" },
+  "festival.chip.hint": { en: "How to hold next month's festival", th: "เลือกวิธีจัดเทศกาลเดือนหน้า" },
   "festival.this_year.grand": { en: "This year it is held grandly ({cost}). An answer now counts from next year.", th: "ปีนี้จัดยิ่งใหญ่ ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า" },
   "festival.this_year.modest": { en: "This year it is held modestly ({cost}). An answer now counts from next year.", th: "ปีนี้จัดแบบเรียบง่าย ({cost}) คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า" },
   "festival.this_year.none": { en: "This year the city holds nothing. An answer now counts from next year.", th: "ปีนี้เมืองไม่จัด คำตอบตอนนี้ใช้ตั้งแต่ปีหน้า" },
