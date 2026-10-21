@@ -58,7 +58,7 @@ import { canalGraphLines } from './roads/canalLines.ts';
 import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
-import { layerPixels } from './cityMap.ts';
+import { layerPixels, toolLayer } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { aroundCorners, curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
@@ -747,21 +747,13 @@ Game.prototype.mapOverlays = function() {
 };
 
 
-// Contextual overlays when tools are armed (industrial -> pollution & wind, water -> groundwater, mine -> toxic)
+// Contextual overlays when tools are armed (industrial -> pollution & wind, water -> groundwater, every mine -> toxic; src/cityMap.ts toolLayer)
 Game.prototype.updateContextualOverlay = function(activeTool) {
   if (this.mapWindow && this.mapWindow.isOpen)
     return;
 
-  var targetLayer = null;
   var tool = activeTool || '';
-
-  if (tool === 'industrial' || tool === 'zone_industrial' || tool === 'coal') {
-    targetLayer = 'pollution';
-  } else if (tool === 'waterworks' || tool === 'watertower' || tool === 'water') {
-    targetLayer = 'groundwater';
-  } else if (tool === 'mine') {
-    targetLayer = 'toxic';
-  }
+  var targetLayer = toolLayer(tool);
 
   if (targetLayer && this.gameMap && this.cityView && typeof this.cityView.showLayer === 'function') {
     var width = this.gameMap.width, height = this.gameMap.height;
@@ -784,7 +776,7 @@ Game.prototype.updateContextualOverlay = function(activeTool) {
       }), 7000);
     } else if (tool === 'waterworks' || tool === 'watertower') {
       showCornerNote(t('dock.hint.groundwater'), 5000);
-    } else if (tool === 'mine') {
+    } else if (targetLayer === 'toxic') {
       showCornerNote(t('dock.hint.toxic'), 5000);
     }
   } else if (!targetLayer && this.cityView && typeof this.cityView.showLayer === 'function') {

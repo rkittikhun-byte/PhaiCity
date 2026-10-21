@@ -20,6 +20,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
+import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
 import { tileMetres, unitsPerMetre } from '../../units.js';
 
@@ -130,6 +131,13 @@ export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNe
   const gap = near.reach + .6 + half;
   return { x: near.x + nx * gap, z: near.z + nz * gap, rotation: Math.atan2(-nx, -nz) };
 }
+/** The industrial model each kind of mine (src/mining.ts MINE_KINDS) borrows until prompt M1 gives mines their own: an oil
+ * well, a potash or a rare-earth works the plant of tanks, towers and pipe racks, a gem field a small regional workshop, a
+ * dug pit the processing hall with its tanks and chimney */
+export const MINE_STAND_INS: Readonly<Record<MineKind, string>> = {
+  limestone: 'ind.block_0_3', tin: 'ind.block_0_3', zinc: 'ind.block_0_3', gold: 'ind.block_0_3', lignite: 'ind.block_0_3',
+  potash: 'ind.block_1_3', rareEarth: 'ind.block_1_3', petroleum: 'ind.block_1_3', gems: 'ind.block_0_2',
+};
 /** Far-view heights of the schools and hospitals on the civic 3 × 3 (their models are 6–34 m at the highest point) */
 const SCHOOL_HEIGHTS: Readonly<Record<string, number>> = { kindergarten: 4, primary_school: 7, secondary_school: 10,
   vocational_college: 8, university: 10, ...HOSPITAL_HEIGHTS };
@@ -334,9 +342,7 @@ export class TileSnapshot implements CityMapReader {
     const rotation=v===HARBOUR?this.portRotation(x,y,3):FACING_ROTATION[this.roadSide(x,y,3)];
     let id='ind.block_0_0',kind='industrial',height=9,color=0xc7a473,eraKind:string|undefined;
     if(v===MINE){
-      const mk=this.source?.mineKinds?.[i]??'limestone_quarry';
-      id=mk==='oil_gas_well'||mk==='salt_works'?'ind.block_1_2':mk==='gem_mine'?'ind.block_0_2':'ind.block_0_3';
-      height=12;
+      id=MINE_STAND_INS[mineKindAt(this.source?.mineKinds,i)];height=12;
     }else if(v===FARM){
       id='ind.block_0_0';height=7;color=0x9ba873;
     }else if(v===HARBOUR){
