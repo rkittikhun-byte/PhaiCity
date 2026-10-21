@@ -255,6 +255,8 @@ const CELLS_A_PLOT = 12;
 const PAINT_MOST = 9000;
 /** ... with no more than this share of the money past what is kept for power and water */
 const PAINT_SHARE = 0.5;
+/** The zones wait for the era card's asks while education or health is below this share of what the era aims at */
+const CARE_FIRST_BELOW = 0.85;
 /** A kind of zone's weight among a year's cells when it is not wanted at all (the valves, up to 1500–2000, at or below 0) */
 const UNWANTED_WEIGHT = 70;
 /** ... and the weight of one that waits for its stadium, port or airport, which takes none */
@@ -425,6 +427,16 @@ export class AutoPlayer {
     const load = sim._powerManager?.load ?? 0;
     const plantBuilding = this.underway(POWER_TOOLS);
     const plantPrice = (core.tools?.[this.plantTool()]?.toolCost ?? 0) + ERA_ASK_SPARE;
+    // ... then the year's zones (paintAhead) while the town's schools and care are near what the era card aims at, the
+    // cheapest growth there is; when either falls well short, the era card's asks come first and the zones after them
+    // (zones first always: 29,000-31,000 people in ten years but never a factory town, education and care at half their
+    // aims; the era card's asks first always: 20,500-22,300 people)
+    const sides = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
+    const careShort = (["education", "health"] as const).some((side) => {
+      const f = sides?.[side];
+      return f !== undefined && f.value < f.target * CARE_FIRST_BELOW;
+    });
+    if (!careShort) this.paintAhead(valves);
     // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
     const waste = sim._waste;
     const nearlyFull = Object.values(waste?.fill ?? {}).some((t) => (t as number) >= LANDFILL_HOLDS * LANDFILL_WARN);
@@ -521,13 +533,13 @@ export class AutoPlayer {
       }
       if (!saving) this.wantTrained.clear();
     }
-    // ... then the year's zones, as many as the power and water leave room for (paintAhead), with up to half the money
+    // ... or here, the year's zones, as many as the power and water leave room for (paintAhead), with up to half the money
     // past what is kept for them: after the era card's asks and the schools for trained people, but before the services
     // by numbers and the district office's rise, and even while those or a stadium are saved for (saved for, they left
     // nothing: the town painted no zones after its first year, and grew only by its plots rising; a stadium saved for
     // three years left room for 300 plots unpainted), only no more of the kind that waits for it. Painted before the era
     // card's asks, the town outgrew its schools and stayed a market town (education 34% of the 50% aimed at)
-    this.paintAhead(valves);
+    if (careShort) this.paintAhead(valves);
     if (!saving) {
       // The district office a level higher whenever the rank allows and money is there (src/rulerHouse.ts), unless the
       // money is kept for what the era card asks
@@ -1106,7 +1118,8 @@ export class AutoPlayer {
       }
       if (!clear) continue;
       const price = (length + 1) * each;
-      if (budget.totalFunds - this.kept < price + EXPAND_FROM / 3) break;
+      // (out of the money the zones may spend: not what is kept for power and water, but what is for a stadium)
+      if (budget.totalFunds - (this.kept - this.capsKept) < price + EXPAND_FROM / 3) break;
       const before = budget.totalFunds;
       const centre = (cx: number, cy: number): [number, number] => [(cx + 0.5) * size, (cy + 0.5) * size];
       const out = core.apply({ type: "road", tool: "road" as never, from: centre(x, y), to: centre(x + dx * length, y + dy * length),
