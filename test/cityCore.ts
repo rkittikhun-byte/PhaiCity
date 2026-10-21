@@ -60,7 +60,7 @@ describe("the game's core", () => {
 
   test("a city with no screen is built by commands, runs, keeps its objects and its log", () => {
     const map = khonKaen();
-    const core = new CityCore({ map, seed: 11 });
+    const core = new CityCore({ sandbox: true, map, seed: 11 });
     map.landBlocks = null; // own all the land, as a practice map does (src/landBlocks.ts)
     const heard: string[] = [];
     core.on("built", e => heard.push(`built ${e.object.kind}`));
@@ -105,7 +105,7 @@ describe("the game's core", () => {
   test("the same seed and the same commands at the same steps make the same city", () => {
     const play = (replay?: { step: number; command: Command }[]) => {
       const map = khonKaen();
-      const core = new CityCore({ map, seed: 5 });
+      const core = new CityCore({ sandbox: true, map, seed: 5 });
       core.simulation.budget.setFunds(80000);
       const area = dryArea(map, 26, 8);
       const orders = replay ?? townOrders(area.x, area.y).map((command, i) => ({ step: i * 40, command }));
@@ -164,7 +164,7 @@ describe("the game's core", () => {
     ];
     const play = (replay?: { step: number; command: Command }[]) => {
       const map = cityMap();
-      const core = new CityCore({ map, seed: 7 });
+      const core = new CityCore({ sandbox: true, map, seed: 7 });
       core.simulation.budget.setFunds(50000);
       let next = 0;
       for (let step = 0; step < STEPS_PER_YEAR; step++) {
@@ -193,7 +193,7 @@ describe("the game's core", () => {
 
   test("a saved city opens again with its records, objects and when each went up", () => {
     const map = khonKaen();
-    const core = new CityCore({ map, seed: 3 });
+    const core = new CityCore({ sandbox: true, map, seed: 3 });
     core.simulation.budget.setFunds(80000);
     const area = dryArea(map, 26, 8);
     townOrders(area.x, area.y).forEach(order => core.apply(order));
@@ -203,7 +203,7 @@ describe("the game's core", () => {
     expect(saved.powerKinds).toBeUndefined();
     expect(saved.buildings.all).toBe(true);
 
-    const again = new CityCore({ map: new (GameMap as any)(saved.width, saved.height), saved });
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(saved.width, saved.height), saved });
     expect(again.map.rulerHouse).toEqual(core.map.rulerHouse);
     expect(again.map.powerKinds).toEqual(core.map.powerKinds);
     expect(again.simulation.budget.totalFunds).toBe(core.simulation.budget.totalFunds);
@@ -215,7 +215,7 @@ describe("the game's core", () => {
 
   test("a map an odd number of tiles across, as most whole districts are, starts and runs", () => {
     const map = (MapGenerator as any).fromPresetCells(41, 33, new Uint8Array(41 * 33));
-    const core = new CityCore({ map, seed: 5 });
+    const core = new CityCore({ sandbox: true, map, seed: 5 });
     townOrders(4, 4).forEach(order => core.apply(order));
     expect(() => core.run(STEPS_PER_YEAR / 4)).not.toThrow();
   });

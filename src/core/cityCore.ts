@@ -77,6 +77,9 @@ export interface CoreSetup {
   tools?: Legacy;
   /** Seeds Random for a new city, so a test or the server can make the same city again */
   seed?: number;
+  /** Anything can be built at once, as before the unlock table and the construction sites (src/unlocks.ts): for tests
+   * of other things; never saved */
+  sandbox?: boolean;
   hooks?: CityHooks;
 }
 
@@ -103,6 +106,7 @@ export class CityCore {
     const saved = setup.saved ?? null;
     if (setup.seed !== undefined && !saved) Random.seed(setup.seed);
     this.map = setup.map;
+    if (setup.sandbox) this.map.sandbox = true;
     readCityLayers(this.map, saved);
     this.simulation = new SimulationClass(this.map, setup.level ?? SimulationStatics.LEVEL_EASY,
       setup.speed ?? SimulationStatics.SPEED_MED, saved, setup.rules ?? null, setup.resources ?? null);

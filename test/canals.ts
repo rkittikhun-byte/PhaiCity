@@ -18,7 +18,7 @@ const SIZE = 60;
 
 function newCity(saved: unknown = null) {
   const map = new (GameMap as unknown as new (w: number, h: number) => any)(SIZE, SIZE);
-  const core = new CityCore({ map, saved, seed: 5 });
+  const core = new CityCore({ sandbox: true, map, saved, seed: 5 });
   core.simulation.budget.setFunds(500000);
   core.map.needsRulerHouse = false;
   return core;

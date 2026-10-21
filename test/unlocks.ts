@@ -5,7 +5,10 @@
 // The unlock table (src/unlocks.ts, docs/GAME_DESIGN.md 6.2): every tool has a row of plain data, and a tool is locked
 // for its era, its trained people, what must stand first, or an early era's limit, in that order.
 
-import { TOOL_NAMES } from "../src/cityCommands";
+import { CityCommands, lockProblem, TOOL_NAMES } from "../src/cityCommands";
+import { GameMap } from "../src/gameMap.js";
+import { GameTools } from "../src/gameTools.js";
+import { Simulation } from "../src/simulation.js";
 import { CIVIC, POWERPLANT, RAILBASE, ROADS } from "../src/tileValues";
 import { noTrained } from "../src/trainedPeople";
 import { FREE_TOOLS, type UnlockCity, unlockCity, type UnlockMap, unlockProblem, UNLOCKS } from "../src/unlocks";
@@ -94,5 +97,45 @@ describe("the unlock table", () => {
     const roads = unlockCity(tiles({ 5: RAILBASE, 6: ROADS }, { roadLevels: Object.assign(new Uint8Array(100), { 6: 2 }) }));
     expect(roads.has("rail")).toBe(true);
     expect(roads.has("paved_road")).toBe(true);
+  });
+
+  test("the commands refuse a locked tool with its reason, and take it once the city has what it needs", () => {
+    const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(64, 40);
+    map.civicKinds = {};
+    map.powerKinds = {};
+    map.era = 1;
+    const sim: any = new (Simulation as any)(map, 1, 3, null);
+    const tools: any = new (GameTools as any)(map);
+    sim.budget.setFunds(100000);
+    const city = {
+      width: map.width, height: map.height, tools, get blockMaps() { return sim.blockMaps; }, budget: sim.budget,
+      disasters: sim.disasterManager, sprites: sim.spriteManager, setSpeed: () => undefined, setAutoBulldoze: () => undefined,
+      map, cityTime: () => sim._cityTime, rank: () => 5,
+      setPowerKind: (x: number, y: number, kind: string) => { map.powerKinds[y * map.width + x] = kind; },
+      unlocks: () => unlockCity(map),
+    } as any;
+    const commands = new CityCommands(city);
+    const tool = (name: string, x: number, y: number) => commands.apply({ type: "tool", tool: name as any, x, y });
+    expect(tool("gas", 10, 10)).toMatchObject({ accepted: false, reason: "unlock.era", detail: { era: 2 } });
+    expect(tool("industrial", 30, 10)).toMatchObject({ accepted: false, reason: "unlock.first", detail: { need: "coal" } });
+    expect(tool("coal", 10, 10).toolResult).toBe(0);
+    // ... one small lignite plant in the first era
+    expect(tool("coal", 20, 20)).toMatchObject({ accepted: false, reason: "unlock.limit", detail: { count: 1, era: 2 } });
+    expect(tool("industrial", 30, 10).toolResult).toBe(0);
+    // A laterite road is raised to asphalt only by a city that may lay asphalt
+    for (let x = 0; x < 8; x++) tool("road", x, 30);
+    expect(lockProblem(city, "road_upgrade", 3, 30)).toMatchObject({ reason: "unlock.era" });
+    expect(tool("road_upgrade", 3, 30)).toMatchObject({ accepted: false, reason: "unlock.era" });
+    map.era = 2;
+    expect(tool("gas", 20, 20)).toMatchObject({ accepted: false, reason: "unlock.trained",
+      detail: { kind: "technician", need: 30, have: 0 } });
+    map.trained = { counts: { technician: 30, nurse: 0, engineer: 0, doctor: 0 } };
+    expect(tool("gas", 20, 20).toolResult).toBe(0);
+    expect(tool("road_upgrade", 3, 30).toolResult).toBe(0);
+    // ... and the next level of a police box is the old station, which the first era has
+    expect(lockProblem(city, "building_upgrade", 0, 0)).toBeNull();
+    expect(lockProblem(city, "zone_industrial", 0, 0)).toBeNull();
+    // Without the unlock table (a city the commands are not asked to hold back) nothing is locked
+    expect(lockProblem({ ...city, unlocks: undefined }, "nuclear", 0, 0)).toBeNull();
   });
 });
