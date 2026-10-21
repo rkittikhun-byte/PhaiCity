@@ -20,6 +20,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
+import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { isAnyRoad } from '../../roadTiles.js';
 import { tileMetres, unitsPerMetre } from '../../units.js';
 
@@ -59,6 +60,9 @@ export function makeTileTable(): readonly TileResolution[] {
   return Object.freeze(table.map(entry=>Object.freeze(entry)));
 }
 export const TILE_TABLE = makeTileTable();
+/** The farm building as its fields make it (src/farmZone.ts hubKind): the traditional rice mill, a cooperative's
+ * warehouse, the food plant's cold store (models/industrial/zones.ts) */
+const HUB_MODELS: Readonly<Record<HubKind, string>> = { rice_mill: 'ind.block_0_0', cooperative: 'ind.block_1_0', cold_store: 'ind.block_1_3' };
 export const tileSeed = (x: number, y: number): number => {
   let h = Math.imul(x | 0, 0x45d9f3b) ^ Math.imul(y | 0, 0x27d4eb2d);
   h = Math.imul(h ^ h >>> 16, 0x45d9f3b); return (h ^ h >>> 16) >>> 0;
@@ -338,7 +342,9 @@ export class TileSnapshot implements CityMapReader {
       id=mk==='oil_gas_well'||mk==='salt_works'?'ind.block_1_2':mk==='gem_mine'?'ind.block_0_2':'ind.block_0_3';
       height=12;
     }else if(v===FARM){
-      id='ind.block_0_0';height=7;color=0x9ba873;
+      // ... the fields' cooperative, rice mill or cold store, by the fields round it (src/farmZone.ts hubKind)
+      const hub=this.source?hubKind(this.source as unknown as FieldMap,x,y):'cooperative';
+      id=HUB_MODELS[hub];height=7;color=0x9ba873;
     }else if(v===HARBOUR){
       id='ind.block_0_1';kind='transport';height=9;color=0x9aa8aa;
     }else if(v===STATION){
@@ -409,6 +415,8 @@ export class TileSnapshot implements CityMapReader {
    * either side (roadCurves.ts nearest), so the ruler's buildings stand against the curved roads */
   roadSnap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   placement(i:number,region:RegionId):Placement|null {
+    // The farm zone's fields are drawn by their own layer (farmFields.ts), not as a tile's dirt
+    if(isFieldValue(this.values[i]))return null;
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
     const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
