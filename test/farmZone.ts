@@ -9,7 +9,7 @@
 import { BaseTool } from "../src/baseTool.js";
 import { CityCommands } from "../src/cityCommands";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
-import { drawModeOf, isFarmTool, isPaintTool, showsZoneGrid } from "../src/drawModes";
+import { drawModeOf, isFarmTool, isPaintTool, modesFor, showsZoneGrid } from "../src/drawModes";
 import {
   FARM_ERA_LOOKS, FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, fieldFillRegion, hubKind, newFarmLooks, fieldLevelOf, fieldOutcome, fieldTile, FIELD_FLAGS,
   isFieldValue, kindCode, pickKind, wayField, wayToRoad,
@@ -125,7 +125,10 @@ describe("the farm zone", () => {
     expect(isPaintTool(FARM_PAINT_TOOL)).toBe(true);
     expect(isFarmTool(FARM_ERASE_TOOL)).toBe(true);
     expect(showsZoneGrid(FARM_PAINT_TOOL)).toBe(false);
-    expect(drawModeOf(FARM_PAINT_TOOL)).toBe(drawModeOf("zone_residential"));
+    // ... all but the strip along the road, which paints cells: the zone brushes' first mode, the farm's rectangle
+    expect(drawModeOf("zone_residential")).toBe("strip");
+    expect(drawModeOf(FARM_PAINT_TOOL)).toBe("rectangle");
+    expect(modesFor(FARM_PAINT_TOOL)).toEqual(modesFor("zone_residential").filter((mode) => mode !== "strip"));
     for (const key of ["tool.zone_farm", "tool.farm_erase", "choice.zone_farm", "dock.group.zone_farm", "about.zone.farm",
       "tool.needs_way", "farm.kind.paddy", "farm.kind.field", "farm.kind.orchard", "farm.kind.pond"]) {
       expect(hasKey(key)).toBe(true);

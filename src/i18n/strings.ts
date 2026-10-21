@@ -259,6 +259,8 @@ export const STRINGS: Record<string, Translation> = {
   "draw.mode.free.hint": { en: "Drag: it follows the mouse", th: "ลากเมาส์ วางตามทางที่ลาก" },
   "draw.mode.grid": { en: "Grid", th: "ตาราง" },
   "draw.mode.grid.hint": { en: "Drag a rectangle: roads round it and every 7 tiles across it", th: "ลากเป็นสี่เหลี่ยม ได้ถนนรอบกรอบและทุก 7 ช่องในกรอบ" },
+  "draw.mode.strip": { en: "Along the road", th: "ตามถนน" },
+  "draw.mode.strip.hint": { en: "Drag along a road to paint every cell against it, 6 cells (24 m) at a time, from the road to the back of the plot", th: "ลากไปตามถนน ระบายทุกช่องที่ติดถนน ครั้งละ 6 ช่อง (24 เมตร) ตั้งแต่ขอบถนนถึงท้ายแปลง" },
   "draw.mode.brush": { en: "Brush", th: "ระบาย" },
   "draw.mode.brush.hint": { en: "Drag over the cells to paint", th: "ลากผ่านช่องที่จะระบาย" },
   "draw.mode.circle": { en: "Round brush", th: "แปรงกลม" },

@@ -357,8 +357,13 @@ On a real-scale city map (16 m a tile, `docs/CITY_SCALE.md`) homes, shops and fa
   drawn from its top-left tile with footprint 2 × 2: `lot.res_4`, `lot.res_5`, `lot.com_4`, `lot.com_5`, `lot.ind_3`,
   `lot.ind_4` (the lowest level of the four), facing the road nearest any of them (`lotFacing`); its other tiles draw
   nothing. Until those models exist, the plot model of that level stands in, 1.6 times bigger.
-- `zoneGrid(on)`: the game calls it while a zone brush or a road tool is in hand; the view shows every tile of bare
-  land a road reaches (three tiles straight along a row or column, `PLOT_REACH`) as 2 × 2 pale cells.
+- `zoneGrid(on)`: the game calls it while a zone brush is in hand (never a road tool, since 21 Oct 2026). On a map painted
+  a tile at a time the view shows every tile of bare land a road reaches (three tiles straight along a row or column,
+  `PLOT_REACH`) as 2 × 2 pale cells. On a map painted a cell at a time (`cellZones`) it shows no grid (owner, 21 Oct 2026:
+  "เราไม่ได้สร้างตามช่องแล้วไม่ใช่เหรอ?"): the painted cells as painted, clearer, and the cells the brush would paint
+  (`ToolHover.cellKeys`, the strip along the road by default, `src/zoneCells.ts` `cellsInStrip`) soft in its colour.
+- The open ground of a real-scale city map shows no tile either: no checkerboard of lighter and darker squares, and a
+  land cover's edge along a slanted road fades over the tiles round it (`province-surface.ts` `corner`, `smoothPatch`).
 - `ToolHover.path`: while a line is drawn by clicks, a grid or rectangle dragged or a fill pointed at
   (`src/drawModes.ts`), the tiles it would build on. Draw each one (a faint square and a small mark), not the box
   round them.

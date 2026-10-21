@@ -56,7 +56,7 @@ import { drawModeOf, isAreaMode, isFarmTool, isPaintTool, isStraightMode, modeGr
 import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, fieldFillRegion, fieldOutcome } from './farmZone.ts';
 import { FARM_ZONE } from './provinceRules.ts';
 import { SCENE } from './theme/tokens.ts';
-import { BRUSH_RADIUS_M, cellsAlong, cellsNear, cellsOf } from './zoneCells.ts';
+import { BRUSH_RADIUS_M, cellsAlong, cellsInStrip, cellsNear, cellsOf } from './zoneCells.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
@@ -1166,6 +1166,14 @@ Game.prototype.paintCellStroke = function(data) {
   this._cellStroke = {stroke: data.stroke, point: world};
   var layout = this.cellLayout();
   var mode = drawModeOf(this.inputStatus.toolName);
+  // The strip brush, the brushes' first mode: every cell against the road the mouse goes along, from the road to the plot's
+  // back, a few cells either way (owner, 21 Oct 2026: "การวาดสีให้วาด ทีละ 6 แถว กับพื้นถนน"; src/zoneCells.ts cellsInStrip)
+  if (mode === 'strip') {
+    var strip = cellsInStrip(layout, this.gameMap.width, last, world);
+    if (strip.length)
+      this.paintCells(strip, data.x);
+    return;
+  }
   // The round brush: every cell within a few metres of where the mouse went (docs/METRE_DRAWING_PLAN.md 3.2)
   if (mode === 'circle') {
     var round = cellsNear(layout, this.gameMap.width, last, world, BRUSH_RADIUS_M * unitsPerMetre(tileMetres(this.gameMap)));
@@ -2047,6 +2055,9 @@ Game.prototype.calculateMouseForPaint = function() {
         this._cellDragCells = this.cellsInArea(cellDrag.from, cellDrag.to);
       }
       hover.cellKeys = this._cellDragCells;
+    } else if (hover.cellPoint && drawModeOf(this.inputStatus.toolName) === 'strip') {
+      // ... and with the strip brush the strip it would paint there, soft under the brush, the only cells shown
+      hover.cellKeys = cellsInStrip(this.cellLayout(), cityMap.width, null, [hover.cellPoint.x * 10, hover.cellPoint.y * 10]);
     } else if (hover.cellPoint && drawModeOf(this.inputStatus.toolName) === 'circle') {
       // ... and with the round brush every cell it would paint there
       hover.cellKeys = cellsNear(this.cellLayout(), cityMap.width, null, [hover.cellPoint.x * 10, hover.cellPoint.y * 10],
@@ -3533,13 +3544,11 @@ var commonAnimate = function() {
   // Run this once per animation frame (even when paused: you can still build when paused)
   this.mouse = this.calculateMouseForPaint();
 
-  // The tiles that can take painted zones show along the roads while a brush or a road tool is in hand (src/plots.ts)
-  // On a map painted a cell at a time its cells along the roads show with a road tool too, as Cities: Skylines shows
-  // its zoning while roads are drawn (owner, 14 Oct 2026: "แต่ละช่อง เป็นไปตามแนวถนน")
+  // The zones' paint shows clearer while a brush is in hand, and on a map painted a tile at a time the tiles that can take
+  // it; never with a road tool, whose drawn line shows what it builds (owner, 21 Oct 2026: "ทำไมยังเห็นรอยเป็นช่องๆ อยู่
+  // เราไม่ได้สร้างตามช่องแล้วไม่ใช่เหรอ?"; on 14 Oct it had the cells show while roads were drawn)
   var toolName = this.inputStatus.toolName;
-  var zoneGrid = this.gameMap.paintedZones === true && (showsZoneGrid(toolName) ||
-    this.gameMap.cellZones === true && modeGroupOf(toolName) === 'line' && toolName !== 'rail' && toolName !== 'wire' &&
-    toolName !== 'canal');
+  var zoneGrid = this.gameMap.paintedZones === true && showsZoneGrid(toolName);
   if (zoneGrid !== this._zoneGrid && this.cityView.zoneGrid) {
     this._zoneGrid = zoneGrid;
     this.cityView.zoneGrid(zoneGrid);
