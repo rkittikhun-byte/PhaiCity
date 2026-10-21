@@ -15,7 +15,7 @@ import { type JunctionArm, type JunctionShape, type LineMap, meetLine, networkOf
   from "../roadGeometry";
 import { TILE_UNITS, unitsPerMetre } from "../units";
 import type { RoadGraph } from "./roadGraph";
-import { segmentTiles } from "./roadRaster";
+import { segmentStands } from "./roadRaster";
 
 /** A drawn road between two nodes, or up to the edge of a tile that keeps its own model (a bridge, a level crossing) */
 export interface GraphRun {
@@ -102,8 +102,7 @@ export function graphLines(graph: RoadGraph, map: GraphMap, rail: boolean): Grap
   for (const id of ids) {
     const piece = graph.segment(id).piece ?? 0;
     if (!piece) continue;
-    const tiles = segmentTiles(graph, id, raster);
-    if (tiles.length && tiles.every((i) => any(map.value(i)))) whole.add(piece); else broken.add(piece);
+    if (segmentStands(graph, id, raster, (i) => any(map.value(i)))) whole.add(piece); else broken.add(piece);
   }
   for (const piece of broken) whole.delete(piece);
   const own: number[] = [];

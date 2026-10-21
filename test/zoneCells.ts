@@ -13,7 +13,7 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellsAlong, cellsNear, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey,
+import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellPlotPose, cellsAlong, cellsNear, cellsOf, PLOT_ROWS, plotTileOfCell, rasterKey,
   tileRasterKeys } from "../src/zoneCells";
 import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
@@ -237,6 +237,38 @@ describe("zone cells", () => {
     const map = (MapGenerator as any).fromPresetCells(20, 20, new Uint8Array(400));
     const core = new CityCore({ sandbox: true, map, seed: 1 });
     expect(core.apply({ type: "zoneCells", zone: "industrial", cells: [1] }).accepted).toBe(false);
+  });
+
+  test("one column of cells as deep as the plot is a plot, and its pose says how many cells along the road (3.3)", () => {
+    // docs/METRE_DRAWING_PLAN.md 3.3: "ตึกแถว 1×4 ช่อง, บ้าน 3×4 ช่อง", a building as wide as the cells painted
+    const core = city(), w = core.map.width;
+    // Tile (15, 11)'s cells beside the straight road, column by column along it
+    const layout = cellsOf(core.map), byX = new Map<number, number[]>();
+    for (const i of layout.byPlotTile.get(11 * w + 15) ?? []) {
+      const c = layout.cells[i];
+      if (c.z > 105) byX.set(Math.round(c.x * 10), [...(byX.get(Math.round(c.x * 10)) ?? []), c.key]);
+    }
+    const columns = [...byX].sort((a, b) => a[0] - b[0]).map(([, keys]) => keys);
+    expect(columns.length).toBe(4);
+    for (const column of columns) expect(column.length).toBe(PLOT_ROWS);
+    const pose = () => cellPlotPose(core.map as any, 15, 11, 1, 10 / 16);
+    // One column, 4 m along the road and 16 m deep: a shophouse bay's plot
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: columns[0] }).accepted).toBe(true);
+    expect(plotOf(core.map, 15, 11)).toMatchObject({ kind: "commercial" });
+    expect(pose()?.cells).toBe(1);
+    const one = pose()!;
+    // ... standing on that column, not in the middle of the tile
+    const first = layout.cells[layout.byKey.get(columns[0][0])!];
+    expect(one.x).toBeCloseTo(first.x, 1);
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: [...columns[1], ...columns[2]] }).accepted).toBe(true);
+    expect(pose()?.cells).toBe(3);
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: columns[3] }).accepted).toBe(true);
+    expect(pose()?.cells).toBe(4);
+    // Three cells of one column are still too few for a plot of their own
+    const next = layout.byPlotTile.get(11 * w + 25)!.map(i => layout.cells[i]).filter(c => c.z > 105);
+    const column = next.filter(c => Math.abs(c.x - next[0].x) < 0.01).slice(0, 3).map(c => c.key);
+    expect(core.apply({ type: "zoneCells", zone: "residential", cells: column }).accepted).toBe(true);
+    expect(plotOf(core.map, 25, 11)).toBeNull();
   });
 
   describe("along roads drawn in metres (docs/METRE_DRAWING_PLAN.md 3.1)", () => {

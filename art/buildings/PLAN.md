@@ -18,6 +18,8 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   every sheet reviewed against the concepts. `previews/all_eras_northeast.png` shows the five eras side by side.
 - 20 Oct 2026: imported into the game on main (IMPORT.md "Done"); `era-buildings.html` shows every set. Waiting on
   the owner: how a city moves between eras a little at a time and how buildings level up.
+- 21 Oct 2026: the frontage sets (see "Frontage"): shophouse bays and the 12 m house for every era and region, built,
+  exported and drawn by the game along painted streets.
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 
@@ -26,6 +28,7 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   layers), railings with balusters, real steps, eave brackets, gutters and downpipes, bevelled edges where the
   concept is rounded, and the yard things of the sheets (jars, water tanks, AC units, pots, plants, spirit houses,
   signs without brands). 9-10 (every board and tile modelled, interiors) is out of scope.
+- The parts each kind of building should have: `docs/3d/DETAIL_CHECKLIST.md`.
 - Triangles in the Blender source: 1 tile 6,000-12,000; a 2x2 lot 15,000-30,000; a 3x3 service 25,000-45,000. The
   game gets lighter versions at import (LOD), as the people did.
 
@@ -92,6 +95,43 @@ What the eras look like:
 4. **Modern city** (era4_*): condos and towers, glass and panels, solar on roofs, a mall, clean industry.
 5. **Future city** (era5_*): green towers with planted terraces, timber louvres, drone pads, solar everywhere,
    rounded forms; Thai roof lines kept as modern gables, never temple ornaments.
+
+## Frontage (docs/METRE_DRAWING_PLAN.md 3.3; built 21 Oct 2026)
+
+On a city map whose zones are painted in 4 m cells along the roads, a plot's building takes a model as wide as the
+paint along its road (`src/render3d/city/frontage.ts`) instead of the one full-tile model squeezed onto it. So each
+era and region has a second set, `era<n>_<region>_frontage` (`scripts/buildings/era<n>_frontage.py`, shared parts
+in `lib/frontage_parts.py`), of 12 kinds, every one a plot deep (16 m):
+
+| Kind | Frontage | What it is in the game |
+|---|---|---|
+| bay1_one, bay1_left, bay1_mid, bay1_mid2, bay1_right | 4 m | a shophouse bay of the era's lower row: alone (both end walls), ending a terrace on its left or right (as seen from the road), or in its middle (two kinds that take turns) |
+| bay2_one ... bay2_right | 4 m | the same in the era's taller row (higher shop levels) |
+| house12_1, house12_2 | 12 m | a house on three cells, levels by `HOUSE_LEVELS` |
+
+- A bay has windows and a finished wall on a side only where it ends a terrace, so bays side by side read as one row
+  (era 1's long thatched roof runs on across them and closes in a gable only at its ends). Model +X is the building's
+  right as seen from the road.
+- Build: `./run.sh <era1..era5|all> [region] --frontage [--force]` writes `blend/era<n>/era<n>_<region>_frontage.blend`
+  and `previews/era<n>_<region>_frontage.png` (bays laid out as terraces, the houses beside them). Export:
+  `blender -b --factory-startup --python-exit-code 1 -P scripts/export_game.py -- [era<n> ...] --frontage` writes
+  only the frontage glbs and adds them to the index (with `width` and `depth` per kind).
+- Budgets: in Blender about 3,000 triangles a bay and 9,000 a house (soft); the export thins them to 1,300 and 3,400,
+  never below 35% of the building, so the busiest end bays stay at up to about 2,100 (era 2 south) and era 1's houses
+  at 3,400-3,800.
+- Choices made without the owner (21 Oct 2026, ไม้ไผ่17):
+  - Signs where the camera above sees them: era 1's on the front edge of the veranda's lean-to (under its beam the
+    eave hid it), era 5's on the front of the first-floor balcony over the shop (under it, it was hidden).
+  - The north's twin house (era 1 house12_2) keeps its kitchen house without the north's all-round veranda (12.1k
+    triangles instead of 15.4k); `houses.stilt_house(deck=())` means no deck at all.
+  - Era 2 bays ending a terrace have two side windows a floor upstairs and one below (`era2_parts.shophouse
+    few_sides`), lighter than the era's own row ends; a lone bay of the south's taller row went from 8.9k to 7.4k.
+  - Every region's sheets were looked over beside the era concepts; nothing else was clearly wrong (era 3's front
+    gables, era 4's rooftop stair-house gables and the north's กาแล are plain house roof dress, not temple ornaments).
+  - Era 1's houses stay at 8.7-14k triangles in Blender: most of it is the stilts, stairs and thatch frame, which
+    cannot go without losing the house on posts; the export's floor keeps them under 3,900.
+- A shop painted one column wide (one cell along the road, four back) now grows into a plot of its own
+  (`src/zoneCells.ts` `syncCellPlots`), so a lone bay appears.
 
 ## Checklist
 

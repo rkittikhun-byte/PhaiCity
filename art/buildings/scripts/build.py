@@ -16,6 +16,10 @@ Options: --only home_1,shop_2 builds just those kinds into previews/era<n>/<regi
 quick checks; --closeups also renders each building alone into previews/era<n>/<region>/<id>.png; --force rebuilds
 a set whose .blend exists. A set listed in LOCKED.txt was edited by hand in Blender: it is never rebuilt (its glbs
 are exported again from its .blend).
+
+--frontage builds the era's frontage variants instead (era<n>_frontage.py, PLAN.md "Frontage"): the set
+era<n>_<region>_frontage, its .blend beside the era's, its glbs in the same folder and one sheet,
+previews/era<n>_<region>_frontage.png, with the bays laid out as terraces.
 """
 
 import os
@@ -28,13 +32,15 @@ sys.path.insert(0, HERE)
 import bpy  # noqa: E402
 
 from lib import scene  # noqa: E402
-from lib.builder import Build, TILE_M  # noqa: E402
+from lib.builder import BAY_M, Build, TILE_M  # noqa: E402
 from lib.mesh import triangles  # noqa: E402
 from lib.regions import REGIONS  # noqa: E402
-from buildings import ERAS  # noqa: E402
+from buildings import ERAS, FRONTAGE_SETS  # noqa: E402
 
 # Triangles in the Blender source by footprint (PLAN.md "Detail level").
 BUDGET = {1: 12000, 2: 30000, 3: 45000}
+# ... and a frontage building's by its frontage: a shophouse bay is a quarter of a tile, a 12 m house three quarters
+FRONTAGE_BUDGET = {BAY_M: 3000, 12.0: 9000}
 ROW_OF = {'home': 0, 'shop': 1, 'factory': 2}
 ROW_GAP = 60.0
 
@@ -47,8 +53,8 @@ def locked():
         return {line.split('#')[0].strip() for line in f if line.split('#')[0].strip()}
 
 
-def set_name(era, region):
-    return '%s_%s' % (era, region)
+def set_name(era, region, frontage=False):
+    return '%s_%s%s' % (era, region, '_frontage' if frontage else '')
 
 
 def building_id(spec, region):
@@ -90,6 +96,9 @@ def make_building(spec, region, parent_coll):
     root['phaicity_kind'] = spec['kind']
     root['phaicity_level'] = spec['level'] or 0
     root['phaicity_tiles'] = spec['tiles']
+    if spec.get('width'):
+        root['phaicity_width'] = spec['width']
+        root['phaicity_depth'] = b.depth
     root['phaicity_label_th'] = spec['th']
     root['phaicity_label_en'] = spec['en']
     root['phaicity_triangles'] = tris
@@ -98,7 +107,8 @@ def make_building(spec, region, parent_coll):
     coll.asset_data.description = spec['th'] + ' / ' + spec['en']
     for tag in ('era%d' % spec['era'], region, spec['kind']):
         coll.asset_data.tags.new(tag)
-    over = '  OVER BUDGET %d' % BUDGET[spec['tiles']] if tris > BUDGET[spec['tiles']] else ''
+    budget = FRONTAGE_BUDGET[spec['width']] if spec.get('width') else BUDGET[spec['tiles']]
+    over = '  OVER BUDGET %d' % budget if tris > budget else ''
     print('BUILT   %-34s %6d triangles  %5.1f m high%s' % (bid, tris, height, over))
     return root
 
@@ -119,6 +129,52 @@ def lay_out(roots_specs):
         x = cursor.get(row, 0.0)
         root.location = (x + size / 2, -row * 40.0, 0)
         cursor[row] = x + size + 5.0
+
+
+def lay_out_frontage(roots_specs):
+    """The frontage set in two rows, one per height: a terrace of six bays (left, mid, mid2, mid, mid2, right) flush
+    side by side, then the bay that stands alone, then the 12 m house. The terrace's second mid and mid2 are
+    instances of the first (studio objects, never exported), so the sheet shows how bays join. Returns the instancers."""
+    by_kind = {spec['kind']: root for root, spec in roots_specs}
+    extra = []
+    studio = bpy.data.collections.get(scene.STUDIO)
+    for row, h in enumerate((1, 2)):
+        y = -row * 24.0
+        x = 0.0
+        terrace = ['left', 'mid', 'mid2', 'mid', 'mid2', 'right']
+        seen = set()
+        for place in terrace:
+            kind = 'bay%d_%s' % (h, place)
+            root = by_kind.get(kind)
+            if root is None:
+                x += BAY_M
+                continue
+            centre = (x + BAY_M / 2, y, 0)
+            if kind in seen:
+                inst = bpy.data.objects.new('copy.%s.%d' % (kind, len(extra)), None)
+                inst.instance_type = 'COLLECTION'
+                inst.instance_collection = root.users_collection[0]
+                inst.location = centre
+                studio.objects.link(inst)
+                extra.append((inst, kind))
+            else:
+                root.location = centre
+                seen.add(kind)
+            x += BAY_M
+        x += 4.0
+        root = by_kind.get('bay%d_one' % h)
+        if root is not None:
+            root.location = (x + BAY_M / 2, y, 0)
+        x += BAY_M + 5.0
+        root = by_kind.get('house12_%d' % h)
+        if root is not None:
+            root.location = (x + 6.0, y, 0)
+    bpy.context.view_layer.update()
+    # each instance shows its collection from the collection's own origin: the original's place
+    for inst, kind in extra:
+        coll = inst.instance_collection
+        coll.instance_offset = by_kind[kind].location.copy()
+    return [inst for inst, _ in extra]
 
 
 def is_service(spec):
@@ -166,10 +222,10 @@ def closeups(cam, roots_specs, era, region):
     sc.render.resolution_x, sc.render.resolution_y = res
 
 
-def build_set(era, region, force=False, only=None, close=False):
-    name = set_name(era, region)
+def build_set(era, region, force=False, only=None, close=False, frontage=False):
+    name = set_name(era, region, frontage)
     blend = os.path.join(ROOT, 'blend', era, name + '.blend')
-    specs = ERAS[era]
+    specs = FRONTAGE_SETS[era] if frontage else ERAS[era]
     if only:
         specs = [s for s in specs if s['kind'] in only]
     if name in locked() and not only:
@@ -188,12 +244,26 @@ def build_set(era, region, force=False, only=None, close=False):
     cam = scene.studio(res=(2400, 1600))
     set_coll = scene.collection(name)
     roots = [(make_building(s, region, set_coll), s) for s in specs]
-    lay_out(roots)
+    copies = lay_out_frontage(roots) if frontage else []
+    if not frontage:
+        lay_out(roots)
     bpy.context.view_layer.update()
     if only:
+        for inst in copies:
+            inst.hide_render = True
         closeups(cam, roots, era, region)
         return
     export_each(roots, era, region)
+    if frontage:
+        scene.frame(cam, [o for r, _ in roots for o in objects_of(r)], margin=1.06)
+        scene.save(blend)
+        scene.render(os.path.join(ROOT, 'previews', name + '.png'))
+        print('Saved: %s_sheet.png' % name)
+        if close:
+            for inst in copies:
+                inst.hide_render = True
+            closeups(cam, roots, era, region)
+        return
     scene.frame(cam, [o for r, _ in roots for o in objects_of(r)], margin=1.04)
     scene.save(blend)
     render_sheet(cam, roots, os.path.join(ROOT, 'previews', name + '_sheet.png'), False)
@@ -210,19 +280,21 @@ def main():
         raise SystemExit(__doc__)
     force = '--force' in args
     close = '--closeups' in args
+    frontage = '--frontage' in args
     only = None
     if '--only' in args:
         only = set(args[args.index('--only') + 1].split(','))
         words = [w for w in words if w != args[args.index('--only') + 1]]
-    eras = list(ERAS) if words[0] == 'all' else [words[0]]
+    sets = FRONTAGE_SETS if frontage else ERAS
+    eras = list(sets) if words[0] == 'all' else [words[0]]
     regions = [words[1]] if len(words) > 1 else list(REGIONS)
     for era in eras:
-        if era not in ERAS:
-            raise SystemExit('No buildings for %s yet' % era)
+        if era not in sets:
+            raise SystemExit('No %sbuildings for %s yet' % ('frontage ' if frontage else '', era))
         for region in regions:
             if region not in REGIONS:
                 raise SystemExit('Unknown region %s (%s)' % (region, ', '.join(REGIONS)))
-            build_set(era, region, force, only, close)
+            build_set(era, region, force, only, close, frontage)
 
 
 main()

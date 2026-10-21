@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// Owner-facing review page for the preset province maps (docs/geo/CODEX_PROMPTS.md, G2).
+// Owner-facing review page for the preset province maps (docs/geo/GEO_SPEC.md section 12).
 // It reads the committed data files at runtime and draws each map at a few pixels per tile.
 
 import { drawPresetMap, PresetFlag, PresetMap } from "../geo/presetMap";

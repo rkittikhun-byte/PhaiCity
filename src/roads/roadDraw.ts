@@ -48,11 +48,24 @@ function draft(line: DrawnLine): { graph: RoadGraph; segments: number[] } {
   return { graph, segments: graph.add({ ...line, level: 1 }).segments };
 }
 
+/**
+ * A line as the road command lays it (src/cityCommands.ts road) on the roads already drawn (graph, the map's road or
+ * rail graph; none for an empty map): the tiles it will be laid on, from its start to its end (tile index y * width +
+ * x), and its length (metres), of the road as the graph will hold it, joined to the roads its ends and crossings meet
+ * (RoadGraph tryAdd); null when it is too short to be a road
+ */
+export function lineOnGraph(line: DrawnLine, map: RasterMap, graph?: RoadGraph | null, level = 1):
+  { tiles: number[]; length: number } | null {
+  const g = graph ?? new RoadGraph();
+  return g.tryAdd({ ...line, level }, ({ segments }) => segments.length ? {
+    tiles: segments.flatMap((id) => segmentTiles(g, id, map)), length: segments.reduce((sum, id) => sum + g.length(id), 0),
+  } : null);
+}
+
 /** The tiles a line will be laid on, from its start to its end (tile index y * width + x), exactly as the road command
- * lays them */
-export function lineTiles(line: DrawnLine, map: RasterMap): number[] {
-  const { graph, segments } = draft(line);
-  return segments.flatMap((id) => segmentTiles(graph, id, map));
+ * lays them on the roads already drawn (graph) */
+export function lineTiles(line: DrawnLine, map: RasterMap, graph?: RoadGraph | null): number[] {
+  return lineOnGraph(line, map, graph)?.tiles ?? [];
 }
 
 /** A line's length on the ground (metres) */

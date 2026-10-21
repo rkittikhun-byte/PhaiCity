@@ -6,7 +6,7 @@
 // leftovers): a click takes the road under it from junction to junction, its own mode kept apart from the roads'.
 
 import { CityCore } from "../src/core/cityCore";
-import { drawModeOf, modesFor, setDrawMode } from "../src/drawModes";
+import { drawModeOf, isClickMode, isStraightMode, modesFor, POINTS_NEEDED, setDrawMode } from "../src/drawModes";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { UPGRADE_TOOL } from "../src/roadLevels";
 import { wholeRoadTiles } from "../src/roads/wholeRoad";
@@ -54,5 +54,14 @@ describe("the upgrade tool's whole road", () => {
     expect(drawModeOf("road")).toBe("curve");
     setDrawMode("road", "fill");
     expect(drawModeOf("road")).toBe("curve");
+  });
+
+  test("the roads, railways and canals draw a chain of straight lines too (metre plan 1.5), which the upgrade tool does not", () => {
+    for (const tool of ["road", "rail", "canal"]) expect(modesFor(tool)).toContain("chain");
+    expect(modesFor(UPGRADE_TOOL)).not.toContain("chain");
+    expect(POINTS_NEEDED.chain).toBe(2);
+    expect(isClickMode("chain") && isStraightMode("chain") && isStraightMode("straight") && !isStraightMode("curve")).toBe(true);
+    setDrawMode(UPGRADE_TOOL, "chain");
+    expect(drawModeOf(UPGRADE_TOOL)).toBe("fill");
   });
 });

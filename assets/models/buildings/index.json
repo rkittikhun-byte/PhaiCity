@@ -2,6 +2,46 @@
  "buildings": {
   "era1": {
    "central": {
+    "bay1_left": {
+     "height": 7.81,
+     "triangles": 1267
+    },
+    "bay1_mid": {
+     "height": 7.81,
+     "triangles": 1271
+    },
+    "bay1_mid2": {
+     "height": 7.81,
+     "triangles": 1283
+    },
+    "bay1_one": {
+     "height": 7.81,
+     "triangles": 1270
+    },
+    "bay1_right": {
+     "height": 7.81,
+     "triangles": 1275
+    },
+    "bay2_left": {
+     "height": 9.38,
+     "triangles": 1279
+    },
+    "bay2_mid": {
+     "height": 9.38,
+     "triangles": 1274
+    },
+    "bay2_mid2": {
+     "height": 9.38,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 9.38,
+     "triangles": 1271
+    },
+    "bay2_right": {
+     "height": 9.38,
+     "triangles": 1277
+    },
     "factory_1": {
      "height": 6.47,
      "triangles": 4451
@@ -45,6 +85,14 @@
     "hospital": {
      "height": 9.47,
      "triangles": 15311
+    },
+    "house12_1": {
+     "height": 8.02,
+     "triangles": 3328
+    },
+    "house12_2": {
+     "height": 7.96,
+     "triangles": 3424
     },
     "market": {
      "height": 12.25,
@@ -100,6 +148,46 @@
     }
    },
    "east": {
+    "bay1_left": {
+     "height": 7.44,
+     "triangles": 1276
+    },
+    "bay1_mid": {
+     "height": 7.44,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 7.44,
+     "triangles": 1283
+    },
+    "bay1_one": {
+     "height": 7.44,
+     "triangles": 1270
+    },
+    "bay1_right": {
+     "height": 7.44,
+     "triangles": 1278
+    },
+    "bay2_left": {
+     "height": 8.98,
+     "triangles": 1283
+    },
+    "bay2_mid": {
+     "height": 8.98,
+     "triangles": 1283
+    },
+    "bay2_mid2": {
+     "height": 8.98,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 8.98,
+     "triangles": 1269
+    },
+    "bay2_right": {
+     "height": 8.98,
+     "triangles": 1279
+    },
     "factory_1": {
      "height": 6.17,
      "triangles": 4424
@@ -143,6 +231,14 @@
     "hospital": {
      "height": 9.11,
      "triangles": 15132
+    },
+    "house12_1": {
+     "height": 7.77,
+     "triangles": 3288
+    },
+    "house12_2": {
+     "height": 7.71,
+     "triangles": 3535
     },
     "market": {
      "height": 11.52,
@@ -198,6 +294,46 @@
     }
    },
    "north": {
+    "bay1_left": {
+     "height": 7.97,
+     "triangles": 1268
+    },
+    "bay1_mid": {
+     "height": 6.89,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 6.89,
+     "triangles": 1277
+    },
+    "bay1_one": {
+     "height": 7.97,
+     "triangles": 1259
+    },
+    "bay1_right": {
+     "height": 7.97,
+     "triangles": 1275
+    },
+    "bay2_left": {
+     "height": 9.45,
+     "triangles": 1277
+    },
+    "bay2_mid": {
+     "height": 8.37,
+     "triangles": 1283
+    },
+    "bay2_mid2": {
+     "height": 8.37,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 9.45,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 9.45,
+     "triangles": 1261
+    },
     "factory_1": {
      "height": 8.16,
      "triangles": 4433
@@ -241,6 +377,14 @@
     "hospital": {
      "height": 9.46,
      "triangles": 15106
+    },
+    "house12_1": {
+     "height": 8.38,
+     "triangles": 3301
+    },
+    "house12_2": {
+     "height": 8.38,
+     "triangles": 3409
     },
     "market": {
      "height": 10.99,
@@ -296,6 +440,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 6.7,
+     "triangles": 1273
+    },
+    "bay1_mid": {
+     "height": 6.7,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 6.7,
+     "triangles": 1277
+    },
+    "bay1_one": {
+     "height": 6.7,
+     "triangles": 1235
+    },
+    "bay1_right": {
+     "height": 6.7,
+     "triangles": 1280
+    },
+    "bay2_left": {
+     "height": 8.16,
+     "triangles": 1237
+    },
+    "bay2_mid": {
+     "height": 8.16,
+     "triangles": 1283
+    },
+    "bay2_mid2": {
+     "height": 8.16,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 8.16,
+     "triangles": 1220
+    },
+    "bay2_right": {
+     "height": 8.16,
+     "triangles": 1235
+    },
     "factory_1": {
      "height": 5.7,
      "triangles": 4456
@@ -339,6 +523,14 @@
     "hospital": {
      "height": 9.71,
      "triangles": 15275
+    },
+    "house12_1": {
+     "height": 7.49,
+     "triangles": 3198
+    },
+    "house12_2": {
+     "height": 7.13,
+     "triangles": 3267
     },
     "market": {
      "height": 9.23,
@@ -394,6 +586,46 @@
     }
    },
    "south": {
+    "bay1_left": {
+     "height": 6.15,
+     "triangles": 1273
+    },
+    "bay1_mid": {
+     "height": 6.15,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 6.15,
+     "triangles": 1277
+    },
+    "bay1_one": {
+     "height": 6.15,
+     "triangles": 1233
+    },
+    "bay1_right": {
+     "height": 6.15,
+     "triangles": 1280
+    },
+    "bay2_left": {
+     "height": 7.56,
+     "triangles": 1262
+    },
+    "bay2_mid": {
+     "height": 7.56,
+     "triangles": 1283
+    },
+    "bay2_mid2": {
+     "height": 7.56,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 7.56,
+     "triangles": 1254
+    },
+    "bay2_right": {
+     "height": 7.56,
+     "triangles": 1247
+    },
     "factory_1": {
      "height": 6.15,
      "triangles": 4498
@@ -437,6 +669,14 @@
     "hospital": {
      "height": 10.45,
      "triangles": 15364
+    },
+    "house12_1": {
+     "height": 6.15,
+     "triangles": 3326
+    },
+    "house12_2": {
+     "height": 6.19,
+     "triangles": 3246
     },
     "market": {
      "height": 10.37,
@@ -492,6 +732,46 @@
     }
    },
    "west": {
+    "bay1_left": {
+     "height": 7.44,
+     "triangles": 1268
+    },
+    "bay1_mid": {
+     "height": 7.44,
+     "triangles": 1269
+    },
+    "bay1_mid2": {
+     "height": 7.44,
+     "triangles": 1283
+    },
+    "bay1_one": {
+     "height": 7.44,
+     "triangles": 1270
+    },
+    "bay1_right": {
+     "height": 7.44,
+     "triangles": 1275
+    },
+    "bay2_left": {
+     "height": 8.98,
+     "triangles": 1277
+    },
+    "bay2_mid": {
+     "height": 8.98,
+     "triangles": 1273
+    },
+    "bay2_mid2": {
+     "height": 8.98,
+     "triangles": 1282
+    },
+    "bay2_one": {
+     "height": 8.98,
+     "triangles": 1269
+    },
+    "bay2_right": {
+     "height": 8.98,
+     "triangles": 1274
+    },
     "factory_1": {
      "height": 6.17,
      "triangles": 4464
@@ -535,6 +815,14 @@
     "hospital": {
      "height": 9.11,
      "triangles": 15320
+    },
+    "house12_1": {
+     "height": 7.77,
+     "triangles": 3298
+    },
+    "house12_2": {
+     "height": 7.71,
+     "triangles": 3810
     },
     "market": {
      "height": 11.52,
@@ -592,6 +880,46 @@
   },
   "era2": {
    "central": {
+    "bay1_left": {
+     "height": 10.05,
+     "triangles": 1214
+    },
+    "bay1_mid": {
+     "height": 10.07,
+     "triangles": 1317
+    },
+    "bay1_mid2": {
+     "height": 10.07,
+     "triangles": 1255
+    },
+    "bay1_one": {
+     "height": 10.05,
+     "triangles": 1273
+    },
+    "bay1_right": {
+     "height": 10.07,
+     "triangles": 1354
+    },
+    "bay2_left": {
+     "height": 13.27,
+     "triangles": 1230
+    },
+    "bay2_mid": {
+     "height": 13.27,
+     "triangles": 1317
+    },
+    "bay2_mid2": {
+     "height": 13.27,
+     "triangles": 1255
+    },
+    "bay2_one": {
+     "height": 13.27,
+     "triangles": 1584
+    },
+    "bay2_right": {
+     "height": 13.27,
+     "triangles": 1313
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4114
@@ -635,6 +963,14 @@
     "hospital": {
      "height": 11.9,
      "triangles": 15839
+    },
+    "house12_1": {
+     "height": 10.49,
+     "triangles": 3314
+    },
+    "house12_2": {
+     "height": 10.74,
+     "triangles": 3295
     },
     "market": {
      "height": 10.72,
@@ -690,6 +1026,46 @@
     }
    },
    "east": {
+    "bay1_left": {
+     "height": 9.82,
+     "triangles": 1224
+    },
+    "bay1_mid": {
+     "height": 9.85,
+     "triangles": 1278
+    },
+    "bay1_mid2": {
+     "height": 9.85,
+     "triangles": 1255
+    },
+    "bay1_one": {
+     "height": 9.82,
+     "triangles": 1271
+    },
+    "bay1_right": {
+     "height": 9.85,
+     "triangles": 1354
+    },
+    "bay2_left": {
+     "height": 13.02,
+     "triangles": 1222
+    },
+    "bay2_mid": {
+     "height": 13.05,
+     "triangles": 1278
+    },
+    "bay2_mid2": {
+     "height": 13.05,
+     "triangles": 1255
+    },
+    "bay2_one": {
+     "height": 13.02,
+     "triangles": 1577
+    },
+    "bay2_right": {
+     "height": 13.02,
+     "triangles": 1321
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4495
@@ -733,6 +1109,14 @@
     "hospital": {
      "height": 11.46,
      "triangles": 15769
+    },
+    "house12_1": {
+     "height": 10.16,
+     "triangles": 3279
+    },
+    "house12_2": {
+     "height": 10.4,
+     "triangles": 3264
     },
     "market": {
      "height": 10.72,
@@ -788,6 +1172,46 @@
     }
    },
    "north": {
+    "bay1_left": {
+     "height": 10.53,
+     "triangles": 1139
+    },
+    "bay1_mid": {
+     "height": 10.53,
+     "triangles": 1246
+    },
+    "bay1_mid2": {
+     "height": 10.53,
+     "triangles": 1255
+    },
+    "bay1_one": {
+     "height": 10.53,
+     "triangles": 1656
+    },
+    "bay1_right": {
+     "height": 10.53,
+     "triangles": 1228
+    },
+    "bay2_left": {
+     "height": 13.73,
+     "triangles": 1334
+    },
+    "bay2_mid": {
+     "height": 13.73,
+     "triangles": 1191
+    },
+    "bay2_mid2": {
+     "height": 13.73,
+     "triangles": 1245
+    },
+    "bay2_one": {
+     "height": 13.73,
+     "triangles": 1970
+    },
+    "bay2_right": {
+     "height": 13.73,
+     "triangles": 1436
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4500
@@ -831,6 +1255,14 @@
     "hospital": {
      "height": 11.6,
      "triangles": 15744
+    },
+    "house12_1": {
+     "height": 10.6,
+     "triangles": 3298
+    },
+    "house12_2": {
+     "height": 10.78,
+     "triangles": 3281
     },
     "market": {
      "height": 10.72,
@@ -886,6 +1318,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 9.02,
+     "triangles": 1221
+    },
+    "bay1_mid": {
+     "height": 9.02,
+     "triangles": 1276
+    },
+    "bay1_mid2": {
+     "height": 9.02,
+     "triangles": 1267
+    },
+    "bay1_one": {
+     "height": 9.02,
+     "triangles": 1183
+    },
+    "bay1_right": {
+     "height": 9.02,
+     "triangles": 1300
+    },
+    "bay2_left": {
+     "height": 12.22,
+     "triangles": 1298
+    },
+    "bay2_mid": {
+     "height": 12.22,
+     "triangles": 1248
+    },
+    "bay2_mid2": {
+     "height": 12.22,
+     "triangles": 1217
+    },
+    "bay2_one": {
+     "height": 12.22,
+     "triangles": 1647
+    },
+    "bay2_right": {
+     "height": 12.22,
+     "triangles": 1225
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4442
@@ -929,6 +1401,14 @@
     "hospital": {
      "height": 9.97,
      "triangles": 15884
+    },
+    "house12_1": {
+     "height": 9.03,
+     "triangles": 3311
+    },
+    "house12_2": {
+     "height": 9.2,
+     "triangles": 3210
     },
     "market": {
      "height": 10.72,
@@ -984,6 +1464,46 @@
     }
    },
    "south": {
+    "bay1_left": {
+     "height": 10.38,
+     "triangles": 1176
+    },
+    "bay1_mid": {
+     "height": 10.38,
+     "triangles": 1286
+    },
+    "bay1_mid2": {
+     "height": 10.38,
+     "triangles": 1273
+    },
+    "bay1_one": {
+     "height": 10.38,
+     "triangles": 1456
+    },
+    "bay1_right": {
+     "height": 10.38,
+     "triangles": 1205
+    },
+    "bay2_left": {
+     "height": 13.58,
+     "triangles": 1636
+    },
+    "bay2_mid": {
+     "height": 13.58,
+     "triangles": 1243
+    },
+    "bay2_mid2": {
+     "height": 13.58,
+     "triangles": 1200
+    },
+    "bay2_one": {
+     "height": 13.58,
+     "triangles": 2147
+    },
+    "bay2_right": {
+     "height": 13.58,
+     "triangles": 1445
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4495
@@ -1027,6 +1547,14 @@
     "hospital": {
      "height": 10.54,
      "triangles": 15873
+    },
+    "house12_1": {
+     "height": 8.2,
+     "triangles": 3296
+    },
+    "house12_2": {
+     "height": 8.29,
+     "triangles": 3287
     },
     "market": {
      "height": 10.72,
@@ -1082,6 +1610,46 @@
     }
    },
    "west": {
+    "bay1_left": {
+     "height": 9.82,
+     "triangles": 1181
+    },
+    "bay1_mid": {
+     "height": 9.85,
+     "triangles": 1333
+    },
+    "bay1_mid2": {
+     "height": 9.85,
+     "triangles": 1253
+    },
+    "bay1_one": {
+     "height": 9.82,
+     "triangles": 1327
+    },
+    "bay1_right": {
+     "height": 9.85,
+     "triangles": 1361
+    },
+    "bay2_left": {
+     "height": 13.02,
+     "triangles": 1305
+    },
+    "bay2_mid": {
+     "height": 13.05,
+     "triangles": 1333
+    },
+    "bay2_mid2": {
+     "height": 13.05,
+     "triangles": 1253
+    },
+    "bay2_one": {
+     "height": 13.02,
+     "triangles": 1633
+    },
+    "bay2_right": {
+     "height": 13.02,
+     "triangles": 1287
+    },
     "factory_1": {
      "height": 8.2,
      "triangles": 4493
@@ -1125,6 +1693,14 @@
     "hospital": {
      "height": 11.46,
      "triangles": 15894
+    },
+    "house12_1": {
+     "height": 10.16,
+     "triangles": 3330
+    },
+    "house12_2": {
+     "height": 10.4,
+     "triangles": 3240
     },
     "market": {
      "height": 10.72,
@@ -1182,6 +1758,46 @@
   },
   "era3": {
    "central": {
+    "bay1_left": {
+     "height": 11.53,
+     "triangles": 1239
+    },
+    "bay1_mid": {
+     "height": 11.53,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 11.53,
+     "triangles": 1281
+    },
+    "bay1_one": {
+     "height": 11.53,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 11.53,
+     "triangles": 1236
+    },
+    "bay2_left": {
+     "height": 14.91,
+     "triangles": 1221
+    },
+    "bay2_mid": {
+     "height": 14.93,
+     "triangles": 1249
+    },
+    "bay2_mid2": {
+     "height": 14.93,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 14.91,
+     "triangles": 1272
+    },
+    "bay2_right": {
+     "height": 14.91,
+     "triangles": 1234
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4489
@@ -1225,6 +1841,14 @@
     "hospital": {
      "height": 22.87,
      "triangles": 15789
+    },
+    "house12_1": {
+     "height": 6.63,
+     "triangles": 3355
+    },
+    "house12_2": {
+     "height": 10.0,
+     "triangles": 3285
     },
     "market": {
      "height": 14.07,
@@ -1280,6 +1904,46 @@
     }
    },
    "east": {
+    "bay1_left": {
+     "height": 11.32,
+     "triangles": 1239
+    },
+    "bay1_mid": {
+     "height": 11.32,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 11.32,
+     "triangles": 1281
+    },
+    "bay1_one": {
+     "height": 11.32,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 11.32,
+     "triangles": 1236
+    },
+    "bay2_left": {
+     "height": 14.72,
+     "triangles": 1221
+    },
+    "bay2_mid": {
+     "height": 14.72,
+     "triangles": 1250
+    },
+    "bay2_mid2": {
+     "height": 14.72,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 14.7,
+     "triangles": 1272
+    },
+    "bay2_right": {
+     "height": 14.72,
+     "triangles": 1235
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4487
@@ -1323,6 +1987,14 @@
     "hospital": {
      "height": 22.33,
      "triangles": 15757
+    },
+    "house12_1": {
+     "height": 6.38,
+     "triangles": 3344
+    },
+    "house12_2": {
+     "height": 9.72,
+     "triangles": 3303
     },
     "market": {
      "height": 13.53,
@@ -1378,6 +2050,46 @@
     }
    },
    "north": {
+    "bay1_left": {
+     "height": 11.71,
+     "triangles": 1238
+    },
+    "bay1_mid": {
+     "height": 11.71,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 11.71,
+     "triangles": 1281
+    },
+    "bay1_one": {
+     "height": 11.71,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 11.71,
+     "triangles": 1236
+    },
+    "bay2_left": {
+     "height": 15.09,
+     "triangles": 1218
+    },
+    "bay2_mid": {
+     "height": 15.11,
+     "triangles": 1249
+    },
+    "bay2_mid2": {
+     "height": 15.11,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 15.09,
+     "triangles": 1268
+    },
+    "bay2_right": {
+     "height": 15.09,
+     "triangles": 1229
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4472
@@ -1421,6 +2133,14 @@
     "hospital": {
      "height": 21.39,
      "triangles": 15792
+    },
+    "house12_1": {
+     "height": 7.0,
+     "triangles": 3372
+    },
+    "house12_2": {
+     "height": 10.26,
+     "triangles": 3245
     },
     "market": {
      "height": 12.59,
@@ -1476,6 +2196,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 10.65,
+     "triangles": 1268
+    },
+    "bay1_mid": {
+     "height": 10.02,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 10.02,
+     "triangles": 1284
+    },
+    "bay1_one": {
+     "height": 10.02,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 10.65,
+     "triangles": 1274
+    },
+    "bay2_left": {
+     "height": 14.05,
+     "triangles": 1222
+    },
+    "bay2_mid": {
+     "height": 13.42,
+     "triangles": 1278
+    },
+    "bay2_mid2": {
+     "height": 13.7,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 13.65,
+     "triangles": 1272
+    },
+    "bay2_right": {
+     "height": 14.05,
+     "triangles": 1236
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4487
@@ -1519,6 +2279,14 @@
     "hospital": {
      "height": 19.22,
      "triangles": 15798
+    },
+    "house12_1": {
+     "height": 5.74,
+     "triangles": 3354
+    },
+    "house12_2": {
+     "height": 8.71,
+     "triangles": 3296
     },
     "market": {
      "height": 10.72,
@@ -1574,6 +2342,46 @@
     }
    },
    "south": {
+    "bay1_left": {
+     "height": 10.65,
+     "triangles": 1234
+    },
+    "bay1_mid": {
+     "height": 10.12,
+     "triangles": 1263
+    },
+    "bay1_mid2": {
+     "height": 10.12,
+     "triangles": 1253
+    },
+    "bay1_one": {
+     "height": 10.11,
+     "triangles": 1209
+    },
+    "bay1_right": {
+     "height": 10.65,
+     "triangles": 1240
+    },
+    "bay2_left": {
+     "height": 14.05,
+     "triangles": 1359
+    },
+    "bay2_mid": {
+     "height": 13.54,
+     "triangles": 1203
+    },
+    "bay2_mid2": {
+     "height": 13.65,
+     "triangles": 1230
+    },
+    "bay2_one": {
+     "height": 13.65,
+     "triangles": 1554
+    },
+    "bay2_right": {
+     "height": 14.05,
+     "triangles": 1365
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4490
@@ -1617,6 +2425,14 @@
     "hospital": {
      "height": 19.15,
      "triangles": 15792
+    },
+    "house12_1": {
+     "height": 6.15,
+     "triangles": 3357
+    },
+    "house12_2": {
+     "height": 7.95,
+     "triangles": 3316
     },
     "market": {
      "height": 10.72,
@@ -1672,6 +2488,46 @@
     }
    },
    "west": {
+    "bay1_left": {
+     "height": 11.32,
+     "triangles": 1239
+    },
+    "bay1_mid": {
+     "height": 11.32,
+     "triangles": 1280
+    },
+    "bay1_mid2": {
+     "height": 11.32,
+     "triangles": 1281
+    },
+    "bay1_one": {
+     "height": 11.32,
+     "triangles": 1229
+    },
+    "bay1_right": {
+     "height": 11.32,
+     "triangles": 1236
+    },
+    "bay2_left": {
+     "height": 14.72,
+     "triangles": 1221
+    },
+    "bay2_mid": {
+     "height": 14.72,
+     "triangles": 1250
+    },
+    "bay2_mid2": {
+     "height": 14.72,
+     "triangles": 1235
+    },
+    "bay2_one": {
+     "height": 14.7,
+     "triangles": 1272
+    },
+    "bay2_right": {
+     "height": 14.72,
+     "triangles": 1235
+    },
     "factory_1": {
      "height": 9.0,
      "triangles": 4489
@@ -1715,6 +2571,14 @@
     "hospital": {
      "height": 22.33,
      "triangles": 15798
+    },
+    "house12_1": {
+     "height": 6.38,
+     "triangles": 3356
+    },
+    "house12_2": {
+     "height": 9.72,
+     "triangles": 3297
     },
     "market": {
      "height": 13.53,
@@ -1772,6 +2636,46 @@
   },
   "era4": {
    "central": {
+    "bay1_left": {
+     "height": 13.26,
+     "triangles": 1284
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 15.82,
+     "triangles": 1263
+    },
+    "bay1_one": {
+     "height": 15.82,
+     "triangles": 1257
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.75,
+     "triangles": 1258
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1300
+    },
+    "bay2_mid2": {
+     "height": 19.22,
+     "triangles": 1265
+    },
+    "bay2_one": {
+     "height": 19.22,
+     "triangles": 1257
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4224
@@ -1815,6 +2719,14 @@
     "hospital": {
      "height": 44.4,
      "triangles": 14494
+    },
+    "house12_1": {
+     "height": 9.24,
+     "triangles": 3397
+    },
+    "house12_2": {
+     "height": 14.0,
+     "triangles": 3397
     },
     "market": {
      "height": 14.1,
@@ -1870,6 +2782,46 @@
     }
    },
    "east": {
+    "bay1_left": {
+     "height": 13.26,
+     "triangles": 1284
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 15.65,
+     "triangles": 1263
+    },
+    "bay1_one": {
+     "height": 15.65,
+     "triangles": 1257
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.75,
+     "triangles": 1258
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1300
+    },
+    "bay2_mid2": {
+     "height": 19.05,
+     "triangles": 1265
+    },
+    "bay2_one": {
+     "height": 19.05,
+     "triangles": 1257
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4500
@@ -1913,6 +2865,14 @@
     "hospital": {
      "height": 43.96,
      "triangles": 14526
+    },
+    "house12_1": {
+     "height": 9.03,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 13.88,
+     "triangles": 3393
     },
     "market": {
      "height": 14.1,
@@ -1968,6 +2928,46 @@
     }
    },
    "north": {
+    "bay1_left": {
+     "height": 13.26,
+     "triangles": 1284
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 16.47,
+     "triangles": 1263
+    },
+    "bay1_one": {
+     "height": 16.47,
+     "triangles": 1257
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.75,
+     "triangles": 1258
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1300
+    },
+    "bay2_mid2": {
+     "height": 19.87,
+     "triangles": 1265
+    },
+    "bay2_one": {
+     "height": 19.87,
+     "triangles": 1257
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4296
@@ -2011,6 +3011,14 @@
     "hospital": {
      "height": 44.1,
      "triangles": 14566
+    },
+    "house12_1": {
+     "height": 9.74,
+     "triangles": 3381
+    },
+    "house12_2": {
+     "height": 14.81,
+     "triangles": 3381
     },
     "market": {
      "height": 14.63,
@@ -2066,6 +3074,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 13.26,
+     "triangles": 1284
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 14.99,
+     "triangles": 1284
+    },
+    "bay1_one": {
+     "height": 14.99,
+     "triangles": 1257
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.75,
+     "triangles": 1258
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1300
+    },
+    "bay2_mid2": {
+     "height": 18.39,
+     "triangles": 1265
+    },
+    "bay2_one": {
+     "height": 18.39,
+     "triangles": 1257
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4364
@@ -2109,6 +3157,14 @@
     "hospital": {
      "height": 42.47,
      "triangles": 13234
+    },
+    "house12_1": {
+     "height": 8.23,
+     "triangles": 3326
+    },
+    "house12_2": {
+     "height": 13.36,
+     "triangles": 3400
     },
     "market": {
      "height": 13.17,
@@ -2164,6 +3220,46 @@
     }
    },
    "south": {
+    "bay1_left": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 14.49,
+     "triangles": 1300
+    },
+    "bay1_one": {
+     "height": 14.49,
+     "triangles": 1283
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.66,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1294
+    },
+    "bay2_mid2": {
+     "height": 17.89,
+     "triangles": 1287
+    },
+    "bay2_one": {
+     "height": 17.89,
+     "triangles": 1283
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4500
@@ -2207,6 +3303,14 @@
     "hospital": {
      "height": 41.33,
      "triangles": 13686
+    },
+    "house12_1": {
+     "height": 10.23,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 12.95,
+     "triangles": 3400
     },
     "market": {
      "height": 12.14,
@@ -2262,6 +3366,46 @@
     }
    },
    "west": {
+    "bay1_left": {
+     "height": 13.26,
+     "triangles": 1284
+    },
+    "bay1_mid": {
+     "height": 13.29,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 15.65,
+     "triangles": 1263
+    },
+    "bay1_one": {
+     "height": 15.65,
+     "triangles": 1257
+    },
+    "bay1_right": {
+     "height": 13.29,
+     "triangles": 1294
+    },
+    "bay2_left": {
+     "height": 16.75,
+     "triangles": 1258
+    },
+    "bay2_mid": {
+     "height": 16.69,
+     "triangles": 1300
+    },
+    "bay2_mid2": {
+     "height": 19.05,
+     "triangles": 1265
+    },
+    "bay2_one": {
+     "height": 19.05,
+     "triangles": 1257
+    },
+    "bay2_right": {
+     "height": 16.66,
+     "triangles": 1284
+    },
     "factory_1": {
      "height": 7.45,
      "triangles": 4500
@@ -2305,6 +3449,14 @@
     "hospital": {
      "height": 43.96,
      "triangles": 14494
+    },
+    "house12_1": {
+     "height": 9.03,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 13.88,
+     "triangles": 3400
     },
     "market": {
      "height": 14.1,
@@ -2362,6 +3514,46 @@
   },
   "era5": {
    "central": {
+    "bay1_left": {
+     "height": 12.39,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 12.39,
+     "triangles": 1298
+    },
+    "bay1_mid2": {
+     "height": 12.39,
+     "triangles": 1279
+    },
+    "bay1_one": {
+     "height": 12.39,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 12.39,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 15.76,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 15.79,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1273
+    },
     "factory_1": {
      "height": 6.75,
      "triangles": 4496
@@ -2405,6 +3597,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15987
+    },
+    "house12_1": {
+     "height": 9.49,
+     "triangles": 3398
+    },
+    "house12_2": {
+     "height": 11.88,
+     "triangles": 3398
     },
     "market": {
      "height": 16.2,
@@ -2460,6 +3660,46 @@
     }
    },
    "east": {
+    "bay1_left": {
+     "height": 12.39,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 12.39,
+     "triangles": 1298
+    },
+    "bay1_mid2": {
+     "height": 12.39,
+     "triangles": 1279
+    },
+    "bay1_one": {
+     "height": 12.39,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 12.39,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 15.76,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 15.79,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1273
+    },
     "factory_1": {
      "height": 6.6,
      "triangles": 4497
@@ -2503,6 +3743,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15946
+    },
+    "house12_1": {
+     "height": 9.49,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 11.88,
+     "triangles": 3397
     },
     "market": {
      "height": 16.2,
@@ -2558,6 +3806,46 @@
     }
    },
    "north": {
+    "bay1_left": {
+     "height": 13.47,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 13.47,
+     "triangles": 1298
+    },
+    "bay1_mid2": {
+     "height": 13.47,
+     "triangles": 1279
+    },
+    "bay1_one": {
+     "height": 13.47,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 13.47,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 16.85,
+     "triangles": 1271
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 16.87,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1266
+    },
     "factory_1": {
      "height": 7.26,
      "triangles": 4497
@@ -2601,6 +3889,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15978
+    },
+    "house12_1": {
+     "height": 10.48,
+     "triangles": 3381
+    },
+    "house12_2": {
+     "height": 12.95,
+     "triangles": 3381
     },
     "market": {
      "height": 16.2,
@@ -2656,6 +3952,46 @@
     }
    },
    "northeast": {
+    "bay1_left": {
+     "height": 12.06,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 12.06,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 12.06,
+     "triangles": 1285
+    },
+    "bay1_one": {
+     "height": 12.06,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 12.06,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 15.46,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 15.46,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1273
+    },
     "factory_1": {
      "height": 6.6,
      "triangles": 4497
@@ -2699,6 +4035,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15994
+    },
+    "house12_1": {
+     "height": 9.06,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 11.54,
+     "triangles": 3400
     },
     "market": {
      "height": 16.2,
@@ -2754,6 +4098,46 @@
     }
    },
    "south": {
+    "bay1_left": {
+     "height": 11.75,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 11.75,
+     "triangles": 1300
+    },
+    "bay1_mid2": {
+     "height": 11.75,
+     "triangles": 1293
+    },
+    "bay1_one": {
+     "height": 11.75,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 11.75,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 15.15,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 15.15,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1235
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1282
+    },
     "factory_1": {
      "height": 10.23,
      "triangles": 4497
@@ -2797,6 +4181,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15981
+    },
+    "house12_1": {
+     "height": 10.24,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 11.22,
+     "triangles": 3400
     },
     "market": {
      "height": 16.2,
@@ -2852,6 +4244,46 @@
     }
    },
    "west": {
+    "bay1_left": {
+     "height": 12.39,
+     "triangles": 1286
+    },
+    "bay1_mid": {
+     "height": 12.39,
+     "triangles": 1298
+    },
+    "bay1_mid2": {
+     "height": 12.39,
+     "triangles": 1279
+    },
+    "bay1_one": {
+     "height": 12.39,
+     "triangles": 1278
+    },
+    "bay1_right": {
+     "height": 12.39,
+     "triangles": 1287
+    },
+    "bay2_left": {
+     "height": 15.76,
+     "triangles": 1286
+    },
+    "bay2_mid": {
+     "height": 17.63,
+     "triangles": 1287
+    },
+    "bay2_mid2": {
+     "height": 15.79,
+     "triangles": 1279
+    },
+    "bay2_one": {
+     "height": 18.43,
+     "triangles": 1232
+    },
+    "bay2_right": {
+     "height": 17.66,
+     "triangles": 1273
+    },
     "factory_1": {
      "height": 6.6,
      "triangles": 4497
@@ -2895,6 +4327,14 @@
     "hospital": {
      "height": 38.97,
      "triangles": 15989
+    },
+    "house12_1": {
+     "height": 9.49,
+     "triangles": 3400
+    },
+    "house12_2": {
+     "height": 11.88,
+     "triangles": 3398
     },
     "market": {
      "height": 16.2,
@@ -2952,6 +4392,56 @@
   }
  },
  "kinds": {
+  "bay1_left": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_mid": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_mid2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_one": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay1_right": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_left": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_mid": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_mid2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_one": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
+  "bay2_right": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 4.0
+  },
   "factory_1": {
    "tiles": 1
   },
@@ -2984,6 +4474,16 @@
   },
   "hospital": {
    "tiles": 3
+  },
+  "house12_1": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 12.0
+  },
+  "house12_2": {
+   "depth": 16.0,
+   "tiles": 1,
+   "width": 12.0
   },
   "market": {
    "tiles": 3

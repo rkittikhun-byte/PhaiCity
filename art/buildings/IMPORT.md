@@ -31,6 +31,22 @@ The era buildings are in the game (owner: "นำเข้าเกมส์ ใ
 - `era-buildings.html` (`src/render3d/gallery/era-buildings.ts`): every era building by era, region and day or night.
 - Tests: `test/render3d/eraBuildings.test.ts`.
 
+## Frontage models (21 Oct 2026; PLAN.md "Frontage")
+
+- The frontage sets (`blend/era<n>/era<n>_<region>_frontage.blend`, built with `./run.sh <era> --frontage`) are
+  exported with `export_game.py -- [era<n> ...] --frontage`, which writes only their 12 kinds into the same
+  `assets/models/buildings/era<n>/<region>/` folders and adds them to `index.json`, whose `kinds` give each one
+  `tiles: 1`, `width` (4 m a bay, 12 m a house) and `depth` (16 m). Budget: 1,300 triangles a bay, 3,400 a house.
+- `src/render3d/city/frontage.ts` groups a map's painted cells into 4 m columns along the road and gives each plot
+  its pieces: a shophouse bay on every shop column (joined into a terrace across plots, `left`/`right` at its ends,
+  `one` alone, `mid`/`mid2` taking turns; `bay1` for the era's lower shop levels, `bay2` the higher, `BAY_LEVELS`) and
+  the 12 m house on a run of three home columns (`HOUSE_LEVELS`). `TileSnapshot.frontage` (tileModels.ts) turns them
+  into a `FrontagePlacement` whose parts the chunks draw with the same LOD and pools; anything else, or an index
+  without frontage kinds, keeps the full-tile model. `era-buildings.html` has a "By painted frontage" group.
+- Every era model stands its whole plot deep from the road: its front (+Z, 8 m from the middle of a one-tile model)
+  on the front edge of the first row of cells (`TileSnapshot.againstRoad`, `cellPlotPose`'s `depthHalf`).
+- Tests: `test/render3d/frontage.test.ts`, and the frontage case in `test/render3d/eraBuildings.test.ts`.
+
 ## What is here
 
 | Path | What |

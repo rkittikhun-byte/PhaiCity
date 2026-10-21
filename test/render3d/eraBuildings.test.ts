@@ -4,7 +4,7 @@
 import { BufferAttribute, BufferGeometry, Group, Mesh, MeshBasicMaterial } from 'three';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { ERA_KINDS, EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind, serializeEraScene,
+import { ERA_KINDS, EraModels, FRONTAGE_KINDS, eraKindFor, eraModelId, parseEraId, plotEraKind, serializeEraScene,
   type EraIndex } from '../../src/render3d/city/eraBuildings.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { plotTile } from '../../src/plots.js';
@@ -31,6 +31,28 @@ describe('era buildings (art/buildings exported for the game)', () => {
     const budget: Record<number, number> = { 1: 4500, 2: 11000, 3: 16000 };
     for (const era of Object.values(index.buildings)) for (const region of Object.values(era))
       for (const [kind, entry] of Object.entries(region)) expect(entry.triangles).toBeLessThanOrEqual(budget[index.kinds[kind].tiles] * 1.35);
+  });
+
+  // The frontage sets (art/buildings/PLAN.md "Frontage", src/render3d/city/frontage.ts): a shophouse bay 4 m wide and the
+  // 12 m house, a plot (16 m) deep, thinned to 1,300 and 3,400 triangles but never below about a third
+  it('has every frontage kind of every era in every region, as wide as its cells, light enough to line a street', () => {
+    for (const kind of FRONTAGE_KINDS) {
+      expect(index.kinds[kind]).toEqual({ tiles: 1, width: kind.startsWith('bay') ? 4 : 12, depth: 16 });
+    }
+    for (let era = 1; era <= 5; era++) for (const region of REGIONS) for (const kind of FRONTAGE_KINDS) {
+      const entry = index.buildings[`era${era}`]?.[region]?.[kind];
+      expect(entry).toBeDefined();
+      expect(existsSync(resolve(`assets/models/buildings/era${era}/${region}/${kind}.glb`))).toBe(true);
+      expect(entry!.height).toBeGreaterThan(kind.startsWith('house') ? 4 : 5);
+      expect(entry!.triangles).toBeLessThanOrEqual(kind.startsWith('bay') ? 2200 : 4000);
+      // the taller row stands taller than the lower one
+      if (kind.startsWith('bay2_')) expect(entry!.height).toBeGreaterThan(index.buildings[`era${era}`][region][kind.replace('bay2_', 'bay1_')].height);
+    }
+    // a terrace's middle bays repeat along every shop street, so they keep to the budget
+    for (const era of Object.values(index.buildings)) for (const region of Object.values(era))
+      for (const kind of ['bay1_mid', 'bay1_mid2', 'bay2_mid', 'bay2_mid2']) expect(region[kind].triangles).toBeLessThanOrEqual(1400);
+    const models = new EraModels(index);
+    expect(models.height(2, 'south', 'bay2_one')).toBe(index.buildings.era2.south.bay2_one.height);
   });
 
   it('names models by era and kind', () => {
