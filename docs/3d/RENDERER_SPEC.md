@@ -169,7 +169,7 @@ which the renderer only reads:
   there and turns the tool outline red). Draw them dimmed and less saturated, about 45% brightness, and the
   province's edge as a thin line between inside and outside tiles, visible from any zoom.
 - **Level-1 roads are laterite (ถนนลูกรัง).** The map starts with one laterite road to each neighbouring province; the
-  player's roads are level 1 too until road levels exist (asphalt, concrete: `docs/POLISH_BACKLOG.md`).
+  other levels (asphalt, concrete, motorway, tollway) are in section 6G (`docs/ROADS.md`).
 - **Slanted roads (owner, 13 Oct 2026).** The game lays roads tile by tile, so a slanted road is a staircase of
   corners. A corner whose neighbour on a side is the opposite corner is a step, and its road crosses that side at
   45°: steps in a row make one straight diagonal, a step beside a straight road eases into it (a 1:2 slope becomes
