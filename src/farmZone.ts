@@ -213,7 +213,8 @@ export function fieldKindAt(map: FieldMap, x: number, y: number): FarmKind | nul
 // --- The simulation, as the fields see it -------------------------------------------------------------------------
 
 interface CensusLike {
-  indPop: number;
+  /** Work in the fields: jobs for the valves and the era score, not counted as people (src/census.js) */
+  farmPop?: number;
 }
 
 export interface FieldScanMap extends FieldMap {
@@ -278,9 +279,15 @@ export class FarmFields {
     this.hubs = new Uint8Array(width * height);
   }
 
+  /** Work in the fields the last whole scan found (census units), which the era score reads after the census is cleared */
+  jobs = 0;
+  private jobsCycle = 0;
+
   clearCycle(): void {
     this.found = [];
     this.empty = 0;
+    this.jobs = this.jobsCycle;
+    this.jobsCycle = 0;
   }
 
   /** The ground's water at a tile, 0–1 of the fullest a store can be (0.5 before a city has ground) */
@@ -306,7 +313,9 @@ export class FarmFields {
     let kind = kindOfCode(kinds[i]);
     if (level > 0 && !kind) kinds[i] = kindCode(kind = pickKind(map, x, y, this.spec, this.groundShare(i)));
     if (level > 0 && kind) {
-      census.indPop += level * this.spec.kinds[kind].jobs;
+      const jobs = level * this.spec.kinds[kind].jobs;
+      census.farmPop = (census.farmPop ?? 0) + jobs;
+      this.jobsCycle += jobs;
       this.found.push({ index: i, level, kind });
     } else {
       this.empty++;

@@ -102,6 +102,7 @@ interface Place {
 
 interface CensusLike {
   indPop: number;
+  farmPop?: number;
   farmCount?: number;
   harbourCount?: number;
 }

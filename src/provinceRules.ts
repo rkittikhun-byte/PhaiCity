@@ -121,7 +121,8 @@ export type FarmKind = typeof FARM_KINDS[number];
 export interface FarmKindSpec {
   /** Baht a month a level sells, before the province's farmland, the ground's water and the season */
   sale: number;
-  /** Work a level gives, as industrial population (a factory plot's level gives an eighth) */
+  /** Work a level gives, in the census's units of jobs (a factory plot's level gives an eighth): the era score's jobs
+   * side counts it, but neither the people nor the demand for homes do (src/census.js farmPop; docs/GAME_DESIGN.md 7.4) */
   jobs: number;
   /** Groundwater a level draws from under it a month (src/groundwater.ts units; more in the dry season) */
   draw: number;
@@ -176,14 +177,14 @@ export interface FarmZonePatch extends Partial<Omit<FarmZoneSpec, "kinds">> {
 
 /** The game's own farm zone, before the region's and the province's */
 export const FARM_ZONE: FarmZoneSpec = {
-  price: 3, reach: 8, eraTop: [2, 3, 4, 5, 5], feeds: 12, exportPerLevel: 40,
+  price: 3, reach: 8, eraTop: [2, 3, 4, 5, 5], feeds: 12, exportPerLevel: 25,
   pondReach: 1, paddyReach: 10, paddyRise: 5, paddyGround: 0.55, orchardGround: 0.35,
   dryYield: 0.5, dryDraw: 2, hubReach: 12, hubBonus: 0.5, landValue: 6, visitors: 0.3, haze: 30, factoriesPerLevel: 0.004,
   kinds: {
-    paddy: { sale: 0.06, jobs: 0.08, draw: 1, chemicals: 0.5, burns: true, mud: 0, ground: 0.4 },
-    field: { sale: 0.05, jobs: 0.06, draw: 1, chemicals: 0.6, burns: true, mud: 0, ground: 0.15 },
-    orchard: { sale: 0.08, jobs: 0.07, draw: 1, chemicals: 0.4, burns: false, mud: 0, ground: 0.25 },
-    pond: { sale: 0.1, jobs: 0.05, draw: 0, chemicals: 0.2, burns: false, mud: 12, ground: 0 },
+    paddy: { sale: 0.06, jobs: 0.02, draw: 1, chemicals: 0.5, burns: true, mud: 0, ground: 0.4 },
+    field: { sale: 0.05, jobs: 0.015, draw: 1, chemicals: 0.6, burns: true, mud: 0, ground: 0.15 },
+    orchard: { sale: 0.08, jobs: 0.018, draw: 1, chemicals: 0.4, burns: false, mud: 0, ground: 0.25 },
+    pond: { sale: 0.1, jobs: 0.015, draw: 0, chemicals: 0.2, burns: false, mud: 12, ground: 0 },
   },
 };
 

@@ -187,13 +187,13 @@ describe("the land's choice of field", () => {
     fields.room = 1000;
     map.setTile(20, 15, fieldTile(0), FIELD_FLAGS);
     Random.seed(4);
-    const census = { indPop: 0 };
+    const census = { farmPop: 0 };
     for (let i = 0; i < 200 && fieldLevelOf(map.getTileValue(20, 15)) < 1; i++) fields.fieldFound(map, 20, 15, census);
     expect(fieldLevelOf(map.getTileValue(20, 15))).toBe(1);
     expect(map.farmKinds[15 * map.width + 20]).toBe(kindCode("pond"));
     // ... and counts its work
     fields.fieldFound(map, 20, 15, census);
-    expect(census.indPop).toBeCloseTo(FARM_ZONE.kinds.pond.jobs);
+    expect(census.farmPop).toBeCloseTo(FARM_ZONE.kinds.pond.jobs);
   });
 });
 

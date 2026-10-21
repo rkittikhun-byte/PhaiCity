@@ -56,7 +56,8 @@ async function newCity(districtId: string, provinceId: string, region: string) {
 const row = (y: PlayerYear) => {
   const lines = (r: Record<string, number>) => Object.entries(r).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
   return `year ${y.year}: ${y.population} people, ฿${y.funds} (built ฿${y.built}), ${y.cityClass}, ${y.approval}% happy, land value ${y.landValue}, pollution ${y.pollution}, power used ${y.powerUse}%, water ${y.water.used}/${y.water.supply} from ${y.water.works} works, ` +
-    `demand ${y.demand.join("/")}\n  in: ${lines(y.accounts.income)}\n  out: ${lines(y.accounts.costs)}\n  net ${y.accounts.net}\n`;
+    `demand ${y.demand.join("/")}\n  in: ${lines(y.accounts.income)}\n  out: ${lines(y.accounts.costs)}\n  net ${y.accounts.net}\n` +
+    `  farm zone: ${y.fields.painted} tiles, ${y.fields.grown} grown, ${y.fields.levels} levels (${lines(y.fields.byKind) || "none"})\n`;
 };
 
 (process.env.PHAICITY_PLAY ? test : test.skip)("play Mueang Khon Kaen for years", async () => {
