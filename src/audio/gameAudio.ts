@@ -226,41 +226,30 @@ export function ambienceLevels(stats: ViewStats, raining = false): Record<string
   };
 }
 
-/** Rainy season in the game calendar: May to October (months are 0-based). */
-export function isRainySeason(month: number): boolean {
-  return month >= 4 && month <= 9;
+/** The sky now as the game shows it (src/showers.ts): its kind and how hard it rains */
+export interface SkyHeard {
+  kind: string;
+  rain: number;
 }
-
-export interface Weather {
-  raining: boolean;
-  /** When the current rain stops (ms). */
-  until: number;
-}
-
-const RAIN_START_CHANCE = 0.08;
-const RAIN_SHORTEST_MS = 30000;
-const RAIN_LONGEST_MS = 90000;
 
 /**
- * Rain comes in spells of 30–90 seconds during the rainy season, checked at each ambience update.
- * Only for sound: the city itself never sees the weather.
+ * What the ears hear of the sky now: rain only while a shower falls, as the 3D view and the time bar show it (owner,
+ * 21 Oct 2026: "ฝนตกบ่อยเกินไปมากๆ"), and thunder only in a thunderstorm. The city itself never hears it.
  */
-export function nextWeather(weather: Weather, month: number, now: number, random: () => number): Weather {
-  if (weather.raining) return now < weather.until ? weather : { raining: false, until: now };
-  if (isRainySeason(month) && random() < RAIN_START_CHANCE) {
-    return { raining: true, until: now + RAIN_SHORTEST_MS + random() * (RAIN_LONGEST_MS - RAIN_SHORTEST_MS) };
-  }
-  return weather;
+export function rainHeard(sky: SkyHeard | null | undefined): { raining: boolean; thunder: boolean } {
+  const raining = !!sky && sky.rain > 0.05 && (sky.kind === "rain" || sky.kind === "storm");
+  return { raining, thunder: raining && sky?.kind === "storm" };
 }
 
 /** Occasionally picks a short ambience sound that fits the view and the weather, or null. */
-export function pickAmbientOneShot(stats: ViewStats, raining: boolean, random: () => number): string | null {
+export function pickAmbientOneShot(stats: ViewStats, raining: boolean, random: () => number,
+    thunder = false): string | null {
   if (stats.total === 0) return null;
   const share = (n: number): number => n / stats.total;
   const candidates: Array<[boolean, number, string]> = [
     [stats.stadiumGame > 0, 0.08, "amb.crowd"],
     [stats.airport > 0, 0.05, "amb.airplane"],
-    [raining, 0.15, "amb.thunder"],
+    [thunder, 0.15, "amb.thunder"],
     [share(stats.water) > 0.2, 0.05, "amb.seagull"],
     [share(stats.water) > 0.1 && share(stats.developed) > 0.1, 0.04, "vehicle.longtail_boat"],
     [share(stats.roads) > 0.1, 0.06, "vehicle.tuktuk"],
@@ -287,6 +276,8 @@ export interface GameLike {
   };
   inputStatus: Emitter & { gameTools: { bulldozer: Emitter } };
   gameMap: TileSource;
+  /** The sky now (src/showers.ts), whose rain and thunder the ambience follows */
+  skyNow?: SkyHeard | null;
   /** The 2D or 3D view (src/cityView.ts): its width for panning, and the tiles on screen for ambience. */
   cityView: Pick<CityView, "width" | "visibleTiles">;
 }
@@ -330,7 +321,6 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
   }
   game.inputStatus.addEventListener(Messages.SAVE_REQUESTED, () => player.play("ui.save"));
 
-  let weather: Weather = { raining: false, until: 0 };
   const updateAmbience = (): void => {
     let rect: TileRect | null;
     try {
@@ -339,11 +329,11 @@ export function attachGameAudio(game: GameLike, player: SoundPlayer, groups: Mes
       return; // The view is not ready yet
     }
     if (!rect) return;
-    weather = nextWeather(weather, game.simulation.getDate().month, Date.now(), Math.random);
+    const sky = rainHeard(game.skyNow);
     const stats = sampleView(game.gameMap, rect);
-    const levels = ambienceLevels(stats, weather.raining);
+    const levels = ambienceLevels(stats, sky.raining);
     for (const id of AMBIENCE_BEDS) player.setLoop(id, levels[id] ?? 0);
-    const oneShot = pickAmbientOneShot(stats, weather.raining, Math.random);
+    const oneShot = pickAmbientOneShot(stats, sky.raining, Math.random, sky.thunder);
     if (oneShot) player.play(oneShot);
   };
   const timer = window.setInterval(updateAmbience, AMBIENCE_INTERVAL_MS);

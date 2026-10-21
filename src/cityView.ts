@@ -8,6 +8,8 @@
 // A view only reads the city. It never changes the map, the budget or the sprites (CLAUDE.md, "Online plan").
 // Positions the game passes in and gets back are map tiles, never pixels, so a view may draw tiles any size.
 
+import type { Weather } from "./weather.js";
+
 export interface TilePoint {
   x: number;
   y: number;
@@ -83,6 +85,8 @@ export interface CityView {
   paint(hover: ToolHover | null, sprites: unknown[] | null, isPaused: boolean): void;
   /** Where the game's clock puts the sun (src/dayClock.ts): 0 rising, π setting, to 2π through the night (3D only) */
   setSunAngle?(angle: number): void;
+  /** The sky now (src/showers.ts): the month's weather as it shows at this hour, in place of the map's (3D only) */
+  setSky?(sky: Weather | null): void;
   /** The map tile under a point of the view (CSS pixels from its top-left), or null when it is not on the map. */
   tileAt(x: number, y: number): TilePoint | null;
   /** The point of the ground at (x, y) on the view, in tiles with their fractions, or null off the map (optional) */

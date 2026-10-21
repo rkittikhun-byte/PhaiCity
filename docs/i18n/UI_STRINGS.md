@@ -1468,6 +1468,11 @@
 | `weather.season.hot` | `src/timeControls.ts` | — | `Hot season` | `ฤดูร้อน` |  |
 | `weather.season.rainy` | `src/timeControls.ts` | — | `Rainy season` | `ฤดูฝน` |  |
 | `weather.season.cool` | `src/timeControls.ts` | — | `Cool season` | `ฤดูหนาว` |  |
+| `weather.month.sunny` | `src/timeControls.ts` | — | `A sunny month: no rain` | `เดือนนี้แดดดี ฝนไม่ตก` | ลักษณะของเดือนเมื่อชี้ (src/showers.ts; เจ้าของโปรเจกต์ 21 ต.ค. 2026: "ฝนตกบ่อยเกินไปมากๆ") |
+| `weather.month.overcast` | `src/timeControls.ts` | — | `A cloudy month: no rain yet` | `เดือนนี้ฟ้าครึ้ม ฝนยังไม่ตก` |  |
+| `weather.month.rain` | `src/timeControls.ts` | — | `Rainy season: showers in the afternoon and evening` | `หน้าฝน ฝนตกเป็นพักๆ ช่วงบ่ายเย็น` |  |
+| `weather.month.storm` | `src/timeControls.ts` | — | `Stormy: thunderstorms most afternoons and evenings` | `พายุฝนฟ้าคะนองเกือบทุกบ่ายเย็น` |  |
+| `weather.month.fog` | `src/timeControls.ts` | — | `Foggy: fog at dawn and through the night` | `หมอกลงตอนเช้ามืดและกลางคืน` |  |
 | `weather.effect.sunny` | `src/timeControls.ts` | — | `Clear skies: the ground takes in little water this month` | `ฟ้าโปร่ง เดือนนี้น้ำใต้ดินเติมได้น้อย` | คำอธิบายเมื่อชี้ |
 | `weather.effect.overcast` | `src/timeControls.ts` | — | `Clouds are building: rain may come next month` | `เมฆตั้งเค้า เดือนหน้าฝนอาจตก` |  |
 | `weather.effect.rain` | `src/timeControls.ts` | — | `Rain fills the ground's water; traffic is a little slower and a few visitors stay away` | `ฝนเติมน้ำใต้ดิน รถช้าลงเล็กน้อย นักท่องเที่ยวลดลงบ้าง` |  |
