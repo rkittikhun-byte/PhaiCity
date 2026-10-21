@@ -88,13 +88,28 @@ describe("trained people", () => {
     expect(gone.trained!.worked).toEqual({});
   });
 
-  test("a small town fills only some seats; health buildings train nobody", () => {
+  test("a small town fills only some seats; a hospital trains nobody", () => {
     const big = schools({ 45: "secondary_school", 46: "community_hospital" });
     const small = schools({ 45: "secondary_school" });
     months(big, 36);
     months(small, 36, 1, { ...city, people: 1000 });
     expect(trainedOf(small).technician).toBeLessThan(trainedOf(big).technician);
     expect(trainedOf(big).nurse).toBe(0);
+  });
+
+  test("a health centre brings a nurse home a year, however small the village, after its first scholar's two years (6.5)", () => {
+    const village = { people: 800, workers: 100, jobs: 100 };
+    const map = schools({ 45: "health_centre", 105: "health_centre" });
+    months(map, 35, 1, village);           // months 1-24 wait; month 24 (January) sees nobody yet
+    expect(trainedOf(map).nurse).toBe(0);
+    months(map, 1, 36, village);           // the third January: months 25-36, a nurse from each, less those who left
+    expect(trainedOf(map).nurse).toBe(Math.floor(2 * (1 - LEAVE_EACH_YEAR) + 1e-6));
+    months(map, 24, 37, village);
+    expect(trainedOf(map).nurse).toBeGreaterThanOrEqual(5);
+    // ... and one without power sends nobody
+    const dark = schools({ 45: "health_centre" }, [45]);
+    months(dark, 48, 1, village);
+    expect(trainedOf(dark).nurse).toBe(0);
   });
 
   test("more leave when the city has fewer jobs than workers", () => {

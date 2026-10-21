@@ -226,7 +226,7 @@ const FESTIVAL_KEEP = 250;
 
 /** The schools that train each kind of trained people, the first tried first (src/trainedPeople.ts TRAINING) */
 const TRAINS: Readonly<Record<TrainedKind, readonly string[]>> = {
-  literate: ["primary_school"], technician: ["secondary_school", "vocational_college"], nurse: ["vocational_college"],
+  literate: ["primary_school"], technician: ["secondary_school", "vocational_college"], nurse: ["health_centre", "vocational_college"],
   engineer: ["university"], doctor: ["university"],
 };
 
