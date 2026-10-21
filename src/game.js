@@ -100,6 +100,7 @@ import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
+import { skyAt } from './rainSpells.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
@@ -231,6 +232,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The time of day (src/dayClock.ts): runs while the game runs, and the 3D view's sun follows it
   this.dayClock = new DayClock();
   this._clockAt = null;
+  // ... and the sky now: the month's weather (src/weather.ts) with a rain spell now and then (src/rainSpells.ts), which
+  // the 3D view, the time bar and the sounds show; the simulation keeps to the month's
+  this.skyNow = null;
 
   if (savedGame)
     this.load(savedGame);
@@ -3526,6 +3530,11 @@ var commonAnimate = function() {
     this.dayClock.advance(frameSeconds, this.simulation._speed, month);
   if (this.cityView && typeof this.cityView.setSunAngle === 'function')
     this.cityView.setSunAngle(this.dayClock.sunAngle(month));
+  var sim = this.simulation;
+  this.skyNow = skyAt(this.gameMap.weather || null, sim._climate(), sim._cityTime + sim._phaseCycle / 16,
+                      this.dayClock.hour, month);
+  if (this.cityView && typeof this.cityView.setSky === 'function')
+    this.cityView.setSky(this.skyNow);
 
   // With a line half drawn and the mouse at the edge of the screen, the camera slides that way
   this.edgeScrollView();

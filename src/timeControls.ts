@@ -6,7 +6,9 @@
 // the date and the game's speeds, pause and 1x 2x 3x, in place of the pause on the menu rail and the speeds in the
 // settings window. Each speed is the game's `speed` command (src/cityCommands.ts), so a saved or replayed city keeps it.
 // P still pauses and resumes (the rail's hidden button, src/menuRail.ts). The clock's icon is the sky: the sun or the moon
-// when it is clear, else the month's weather, whose word follows the hour (src/weather.ts; owner, 20 Oct 2026).
+// when it is clear, else the weather, whose word follows the hour (src/weather.ts; owner, 20 Oct 2026): the sky now, as
+// a rain spell comes now and then (src/rainSpells.ts; owner, 21 Oct 2026: "rain" only while it rains), with the
+// month's own character when pointed at.
 
 import { onLanguageChange, t } from "./i18n/index";
 import { clockText, sunHours } from "./dayClock";
@@ -25,8 +27,10 @@ export interface TimeGame {
   /** The time of day (src/dayClock.ts), and the calendar's month for its sunrise and sunset */
   dayClock?: { text(): string; night(month: number): boolean };
   simulation?: { getDate(): { month: number }; rules?: { weather?: Climate } | null };
-  /** The map, whose month's weather the bar shows (src/weather.ts) */
+  /** The map, with the month's weather (src/weather.ts) */
   gameMap?: { weather?: Weather | null };
+  /** The sky now (src/rainSpells.ts), which the bar shows; without it, the month's */
+  skyNow?: Weather | null;
 }
 
 /** The clock's icon: the sun or the moon in a clear sky, else the weather's */
@@ -44,12 +48,16 @@ export function skyOf(weather: Weather | null | undefined, night: boolean): { ic
   return { icon: kind === "overcast" ? "cloud" : kind, word: `weather.kind.${kind}` };
 }
 
-/** The weather's tooltip: the season and the weather, and what it does to the city this month */
+/**
+ * The weather's tooltip: the season and the sky now, the month's character, and what the month's weather
+ * does to the city. monthWeather: the month's (gameMap.weather); the sky's when it is not given.
+ */
 export function weatherTip(weather: Weather | null | undefined, month: number, climate: Climate | undefined,
-    night: boolean): string {
+    night: boolean, monthWeather: Weather | null | undefined = weather): string {
+  const kind = monthWeather?.kind ?? "sunny";
   const lines = [`${t(`weather.season.${thaiSeason(month, climate)}`)} · ${t(skyOf(weather, night).word)}`,
-    t(`weather.effect.${weather?.kind ?? "sunny"}`)];
-  if ((weather?.smoke ?? 0) >= HAZE_SHOWN) lines.push(t("weather.effect.smoke"));
+    t(`weather.month.${kind}`), t(`weather.effect.${kind}`)];
+  if ((monthWeather?.smoke ?? 0) >= HAZE_SHOWN) lines.push(t("weather.effect.smoke"));
   return lines.join("\n");
 }
 
@@ -160,15 +168,16 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
         clock.title = t("time.sun", { rise: clockText(sun.rise), set: clockText(sun.set) });
       }
     }
-    // The sky: its icon, the weather's word, and its tooltip when the weather, the night or the month changes
-    const now = game.gameMap?.weather ?? null, sky = skyOf(now, night);
-    const sign = `${sky.icon}|${sky.word}|${now?.kind}|${month}`;
+    // The sky now: its icon, its word, and the tooltip when the sky, the month's weather, the night or the month changes
+    const monthly = game.gameMap?.weather ?? null, now = game.skyNow !== undefined ? game.skyNow : monthly;
+    const sky = skyOf(now, night);
+    const sign = `${sky.icon}|${sky.word}|${now?.kind}|${monthly?.kind}|${(monthly?.smoke ?? 0) >= HAZE_SHOWN}|${month}`;
     if (sign !== shownSky) {
       shownSky = sign;
       clock.dataset.sky = sky.icon;
       weather.dataset.kind = now?.kind ?? "sunny";
       weather.textContent = t(sky.word);
-      weather.title = weatherTip(now, month, game.simulation?.rules?.weather, night);
+      weather.title = weatherTip(now, month, game.simulation?.rules?.weather, night, monthly);
       weather.setAttribute("aria-label", weather.title);
     }
   };
