@@ -14,7 +14,7 @@ export type Factor = typeof FACTORS[number];
 
 /** What a city must have to leave an era: each one a check the era's symbol counts (docs/GAME_DESIGN.md 1.4) */
 export type SymbolKey =
-  | "ruler_house" | "shops" | "water_works" | "power_plant" | "school" | "hospital" | "secondary_school"
+  | "ruler_house" | "shops" | "water_tower" | "water_works" | "power_plant" | "school" | "hospital" | "secondary_school"
   | "paved_roads" | "university_or_metro" | "recycling" | "clean_power";
 
 export interface EraRule {
@@ -38,7 +38,8 @@ const WEIGHTS: Readonly<Record<Factor, number>> = {
 export const ERA_RULES: Readonly<Record<Era, EraRule>> = {
   1: { people: 2000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
     targets: { water: 0.6, power: 0.6, jobs: 0.8, education: 0.3, health: 0.2, safety: 0.6, clean: 0.6, living: 0.4 },
-    symbols: ["ruler_house", "shops", "water_works"] },
+    // (a farming village's water is its tower's well: water works come with the market town, src/unlocks.ts)
+    symbols: ["ruler_house", "shops", "water_tower"] },
   2: { people: 10000, weights: WEIGHTS, education: { basic: 1, higher: 0 },
     targets: { water: 0.8, power: 0.8, jobs: 0.85, education: 0.5, health: 0.4, safety: 0.65, clean: 0.65, living: 0.5 },
     symbols: ["power_plant", "water_works", "school"] },

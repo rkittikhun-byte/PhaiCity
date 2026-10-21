@@ -84,6 +84,7 @@ function hasSymbol(key: SymbolKey, map: Legacy, objects: Objects): boolean {
   switch (key) {
     case "ruler_house": return !map.rulerHouse || houseStanding(map);
     case "shops": return all.filter(b => b.kind === "shop").length >= SHOPS_WANTED;
+    case "water_tower": return all.some(b => b.kind === "water_tower");
     case "water_works": return all.some(b => b.kind === "water_works");
     case "power_plant": return all.some(b => b.kind === "power_plant");
     case "school": return civic.some(k => /school|kindergarten|college|university/.test(k));

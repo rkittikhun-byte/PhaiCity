@@ -40,12 +40,12 @@ function sim(people: number, over: Partial<{ jobs: number; crime: number }> = {}
 
 function objects(list: any[]) { return { all: () => list }; }
 
-/** Homes, the five shops era 1 wants and a water works */
+/** Homes, the five shops era 1 wants and a water tower (a village's water, src/unlocks.ts) */
 function wellBuilt(powered = true) {
   const list: any[] = [];
   for (let i = 0; i < 40; i++) list.push(building("home", i, powered));
   for (let i = 40; i < 46; i++) list.push(building("shop", i, powered));
-  list.push(building("water_works", 50, powered, 0));
+  list.push(building("water_tower", 50, powered, 0));
   return list;
 }
 
@@ -92,8 +92,8 @@ describe("era score", () => {
   });
 
   test("names what the era still needs", () => {
-    const score = scoreEra(city(), sim(4000), objects(wellBuilt().filter(b => b.kind !== "water_works")), 1);
-    expect(score.symbols).toEqual(expect.arrayContaining([{ key: "water_works", has: false }, { key: "shops", has: true }]));
+    const score = scoreEra(city(), sim(4000), objects(wellBuilt().filter(b => b.kind !== "water_tower")), 1);
+    expect(score.symbols).toEqual(expect.arrayContaining([{ key: "water_tower", has: false }, { key: "shops", has: true }]));
     expect(score.factors.symbol.done).toBeLessThan(1);
   });
 });
