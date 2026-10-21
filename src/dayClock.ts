@@ -57,14 +57,11 @@ export function clockText(hour: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-/** The game's clock: the hour of the day, which only moves while the game runs, and the days it has gone round */
+/** The game's clock: the hour of the day, which only moves while the game runs */
 export class DayClock {
   hour: number;
-  /** Days since the city's first (src/showers.ts reads each day's showers by it) */
-  day: number;
-  constructor(hour: number = FIRST_HOUR, day = 0) {
+  constructor(hour: number = FIRST_HOUR) {
     this.hour = Number.isFinite(hour) ? ((hour % 24) + 24) % 24 : FIRST_HOUR;
-    this.day = Number.isInteger(day) && day >= 0 ? day : 0;
   }
 
   /** Moves the clock on by realSeconds at a game speed (0 paused: it stands), in the month of the calendar */
@@ -79,9 +76,7 @@ export class DayClock {
     while (left > 0) {
       const rate = isNight(this.hour, month) ? dayRate * NIGHT_PACE : dayRate;
       const step = Math.min(left, 0.25);
-      const hour = this.hour + rate * step;
-      if (hour >= 24) this.day++;
-      this.hour = hour % 24;
+      this.hour = (this.hour + rate * step) % 24;
       left -= step;
     }
   }

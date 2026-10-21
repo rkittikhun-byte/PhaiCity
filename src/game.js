@@ -100,7 +100,7 @@ import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
-import { ShowerSky } from './showers.ts';
+import { skyAt } from './rainSpells.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
@@ -232,9 +232,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The time of day (src/dayClock.ts): runs while the game runs, and the 3D view's sun follows it
   this.dayClock = new DayClock();
   this._clockAt = null;
-  // ... and the sky now: the month's weather (src/weather.ts) as its showers fall by the clock (src/showers.ts), which
+  // ... and the sky now: the month's weather (src/weather.ts) with a rain spell now and then (src/rainSpells.ts), which
   // the 3D view, the time bar and the sounds show; the simulation keeps to the month's
-  this.showerSky = new ShowerSky();
   this.skyNow = null;
 
   if (savedGame)
@@ -850,7 +849,7 @@ Game.prototype.saveData = function() {
     provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
     rulerRank: this.rulerRank,
     goals: this.rulerGoals.state(), news: this.newsLog.items(),
-    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000, clockDay: this.dayClock.day
+    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000
   });
 };
 
@@ -921,7 +920,7 @@ Game.prototype.load = function(saveData) {
   this.everClicked = saveData.everClicked;
   // ... and the time of day it was saved at (a city saved before the clock wakes at seven)
   if (typeof saveData.timeOfDay === 'number')
-    this.dayClock = new DayClock(saveData.timeOfDay, saveData.clockDay);
+    this.dayClock = new DayClock(saveData.timeOfDay);
 };
 
 
@@ -3531,7 +3530,9 @@ var commonAnimate = function() {
     this.dayClock.advance(frameSeconds, this.simulation._speed, month);
   if (this.cityView && typeof this.cityView.setSunAngle === 'function')
     this.cityView.setSunAngle(this.dayClock.sunAngle(month));
-  this.skyNow = this.showerSky.now(this.gameMap.weather || null, this.dayClock.day, this.dayClock.hour, month);
+  var sim = this.simulation;
+  this.skyNow = skyAt(this.gameMap.weather || null, sim._climate(), sim._cityTime + sim._phaseCycle / 16,
+                      this.dayClock.hour, month);
   if (this.cityView && typeof this.cityView.setSky === 'function')
     this.cityView.setSky(this.skyNow);
 

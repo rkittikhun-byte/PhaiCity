@@ -7,7 +7,7 @@
 // settings window. Each speed is the game's `speed` command (src/cityCommands.ts), so a saved or replayed city keeps it.
 // P still pauses and resumes (the rail's hidden button, src/menuRail.ts). The clock's icon is the sky: the sun or the moon
 // when it is clear, else the weather, whose word follows the hour (src/weather.ts; owner, 20 Oct 2026): the sky now, as
-// the month's showers fall by the clock (src/showers.ts; owner, 21 Oct 2026: "rain" only while it rains), with the
+// a rain spell comes now and then (src/rainSpells.ts; owner, 21 Oct 2026: "rain" only while it rains), with the
 // month's own character when pointed at.
 
 import { onLanguageChange, t } from "./i18n/index";
@@ -29,7 +29,7 @@ export interface TimeGame {
   simulation?: { getDate(): { month: number }; rules?: { weather?: Climate } | null };
   /** The map, with the month's weather (src/weather.ts) */
   gameMap?: { weather?: Weather | null };
-  /** The sky now (src/showers.ts), which the bar shows; without it, the month's */
+  /** The sky now (src/rainSpells.ts), which the bar shows; without it, the month's */
   skyNow?: Weather | null;
 }
 
@@ -49,7 +49,7 @@ export function skyOf(weather: Weather | null | undefined, night: boolean): { ic
 }
 
 /**
- * The weather's tooltip: the season and the sky now, the month's character (its showers), and what the month's weather
+ * The weather's tooltip: the season and the sky now, the month's character, and what the month's weather
  * does to the city. monthWeather: the month's (gameMap.weather); the sky's when it is not given.
  */
 export function weatherTip(weather: Weather | null | undefined, month: number, climate: Climate | undefined,

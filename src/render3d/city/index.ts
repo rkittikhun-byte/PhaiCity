@@ -139,7 +139,7 @@ export class CityView3D implements CityView {
   private sunAngle=Math.PI*0.35;
   /** The sun's place from the game's clock, null until the game sends one (setSunAngle) */
   private clockAngle:number|null=null;
-  /** The sky now as the game's clock shows it (src/showers.ts setSky); undefined until the game gives one */
+  /** The sky now as the game shows it (src/rainSpells.ts setSky); undefined until the game gives one */
   private skyNow:Weather|null|undefined=undefined;
   private lastNightFactor=-1;
   /** The month's weather as the view shows it (weather.ts), read from the map, and the look last lit by */
@@ -327,7 +327,7 @@ export class CityView3D implements CityView {
   /** Where the game's clock puts the sun (src/dayClock.ts sunAngle): 0 rising, π setting, on to 2π through the night;
    * the auto cycle follows it from then on */
   setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
-  /** The sky now (src/showers.ts): the month's weather as its showers fall at the clock's hour, shown in its place */
+  /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, shown in its place */
   setSky(sky:Weather|null):void{this.skyNow=sky;}
   /** Switch between Day Mode, Dark Mode and Auto Day/Night Cycle */
   setDarkMode(on:boolean):void {
@@ -482,7 +482,7 @@ export class CityView3D implements CityView {
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
       const normal=getMaterial('water_river').normalMap;if(normal)normal.offset.set((this.seconds*.014)%1,(this.seconds*.008)%1);}
-    // The sky now (src/showers.ts: the month's weather as its showers fall by the clock; the map's month without a game),
+    // The sky now (src/rainSpells.ts: the month's weather with its rain spells; the map's month without a game),
     // eased in, in real seconds so a paused storm still rains
     this.weather.update(this.skyNow!==undefined?this.skyNow:(this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
     this.updateDayNight();this.updateSun();

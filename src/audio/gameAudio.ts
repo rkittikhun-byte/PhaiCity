@@ -226,15 +226,15 @@ export function ambienceLevels(stats: ViewStats, raining = false): Record<string
   };
 }
 
-/** The sky now as the game shows it (src/showers.ts): its kind and how hard it rains */
+/** The sky now as the game shows it (src/rainSpells.ts): its kind and how hard it rains */
 export interface SkyHeard {
   kind: string;
   rain: number;
 }
 
 /**
- * What the ears hear of the sky now: rain only while a shower falls, as the 3D view and the time bar show it (owner,
- * 21 Oct 2026: "ฝนตกบ่อยเกินไปมากๆ"), and thunder only in a thunderstorm. The city itself never hears it.
+ * What the ears hear of the sky now: rain only while a spell rains, as the 3D view and the time bar show it (owner,
+ * 21 Oct 2026: "ฝนตกบ่อยเกินไปมากๆ"), and thunder only in a storm. The city itself never hears it.
  */
 export function rainHeard(sky: SkyHeard | null | undefined): { raining: boolean; thunder: boolean } {
   const raining = !!sky && sky.rain > 0.05 && (sky.kind === "rain" || sky.kind === "storm");
@@ -276,7 +276,7 @@ export interface GameLike {
   };
   inputStatus: Emitter & { gameTools: { bulldozer: Emitter } };
   gameMap: TileSource;
-  /** The sky now (src/showers.ts), whose rain and thunder the ambience follows */
+  /** The sky now (src/rainSpells.ts), whose rain and thunder the ambience follows */
   skyNow?: SkyHeard | null;
   /** The 2D or 3D view (src/cityView.ts): its width for panning, and the tiles on screen for ambience. */
   cityView: Pick<CityView, "width" | "visibleTiles">;
