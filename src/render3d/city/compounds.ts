@@ -65,6 +65,8 @@ const LOOKS = {
   4: { post: RAMPS.water[700], rail: RAMPS.water[700], h: 1.1, span: 4, hedge: false },
   5: { post: RAMPS.rice[600], rail: RAMPS.rice[500], h: 0.8, span: 4, hedge: true },
 } as const;
+/** The pale edge of the ground a building holds, along its fence */
+const EDGE = RAMPS.sand[200];
 /** The gate's width (metres) */
 export const GATE_M = 6;
 
@@ -88,7 +90,7 @@ export function compoundGeometry(map: CompoundMap, units: number, ground: (x: nu
     parts.push(colour(g, hex));
   };
   const post = (x: number, z: number, h: number, hex: number): void => {
-    const g = new BoxGeometry(0.15 * units, h * units, 0.15 * units).translate(x * units, ground(x * units, z * units) + h / 2 * units, z * units);
+    const g = new BoxGeometry(0.25 * units, h * units, 0.25 * units).translate(x * units, ground(x * units, z * units) + h / 2 * units, z * units);
     parts.push(colour(g, hex));
   };
   for (const b of fencedBuildings(map)) {
@@ -98,8 +100,10 @@ export function compoundGeometry(map: CompoundMap, units: number, ground: (x: nu
       const runs: [number, number][] = side.gate ? [[0, (length - GATE_M) / 2], [(length + GATE_M) / 2, length]] : [[0, length]];
       for (const [s0, s1] of runs) {
         const ax = side.ax + dx * s0, az = side.az + dz * s0, bx = side.ax + dx * s1, bz = side.az + dz * s1;
-        if (look.hedge) { along(ax, az, bx, bz, 0.7, look.h, 0, look.rail); continue; }
-        for (const y of era === 3 ? [look.h - 0.1] : [0.35, look.h - 0.15]) along(ax, az, bx, bz, 0.06, 0.08, y, look.rail);
+        // the edge of the ground it holds, a pale strip just inside the fence that reads from afar
+        along(ax, az, bx, bz, 1.2, 0.05, 0.03, EDGE);
+        if (look.hedge) { along(ax, az, bx, bz, 0.8, look.h, 0, look.rail); continue; }
+        for (const y of era === 3 ? [look.h - 0.12] : [0.35, look.h - 0.15]) along(ax, az, bx, bz, 0.12, 0.12, y, look.rail);
         const n = Math.max(1, Math.round((s1 - s0) / look.span));
         for (let k = 0; k <= n; k++) post(ax + (bx - ax) * k / n, az + (bz - az) * k / n, look.h, look.post);
       }
