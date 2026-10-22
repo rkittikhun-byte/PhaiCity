@@ -129,6 +129,10 @@ export class PlotBuildings {
   shownBy = new Map<number, number>();
   /** Whether the plots have been formed once on this map (an older save's tile plots are taken in then) */
   formed = false;
+  /** What they were last formed from: the cells' layout, the paint's count of changes, and how many painted columns
+   * waited for their land (a fire's or a bulldozer's dust); while all are the same and no tile they show was taken, a
+   * forming again would change nothing and is passed by (about 40 ms on a town of 860 plots) */
+  formedOn: { layout: CellLayout | null; paint: number; waiting: number } = { layout: null, paint: -1, waiting: 0 };
 
   get(id: number): PlotBuilding | undefined {
     return this.items.get(id);
@@ -238,6 +242,8 @@ export function formPlots(map: PlotListMap, layout: CellLayout, time = 0): numbe
     const x = tile % width, y = (tile - x) / width;
     if (map.getTileValue(x, y) !== value || map.getTileFlags(x, y) & ZONEBIT) taken.add(tile);
   }
+  const paint = map.zoneCellsVersion ?? 0, last = list.formedOn;
+  if (list.formed && last.layout === layout && last.paint === paint && !last.waiting && !taken.size) return [];
   const cols = frontageColumns(layout, map.zoneCells ?? new Map());
   const keys = cols.map((c) => rasterKey(map, c.x, c.z));
   const keyIndex = new Map<number, number>();
@@ -335,6 +341,9 @@ export function formPlots(map: PlotListMap, layout: CellLayout, time = 0): numbe
   }
   placePlots(list, map.width);
   const changed = writePlotTiles(map, list, !list.formed);
+  let waiting = 0;
+  for (let i = 0; i < owner.length; i++) if (!owner[i]) waiting++;
+  list.formedOn = { layout, paint, waiting };
   list.formed = true;
   return changed;
 }
