@@ -189,7 +189,7 @@ export function turnedOutlines(map: FootprintMap): { b: PlacedBuilding; outline:
 
 /** What the outline checks roads and railways against: the graphs a city map keeps them in, in metres */
 export interface LineGraph {
-  readonly segments: ReadonlyMap<number, { level: number }>;
+  readonly segments: ReadonlyMap<number, { level: number; traced?: boolean }>;
   polyline(id: number, step?: number): [number, number][];
 }
 
@@ -211,6 +211,8 @@ export function lineInOutline(o: Outline, map: FootprintMap & { roadGraph?: Line
     for (const [graph, kind] of [[map.roadGraph, "road"], [map.railGraph, "rail"]] as const) {
       if (!graph) continue;
       for (const [id, s] of graph.segments) {
+        // (a road of tiles the graph has from them, src/roads/roadCover.ts, stands as drawn among `drawn`)
+        if (s.traced) continue;
         const reach = kind === "rail" ? RAIL_REACH_M : reachOf(s.level);
         if (bodyMeets(o, { points: graph.polyline(id, 2), reach })) return kind;
       }

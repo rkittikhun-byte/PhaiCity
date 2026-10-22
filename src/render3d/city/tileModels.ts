@@ -230,6 +230,9 @@ export class TileSnapshot implements CityMapReader {
   get roadLevels(): Uint8Array | null { return this.source?.roadLevels ?? null; }
   get roadPieces(): Uint16Array | null { return this.source?.roadPieces ?? null; }
   get roadPaths(): CityMapReader['roadPaths'] { return this.source?.roadPaths ?? null; }
+  /** The roads in metres and metres a tile, so a plot finds its road as the simulation does (src/plots.ts nearestRoad) */
+  get roadGraph(): CityMapReader['roadGraph'] { return this.source?.roadGraph ?? null; }
+  get tileSizeM(): number | null { return this.source?.tileSizeM ?? null; }
   readonly values: Uint16Array; readonly flags: Uint16Array; readonly coverage: Int32Array;
   private readonly levelsCopy: Uint8Array;
   constructor(readonly width: number, readonly height: number) {

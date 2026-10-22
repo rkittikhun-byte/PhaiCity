@@ -64,7 +64,8 @@ describe("road command", () => {
     expect(out.reason).toBeDefined();
     expect(roadAt(core, 0, 10)).toBe(true);
     expect(roadAt(core, 56, 10)).toBe(false);
-    expect(graphOf(core)?.segments.size ?? 0).toBe(0);
+    // ... its tiles are in the graph as a road of tiles (docs/NO_GRID_PLAN.md 0.1), not as the road drawn
+    expect([...(graphOf(core)?.segments.values() ?? [])].filter((s) => !s.traced)).toHaveLength(0);
   });
 
   test("bad roads are refused before anything is laid", () => {

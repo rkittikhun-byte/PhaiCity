@@ -330,6 +330,8 @@ function lineInside(map: TempleMap, o: Outline): boolean {
   for (const [graph, rail] of [[map.roadGraph, false], [map.railGraph, true]] as const) {
     if (!graph) continue;
     for (const id of graph.segmentsNear([o.x, o.z], o.half * Math.SQRT2 + 30)) {
+      // (a road of tiles the graph has from them, src/roads/roadCover.ts, is still looked at by its tiles)
+      if (graph.segment(id).traced) continue;
       const reach = rail ? RAIL_REACH_M : roadReach(graph.segment(id).level, units) / units;
       const pts = graph.polyline(id, 2);
       for (let k = 1; k < pts.length; k++) {
@@ -390,10 +392,12 @@ export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Fl
     if (!spots.has(key)) spots.set(key, { ...spot, serves: sums.around(spot.cx, spot.cy, r) });
   };
   const graph = map.roadGraph;
-  if (graph && graph.segments.size) {
+  // ... the roads drawn, not the roads of tiles the graph has from them (src/roads/roadCover.ts)
+  if (graph && [...graph.segments.values()].some((s) => !s.traced)) {
     const units = unitsPerMetre(metres), half = 1.5 * metres;
     const hxm = (hx + 0.5) * metres, hzm = (hy + 0.5) * metres;
     for (const id of graph.segmentsNear([hxm, hzm], (near + 3) * metres)) {
+      if (graph.segment(id).traced) continue;
       const level = graph.segment(id).level, reach = roadReach(level, units) / units;
       const pts = graph.polyline(id, 2);
       for (let k = 1; k < pts.length; k++) {

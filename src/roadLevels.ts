@@ -33,19 +33,36 @@ interface Spec {
   load: number;
   /** Pollution on each tile: dust or noise */
   noise: number;
+  /** Lanes, both ways together (docs/NO_GRID_PLAN.md 1.1): a laterite track is one, shared by both ways */
+  lanes: number;
+  /** How fast a car goes on it when it is clear (km/h) */
+  speedKmh: number;
+  /** Cars a lane takes an hour before it slows (the capacity of the traffic engineers' BPR curve, src/sim/trips.ts) */
+  laneCars: number;
 }
 
 /** By level, 1 to 8 (index 0 is level 1) */
 export const ROAD_SPECS: readonly Spec[] = [
-  { price: 10, upkeep: 0.5, load: 1.5, noise: 10 },
-  { price: 20, upkeep: 1, load: 1, noise: 0 },
-  { price: 30, upkeep: 1.5, load: 0.8, noise: 0 },
-  { price: 50, upkeep: 2.5, load: 0.5, noise: 5 },
-  { price: 80, upkeep: 3.5, load: 0.35, noise: 10 },
-  { price: 120, upkeep: 4.5, load: 0.25, noise: 15 },
-  { price: 200, upkeep: 6, load: 0.2, noise: 25 },
-  { price: 250, upkeep: 6, load: 0.2, noise: 25 },
+  { price: 10, upkeep: 0.5, load: 1.5, noise: 10, lanes: 1, speedKmh: 30, laneCars: 400 },
+  { price: 20, upkeep: 1, load: 1, noise: 0, lanes: 2, speedKmh: 50, laneCars: 700 },
+  { price: 30, upkeep: 1.5, load: 0.8, noise: 0, lanes: 2, speedKmh: 60, laneCars: 900 },
+  { price: 50, upkeep: 2.5, load: 0.5, noise: 5, lanes: 4, speedKmh: 60, laneCars: 900 },
+  { price: 80, upkeep: 3.5, load: 0.35, noise: 10, lanes: 6, speedKmh: 70, laneCars: 1000 },
+  { price: 120, upkeep: 4.5, load: 0.25, noise: 15, lanes: 8, speedKmh: 80, laneCars: 1000 },
+  { price: 200, upkeep: 6, load: 0.2, noise: 25, lanes: 6, speedKmh: 100, laneCars: 1800 },
+  { price: 250, upkeep: 6, load: 0.2, noise: 25, lanes: 6, speedKmh: 110, laneCars: 1800 },
 ];
+
+/** Cars a road of this level takes an hour, both ways together, before it slows */
+export function roadCapacity(level: number): number {
+  const spec = roadSpec(level);
+  return spec.lanes * spec.laneCars;
+}
+
+/** How fast a car goes on a clear road of this level (metres a second) */
+export function roadSpeed(level: number): number {
+  return roadSpec(level).speedKmh / 3.6;
+}
 
 export const MAX_ROAD_LEVEL = ROAD_SPECS.length;
 export const MOTORWAY_LEVEL = 7;

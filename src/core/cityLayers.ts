@@ -32,6 +32,7 @@ import { readSites, startSite, writeSites } from "../construction.js";
 import { modeRule } from "../gameModes.js";
 import { newTempleState, readTemples, writeTemples } from "../temples.js";
 import { LASTRAIL, RAILBASE, WATER_HIGH, WATER_LOW } from "../tileValues.js";
+import { savedSimVersion, SIM_VERSION } from "../sim/simVersion.js";
 
 /* The map, the simulation and the tools are still the original JavaScript (src/gameMap.js, src/simulation.js,
  * src/gameTools.js), so they are typed loosely here. */
@@ -48,6 +49,8 @@ export interface CityHooks {
 
 /** Reads the records kept beside a saved city's tiles onto its map, or starts them afresh for a new city. */
 export function readCityLayers(map: Legacy, saved: Legacy | null): void {
+  // The rules of the simulation it was last played with (src/sim/simVersion.ts); a new city is played with today's
+  map.simVersion = saved ? savedSimVersion(saved) : SIM_VERSION;
   if (saved) {
     // A whole-province map: which tiles are the province's and its town (docs/geo/GEO_SPEC.md section 10)
     map.insideProvince = saved.inside ? decodePresetLayer(saved.inside, map.width, map.height) : null;
@@ -152,7 +155,9 @@ function readGraph(saved: unknown): RoadGraph | null {
 }
 
 /** A road or rail graph as a save keeps it: the strokes whose every segment still lies on roads (or railways), those
- * bulldozed in part being their tiles' lines from then on (src/roads/graphLines.ts) */
+ * bulldozed in part being their tiles' lines from then on (src/roads/graphLines.ts), and every segment of no stroke (a
+ * map's own roads, src/roads/roadCover.ts), which the view draws from their tiles anyway and which are cut where their
+ * tiles go (src/roads/roadCut.ts), so a city opened from its save goes on with the very graph it had */
 function graphKept(map: Legacy, graph: RoadGraph | null | undefined, kind: (value: number) => boolean):
   ReturnType<RoadGraph["toJSON"]> | undefined {
   if (!graph || !graph.segments.size) return undefined;
@@ -160,9 +165,12 @@ function graphKept(map: Legacy, graph: RoadGraph | null | undefined, kind: (valu
   const standing = (id: number): boolean =>
     segmentStands(graph, id, raster, (i) => kind(map.getTileValue(i % map.width, Math.floor(i / map.width))));
   const gone = new Set<number>();
-  for (const id of graph.segments.keys()) if (!standing(id)) gone.add(graph.segment(id).piece ?? -id);
+  for (const id of graph.segments.keys()) {
+    const piece = graph.segment(id).piece;
+    if (piece !== undefined && !standing(id)) gone.add(piece);
+  }
   const kept = RoadGraph.fromJSON(graph.toJSON());
-  for (const [id, s] of [...kept.segments]) if (gone.has(s.piece ?? -id)) kept.remove(id);
+  for (const [id, s] of [...kept.segments]) if (s.piece !== undefined && gone.has(s.piece)) kept.remove(id);
   return kept.segments.size ? kept.toJSON() : undefined;
 }
 
@@ -282,6 +290,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     sites: writeSites(map.sites),
     // ... and its temples (src/temples.ts)
     temples: writeTemples(map.temples),
+    // ... and the rules of the simulation it is played with from now on (src/sim/simVersion.ts)
+    simVersion: SIM_VERSION,
   };
 }
 

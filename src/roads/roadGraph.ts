@@ -35,6 +35,8 @@ export interface RoadSegment {
   national?: boolean;
   /** The stroke it was drawn in (src/roadPieces.ts piece), kept by both halves when it is split */
   piece?: number;
+  /** Made from road tiles that were not drawn (a map's own roads, src/roads/roadCover.ts), not drawn by the player */
+  traced?: boolean;
 }
 
 /** What a new road is drawn as: two ends for a line; two ends and two inner control points for a curve */
@@ -46,6 +48,7 @@ export interface DrawnRoad {
   level: number;
   national?: boolean;
   piece?: number;
+  traced?: boolean;
 }
 
 /** What adding a road did: its own segments, end to end, and the old segments split to meet it (each old id replaced
@@ -170,6 +173,10 @@ export class RoadGraph {
   /** Segment ids by the buckets their bounds touch */
   private buckets = new Map<number, Set<number>>();
   private bucketsOf = new Map<number, number[]>();
+  /** The segments meeting at each node, by node id (docs/NO_GRID_PLAN.md 0.2: a node's roads without going over all) */
+  private ends = new Map<number, Set<number>>();
+  /** Node ids by the bucket they lie in */
+  private nodeBuckets = new Map<number, Set<number>>();
 
   node(id: number): RoadNode {
     const n = this.nodes.get(id);
@@ -185,9 +192,13 @@ export class RoadGraph {
 
   /** The segments meeting at a node, by id */
   segmentsAt(node: number): number[] {
-    const out: number[] = [];
-    for (const s of this.segments.values()) if (s.a === node || s.b === node) out.push(s.id);
-    return out.sort((x, y) => x - y);
+    const set = this.ends.get(node);
+    return set ? [...set].sort((x, y) => x - y) : [];
+  }
+
+  /** How many segments meet at a node (a segment from a node back to itself counts once) */
+  degree(node: number): number {
+    return this.ends.get(node)?.size ?? 0;
   }
 
   /** The segment's control points (a line's inner ones on it) */
@@ -252,8 +263,12 @@ export class RoadGraph {
   /** The node within reach of p, nearest first, or null */
   nodeNear(p: Vec, reach = MERGE_M): RoadNode | null {
     let best: RoadNode | null = null, bestD = reach;
-    for (const n of this.nodes.values()) {
-      const d = Math.hypot(n.x - p[0], n.z - p[1]);
+    const ids: number[] = [];
+    for (const key of this.keysFor(p[0] - reach, p[1] - reach, p[0] + reach, p[1] + reach)) {
+      for (const id of this.nodeBuckets.get(key) ?? []) ids.push(id);
+    }
+    for (const id of ids.sort((x, y) => x - y)) {
+      const n = this.nodes.get(id)!, d = Math.hypot(n.x - p[0], n.z - p[1]);
       if (d <= bestD) { best = n; bestD = d; }
     }
     return best;
@@ -294,6 +309,7 @@ export class RoadGraph {
       id: -1, a, b, shape: curve ? "curve" : "line", level: road.level,
       ...(curve ? { c1: road.c1, c2: road.c2 } : {}),
       ...(road.national ? { national: true } : {}), ...(road.piece !== undefined ? { piece: road.piece } : {}),
+      ...(road.traced ? { traced: true } : {}),
     };
     // Where it crosses the roads already there, along itself (t) and along each of them
     const ownControls = curve ? [[pa.x, pa.z], road.c1!, road.c2!, [pb.x, pb.z]] as Vec[] : null;
@@ -360,6 +376,23 @@ export class RoadGraph {
   }
 
   /**
+   * Joins a node to a road beside it with a straight segment of no stroke: the road `id` split at t (or its end's node,
+   * within END_M of it) and the node joined to that point (src/roads/roadCover.ts, a road whose end lies beside another
+   * on the tiles, which the simulation has always taken as joined). Neither road moves. The new segment's id, or null
+   * when they meet already.
+   */
+  link(node: number, id: number, t: number, level: number, national = false, traced = true): number | null {
+    this.node(node);
+    this.version++;
+    const m = this.splitAt(id, t, []);
+    if (m === node || this.segmentsAt(node).some((s) => { const seg = this.segment(s); return seg.a === m || seg.b === m; })) return null;
+    const seg: RoadSegment = { id: this.nextSegment++, a: node, b: m, shape: "line", level, ...(national ? { national: true } : {}),
+      ...(traced ? { traced: true } : {}) };
+    this.put(seg);
+    return seg.id;
+  }
+
+  /**
    * Takes the part of a segment between t0 and t1 (0 to 1) away, the parts either side staying exactly where they were,
    * each with a new end of its own (the bulldozer, src/roads/roadCut.ts); a part shorter than END_M goes with it.
    */
@@ -391,7 +424,7 @@ export class RoadGraph {
       // ... kept by the mark watched when it had the node, for undo
       const mark = this.watched;
       if (mark && n < mark.nodes) (mark.removedNodes as RoadNode[] | undefined)?.push({ ...this.node(n) });
-      this.nodes.delete(n);
+      this.dropNode(n);
     }
   }
 
@@ -412,8 +445,8 @@ export class RoadGraph {
       this.unindex(id);
       this.segments.delete(id);
     }
-    for (const id of [...this.nodes.keys()]) if (id >= mark.nodes) this.nodes.delete(id);
-    for (const n of mark.removedNodes ?? []) this.nodes.set(n.id, { ...n });
+    for (const id of [...this.nodes.keys()]) if (id >= mark.nodes) this.dropNode(id);
+    for (const n of mark.removedNodes ?? []) this.setNode({ ...n });
     for (const s of mark.removed) this.put({ ...s });
     this.nextNode = mark.nodes;
     this.nextSegment = mark.segments;
@@ -427,7 +460,7 @@ export class RoadGraph {
       nodes: [...this.nodes.values()].sort((p, q) => p.id - q.id).map(n => [n.id, round(n.x), round(n.z)]),
       segments: [...this.segments.values()].sort((p, q) => p.id - q.id).map(s => [s.id, s.a, s.b, s.level,
         s.shape === "curve" && s.c1 && s.c2 ? [round(s.c1[0]), round(s.c1[1]), round(s.c2[0]), round(s.c2[1])] : [],
-        s.national ? 1 : 0, s.piece ?? -1]),
+        s.national ? 1 : 0, s.piece ?? -1, ...(s.traced ? [1] : [])]),
       next: [this.nextNode, this.nextSegment],
     };
   }
@@ -435,13 +468,14 @@ export class RoadGraph {
   /** A graph from toJSON's data */
   static fromJSON(data: ReturnType<RoadGraph["toJSON"]>): RoadGraph {
     const g = new RoadGraph();
-    for (const [id, x, z] of data.nodes) g.nodes.set(id, { id, x, z });
+    for (const [id, x, z] of data.nodes) g.setNode({ id, x, z });
     for (const row of data.segments) {
-      const [id, a, b, level, c, national, piece] = row as [number, number, number, number, number[], number, number];
+      const [id, a, b, level, c, national, piece, traced] = row as [number, number, number, number, number[], number, number, number?];
       const seg: RoadSegment = { id, a, b, level, shape: c.length === 4 ? "curve" : "line" };
       if (c.length === 4) { seg.c1 = [c[0], c[1]]; seg.c2 = [c[2], c[3]]; }
       if (national) seg.national = true;
       if (piece >= 0) seg.piece = piece;
+      if (traced) seg.traced = true;
       g.put(seg);
     }
     [g.nextNode, g.nextSegment] = data.next;
@@ -453,7 +487,7 @@ export class RoadGraph {
   /** A new node, to the millimetre as a save keeps it, so a city opened from its save goes on just as it would have */
   private newNode(p: Vec): number {
     const id = this.nextNode++;
-    this.nodes.set(id, { id, x: mm(p[0]), z: mm(p[1]) });
+    this.setNode({ id, x: mm(p[0]), z: mm(p[1]) });
     return id;
   }
 
@@ -541,6 +575,11 @@ export class RoadGraph {
   private put(s: RoadSegment): void {
     if (s.c1 && s.c2) { s.c1 = [mm(s.c1[0]), mm(s.c1[1])]; s.c2 = [mm(s.c2[0]), mm(s.c2[1])]; }
     this.segments.set(s.id, s);
+    for (const n of [s.a, s.b]) {
+      let set = this.ends.get(n);
+      if (!set) this.ends.set(n, set = new Set());
+      set.add(s.id);
+    }
     const pts = controls(this, s), xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
     const keys = this.keysFor(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs));
     for (const key of keys) {
@@ -554,6 +593,35 @@ export class RoadGraph {
   private unindex(id: number): void {
     for (const key of this.bucketsOf.get(id) ?? []) this.buckets.get(key)?.delete(id);
     this.bucketsOf.delete(id);
+    const s = this.segments.get(id);
+    if (s) for (const n of [s.a, s.b]) {
+      const set = this.ends.get(n);
+      set?.delete(id);
+      if (set && !set.size) this.ends.delete(n);
+    }
+  }
+
+  /** A node put in the graph, and in its bucket */
+  private setNode(n: RoadNode): void {
+    const old = this.nodes.get(n.id);
+    if (old) this.nodeBuckets.get(this.nodeKey(old))?.delete(n.id);
+    this.nodes.set(n.id, n);
+    const key = this.nodeKey(n);
+    let set = this.nodeBuckets.get(key);
+    if (!set) this.nodeBuckets.set(key, set = new Set());
+    set.add(n.id);
+  }
+
+  /** A node taken out of the graph and its bucket */
+  private dropNode(id: number): void {
+    const n = this.nodes.get(id);
+    if (!n) return;
+    this.nodeBuckets.get(this.nodeKey(n))?.delete(id);
+    this.nodes.delete(id);
+  }
+
+  private nodeKey(n: RoadNode): number {
+    return Math.floor(n.z / BUCKET_M) * 100003 + Math.floor(n.x / BUCKET_M);
   }
 
   /** The buckets a box of metres touches (a curve lies within its control points' box) */

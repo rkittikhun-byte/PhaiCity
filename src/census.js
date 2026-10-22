@@ -70,6 +70,8 @@ Census.prototype.clearCensus = function() {
   this.nationalRoadTotal = 0;
   // ... and the city's own roads' upkeep by their levels (src/roadLevels.ts)
   this.roadUpkeep = 0;
+  // ... which on a real-scale city map comes from the roads' lengths, not their tiles (src/sim/roadUpkeep.ts)
+  this.roadsByLength = false;
   this.nationalRailTotal = 0;
   this.resPop = 0;
   this.comPop = 0;
