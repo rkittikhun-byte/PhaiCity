@@ -258,6 +258,14 @@ export function supplyColour(layer: "power" | "water", state: number): Rgb {
 /** A road no plant or works reaches */
 export const NO_SUPPLY: Rgb = [96, 96, 104];
 
+/** A road a police or fire station, school or hospital in hand would reach (src/sim/reachPreview.ts), by how much of its
+ * strength it gives there (0-1): its layer's colour (a school's or hospital's that of the services on the map), paler
+ * towards the end of its reach */
+export function reachColour(field: "police" | "fire" | "basic" | "higher" | "health", share: number): Rgb {
+  const full = field === "police" || field === "fire" ? HEAT[field].colour : KIND_COLOURS.service;
+  return mix(NO_SUPPLY, full, 0.35 + 0.65 * Math.max(0, Math.min(1, share)));
+}
+
 /** The colours at the bottom and the top of an overlay's scale, over empty land, for the legend. */
 export function heatRamp(layer: HeatLayer | "groundwater" | "satisfaction"): [Rgb, Rgb] {
   if (layer === "satisfaction") return [DISCONTENT, CONTENT];

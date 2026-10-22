@@ -127,6 +127,7 @@ import { SettingsWindow } from './settingsWindow.js';
 import { Simulation } from './simulation.js';
 import { browserTripWorker, workerTripRunner } from './sim/tripWorker.ts';
 import { roadStateTiles } from './sim/cityUtilities.ts';
+import { reachPreview, toolReach } from './sim/reachPreview.ts';
 import { Storage } from './storage.js';
 import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
@@ -1076,6 +1077,23 @@ Game.prototype.buildingTile = function(tile, size) {
 
 // The tile a building posed at pose ([x, z, turn], world units) is put down at: the centre of the block of size tiles
 // round the tile its middle lies on (src/buildings/placedBuildings.ts blockOf)
+// The roads a police or fire station, school or hospital in hand would reach with its centre on `tile`
+// (ToolHover.reach), worked out again only when the tool, the spot, the roads or the buildings change; null for any
+// other tool, or off a real-scale city map
+Game.prototype.reachAt = function(tool, tile, size) {
+  var map = this.gameMap;
+  if (toolReach(tool) === null || !map.testBounds(tile.x, tile.y))
+    return null;
+  var graph = map.roadGraph;
+  var key = [tool, tile.x, tile.y, size, graph ? graph.version : -1, map.buildings ? map.buildings.version : 0].join();
+  if (this._reachKey !== key) {
+    this._reachKey = key;
+    this._reach = reachPreview(map, tool, tile.y * map.width + tile.x, size);
+  }
+  return this._reach;
+};
+
+
 var poseTile = function(pose, size) {
   var block = blockOf(pose[0], pose[1], size, 10);
   return {x: block.cx, y: block.cy};
@@ -2184,6 +2202,12 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.colour = refusal !== null ? OUTSIDE_COLOUR : this.inputStatus.toolColour || 'yellow';
     var refusalTip = refusal !== null ? this.refusalNote(refusal, this.inputStatus.toolName, tile.x, tile.y) : null;
   }
+
+  // A police or fire station, school or hospital shows the roads it would reach from there, fading along them, where
+  // their cover and places run along the roads (src/sim/reachPreview.ts, docs/NO_GRID_PLAN.md 4.3)
+  var reach = this.reachAt(this.inputStatus.toolName, tile, hover.size);
+  if (reach !== null)
+    hover.reach = reach;
 
   // The farm brush on a map painted a cell at a time shows the cells it would paint there, or that a dragged rectangle
   // will, not a tile (src/farmZone.ts; docs/NO_GRID_PLAN.md 3C)

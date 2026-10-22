@@ -9,6 +9,7 @@
 // Positions the game passes in and gets back are map tiles, never pixels, so a view may draw tiles any size.
 
 import type { Weather } from "./weather.js";
+import type { ReachPreview } from "./sim/reachPreview.js";
 
 export interface TilePoint {
   x: number;
@@ -87,6 +88,10 @@ export interface ToolHover {
   inspect?: { x: number; y: number } | null;
   /** ... and the tiles of the road stretch the card shows (src/inspect.ts path) */
   inspectPath?: readonly TilePoint[] | null;
+  /** A police or fire station, school or hospital in hand on a real-scale city map: the roads it would reach from there
+   * and how far along them (src/sim/reachPreview.ts), shown on the roads fading with the distance (docs/NO_GRID_PLAN.md
+   * 4.3) */
+  reach?: ReachPreview | null;
 }
 
 export interface CityView {

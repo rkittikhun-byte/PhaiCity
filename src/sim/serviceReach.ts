@@ -53,7 +53,7 @@ export function coverAt(metres: number): number {
 }
 
 /** The distance along the roads from the starts to every node within `limit` metres (Infinity past it) */
-function roadDistances(net: RoadNet, starts: ReadonlyArray<{ k: number; t: number; d: number }>, limit: number): Float64Array {
+export function roadDistances(net: RoadNet, starts: ReadonlyArray<{ k: number; t: number; d: number }>, limit: number): Float64Array {
   const n = net.x.length, dist = new Float64Array(n).fill(Infinity);
   const heapD: number[] = [], heapN: number[] = [];
   const push = (d: number, node: number): void => {
