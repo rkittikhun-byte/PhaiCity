@@ -736,9 +736,11 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
 
 // What a click on the map shows (src/inspect.ts): the object on the tile, or the road, water or land there
-Game.prototype.inspectTile = function(x, y) {
+Game.prototype.inspectTile = function(x, y, point) {
   if (!this.inspectCard)
     return;
+  // Where it was clicked, in tiles, for the mark on plain ground (src/cityView.ts ToolHover.inspect)
+  this._inspectPoint = point || {x: x + 0.5, y: y + 0.5};
   // A building put up since the month's look over the map is found now
   this.core.objects.scan(this.gameMap, this.simulation._cityTime);
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
@@ -761,11 +763,11 @@ Game.prototype.selectionOutline = function() {
   var shown = this.inspectCard && this.inspectCard.inspection;
   if (!shown || this.inputStatus.currentTool !== null)
     return null;
-  if (shown.path && shown.path.length > 1)
-    return null;
+  // The view shows it by its own outline, a road by its drawn stretch, plain ground by a mark at the point clicked
   var rect = shown.rect;
-  return {tile: {x: rect.x + (rect.width > 1 ? 1 : 0), y: rect.y + (rect.height > 1 ? 1 : 0)}, size: rect.width,
-          colour: '#8fdcff'};
+  return {tile: {x: rect.x, y: rect.y}, size: 1, colour: '#8fdcff',
+          inspect: this._inspectPoint || {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2},
+          inspectPath: shown.path && shown.path.length > 1 ? shown.path : null};
 };
 
 
@@ -841,7 +843,7 @@ Game.prototype.updateContextualOverlay = function(activeTool) {
 Game.prototype.inspectAtPixel = function(x, y) {
   var tile = this.cityView.tileAt(x, y);
   if (tile)
-    this.inspectTile(tile.x, tile.y);
+    this.inspectTile(tile.x, tile.y, typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null);
 };
 
 
@@ -1770,7 +1772,7 @@ Game.prototype.handleTool = function(data) {
 
   if (toolName === 'query') {
     // Looking at a tile changes nothing, so it is not a command; the inspector's card shows it (src/inspect.ts)
-    this.inspectTile(tileCoords.x, tileCoords.y);
+    this.inspectTile(tileCoords.x, tileCoords.y, typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null);
     result = tool.TOOLRESULT_OK;
   } else {
     var command = {type: 'tool', tool: toolName, x: tileCoords.x, y: tileCoords.y, stroke: data.stroke};
@@ -2020,6 +2022,12 @@ Game.prototype.calculateMouseForPaint = function() {
   if (this.inputStatus.toolName === 'bulldozer')
     tile = this.dozeTile(tile, this.inputStatus.mouseX, this.inputStatus.mouseY);
   var hover = {tile: tile, size: this.inputStatus.toolWidth - 0, colour: this.inputStatus.toolColour || 'yellow'};
+  // The inspector shows what it points at by its own outline, or plain ground by a mark at the point (ToolHover.inspect)
+  if (this.inputStatus.toolName === 'query') {
+    var looked = typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY) : null;
+    hover.inspect = looked || {x: tile.x + 0.5, y: tile.y + 0.5};
+    return hover;
+  }
   // The bulldozer being dragged shows, red, every tile it will take when the mouse is let go (dozeTiles)
   var pathDrag = this.inputStatus.pathDrag;
   if (pathDrag !== null) {
