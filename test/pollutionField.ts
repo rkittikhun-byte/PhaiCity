@@ -7,7 +7,7 @@
 // smoothing passes reached, with about as much pollution in all; the wind carries it downwind; and a real-scale city
 // map's pollution block map is the plumes' sum at each block's middle.
 
-import { DRIFT_M, POLLUTION_PEAK, POLLUTION_REACH_M, pollutionField, roundedWind } from "../src/sim/pollutionField";
+import { DRIFT_M, OPEN_LAND_FULL, openLandField, POLLUTION_PEAK, POLLUTION_REACH_M, pollutionField, roundedWind } from "../src/sim/pollutionField";
 import { BlockMapUtils } from "../src/blockMapUtils.js";
 import { BlockMap } from "../src/blockMap";
 import { GameMap } from "../src/gameMap.js";
@@ -74,5 +74,18 @@ describe("pollution as sources in metres", () => {
     // carried south by the wind: more two blocks south than two north
     expect(pollution.worldGet(20, 24)).toBeGreaterThan(pollution.worldGet(20, 16));
     expect(census.pollutionAverage).toBeGreaterThan(0);
+  });
+
+  test("open land adds to a block's value by how much lies round its middle, falling off smoothly (4.2)", () => {
+    // open land west of x = 20, built land east of it
+    const map = { width: W, height: H, tileSizeM: M, getTileValue: (x: number) => (x < 20 ? 0 : 500) };
+    const field = openLandField(map, B, (value) => value === 0);
+    const value = (bx: number) => field[10 * blocks + bx];
+    expect(value(2)).toBe(OPEN_LAND_FULL);
+    expect(value(blocks - 2)).toBe(0);
+    // from the open land into the town: down a little at a time, never up, through more than micropolisJS's 64 m steps
+    const seen = new Set<number>();
+    for (let bx = 1; bx < blocks; bx++) { expect(value(bx)).toBeLessThanOrEqual(value(bx - 1)); seen.add(value(bx)); }
+    expect(seen.size).toBeGreaterThan(5);
   });
 });

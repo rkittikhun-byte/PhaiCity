@@ -68,3 +68,51 @@ export function pollutionField(width: number, height: number, tileSizeM: number,
   for (let k = 0; k < sum.length; k++) out[k] = Math.min(255, Math.floor(sum[k]));
   return out;
 }
+
+// --- Open land round a block (docs/NO_GRID_PLAN.md 4.2) ---------------------------------------------------------------
+
+/** The half-sides of the squares the open land round a block is counted in (metres): near, middling and far */
+export const OPEN_LAND_REACH_M: readonly number[] = [32, 64, 96];
+/** What land wholly open round a block adds to its value: micropolisJS's 15 a tile of a 4 x 4 block */
+export const OPEN_LAND_FULL = 240;
+
+/**
+ * How much the open land round each block of `blockSize` tiles adds to its land value (0-240): the share of open tiles
+ * in squares of each half-side in OPEN_LAND_REACH_M round the block's middle, averaged, so it falls off smoothly with
+ * distance and has no edge where micropolisJS's 64 m blocks of open land ended. Counted with an integral image of the
+ * open tiles: a few look-ups a block. Blocks in rows, as the block maps keep them.
+ */
+export function openLandField(map: { readonly width: number; readonly height: number; readonly tileSizeM?: number | null;
+  getTileValue(x: number, y: number): number }, blockSize: number, isOpen: (value: number, x: number, y: number) => boolean): Uint8Array {
+  const { width, height } = map, tile = map.tileSizeM || 16;
+  // the count of open tiles above and left of each corner
+  const sums = new Int32Array((width + 1) * (height + 1));
+  for (let y = 0; y < height; y++) {
+    let row = 0;
+    for (let x = 0; x < width; x++) {
+      if (isOpen(map.getTileValue(x, y), x, y)) row++;
+      sums[(y + 1) * (width + 1) + x + 1] = sums[y * (width + 1) + x + 1] + row;
+    }
+  }
+  const count = (x0: number, y0: number, x1: number, y1: number): number => {
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(width, x1); y1 = Math.min(height, y1);
+    if (x1 <= x0 || y1 <= y0) return 0;
+    return sums[y1 * (width + 1) + x1] - sums[y0 * (width + 1) + x1] - sums[y1 * (width + 1) + x0] + sums[y0 * (width + 1) + x0];
+  };
+  const blocksWide = Math.ceil(width / blockSize), blocksHigh = Math.ceil(height / blockSize);
+  const out = new Uint8Array(blocksWide * blocksHigh);
+  const halves = OPEN_LAND_REACH_M.map((m) => Math.max(1, Math.round(m / tile)));
+  for (let j = 0; j < blocksHigh; j++) for (let i = 0; i < blocksWide; i++) {
+    // the block's middle, on the corner between its tiles (a block of 2 tiles) or a tile's middle
+    const mx = i * blockSize + blockSize / 2, my = j * blockSize + blockSize / 2;
+    let share = 0;
+    for (const h of halves) {
+      const x0 = Math.round(mx - h), y0 = Math.round(my - h), x1 = Math.round(mx + h), y1 = Math.round(my + h);
+      // (a square cut by the map's edge counts what lies on the map)
+      const area = (Math.min(width, x1) - Math.max(0, x0)) * (Math.min(height, y1) - Math.max(0, y0));
+      share += area > 0 ? count(x0, y0, x1, y1) / area : 0;
+    }
+    out[j * blocksWide + i] = Math.min(OPEN_LAND_FULL, Math.floor(OPEN_LAND_FULL * share / halves.length));
+  }
+  return out;
+}

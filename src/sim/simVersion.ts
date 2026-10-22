@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 9;
+export const SIM_VERSION = 10;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -34,6 +34,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "graphs (NO_GRID_PLAN 5.2)",
   9: "on a real-scale city map each polluting tile is a source in metres whose plume falls smoothly to nothing 64 m off " +
     "and drifts with the month's wind, the pollution block map its sum at each block's middle (NO_GRID_PLAN 4.1)",
+  10: "on a real-scale city map the open land round a block adds to its land value by its share in squares 32, 64 and " +
+    "96 m round the block's middle, not by the 64 m block it lies in, and what the ruler's house, the metro, the canals, " +
+    "the fields and the festivals add is measured at the block's middle (NO_GRID_PLAN 4.2)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

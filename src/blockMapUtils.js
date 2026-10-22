@@ -17,7 +17,7 @@ import { Industrial } from './industrial.js';
 import { MiscUtils } from './miscUtils.js';
 import { plotDensity } from './plots.ts';
 import { isCityTileSize } from './units.ts';
-import { pollutionField } from './sim/pollutionField.ts';
+import { openLandField, pollutionField } from './sim/pollutionField.ts';
 import { Random } from './random.ts';
 import { Residential } from './residential.js';
 import * as TileValues from "./tileValues.ts";
@@ -247,6 +247,12 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
   tempMap3.clear();
 
   var landValueMap = blockMaps.landValueMap;
+  // ... and the open land round each block counts by how much of it there is within about 100 m of the block's middle,
+  // not by the 64 m block it lies in (src/sim/pollutionField.ts openLandField, docs/NO_GRID_PLAN.md 4.2); the values
+  // round the block maps' blocks of 2 tiles
+  var openLand = metric ? openLandField(map, landValueMap.blockSize, function(value, x, y) {
+    return value === TileValues.DIRT ? Boolean(landCover && OPEN_COVER[landCover[y * map.width + x]]) : value < TileValues.RUBBLE;
+  }) : null;
   var terrainDensityMap = blockMaps.terrainDensityMap;
   var pollutionDensityMap = blockMaps.pollutionDensityMap;
   var crimeRateMap = blockMaps.crimeRateMap;
@@ -321,7 +327,7 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
         landValue = landValue << 2;
 
         // Land in the same neighbourhood as unspoiled land is more valuable...
-        landValue += terrainDensityMap.get(x >> 1, y >> 1);
+        landValue += openLand !== null ? openLand[y * landValueMap.width + x] : terrainDensityMap.get(x >> 1, y >> 1);
 
         // ... and polluted land obviously is less valuable
         landValue -= pollutionDensityMap.get(x, y);
@@ -330,9 +336,9 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
         if (crimeRateMap.get(x, y) > 190)
           landValue -= 20;
 
-        // ... and living near the ruler's house (PhaiCity) helps
+        // ... and living near the ruler's house (PhaiCity) helps, measured from the block's middle on a real-scale city map
         if (extraLandValue)
-          landValue += extraLandValue(worldX, worldY);
+          landValue += extraLandValue(worldX + middle, worldY + middle);
 
         // Clamp in range 1-250 (0 represents undeveloped land)
         landValue = MiscUtils.clamp(landValue, 1, 250);
