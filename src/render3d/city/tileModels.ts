@@ -22,7 +22,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
-import { isTurned, laidOutline, outlineOf, type Outline, quarterTurn, TURNED_SIZES, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
+import { laidOutline, outlineOf, type Outline, quarterTurn, TURNED_SIZES, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
 import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
@@ -829,15 +829,15 @@ export class TileSnapshot implements CityMapReader {
   }
   /**
    * The square block of tiles a building of the ruler's (two tiles a side and up) stands on, on a real-scale map, when
-   * the 3D view would otherwise draw it turned past them: one put down a tile at a time and never turned, or turned to a
-   * slanted road before its tiles turned with it (its kept turn not its tiles', laidOutline). Its middle in world units
+   * the 3D view would otherwise draw it turned or slid past them: one put down a tile at a time and never turned, or kept
+   * turned or slid off its block before its tiles followed (its kept pose not its tiles', laidOutline). Its middle in world units
    * and its kept turn; null for the rest. Such a building is drawn on that block, square to it (owner, 21 Oct 2026: "ถ้า
    * พื้นที่ที่กันไว้ ก็ควรจะมีพื้นที่กั้นไว้นะ"; docs/NO_GRID_PLAN.md 3A): the auto player's house was drawn turned to its
    * road on a square block and fence, its lawn past the fence.
    */
   private squareBlock(i:number,size:number):{x:number;z:number;rot:number|null}|null {
     const map=this.source,b=map?.buildings?.atTile(i);
-    if(!this.realUnits||!map||!b||b.size!==size||!TURNED_SIZES.has(size)||(b.rot!==null&&!isTurned(b.rot)))return null;
+    if(!this.realUnits||!map||!b||b.size!==size||!TURNED_SIZES.has(size))return null;
     if(laidOutline(map as unknown as FootprintMap,b as unknown as PlacedBuilding))return null;
     return {x:(i%this.width-1+size/2)*10,z:(Math.floor(i/this.width)-1+size/2)*10,rot:b.rot};
   }

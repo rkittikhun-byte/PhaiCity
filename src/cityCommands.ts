@@ -27,7 +27,7 @@ import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { drawnRoads, graphLines } from "./roads/graphLines";
 import { isCityTileSize, tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
-import { bodyMeets, drawnPoints, familyValue, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
+import { bodyMeets, drawnPoints, familyValue, isTurned, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
   outsideBy, turnedCentre, turnedOutlines, turnedTilesOf, turnsFootprint, type FootprintMap } from "./buildings/turnedFootprint";
 import type { BuildingMap } from "./buildings/buildingRecords";
 import { buildingInTheWay } from "./buildings/outlineOverlap";
@@ -723,7 +723,8 @@ export class CityCommands {
     const to = cy * width + cx;
     // A building turned to a slanted road, before or after, takes the tiles of its outline where it goes, its own lifted
     // first (src/buildings/turnedFootprint.ts)
-    const metres = tileMetres(map), oldOutline = laidOutline(map as unknown as FootprintMap, b);
+    // (one laid square to its tiles, a quarter turn, is carried with its tiles as they are: carryTiles)
+    const metres = tileMetres(map), oldOutline = isTurned(b.rot) ? laidOutline(map as unknown as FootprintMap, b) : null;
     const newOutline = turnsFootprint(size, command.rot) ? outlineOf(command.x, command.z, command.rot, size, metres) : null;
     if (oldOutline || newOutline) {
       if (left < 0 || top < 0 || left + size > width || top + size > height) return { reason: "outside the map" };

@@ -157,18 +157,24 @@ function squareTiles(centre: number, size: number, width: number, height: number
 }
 
 /**
- * The outline of a building as its tiles were laid: its turned outline when it was laid turned, else null. A building
- * put down turned before its tiles turned with it (20-21 Oct 2026) still stands on its square block: it is laid turned
- * when its family holds a tile of the outline past its square, or a tile of its square past the outline holds something
- * else (the outline and the square the same, it does not matter)
+ * The outline of a building as it stands on its tiles, or null when it stands on its square block of them: what it holds
+ * (its fence, src/render3d/city/compounds.ts; the ground roads and paint keep out of).
+ * - Laid turned (a turn off the quarter turns): its turned outline, when its family holds a tile of the outline past its
+ *   square, or a tile of its square past the outline holds something else (the outline and the square the same, it
+ *   does not matter). One put down turned before its tiles turned with it (20-21 Oct 2026), or kept turned by the 3D
+ *   view's drawing (src/game.js keepBuildingPoses), stands on its square block.
+ * - Put down in metres square to its tiles (a quarter turn), slid along its road a zone cell at a time: the outline where
+ *   it was put down, whose tiles take in its square block (docs/NO_GRID_PLAN.md 3A: its lawn and fence once stood up to
+ *   half a tile apart along the road); a pose kept from where the view once slid it, off its block, stands on the block.
  */
 export function laidOutline(map: FootprintMap, b: PlacedBuilding): Outline | null {
-  const size = tileSizeOf(map), o = buildingOutline(b, size);
-  if (!o) return null;
+  if (b.rot === null || !Number.isFinite(b.rot) || !TURNED_SIZES.has(b.size)) return null;
+  const size = tileSizeOf(map), o = outlineOf(b.x, b.z, b.rot, b.size, size);
   const value = (i: number): number => map.getTileValue(i % map.width, Math.floor(i / map.width));
   const centreValue = value(b.tile), mine = (i: number): boolean => inFamily(value(i), centreValue, b.size);
   const outline = outlineTiles(o, map.width, map.height, size), square = squareTiles(b.tile, b.size, map.width, map.height);
   const inSquare = new Set(square), inOutline = new Set(outline);
+  if (!isTurned(b.rot)) return square.every((i) => inOutline.has(i)) ? o : null;
   return outline.some((i) => !inSquare.has(i) && mine(i)) || square.some((i) => i !== b.tile && !inOutline.has(i) && !mine(i)) ? o : null;
 }
 

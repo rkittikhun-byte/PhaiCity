@@ -171,6 +171,34 @@ describe("a building turned to a slanted road", () => {
     expect(laidOutline(again.map as any, (again.map as any).buildings.atTile(at(cx, cy)))).toBeNull();
   });
 
+  test("put down square to a straight road and slid along it, holds the outline it was put down on", () => {
+    // (docs/NO_GRID_PLAN.md 3A: its square block of tiles and its fence once stood up to half a tile apart along the road)
+    const map = (MapGenerator as any).fromPresetCells(W, H, new Uint8Array(W * H));
+    map.tileSizeM = M; map.paintedZones = true; map.cellZones = true;
+    const core = new CityCore({ map, seed: 3, sandbox: true });
+    core.simulation.budget.setFunds(1000000);
+    (core.map as any).needsRulerHouse = false;
+    // a road down a column's middle, x = 488 m; the house east of it facing west, slid 6 m down the road from a block
+    core.apply({ type: "road", tool: "road", from: [488, 8], to: [488, 792], stroke: 1 } as any);
+    const p = { x: 488 + 8 + 24, z: 392 + 6, rot: -Math.PI / 2 };
+    expect(core.apply({ type: "build", tool: "ruler_house", ...p, stroke: 2 } as any)).toMatchObject({ toolResult: 0 });
+    const m = core.map as any, b = m.buildings.all()[0], o = laidOutline(m, b)!;
+    expect([o.x, o.z, o.hu, o.hv]).toEqual([p.x, p.z, 24, 24]);
+    // its tiles its square block, as before
+    const cx = b.tile % W, cy = Math.floor(b.tile / W);
+    expect(turnedTilesOf(m, b.tile, CIVIC)!.sort((a, c) => a - c)).toEqual(
+      [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => at(cx + dx, cy + dy))).sort((a, c) => a - c));
+    // a road across, its body a metre past the fence on the side its block reaches 6 m further: taken, the house standing
+    const north = p.z - 24 - 1 - REACH;
+    expect(core.apply({ type: "road", tool: "road", from: [600, north], to: [700, north], stroke: 3 } as any))
+      .toMatchObject({ accepted: true, toolResult: 0 });
+    expect(value(core, b.tile)).toBe(CIVIC);
+    // one inside the fence: refused
+    const south = p.z + 24 - 6;
+    expect(core.apply({ type: "road", tool: "road", from: [500, south], to: [700, south], stroke: 4 } as any))
+      .toMatchObject({ accepted: false, reason: HOUSE_IN_THE_WAY });
+  });
+
   test("is fenced along its outline, the gate on the side it faces", () => {
     const c = city(), p = pose(c, 400);
     c.core.apply({ type: "build", tool: "ruler_house", x: p.x, z: p.z, rot: p.rot, stroke: 2 } as any);

@@ -24,15 +24,15 @@ const flat = { sample: () => 0, sampleTile: () => 0, inside: () => true } as unk
 const index = JSON.parse(readFileSync(resolve('assets/models/buildings/index.json'), 'utf8')) as EraIndex;
 const W = 60, H = 50, M = 16, U = 10 / 16;
 
-/** A bare 16 m city map, era 2, with a road through (480, 400) m at `angle` */
-function city(angle: number) {
+/** A bare 16 m city map, era 2, with a road through (cx, 400) m at `angle` */
+function city(angle: number, cx = 480) {
   const map = (MapGenerator as any).fromPresetCells(W, H, new Uint8Array(W * H));
   map.tileSizeM = M; map.paintedZones = true; map.cellZones = true; map.era = 2;
   const core = new CityCore({ map, seed: 3, sandbox: true });
   core.simulation.budget.setFunds(1000000);
   (core.map as any).needsRulerHouse = false;
   const tx = Math.cos(angle), tz = Math.sin(angle);
-  core.apply({ type: 'road', tool: 'road', from: [480 - tx * 400, 400 - tz * 400], to: [480 + tx * 400, 400 + tz * 400], stroke: 1 } as any);
+  core.apply({ type: 'road', tool: 'road', from: [cx - tx * 400, 400 - tz * 399], to: [cx + tx * 400, 400 + tz * 399], stroke: 1 } as any);
   return { core, map: core.map as any, tx, tz };
 }
 
@@ -126,6 +126,39 @@ describe('a building of the ruler\'s is drawn inside its fence', () => {
       expect(Math.abs(p.rotation - pose.rot)).toBeLessThan(1e-6);
       expect(pastFence(map, snapshot, curves, b)).toBeLessThanOrEqual(SLIDE_PAST_M + 1e-6);
       expect(snapshot.poseToKeep(b.tile)).toBeNull();
+    } finally { curves.dispose(); }
+  });
+
+  test.each([0, 6, -6])('a house put down square to a straight road, slid %i m along it, stands on its fence', slide => {
+    const { core, map } = city(Math.PI / 2, 488);
+    // the road runs down a column's middle, x = 488 m; the house east of it, facing west, its middle `slide` m along it
+    const gap = 8 + 24, pose = { x: 488 + gap, z: 392 + slide, rot: -Math.PI / 2 };
+    expect(core.apply({ type: 'build', tool: 'ruler_house', ...pose, stroke: 2 } as any).toolResult).toBe(0);
+    const b = map.buildings.all()[0];
+    // its fence its outline where it was put down, which takes in the square block of tiles it holds
+    const held = laidOutline(map, b)!;
+    expect(held).not.toBeNull();
+    expect([held.x, held.z]).toEqual([pose.x, pose.z]);
+    const { snapshot, curves } = view(map);
+    try {
+      expect(pastFence(map, snapshot, curves, b)).toBeLessThanOrEqual(SLIDE_PAST_M + 1e-6);
+      expect(snapshot.poseToKeep(b.tile)).toBeNull();
+    } finally { curves.dispose(); }
+  });
+
+  test('one kept slid off its square block before stands on the block', () => {
+    const { core, map } = city(Math.PI / 2, 488);
+    let laid = false;
+    for (let x = 31; x <= 34 && !laid; x++) laid = core.apply({ type: 'tool', tool: 'ruler_house', x, y: 24 } as any).toolResult === 0;
+    const b = map.buildings.all()[0];
+    // (as the view once slid it to its road and the game kept that: square, 12 m off its block)
+    map.buildings.setPose(b.id, b.x - 12, b.z, -Math.PI / 2);
+    expect(laidOutline(map, map.buildings.get(b.id))).toBeNull();
+    const { snapshot, curves } = view(map);
+    try {
+      expect(pastFence(map, snapshot, curves, map.buildings.get(b.id))).toBeLessThanOrEqual(SLIDE_PAST_M + 1e-6);
+      const cx = b.tile % W, cy = Math.floor(b.tile / W);
+      expect(snapshot.poseToKeep(b.tile)).toEqual([(cx + 0.5) * 10, (cy + 0.5) * 10, -Math.PI / 2]);
     } finally { curves.dispose(); }
   });
 
