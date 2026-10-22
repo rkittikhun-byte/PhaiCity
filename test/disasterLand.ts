@@ -13,6 +13,8 @@ import { ANIMBIT, BULLBIT, BURNBIT } from "../src/tileFlags";
 import { FIRE, LASTFIRE, RUBBLE, LASTRUBBLE, WOODS } from "../src/tileValues";
 import { fireChance, floodsOnto, readRoadWear, roadWearMonth, WEAR_MONTH, wornSpeed, WORN_SPEED, writeRoadWear } from "../src/sim/disasterLand";
 import { RoadGraph } from "../src/roads/roadGraph";
+import { GameMap } from "../src/gameMap.js";
+import { TornadoSprite } from "../src/tornadoSprite.js";
 
 describe("disasters by the land and the wind", () => {
   test("a fire catches a tile downwind more, upwind less, a corner half as often", () => {
@@ -91,5 +93,46 @@ describe("on a real-scale city map", () => {
       }
     }
     expect(down).toBeGreaterThan(up);
+  });
+});
+
+describe("a storm", () => {
+  /** A storm let loose over woods 80 x 80 tiles of `tileSizeM`: the tiles under its path, and the tiles it wrecked */
+  const storm = (tileSizeM: number, seed: number) => {
+    const map = new (GameMap as any)(80, 80);
+    map.tileSizeM = tileSizeM;
+    for (let y = 0; y < 80; y++) for (let x = 0; x < 80; x++) map.setTile(x, y, WOODS, BURNBIT | BULLBIT);
+    Random.seed(seed);
+    const sprites = { getSpriteList: () => [], makeExplosionAt: () => {} };
+    const s = new (TornadoSprite as any)(map, sprites, 40 * 16 + 8, 40 * 16 + 8);
+    const path = new Set<number>(), wrecked = new Set<number>();
+    for (let step = 0; step < 150 && s.frame !== 0; step++) {
+      s.move(0, null, null);
+      if (s.frame !== 0) path.add(s.worldY * 80 + s.worldX);
+    }
+    for (let i = 0; i < 80 * 80; i++) if (map.getTileValue(i % 80, Math.floor(i / 80)) !== WOODS) wrecked.add(i);
+    return { path, wrecked, end: [s.worldX, s.worldY] };
+  };
+
+  test("on a real-scale city map it keeps to a way and wrecks a band round its path, not one tile", () => {
+    for (const seed of [1, 2, 3]) {
+      const { path, wrecked, end } = storm(16, seed);
+      // a band: well more tiles than its path, half as many again beside it as under it
+      expect(wrecked.size).toBeGreaterThan(path.size * 1.5);
+      const beside = [...wrecked].filter((i) => !path.has(i) && i !== 40 * 80 + 40);
+      expect(beside.length).toBeGreaterThan(path.size * 0.5);
+      // ... and none further than its reach
+      for (const i of wrecked) {
+        const near = [...path, 40 * 80 + 40].some((p) => (p % 80 - i % 80) ** 2 + (Math.floor(p / 80) - Math.floor(i / 80)) ** 2 <= 8);
+        expect(near).toBe(true);
+      }
+      // it went somewhere, not round about where it began (a storm that lived long enough)
+      if (path.size > 20) expect(Math.hypot(end[0] - 40, end[1] - 40)).toBeGreaterThan(8);
+    }
+  });
+
+  test("on a province map it takes the tile under it alone, as micropolisJS's did", () => {
+    const { path, wrecked } = storm(100, 1);
+    for (const i of wrecked) expect(path.has(i) || i === 40 * 80 + 40).toBe(true);
   });
 });
