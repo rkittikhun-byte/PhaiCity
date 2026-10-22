@@ -313,8 +313,9 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   Each piece's shape is worked out once from the tiles it was drawn along (`gameMap.roadPaths`, saved), so bulldozing
   some of its tiles cuts it and never moves the rest.
   Streets are named (`src/streetNames.ts`, from the map alone, not saved yet): roads, sois numbered odd and even along
-  their road, แยก off a soi, numbered highways; the 3D view writes the names along the roads near the ground
-  (`src/render3d/city/streetLabels.ts`, `streetName` in the view's setup, i18n `street.*`).
+  their road, แยก off a soi, numbered highways; the inspector names the street it is asked about. The 3D view no longer
+  writes them along the roads (owner, 23 Oct 2026: "ลบชื่อถนนทั้งหมดออก"): `src/render3d/city/streetLabels.ts` draws them
+  only when the view's setup has a `streetName`, which `game.js` no longer gives.
 - **Canals (คลอง, owner 19 Oct 2026):** `docs/CANALS.md`, `src/canals.ts`, `src/canalTool.ts`. A line tool in the
   transport tray after rail, drawn by the road modes: clear land and woods become water (RIVER with the bulldoze bit, so
   the bulldozer fills it in), a straight road or railway it crosses becomes a bridge, buildings and junctions are

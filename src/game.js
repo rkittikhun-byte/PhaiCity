@@ -99,7 +99,6 @@ import {
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
 import { canalMarkStands, isBridgeTile, isWaterTile } from './canals.ts';
-import { streetLabel } from './streetNames.ts';
 import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { installCameraBar } from './cameraModes.ts';
@@ -1374,11 +1373,8 @@ var createView3D = function(game, view3d) {
         landValueMap: maps.landValueMap
       },
       date: function() { return simulation.getDate(); },
-      // Street names along the roads, in the player's language (src/streetNames.ts)
-      streetName: function(street) {
-        var label = streetLabel(street, getLanguage());
-        return t(label.key, label.params);
-      },
+      // No street names written along the roads (owner, 23 Oct 2026: "ลบชื่อถนนทั้งหมดออก"): the view draws them only when
+      // given a streetName, so none is given; the inspector still names the street it is asked about (src/inspect.ts)
       // The whole province round a district's city, for zooming out over it (src/splashScreen.js)
       province: game.gameMap.provinceBackdrop || null
     });
