@@ -171,6 +171,23 @@ describe("a building turned to a slanted road", () => {
     expect(laidOutline(again.map as any, (again.map as any).buildings.atTile(at(cx, cy)))).toBeNull();
   });
 
+  test("laid on its square block, is never mended over a road on its block (22 Oct 2026)", () => {
+    // A health post's square block with one corner a road kept (a building put down against a slanted road whose laid
+    // tiles are its square but that corner): mending it each month left the road alone until it was finished, then took
+    // the corner and cut the road (the auto player's village went dark)
+    const c = city(), p0 = pose(c, 400), cx = Math.floor((p0.x + c.nx * 16) / M), cy = Math.floor((p0.z + c.nz * 16) / M);
+    expect(c.core.apply({ type: "tool", tool: "police", x: cx, y: cy, stroke: 2 } as any)).toMatchObject({ accepted: true, toolResult: 0 });
+    const corner = at(cx - 1, cy + 1), road = 66;
+    c.map.setTile(cx - 1, cy + 1, road, 0);
+    expect(isRoadTile(value(c.core, corner))).toBe(true);
+    (c.core.simulation as any)._repairManager.repairZone(cx, cy, 3);
+    expect(isRoadTile(value(c.core, corner))).toBe(true);
+    // ... while a bare corner is mended as before
+    c.map.setTile(cx - 1, cy + 1, DIRT, 0);
+    (c.core.simulation as any)._repairManager.repairZone(cx, cy, 3);
+    expect(inFamily(value(c.core, corner), value(c.core, at(cx, cy)), 3)).toBe(true);
+  });
+
   test("put down square to a straight road and slid along it, holds the outline it was put down on", () => {
     // (docs/NO_GRID_PLAN.md 3A: its square block of tiles and its fence once stood up to half a tile apart along the road)
     const map = (MapGenerator as any).fromPresetCells(W, H, new Uint8Array(W * H));

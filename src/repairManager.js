@@ -12,7 +12,7 @@
  */
 
 import { BURNBIT, CONDBIT } from "./tileFlags.ts";
-import { DIRT, RUBBLE, ROADBASE } from "./tileValues.ts";
+import { DIRT, LASTRAIL, RUBBLE, ROADBASE } from "./tileValues.ts";
 import { familyValue, inFamily, laidOutline, outlineTiles } from "./buildings/turnedFootprint.ts";
 
 function RepairManager(map) {
@@ -59,6 +59,12 @@ RepairManager.prototype.repairZone = function(x, y, zoneSize) {
         continue;
 
       var currentValue = current.getValue();
+      // PhaiCity: never over a road, railway or power line on its block: a building put down against a slanted road
+      // whose laid tiles are its square block but a corner the road kept (src/buildings/turnedFootprint.ts laidOutline)
+      // took that corner back when it was first mended, and the road was cut (22 Oct 2026: a health post finished
+      // beside the village's power plant cut its one road to the town, and the town went dark)
+      if (currentValue >= ROADBASE && currentValue <= LASTRAIL)
+        continue;
       if (currentValue < RUBBLE || currentValue >= ROADBASE)
         this._map.setTile(x + xx, y + yy, tileValue, CONDBIT | BURNBIT);
     }

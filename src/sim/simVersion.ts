@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 14;
+export const SIM_VERSION = 15;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -47,6 +47,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "within reach scores as by its places and people (NO_GRID_PLAN 4.3)",
   14: "on a real-scale city map a storm keeps to a way and wrecks a band round its path, not the one tile under it " +
     "(NO_GRID_PLAN 4.4)",
+  15: "a building whose laid tiles are its square block is never mended over a road, railway or power line on that " +
+    "block (one put down against a slanted road kept a corner of it road, which its first mending took, cutting the road)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */
