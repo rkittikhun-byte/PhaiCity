@@ -16,6 +16,7 @@ import { BlockMapUtils } from './blockMapUtils.js';
 import { Budget } from './budget.js';
 import { Census } from './census.js';
 import { Commercial } from './commercial.js';
+import { roadUpkeepByLength } from './sim/roadUpkeep.ts';
 import { DisasterManager } from './disasterManager.js';
 import { EventEmitter } from './eventEmitter.js';
 import { EmergencyServices } from './emergencyServices.js';
@@ -356,6 +357,12 @@ Simulation.prototype._clearCensus = function() {
   // The cycle's stops and stations reach the next cycle's trips (src/transit.ts)
   this._transit.endCycle();
   this._census.clearCensus();
+  // PhaiCity: on a real-scale city map the roads' upkeep is by their lengths, not their tiles (docs/NO_GRID_PLAN.md 1.1)
+  var byLength = roadUpkeepByLength(this._map);
+  if (byLength !== null) {
+    this._census.roadUpkeep = byLength;
+    this._census.roadsByLength = true;
+  }
   // PhaiCity: each bus on a road works as a stop did, reaching further (src/busStopTool.ts); its upkeep goes in this
   // cycle's census, as the stations found on the map do
   var buses = this._map.buses || [];
