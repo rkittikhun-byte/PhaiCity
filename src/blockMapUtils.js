@@ -249,10 +249,19 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
   var landValueMap = blockMaps.landValueMap;
   // ... and the open land round each block counts by how much of it there is within about 100 m of the block's middle,
   // not by the 64 m block it lies in (src/sim/pollutionField.ts openLandField, docs/NO_GRID_PLAN.md 4.2); the values
-  // round the block maps' blocks of 2 tiles
-  var openLand = metric ? openLandField(map, landValueMap.blockSize, function(value, x, y) {
-    return value === TileValues.DIRT ? Boolean(landCover && OPEN_COVER[landCover[y * map.width + x]]) : value < TileValues.RUBBLE;
-  }) : null;
+  // round the block maps' blocks of 2 tiles, from the open land this scan finds, as the terrain map was (the first scan
+  // looks first)
+  var openTiles = metric ? new Uint8Array(map.width * map.height) : null;
+  if (metric && !(blockMaps.openLand instanceof Uint8Array && blockMaps.openLand.length === landValueMap.width * landValueMap.height)) {
+    for (var oy = 0; oy < map.height; oy++)
+      for (var ox = 0; ox < map.width; ox++) {
+        var ov = map.getTileValue(ox, oy);
+        openTiles[oy * map.width + ox] = (ov === TileValues.DIRT ? landCover && OPEN_COVER[landCover[oy * map.width + ox]] :
+                                          ov < TileValues.RUBBLE) ? 1 : 0;
+      }
+    blockMaps.openLand = openLandField(map.width, map.height, map.tileSizeM, landValueMap.blockSize, openTiles);
+  }
+  var openLand = metric ? blockMaps.openLand : null;
   var terrainDensityMap = blockMaps.terrainDensityMap;
   var pollutionDensityMap = blockMaps.pollutionDensityMap;
   var crimeRateMap = blockMaps.crimeRateMap;
@@ -283,8 +292,13 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
             // PhaiCity: on a real map, bare land the map knows is paddy, field, orchard, grass or wetland is open land
             // as woods and water are, and makes the land beside it worth more (owner, 15 Oct 2026: "แก้ราคาที่ดินต่ำ
             // ให้บ้านกับร้านค้าโตได้สูงขึ้น": round Khon Kaen it was all plain ground, so no block had any of it)
-            if (landCover && OPEN_COVER[landCover[mapY * map.width + mapX]])
+            if (landCover && OPEN_COVER[landCover[mapY * map.width + mapX]]) {
               tempMap3.worldSet(mapX, mapY, tempMap3.worldGet(mapX, mapY) + 15);
+              if (openTiles !== null)
+                openTiles[mapY * map.width + mapX] = 1;
+            } else if (openTiles !== null) {
+              openTiles[mapY * map.width + mapX] = 0;
+            }
             continue;
           }
 
@@ -294,6 +308,8 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
             // maximum value of 240
             var terrainValue = tempMap3.worldGet(mapX, mapY);
             tempMap3.worldSet(mapX, mapY, terrainValue + 15);
+            if (openTiles !== null)
+              openTiles[mapY * map.width + mapX] = 1;
             continue;
           }
 
@@ -402,6 +418,9 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
     census.pollutionAverage = 0;
 
   smoothMap(tempMap3, terrainDensityMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
+  // PhaiCity: ... and the open land round each block, for the next scan (openLand above)
+  if (openTiles !== null)
+    blockMaps.openLand = openLandField(map.width, map.height, map.tileSizeM, landValueMap.blockSize, openTiles);
 };
 
 

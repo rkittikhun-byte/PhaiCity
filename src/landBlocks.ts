@@ -68,8 +68,9 @@ export const blockRows = (map: { readonly height: number; tileSizeM?: number | n
 
 /** The block a tile lies in, as its index in landBlocks. */
 export function blockAt(map: LandMap, x: number, y: number): number {
+  // (the size once: it is asked for every tile of a city map, docs/NO_GRID_PLAN.md 5.1)
   const size = blockSizeOf(map);
-  return Math.floor(y / size) * blockColumns(map) + Math.floor(x / size);
+  return Math.floor(y / size) * Math.ceil(map.width / size) + Math.floor(x / size);
 }
 
 /** Whether the city owns the land at (x, y): always where the map has no blocks. */

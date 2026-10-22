@@ -46,21 +46,31 @@ export function pollutionField(width: number, height: number, tileSizeM: number,
   // (drawn out along the wind, it is lower in the same measure: the same pollution in all)
   const peak = POLLUTION_PEAK / stretch, along = reach * stretch;
   const span = Math.ceil((along + drift) / block) + 1;
-  for (const [tile, strength] of sources) {
+  // (plain loops over plain numbers: it runs over thousands of sources each scan)
+  const blown = w.strength > 0, wx = w.x, wz = w.y;
+  for (let s = 0; s < sources.length; s++) {
+    const tile = sources[s][0], strength = sources[s][1];
     if (strength <= 0) continue;
     const tx = tile % width, ty = (tile - tx) / width;
     // The plume's middle, the source's tile's middle carried downwind
-    const cx = (tx + 0.5) * tileSizeM + w.x * drift, cz = (ty + 0.5) * tileSizeM + w.y * drift;
+    const cx = (tx + 0.5) * tileSizeM + wx * drift, cz = (ty + 0.5) * tileSizeM + wz * drift;
     const bx = Math.floor(cx / block), bz = Math.floor(cz / block);
-    for (let j = Math.max(0, bz - span); j <= Math.min(blocksHigh - 1, bz + span); j++) {
-      for (let i = Math.max(0, bx - span); i <= Math.min(blocksWide - 1, bx + span); i++) {
+    const j0 = bz - span < 0 ? 0 : bz - span, j1 = bz + span > blocksHigh - 1 ? blocksHigh - 1 : bz + span;
+    const i0 = bx - span < 0 ? 0 : bx - span, i1 = bx + span > blocksWide - 1 ? blocksWide - 1 : bx + span;
+    const weight = strength * peak;
+    for (let j = j0; j <= j1; j++) {
+      const dz = (j + 0.5) * block - cz, row = j * blocksWide;
+      for (let i = i0; i <= i1; i++) {
         // the block's middle from the plume's middle, along the wind and across it
-        const dx = (i + 0.5) * block - cx, dz = (j + 0.5) * block - cz;
-        const u = (dx * w.x + dz * w.y) / stretch, v = dx * -w.y + dz * w.x;
-        const d2 = w.strength > 0 ? u * u + v * v : dx * dx + dz * dz;
+        const dx = (i + 0.5) * block - cx;
+        let d2: number;
+        if (blown) {
+          const u = (dx * wx + dz * wz) / stretch, v = dx * -wz + dz * wx;
+          d2 = u * u + v * v;
+        } else d2 = dx * dx + dz * dz;
         if (d2 >= reach2) continue;
         const fall = 1 - d2 / reach2;
-        sum[j * blocksWide + i] += strength * peak * fall * fall;
+        sum[row + i] += weight * fall * fall;
       }
     }
   }
@@ -82,37 +92,44 @@ export const OPEN_LAND_FULL = 240;
  * distance and has no edge where micropolisJS's 64 m blocks of open land ended. Counted with an integral image of the
  * open tiles: a few look-ups a block. Blocks in rows, as the block maps keep them.
  */
-export function openLandField(map: { readonly width: number; readonly height: number; readonly tileSizeM?: number | null;
-  getTileValue(x: number, y: number): number }, blockSize: number, isOpen: (value: number, x: number, y: number) => boolean): Uint8Array {
-  const { width, height } = map, tile = map.tileSizeM || 16;
-  // the count of open tiles above and left of each corner
+export function openLandField(width: number, height: number, tileSizeM: number | null | undefined, blockSize: number,
+  open: ArrayLike<number>): Uint8Array {
+  const tile = tileSizeM || 16;
+  // the count of open tiles (open[i] 1) above and left of each corner
   const sums = new Int32Array((width + 1) * (height + 1));
   for (let y = 0; y < height; y++) {
     let row = 0;
     for (let x = 0; x < width; x++) {
-      if (isOpen(map.getTileValue(x, y), x, y)) row++;
+      if (open[y * width + x]) row++;
       sums[(y + 1) * (width + 1) + x + 1] = sums[y * (width + 1) + x + 1] + row;
     }
   }
-  const count = (x0: number, y0: number, x1: number, y1: number): number => {
-    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(width, x1); y1 = Math.min(height, y1);
-    if (x1 <= x0 || y1 <= y0) return 0;
-    return sums[y1 * (width + 1) + x1] - sums[y0 * (width + 1) + x1] - sums[y1 * (width + 1) + x0] + sums[y0 * (width + 1) + x0];
-  };
-  const blocksWide = Math.ceil(width / blockSize), blocksHigh = Math.ceil(height / blockSize);
+  const blocksWide = Math.ceil(width / blockSize), blocksHigh = Math.ceil(height / blockSize), stride = width + 1;
   const out = new Uint8Array(blocksWide * blocksHigh);
-  const halves = OPEN_LAND_REACH_M.map((m) => Math.max(1, Math.round(m / tile)));
-  for (let j = 0; j < blocksHigh; j++) for (let i = 0; i < blocksWide; i++) {
-    // the block's middle, on the corner between its tiles (a block of 2 tiles) or a tile's middle
-    const mx = i * blockSize + blockSize / 2, my = j * blockSize + blockSize / 2;
-    let share = 0;
-    for (const h of halves) {
-      const x0 = Math.round(mx - h), y0 = Math.round(my - h), x1 = Math.round(mx + h), y1 = Math.round(my + h);
-      // (a square cut by the map's edge counts what lies on the map)
-      const area = (Math.min(width, x1) - Math.max(0, x0)) * (Math.min(height, y1) - Math.max(0, y0));
-      share += area > 0 ? count(x0, y0, x1, y1) / area : 0;
+  const halves = OPEN_LAND_REACH_M.map((m) => Math.max(1, Math.round(m / tile))), n = halves.length;
+  // (the squares' sides, a block's middle a whole tile when its side is even: plain integer sums, no closures, as it runs
+  // over every block of the map each scan)
+  const half = Math.floor(blockSize / 2), odd = blockSize % 2;
+  for (let j = 0; j < blocksHigh; j++) {
+    const my = j * blockSize + half;
+    for (let i = 0; i < blocksWide; i++) {
+      const mx = i * blockSize + half;
+      let share = 0;
+      for (let k = 0; k < n; k++) {
+        const h = halves[k];
+        let x0 = mx - h, y0 = my - h, x1 = mx + h + odd, y1 = my + h + odd;
+        if (x0 < 0) x0 = 0;
+        if (y0 < 0) y0 = 0;
+        if (x1 > width) x1 = width;
+        if (y1 > height) y1 = height;
+        // (a square cut by the map's edge counts what lies on the map)
+        const area = (x1 - x0) * (y1 - y0);
+        if (area <= 0) continue;
+        share += (sums[y1 * stride + x1] - sums[y0 * stride + x1] - sums[y1 * stride + x0] + sums[y0 * stride + x0]) / area;
+      }
+      const value = Math.floor(OPEN_LAND_FULL * share / n);
+      out[j * blocksWide + i] = value > OPEN_LAND_FULL ? OPEN_LAND_FULL : value;
     }
-    out[j * blocksWide + i] = Math.min(OPEN_LAND_FULL, Math.floor(OPEN_LAND_FULL * share / halves.length));
   }
   return out;
 }

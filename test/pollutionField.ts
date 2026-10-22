@@ -78,8 +78,8 @@ describe("pollution as sources in metres", () => {
 
   test("open land adds to a block's value by how much lies round its middle, falling off smoothly (4.2)", () => {
     // open land west of x = 20, built land east of it
-    const map = { width: W, height: H, tileSizeM: M, getTileValue: (x: number) => (x < 20 ? 0 : 500) };
-    const field = openLandField(map, B, (value) => value === 0);
+    const open = Uint8Array.from({ length: W * H }, (_, i) => (i % W < 20 ? 1 : 0));
+    const field = openLandField(W, H, M, B, open);
     const value = (bx: number) => field[10 * blocks + bx];
     expect(value(2)).toBe(OPEN_LAND_FULL);
     expect(value(blocks - 2)).toBe(0);
