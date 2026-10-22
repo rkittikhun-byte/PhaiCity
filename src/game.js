@@ -123,6 +123,7 @@ import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
 import { SettingsWindow } from './settingsWindow.js';
 import { Simulation } from './simulation.js';
+import { browserTripWorker, workerTripRunner } from './sim/tripWorker.ts';
 import { Storage } from './storage.js';
 import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
@@ -215,6 +216,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.core = new CityCore({
     map: this.gameMap, saved: savedGame, level: difficulty, speed: this.defaultSpeed,
     rules: rules || null, resources: resources || null,
+    // A month's trips on the road graph worked out in a worker, so a big city does not stall at a month's start
+    // (docs/NO_GRID_PLAN.md 1.4; the core brings them in at the same step either way)
+    tripRunner: typeof Worker !== 'undefined' ? workerTripRunner(browserTripWorker) : undefined,
     hooks: {
       // The ruler's house's next level needs the ruler's rank (src/rulerHouse.ts)
       rank: function() { return Math.max(0, RANKS.indexOf(coreGame.rulerRank)); },
@@ -455,9 +459,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   this.mapWindow = new MapWindow(opacityLayerID, 'mapWindow');
   // The layer the city map shows lies over the city's ground while the window is open (src/render3d/city/layerOverlay.ts)
-  this.mapWindow.onLayer = function(tiles) {
+  this.mapWindow.onLayer = function(tiles, layer) {
     if (typeof this.cityView.showLayer === 'function')
-      this.cityView.showLayer(tiles);
+      this.cityView.showLayer(tiles, layer);
   }.bind(this);
   this.mapWindow.addEventListener(Messages.MAP_WINDOW_CLOSED, function(target) {
     this.genericDialogClosure();
@@ -798,6 +802,17 @@ Game.prototype.mapOverlays = function() {
     var score = scores[y * map.width + x];
     return score < 0 ? null : score;
   };
+  // ... and on a real-scale city map the roads as full as the month's trips make them (src/sim/cityTrips.ts)
+  var trips = map.trips;
+  if (trips && trips.roadTiles) {
+    var full = new Float32Array(map.width * map.height).fill(-1);
+    for (var t = 0; t < trips.roadTiles.length; t++)
+      full[trips.roadTiles[t]] = trips.roadFull[t];
+    overlays.roadFull = function(x, y) {
+      var value = full[y * map.width + x];
+      return value < 0 ? null : value;
+    };
+  }
   return overlays;
 };
 

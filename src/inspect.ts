@@ -20,6 +20,9 @@ import { PLANT_TOOLS } from "./powerPlants.js";
 import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
 import { roadSegmentAt } from "./objects/roadSegment.js";
 import { cellsOf } from "./zoneCells.js";
+import { type CityTrips, roadTrips } from "./sim/cityTrips.js";
+import type { RoadGraph } from "./roads/roadGraph.js";
+import { isCityTileSize } from "./units.js";
 import { type PlotChecklist, plotChecklist } from "./plotChecklist.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
@@ -178,7 +181,18 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     if (segment) {
       facts.push({ key: "object.fact.length", params: { metres: segment.lengthM } });
       const traffic = city.blockMaps?.trafficDensityMap;
-      if (traffic) {
+      // On a real-scale city map the month's trips on the road graph say how busy it is (src/sim/cityTrips.ts,
+      // docs/NO_GRID_PLAN.md 1.6): its cars, what it takes, how fast they go and whose trips they are
+      const tripMap = map as unknown as { trips?: CityTrips | null; roadGraph?: RoadGraph | null; tileSizeM?: number | null };
+      const size = tripMap.tileSizeM ?? 16;
+      const trips = isCityTileSize(tripMap.tileSizeM) ? roadTrips(tripMap.trips, tripMap.roadGraph, (x + 0.5) * size, (y + 0.5) * size, size) : null;
+      if (trips) {
+        if (trips.cars > 0) {
+          facts.push({ key: "object.fact.road_cars", params: { cars: trips.cars, capacity: trips.capacity } });
+          facts.push({ key: "object.fact.road_speed", params: { speed: trips.speedKmh, clear: trips.clearKmh } });
+          facts.push({ key: "object.fact.road_users", params: { homes: trips.homes, work: trips.work, shop: trips.shop } });
+        } else facts.push({ key: "object.fact.road_empty" });
+      } else if (traffic) {
         const grade = Math.max(...segment.points.map((p) => gradeAt(traffic, p.x, p.y, DENSITY_GRADES)));
         facts.push({ key: "object.fact.traffic", params: { grade: `object.grade.${grade}` } });
       }

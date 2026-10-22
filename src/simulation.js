@@ -17,6 +17,7 @@ import { Budget } from './budget.js';
 import { Census } from './census.js';
 import { Commercial } from './commercial.js';
 import { roadUpkeepByLength } from './sim/roadUpkeep.ts';
+import { paintTraffic } from './sim/cityTrips.ts';
 import { DisasterManager } from './disasterManager.js';
 import { EventEmitter } from './eventEmitter.js';
 import { EmergencyServices } from './emergencyServices.js';
@@ -583,7 +584,9 @@ var simulate = function(simData) {
       if ((this._simCycle % 5) === 0)
         BlockMapUtils.neutraliseRateOfGrowthMap(simData.blockMaps);
 
-      BlockMapUtils.neutraliseTrafficMap(this.blockMaps);
+      // PhaiCity: on a real-scale city map the traffic is the month's trips on the road graph (src/sim/cityTrips.ts)
+      if (!paintTraffic(this._map, this.blockMaps.trafficDensityMap))
+        BlockMapUtils.neutraliseTrafficMap(this.blockMaps);
       this._sendMessages();
       break;
 

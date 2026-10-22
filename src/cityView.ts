@@ -130,7 +130,7 @@ export interface CityView {
    * 3D only, optional: lays a layer of the city map over the ground (owner, 15 Oct 2026), its picture a pixel a tile
    * (src/cityMap.ts layerPixels), or takes it away (null). The city map window calls it as its layer changes.
    */
-  showLayer?(tiles: HTMLCanvasElement | null): void;
+  showLayer?(tiles: HTMLCanvasElement | null, layer?: string): void;
   /**
    * 3D only, optional: slides the city along with a mouse drag of dx, dy CSS pixels, so the ground under the mouse
    * stays under it. A left-button drag with no tool in hand uses it (src/viewControls.ts).

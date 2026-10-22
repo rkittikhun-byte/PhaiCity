@@ -125,7 +125,7 @@ MapWindow.prototype._draw = function() {
 
   this._label();
   if (this.onLayer)
-    this.onLayer(ground);
+    this.onLayer(ground, this._layer);
 };
 
 

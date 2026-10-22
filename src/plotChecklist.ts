@@ -16,6 +16,7 @@ import {
   type PlotWhy,
 } from "./plots.js";
 import { familyPull, pollutionShield, SERVICES_FROM, type ServiceLevels } from "./services.js";
+import { TRIP_MINUTES } from "./sim/trips.js";
 import { POWERBIT } from "./tileFlags.js";
 import { ZONE_WATERED } from "./waterManager.js";
 
@@ -91,10 +92,10 @@ export function plotChecklist(city: ChecklistCity, x: number, y: number): PlotCh
     rows.push(row);
   };
 
-  // A road within reach, and a way along it to where its trips go (homes to shops, shops to factories, factories to
-  // homes): the simulation finds the second only when a trip fails
+  // A road within reach, and a way along it to where its trips go within the trips' reach (a home's to work, a shop's
+  // or factory's from the homes: the month's trips on the road graph, src/sim/trips.ts, docs/NO_GRID_PLAN.md 1.3)
   if (!nearestRoad(map, x, y)) add("road", false, "plot.check.road_none", { reach: PLOT_REACH }, "plot.hint.road");
-  else if (why === "road") add("road", false, `plot.check.route.${kind}`, undefined, `plot.hint.route.${kind}`);
+  else if (why === "road") add("road", false, `plot.check.route.${kind}`, { minutes: TRIP_MINUTES }, `plot.hint.route.${kind}`);
   else add("road", true, "plot.check.road");
   const powered = (map.getTileFlags(x, y) & POWERBIT) !== 0;
   add("power", powered, powered ? "plot.check.power" : "plot.check.power_none", undefined, "plot.hint.power");

@@ -22,13 +22,15 @@ export class CitySprites {
   private angles=new Map<unknown,number>();
   /** How big the cars, trains and the rest are drawn: their real size on a real-scale city map (tileModels.ts atRealSize) */
   size=1;
+  /** The simulation's train is not drawn where a real one runs the railway as drawn (railTrains.ts) */
+  hideTrains=false;
   constructor(){this.mesh=new InstancedMesh(this.geometry,getPreviewGround(),128);this.mesh.count=0;this.mesh.castShadow=true;this.mesh.frustumCulled=false;this.root.add(this.mesh);
     const debug=registry['debug.box_3x3'].factory({seed:0}),source=visibleMeshes(debug)[0];
     this.unknown=new InstancedMesh(source.geometry.clone().scale(1/3,1/3,1/3),source.material,128);this.unknown.count=0;this.unknown.frustumCulled=false;this.root.add(this.unknown);disposeModel(debug);
   }
   update(values:unknown[]|null,dt:number,paused:boolean,roads:readonly Placement[]=[],traffic?:BlockMapReader,seconds=0,ground:(x:number,z:number)=>number=()=>0):void {
     const active=new Set<unknown>(),matrix=new Matrix4(),color=new Color();let n=0,unknownCount=0;
-    for(const value of values??[]){if(n+unknownCount>=128)break;const s=value as CitySprite;if(!s||!Number.isFinite(s.x+s.y+s.type))continue;
+    for(const value of values??[]){if(n+unknownCount>=128)break;const s=value as CitySprite;if(!s||!Number.isFinite(s.x+s.y+s.type)||(this.hideTrains&&s.type===1))continue;
       active.add(value);const goal=spritePosition(s);goal.y+=ground(goal.x,goal.z);const p=this.positions.get(value)??goal.clone(),previous=this.last.get(value)??goal;
       if(!paused)p.lerp(goal,1-Math.exp(-dt*12));this.positions.set(value,p);
       const motion=goal.clone().sub(previous),facing=motion.lengthSq()>.0001?Math.atan2(motion.x,motion.z):(Math.max(1,s.frame??1)-1)*Math.PI/4;
