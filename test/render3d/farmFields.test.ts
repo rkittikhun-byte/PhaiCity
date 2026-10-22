@@ -92,6 +92,29 @@ describe('the farm zone in 3D', () => {
     expect(view.counts().fields).toBe(18 * 8 + 2);
     view.dispose();
   });
+
+  test('a dike runs only where the paddies end, not round every tile (docs/NO_GRID_PLAN.md 3C)', () => {
+    const map = newMap(1);
+    const view = new CityFarmFields(map, flat);
+    view.update([], MAY, 300, 0);
+    const ground = view.root.children.find((c) => c.name === 'farm_fields/ground') as Mesh;
+    const position = ground.geometry.getAttribute('position') as BufferAttribute;
+    // The water of the paddies (inner quads, lifted higher) reaches the tiles' edges inside the painted block, and
+    // stands back from its outline: x from 2 to 20 tiles, z from 2 to 6 (10 units a tile)
+    const xs: number[] = [], zs: number[] = [];
+    for (let i = 0; i < position.count; i++) {
+      if (position.getY(i) < 0.08 || position.getZ(i) > 60) continue;
+      xs.push(position.getX(i)); zs.push(position.getZ(i));
+    }
+    const atTileEdge = (v: number) => Math.abs(v / 10 - Math.round(v / 10)) < 1e-6;
+    // inside: every tile edge between two paddies has water on it ...
+    expect(xs.filter((x) => x > 25 && x < 195 && atTileEdge(x)).length).toBeGreaterThan(0);
+    // ... and the outline stands back by the dike
+    expect(Math.min(...xs)).toBeCloseTo(20.7);
+    expect(Math.max(...xs)).toBeCloseTo(199.3);
+    expect(Math.min(...zs)).toBeCloseTo(20.7);
+    view.dispose();
+  });
 });
 
 describe('the tiles of the farm zone and its farm buildings', () => {

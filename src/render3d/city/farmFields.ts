@@ -214,6 +214,16 @@ export class CityFarmFields {
         p(xb, za); p(xa, zb); p(xb, zb);
       }
     };
+    // A dike only where the paddy or pond ends, along the edge of what was painted, not round every 16 m tile
+    // (docs/NO_GRID_PLAN.md 3C; owner, 21 Oct 2026: "นาเป็นสี่เหลี่ยม 16 ม. พร้อมคันนาทุกช่อง" was the grid he saw):
+    // fields of one kind grown side by side are one sheet of water inside one bank
+    const byIndex = new Map<number, Field>();
+    for (const field of this.fields) byIndex.set(field.index, field);
+    const joins = (field: Field, x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= this.map.width || y >= this.map.height) return false;
+      const other = byIndex.get(y * this.map.width + x);
+      return Boolean(other && other.kind === field.kind && other.level > 0);
+    };
     for (const field of this.fields) {
       const x = field.index % this.map.width, y = Math.floor(field.index / this.map.width);
       const x0 = x * UNITS, z0 = y * UNITS, x1 = x0 + UNITS, z1 = z0 + UNITS;
@@ -221,7 +231,8 @@ export class CityFarmFields {
       quad(x0, z0, x1, z1, LIFT, outer);
       if (insideToo) {
         const inset = field.kind === 'pond' ? 1.4 : 0.7;
-        quad(x0 + inset, z0 + inset, x1 - inset, z1 - inset, INNER_LIFT, inner);
+        const at = (dx: number, dy: number): number => (joins(field, x + dx, y + dy) ? 0 : inset);
+        quad(x0 + at(-1, 0), z0 + at(0, -1), x1 - at(1, 0), z1 - at(0, 1), INNER_LIFT, inner);
       }
     }
     const geometry = new BufferGeometry();
