@@ -27,6 +27,7 @@ import { trainingCity, trainMonth, type TrainedYear } from "../trainedPeople.js"
 import { type SiteDone, sitesMonth } from "../construction.js";
 import { templeMonth, type TempleNews } from "../temples.js";
 import { coverCityRoads } from "../roads/roadCover.js";
+import { TripSystem, type TripRunner } from "../sim/cityTrips.js";
 import { isCityTileSize } from "../units.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,6 +89,8 @@ export interface CoreSetup {
   /** Anything can be built at once, as before the unlock table and the construction sites (src/unlocks.ts): for tests
    * of other things; never saved */
   sandbox?: boolean;
+  /** Where a month's trips are worked out (src/sim/cityTrips.ts): at once by default, a worker in the browser */
+  tripRunner?: TripRunner;
   hooks?: CityHooks;
 }
 
@@ -107,6 +110,8 @@ export class CityCore {
   readonly log: LoggedCommand[] = [];
   /** Simulation steps run since the city opened (16 make one of the city's time units, 48 units a year) */
   steps = 0;
+  /** The month's trips on the road graph (docs/NO_GRID_PLAN.md step 1), set going at a month's start */
+  readonly trips: TripSystem;
   private systems: CitySystem[] = [];
   private listeners = new Map<string, Array<(event: CoreEvent) => void>>();
 
@@ -114,6 +119,7 @@ export class CityCore {
     const saved = setup.saved ?? null;
     if (setup.seed !== undefined && !saved) Random.seed(setup.seed);
     this.map = setup.map;
+    this.trips = new TripSystem(setup.tripRunner);
     if (setup.sandbox) this.map.sandbox = true;
     readCityLayers(this.map, saved);
     this.simulation = new SimulationClass(this.map, setup.level ?? SimulationStatics.LEVEL_EASY,
@@ -142,6 +148,12 @@ export class CityCore {
     this.objects = CityObjects.restore(this.map, saved ? saved.objects : null);
     // The road and rail graphs given any road or railway tile they lack, as after each command (coverRoads)
     this.addSystem({ name: "roads", monthly: core => core.coverRoads() });
+    // The month's trips on the road graph, which come into the city half a month later (src/sim/cityTrips.ts)
+    this.addSystem({ name: "trips", monthly: core => {
+      const sim = core.simulation;
+      core.trips.monthly(core.map, core.steps, sim._cityTime >> 2, (x, y) => sim._transit?.ridersAt(x, y) ?? 0,
+        sim._traffic?.weatherLoad ?? 1);
+    } });
     this.addSystem({ name: "objects", monthly: core => {
       const { added, removed } = core.objects.scan(core.map, core.simulation._cityTime);
       for (const object of added) core.emit({ type: "built", object });
@@ -235,6 +247,7 @@ export class CityCore {
     // ... the roads drawn in metres cut where it took a tile of them (a flood, a road fallen apart)
     this.commands.cutLost();
     this.steps++;
+    this.trips.step(this.map, this.steps);
     this.simulation._updateTime();
   }
 
@@ -252,6 +265,7 @@ export class CityCore {
       sim._simulate(sim._constructSimData());
       this.commands.cutLost();
       this.steps++;
+      this.trips.step(this.map, this.steps);
       sim._lastTickTime = new Date(now);
     }
     sim._updateTime();

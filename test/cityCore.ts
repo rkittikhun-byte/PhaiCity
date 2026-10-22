@@ -82,7 +82,7 @@ describe("the game's core", () => {
 
     const start = core.simulation.getDate().year;
     core.run(STEPS_PER_YEAR);
-    expect(core.systemNames).toEqual(["roads", "objects", "era", "festivals", "trained", "construction", "temples"]);
+    expect(core.systemNames).toEqual(["roads", "trips", "objects", "era", "festivals", "trained", "construction", "temples"]);
     // The era system scores the city each month (src/eraScore.ts), headless as in the game
     expect(map.eraScore).toMatchObject({ era: 1 });
     expect(map.eraScore.score).toBeGreaterThanOrEqual(0);
