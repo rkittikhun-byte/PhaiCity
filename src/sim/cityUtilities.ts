@@ -76,6 +76,14 @@ export function scanState<T extends { roads: RoadNet; state: Uint8Array }>(last:
   return Object.assign(last, next, { state: last.state });
 }
 
+/** What ran along the road a plot reaches at a power or water scan (ROAD_*), or null: no scan to read, or no road */
+export function plotRoadSupply(map: UtilityMap, scan: { roads: RoadNet; state: Uint8Array } | null | undefined,
+  x: number, y: number): number | null {
+  if (!scan || !map.roadGraph) return null;
+  const access = plotAccess(map, x, y), k = access ? scan.roads.segmentIndex.get(access.segment) : undefined;
+  return k === undefined ? null : scan.state[k];
+}
+
 /** What ran along each road at a power or water scan, by tile, for the city map's layers: the state of the road whose
  * tiles these are (src/sim/roadSupply.ts ROAD_*, the best of several on a tile), -1 where no road of the graph lies;
  * null without a scan to show */
@@ -94,12 +102,15 @@ export function roadStateTiles(map: { width: number; height: number; tileSizeM?:
   return out;
 }
 
-/** A plot's power by its level, in the units a tile of a building takes (the old game's one a tile): an empty lot a
- * little, a house less than a tile, a tower block several; factories take a quarter more */
-export const PLOT_POWER: readonly number[] = [0.25, 0.75, 1, 1.5, 2, 2.5];
+/** A plot's power by its level, in the units a tile of a building takes (the old game's one a tile, whatever stood on
+ * it): an empty lot and a house as before, a tower block several; factories take a quarter more. (A first try gave an
+ * empty lot a quarter and a house three quarters: one village plant then lit twice the town, which grew twice as fast
+ * in its first years, docs/GAME_DESIGN.md 11) */
+export const PLOT_POWER: readonly number[] = [1, 1, 1.25, 1.5, 2, 2.5];
 export const FACTORY_POWER = 1.25;
-/** A plot's water by its level, times a plot's share of a zone's (PLOT_SHARE): none for an empty lot */
-export const PLOT_WATER: readonly number[] = [0, 0.75, 1, 1.25, 1.5, 2];
+/** A plot's water by its level, times a plot's share of a zone's (PLOT_SHARE): none for an empty lot, a house's and the
+ * next level's as before, more for the bigger ones */
+export const PLOT_WATER: readonly number[] = [0, 1, 1, 1.25, 1.5, 2];
 
 const byLevel = (table: readonly number[], level: number): number => table[Math.max(0, Math.min(table.length - 1, level))];
 

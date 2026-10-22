@@ -480,6 +480,7 @@
 | `camera.top` | `src/cameraModes.ts` | — | `Look straight down, north up` | `มองตรงจากบน หันทิศเหนือขึ้น` |  |
 | `camera.whole` | `src/cameraModes.ts` | — | `See the whole city` | `ดูทั้งเมือง` |  |
 | `tool.needs_road` | `src/game.js` | — | `Buildings stand beside a road: put it next to one` | `อาคารต้องตั้งติดถนน วางให้ชิดถนน` | แผนที่ที่ทาเขตทีละช่อง (src/cityCommands.ts roadBesideProblem) |
+| `tool.building_in_the_way` | `src/game.js` | — | `Another building's lot is in the way: move it a little further off` | `ชนที่ดินของอาคารอื่น เลื่อนออกไปอีกหน่อย` | ขอบที่ดินของอาคารชนขอบอาคารอื่น (src/buildings/outlineOverlap.ts) |
 | `tool.line_in_the_way` | `src/game.js` | — | `A road or railway runs through the lot: move it back from the road` | `มีถนนหรือทางรถไฟผ่านในที่ดิน เลื่อนให้ห่างถนน` | อาคารที่หันตามถนนเฉียงทับถนน (src/cityCommands.ts buildSite) |
 | `move.tip.find` | `src/game.js` | — | `Click a building to move it` | `คลิกอาคารที่จะย้าย` | ป้ายข้างเมาส์ของเครื่องมือย้าย |
 | `move.tip.pick` | `src/game.js` | — | `Click to pick it up` | `คลิกเพื่อยกอาคารนี้` |  |
@@ -1695,6 +1696,7 @@
 | `plot.hint.route.commercial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes, or give it a quicker way there` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย หรือทำทางที่ไปได้เร็วขึ้น` |  |
 | `plot.hint.route.industrial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes, or give it a quicker way there` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย หรือทำทางที่ไปได้เร็วขึ้น` |  |
 | `plot.hint.power` | `src/plotChecklist.ts` | — | `Build a power plant beside a road that reaches here` | `สร้างโรงไฟฟ้าติดถนนที่ต่อมาถึงที่นี่` |  |
+| `plot.hint.power_short` | `src/plotChecklist.ts` | — | `The power runs out before it reaches here: build another plant nearer, or a bigger one` | `ไฟฟ้าหมดก่อนมาถึงที่นี่ สร้างโรงไฟฟ้าอีกแห่งให้ใกล้ขึ้น หรือโรงที่ใหญ่กว่า` |  |
 | `plot.hint.water` | `src/plotChecklist.ts` | — | `Build a water works beside a road that reaches here, or another if the water runs short` | `สร้างโรงผลิตน้ำประปาติดถนนที่ต่อมาถึง หรือเพิ่มอีกแห่งถ้าน้ำไม่พอ` |  |
 | `plot.hint.demand.residential` | `src/plotChecklist.ts` | — | `Jobs, schools, health and lower home taxes draw people` | `งาน โรงเรียน สุขภาพ และภาษีที่อยู่อาศัยที่ต่ำลง ดึงคนเข้าเมือง` |  |
 | `plot.hint.demand.commercial` | `src/plotChecklist.ts` | — | `More people and lower shop taxes bring customers` | `คนมากขึ้นและภาษีพาณิชย์ที่ต่ำลง ทำให้มีลูกค้า` |  |

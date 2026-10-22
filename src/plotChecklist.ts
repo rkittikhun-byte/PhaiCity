@@ -16,6 +16,8 @@ import {
   type PlotWhy,
 } from "./plots.js";
 import { familyPull, pollutionShield, SERVICES_FROM, type ServiceLevels } from "./services.js";
+import { plotRoadSupply, type UtilityMap } from "./sim/cityUtilities.js";
+import { ROAD_SHORT } from "./sim/roadSupply.js";
 import { TRIP_MINUTES } from "./sim/trips.js";
 import { POWERBIT } from "./tileFlags.js";
 import { ZONE_WATERED } from "./waterManager.js";
@@ -66,7 +68,9 @@ interface Grid { worldGet?(x: number, y: number): number }
 
 /** What the checklist reads of the city: the map, the simulation's block maps, its demand and its services */
 export interface ChecklistCity {
-  map: PlotMap & { water?: { zoneWater(x: number, y: number): number } | null; plotWhy?: Uint8Array | null };
+  map: PlotMap & { water?: { zoneWater(x: number, y: number): number } | null; plotWhy?: Uint8Array | null;
+    /** On a real-scale city map, what ran along each road at the last power scan (src/powerManager.js) */
+    roadPower?: Parameters<typeof plotRoadSupply>[1] };
   blockMaps: { landValueMap?: Grid; pollutionDensityMap?: Grid; populationDensityMap?: Grid } | null;
   valves: { resValve?: number; comValve?: number; indValve?: number } | null;
   services: ServiceLevels | null;
@@ -98,7 +102,10 @@ export function plotChecklist(city: ChecklistCity, x: number, y: number): PlotCh
   else if (why === "road") add("road", false, `plot.check.route.${kind}`, { minutes: TRIP_MINUTES }, `plot.hint.route.${kind}`);
   else add("road", true, "plot.check.road");
   const powered = (map.getTileFlags(x, y) & POWERBIT) !== 0;
-  add("power", powered, powered ? "plot.check.power" : "plot.check.power_none", undefined, "plot.hint.power");
+  // (along the roads, a plot whose road the power reached but ran out before it wants a plant nearer: NO_GRID_PLAN 2.2)
+  const short = !powered && plotRoadSupply(map as unknown as UtilityMap, map.roadPower, x, y) === ROAD_SHORT;
+  add("power", powered, powered ? "plot.check.power" : "plot.check.power_none", undefined,
+    short ? "plot.hint.power_short" : "plot.hint.power");
   // Without water nothing grows past a house, or a shop's or factory's first size
   if (level >= 1) {
     const watered = !map.water || map.water.zoneWater(x, y) === ZONE_WATERED;

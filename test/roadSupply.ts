@@ -93,7 +93,9 @@ describe("handing a supply out along the roads", () => {
 
   test("a plot takes more power the bigger it grows, a factory more than a home", () => {
     expect(plotPower("residential", 0)).toBe(PLOT_POWER[0]);
-    for (let level = 1; level <= 5; level++) expect(plotPower("residential", level)).toBeGreaterThan(plotPower("residential", level - 1));
+    // (an empty lot and a house as a tile of the old game, then more each level)
+    expect(plotPower("residential", 1)).toBe(plotPower("residential", 0));
+    for (let level = 2; level <= 5; level++) expect(plotPower("residential", level)).toBeGreaterThan(plotPower("residential", level - 1));
     expect(plotPower("industrial", 3)).toBeGreaterThan(plotPower("residential", 3));
   });
 });
