@@ -9,8 +9,9 @@
 // metres too (step 3), and so would any building the list missed. Each tile knows which building covers it, for a
 // click. Plain code: no DOM, nothing random.
 
-import { buildingAt } from "./buildings.js";
+import { buildingAt, plotObject } from "./buildings.js";
 import type { Building, CityReader } from "./cityObject.js";
+import { isCityTileSize } from "../units.js";
 
 export class CityObjects {
   private byId = new Map<number, Building>();
@@ -57,19 +58,33 @@ export class CityObjects {
       const fresh = buildingAt(city, x, y);
       if (fresh && fresh.size === record.size) keep(fresh, record).placed = record;
     }
-    // ... and what grows on the tiles: homes, shops, factories and the stops (every building on a map with no list)
-    for (let y = 0; y < city.height; y++) for (let x = 0; x < city.width; x++) {
-      if (found.has(y * city.width + x)) continue;
-      const fresh = buildingAt(city, x, y);
-      if (fresh) keep(fresh).placed = null;
+    // ... and on a map whose plots are a list, a home, shop or factory a plot from the list, and nothing from a look
+    // over every tile (docs/NO_GRID_PLAN.md 5.2): its zones are painted, not laid as 3 x 3s, and its stops are buses on
+    // the roads (src/transit.ts)
+    const plots = city.cellZones && isCityTileSize(city.tileSizeM) ? city.plotBuildings : null;
+    if (plots) {
+      const tile = city.tileSizeM || 16;
+      for (const plot of plots.all()) {
+        const place = plots.places.get(plot.id);
+        // (as much of a tile as its columns cover, 4 m wide and the plot's 16 m deep: src/plotBuildings.ts plotShare)
+        const fresh = place ? plotObject(plot, place, city.width, plot.columns.length * 64 / (tile * tile)) : null;
+        if (fresh) keep(fresh).placed = null;
+      }
+    } else {
+      // ... and what grows on the tiles: homes, shops, factories and the stops (every building on a map with no list)
+      for (let y = 0; y < city.height; y++) for (let x = 0; x < city.width; x++) {
+        if (found.has(y * city.width + x)) continue;
+        const fresh = buildingAt(city, x, y);
+        if (fresh) keep(fresh).placed = null;
+      }
     }
     const removed = [...this.byId.values()].filter(b => found.get(b.id) !== b && !moved.has(b));
     this.byId = found;
     this.cover.fill(0);
+    // (a tile two plots lie on is the one's whose object came first: the plots in the list's order)
     for (const building of found.values()) {
-      for (let y = building.top; y < building.top + building.size; y++) for (let x = building.left; x < building.left + building.size; x++) {
-        if (x >= 0 && y >= 0 && x < this.width && y < this.height) this.cover[y * this.width + x] = building.id + 1;
-      }
+      const plot = (building as Building & { plot?: number | null }).plot != null;
+      for (const i of building.coverTiles(this.width, this.height)) if (!this.cover[i] || !plot) this.cover[i] = building.id + 1;
     }
     return { added, removed };
   }

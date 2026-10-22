@@ -12,15 +12,31 @@ import {
   AIRPORT, BUS_STOP, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, HHTHR, LHTHR, MINE, NUCLEAR, PLANT2, PLANT3,
   POLICESTATION, PORT, POWERPLANT, STADIUM, STATION, WASTE, WATER_TOWER, WATER_WORKS,
 } from "../tileValues.js";
-import { Building, CentralService, CityReader, CommunityBuilding, Fact, ObjectKind } from "./cityObject.js";
+import { Building, CentralService, CityReader, CommunityBuilding, Fact, ObjectKind, PLOT_OBJECT_BASE } from "./cityObject.js";
 import { areaFactors, demandFactor, type Satisfaction, type SatisfactionContext, type SatisfactionFactor,
   serviceFactors, settle, taxFactor } from "./satisfaction.js";
 
 /** A home, a shop or a factory: a 3 × 3 zone building, a house or a painted plot. */
 export abstract class ZoneBuilding extends CommunityBuilding {
-  /** Its level (0 for an empty zone or plot) and land class, read from its tile */
-  level(city: CityReader): number { return readPlotValue(city.getTileValue(this.x, this.y))?.level ?? 0; }
-  landClass(city: CityReader): number { return readPlotValue(city.getTileValue(this.x, this.y))?.value ?? 0; }
+  /** On a map whose plots are a list (src/plotBuildings.ts), its plot's id, the tiles it lies on, the one it is counted
+   * at, and how much of a tile it covers; null and a tile's worth for a building found on the tiles */
+  plot: number | null = null;
+  plotTiles: readonly number[] = [];
+  anchor = -1;
+  share = 1;
+  /** Its level (0 for an empty zone or plot) and land class: its plot's, else read from its tile */
+  level(city: CityReader): number {
+    if (this.plot !== null) return city.plotBuildings?.get(this.plot)?.level ?? 0;
+    return readPlotValue(city.getTileValue(this.x, this.y))?.level ?? 0;
+  }
+  landClass(city: CityReader): number {
+    if (this.plot !== null) return city.plotBuildings?.get(this.plot)?.value ?? 0;
+    return readPlotValue(city.getTileValue(this.x, this.y))?.value ?? 0;
+  }
+  override coverTiles(width: number, height: number): number[] {
+    return this.plot !== null ? [...this.plotTiles] : super.coverTiles(width, height);
+  }
+  override get eraTile(): number { return this.plot !== null ? this.anchor : this.id; }
   override facts(city: CityReader): Fact[] {
     const facts = super.facts(city);
     facts.unshift({ key: "object.fact.level", params: { level: this.level(city) } },
@@ -140,6 +156,23 @@ const CENTRES: ReadonlyArray<[number, number, (id: number, x: number, y: number)
   [STATION, 3, (id, x, y) => new Station(id, x, y, 3)],
 ];
 const BY_CENTRE = new Map(CENTRES.map(([value, size, make]) => [value, { size, make }]));
+
+/**
+ * The home, shop or factory of a plot of the list (src/plotBuildings.ts), at the tile it is counted at, covering the
+ * tiles its columns lie on, as much of a tile as its columns are (plotShare); null for an empty plot, which has no
+ * building yet (as a painted tile with none)
+ */
+export function plotObject(plot: { id: number; kind: string; level: number; born: number; columns: readonly number[] },
+  place: { anchor: number; tiles: readonly number[] }, width: number, share: number): ZoneBuilding | null {
+  if (plot.level <= 0 || place.anchor < 0) return null;
+  const make = plot.kind === "residential" ? Home : plot.kind === "commercial" ? Shop : Factory;
+  const object = new make(PLOT_OBJECT_BASE + plot.id, place.anchor % width, Math.floor(place.anchor / width), 1);
+  object.plot = plot.id;
+  object.plotTiles = place.tiles;
+  object.anchor = place.anchor;
+  object.share = share;
+  return object;
+}
 
 /**
  * The building that has this tile as its centre (a zone centre, or a one-tile building), or null.

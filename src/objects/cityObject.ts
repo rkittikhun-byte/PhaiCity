@@ -34,7 +34,24 @@ export interface CityReader {
   /** The ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts): the objects of the
    * central services come from here, not from a look over every tile (docs/METRE_DRAWING_PLAN.md 2.7) */
   readonly buildings?: { all(): ReadonlyArray<PlacedRecord> } | null;
+  /** On a map whose plots are a list (src/plotBuildings.ts usesPlotList): the plots, the homes, shops and factories'
+   * objects coming from here, one a plot, not from a look over every tile (docs/NO_GRID_PLAN.md 5.2) */
+  readonly cellZones?: boolean;
+  readonly tileSizeM?: number | null;
+  readonly plotBuildings?: PlotList | null;
 }
+
+/** A plot of the list as the objects read it: its id, kind, level, land class and columns, and where it stands */
+export interface PlotList {
+  all(): ReadonlyArray<{ readonly id: number; readonly kind: string; readonly level: number; readonly value: number;
+    readonly born: number; readonly columns: readonly number[] }>;
+  get(id: number): { readonly level: number; readonly value: number; readonly columns: readonly number[] } | undefined;
+  readonly places: ReadonlyMap<number, { readonly anchor: number; readonly tiles: readonly number[] }>;
+}
+
+/** Where a plot's object's id starts: a plot of id n is the object PLOT_OBJECT_BASE + n, past every tile's index (a
+ * tile's object has its centre's index), so a plot keeps its object, and what it remembers, however the map is framed */
+export const PLOT_OBJECT_BASE = 1e9;
 
 /** A building put down by the ruler, as gameMap.buildings keeps it: its centre tile's index, its middle and turn
  * (metres, radians; turn null when never turned) and the tool that built it */
@@ -93,6 +110,16 @@ export abstract class CityObject {
   covers(x: number, y: number): boolean {
     return x >= this.left && y >= this.top && x < this.left + this.size && y < this.top + this.size;
   }
+  /** The tiles it covers (their indices on a map `width` x `height`): its square, or a plot's own */
+  coverTiles(width: number, height: number): number[] {
+    const out: number[] = [];
+    for (let y = this.top; y < this.top + this.size; y++) for (let x = this.left; x < this.left + this.size; x++) {
+      if (x >= 0 && y >= 0 && x < width && y < height) out.push(y * width + x);
+    }
+    return out;
+  }
+  /** The tile its era is kept and drawn by (gameMap.buildingEras, src/eraScore.ts): its centre's, a plot's anchor */
+  get eraTile(): number { return this.id; }
   /** What sort of its kind it is (a lignite plant, a landfill, a school …), or "" if its kind has no sorts */
   sort(_city: CityReader): string { return ""; }
   /** How content it is (src/objects/satisfaction.ts), or null for what has no one to be content */

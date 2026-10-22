@@ -11,6 +11,7 @@
 import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "./geo/presetMap.js";
 import { movedGraphData } from "./roads/roadGraph.js";
 import { CITY_TILE_M } from "./units.js";
+import { PLOT_OBJECT_BASE } from "./objects/cityObject.js";
 
 /** A frame of a district's map, in its tiles: whole land blocks */
 export interface Frame { x: number; y: number; width: number; height: number }
@@ -189,7 +190,8 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
   if (save.trained && typeof save.trained === "object") out.trained = { ...save.trained, worked: movedKeys(save.trained.worked) };
   if (save.buildingPoses) out.buildingPoses = movedKeys(save.buildingPoses as Record<string, [number, number, number]>,
     ([x, z, turn]): [number, number, number] => [x + dx * 10, z + dy * 10, turn]);
-  if (Array.isArray(save.objects)) out.objects = save.objects.map((v: number, i: number) => (i % 2 === 0 ? moved(v) : v));
+  // (a plot's object keeps its id, which is no tile's: src/objects/cityObject.ts PLOT_OBJECT_BASE)
+  if (Array.isArray(save.objects)) out.objects = save.objects.map((v: number, i: number) => (i % 2 === 0 && v < PLOT_OBJECT_BASE ? moved(v) : v));
   if (Array.isArray(save.buses)) out.buses = save.buses.map(moved);
   out.rulerHouse = point(save.rulerHouse);
   out.town = point(save.town);

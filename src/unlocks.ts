@@ -16,6 +16,9 @@ import { KIND_FIELDS, toolOfCentre } from "./buildings/buildingRecords.js";
 import { isAnyRail } from "./roadTiles.js";
 import { isRoadTile, roadLevelAt } from "./roadLevels.js";
 import { TRAINED_KINDS, type TrainedCounts, trainedOf } from "./trainedPeople.js";
+import { segmentLevel } from "./sim/roadUpkeep.js";
+import { isCityTileSize } from "./units.js";
+import type { RoadGraph } from "./roads/roadGraph.js";
 
 export interface Unlock {
   /** The era that brings it */
@@ -184,21 +187,42 @@ export interface UnlockMap {
 export function unlockCity(map: UnlockMap, trainedScale = 1): UnlockCity {
   let finished: Map<string, number> | null = null, all: Map<string, number> | null = null;
   let rail: boolean | null = null, paved: boolean | null = null;
+  const count = (x: number, y: number, sites: Record<string, unknown>): void => {
+    const value = map.getTileValue(x, y), i = y * map.width + x;
+    const field = KIND_FIELDS[value];
+    const kind = field ? (map[field] as Record<string, string> | null | undefined)?.[i] : null;
+    const found = toolOfCentre(value, kind, map.buildingLevels?.[i]);
+    if (!found || found.size > 1 && !map.getTile(x, y).isZone()) return;
+    all!.set(found.tool, (all!.get(found.tool) ?? 0) + 1);
+    if (!(i in sites)) finished!.set(found.tool, (finished!.get(found.tool) ?? 0) + 1);
+  };
+  // On a real-scale city map the city is counted from its lists (docs/NO_GRID_PLAN.md 5.2): every building of the
+  // ruler's, at its centre tile (gameMap.buildings), and its roads and railways in their graphs; elsewhere a look over
+  // every tile
+  const listed = isCityTileSize(map.tileSizeM as number | null | undefined) ? map.buildings as
+    { all(): ReadonlyArray<{ tile: number }> } | null | undefined : null;
   const look = (): void => {
     finished = new Map(); all = new Map();
     const sites = map.sites ?? {};
-    for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
-      const value = map.getTileValue(x, y), i = y * map.width + x;
-      const field = KIND_FIELDS[value];
-      const kind = field ? (map[field] as Record<string, string> | null | undefined)?.[i] : null;
-      const found = toolOfCentre(value, kind, map.buildingLevels?.[i]);
-      if (!found || found.size > 1 && !map.getTile(x, y).isZone()) continue;
-      all.set(found.tool, (all.get(found.tool) ?? 0) + 1);
-      if (!(i in sites)) finished.set(found.tool, (finished.get(found.tool) ?? 0) + 1);
+    if (listed) {
+      for (const b of listed.all()) {
+        const x = b.tile % map.width, y = Math.floor(b.tile / map.width);
+        if (x >= 0 && y >= 0 && x < map.width && y < map.height) count(x, y, sites);
+      }
+      return;
     }
+    for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) count(x, y, sites);
   };
+  const graphs = map as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null };
   const scanRoads = (): void => {
     rail = false; paved = false;
+    if (listed && graphs.roadGraph) {
+      rail = Boolean(graphs.railGraph?.segments.size);
+      for (const segment of graphs.roadGraph.segments.values()) {
+        if (segmentLevel(map as never, graphs.roadGraph, segment) >= 2) { paved = true; break; }
+      }
+      return;
+    }
     for (let y = 0; y < map.height && !(rail && paved); y++) for (let x = 0; x < map.width; x++) {
       const value = map.getTileValue(x, y);
       if (!rail && isAnyRail(value)) rail = true;

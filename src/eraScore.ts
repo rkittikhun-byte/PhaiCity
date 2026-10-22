@@ -25,6 +25,8 @@ import { festivalCheer } from "./festivals.js";
 import { templeCheer } from "./temples.js";
 import { isRoadTile } from "./roadTiles.js";
 import { roadLevelAt } from "./roadLevels.js";
+import { segmentLevel } from "./sim/roadUpkeep.js";
+import { isCityTileSize } from "./units.js";
 import { modeRule } from "./gameModes.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,12 +65,13 @@ const roll = (): number => Random.getRandom16() / 65536;
 /** Every building the city keeps as an object (src/objects/), from the core */
 interface Objects { all(): Building[] }
 
-/** The people's share with water and with power, each home weighed by its level (a level is about as many people) */
+/** The people's share with water and with power, each home weighed by its level (a level is about as many people)
+ * and, a plot of the list, by how much of a tile it covers (src/objects/buildings.ts plotObject) */
 function servedShares(map: Legacy, objects: Objects): { water: number; power: number } {
   let homes = 0, watered = 0, powered = 0;
   for (const b of objects.all()) {
     if (b.kind !== "home") continue;
-    const level = (b as Building & { level?(m: Legacy): number }).level?.(map) || 1;
+    const level = ((b as Building & { level?(m: Legacy): number }).level?.(map) || 1) * ((b as Building & { share?: number }).share ?? 1);
     homes += level;
     const water = map.water?.zoneWater?.(b.x, b.y);
     // 1 watered, 2 dry but needing none (a small house): both have what they need
@@ -117,6 +120,18 @@ function hasSymbol(key: Exclude<SymbolKey, "literate" | "technicians">, map: Leg
     case "university_or_metro": return civic.includes("university") || kinds("stationKinds").some(k => k === "metro_station" || k === "hsr_station");
     case "recycling": return kinds("wasteKinds").includes("recycling_plant");
     case "paved_roads": {
+      // ... on a real-scale city map by the length of the roads in the graph, each at the level it works at
+      // (docs/NO_GRID_PLAN.md 5.2: the city counted from its roads, not a look over every tile)
+      const graph = map.roadGraph;
+      if (graph?.segments?.size && isCityTileSize(map.tileSizeM)) {
+        let length = 0, pavedLength = 0;
+        for (const segment of graph.segments.values()) {
+          const metres = graph.length(segment.id);
+          length += metres;
+          if (segmentLevel(map, graph, segment) >= 2) pavedLength += metres;
+        }
+        return length > 0 && pavedLength / length >= PAVED_SHARE;
+      }
       let roads = 0, paved = 0;
       for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
         if (!isRoadTile(map.getTileValue(x, y))) continue;
@@ -232,30 +247,38 @@ export function eraMonth(map: Legacy, sim: Legacy, objects: Objects, levels: { s
   const before = eras.slice();
   // In the transition no more of the buildings take the next era's look than the transition has gone: at 0.9, half
   // of them at most (a city held at 90% for years kept its era but had turned nearly all its buildings to the next)
-  const all = objects.all(), next = Math.min(5, era + 1);
+  // (each building's era is kept by the tile it is drawn by, its centre's or a plot's anchor, src/objects/cityObject.ts
+  // eraTile: two plots counted at one tile share it, the first of them deciding)
+  const tileOf = (b: Building): number => (b as Building & { eraTile?: number }).eraTile ?? b.id;
+  const seenTiles = new Set<number>(), all = objects.all().filter((b) => {
+    const t = tileOf(b);
+    if (t < 0 || t >= size || seenTiles.has(t)) return false;
+    seenTiles.add(t);
+    return true;
+  }), next = Math.min(5, era + 1);
   let ahead = 0;
-  for (const b of all) if (b.id >= 0 && b.id < size && eras[b.id] >= next && era < 5) ahead++;
+  for (const b of all) if (eras[tileOf(b)] >= next && era < 5) ahead++;
   const mayAdvance = (): boolean => era < 5 && ahead < transition * all.length;
   for (const b of all) {
-    if (b.id < 0 || b.id >= size) continue;
-    standing[b.id] = 1;
+    const t = tileOf(b);
+    standing[t] = 1;
     const level = ((b as Building & { level?(m: Legacy): number }).level?.(map) ?? 0) + 1;
-    const own = eras[b.id];
+    const own = eras[t];
     if (own === 0) {
       // A building of a city that kept no eras yet stands in the era it is in; a new one may be the next
-      eras[b.id] = first ? era : eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b));
-    } else if (fresh || stamps[b.id] === 0) {
+      eras[t] = first ? era : eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b));
+    } else if (fresh || stamps[t] === 0) {
       // Just loaded, or just moved to another block (the move command carries its era, src/cityCommands.ts): as it was
-    } else if (stamps[b.id] !== level) {
+    } else if (stamps[t] !== level) {
       // It grew (or shrank) a level: rebuilt in the era of now, never an older one than it had
-      eras[b.id] = Math.max(own, eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b)));
+      eras[t] = Math.max(own, eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b)));
     } else if (own < era && roll() < RENOVATE_CHANCE * pull(sim, b)) {
-      eras[b.id] = era;
+      eras[t] = era;
     } else if (own === era && transition > 0 && mayAdvance() && roll() < ADVANCE_CHANCE * transition * pull(sim, b)) {
-      eras[b.id] = Math.min(5, era + 1);
+      eras[t] = Math.min(5, era + 1);
     }
-    if (eras[b.id] >= next && (own < next) && era < 5) ahead++;
-    stamps[b.id] = level;
+    if (eras[t] >= next && (own < next) && era < 5) ahead++;
+    stamps[t] = level;
   }
   // A building gone leaves no era behind it
   for (let i = 0; i < size; i++) if (eras[i] && !standing[i]) { eras[i] = 0; stamps[i] = 0; }

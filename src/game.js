@@ -801,10 +801,8 @@ Game.prototype.mapOverlays = function() {
     var satisfaction = object.satisfaction(map, context);
     if (!satisfaction)
       return;
-    for (var y = object.top; y < object.top + object.size; y++)
-      for (var x = object.left; x < object.left + object.size; x++)
-        if (x >= 0 && y >= 0 && x < map.width && y < map.height)
-          scores[y * map.width + x] = satisfaction.score;
+    // (its tiles: a building's square, a plot's own, src/objects/cityObject.ts coverTiles)
+    object.coverTiles(map.width, map.height).forEach(function(i) { scores[i] = satisfaction.score; });
   });
   var overlays = Object.create(this.simulation.blockMaps);
   overlays.satisfaction = function(x, y) {
