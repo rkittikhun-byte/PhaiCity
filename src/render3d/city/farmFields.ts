@@ -274,6 +274,12 @@ export class CityFarmFields {
       }
       return 6 * n * n;
     };
+    // A run along a row, a quad a cell
+    const quadRow = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color, cells: number): number => {
+      let verts = 0;
+      for (let k = 0; k < cells; k++) verts += quad(x0 + (x1 - x0) * k / cells, z0, x0 + (x1 - x0) * (k + 1) / cells, z1, lift, c, 1);
+      return verts;
+    };
     const side = this.side(), full = fullCells(side), cell = UNITS / side, { width, height } = this.map;
     const byIndex = new Map<number, Field>();
     for (const field of this.fields) byIndex.set(field.index, field);
@@ -304,20 +310,35 @@ export class CityFarmFields {
       let outerVerts = 0, innerVerts = 0;
       for (const [c0, c1, r0, r1] of runs) {
         const x0 = x * UNITS + c0 * cell, x1 = x * UNITS + (c1 + 1) * cell, z0 = y * UNITS + r0 * cell, z1 = y * UNITS + (r1 + 1) * cell;
-        const n = field.cells === full ? 2 : 1;
-        outerVerts += quad(x0, z0, x1, z1, LIFT, outer, n);
-        if (!insideToo) continue;
-        // ... a dike on a side where any cell across it is not this field's kind
-        let top = 0, bottom = 0, left = 0, right = 0;
-        for (let c = c0; c <= c1; c++) {
-          if (!joins(field, cx0 + c, cz0 + r0 - 1)) top = inset;
-          if (!joins(field, cx0 + c, cz0 + r1 + 1)) bottom = inset;
+        // (a whole tile in 2 x 2, a run a quad a cell along it, so either lies on the land)
+        outerVerts += field.cells === full ? quad(x0, z0, x1, z1, LIFT, outer, 2) : quadRow(x0, z0, x1, z1, LIFT, outer, c1 - c0 + 1);
+      }
+      if (insideToo) {
+        // The water or the pond inside: a dike on a side only where the cell across it is not this field's kind. A whole
+        // tile whose every side is the same all along is one patch; else a patch a painted cell, each with its own dike,
+        // so a run's side half against the field beside it has no dike along that half
+        let top = -1, bottom = -1, left = -1, right = -1, even = field.cells === full;
+        const side4 = (along: (k: number) => boolean): number => {
+          let some = false, all = true;
+          for (let k = 0; k < side; k++) { const j = along(k); some ||= j; all &&= j; }
+          if (some && !all) even = false;
+          return all ? 0 : inset;
+        };
+        if (even) {
+          top = side4((k) => joins(field, cx0 + k, cz0 - 1));
+          bottom = side4((k) => joins(field, cx0 + k, cz0 + side));
+          left = side4((k) => joins(field, cx0 - 1, cz0 + k));
+          right = side4((k) => joins(field, cx0 + side, cz0 + k));
         }
-        for (let r = r0; r <= r1; r++) {
-          if (!joins(field, cx0 + c0 - 1, cz0 + r)) left = inset;
-          if (!joins(field, cx0 + c1 + 1, cz0 + r)) right = inset;
+        if (even) innerVerts += quad(x * UNITS + left, y * UNITS + top, (x + 1) * UNITS - right, (y + 1) * UNITS - bottom, INNER_LIFT, inner, 2);
+        else {
+          for (let r = 0; r < side; r++) for (let c = 0; c < side; c++) {
+            if (!((field.cells >> (r * side + c)) & 1)) continue;
+            const gx = cx0 + c, gz = cz0 + r, x0 = x * UNITS + c * cell, z0 = y * UNITS + r * cell;
+            innerVerts += quad(x0 + (joins(field, gx - 1, gz) ? 0 : inset), z0 + (joins(field, gx, gz - 1) ? 0 : inset),
+              x0 + cell - (joins(field, gx + 1, gz) ? 0 : inset), z0 + cell - (joins(field, gx, gz + 1) ? 0 : inset), INNER_LIFT, inner, 1);
+          }
         }
-        innerVerts += quad(x0 + left, z0 + top, x1 - right, z1 - bottom, INNER_LIFT, inner, n);
       }
       this.verts.push([outerVerts, innerVerts]);
     }
