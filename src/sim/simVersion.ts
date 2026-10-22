@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 8;
+export const SIM_VERSION = 9;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -32,6 +32,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   8: "on a real-scale city map the city is counted from its lists: a home, shop or factory object a plot (its era kept " +
     "at the tile it is counted at), the unlocks' buildings from the buildings' list, paved roads and railways from the " +
     "graphs (NO_GRID_PLAN 5.2)",
+  9: "on a real-scale city map each polluting tile is a source in metres whose plume falls smoothly to nothing 64 m off " +
+    "and drifts with the month's wind, the pollution block map its sum at each block's middle (NO_GRID_PLAN 4.1)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

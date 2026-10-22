@@ -66,6 +66,7 @@ import { Valves } from './valves.js';
 import { nextWeather, startingWeather, weatherTraffic, weatherVisitors } from './weather.ts';
 import { spellBeginning, stormDuring } from './rainSpells.ts';
 import { NO_DROUGHT, WaterManager } from './waterManager.ts';
+import { seasonWind } from './wind.ts';
 
 // rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
 // resources (PhaiCity): the province's resource levels, 0–5 by id (src/geo/provinceResources.ts); none for a
@@ -723,6 +724,8 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var farmFields = this._farming.fields;
   // ... and the festivals held round the ruler's house, for a few months after (src/festivals.ts)
   var map = this._map;
+  // ... and the month's wind, which carries the smoke on a real-scale city map (src/wind.ts, src/sim/pollutionField.ts)
+  var wind = seasonWind(this.getDate().month, typeof this.resources.wind === 'number' ? this.resources.wind : 2);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
                                               shopRubbish(this._tourism), this._plantPollution, this._extraPollution,
                                               function(x, y) {
@@ -731,7 +734,7 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
                                                        (canals ? canals[y * width + x] : 0) +
                                                        farmFields.landValueAt(x, y) +
                                                        festivalLandValue(map, x, y, step);
-                                              });
+                                              }, wind);
 };
 
 

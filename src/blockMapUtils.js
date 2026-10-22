@@ -17,6 +17,7 @@ import { Industrial } from './industrial.js';
 import { MiscUtils } from './miscUtils.js';
 import { plotDensity } from './plots.ts';
 import { isCityTileSize } from './units.ts';
+import { pollutionField } from './sim/pollutionField.ts';
 import { Random } from './random.ts';
 import { Residential } from './residential.js';
 import * as TileValues from "./tileValues.ts";
@@ -223,11 +224,17 @@ var blockMiddle = function(map, size) {
 // Pollution is completely determined by the tile types in the block
 // extraPollution(x, y, tileValue) (PhaiCity, src/mining.ts): a mine's dust and the poison in the ground
 // extraLandValue(x, y) (PhaiCity, src/rulerHouse.ts): what the ruler's house adds to the land near it
+// wind (PhaiCity, src/wind.ts): the month's wind, which carries the smoke on a real-scale city map
+// (src/sim/pollutionField.ts, docs/NO_GRID_PLAN.md 4.1)
 var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPollution, shopRubbish, plantPollution,
-                                             extraPollution, extraLandValue) {
+                                             extraPollution, extraLandValue, wind) {
   if (industryPollution === undefined)
     industryPollution = 1;
   var landCover = map.landCover || null;
+  // PhaiCity: on a real-scale city map each polluting tile is a source in metres whose plume drifts with the wind, not
+  // a share of its block's sum smoothed twice into square blocks (src/sim/pollutionField.ts)
+  var metric = isCityTileSize(map.tileSizeM);
+  var sources = metric ? [] : null;
 
   // We record raw pollution readings for each tile into tempMap1, and then use tempMap2 and tempMap1 to smooth
   // out the pollution in order to construct the new values for the populationDensityMap
@@ -284,9 +291,15 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
             continue;
           }
 
-          pollutionLevel += getPollutionValue(tileValue, industryPollution, shopRubbish, plantPollution, mapX, mapY);
+          var tilePollution = getPollutionValue(tileValue, industryPollution, shopRubbish, plantPollution, mapX, mapY);
           if (extraPollution)
-            pollutionLevel += extraPollution(mapX, mapY, tileValue);
+            tilePollution += extraPollution(mapX, mapY, tileValue);
+          if (sources !== null) {
+            if (tilePollution > 0)
+              sources.push([mapY * map.width + mapX, tilePollution]);
+          } else {
+            pollutionLevel += tilePollution;
+          }
           // PhaiCity: the state's roads and railways a real map starts with are not the city's land (owner, 15 Oct 2026:
           // "หาว่ารายจ่ายไหนทำให้เมืองขาดทุนทุกปี"): a district's thousands of them far from the town made its average land
           // value, and so its taxes, a tenth of what its own blocks are worth
@@ -338,9 +351,17 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
   else
     census.landValueAverage = 0;
     
-  // Smooth the pollution map twice
-  smoothMap(tempMap1, tempMap2, SMOOTH_ALL_THEN_CLAMP);
-  smoothMap(tempMap2, tempMap1, SMOOTH_ALL_THEN_CLAMP);
+  if (sources !== null) {
+    // PhaiCity: the plumes, each block's middle the sum of those over it (src/sim/pollutionField.ts)
+    var field = pollutionField(map.width, map.height, map.tileSizeM, tempMap1.blockSize, sources, wind);
+    for (x = 0, width = tempMap1.width; x < width; x++)
+      for (y = 0, height = tempMap1.height; y < height; y++)
+        tempMap1.set(x, y, field[y * width + x]);
+  } else {
+    // Smooth the pollution map twice
+    smoothMap(tempMap1, tempMap2, SMOOTH_ALL_THEN_CLAMP);
+    smoothMap(tempMap2, tempMap1, SMOOTH_ALL_THEN_CLAMP);
+  }
 
   var maxPollution = 0;
   var pollutedTileCount = 0;
