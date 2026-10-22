@@ -81,6 +81,22 @@ Most of the fall comes in the first two or three years. A works serving half of 
   house's granary halves the share (`docs/RULER_HOUSE.md`).
 - No upkeep yet (`src/budget.js` has the water fee's income but no water works line).
 
+## Along the road graph on a real-scale city map (docs/NO_GRID_PLAN.md step 2, 22 Oct 2026)
+
+On a real-scale city map (16 m tiles) the pipes run along the roads of the road graph, not over road tiles
+(`src/sim/roadSupply.ts`, `src/sim/cityUtilities.ts` `waterAlongRoads`); province and practice maps keep the tile flood
+above.
+- Each powered works feeds every road it meets (a road's middle line within 12 m of its outline); roads that meet are
+  one network, and roads within 17 m of another network are joined by a short pipe, as power is.
+- A tower on a works' network gives back some of the dry season's loss (10 each, at most what was lost); a tower no
+  works' network reaches pumps its own well onto the roads it meets (a village's water, as before).
+- The plots and zones the scan found take their shares (a plot by its level: `PLOT_WATER`, an eighth of a zone times
+  1 for a house, 1 at level 2, 1.25, 1.5, 2 for the top; an empty lot none), **the nearest to a source by road first**:
+  short of water, the far ends go dry, never the east of the map because the scan reached it last. What each got is
+  read by the next cycle's scan, as power is (one cycle's lag).
+- The water layer colours each road by what runs along it: blue with water, orange past where the supply ran out,
+  grey with no works on its roads; the 3D view the same on the roads themselves.
+
 ## ขนาดที่ดิน (เจ้าของ 21 ต.ค. 2026: "ให้ระบบจำลองกินที่เท่าตัวโมเดลจริง เริ่มที่โรงไฟฟ้ากับโรงประปา")
 
 โรงประปากิน 3 × 3 ช่อง (48 ม.) เท่าเดิม เพราะโมเดลของยุค (`water_works` ใน `art/buildings`) กว้าง 3 ช่องพอดีทุกยุคทุกภาค
