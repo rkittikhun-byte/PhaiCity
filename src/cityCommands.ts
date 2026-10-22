@@ -95,7 +95,7 @@ export const NEEDS_ROAD_BESIDE = "needs a road beside it";
 /** Why a turned building was refused: a road or railway runs inside its fence (src/buildings/turnedFootprint.ts) */
 export const LINE_IN_THE_WAY = "a road or railway is in the way";
 /** A road or railway as drawn, in metres, and how far its body reaches either side of its line */
-type DrawnBody = { points: [number, number][]; reach: number; rail: boolean };
+type DrawnBody = { points: [number, number][]; reach: number; rail: boolean; box: [number, number, number, number] };
 /** Why a road or railway was refused: it would run inside the ruler's house's fence */
 export const HOUSE_IN_THE_WAY = "the ruler's house is in the way";
 /** The most cells one command paints */
@@ -905,8 +905,10 @@ export class CityCommands {
       const drawnGraph = graph && graph.segments.size ? graphLines(graph, { width, height, tileSizeM: metres, value, piece, level }, rail) : null;
       const drawn = drawnRoads({ width, height, value, level, piece, path: (p) => (paths?.[p] as never) ?? null }, drawnGraph, rail);
       for (const line of drawn.lines) {
-        bodies.push({ points: line.points.map((p) => [p[0] * toMetres, p[1] * toMetres] as [number, number]),
-          reach: rail ? RAIL_REACH_M : roadReach(line.level, real) / units, rail });
+        const points = line.points.map((p) => [p[0] * toMetres, p[1] * toMetres] as [number, number]);
+        const box: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
+        for (const [x, z] of points) { box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], z); box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], z); }
+        bodies.push({ points, reach: rail ? RAIL_REACH_M : roadReach(line.level, real) / units, rail, box });
       }
     }
     this.drawnCache = { changes, key, bodies };

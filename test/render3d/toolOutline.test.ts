@@ -96,4 +96,42 @@ describe('the tools\' outlines on a city map', () => {
     expect(tileSquares(points)).toBe(false);
     for (const [cx, cz] of lot) expect(points.some(([x, z]) => Math.hypot(x - cx, z - cz) < 0.5)).toBe(true);
   });
+
+  describe('the inspector', () => {
+    // Owner, 22 Oct 2026: "ที่เปล่าๆ คลิกได้เป็นตาราง แนวเฉียง คืออะไร ไหนบอกว่าไม่มีตารางแล้ว ... ทุก object พอคลิกแล้วจะต้องได้ rect
+    // เหมือนตอนวาง"
+    test('plain ground: a soft round mark at the very point, no tile', () => {
+      const tool = outline();
+      tool.update({ tile: { x: 30, y: 30 }, size: 1, colour: '#8fdcff', inspect: { x: 30.3, y: 30.8 } } as ToolHover);
+      const points = meshes(tool).flatMap((m) => m.points);
+      expect(points.length).toBeGreaterThan(0);
+      expect(tileSquares(points)).toBe(false);
+      // ... round the point, about 6 m across (4 world units a side of it at most)
+      for (const [x, z] of points) expect(Math.hypot(x - 303, z - 308)).toBeLessThan(4);
+    });
+
+    test('an object: its own ground as drawn and turned, edged in white, as when it was put down', () => {
+      const tool = outline();
+      tool.objectOf = (index) => lotOf(index);
+      tool.update({ tile: { x: 12, y: 13 }, size: 1, colour: '#8fdcff', inspect: { x: 12.4, y: 13.6 } } as ToolHover);
+      const drawn = meshes(tool), points = drawn.flatMap((m) => m.points);
+      expect(tileSquares(points)).toBe(false);
+      for (const [cx, cz] of lot) expect(points.some(([x, z]) => Math.hypot(x - cx, z - cz) < 0.5)).toBe(true);
+      expect(drawn.length).toBe(2);
+    });
+
+    test('a road: the stretch of it drawn on its tiles, and the whole stretch the card shows once opened', () => {
+      const tool = outline(), asked: number[][] = [];
+      tool.roadStrips = (tiles) => {
+        asked.push([...tiles]);
+        return { quads: [...tiles].map((i): Point[] => { const x = (i % 40) * 10, z = Math.floor(i / 40) * 10 + 5;
+          return [[x, z - 2], [x + 10, z - 2], [x + 10, z + 2], [x, z + 2]]; }), covered: new Set(tiles) };
+      };
+      tool.update({ tile: { x: 5, y: 20 }, size: 1, colour: '#8fdcff', inspect: { x: 5.5, y: 20.5 },
+        inspectPath: [{ x: 4, y: 20 }, { x: 5, y: 20 }, { x: 6, y: 20 }] } as ToolHover);
+      expect(asked).toEqual([[804, 805, 806]]);
+      const points = meshes(tool).flatMap((m) => m.points);
+      for (const [, z] of points) expect(Math.abs(z - 205)).toBeLessThanOrEqual(2 + 1e-6);
+    });
+  });
 });

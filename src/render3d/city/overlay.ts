@@ -153,6 +153,19 @@ function ghostRoad(tiles: readonly TilePoint[], lift: number, terrain?: CityHeig
   return { band: geometry(band), dashes: geometry(dashes), refused: geometry(red) };
 }
 
+/** Thin strips along the sides of a four-cornered patch, width w inside its edge: an outline that lies on the ground */
+function edgeStrips(quad: readonly Point[], w: number): Point[][] {
+  const cx = quad.reduce((a, p) => a + p[0], 0) / quad.length, cz = quad.reduce((a, p) => a + p[1], 0) / quad.length;
+  const inward = (p: Point): Point => {
+    const dx = cx - p[0], dz = cz - p[1], d = Math.hypot(dx, dz) || 1;
+    return [p[0] + dx / d * w * Math.SQRT2, p[1] + dz / d * w * Math.SQRT2];
+  };
+  return quad.map((a, i) => {
+    const b = quad[(i + 1) % quad.length];
+    return [a as Point, b as Point, inward(b as Point), inward(a as Point)];
+  });
+}
+
 /** Whether a point (x, z) lies inside a four-cornered patch on the ground (its corners in order round it) */
 function insideQuad(quad: readonly Point[], x: number, z: number): boolean {
   let sign = 0;
@@ -202,6 +215,9 @@ export class ToolOutline {
   snap:((x:number,z:number,reach:number)=>RoadNear|null)|null=null;
   /** Whether buildings are drawn at BUILDING_SCALE (a map painted a cell at a time), so the outline is that size too */
   scaledBuildings=false;
+  /** The ground of the object whose tile (y * width + x) this is, as it is drawn and turned (its lot, a plot's or a
+   * terrace's run, a building's ground), its corners in world units; null for open land, woods, water and roads */
+  objectOf:((index:number)=>readonly Point[]|null)|null=null;
   /** The lot a building's tile (y * width + x) lies on, its corners in world units (roadCurves.ts lotAt) */
   lotOf:((index:number)=>readonly Point[]|null)|null=null;
   /** The stretches of drawn road and railway lying on these tiles (index y × width + x), as patches on the ground, and the
@@ -213,8 +229,9 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false,hover?.inspect?[Math.round(hover.inspect.x*20),Math.round(hover.inspect.y*20)]:null,hover?.inspectPath?.length??0]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
+    if(hover.inspect){this.inspected(hover);return;}
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
     // A dot on each road tile near the mouse where a click may join it, its dead ends ringed, all under the marker of
     // where the click lands, which stays the boldest (src/game.js snapDots)
@@ -352,6 +369,28 @@ export class ToolOutline {
       if(this.terrain?.enabled){const p=line.geometry.getAttribute('position');for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+elevation(sx+p.getX(i),sz+p.getZ(i)));line.geometry.computeVertexNormals();}
       line.position.set(sx,.68,sz);line.renderOrder=26;this.root.add(line);
     }
+  }
+  /**
+   * What the inspector points at or opened (ToolHover.inspect), never as a tile (owner, 22 Oct 2026): an object by its own
+   * ground as drawn and turned, in the tool's colour with a white edge, as its outline was when it was put down; a road by
+   * the stretch of it drawn on its tiles (the card's whole stretch once opened); plain ground by a soft round mark at the
+   * very point, in metres.
+   */
+  private inspected(hover:ToolHover):void {
+    const point=hover.inspect!,tx=Math.floor(point.x),ty=Math.floor(point.y),index=ty*this.width+tx;
+    const shape=tx>=0&&ty>=0&&tx<this.width&&ty<this.height?this.objectOf?.(index)??this.lotOf?.(index)??null:null;
+    if(shape){
+      const fill=new Mesh(groundQuads([shape],.7,this.terrain),cityToolMaterial(hover.colour,true));fill.renderOrder=25;
+      const edge=new Mesh(groundQuads(edgeStrips(shape,.35),.72,this.terrain),cityToolMaterial('#ffffff'));edge.renderOrder=26;
+      this.root.add(fill,edge);return;
+    }
+    const tiles=new Set((hover.inspectPath??[{x:tx,y:ty}]).map(t=>t.y*this.width+t.x));
+    const strips=this.roadStrips?.(tiles);
+    if(strips?.quads.length){const road=new Mesh(groundQuads(strips.quads,.7,this.terrain),cityToolMaterial(hover.colour,true));road.renderOrder=25;this.root.add(road);return;}
+    const x=point.x*10,z=point.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
+    const disc=new Mesh(new CircleGeometry(3.2,32).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));disc.position.set(x,y,z);disc.renderOrder=25;
+    const ring=new Mesh(new RingGeometry(3.2,3.75,40).rotateX(-Math.PI/2),cityToolMaterial('#ffffff',true));ring.position.set(x,y+.01,z);ring.renderOrder=26;
+    this.root.add(disc,ring);
   }
   /** Flat rings (or discs, from 0) round points in tiles, on the ground, all in one geometry */
   private discs(points:ReadonlyArray<{x:number;y:number}>,inner:number,outer:number,lift:number):BufferGeometry {

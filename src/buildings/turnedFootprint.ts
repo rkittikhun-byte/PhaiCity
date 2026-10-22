@@ -205,7 +205,7 @@ export const RAIL_REACH_M = 2.5;
  */
 export function lineInOutline(o: Outline, map: FootprintMap & { roadGraph?: LineGraph | null; railGraph?: LineGraph | null },
   reachOf: (level: number) => number, isLineTile: (value: number) => boolean,
-  drawn?: ReadonlyArray<LineBody & { rail: boolean }> | null): "road" | "rail" | null {
+  drawn?: ReadonlyArray<LineBody & { rail: boolean; box?: readonly [number, number, number, number] }> | null): "road" | "rail" | null {
   const size = tileSizeOf(map);
   if (map.roadGraph || map.railGraph || drawn) {
     for (const [graph, kind] of [[map.roadGraph, "road"], [map.railGraph, "rail"]] as const) {
@@ -217,7 +217,21 @@ export function lineInOutline(o: Outline, map: FootprintMap & { roadGraph?: Line
         if (bodyMeets(o, { points: graph.polyline(id, 2), reach })) return kind;
       }
     }
-    for (const body of drawn ?? []) if (bodyMeets(o, body)) return body.rail ? "rail" : "road";
+    // (only the lines, and their segments, whose box with their reach comes near the outline's: a state road crosses a
+    // whole district's map)
+    const far = o.half * Math.SQRT2;
+    const apart = (x0: number, z0: number, x1: number, z1: number, reach: number): boolean =>
+      x0 - reach > o.x + far || x1 + reach < o.x - far || z0 - reach > o.z + far || z1 + reach < o.z - far;
+    for (const body of drawn ?? []) {
+      const box = body.box, pts = body.points;
+      if (box && apart(box[0], box[1], box[2], box[3], body.reach)) continue;
+      if (pts.length === 1 && bodyMeets(o, body)) return body.rail ? "rail" : "road";
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, az] = pts[i - 1], [bx, bz] = pts[i];
+        if (apart(Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz), body.reach)) continue;
+        if (bodyMeets(o, { points: [pts[i - 1], pts[i]], reach: body.reach })) return body.rail ? "rail" : "road";
+      }
+    }
     return null;
   }
   return outlineTiles(o, map.width, map.height, size)

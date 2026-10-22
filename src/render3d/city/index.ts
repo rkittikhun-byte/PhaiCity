@@ -216,6 +216,9 @@ export class CityView3D implements CityView {
     const bedGeometry=new PlaneGeometry(setup.map.width*10*spread,setup.map.height*10*spread).rotateX(-Math.PI/2).translate(setup.map.width*5,this.terrain.min-this.bedDrop,setup.map.height*5);
     this.bed=new Mesh(applyWorldUV(bedGeometry,1),wide?cityBedMaterial(0x7a9150):tint('dirt_laterite',0x4c5543));bedGeometry.dispose();this.scene.add(this.bed);
     this.outline.snap=this.snapshot.roadSnap;this.outline.lotOf=(index)=>this.curves.lotAt(index);
+    // What the inspector points at, by the ground it is drawn on (overlay.ts inspected): a lot, else the building, plot or
+    // terrace run standing on that tile, turned as it stands
+    this.outline.objectOf=(index)=>this.objectGround(index);
     // The bulldozer's red as the stretch of road on the tiles it takes (overlay.ts roadStrips): each drawn line cut into steps
     // of about a metre, a step kept where its middle lies on one of those tiles, as wide as the road
     this.outline.roadStrips=(tiles)=>{const quads:[number,number][][]=[],covered=new Set<number>(),w=this.snapshot.width;
@@ -427,6 +430,17 @@ export class CityView3D implements CityView {
   showLayer(tiles:HTMLCanvasElement|null):void {
     if(!this.layer){if(!tiles)return;this.layer=new LayerOverlay(this.setup.map.width,this.setup.map.height,this.terrain);this.scene.add(this.layer.root);}
     this.layer.show(tiles);
+  }
+  /** The ground the object on a tile stands on, as drawn and turned (overlay.ts inspected): its lot (roadCurves.ts), else
+   * the building, plot or shophouse terrace placed there; null for open land, woods, water, roads and an empty zone */
+  objectGround(index:number):[number,number][]|null {
+    const lot=this.curves.lotAt(index);if(lot)return lot.map(p=>[p[0],p[1]]);
+    const s=this.snapshot,c=s.coverage[index],anchor=c!==undefined&&c>=0?c:index;
+    const p=s.placement(anchor,'central');
+    if(!p||['terrain','road','rail','shore','debug','veg','power'].includes(p.kind)||p.id?.endsWith('zone_empty'))return null;
+    const g=p.ground(),sin=Math.sin(g.rotation),cos=Math.cos(g.rotation),hw=g.width/2,hd=g.depth/2;
+    const at=(u:number,v:number):[number,number]=>[g.x+cos*u+sin*v,g.z-sin*u+cos*v];
+    return [at(-hw,-hd),at(hw,-hd),at(hw,hd),at(-hw,hd)];
   }
   /** The player's language changed: write the street names again. */
   relabelStreets():void {this.streets?.relabel();}
