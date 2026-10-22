@@ -15,8 +15,8 @@ import { Bounds } from "./bounds.ts";
 import * as Direction from './direction.ts';
 import { MiscUtils } from './miscUtils.js';
 import { Position } from './position.ts';
-import { Tile } from './tile.ts';
-import { BNCNBIT, ZONEBIT } from "./tileFlags.ts";
+import { MapTile, Tile } from './tile.ts';
+import { ALLBITS, BIT_MASK, BNCNBIT, ZONEBIT } from "./tileFlags.ts";
 import { TILE_INVALID } from "./tileValues.ts";
 
 function GameMap(width, height, defaultValue) {
@@ -54,10 +54,10 @@ function GameMap(width, height, defaultValue) {
   this.height = height;
   this.bounds = Bounds.fromOrigin(width, height);
 
-  var data = [];
-  for (var i = 0, l = width * height; i < l; i++)
-    data[i] = new Tile(defaultValue);
-  this._data = data;
+  // PhaiCity: each tile's value and flags, 16 bits a tile, not an object a tile (docs/NO_GRID_PLAN.md 5.4): a real-scale
+  // city of 480 x 480 tiles kept 230,400 objects, and a whole district would keep millions. A tile asked for is a
+  // MapTile that reads and writes its cell (src/tile.ts).
+  this._cells = new Uint16Array(width * height).fill(new Tile(defaultValue).getRawValue());
 
   // Generally set externally
   this.cityCentreX = Math.floor(this.width / 2);
@@ -73,8 +73,8 @@ GameMap.prototype.save = function(saveData) {
   for (var i = 0, l = saveProps.length; i < l; i++)
     saveData[saveProps[i]] = this[saveProps[i]];
 
-  saveData.map = this._data.map(function(t) {
-    return {value: t.getRawValue()};
+  saveData.map = Array.from(this._cells, function(raw) {
+    return {value: raw};
   });
 };
 
@@ -129,14 +129,24 @@ GameMap.prototype.getTile = function(x, y, newTile) {
   }
 
   var tileIndex = x + y * width;
-  var tile = this._data[tileIndex];
 
   // Return the original tile if we're not given a tile to fill
   if (!newTile)
-    return tile;
+    return new MapTile(this._cells, tileIndex);
 
-  newTile.setFrom(tile);
-  return tile;
+  // PhaiCity: ... else copy it into the tile given, and give that back (the map's scan does so for every tile each
+  // pass: no tile is made for it, docs/NO_GRID_PLAN.md 5.4)
+  newTile.setRaw(this._cells[tileIndex]);
+  return newTile;
+};
+
+
+// PhaiCity: a tile's value and flags written straight into its cell, counted as Tile counts a change (setTo)
+GameMap.prototype._write = function(tileIndex, raw) {
+  if (this._cells[tileIndex] === raw)
+    return;
+  this._cells[tileIndex] = raw;
+  Tile.changes++;
 };
 
 
@@ -149,7 +159,7 @@ GameMap.prototype.changeCount = function() {
 
 // The value and flags of the tile at an index together, for readers going over the whole map
 GameMap.prototype.rawTileAt = function(index) {
-  return this._data[index].getRawValue();
+  return this._cells[index];
 };
 
 
@@ -167,7 +177,7 @@ GameMap.prototype.getTileValue = function(x, y) {
     throw new Error('GameMap getTileValue called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  return this._data[tileIndex].getValue();
+  return this._cells[tileIndex] & BIT_MASK;
 };
 
 
@@ -185,7 +195,7 @@ GameMap.prototype.getTileFlags = function(x, y) {
     throw new Error('GameMap getTileFlags called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  return this._data[tileIndex].getFlags();
+  return this._cells[tileIndex] & ALLBITS;
 };
 
 
@@ -209,7 +219,7 @@ GameMap.prototype.getTiles = function(x, y, w, h) {
     res[a - y] = [];
     for (var b = x, xlim = x + w; b < xlim; b++) {
       var tileIndex = this._calculateIndex(b, a);
-      res[a-y].push(this._data[tileIndex]);
+      res[a-y].push(new MapTile(this._cells, tileIndex));
     }
   }
   return res;
@@ -242,7 +252,7 @@ GameMap.prototype.getTileValuesForPainting = function(x, y, w, h, result) {
       }
 
       var tileIndex =  b + a * width;
-      result[(a - y) * w + (b - x)] = this._data[tileIndex].getRawValue();
+      result[(a - y) * w + (b - x)] = this._cells[tileIndex];
     }
   }
 
@@ -297,7 +307,7 @@ GameMap.prototype.setTile = function(x, y, value, flags) {
     throw new Error('GameMap setTile called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex].set(value, flags);
+  new MapTile(this._cells, tileIndex).set(value, flags);
 };
 
 
@@ -315,8 +325,10 @@ GameMap.prototype.setTo = function(x, y, tile) {
   if (!this.testBounds(x, y))
     throw new Error('GameMap setTo called with invalid bounds ' + x + ', ' + y);
 
+  // PhaiCity: the tile's value and flags are copied into the cell (the tile itself was kept, so a later change to it
+  // changed the map; no caller changes a tile after putting it down)
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex] = tile;
+  this._write(tileIndex, tile.getRawValue());
 };
 
 
@@ -335,7 +347,7 @@ GameMap.prototype.setTileValue = function(x, y, value) {
     throw new Error('GameMap setTileValue called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex].setValue(value);
+  new MapTile(this._cells, tileIndex).setValue(value);
 };
 
 
@@ -354,7 +366,7 @@ GameMap.prototype.setTileFlags = function(x, y, flags) {
     throw new Error('GameMap setTileFlags called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex].setFlags(flags);
+  new MapTile(this._cells, tileIndex).setFlags(flags);
 };
 
 
@@ -373,7 +385,7 @@ GameMap.prototype.addTileFlags = function(x, y, flags) {
     throw new Error('GameMap addTileFlags called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex].addFlags(flags);
+  new MapTile(this._cells, tileIndex).addFlags(flags);
 };
 
 
@@ -392,7 +404,7 @@ GameMap.prototype.removeTileFlags = function(x, y, flags) {
     throw new Error('GameMap removeTileFlags called with invalid bounds ' + x + ', ' + y);
 
   var tileIndex = this._calculateIndex(x, y);
-  this._data[tileIndex].removeFlags(flags);
+  new MapTile(this._cells, tileIndex).removeFlags(flags);
 };
 
 

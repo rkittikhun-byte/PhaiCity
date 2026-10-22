@@ -37,23 +37,38 @@ export class Tile {
 
   private value: number;
 
+  /** PhaiCity: the value and flags together, the tile's own, or for a map's tile the map's cell (MapTile,
+   *  docs/NO_GRID_PLAN.md 5.4) */
+  protected get raw(): number {
+    return this.value;
+  }
+
+  protected set raw(next: number) {
+    this.value = next;
+  }
+
   constructor(value: number = DIRT, flags: number = 0) {
+    // PhaiCity: a map's tile reads and writes the map's own cell: nothing to check, keep or count (MapTile)
+    if ((new.target as unknown) === MapTile) {
+      this.value = 0;
+      return;
+    }
     this.validateArguments(value, flags, "Tile constructor");
     this.value = value | flags;
     Tile.changes++;
   }
 
   getValue(): number {
-    return this.valueFromCombinedValue(this.value);
+    return this.valueFromCombinedValue(this.raw);
   }
 
   getFlags(): number {
-    return this.flagsFromCombinedValue(this.value);
+    return this.flagsFromCombinedValue(this.raw);
   }
 
   getRawValue(): number {
     // TODO: Can we remove the caller of this to avoid leaking this implementation detail?
-    return this.value;
+    return this.raw;
   }
 
   addFlags(flags: number) {
@@ -63,7 +78,7 @@ export class Tile {
       return;
     }
 
-    this.change(this.value | flags);
+    this.change(this.raw | flags);
   }
 
   setValue(desiredValue: number) {
@@ -80,7 +95,7 @@ export class Tile {
   setFlags(flags: number) {
     this.validateFlags(flags, "setFlags");
 
-    const existingValue = this.value & ~TileFlags.ALLBITS;
+    const existingValue = this.raw & ~TileFlags.ALLBITS;
     this.change(existingValue | flags);
   }
 
@@ -91,11 +106,17 @@ export class Tile {
       return;
     }
 
-    this.change(this.value & ~flags);
+    this.change(this.raw & ~flags);
   }
 
   setFrom(tile: Tile) {
-    this.change(tile.value);
+    this.change(tile.raw);
+  }
+
+  /** PhaiCity: the value and flags together, as setFrom takes them from a tile (a map's scan copying a cell into its
+   *  scratch tile, GameMap getTile) */
+  setRaw(raw: number) {
+    this.change(raw);
   }
 
   set(value: number, flags: number) {
@@ -106,11 +127,11 @@ export class Tile {
 
   /** Every write goes through here, so Tile.changes counts each real change */
   private change(next: number) {
-    if (next === this.value) {
+    if (next === this.raw) {
       return;
     }
 
-    this.value = next;
+    this.raw = next;
     Tile.changes++;
   }
 
@@ -174,7 +195,7 @@ export class Tile {
   }
 
   private checkBits(flag: number): boolean {
-    return (this.value & flag) > 0;
+    return (this.raw & flag) > 0;
   }
 
   private validateArguments(value: number, flags: number, context: string) {
@@ -200,5 +221,29 @@ export class Tile {
 
   private flagsAreInvalid(flags: number): boolean {
     return flags !== 0 && (flags < TileFlags.BIT_START || (flags & ~TileFlags.ALLBITS) !== 0);
+  }
+}
+
+/**
+ * PhaiCity: a tile of a map that keeps its tiles as numbers, 16 bits each (GameMap, docs/NO_GRID_PLAN.md 5.4): it
+ * reads and writes the map's cell, so while it is kept it is that tile, as the object the map once kept for each tile
+ * was. The map makes one only when a tile is asked for, so a map of millions of tiles is a few megabytes.
+ */
+export class MapTile extends Tile {
+  private readonly cells: Uint16Array;
+  private readonly index: number;
+
+  constructor(cells: Uint16Array, index: number) {
+    super();
+    this.cells = cells;
+    this.index = index;
+  }
+
+  protected get raw(): number {
+    return this.cells[this.index];
+  }
+
+  protected set raw(next: number) {
+    this.cells[this.index] = next;
   }
 }
