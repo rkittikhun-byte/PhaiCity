@@ -4,12 +4,12 @@
 
 // Where a click of the road tools lands (src/roads/roadSnap.ts; owner, 22 Oct 2026: "จุด B มีจุด snap อยู่ ทำให้จุด B
 // ชิดกว่านี้ และจุด A มีจุดให้ snap หลายจุดกว่านี้"), tried as a person's hand clicks (docs/design/LOOK_BOOK.md: "คลิกเยื้อง
-// 5–20 พิกเซล"): the first point finds the road it is meant to start on, every later point lands within a few metres of
-// the mouse unless a junction, an end or a road is truly under it.
+// 5–20 พิกเซล"): the first point finds the road it is meant to start on, every later point lands close to the mouse on
+// fine steps ("จุด B ให้ชิดกันมากกว่านี้": whole metres, 5°) unless a junction, an end or a road is truly under it.
 
 import { type Metres } from "../src/roads/roadDraw";
-import { MARK_STEP_M, marksAlong, NEXT_PIXELS, snapNext, snapPoints, snapStart, START_PIXELS, WAY_MAX_M, type SnapNet }
-  from "../src/roads/roadSnap";
+import { LENGTH_STEP_M, MARK_STEP_M, marksAlong, NEXT_PIXELS, snapNext, snapPoints, snapStart, START_PIXELS, STEP_DEGREES,
+  WAY_MAX_M, type SnapNet } from "../src/roads/roadSnap";
 
 /** Metres a pixel: a 16 m tile 32 pixels across, as the game opens on a town */
 const MPP = 0.5;
@@ -37,57 +37,85 @@ function hand(seed: number) {
 }
 
 describe("where a click of the road tools lands", () => {
-  test("B clicked 5–20 px off a point in open land lands within a few metres of the mouse", () => {
-    const h = hand(7);
-    let moved = 0;
+  test("B clicked 5–20 px off a point in open land lands close to the mouse, a whole metre from A", () => {
+    const h = hand(7), moves: number[] = [];
     for (let k = 0; k < 400; k++) {
       // A on the road, B somewhere south-east and south-west, at least 40 m from either road
       const a: Metres = [h.next() * 400, 100], meant: Metres = [h.next() < 0.5 ? 40 + h.next() * 120 : 240 + h.next() * 120, 140 + h.next() * 250];
-      const p = h.off(meant), snap = snapNext(p, MPP, NET, a, [1, 0], 7);
-      const landed = snap ? snap.point : p;
-      expect(dist(landed, p)).toBeLessThanOrEqual(Math.min(WAY_MAX_M, NEXT_PIXELS.way * MPP) + 1e-9);
-      if (snap) moved++;
+      const p = h.off(meant), snap = snapNext(p, MPP, NET, a, [1, 0])!;
+      expect(["step", "way", "angle"]).toContain(snap.kind);
+      const length = dist(snap.point, a);
+      expect(Math.abs(length - Math.round(length))).toBeLessThan(0.002);
+      moves.push(dist(snap.point, p));
     }
-    // ... and only now and then onto a straight way, when the mouse is nearly on it
-    expect(moved).toBeLessThan(100);
+    // ... never further than a main way's pull and half a metre, and nearly always within a metre
+    expect(Math.max(...moves)).toBeLessThanOrEqual(WAY_MAX_M + LENGTH_STEP_M / 2 + 0.002);
+    expect(moves.filter((m) => m <= 1).length).toBeGreaterThan(360);
   });
 
-  test("B nearly in line, far from A, stays at the mouse instead of swinging onto the line", () => {
-    // 300 m from A, 5.7° off east: the old snap moved it 30 m onto east
-    const p: Metres = [300, 330];
-    expect(snapNext(p, MPP, NET, [0, 300], null, 7)).toBeNull();
-    // ... while a mouse a pixel off east lands on it, a metre or less from where it was
-    const near = snapNext([300, 300.5], MPP, NET, [0, 300], null, 7)!;
-    expect(near.kind).toBe("angle");
-    expect(near.point[1]).toBeCloseTo(300, 9);
+  test("B's way goes in 5° steps when the mouse is nearly on one, and stays where the mouse is between them", () => {
+    const a: Metres = [0, 300], at = (degrees: number, length: number): Metres =>
+      [a[0] + Math.cos(degrees * Math.PI / 180) * length, a[1] + Math.sin(degrees * Math.PI / 180) * length];
+    const near = snapNext(at(25.2, 100), MPP, NET, a, null)!;
+    expect(near.kind).toBe("step");
+    expect(dist(near.point, at(25, 100))).toBeLessThan(0.002);
+    // ... halfway between two steps, where the mouse is (100 m long already)
+    const between = snapNext(at(27.5, 100), MPP, NET, a, null)!;
+    expect(dist(between.point, at(27.5, 100))).toBeLessThan(0.002);
+    // ... from a road at 30°, the steps are 5° from it
+    expect(STEP_DEGREES).toBe(5);
+    const leaving: Metres = [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6)];
+    expect(dist(snapNext(at(64.8, 120), MPP, NET, a, leaving)!.point, at(65, 120))).toBeLessThan(0.002);
+    // 300 m from A, 5.7° off east: the old snap moved it 30 m onto east; now half a metre at most, to a whole length
+    const far = snapNext([300, 330], MPP, NET, a, null)!;
+    expect(dist(far.point, [300, 330])).toBeLessThanOrEqual(LENGTH_STEP_M / 2);
   });
 
-  test("B joins a road it is on or a few pixels off, at the road's middle line, and not one 20 px off", () => {
+  test("B takes a main way, along or square to the road it left or north, east, south, west, only when nearly on it", () => {
+    const a: Metres = [0, 300];
+    expect(snapNext([300, 300.5], MPP, NET, a, null)).toMatchObject({ point: [300, 300], kind: "angle" });
+    const leaving: Metres = [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6)], square: Metres = [-leaving[1], leaving[0]];
+    const snap = snapNext([square[0] * 80 + 0.8, 300 + square[1] * 80], MPP, NET, a, leaving)!;
+    expect(snap.kind).toBe("way");
+    expect(Math.abs((snap.point[0] - a[0]) * leaving[0] + (snap.point[1] - a[1]) * leaving[1])).toBeLessThan(0.002);
+    // ... 4 m off square (8 px) it is not taken
+    expect(snapNext([square[0] * 80 + 4, 300 + square[1] * 80], MPP, NET, a, leaving)!.kind).not.toBe("way");
+  });
+
+  test("B joins a road it is on or a few pixels off, a whole metre along from its junction, and not one 20 px off", () => {
     const h = hand(3);
     for (let k = 0; k < 200; k++) {
       // The mouse within the road's edge and NEXT_PIXELS.road past it, away from the junction
       const x = 20 + h.next() * 150, side = (h.next() < 0.5 ? -1 : 1) * h.next() * (3.5 + NEXT_PIXELS.road * MPP);
-      const snap = snapNext([x, 100 + side], MPP, NET, [x + 30, 250], null, 7)!;
+      const snap = snapNext([x, 100 + side], MPP, NET, [x + 30, 250], null)!;
       expect(snap.kind).toBe("road");
-      expect(snap.point[1]).toBeCloseTo(100, 9);
-      expect(snap.point[0]).toBeCloseTo(x, 9);
+      expect(snap.point).toEqual([Math.round(x), 100]);
     }
-    // 20 px (10 m) from the middle of a two-lane road is 6.5 m past its edge: where the mouse is
-    expect(snapNext([100, 110], MPP, NET, [130, 250], null, 7)).toBeNull();
+    // 20 px (10 m) from the middle of a two-lane road is 6.5 m past its edge: near the mouse, not on the road
+    const off = snapNext([100, 110], MPP, NET, [130, 250], null)!;
+    expect(off.kind).toBe("step");
+    expect(dist(off.point, [100, 110])).toBeLessThanOrEqual(LENGTH_STEP_M / 2);
+    // ... a road drawn freely ends just where let go
+    const free = snapNext([100.3, 101], MPP, NET, [130, 250], null, false)!;
+    expect(free.kind).toBe("road");
+    expect(dist(free.point, [100.3, 100])).toBeLessThan(1e-9);
+    expect(snapNext([100, 110], MPP, NET, [130, 250], null, false)).toBeNull();
   });
 
   test("B lands on a junction only when the mouse is on it, not from 12 m down the road", () => {
-    expect(snapNext([202, 102], MPP, NET, [50, 300], null, 7)).toMatchObject({ point: [200, 100], kind: "node" });
-    expect(snapNext([212, 101], MPP, NET, [50, 300], null, 7)).toMatchObject({ point: [212, 100], kind: "road" });
-    // Off the road's ground beside the junction, 14 px from it: where the mouse is
-    expect(snapNext([207, 93], MPP, NET, [50, 300], null, 7)).toBeNull();
+    expect(snapNext([202, 102], MPP, NET, [50, 300], null)).toMatchObject({ point: [200, 100], kind: "node" });
+    expect(snapNext([212.3, 101], MPP, NET, [50, 300], null)).toMatchObject({ point: [212, 100], kind: "road" });
+    // Off the road's ground beside the junction, 14 px from it: near the mouse
+    const beside = snapNext([207, 93], MPP, NET, [50, 300], null)!;
+    expect(beside.kind).toBe("step");
+    expect(dist(beside.point, [207, 93])).toBeLessThan(1.5);
     // ... and a dead end the same
-    expect(snapNext([398, 101], MPP, NET, [300, 300], null, 7)).toMatchObject({ point: [400, 100], kind: "end", way: [1, 0] });
-    expect(snapNext([390, 101], MPP, NET, [300, 300], null, 7)).toMatchObject({ point: [390, 100], kind: "road" });
+    expect(snapNext([398, 101], MPP, NET, [300, 300], null)).toMatchObject({ point: [400, 100], kind: "end", way: [1, 0] });
+    expect(snapNext([390.2, 101], MPP, NET, [300, 300], null)).toMatchObject({ point: [390, 100], kind: "road" });
   });
 
   test("B never lands back on the point the line is drawn from", () => {
-    const snap = snapNext([200.6, 100.4], MPP, NET, [200, 100], null, 7);
+    const snap = snapNext([200.6, 100.4], MPP, NET, [200, 100], null);
     expect(snap === null || dist(snap.point, [200, 100]) > 1).toBe(true);
   });
 

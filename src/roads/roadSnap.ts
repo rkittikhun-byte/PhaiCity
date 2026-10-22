@@ -8,15 +8,17 @@
 // about every MARK_STEP_M between its junctions, any point of a road's middle line (anywhere on the road, its edges
 // too), and the guideline a block of plots from a straight road. Every later point, B, lands close to the mouse: on a
 // junction or an end only when the mouse is on it, on a road only when the mouse is on the road or a few pixels off its
-// edge, and onto a straight way from the last point only when that moves it a few pixels and metres at most. Reaches
-// are in pixels on the screen (metresPerPixel), so they are the same at any zoom. Plain code, no DOM: metres from the
-// map's corner, x east and z south.
+// edge, and otherwise on fine steps close together (owner, the same day: "จุด B ให้ชิดกันมากกว่านี้"): a whole metre long
+// (or along the road), its way every 5°, onto a main way only when that moves it a few pixels and metres at most.
+// Reaches are in pixels on the screen (metresPerPixel), so they are the same at any zoom. Plain code, no DOM: metres
+// from the map's corner, x east and z south.
 
-import { snapWay, type Metres } from "./roadDraw";
+import { type Metres } from "./roadDraw";
 
 /** Why a click lands where it does: a junction, a road's dead end, a point along a road, the road's middle line, a
- * guideline a block from a road, along the road the line leaves, or onto a straight or 45° way */
-export type SnapKind = "node" | "end" | "mark" | "road" | "guide" | "way" | "angle";
+ * guideline a block from a road, along or square to the road the line leaves, onto a straight or 45° way, or onto B's
+ * fine steps (STEP_DEGREES, LENGTH_STEP_M) */
+export type SnapKind = "node" | "end" | "mark" | "road" | "guide" | "way" | "angle" | "step";
 
 export interface Snap {
   point: Metres;
@@ -40,10 +42,15 @@ export interface SnapNet {
 /** How near the mouse must be, in pixels on the screen, for each kind to take the first point (A) (a road: from its
  * edge) ... */
 export const START_PIXELS = { node: 10, road: 16, mark: 4, guide: 8 } as const;
-/** ... and each later point (B), which lands near the mouse */
-export const NEXT_PIXELS = { node: 7, road: 6, way: 6 } as const;
-/** B moved onto a straight way never more than this many metres (half that onto the 15° steps between the main ways) */
-export const WAY_MAX_M = 3;
+/** ... and each later point (B), which lands near the mouse: a junction or an end, a road, a main way, a fine step */
+export const NEXT_PIXELS = { node: 7, road: 6, way: 5, step: 3 } as const;
+/** B moved onto a main way never more than this many metres, onto a fine step never more than STEP_MAX_M */
+export const WAY_MAX_M = 2;
+export const STEP_MAX_M = 1;
+/** B's fine steps: its way every STEP_DEGREES from the road it leaves, its length (and its place along a road) in whole
+ * LENGTH_STEP_M */
+export const STEP_DEGREES = 5;
+export const LENGTH_STEP_M = 1;
 /** The points along a road A lands on: its stretch between two junctions or ends cut into equal parts about this long */
 export const MARK_STEP_M = 8;
 /** A road whose width is not known: a two-lane road with its shoulders */
@@ -293,37 +300,61 @@ function guideline(p: Metres, net: SnapNet, spacing: number, reach: number): Sna
 }
 
 /**
- * Where a later point of a line (B) lands with the mouse at p, close to the mouse: a junction or a road's end the mouse
- * is right on, else the nearest point of a road's middle line when the mouse is on the road or within
- * NEXT_PIXELS.road of its edge, else straight on from the last point (along, square to or at 15° steps from the road it
- * left, leaving; north, east, south, west or between) when that moves it NEXT_PIXELS.way and WAY_MAX_M at most (half
- * that onto a 15° step between those), else
- * null: where the mouse is. Never back onto the point the line is drawn from.
+ * Where a later point of a line (B) lands with the mouse at p: close to the mouse, on fine steps that line roads up
+ * neatly (owner, 22 Oct 2026: "จุด B ให้ชิดกันมากกว่านี้"). A junction or a road's end only when the mouse is right on
+ * it; on a road the mouse is on or within NEXT_PIXELS.road of its edge, its middle line a whole LENGTH_STEP_M along
+ * from the junction or end its stretch starts at; anywhere else a whole LENGTH_STEP_M from the last point, the way it
+ * goes moved onto a main way (along or square to the road it left, leaving; north, east, south, west or between) when
+ * that moves it NEXT_PIXELS.way and WAY_MAX_M at most, else onto a step of STEP_DEGREES from the road it left (from east
+ * when none) when that moves it NEXT_PIXELS.step and STEP_MAX_M at most. steps false: where the mouse is but for
+ * junctions, ends and roads (the end of a road drawn freely). null where nothing moves it. Never back onto the point
+ * the line is drawn from.
  */
 export function snapNext(p: Metres, metresPerPixel: number, net: SnapNet, last: Metres | null, leaving: Metres | null,
-                         degrees: number): Snap | null {
+                         steps = true): Snap | null {
   const near = feet(p, net, NEXT_PIXELS.road * metresPerPixel).filter((f) => !last || dist(f.point, last) > SAME_M);
   const foot = near[0] ?? null;
   const joint = onJoint(p, net, foot, NEXT_PIXELS.node * metresPerPixel, last);
   if (joint) return joint;
-  if (foot) return { point: foot.point, kind: "road", way: foot.way };
-  if (last === null) return null;
-  const straight = snapWay(last, p, leaving, degrees);
-  if (straight === null) return null;
-  // ... the main ways (north, east, south, west and between; along and square to the road it left) as far as
-  // NEXT_PIXELS.way and WAY_MAX_M, the 15° steps between half that
-  const angle = Math.atan2(straight[1] - last[1], straight[0] - last[0]);
-  const main = onStep(angle, Math.PI / 4) || (leaving !== null && onStep(angle - Math.atan2(leaving[1], leaving[0]), Math.PI / 2));
-  const reach = Math.min(NEXT_PIXELS.way * metresPerPixel, WAY_MAX_M) * (main ? 1 : 0.5);
-  if (dist(straight, p) > reach) return null;
-  return { point: straight, kind: leaving ? "way" : "angle", way: null };
+  if (foot) return steps ? alongStep(net, foot, last) : { point: foot.point, kind: "road", way: foot.way };
+  return last !== null && steps ? stepFrom(last, p, leaving, metresPerPixel) : null;
 }
 
-/** Whether an angle (radians) is a whole number of steps */
-const onStep = (angle: number, step: number): boolean => {
-  const off = ((angle % step) + step) % step;
-  return Math.min(off, step - off) < 1e-6;
-};
+/** A point on a road's middle line a whole LENGTH_STEP_M along from where its stretch starts, nearest the foot (the
+ * foot itself where that would be the point the line is drawn from) */
+function alongStep(net: SnapNet, foot: Foot, last: Metres | null): Snap {
+  const anchors = anchorsOf(net, foot.line);
+  let a0 = anchors[0], a1 = anchors[anchors.length - 1];
+  for (let i = 1; i < anchors.length; i++) if (foot.along <= anchors[i]) { a0 = anchors[i - 1]; a1 = anchors[i]; break; }
+  const s = Math.min(a1, a0 + Math.round((foot.along - a0) / LENGTH_STEP_M) * LENGTH_STEP_M);
+  const point = pointAlong(net.lines[foot.line], s);
+  return { point: last && dist(point, last) <= SAME_M ? foot.point : point, kind: "road", way: foot.way };
+}
+
+/** A whole LENGTH_STEP_M from the last point, on a main way or a STEP_DEGREES step when the mouse is that near one */
+function stepFrom(last: Metres, p: Metres, leaving: Metres | null, metresPerPixel: number): Snap | null {
+  const length = dist(last, p);
+  if (length < LENGTH_STEP_M) return null;
+  const angle = Math.atan2(p[1] - last[1], p[0] - last[0]), base = leaving ? Math.atan2(leaving[1], leaving[0]) : 0;
+  const nearest = (from: number, step: number): number => from + Math.round((angle - from) / step) * step;
+  const moved = (way: number): number => 2 * length * Math.abs(Math.sin((angle - way) / 2));
+  const mainReach = Math.min(NEXT_PIXELS.way * metresPerPixel, WAY_MAX_M);
+  const compass = nearest(0, Math.PI / 4), square = leaving ? nearest(base, Math.PI / 2) : null;
+  let way = angle, kind: SnapKind = "step";
+  if (square !== null && moved(square) <= mainReach && moved(square) <= moved(compass)) {
+    way = square;
+    kind = "way";
+  } else if (moved(compass) <= mainReach) {
+    way = compass;
+    kind = "angle";
+  } else {
+    const fine = nearest(base, STEP_DEGREES * Math.PI / 180);
+    if (moved(fine) <= Math.min(NEXT_PIXELS.step * metresPerPixel, STEP_MAX_M)) way = fine;
+  }
+  const along = Math.round(length / LENGTH_STEP_M) * LENGTH_STEP_M;
+  const mm = (v: number): number => Math.round(v * 1000) / 1000;
+  return { point: [mm(last[0] + Math.cos(way) * along), mm(last[1] + Math.sin(way) * along)], kind, way: null };
+}
 
 /** The places near p (within reach metres) where a click may land, for the dots the game shows: for the first point
  * the points along the roads (marksAlong) as well as their junctions and dead ends, for a later point only those */

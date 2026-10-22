@@ -4,9 +4,8 @@
 
 // Drawing a road or railway in metres (docs/METRE_DRAWING_PLAN.md 1.5): the clicked points as the line the road command
 // lays (src/cityCommands.ts road), the tiles it will lay worked out exactly as the command works them out, its length
-// and price by the metre, a straight or square way from the last point (where a click lands: src/roads/roadSnap.ts),
-// and whether it runs too close alongside a road already there. Plain code, no DOM: metres from the map's corner, x
-// east and z south.
+// and price by the metre, and whether it runs too close alongside a road already there (where a click lands:
+// src/roads/roadSnap.ts). Plain code, no DOM: metres from the map's corner, x east and z south.
 
 import { RoadGraph } from "./roadGraph";
 import { segmentTiles, type RasterMap } from "./roadRaster";
@@ -103,32 +102,6 @@ export function linePrice(tilePrice: number, tileSizeM: number, metres: number, 
   if (!tileCosts.length) return 0;
   const fresh = tileCosts.filter((cost) => cost > 0).length, extra = tileCosts.reduce((sum, cost) => sum + Math.max(0, cost - tilePrice), 0);
   return Math.round(tilePrice * metres / tileSizeM * fresh / tileCosts.length) + extra;
-}
-
-/**
- * The point clicked moved onto a straight way from the last point when it is nearly on one (within degrees): north,
- * south, east, west and the diagonals, and when the line leaves a road, along it, square to it and at each 15° from it
- * (docs/METRE_DRAWING_PLAN.md 3). Its distance from the last point kept. null when it is on none.
- */
-export function snapWay(from: Metres, to: Metres, road: Metres | null, degrees: number): Metres | null {
-  const length = dist(from, to);
-  if (length < 1e-6) return null;
-  const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
-  const ways: Array<[number, number]> = [];
-  for (let k = 0; k < 8; k++) ways.push([k * Math.PI / 4, degrees]);
-  if (road) {
-    const base = Math.atan2(road[1], road[0]);
-    // ... along it and square to it as surely as north and east, each 15° between a little less so
-    for (let k = 0; k < 24; k++) ways.push([base + k * Math.PI / 12, k % 6 === 0 ? degrees : degrees / 2]);
-  }
-  let best: number | null = null, bestOff = Infinity;
-  for (const [way, within] of ways) {
-    let off = Math.abs(angle - way) % (2 * Math.PI);
-    if (off > Math.PI) off = 2 * Math.PI - off;
-    if (off <= within * Math.PI / 180 && off < bestOff) { best = way; bestOff = off; }
-  }
-  if (best === null) return null;
-  return [from[0] + Math.cos(best) * length, from[1] + Math.sin(best) * length];
 }
 
 /**

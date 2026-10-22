@@ -15,7 +15,7 @@ import { MapGenerator } from "../src/mapGenerator.js";
 import { roadReach } from "../src/roadGeometry";
 import { drawnRoads, graphLines } from "../src/roads/graphLines";
 import { RoadGraph } from "../src/roads/roadGraph";
-import { snapNext, snapStart, WAY_MAX_M, type SnapNet } from "../src/roads/roadSnap";
+import { LENGTH_STEP_M, snapNext, snapStart, WAY_MAX_M, type SnapNet } from "../src/roads/roadSnap";
 import { isLineRail, isLineRoad, isPowerCrossing } from "../src/roadTiles";
 import { Storage } from "../src/storage.js";
 
@@ -278,13 +278,14 @@ describe("a road drawn in metres stays where it was drawn", () => {
         expect(slant.off(a!.point)).toBeLessThan(0.002);
       }
       const from = a ? a.point : pa;
-      // B: meant on a road a few pixels off it, it lands on it; meant in open land, within a few metres of the mouse
-      const pb = shaky(end, endRoad ? 10 : 20), b = snapNext(pb, MPP, snapNet(core), from, a ? a.way : null, 7);
+      // B: meant on a road a few pixels off it, it lands on it; meant in open land, near the mouse on its fine steps
+      const pb = shaky(end, endRoad ? 10 : 20), b = snapNext(pb, MPP, snapNet(core), from, a ? a.way : null);
       if (endRoad) {
         expect(b?.kind).toBe("road");
         expect((endRoad === SLANT ? slant : level).off(b!.point)).toBeLessThan(0.002);
       } else {
-        expect(Math.hypot((b ? b.point : pb)[0] - pb[0], (b ? b.point : pb)[1] - pb[1])).toBeLessThanOrEqual(WAY_MAX_M);
+        expect(Math.hypot((b ? b.point : pb)[0] - pb[0], (b ? b.point : pb)[1] - pb[1]))
+          .toBeLessThanOrEqual(WAY_MAX_M + LENGTH_STEP_M / 2 + 0.002);
       }
       draw(core, strokes, { from, to: b ? b.point : pb });
     }

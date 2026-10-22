@@ -302,6 +302,7 @@ export const STRINGS: Record<string, Translation> = {
   "draw.debug.why.none": { en: "where clicked", th: "ตรงจุดที่คลิก" },
   "draw.debug.why.node": { en: "joins the junction", th: "ต่อที่ทางแยก" },
   "draw.debug.why.mark": { en: "on a point along the line", th: "จุดแบ่งบนเส้นเดิม" },
+  "draw.debug.why.step": { en: "on a fine step: every 5°, whole metres", th: "ปัดเข้าขั้นละเอียด มุมทุก 5° ยาวเต็มเมตร" },
   "draw.debug.moved": { en: "{metres} m from the mouse", th: "ห่างเมาส์ {metres} ม." },
   "draw.debug.click": { en: "{name} clicked ({cx}, {cy}), used ({x}, {y})", th: "{name} คลิก ({cx}, {cy}) ใช้ ({x}, {y})" },
   "draw.debug.laid": { en: "laid {laid}/{total} tiles", th: "วางได้ {laid}/{total} ช่อง" },

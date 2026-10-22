@@ -12,7 +12,7 @@ import { t } from "./i18n/index";
 import type { TilePoint } from "./cityView";
 
 /** Why a click lands where it does (src/game.js snapTile; the road tools' kinds, src/roads/roadSnap.ts) */
-export type SnapWhy = "on" | "node" | "end" | "mark" | "road" | "spacing" | "angle" | "way" | "none";
+export type SnapWhy = "on" | "node" | "end" | "mark" | "road" | "spacing" | "angle" | "way" | "step" | "none";
 
 /** The pixels a tile takes on the screen round (x, y), from where the view finds the ground there; null off the map */
 export function pixelsPerTile(view: { pointAt?(x: number, y: number): { x: number; y: number } | null }, x: number,

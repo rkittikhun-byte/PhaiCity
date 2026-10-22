@@ -2278,9 +2278,10 @@ var isMetreTool = function(toolName) {
 // ... and a click of one lands (src/roads/roadSnap.ts; owner, 22 Oct 2026: "จุด B มีจุด snap อยู่ ทำให้จุด B ชิดกว่านี้
 // และจุด A มีจุดให้ snap หลายจุดกว่านี้"): the first point (A) on a junction or a road's end the mouse is right on, a point
 // along a road about every 8 m, anywhere on a road (its edges too) or the guideline a block of plots from a straight
-// road; every later point (B) close to the mouse: on a junction, an end or a road only when the mouse is on it or a few
-// pixels off, onto a straight way from the last point only when that moves it a few pixels and metres; just where
-// clicked with Shift held or snapping off. from: the point and way it goes on from, when not the line being drawn (a
+// road; every later point (B) close to the mouse on fine steps (owner, the same day: "จุด B ให้ชิดกันมากกว่านี้"): on a
+// junction, an end or a road only when the mouse is on it or a few pixels off (a whole metre along it), else a whole
+// metre from the last point, its way every 5° or onto a main way when the mouse is nearly on it; just where clicked
+// with Shift held or snapping off. from: the point and way it goes on from, when not the line being drawn (a
 // road drawn freely). The point in metres (m), the ground under the mouse (raw), why it moved (guide: a kind of
 // roadSnap's or null), the way of the road it joins there and a guideline's stretch (guideLine, metres)
 var SNAP_METRE_PIXELS = 14;
@@ -2304,7 +2305,7 @@ Game.prototype.metrePoint = function(toolName, x, y, free, from) {
   var lines = this.metreLines(toolName);
   var net = {lines: lines.metres, nodes: lines.nodes, half: lines.half};
   var snap = last === null ? snapStart(raw, mpp, net, ROAD_TOOLS.indexOf(toolName) !== -1 ? GRID_SPACING * size : 0) :
-             snapNext(raw, mpp, net, last, leaving, from ? 0 : SNAP_DEGREES);
+             snapNext(raw, mpp, net, last, leaving, !from);
   var at = snap === null ? {m: raw, raw: raw, guide: null, way: null, guideLine: null} :
            {m: snap.point, raw: raw, guide: snap.kind, way: snap.way, guideLine: snap.guide || null};
   this._metrePoint = {key: key, at: at};

@@ -3,12 +3,12 @@
  */
 
 // Drawing roads in metres (src/roads/roadDraw.ts, the road and railway tools in src/game.js; docs/METRE_DRAWING_PLAN.md
-// 1.5): the line the clicks make, the tiles the command will lay, the price by the metre, where a click lands and a
-// road drawn too close alongside another.
+// 1.5): the line the clicks make, the tiles the command will lay, the price by the metre and a road drawn too close
+// alongside another.
 
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
-import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapWay, type Metres } from "../src/roads/roadDraw";
+import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, type Metres } from "../src/roads/roadDraw";
 import { isRoadTile } from "../src/roadTiles";
 
 /** A bare 16 m city map, 60 × 40 tiles (960 × 640 m) */
@@ -70,17 +70,6 @@ describe("drawing roads in metres", () => {
     // A bridge tile costs five times a tile
     expect(linePrice(10, 16, 160, [...Array(10).fill(10), 50])).toBe(140);
     expect(linePrice(10, 16, 0, [])).toBe(0);
-  });
-
-  test("a point nearly straight on from the last lands straight on, and square to the road it left", () => {
-    const east = snapWay([0, 0], [100, 4], null, 7)!;
-    expect(east[0]).toBeCloseTo(Math.hypot(100, 4), 9);
-    expect(east[1]).toBeCloseTo(0, 9);
-    expect(snapWay([0, 0], [100, 30], null, 7)).toBeNull();
-    // Leaving a road that runs at 30°, a point nearly square to it lands square to it
-    const way: Metres = [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6)];
-    const square = snapWay([0, 0], [-Math.sin(Math.PI / 6) * 100 + 3, Math.cos(Math.PI / 6) * 100], way, 7)!;
-    expect(Math.abs(square[0] * way[0] + square[1] * way[1])).toBeLessThan(1e-9);
   });
 
   test("a road drawn alongside another closer than a tile is too close; one crossing it or meeting it is not", () => {
