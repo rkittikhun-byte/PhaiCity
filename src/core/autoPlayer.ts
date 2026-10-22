@@ -820,9 +820,9 @@ export class AutoPlayer {
    * and a town whose education fell a point short of its aim in month 42 ordered its schools in month 48 and opened them
    * in month 53, its market town a year late, docs/GAME_DESIGN.md 15): the symbols it lists missing that the city may
    * build (symbolTools: the secondary school for the technicians), then more seats or care where a side is short
-   * (askEra), then the school for the trained people a building waited for (trainingGoal). What the treasury cannot pay
-   * yet is kept from the capacity bought early (eraWant). Nothing else of the year's turn (zones, services by numbers,
-   * the district office) moves to the month.
+   * (askEra), then the school for the trained people a building waited for (trainingGoal), or the district office it
+   * needs first. What the treasury cannot pay yet is kept from the capacity bought early (eraWant). Nothing else of the
+   * year's turn (zones, services by numbers, the office's rise by the rank alone) moves to the month.
    */
   private readEraCard(): void {
     const core = this.core, budget = core.simulation.budget, { x, y } = this.options.town;
@@ -841,8 +841,16 @@ export class AutoPlayer {
     }
     const population = core.simulation.evaluation.cityPop;
     this.askEra(population, wantFor, true);
-    const goal = this.trainingGoal();
-    if (goal && !this.askNoRoom.has(goal) && serviceProblem(goal, core.map.rulerHouse?.level ?? 0) === null) {
+    const goal = this.trainingGoal(), house = core.map.rulerHouse, level = house?.level ?? 0;
+    if (goal && house && serviceProblem(goal, level) !== null) {
+      // (the district office a level higher first, when the school needs it: the secondary school's technicians)
+      const price = houseSpec(level + 1).price - houseSpec(level).price + ERA_ASK_SPARE;
+      if (budget.totalFunds < price + this.keptUrgent) wantFor(price);
+      else {
+        this.note(`era card (month): district office for ${goal} (฿${price - ERA_ASK_SPARE}, treasury ฿${budget.totalFunds})`);
+        this.apply("ruler_house_upgrade", house.x, house.y);
+      }
+    } else if (goal && !this.askNoRoom.has(goal)) {
       const price = (core.tools?.[goal]?.toolCost ?? 0) + ERA_ASK_SPARE;
       if (budget.totalFunds < price + this.keptUrgent) wantFor(price);
       else {

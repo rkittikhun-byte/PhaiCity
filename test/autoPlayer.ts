@@ -117,8 +117,9 @@ describe("the auto player", () => {
     expect(core.map.rulerHouse?.level).toBe(1);
     (player as unknown as { wantTrained: Set<string> }).wantTrained.add("technician");
     player.playYear();
-    const year = player.log.filter((line) => line.startsWith("year 1:"));
-    const planned = year.findIndex((line) => line.startsWith("year 1: training: district office for secondary_school"));
+    // (read on the era card in the month the school is wanted, or at the year's turn)
+    const year = player.log.filter((line) => line.startsWith("year 1:") || line.startsWith("year 0:"));
+    const planned = year.findIndex((line) => /^year [01]: (training: |era card \(month\): )district office for secondary_school/.test(line));
     expect(planned).toBeGreaterThanOrEqual(0);
     expect(year.slice(planned + 1).some((line) => line.includes("ruler_house_upgrade at"))).toBe(true);
     expect(core.map.rulerHouse?.level).toBeGreaterThanOrEqual(2);
