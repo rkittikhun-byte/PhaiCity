@@ -1664,9 +1664,9 @@
 | `plot.name.lot` | `src/inspectCard.ts` | — | `a lot of four plots` | `แปลงรวม 4 แปลง` |  |
 | `plot.check.road` | `src/plotChecklist.ts` | — | `A road within reach` | `มีถนนในระยะเข้าถึง` |  |
 | `plot.check.road_none` | `src/plotChecklist.ts` | — | `No road within {reach} tiles` | `ไม่มีถนนในระยะ {reach} ช่อง` |  |
-| `plot.check.route.residential` | `src/plotChecklist.ts` | — | `No way along the roads to any shops` | `ถนนยังไปไม่ถึงร้านค้า` |  |
-| `plot.check.route.commercial` | `src/plotChecklist.ts` | — | `No way along the roads to any factories` | `ถนนยังไปไม่ถึงโรงงาน` |  |
-| `plot.check.route.industrial` | `src/plotChecklist.ts` | — | `No way along the roads to any homes` | `ถนนยังไปไม่ถึงบ้านคน` |  |
+| `plot.check.route.residential` | `src/plotChecklist.ts` | — | `No work within {minutes} minutes along the roads` | `ไปที่ทำงานไม่ถึงใน {minutes} นาที` |  |
+| `plot.check.route.commercial` | `src/plotChecklist.ts` | — | `No homes within {minutes} minutes for its staff and shoppers` | `ไม่มีบ้านคนในระยะ {minutes} นาที ทั้งคนทำงานและลูกค้า` |  |
+| `plot.check.route.industrial` | `src/plotChecklist.ts` | — | `No homes within {minutes} minutes for its workers` | `ไม่มีบ้านคนในระยะ {minutes} นาที มาทำงาน` |  |
 | `plot.check.power` | `src/plotChecklist.ts` | — | `Power` | `มีไฟฟ้า` |  |
 | `plot.check.power_none` | `src/plotChecklist.ts` | — | `No power` | `ไม่มีไฟฟ้า` |  |
 | `plot.check.water` | `src/plotChecklist.ts` | — | `Water` | `มีน้ำประปา` |  |
@@ -1687,9 +1687,9 @@
 | `plot.check.lot` | `src/plotChecklist.ts` | — | `Part of a lot of four plots` | `อยู่ในแปลงรวม 4 แปลง` |  |
 | `plot.check.lot_none` | `src/plotChecklist.ts` | — | `Needs four plots side by side (2 × 2), each at level {level} or more` | `ต้องมี 4 แปลงติดกัน (2 × 2) ระดับ {level} ขึ้นไปทุกแปลง` | ระดับสูงสุดโตได้เฉพาะบนแปลงรวม |
 | `plot.hint.road` | `src/plotChecklist.ts` | — | `Build a road close by` | `สร้างถนนให้ใกล้แปลงนี้` |  |
-| `plot.hint.route.residential` | `src/plotChecklist.ts` | — | `Join this road to the roads round the shops` | `ต่อถนนเส้นนี้ไปถึงย่านร้านค้า` |  |
-| `plot.hint.route.commercial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the factories` | `ต่อถนนเส้นนี้ไปถึงย่านโรงงาน` |  |
-| `plot.hint.route.industrial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย` |  |
+| `plot.hint.route.residential` | `src/plotChecklist.ts` | — | `Join this road to the roads round the shops and factories, or give it a quicker way there` | `ต่อถนนเส้นนี้ไปถึงย่านร้านค้าและโรงงาน หรือทำทางที่ไปได้เร็วขึ้น` |  |
+| `plot.hint.route.commercial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes, or give it a quicker way there` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย หรือทำทางที่ไปได้เร็วขึ้น` |  |
+| `plot.hint.route.industrial` | `src/plotChecklist.ts` | — | `Join this road to the roads round the homes, or give it a quicker way there` | `ต่อถนนเส้นนี้ไปถึงย่านที่อยู่อาศัย หรือทำทางที่ไปได้เร็วขึ้น` |  |
 | `plot.hint.power` | `src/plotChecklist.ts` | — | `Build a power plant beside a road that reaches here` | `สร้างโรงไฟฟ้าติดถนนที่ต่อมาถึงที่นี่` |  |
 | `plot.hint.water` | `src/plotChecklist.ts` | — | `Build a water works beside a road that reaches here, or another if the water runs short` | `สร้างโรงผลิตน้ำประปาติดถนนที่ต่อมาถึง หรือเพิ่มอีกแห่งถ้าน้ำไม่พอ` |  |
 | `plot.hint.demand.residential` | `src/plotChecklist.ts` | — | `Jobs, schools, health and lower home taxes draw people` | `งาน โรงเรียน สุขภาพ และภาษีที่อยู่อาศัยที่ต่ำลง ดึงคนเข้าเมือง` |  |
@@ -1715,6 +1715,10 @@
 | `object.fact.state_road` | `src/inspect.ts` | — | `The state's road: no upkeep` | `ถนนของรัฐ ไม่มีค่าบำรุง` |  |
 | `object.fact.length` | `src/inspect.ts` | — | `{metres} m long, junction to junction` | `ยาว {metres} ม. จากทางแยกถึงทางแยก` | ช่วงถนนเป็น object (src/objects/roadSegment.ts) |
 | `object.fact.traffic` | `src/inspect.ts` | — | `Traffic: {grade}` | `การจราจร: {grade}` |  |
+| `object.fact.road_cars` | `src/inspect.ts` | — | `{cars} cars in the busiest hour, of {capacity} it takes` | `รถ {cars} คันในชั่วโมงเร่งด่วน จุได้ {capacity} คัน` | การเดินทางของเดือนบนกราฟถนน (src/sim/cityTrips.ts) |
+| `object.fact.road_speed` | `src/inspect.ts` | — | `Cars go {speed} km/h ({clear} km/h when clear)` | `รถวิ่ง {speed} กม./ชม. (ถนนโล่ง {clear} กม./ชม.)` |  |
+| `object.fact.road_users` | `src/inspect.ts` | — | `Used by the homes of {homes} streets: {work}% to work, {shop}% to the shops` | `บ้านจาก {homes} ถนนใช้เส้นนี้: ไปทำงาน {work}% ไปซื้อของ {shop}%` |  |
+| `object.fact.road_empty` | `src/inspect.ts` | — | `No trips use this road yet` | `ยังไม่มีใครใช้ถนนเส้นนี้เดินทาง` |  |
 | `object.fact.cells` | `src/inspect.ts` | — | `Zone cells facing it: {painted} of {cells} painted` | `ช่องเขตริมถนนนี้: ทาแล้ว {painted} จาก {cells} ช่อง` | อำเภอที่ทาทีละช่อง (src/zoneCells.ts) |
 | `object.fact.outside` | `src/inspect.ts` | — | `Outside the province: nothing can be built` | `นอกเขตจังหวัด สร้างไม่ได้` |  |
 | `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |

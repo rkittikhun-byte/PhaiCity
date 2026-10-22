@@ -39,6 +39,9 @@ import { WORKS_SUPPLY } from "../waterManager.js";
 import { cellPrice } from "../zoneCells.js";
 import { PAINT_PRICE_SHARE, PLOT_SHARE } from "../plots.js";
 import { tileMetres } from "../units.js";
+import type { CityTrips } from "../sim/cityTrips.js";
+import type { RoadGraph } from "../roads/roadGraph.js";
+import { segmentShape } from "../sim/roadUpkeep.js";
 
 /** The year's money, line by line, as the budget counted it when it collected the taxes (src/budget.js collectTax) */
 export interface YearAccounts {
@@ -312,6 +315,11 @@ const ASK_MOST = 3;
 const ERA_ASK_SPARE = 300;
 /** Road tiles nearest the town raised a level a year, once the city may lay the level (src/unlocks.ts) */
 const PAVE_EACH_YEAR = 400;
+/** A road this full (its cars over what it takes) is widened a level (easeTraffic), up to this many a month, up to the
+ * widest road that still gives the plots beside it a way in */
+const EASE_FROM = 0.9;
+const EASE_EACH_MONTH = 3;
+const EASE_TOP = 6;
 /** ... while the treasury keeps this much */
 const PAVE_KEEP = 800;
 /** Spots cleared for a building before the player gives up on it for the year (clearFor): a cleared spot that still
@@ -403,6 +411,7 @@ export class AutoPlayer {
       if (this.asks.length) this.answerFestivals();
       if (this.later.length && step % STEPS_PER_MONTH === 0) this.tryLater();
       if (step % STEPS_PER_MONTH === 0) this.planCapacity(false);
+      if (step % STEPS_PER_MONTH === STEPS_PER_MONTH / 2) this.easeTraffic();
       if (this.cellsLater.length && step % STEPS_PER_MONTH === 0) this.paintLater();
     }
     this.year++;
@@ -868,6 +877,39 @@ export class AutoPlayer {
       if (this.apply("road_upgrade", x, y, true)) paved++;
     }
     if (paved) this.note(`paved ${paved} road tiles`);
+  }
+
+  /**
+   * The roads the month's trips jam (src/sim/trips.ts, docs/NO_GRID_PLAN.md 1.3) raised a level, the most jammed first,
+   * as a player widens the roads the traffic layer shows red: up to EASE_EACH_MONTH of them a month, never to a motorway
+   * (which gives the plots beside it no way in), while money allows
+   */
+  private easeTraffic(): void {
+    const core = this.core, map = core.map as { trips?: CityTrips | null; roadGraph?: RoadGraph | null; width: number; height: number;
+      tileSizeM?: number | null; getTileValue(x: number, y: number): number; roadLevels?: Uint8Array | null };
+    const trips = map.trips, graph = map.roadGraph, budget = core.simulation.budget, reserve = PAVE_KEEP + this.kept;
+    if (!trips || !graph || budget.totalFunds <= reserve) return;
+    const jams: Array<[number, number]> = [];
+    for (let k = 0; k < trips.result.cars.length; k++) {
+      const full = trips.result.cars[k] / Math.max(1, trips.net.capacity[k]);
+      if (full > EASE_FROM) jams.push([full, k]);
+    }
+    jams.sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+    const raster = { width: map.width, height: map.height, tileSizeM: tileMetres(map) };
+    let eased = 0;
+    for (const [, k] of jams.slice(0, EASE_EACH_MONTH)) {
+      const segment = graph.segments.get(trips.roads.segmentIds[k]);
+      if (!segment) continue;
+      let raised = 0;
+      for (const i of segmentShape(graph, segment, raster).tiles) {
+        if (budget.totalFunds <= reserve) break;
+        const x = i % map.width, y = Math.floor(i / map.width);
+        if (!isRoadTile(map.getTileValue(x, y)) || roadLevelAt(map, x, y) >= EASE_TOP) continue;
+        if (this.apply("road_upgrade", x, y, true)) raised++;
+      }
+      if (raised) eased++;
+    }
+    if (eased) this.note(`widened ${eased} jammed roads`);
   }
 
   /** Buying land for a building that found no room, so a failure there does not buy again */

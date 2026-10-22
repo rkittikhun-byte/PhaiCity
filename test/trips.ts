@@ -124,11 +124,11 @@ describe("a city's trips, month by month (src/sim/cityTrips.ts)", () => {
     return core;
   }
 
-  test("set going at a month's start and in the city half a month later, the same each time, changing nothing else yet", () => {
+  test("set going at a month's start and in the city half a month later, the same each time, and the roads' traffic theirs", () => {
     // The cities run one after the other: they share the game's one Random, which each takes up from its save
     const tiles = (core: any) => { const out: number[] = []; for (let y = 0; y < core.map.height; y++) for (let x = 0; x < core.map.width; x++) out.push(core.map.getTileValue(x, y)); return out.join(","); };
-    const play = (withTrips: boolean) => {
-      const core = opened(withTrips);
+    const play = () => {
+      const core = opened(true);
       let started = -1;
       core.on("month", () => { if (started < 0) started = core.steps; });
       while (started < 0) core.step();
@@ -136,10 +136,19 @@ describe("a city's trips, month by month (src/sim/cityTrips.ts)", () => {
       const before = core.map.trips ?? null;
       core.step();
       const trips = core.map.trips ?? null;
+      // ... and through the next cycle, whose traffic map they paint (src/sim/cityTrips.ts paintTraffic)
+      for (let k = 0; k < 16; k++) core.step();
+      const density = core.simulation.blockMaps.trafficDensityMap;
+      let painted = 0, matched = 0;
+      for (let n = 0; n < trips.trafficTiles.length; n++) {
+        const i = trips.trafficTiles[n], x = i % core.map.width, y = Math.floor(i / core.map.width);
+        if (density.worldGet(x, y) > 0) painted++;
+        if (density.worldGet(x, y) >= trips.traffic[n]) matched++;
+      }
       for (let k = 0; k < 64 * 2; k++) core.step();
-      return { started, before, trips, tiles: tiles(core) };
+      return { started, before, trips, painted, matched, total: trips.trafficTiles.length, tiles: tiles(core) };
     };
-    const a = play(true), b = play(true), c = play(false);
+    const a = play(), b = play();
     expect(a.before).toBeNull();
     const trips = a.trips;
     expect(trips.step).toBe(a.started + 32);
@@ -149,9 +158,62 @@ describe("a city's trips, month by month (src/sim/cityTrips.ts)", () => {
       if (trips.result.anyJobs) expect(Number.isNaN(trips.homeToWork[trips.places.homeTile[i]])).toBe(false);
     }
     expect(trips.places.homeTile.length).toBeGreaterThan(0);
+    // The roads the trips go along show their traffic to the old readers, each block its busiest road
+    expect(a.total).toBeGreaterThan(0);
+    expect(a.painted).toBe(a.total);
+    expect(a.matched).toBe(a.total);
+    // ... and it all comes out the same again
     expect(JSON.stringify(Array.from(b.trips.result.cars))).toBe(JSON.stringify(Array.from(trips.result.cars)));
-    // ... and the city without them grew just the same (step 1.2 does not change the growth yet)
     expect(a.tiles).toBe(b.tiles);
-    expect(a.tiles === c.tiles).toBe(true);
   }, 180000);
+});
+
+describe("the month's trips in a worker (src/sim/tripWorker.ts)", () => {
+  function city(runner?: import("../src/sim/cityTrips").TripRunner) {
+    const fs = require("fs");
+    const { CityCore } = require("../src/core/cityCore");
+    const { decodeMap } = require("../src/cityStorage");
+    const { GameMap } = require("../src/gameMap.js");
+    const { Storage } = require("../src/storage.js");
+    const save = JSON.parse(fs.readFileSync("test/fixtures/khonKaen-v5.json", "utf8"));
+    save.map = decodeMap(save.mapRle);
+    delete save.mapRle;
+    if (save.version !== Storage.CURRENT_VERSION) Storage.transitionOldSave(save);
+    return new CityCore({ map: new GameMap(save.width, save.height), saved: save, tripRunner: runner });
+  }
+  /** Two months of a city, what its trips found and its tiles */
+  function play(runner?: import("../src/sim/cityTrips").TripRunner) {
+    const core = city(runner);
+    const cars: string[] = [];
+    let last: unknown = null;
+    for (let k = 0; k < 64 * 3; k++) {
+      core.step();
+      const trips = (core.map as any).trips;
+      if (trips && trips !== last) { last = trips; cars.push(JSON.stringify(Array.from(trips.result.cars))); }
+    }
+    const tiles: number[] = [];
+    for (let y = 0; y < core.map.height; y++) for (let x = 0; x < core.map.width; x++) tiles.push(core.map.getTileValue(x, y));
+    return { cars, tiles: tiles.join(",") };
+  }
+
+  test("a worker's answer, or none (worked out at the step instead), makes the same city as working it out at once", () => {
+    const { tripsReply, workerTripRunner } = require("../src/sim/tripWorker");
+    // A worker that answers (a copy of the job, as the page's message is copied), one that never does, one that fails
+    const answering = () => {
+      const w: any = { onmessage: null, onerror: null, terminate() {}, postMessage(data: any) {
+        const { reply } = tripsReply(structuredClone(data));
+        w.onmessage({ data: structuredClone(reply) });
+      } };
+      return w;
+    };
+    const silent = () => ({ onmessage: null, onerror: null, terminate() {}, postMessage() {} });
+    const failing = () => { throw new Error("no workers here"); };
+    const atOnce = play();
+    expect(atOnce.cars.length).toBeGreaterThanOrEqual(2);
+    for (const make of [answering, silent, failing]) {
+      const other = play(workerTripRunner(make));
+      expect(other.cars).toEqual(atOnce.cars);
+      expect(other.tiles === atOnce.tiles).toBe(true);
+    }
+  }, 300000);
 });

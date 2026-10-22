@@ -209,6 +209,7 @@ function commonOptions() {
       'model-gallery': './src/render3d/gallery/gallery.ts',
       'city-model-worker': './src/render3d/city/model-worker.ts',
       'city-road-worker': './src/render3d/city/road-worker.ts',
+      'city-trips-worker': './src/sim/trips-worker.ts',
       'geo-review': './src/geoReview/geoReview.ts',
       'era-buildings': './src/render3d/gallery/era-buildings.ts',
     },

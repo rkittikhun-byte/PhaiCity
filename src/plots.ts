@@ -380,7 +380,33 @@ export interface PlotScanMap extends PlotMap {
   setTile(x: number, y: number, value: number, flags: number): void;
   /** Why each plot is not growing, by tile (PLOT_WHY), as the last scan found it; made on the first scan, not saved */
   plotWhy?: Uint8Array | null;
+  /** On a real-scale city map, what the month's trips on the road graph found (src/sim/cityTrips.ts): minutes from each
+   * home tile to work, and from each shop or factory tile to the homes (NaN not known, Infinity none within reach) */
+  trips?: { homeToWork: Float32Array; jobToHome: Float32Array } | null;
 }
+
+/** A commute this long or shorter (minutes) costs a place nothing; each minute more takes COMMUTE_COST off its score,
+ * up to the trips' reach (src/sim/trips.ts TRIP_MINUTES, 30 minutes): a lenient start (docs/NO_GRID_PLAN.md 1.3, 8.1) */
+export const COMMUTE_EASY = 10;
+export const COMMUTE_COST = 40;
+
+/**
+ * How far a plot's trips go, on a real-scale city map (docs/NO_GRID_PLAN.md 1.3): from a home to the nearest work,
+ * from a shop or factory to the nearest homes, in minutes along the roads as busy as the month's trips made them; NaN
+ * when not known yet (a city just opened) or when the city has nowhere of that kind yet, Infinity when none is within
+ * reach (cut off); null on any other map, whose trips still walk the tiles (src/traffic.js)
+ */
+export function tripMinutes(map: PlotScanMap, x: number, y: number, kind: PlotKind): number | null {
+  if (!map.roadGraph?.segments.size || !isCityTileSize(map.tileSizeM)) return null;
+  const trips = map.trips;
+  if (!trips) return NaN;
+  const i = y * map.width + x;
+  return kind === "residential" ? trips.homeToWork[i] : trips.jobToHome[i];
+}
+
+/** What a commute this long takes off a place's score (none when not known) */
+export const commuteCost = (minutes: number | null): number =>
+  minutes !== null && Number.isFinite(minutes) && minutes > COMMUTE_EASY ? (minutes - COMMUTE_EASY) * COMMUTE_COST : 0;
 
 /**
  * Why a plot does not grow, the first that holds it back (owner, 16 Oct 2026, docs/MUEANG_CS_PLAN.md M1.1: "the player
@@ -553,13 +579,19 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
   const watered = sim.waterManager ?
     sim.waterManager.supplyPlot(x, y, road ? road.x : -1, road ? road.y : -1, census, level >= 1) : true;
 
-  // Now and then, more often the bigger it is, it sends out a trip; with no road at all, its people move out
+  // Now and then, more often the bigger it is, it sends out a trip; with no road at all, its people move out. On a
+  // real-scale city map the month's trips on the road graph say where they get and how long it takes (src/sim/trips.ts):
+  // cut off from where its trips go (work for a home, homes for a shop or factory), it loses a level and scores as
+  // without a road, and a long way there lowers its score (commuteCost)
+  const minutes = tripMinutes(map, x, y, kind);
+  const cutOff = minutes === Infinity;
   let traffic = road ? ROUTE_FOUND : NO_ROAD_FOUND;
   const trips = kind === "commercial" && level > 0 ? level + (sim.touristTrips ?? 0) : level;
   if (trips > Random.getRandom(kind === "residential" ? 35 : 40)) {
-    traffic = road && sim.trafficManager ?
+    if (minutes !== null) traffic = road ? ROUTE_FOUND : NO_ROAD_FOUND;
+    else traffic = road && sim.trafficManager ?
       sim.trafficManager.makeTrafficFrom(road.x, road.y, x, y, sim.blockMaps, DESTINATIONS[kind]) : NO_ROAD_FOUND;
-    if (traffic === NO_ROAD_FOUND) {
+    if (traffic === NO_ROAD_FOUND || (road && cutOff)) {
       setLevel(map, x, y, sim, plot, level - 1);
       return true;
     }
@@ -568,13 +600,13 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
   // Why it does not grow, without a draw of the random numbers, so the city is the same with or without it
   if (map.plotWhy !== undefined) {
     const why = map.plotWhy ?? (map.plotWhy = new Uint8Array(map.width * map.height));
-    why[y * map.width + x] = WHY(plotWhyOf(map, x, y, sim, plot, powered, watered, traffic === NO_ROAD_FOUND));
+    why[y * map.width + x] = WHY(plotWhyOf(map, x, y, sim, plot, powered, watered, traffic === NO_ROAD_FOUND || cutOff));
   }
 
   if (kind === "residential") {
     // An empty lot and a house are looked at every time, as a zone of houses is
     if (level > 1 && !Random.getChance(7)) return true;
-    let score = sim.valves.resValve + homeScore(sim, x, y, traffic);
+    let score = sim.valves.resValve + homeScore(sim, x, y, cutOff ? NO_ROAD_FOUND : traffic) - commuteCost(minutes);
     // Without power nothing grows, and without water nothing grows past a house
     if (!powered || (!watered && level >= 1)) score = -500;
     if (grows(score)) {
@@ -591,9 +623,11 @@ export function plotFound(map: PlotScanMap, x: number, y: number, sim: PlotSimDa
   }
 
   if (!Random.getChance(7)) return true;
-  let score = kind === "commercial" ?
-    sim.valves.comValve + (traffic === NO_ROAD_FOUND ? -3000 : sim.blockMaps.cityCentreDistScoreMap.worldGet(x, y)) :
-    sim.valves.indValve + (traffic === NO_ROAD_FOUND ? -1000 : 0);
+  // (cut off from where its trips go, it scores as with no road: src/sim/trips.ts)
+  const stuck = traffic === NO_ROAD_FOUND || cutOff;
+  let score = (kind === "commercial" ?
+    sim.valves.comValve + (stuck ? -3000 : sim.blockMaps.cityCentreDistScoreMap.worldGet(x, y)) :
+    sim.valves.indValve + (stuck ? -1000 : 0)) - commuteCost(minutes);
   if (!powered || (!watered && level > 1)) score = -500;
   if ((watered || level === 0) && grows(score)) {
     // A shop grows only as far as the land is worth (src/commercial.js)

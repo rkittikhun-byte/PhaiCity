@@ -122,6 +122,7 @@ import { ScreenshotLinkWindow } from './screenshotLinkWindow.js';
 import { ScreenshotWindow } from './screenshotWindow.js';
 import { SettingsWindow } from './settingsWindow.js';
 import { Simulation } from './simulation.js';
+import { browserTripWorker, workerTripRunner } from './sim/tripWorker.ts';
 import { Storage } from './storage.js';
 import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
@@ -214,6 +215,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.core = new CityCore({
     map: this.gameMap, saved: savedGame, level: difficulty, speed: this.defaultSpeed,
     rules: rules || null, resources: resources || null,
+    // A month's trips on the road graph worked out in a worker, so a big city does not stall at a month's start
+    // (docs/NO_GRID_PLAN.md 1.4; the core brings them in at the same step either way)
+    tripRunner: typeof Worker !== 'undefined' ? workerTripRunner(browserTripWorker) : undefined,
     hooks: {
       // The ruler's house's next level needs the ruler's rank (src/rulerHouse.ts)
       rank: function() { return Math.max(0, RANKS.indexOf(coreGame.rulerRank)); },
