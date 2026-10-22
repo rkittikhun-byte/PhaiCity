@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 5;
+export const SIM_VERSION = 6;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -25,6 +25,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   5: "on a map painted a cell at a time the plots are a list: runs of painted columns along a road, a shop a bay, a home " +
     "12 m, a factory 16 m, counted by their area, each growing with its own luck when the scan comes to the tile it is " +
     "counted at, two grown ones beside each other joining for the top level (NO_GRID_PLAN 3B)",
+  6: "on a real-scale city map land value and the shops' nearness count the straight-line distance from the centre, " +
+    "measured at each block's middle, not the Manhattan distance to its corner (NO_GRID_PLAN 4.2)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

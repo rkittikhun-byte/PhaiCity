@@ -184,6 +184,9 @@ var centreDistanceStep = function(map) {
 
 
 // Compute the Manhattan distance of the given point from the city centre, and force into the range 0-64
+// PhaiCity: on a real-scale city map, the straight-line distance (docs/NO_GRID_PLAN.md 4.2): a neighbourhood off the
+// centre's diagonal was worth less than one as far along a street north or east of it, as the Manhattan distance
+// counts a diagonal mile as 1.4 (Math.sqrt is exact in every JS engine, so every machine gets the same city)
 var getCityCentreDistance = function(map, x, y) {
   var xDis, yDis;
 
@@ -197,7 +200,14 @@ var getCityCentreDistance = function(map, x, y) {
   else
     yDis = map.cityCentreY - y;
 
-  return Math.min(Math.floor((xDis + yDis) / centreDistanceStep(map)), 64);
+  var distance = isCityTileSize(map.tileSizeM) ? Math.floor(Math.sqrt(xDis * xDis + yDis * yDis)) : xDis + yDis;
+  return Math.min(Math.floor(distance / centreDistanceStep(map)), 64);
+};
+
+// PhaiCity: where a block is measured from: its middle on a real-scale city map (docs/NO_GRID_PLAN.md 4.2), else its
+// top-left tile as the original did
+var blockMiddle = function(map, size) {
+  return isCityTileSize(map.tileSizeM) ? size >> 1 : 0;
 };
 
 
@@ -293,7 +303,8 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
       if (developed) {
         // getCityCentreDistance returns a score in the range 0-64, so, after shifting, landValue will be in
         // range 8-136
-        var landValue = 34 - Math.floor(getCityCentreDistance(map, worldX, worldY) / 2);
+        var middle = blockMiddle(map, 2);
+        var landValue = 34 - Math.floor(getCityCentreDistance(map, worldX + middle, worldY + middle) / 2);
         landValue = landValue << 2;
 
         // Land in the same neighbourhood as unspoiled land is more valuable...
@@ -435,7 +446,8 @@ var fillCityCentreDistScoreMap = function(map, blockMaps) {
     for (var y = 0, height = cityCentreDistScoreMap.height; y < height; y++) {
       // First, we compute the Manhattan distance of the top-left hand corner of the neighbourhood to the city centre
       // and half that value. This leaves us a value in the range 0 - 32
-      var value = Math.floor(getCityCentreDistance(map, x * 8, y * 8) / 2);
+      var middle = blockMiddle(map, 8);
+      var value = Math.floor(getCityCentreDistance(map, x * 8 + middle, y * 8 + middle) / 2);
       // Now, we scale up by a factor of 4. We're in the range 0 - 128
       value = value * 4;
       // And finally, subtract from 64, leaving us a score in the range -64 to 64
@@ -553,7 +565,9 @@ var BlockMapUtils = {
   pollutionTerrainLandValueScan: pollutionTerrainLandValueScan,
   populationDensityScan: populationDensityScan,
   // PhaiCity: the tiles in one step of distance from the centre on this map (1, or 3 on a city map at real scale)
-  nearnessStep: centreDistanceStep
+  nearnessStep: centreDistanceStep,
+  // PhaiCity: a point's distance from the centre in those steps, 0-64 (straight on a real-scale city map)
+  centreDistance: getCityCentreDistance
 };
 
 
