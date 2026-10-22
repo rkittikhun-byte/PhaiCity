@@ -65,7 +65,7 @@ import { canalGraphLines } from './roads/canalLines.ts';
 import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
-import { isTurned } from './buildings/turnedFootprint.ts';
+import { roadPose } from './buildings/roadPose.ts';
 import { layerPixels, toolLayer } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
@@ -2069,8 +2069,7 @@ Game.prototype.calculateMouseForPaint = function() {
   if (pose !== null && hover.building) {
     var refusal = this.core.commands.quoteBuild(this.buildCommand(this.inputStatus.toolName, pose));
     hover.colour = refusal !== null ? OUTSIDE_COLOUR : this.inputStatus.toolColour || 'yellow';
-    if (refusal !== null)
-      this.writeDrawTip([this.refusalNote(refusal, this.inputStatus.toolName, tile.x, tile.y)]);
+    var refusalTip = refusal !== null ? this.refusalNote(refusal, this.inputStatus.toolName, tile.x, tile.y) : null;
   }
 
   // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
@@ -2147,6 +2146,9 @@ Game.prototype.calculateMouseForPaint = function() {
   if (readout && (readout.raw.x !== readout.landed.x || readout.raw.y !== readout.landed.y))
     hover.cursorPoint = {x: readout.raw.x + 0.5, y: readout.raw.y + 0.5};
   this.showDrawTip(preview);
+  // ... the tip beside the mouse saying why a building may not go there (a building has no drawing to show)
+  if (preview === null && refusalTip)
+    this.writeDrawTip([refusalTip]);
   if (preview !== null) {
     if (this.lineDraft !== null)
       this._lastDraftHover = hover;
@@ -2762,55 +2764,26 @@ Game.prototype.buildingPose = function(size, x, y, stepMetres) {
   var point = this.cityView.pointAt(x, y);
   if (point === null)
     return null;
-  var px = point.x * 10, pz = point.y * 10;
-  var lines = this.networkLines(false), levels = this._roadLines.levels;
-  var best = null, bestDistance = size * 5 + 20;
-  lines.forEach(function(line, n) {
-    var along = 0;
-    for (var i = 1; i < line.length; i++) {
-      var ax = line[i - 1][0], az = line[i - 1][1], dx = line[i][0] - ax, dz = line[i][1] - az;
-      var length = Math.hypot(dx, dz) || 1, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (length * length)));
-      var distance = Math.hypot(ax + dx * t - px, az + dz * t - pz);
-      if (distance < bestDistance) { bestDistance = distance; best = {line: line, level: levels[n], along: along + t * length}; }
-      along += length;
+  var lines = this.networkLines(false), levels = this._roadLines.levels, game = this;
+  var toolName = this.inputStatus.toolName;
+  var poseMap = {width: map.width, height: map.height, tileSizeM: tileMetres(map), realUnits: realUnits(map.tileSizeM),
+                 isRoad: function(tx, ty) { return map.testBounds(tx, ty) && isRoadTile(map.getTileValue(tx, ty)); }};
+  // ... a new building moved to the nearest place along its road the build command takes it, where a curve or a
+  // junction comes inside its outline (src/buildings/roadPose.ts), each place asked once until the player next changes
+  // the city (its outline's colour is asked afresh each time it is drawn: calculateMouseForPaint)
+  var fitKey = [toolName, this._edits, map.era].join();
+  var cache = this._poseFits && this._poseFits.key === fitKey ? this._poseFits : (this._poseFits = {key: fitKey, quotes: {}});
+  var refusal = this.moving ? null : function(pose) {
+    var key = pose.join();
+    if (!(key in cache.quotes)) {
+      var quote = game.core.commands.quoteBuild(game.buildCommand(toolName, pose));
+      cache.quotes[key] = quote === null ? null : quote.reason;
     }
-  });
-  if (best === null)
-    return null;
-  // A zone cell's step along the road, from the road's start
-  var step = (stepMetres || 2) * unitsPerMetre(tileMetres(map)), want = Math.round(best.along / step) * step, along = 0;
-  for (var i = 1; i < best.line.length; i++) {
-    var ax = best.line[i - 1][0], az = best.line[i - 1][1], dx = best.line[i][0] - ax, dz = best.line[i][1] - az;
-    var length = Math.hypot(dx, dz) || 1;
-    if (along + length >= want || i === best.line.length - 1) {
-      var t = Math.max(0, Math.min(1, (want - along) / length)), rx = ax + dx * t, rz = az + dz * t, tx = dx / length, tz = dz / length;
-      var nx = -tz, nz = tx;
-      if (nx * (px - rx) + nz * (pz - rz) < 0) { nx = -nx; nz = -nz; }
-      // (a 3x3 its whole block deep, as it takes the tiles of its outline turned with it, the outline's front at the road's
-      // edge: src/buildings/turnedFootprint.ts)
-      var turns = size === 3 && isTurned(Math.atan2(-nx, -nz));
-      var gap = roadReach(best.level, realUnits(map.tileSizeM)) + 0.6 + size * 5 * (size === 3 ? 1 : BUILDING_SCALE);
-      // ... stood back from it a metre at a time while its block would cover a road's tiles or stand beside none (a road
-      // at a slant), so the outline is where it goes (poseTile)
-      var metre = unitsPerMetre(tileMetres(map)), isRoad = function(tx, ty) {
-        return map.testBounds(tx, ty) && isRoadTile(map.getTileValue(tx, ty));
-      };
-      for (var back = 0; back <= 24 && !turns; back++) {
-        var block = blockOf(rx + nx * (gap + back * metre), rz + nz * (gap + back * metre), size, 10), clear = true;
-        for (var ty = block.top; ty < block.top + size && clear; ty++)
-          for (var tx = block.left; tx < block.left + size && clear; tx++)
-            clear = map.testBounds(tx, ty) && !isRoad(tx, ty);
-        if (clear && besideRoad(map.width, map.height, isRoad, block.cx, block.cy, size)) {
-          gap += back * metre;
-          break;
-        }
-      }
-      return [Math.round((rx + nx * gap) * 100) / 100, Math.round((rz + nz * gap) * 100) / 100,
-              Math.round(Math.atan2(-nx, -nz) * 1000) / 1000];
-    }
-    along += length;
-  }
-  return null;
+    return cache.quotes[key];
+  };
+  return roadPose(poseMap, lines, levels, point.x * 10, point.y * 10, size,
+                  {stepMetres: stepMetres, buildingScale: BUILDING_SCALE, refusal: refusal,
+                   placeReasons: [LINE_IN_THE_WAY, NEEDS_ROAD, NEEDS_ROAD_BESIDE]});
 };
 
 
