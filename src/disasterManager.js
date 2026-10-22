@@ -251,7 +251,9 @@ DisasterManager.prototype.makeFlood = function(lowLand) {
         if (heights && heights[yy * this._map.width + xx] - heights[y * this._map.width + x] > LOW_LAND_RISE_M)
           continue;
 
-        if (tile === TileValues.DIRT || (tile.isBulldozable() && tile.isCombustible)) {
+        // PhaiCity: bare ground, or anything that can be bulldozed and burns (docs/NO_GRID_PLAN.md 0.4: the port compared
+        // the tile itself with DIRT, never true, and asked for isCombustible without calling it, always true)
+        if (tileValue === TileValues.DIRT || (tile.isBulldozable() && tile.isCombustible())) {
           this._map.setTile(xx, yy, TileValues.FLOOD, 0);
           this._floodCount = 30;
           this._emitEvent(Messages.FLOODING_REPORTED, {showable: true, x: xx, y: yy});

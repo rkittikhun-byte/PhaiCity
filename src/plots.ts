@@ -15,6 +15,8 @@
 
 import { Random } from "./random";
 import { isRoadTile, roadLevelAt, servesZones } from "./roadLevels";
+import type { RoadGraph } from "./roads/roadGraph";
+import { isCityTileSize } from "./units";
 import { BLBNCNBIT, POWERBIT, ZONEBIT } from "./tileFlags";
 import { COMBASE, CZB, DIRT, HOUSE, INDBASE, IZB, LASTRUBBLE, PORTBASE, RESBASE, RUBBLE, RZB, TREEBASE,
   WOODS2 } from "./tileValues";
@@ -53,6 +55,9 @@ export interface PlotMap {
   /** Whether homes, shops and factories are painted tile by tile here (a real-scale city map) */
   paintedZones?: boolean;
   roadLevels?: Uint8Array | null;
+  /** The roads in metres, every road of a real-scale city map among them (src/roads/roadCover.ts), and metres a tile */
+  roadGraph?: RoadGraph | null;
+  tileSizeM?: number | null;
   getTileValue(x: number, y: number): number;
   getTileFlags(x: number, y: number): number;
 }
@@ -133,11 +138,85 @@ export function drivewayAt(map: PlotMap, x: number, y: number): boolean {
 
 const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
 
+/** How much further than its reach a road's middle line may lie from a tile's middle (metres): a line smoothed from a
+ * staircase of tiles strays a little off the tiles' middles */
+const REACH_SLACK_M = 2;
+
+/** A road near a tile: where it comes nearest the tile's middle (metres), how far off, its segment and how far along */
+type NearRoad = [x: number, z: number, distance: number, segment: number, t: number];
+
+/** The roads near each tile, nearest first, while the graph stays as it is */
+const nearby = new WeakMap<RoadGraph, { version: number; size: number; at: Map<number, NearRoad[]> }>();
+
+/** The roads of the graph within PLOT_REACH of the middle of tile (x, y), nearest first */
+function roadsNear(graph: RoadGraph, size: number, width: number, x: number, y: number): NearRoad[] {
+  let known = nearby.get(graph);
+  if (!known || known.version !== graph.version || known.size !== size) nearby.set(graph, known = { version: graph.version, size, at: new Map() });
+  const key = y * width + x, had = known.at.get(key);
+  if (had) return had;
+  const p: [number, number] = [(x + 0.5) * size, (y + 0.5) * size], reach = PLOT_REACH * size + REACH_SLACK_M;
+  const out: NearRoad[] = [];
+  for (const id of graph.segmentsNear(p, reach)) {
+    const near = graph.nearestOn(id, p);
+    if (near.distance <= reach) out.push([near.point[0], near.point[1], near.distance, id, near.t]);
+  }
+  out.sort((a, b) => a[2] - b[2] || a[0] - b[0] || a[1] - b[1] || a[3] - b[3]);
+  known.at.set(key, out);
+  return out;
+}
+
+/** Whether a plot finds its road by the roads in metres (a real-scale city map's every road is in its graph) */
+const byGraph = (map: PlotMap, x: number, y: number, reach: number): boolean =>
+  Boolean(map.roadGraph?.segments.size) && isCityTileSize(map.tileSizeM) && reach <= PLOT_REACH && inside(map, x, y);
+
 /**
- * The road a tile reaches: the nearest one straight north, east, south or west, within PLOT_REACH tiles, or null.
- * So the plots along a road make a band three deep on each side, as Cities: Skylines' zone cells do.
+ * Where a tile's way in meets its road, on a real-scale city map: the segment of the road graph, how far along it (0 at
+ * its node a, 1 at b), and the road tile there, as nearestRoad finds it; null with none, or on any other map. The trips
+ * start and end there (src/sim/trips.ts).
+ */
+export function plotAccess(map: PlotMap, x: number, y: number): { segment: number; t: number; x: number; y: number } | null {
+  if (!byGraph(map, x, y, PLOT_REACH)) return null;
+  const size = map.tileSizeM!, most = PLOT_REACH * size + REACH_SLACK_M;
+  for (const [px, pz, d, segment, t] of roadsNear(map.roadGraph!, size, map.width, x, y)) {
+    if (d > most) break;
+    const tile = drivewayNear(map, size, px, pz);
+    if (tile && (tile.x !== x || tile.y !== y)) return { segment, t, x: tile.x, y: tile.y };
+  }
+  return null;
+}
+
+/** The road tile a way in at (px, pz) metres lies on: the tile there, or the nearest beside it that is a road with a
+ * way in for plots (drivewayAt), or null */
+function drivewayNear(map: PlotMap, size: number, px: number, pz: number): { x: number; y: number } | null {
+  const tx = Math.floor(px / size), ty = Math.floor(pz / size);
+  if (drivewayAt(map, tx, ty)) return { x: tx, y: ty };
+  let best: { x: number; y: number } | null = null, bestD = Infinity;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const nx = tx + dx, ny = ty + dy;
+    if ((!dx && !dy) || !drivewayAt(map, nx, ny)) continue;
+    const d = Math.hypot((nx + 0.5) * size - px, (ny + 0.5) * size - pz);
+    if (d < bestD) { best = { x: nx, y: ny }; bestD = d; }
+  }
+  return best;
+}
+
+/**
+ * The road a tile reaches, or null. On a real-scale city map (docs/NO_GRID_PLAN.md 0.5): the nearest road in any way,
+ * a slanted one too, whose middle line comes within PLOT_REACH tiles (48 m) of the tile's middle, by the roads in metres
+ * (src/roads/roadGraph.ts, which has every road of the map: src/roads/roadCover.ts); the road tile there is given. On
+ * any other map, the nearest one straight north, east, south or west, within reach. So the plots along a road make a
+ * band three deep on each side, as Cities: Skylines' zone cells do.
  */
 export function nearestRoad(map: PlotMap, x: number, y: number, reach = PLOT_REACH): { x: number; y: number } | null {
+  if (byGraph(map, x, y, reach)) {
+    const size = map.tileSizeM!, most = reach * size + REACH_SLACK_M;
+    for (const [px, pz, d] of roadsNear(map.roadGraph!, size, map.width, x, y)) {
+      if (d > most) break;
+      const tile = drivewayNear(map, size, px, pz);
+      if (tile && (tile.x !== x || tile.y !== y)) return tile;
+    }
+    return null;
+  }
   for (let d = 1; d <= reach; d++) {
     for (const [dx, dy] of SIDES) {
       if (drivewayAt(map, x + dx * d, y + dy * d)) return { x: x + dx * d, y: y + dy * d };
@@ -368,21 +447,21 @@ export function plotBranchCode(plot: Plot): string {
 
 /**
  * Evaluates the surrounding environment of a plot at (x, y) to determine its architectural branch (0=A, 1=B, 2=C, 3=D).
- * Considers land value, pollution, nearby parks/trees/water (within 3 tiles), civic services (schools/hospitals/district
- * office within 5 tiles), and road level, so a building that starts as A1 automatically upgrades to C2 or D3 when the
- * surrounding environment improves.
+ * Considers land value, pollution, nearby parks/trees/water (within 4 tiles), civic services (schools/hospitals/district
+ * office within 6 tiles, counted along the streets' grid), and road level, so a building that starts as A1 automatically
+ * upgrades to C2 or D3 when the surrounding environment improves. (The civic buildings were only looked for 4 tiles out
+ * until docs/NO_GRID_PLAN.md 0.4.)
  */
 export function plotEnvironmentClass(map: PlotMap, sim: PlotSimData, x: number, y: number, kind: PlotKind): number {
   const shield = sim.pollutionShield ?? 0;
   let score = sim.blockMaps.landValueMap.worldGet(x, y) - sim.blockMaps.pollutionDensityMap.worldGet(x, y) * (1 - shield);
   let natureBonus = 0;
   let civicBonus = 0;
-  for (let dy = -4; dy <= 4; dy++) {
-    for (let dx = -4; dx <= 4; dx++) {
+  for (let dy = -6; dy <= 6; dy++) {
+    for (let dx = -6; dx <= 6; dx++) {
       if (dx === 0 && dy === 0) continue;
-      const nx = x + dx, ny = y + dy;
-      if (!inside(map, nx, ny)) continue;
-      const dist = Math.abs(dx) + Math.abs(dy);
+      const nx = x + dx, ny = y + dy, dist = Math.abs(dx) + Math.abs(dy);
+      if (dist > 6 || !inside(map, nx, ny)) continue;
       const v = map.getTileValue(nx, ny);
       // Water (2..20), woods/trees (21..39), or park/fountain (840..849) within Manhattan distance 4
       if (dist <= 4 && ((v >= 2 && v <= 39) || (v >= 840 && v <= 849))) {
