@@ -7,6 +7,8 @@ import {
   powerCounts, stringId, tileAtPoint, tileColour, tileKind, toolLayer, UNPOWERED,
 } from "../src/cityMap";
 import { GameMap } from "../src/gameMap.js";
+import { BlockMap } from "../src/blockMap";
+import { smoothGet } from "../src/cityMap";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
 import { MINE_TOOLS } from "../src/mining";
@@ -115,5 +117,18 @@ describe("city map", () => {
     for (const tool of ["industrial", "zone_industrial", "coal"]) expect(toolLayer(tool)).toBe("pollution");
     for (const tool of ["road", "bulldozer", "farm", "", null, undefined]) expect(toolLayer(tool)).toBeNull();
     expect(isMapLayer(toolLayer("oil_well"))).toBe(true);
+  });
+});
+
+describe("the layers drawn smoothly on a real-scale city map (docs/NO_GRID_PLAN.md 4.5)", () => {
+  test("a block map is read between its blocks' middles, with no steps at a block's edge", () => {
+    const blocks = new BlockMap(16, 4, 2);
+    // a ramp of land value, a block at a time: 0, 20, 40 ... west to east
+    for (let bx = 0; bx < 8; bx++) for (let by = 0; by < 2; by++) blocks.set(bx, by, bx * 20);
+    const row = Array.from({ length: 16 }, (_, x) => smoothGet(blocks, x, 1));
+    // the old reading stepped every two tiles; this one rises every tile
+    for (let x = 2; x < 14; x++) expect(row[x]).toBeGreaterThan(row[x - 1]);
+    // (tile 7's middle lies a quarter of a block past its block's middle, toward the next)
+    expect(smoothGet(blocks, 7, 1)).toBeCloseTo((3 * blocks.worldGet(7, 1) + blocks.worldGet(8, 1)) / 4, 6);
   });
 });

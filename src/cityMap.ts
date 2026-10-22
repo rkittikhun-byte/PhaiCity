@@ -19,6 +19,7 @@ import { ownsLand } from "./landBlocks";
 import { mineKindOfTool } from "./mining";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
 import { ROAD_SERVED, ROAD_SHORT } from "./sim/roadSupply";
+import { isCityTileSize } from "./units";
 
 export const MAP_LAYERS = ["city", "satisfaction", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
   "landValue", "population", "police", "fire"] as const;
@@ -123,6 +124,27 @@ export const CITY_KEYS: readonly TileKind[] = ["residential", "commercial", "ind
 
 export interface BlockMapLike {
   worldGet(x: number, y: number): number;
+  /** A block map's own blocks, which a real-scale city map's layers are drawn between (smoothGet) */
+  readonly blockSize?: number;
+  readonly width?: number;
+  readonly height?: number;
+  get?(x: number, y: number): number;
+}
+
+/**
+ * A block map's value at tile (x, y), read smoothly between the blocks' middles (docs/NO_GRID_PLAN.md 4.5): the four
+ * blocks round the tile's middle, each by how near it lies, so a layer of 32 m blocks shows no steps; a map without
+ * blocks of its own, as it is.
+ */
+export function smoothGet(map: BlockMapLike, x: number, y: number): number {
+  const size = map.blockSize ?? 1;
+  if (size <= 1 || !map.get || !map.width || !map.height) return map.worldGet(x, y);
+  const fx = (x + 0.5) / size - 0.5, fy = (y + 0.5) / size - 0.5;
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+  const at = (bx: number, by: number): number =>
+    map.get!(Math.max(0, Math.min(map.width! - 1, bx)), Math.max(0, Math.min(map.height! - 1, by)));
+  const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx, bottom = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+  return top * (1 - ty) + bottom * ty;
 }
 
 export interface CityMapSource {
@@ -134,6 +156,8 @@ export interface CityMapSource {
   readonly insideProvince?: Uint8Array | null;
   /** The blocks of land the city owns (src/landBlocks.ts); the rest is drawn a little darker */
   readonly landBlocks?: Uint8Array | null;
+  /** Metres a tile: on a real-scale city map the layers are drawn smoothly between their blocks (smoothGet) */
+  readonly tileSizeM?: number | null;
 }
 
 /** How bright the land outside the province is drawn, as in the province picker (src/geo/presetMap.ts) */
@@ -263,7 +287,8 @@ function groundwaterColour(city: Rgb, water: WaterView | undefined, x: number, y
 }
 
 /** The colour of one tile on a layer. */
-export function tileColour(layer: MapLayer, value: number, flags: number, overlays: Overlays, x: number, y: number): Rgb {
+export function tileColour(layer: MapLayer, value: number, flags: number, overlays: Overlays, x: number, y: number,
+  smooth = false): Rgb {
   const city = KIND_COLOURS[tileKind(value)];
   if (layer === "city") return city;
   if (layer === "power") {
@@ -282,18 +307,20 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
     const full = overlays.roadFull(x, y);
     return full === null ? dimmed(city) : trafficColour(full);
   }
-  const heat = HEAT[layer];
-  return mix(dimmed(city), heat.colour, 0.9 * heatLevel(overlays[heat.map].worldGet(x, y), heat.max));
+  const heat = HEAT[layer], source = overlays[heat.map];
+  return mix(dimmed(city), heat.colour, 0.9 * heatLevel(smooth ? smoothGet(source, x, y) : source.worldGet(x, y), heat.max));
 }
 
 /** The whole map as RGBA pixels, one per tile, row by row (ready for an ImageData). */
 export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overlays): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(map.width * map.height * 4);
   const inside = map.insideProvince ?? null;
+  // (on a real-scale city map between the blocks' middles, with no steps: docs/NO_GRID_PLAN.md 4.5)
+  const smooth = isCityTileSize(map.tileSizeM);
   let i = 0;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
-      const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y);
+      const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y, smooth);
       const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : ownsLand(map, x, y) ? 1 : UNOWNED_SHADE;
       pixels[i++] = r * shade;
       pixels[i++] = g * shade;
