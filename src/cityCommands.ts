@@ -272,6 +272,8 @@ export interface CommandTarget {
   canBuildAt?(x: number, y: number): boolean;
   /** Whether the city owns the land at (x, y) (src/landBlocks.ts). Without it, all the land is the city's. */
   ownsLand?(x: number, y: number): boolean;
+  /** ... both at once, the map's arrays read once, for a test of every tile (src/landBlocks.ts buildableTest) */
+  buildable?(): (x: number, y: number) => boolean;
   /** The province's resource levels, which decide its kinds of power plant; none on a practice map. */
   resources?: Readonly<Record<string, number>> | null;
   /** Whether a tile is open water, for dams. Without it, a dam may stand anywhere. */
@@ -433,6 +435,10 @@ export function besideTiles(width: number, height: number, isRoad: (x: number, y
 }
 
 const isRailTile = (value: number): boolean => value >= RAILBASE && value <= LASTRAIL;
+
+/** Whether the city may build at a tile: owned and the province's, as one test for every tile (CommandTarget.buildable) */
+const landTest = (city: CommandTarget): ((x: number, y: number) => boolean) =>
+  city.buildable?.() ?? ((x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
 /** What a canal lies on: its water, or a bridge over it (src/canals.ts) */
 const isCanalWater = (value: number): boolean => isWaterTile(value) || isBridgeTile(value);
 
@@ -1169,7 +1175,7 @@ export class CityCommands {
     this.cellsPending = null;
     const cellMap = city.map as unknown as (CellMap & CellPlotMap) | undefined;
     if (!pending || !cellMap?.cellZones || !paintNear(cellMap, pending.tiles)) return;
-    const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
+    const layout = cellsOf(cellMap, landTest(city));
     // (a list of plots where the zones are painted a cell at a time: src/plotBuildings.ts)
     refreshCellPlots(cellMap as unknown as PlotListMap & CellPlotMap, layout, pending.tiles, city.cityTime?.() ?? 0);
   }
@@ -1390,7 +1396,7 @@ export class CityCommands {
         // ... and factories once there is power for them (src/unlocks.ts)
         const lock = command.zone ? lockProblem(city, PAINT_TOOLS[command.zone], 0, 0, this.unlocksNow()) : null;
         if (lock) return { accepted: false, reason: lock.reason, detail: lock.params };
-        const layout = cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
+        const layout = cellsOf(map, landTest(city));
         const code = command.zone ? zoneCode(command.zone) : 0, painted = map.zoneCells ?? (map.zoneCells = new Map());
         // ... never inside the fence of a building turned to a slanted road, on ground it reserves though the tile is not
         // its (src/buildings/turnedFootprint.ts)
@@ -1424,8 +1430,8 @@ export class CityCommands {
         const back = (): void => {
           for (const [key, before] of was) if (before) painted.set(key, before); else painted.delete(key);
           map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
-          refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) &&
-            (city.canBuildAt?.(x, y) ?? true)), touched, city.cityTime?.() ?? 0);
+          refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, cellsOf(map, landTest(city)), touched,
+            city.cityTime?.() ?? 0);
         };
         const stroke = command.stroke ?? null, time = city.cityTime?.() ?? 0;
         this.history.record(stroke, [], cost, time);

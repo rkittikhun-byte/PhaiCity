@@ -89,7 +89,7 @@ import { loadingFirstFrame } from './loadingScreen.ts';
 import { readPolicies } from './policies.ts';
 import { blockSizeOf, blockColumns, blockOutlineTile, blockPrice, blockRows, blocksByRank, LAND_ALL_OPEN, LAND_LOCKED,
          LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, LAND_REASONS, isCityMap, ownsLand,
-         startingBlocks } from './landBlocks.ts';
+         startingBlocks, buildableTest } from './landBlocks.ts';
 import { EDUCATION_TOOLS, HEALTH_TOOLS, NEEDS_HOUSE_LEVEL, SERVICE_SPECS } from './services.ts';
 import { BUILDING_UPGRADE_TOOL, LEVEL_GROUPS, levelOfTool, levelSpec } from './buildingLevels.ts';
 import { upgradeAt } from './buildingUpgradeTool.ts';
@@ -1261,9 +1261,8 @@ Game.prototype.farmCellStroke = function(data) {
 
 // The cells along the roads, on land the city may build on: the same layout the commands check against
 Game.prototype.cellLayout = function() {
-  var map = this.gameMap;
-  var inside = canBuildIn(map);
-  return cellsOf(map, function(x, y) { return ownsLand(map, x, y) && inside(x, y); });
+  // (the land the city may build on, its arrays read once: asked for every tile on every frame a brush is in hand)
+  return cellsOf(this.gameMap, buildableTest(this.gameMap));
 };
 
 

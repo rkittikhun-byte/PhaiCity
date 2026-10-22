@@ -5,7 +5,7 @@
 // zoning: every painted cell in its zone's colour on the ground, always; the empty cells as a pale grid while a zone
 // brush is in hand; the cell under the brush picked out. It reads the map and never writes it.
 import { Color, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three';
-import { ownsLand, type LandMap } from '../../landBlocks.js';
+import { buildableTest, type LandMap } from '../../landBlocks.js';
 import { cellAt, cellsOf, plotTileOfCell, type CellLayout, type CellMap } from '../../zoneCells.js';
 import type { CityHeightField } from './heightfield.js';
 
@@ -79,8 +79,7 @@ export class ZoneCellsView {
   private laid(): CellLayout {
     if (this.stale || !this.layout) {
       const map = this.map;
-      const inside = (x: number, y: number): boolean => !map.insideProvince || map.insideProvince[y * map.width + x] === 1;
-      this.layout = cellsOf(map, (x, y) => ownsLand(map as unknown as LandMap, x, y) && inside(x, y));
+      this.layout = cellsOf(map, buildableTest(map as unknown as LandMap));
       this.stale = false;
     }
     return this.layout;

@@ -9,7 +9,7 @@
 
 import type { CommandTarget } from "../cityCommands.js";
 import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "../geo/presetMap.js";
-import { blockColumns, blockRows, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
+import { blockColumns, blockRows, buildableTest, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
 import { readPolicies } from "../policies.js";
 import { isRoadTile, newRoadLevels } from "../roadLevels.js";
 import { MAX_ROAD_PIECE, newRoadPieces, nextRoadPiece, readRoadPaths, roadPathsKept } from "../roadPieces.js";
@@ -337,6 +337,7 @@ export function commandTarget(map: Legacy, simulation: Legacy, tools: Legacy, se
     cityTime: () => simulation._cityTime,
     canBuildAt: canBuildIn(map),
     ownsLand: (x: number, y: number) => ownsLand(map, x, y),
+    buildable: () => buildableTest(map),
     // The kinds of power plant the province can build, dams beside water, and what was built where
     resources: simulation.resources,
     isWaterAt: (x: number, y: number) => {

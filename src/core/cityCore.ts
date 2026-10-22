@@ -16,11 +16,11 @@ import { CityObjects } from "../objects/cityObjects.js";
 import type { Building } from "../objects/cityObject.js";
 import { Random } from "../random.js";
 import { Simulation } from "../simulation.js";
-import { canBuildIn, type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
+import { type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
 import { completeBuildings } from "../buildings/buildingRecords.js";
 import { cellsOf } from "../zoneCells.js";
 import { plotListOf, refreshCellPlots, usesPlotList } from "../plotBuildings.js";
-import { ownsLand } from "../landBlocks.js";
+import { buildableTest } from "../landBlocks.js";
 import { eraMonth } from "../eraScore.js";
 import type { Era } from "../era.js";
 import { festivalMonth, type FestivalNews } from "../festivals.js";
@@ -235,9 +235,7 @@ export class CityCore {
 
   /** The plots the paint makes, formed again (src/plotBuildings.ts refreshCellPlots) */
   formPlots(): void {
-    const owns = canBuildIn(this.map);
-    refreshCellPlots(this.map, cellsOf(this.map, (x, y) => ownsLand(this.map, x, y) && owns(x, y)), undefined,
-      this.simulation?._cityTime ?? 0);
+    refreshCellPlots(this.map, cellsOf(this.map, buildableTest(this.map)), undefined, this.simulation?._cityTime ?? 0);
   }
 
   /** When the road and rail graphs were last given the tiles they lacked: the map's tile changes and their versions */

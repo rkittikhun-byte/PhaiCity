@@ -18,7 +18,7 @@
 import { BlockMapUtils } from "../blockMapUtils.js";
 import { canBuildIn } from "./cityLayers.js";
 import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
-import { blockColumns, blockPrice, blockRows, blockSizeOf, ownsLand } from "../landBlocks.js";
+import { blockColumns, blockPrice, blockRows, blockSizeOf, buildableTest, ownsLand } from "../landBlocks.js";
 import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
@@ -1255,8 +1255,7 @@ export class AutoPlayer {
   private paint(n: number, weights?: Record<PaintZone, number>): number {
     const core = this.core, map = core.map, budget = core.simulation.budget;
     if (!map.cellZones) return 0;
-    const owns = canBuildIn(map);
-    const layout = cellsOf(map, (x, y) => ownsLand(map, x, y) && owns(x, y));
+    const layout = cellsOf(map, buildableTest(map));
     const tx = this.options.town.x * 10, tz = this.options.town.y * 10;
     type Free = { key: number; x: number; z: number; d: number };
     const byZone: Record<PaintZone, Free[]> = { residential: [], commercial: [], industrial: [] };

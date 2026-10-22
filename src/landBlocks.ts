@@ -80,6 +80,25 @@ export function ownsLand(map: LandMap, x: number, y: number): boolean {
   return map.landBlocks[blockAt(map, x, y)] === 1;
 }
 
+/**
+ * Whether the city may build at (x, y): it owns the land (ownsLand) and the tile is the province's (the commands'
+ * canBuildAt), with the map's arrays read once, for a test asked of every tile of the map (the cells' layout signature,
+ * src/zoneCells.ts: reading the map's fields for each of a 480 x 480 city's tiles took 0.3 s a time under Jest, the map
+ * object carrying a great many fields; docs/NO_GRID_PLAN.md 5.4). Made for one use: the arrays are those of now.
+ */
+export function buildableTest(map: LandMap): (x: number, y: number) => boolean {
+  const blocks = map.landBlocks ?? null, inside = map.insideProvince ?? null, width = map.width, height = map.height;
+  const size = blockSizeOf(map), columns = Math.ceil(width / size);
+  return (x, y) => {
+    if (blocks !== null) {
+      if (x < 0 || y < 0 || x >= width || y >= height) return false;
+      // (whole numbers by `| 0`, the tile on the map so not below 0: no Math call a tile)
+      if (blocks[((y / size) | 0) * columns + ((x / size) | 0)] !== 1) return false;
+    }
+    return inside === null || inside[x + y * width] === 1;
+  };
+}
+
 /** Whether any of a block's tiles is the province's own. */
 export function blockInProvince(map: LandMap, block: number): boolean {
   const inside = map.insideProvince;

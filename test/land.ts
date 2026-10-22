@@ -15,8 +15,9 @@ import {
   BLOCK_PRICE_STEP, BLOCK_SIZE, blockColumns, blockOutlineTile, blockPrice, blockRows, BLOCKS_BY_RANK, blocksByRank,
   CITY_BLOCK_PRICE_STEP, CITY_BLOCKS_BY_RANK, FIRST_BLOCK_PRICE,
   LAND_ALL_OPEN, LAND_LOCKED, LAND_NEEDS_RANK, LAND_NO_MONEY, LAND_NOT_BESIDE, LAND_OUTSIDE, LAND_OWNED, landProblem,
-  ownsLand, startingBlocks,
+  ownsLand, startingBlocks, buildableTest,
 } from "../src/landBlocks";
+import { canBuildIn } from "../src/core/cityLayers";
 import { footprint } from "../src/cityCommands";
 import { Simulation } from "../src/simulation.js";
 
@@ -53,6 +54,29 @@ describe("land blocks", () => {
       "land.note.needs_rank", "land.note.no_money", "land.note.all_open", "about.building.land"]) {
       expect([key, hasKey(key)]).toEqual([key, true]);
     }
+  });
+
+  test("the one test of the land the city may build on answers as owning it and the province's tiles do", () => {
+    for (const city of [province().map, { ...province().map, landBlocks: null }, { ...province().map, insideProvince: null }]) {
+      const fast = buildableTest(city), inside = canBuildIn(city);
+      for (let y = -1; y <= city.height; y++) for (let x = -1; x <= city.width; x++) {
+        if (x < 0 || y < 0 || x >= city.width || y >= city.height) { if (city.landBlocks) expect(fast(x, y)).toBe(false); continue; }
+        expect(fast(x, y)).toBe(ownsLand(city, x, y) && inside(x, y));
+      }
+    }
+    // ... on a real-scale city map's blocks too
+    const map: any = new (GameMap as unknown as new (w: number, h: number) => any)(100, 70);
+    map.tileSizeM = 16;
+    map.town = { x: 50, y: 35 };
+    map.landBlocks = startingBlocks(map, map.town);
+    const fast = buildableTest(map);
+    let owned = 0;
+    for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+      expect(fast(x, y)).toBe(ownsLand(map, x, y));
+      if (fast(x, y)) owned++;
+    }
+    expect(owned).toBeGreaterThan(0);
+    expect(owned).toBeLessThan(100 * 70);
   });
 
   test("tools take no land the city has not bought", () => {
