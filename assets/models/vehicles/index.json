@@ -1,0 +1,1437 @@
+{
+ "vehicles": {
+  "era1/bicycle": {
+   "class": "small",
+   "en": "Bicycle",
+   "era": 1,
+   "fly": 0.0,
+   "height": 1.91,
+   "kind": "bicycle",
+   "length": 1.85,
+   "paints": [
+    "#2E3A5E",
+    "#8E2E2E",
+    "#3F6E46",
+    "#3C3C40"
+   ],
+   "slow": 0.45,
+   "th": "จักรยาน",
+   "triangles": 1868,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.34,
+       0.55
+      ],
+      [
+       0,
+       0.34,
+       -0.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.34,
+     "triangles": 348
+    }
+   ],
+   "width": 0.69
+  },
+  "era1/buffalo_cart": {
+   "class": "cart",
+   "en": "Buffalo cart",
+   "era": 1,
+   "fly": 0.0,
+   "height": 2.1,
+   "kind": "buffalo_cart",
+   "length": 6.54,
+   "paints": [],
+   "slow": 0.3,
+   "th": "เกวียนควาย",
+   "triangles": 3032,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.925,
+       0.8,
+       -1.55
+      ],
+      [
+       0.925,
+       0.8,
+       -1.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.8,
+     "triangles": 520
+    }
+   ],
+   "width": 2.27
+  },
+  "era1/hand_cart": {
+   "class": "cart",
+   "en": "Hand cart",
+   "era": 1,
+   "fly": 0.0,
+   "height": 1.88,
+   "kind": "hand_cart",
+   "length": 3.24,
+   "paints": [],
+   "slow": 0.3,
+   "th": "รถเข็นของ",
+   "triangles": 1352,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.595,
+       0.45,
+       -0.75
+      ],
+      [
+       0.595,
+       0.45,
+       -0.75
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.45,
+     "triangles": 496
+    }
+   ],
+   "width": 1.57
+  },
+  "era1/ox_cart": {
+   "class": "cart",
+   "en": "Ox cart",
+   "era": 1,
+   "fly": 0.0,
+   "height": 1.96,
+   "kind": "ox_cart",
+   "length": 5.69,
+   "paints": [],
+   "slow": 0.35,
+   "th": "เกวียนวัว",
+   "triangles": 2684,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.825,
+       0.66,
+       -1.37
+      ],
+      [
+       0.825,
+       0.66,
+       -1.37
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.66,
+     "triangles": 496
+    }
+   ],
+   "width": 2.07
+  },
+  "era2/bus": {
+   "class": "heavy",
+   "en": "Red bus",
+   "era": 2,
+   "fly": 0.0,
+   "height": 3.17,
+   "kind": "bus",
+   "length": 11.02,
+   "paints": [],
+   "slow": 1.0,
+   "th": "รถเมล์แดง",
+   "triangles": 1428,
+   "wheels": [
+    {
+     "at": [
+      [
+       -1.055,
+       0.5,
+       3.0
+      ],
+      [
+       1.055,
+       0.5,
+       3.0
+      ],
+      [
+       -1.055,
+       0.5,
+       -2.6
+      ],
+      [
+       1.055,
+       0.5,
+       -2.6
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.5,
+     "triangles": 120
+    }
+   ],
+   "width": 2.79
+  },
+  "era2/etan": {
+   "class": "cart",
+   "en": "Etan farm wagon (Isan)",
+   "era": 2,
+   "fly": 0.0,
+   "height": 1.67,
+   "kind": "etan",
+   "length": 3.93,
+   "paints": [],
+   "slow": 0.45,
+   "th": "รถอีแต๋น",
+   "triangles": 1556,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.5,
+       0.3,
+       1.55
+      ],
+      [
+       0.5,
+       0.3,
+       1.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.3,
+     "triangles": 108
+    },
+    {
+     "at": [
+      [
+       -0.7,
+       0.42,
+       -1.05
+      ],
+      [
+       0.7,
+       0.42,
+       -1.05
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.42,
+     "triangles": 120
+    }
+   ],
+   "width": 1.69
+  },
+  "era2/motorcycle": {
+   "class": "small",
+   "en": "Step-through motorcycle",
+   "era": 2,
+   "fly": 0.0,
+   "height": 1.83,
+   "kind": "motorcycle",
+   "length": 1.96,
+   "paints": [
+    "#4C5BA6",
+    "#D0402E",
+    "#4C8A48",
+    "#8E2E2E",
+    "#7FA9D6"
+   ],
+   "slow": 0.9,
+   "th": "รถเครื่องรุ่นแรก",
+   "triangles": 1634,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.29,
+       0.6
+      ],
+      [
+       0,
+       0.29,
+       -0.6
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.29,
+     "triangles": 348
+    }
+   ],
+   "width": 0.77
+  },
+  "era2/pothong": {
+   "class": "heavy",
+   "en": "Wooden bus (south)",
+   "era": 2,
+   "fly": 0.0,
+   "height": 3.25,
+   "kind": "pothong",
+   "length": 8.6,
+   "paints": [],
+   "slow": 0.7,
+   "th": "รถโพถ้อง",
+   "triangles": 1866,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.95,
+       0.46,
+       3.45
+      ],
+      [
+       0.95,
+       0.46,
+       3.45
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.46,
+     "triangles": 120
+    },
+    {
+     "at": [
+      [
+       -0.85,
+       0.46,
+       -2.6
+      ],
+      [
+       0.85,
+       0.46,
+       -2.6
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.46,
+     "triangles": 120
+    }
+   ],
+   "width": 2.82
+  },
+  "era2/samlor": {
+   "class": "cart",
+   "en": "Samlor",
+   "era": 2,
+   "fly": 0.0,
+   "height": 1.95,
+   "kind": "samlor",
+   "length": 2.31,
+   "paints": [
+    "#D0402E",
+    "#3E66AE",
+    "#4C8A48",
+    "#8E2E2E"
+   ],
+   "slow": 0.45,
+   "th": "สามล้อถีบ",
+   "triangles": 2222,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.33,
+       1.05
+      ],
+      [
+       -0.52,
+       0.33,
+       -0.55
+      ],
+      [
+       0.52,
+       0.33,
+       -0.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.33,
+     "triangles": 348
+    }
+   ],
+   "width": 1.19
+  },
+  "era2/songthaew": {
+   "class": "car",
+   "en": "Songthaew",
+   "era": 2,
+   "fly": 0.0,
+   "height": 2.26,
+   "kind": "songthaew",
+   "length": 5.6,
+   "paints": [
+    "#D0402E",
+    "#7FA9D6",
+    "#4C8A48",
+    "#E8E6E0",
+    "#E8B63C"
+   ],
+   "slow": 1.0,
+   "th": "รถสองแถว",
+   "triangles": 1152,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.77,
+       0.36,
+       1.575
+      ],
+      [
+       0.77,
+       0.36,
+       1.575
+      ],
+      [
+       -0.77,
+       0.36,
+       -1.525
+      ],
+      [
+       0.77,
+       0.36,
+       -1.525
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.36,
+     "triangles": 108
+    }
+   ],
+   "width": 2.14
+  },
+  "era2/truck": {
+   "class": "heavy",
+   "en": "Early truck",
+   "era": 2,
+   "fly": 0.0,
+   "height": 2.42,
+   "kind": "truck",
+   "length": 6.99,
+   "paints": [
+    "#4C8A48",
+    "#7FA9D6",
+    "#D0402E",
+    "#E8B63C"
+   ],
+   "slow": 0.75,
+   "th": "รถบรรทุกหัวยาว",
+   "triangles": 2056,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.85,
+       0.46,
+       2.65
+      ],
+      [
+       0.85,
+       0.46,
+       2.65
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.46,
+     "triangles": 120
+    },
+    {
+     "at": [
+      [
+       -0.75,
+       0.46,
+       -2.1
+      ],
+      [
+       0.75,
+       0.46,
+       -2.1
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.46,
+     "triangles": 120
+    }
+   ],
+   "width": 2.62
+  },
+  "era3/box_truck": {
+   "class": "heavy",
+   "en": "Box truck",
+   "era": 3,
+   "fly": 0.0,
+   "height": 3.15,
+   "kind": "box_truck",
+   "length": 6.86,
+   "paints": [
+    "#E2DC78",
+    "#E8E6E0",
+    "#7FA9D6",
+    "#4C8A48",
+    "#D0402E"
+   ],
+   "slow": 0.8,
+   "th": "รถบรรทุกตู้หกล้อ",
+   "triangles": 860,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.87,
+       0.45,
+       2.5
+      ],
+      [
+       0.87,
+       0.45,
+       2.5
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.45,
+     "triangles": 120
+    },
+    {
+     "at": [
+      [
+       -0.75,
+       0.45,
+       -2.0
+      ],
+      [
+       0.75,
+       0.45,
+       -2.0
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.45,
+     "triangles": 120
+    }
+   ],
+   "width": 2.68
+  },
+  "era3/bus": {
+   "class": "heavy",
+   "en": "Air-conditioned bus",
+   "era": 3,
+   "fly": 0.0,
+   "height": 3.33,
+   "kind": "bus",
+   "length": 11.22,
+   "paints": [],
+   "slow": 1.0,
+   "th": "รถเมล์ปรับอากาศ",
+   "triangles": 1272,
+   "wheels": [
+    {
+     "at": [
+      [
+       -1.055,
+       0.5,
+       3.1
+      ],
+      [
+       1.055,
+       0.5,
+       3.1
+      ],
+      [
+       -1.055,
+       0.5,
+       -2.7
+      ],
+      [
+       1.055,
+       0.5,
+       -2.7
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.5,
+     "triangles": 120
+    }
+   ],
+   "width": 2.79
+  },
+  "era3/motorcycle_helmet": {
+   "class": "small",
+   "en": "Motorcycle",
+   "era": 3,
+   "fly": 0.0,
+   "height": 1.84,
+   "kind": "motorcycle_helmet",
+   "length": 1.88,
+   "paints": [
+    "#D0402E",
+    "#2E3A5E",
+    "#4C5BA6",
+    "#BCC0C5",
+    "#3F6E46",
+    "#3C3C40"
+   ],
+   "slow": 0.95,
+   "th": "รถจักรยานยนต์",
+   "triangles": 2446,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.29,
+       0.6
+      ],
+      [
+       0,
+       0.29,
+       -0.6
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.29,
+     "triangles": 348
+    }
+   ],
+   "width": 0.77
+  },
+  "era3/motorcycle_taxi": {
+   "class": "small",
+   "en": "Motorcycle taxi",
+   "era": 3,
+   "fly": 0.0,
+   "height": 1.84,
+   "kind": "motorcycle_taxi",
+   "length": 1.96,
+   "paints": [
+    "#4C5BA6",
+    "#D0402E",
+    "#2E3A5E",
+    "#8E2E2E",
+    "#BCC0C5"
+   ],
+   "slow": 0.95,
+   "th": "วินมอเตอร์ไซค์",
+   "triangles": 1742,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.29,
+       0.6
+      ],
+      [
+       0,
+       0.29,
+       -0.6
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.29,
+     "triangles": 348
+    }
+   ],
+   "width": 0.77
+  },
+  "era3/pickup": {
+   "class": "car",
+   "en": "Pickup",
+   "era": 3,
+   "fly": 0.0,
+   "height": 1.81,
+   "kind": "pickup",
+   "length": 5.4,
+   "paints": [
+    "#E8E6E0",
+    "#BCC0C5",
+    "#D0402E",
+    "#7FA9D6",
+    "#2E3A5E",
+    "#8E2E2E",
+    "#3F6E46"
+   ],
+   "slow": 1.0,
+   "th": "รถกระบะ",
+   "triangles": 984,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.76,
+       0.36,
+       1.6
+      ],
+      [
+       0.76,
+       0.36,
+       1.6
+      ],
+      [
+       -0.76,
+       0.36,
+       -1.55
+      ],
+      [
+       0.76,
+       0.36,
+       -1.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.36,
+     "triangles": 108
+    }
+   ],
+   "width": 2.12
+  },
+  "era3/pickup_cage": {
+   "class": "car",
+   "en": "Pickup with a cage",
+   "era": 3,
+   "fly": 0.0,
+   "height": 2.03,
+   "kind": "pickup_cage",
+   "length": 5.4,
+   "paints": [
+    "#E8E6E0",
+    "#BCC0C5",
+    "#D0402E",
+    "#7FA9D6",
+    "#2E3A5E",
+    "#8E2E2E",
+    "#3F6E46"
+   ],
+   "slow": 1.0,
+   "th": "กระบะคอกเหล็ก",
+   "triangles": 1248,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.76,
+       0.36,
+       1.6
+      ],
+      [
+       0.76,
+       0.36,
+       1.6
+      ],
+      [
+       -0.76,
+       0.36,
+       -1.55
+      ],
+      [
+       0.76,
+       0.36,
+       -1.55
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.36,
+     "triangles": 108
+    }
+   ],
+   "width": 2.12
+  },
+  "era3/tuktuk": {
+   "class": "cart",
+   "en": "Tuk-tuk",
+   "era": 3,
+   "fly": 0.0,
+   "height": 2.04,
+   "kind": "tuktuk",
+   "length": 2.74,
+   "paints": [
+    "#3E66AE",
+    "#D0402E",
+    "#4C8A48",
+    "#8E2E2E"
+   ],
+   "slow": 1.0,
+   "th": "ตุ๊กตุ๊ก",
+   "triangles": 1680,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.24,
+       1.0
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.24,
+     "triangles": 108
+    },
+    {
+     "at": [
+      [
+       -0.55,
+       0.25,
+       -0.75
+      ],
+      [
+       0.55,
+       0.25,
+       -0.75
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.25,
+     "triangles": 108
+    }
+   ],
+   "width": 1.47
+  },
+  "era4/bus": {
+   "class": "heavy",
+   "en": "Low-floor city bus",
+   "era": 4,
+   "fly": 0.0,
+   "height": 3.43,
+   "kind": "bus",
+   "length": 12.12,
+   "paints": [],
+   "slow": 1.0,
+   "th": "รถเมล์ชานต่ำ",
+   "triangles": 1260,
+   "wheels": [
+    {
+     "at": [
+      [
+       -1.055,
+       0.5,
+       3.55
+      ],
+      [
+       1.055,
+       0.5,
+       3.55
+      ],
+      [
+       -1.055,
+       0.5,
+       -3.15
+      ],
+      [
+       1.055,
+       0.5,
+       -3.15
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.5,
+     "triangles": 120
+    }
+   ],
+   "width": 2.79
+  },
+  "era4/hatchback": {
+   "class": "car",
+   "en": "Hatchback",
+   "era": 4,
+   "fly": 0.0,
+   "height": 1.59,
+   "kind": "hatchback",
+   "length": 3.93,
+   "paints": [
+    "#E8E39C",
+    "#E8E6E0",
+    "#BCC0C5",
+    "#D0402E",
+    "#2E3A5E",
+    "#3C3C40",
+    "#7FA9D6",
+    "#8E2E2E"
+   ],
+   "slow": 1.0,
+   "th": "รถเก๋งเล็ก",
+   "triangles": 724,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.74,
+       0.29,
+       1.25
+      ],
+      [
+       0.74,
+       0.29,
+       1.25
+      ],
+      [
+       -0.74,
+       0.29,
+       -1.3
+      ],
+      [
+       0.74,
+       0.29,
+       -1.3
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.29,
+     "triangles": 108
+    }
+   ],
+   "width": 1.86
+  },
+  "era4/pickup": {
+   "class": "car",
+   "en": "Double-cab pickup",
+   "era": 4,
+   "fly": 0.0,
+   "height": 1.89,
+   "kind": "pickup",
+   "length": 5.6,
+   "paints": [
+    "#E8E6E0",
+    "#BCC0C5",
+    "#E8E39C",
+    "#D0402E",
+    "#2E3A5E",
+    "#3C3C40",
+    "#7FA9D6",
+    "#8E2E2E"
+   ],
+   "slow": 1.0,
+   "th": "กระบะสี่ประตู",
+   "triangles": 972,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.825,
+       0.38,
+       1.7
+      ],
+      [
+       0.825,
+       0.38,
+       1.7
+      ],
+      [
+       -0.825,
+       0.38,
+       -1.65
+      ],
+      [
+       0.825,
+       0.38,
+       -1.65
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.38,
+     "triangles": 108
+    }
+   ],
+   "width": 2.25
+  },
+  "era4/scooter": {
+   "class": "small",
+   "en": "Delivery scooter",
+   "era": 4,
+   "fly": 0.0,
+   "height": 1.84,
+   "kind": "scooter",
+   "length": 2.05,
+   "paints": [
+    "#3E9A54",
+    "#E8742A",
+    "#D0402E",
+    "#E07FA0"
+   ],
+   "slow": 0.95,
+   "th": "มอเตอร์ไซค์ส่งอาหาร",
+   "triangles": 1698,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.26,
+       0.625
+      ],
+      [
+       0,
+       0.26,
+       -0.625
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.26,
+     "triangles": 348
+    }
+   ],
+   "width": 0.77
+  },
+  "era4/sedan": {
+   "class": "car",
+   "en": "Sedan",
+   "era": 4,
+   "fly": 0.0,
+   "height": 1.52,
+   "kind": "sedan",
+   "length": 4.73,
+   "paints": [
+    "#E8E6E0",
+    "#BCC0C5",
+    "#E8E39C",
+    "#D0402E",
+    "#2E3A5E",
+    "#3C3C40",
+    "#7FA9D6",
+    "#8E2E2E"
+   ],
+   "slow": 1.0,
+   "th": "รถเก๋ง",
+   "triangles": 776,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.79,
+       0.31,
+       1.45
+      ],
+      [
+       0.79,
+       0.31,
+       1.45
+      ],
+      [
+       -0.79,
+       0.31,
+       -1.5
+      ],
+      [
+       0.79,
+       0.31,
+       -1.5
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.31,
+     "triangles": 108
+    }
+   ],
+   "width": 1.96
+  },
+  "era4/taxi": {
+   "class": "car",
+   "en": "Taxi",
+   "era": 4,
+   "fly": 0.0,
+   "height": 1.7,
+   "kind": "taxi",
+   "length": 4.73,
+   "paints": [],
+   "slow": 1.0,
+   "th": "แท็กซี่",
+   "triangles": 856,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.79,
+       0.31,
+       1.45
+      ],
+      [
+       0.79,
+       0.31,
+       1.45
+      ],
+      [
+       -0.79,
+       0.31,
+       -1.5
+      ],
+      [
+       0.79,
+       0.31,
+       -1.5
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.31,
+     "triangles": 108
+    }
+   ],
+   "width": 1.96
+  },
+  "era4/van": {
+   "class": "car",
+   "en": "Passenger van",
+   "era": 4,
+   "fly": 0.0,
+   "height": 2.2,
+   "kind": "van",
+   "length": 5.55,
+   "paints": [
+    "#E8E6E0",
+    "#BCC0C5",
+    "#3C3C40",
+    "#7FA9D6"
+   ],
+   "slow": 1.0,
+   "th": "รถตู้",
+   "triangles": 836,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.85,
+       0.33,
+       1.825
+      ],
+      [
+       0.85,
+       0.33,
+       1.825
+      ],
+      [
+       -0.85,
+       0.33,
+       -1.675
+      ],
+      [
+       0.85,
+       0.33,
+       -1.675
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.33,
+     "triangles": 108
+    }
+   ],
+   "width": 2.18
+  },
+  "era5/cargo_drone": {
+   "class": "flyer",
+   "en": "Cargo drone",
+   "era": 5,
+   "fly": 26.0,
+   "height": 2.96,
+   "kind": "cargo_drone",
+   "length": 6.0,
+   "paints": [],
+   "slow": 1.0,
+   "th": "โดรนขนของ",
+   "triangles": 584,
+   "wheels": [
+    {
+     "at": [
+      [
+       -2.604,
+       2.9,
+       2.1
+      ],
+      [
+       -2.604,
+       2.9,
+       -2.1
+      ],
+      [
+       2.604,
+       2.9,
+       2.1
+      ],
+      [
+       2.604,
+       2.9,
+       -2.1
+      ]
+     ],
+     "axis": "z",
+     "mesh": "wheel0",
+     "radius": 0.85,
+     "triangles": 276
+    }
+   ],
+   "width": 7.01
+  },
+  "era5/ev_car": {
+   "class": "car",
+   "en": "Electric car",
+   "era": 5,
+   "fly": 0.0,
+   "height": 1.51,
+   "kind": "ev_car",
+   "length": 4.88,
+   "paints": [
+    "#E8E6E0",
+    "#3E4E9E",
+    "#BCC0C5",
+    "#2E3466",
+    "#DE683A",
+    "#3C3C40"
+   ],
+   "slow": 1.0,
+   "th": "รถยนต์ไฟฟ้า",
+   "triangles": 720,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.83,
+       0.33,
+       1.525
+      ],
+      [
+       0.83,
+       0.33,
+       1.525
+      ],
+      [
+       -0.83,
+       0.33,
+       -1.575
+      ],
+      [
+       0.83,
+       0.33,
+       -1.575
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.33,
+     "triangles": 96
+    }
+   ],
+   "width": 2.04
+  },
+  "era5/ev_pod": {
+   "class": "cart",
+   "en": "Three-wheeled bubble car",
+   "era": 5,
+   "fly": 0.0,
+   "height": 1.57,
+   "kind": "ev_pod",
+   "length": 2.66,
+   "paints": [
+    "#3E4E9E",
+    "#DE683A",
+    "#E8E6E0",
+    "#7BAF4A"
+   ],
+   "slow": 0.85,
+   "th": "รถไฟฟ้าแคปซูล",
+   "triangles": 1016,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.66,
+       0.28,
+       0.7
+      ],
+      [
+       0.66,
+       0.28,
+       0.7
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.28,
+     "triangles": 96
+    },
+    {
+     "at": [
+      [
+       0,
+       0.28,
+       -0.85
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel1",
+     "radius": 0.28,
+     "triangles": 96
+    }
+   ],
+   "width": 1.52
+  },
+  "era5/ev_scooter": {
+   "class": "small",
+   "en": "Electric scooter",
+   "era": 5,
+   "fly": 0.0,
+   "height": 1.84,
+   "kind": "ev_scooter",
+   "length": 1.86,
+   "paints": [
+    "#C8CCD4",
+    "#DE683A",
+    "#3E4E9E",
+    "#7BAF4A"
+   ],
+   "slow": 0.9,
+   "th": "สกู๊ตเตอร์ไฟฟ้า",
+   "triangles": 1654,
+   "wheels": [
+    {
+     "at": [
+      [
+       0,
+       0.25,
+       0.625
+      ],
+      [
+       0,
+       0.25,
+       -0.625
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.25,
+     "triangles": 348
+    }
+   ],
+   "width": 0.77
+  },
+  "era5/flying_taxi": {
+   "class": "flyer",
+   "en": "Flying taxi",
+   "era": 5,
+   "fly": 16.0,
+   "height": 1.8,
+   "kind": "flying_taxi",
+   "length": 6.2,
+   "paints": [],
+   "slow": 1.0,
+   "th": "แท็กซี่บินได้",
+   "triangles": 756,
+   "wheels": [
+    {
+     "at": [
+      [
+       -2.852,
+       1.7,
+       2.3
+      ],
+      [
+       -2.852,
+       1.7,
+       -2.3
+      ],
+      [
+       2.852,
+       1.7,
+       2.3
+      ],
+      [
+       2.852,
+       1.7,
+       -2.3
+      ]
+     ],
+     "axis": "z",
+     "mesh": "wheel0",
+     "radius": 0.75,
+     "triangles": 276
+    }
+   ],
+   "width": 7.3
+  },
+  "era5/pod_bus": {
+   "class": "heavy",
+   "en": "Driverless shuttle",
+   "era": 5,
+   "fly": 0.0,
+   "height": 2.96,
+   "kind": "pod_bus",
+   "length": 6.4,
+   "paints": [
+    "#7BAF4A",
+    "#7FA9D6",
+    "#E6BC48"
+   ],
+   "slow": 1.0,
+   "th": "รถรับส่งไร้คนขับ",
+   "triangles": 796,
+   "wheels": [
+    {
+     "at": [
+      [
+       -0.98,
+       0.4,
+       1.9
+      ],
+      [
+       0.98,
+       0.4,
+       1.9
+      ],
+      [
+       -0.98,
+       0.4,
+       -1.9
+      ],
+      [
+       0.98,
+       0.4,
+       -1.9
+      ]
+     ],
+     "axis": "x",
+     "mesh": "wheel0",
+     "radius": 0.4,
+     "triangles": 96
+    }
+   ],
+   "width": 2.28
+  }
+ },
+ "version": 1
+}

@@ -33,6 +33,7 @@ import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
 import { loadPeople } from './people3d.js';
 import { EraModels, eraPrototypeProvider, loadEraIndex } from './eraBuildings.js';
+import { EraVehicles, loadVehicleIndex, nextEraShare, paintFor, pickVehicle, transitVehicle, vehicleMix } from './eraVehicles.js';
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import { CityFestivals, type FestivalViewMap } from './festivals3d.js';
@@ -127,6 +128,8 @@ export class CityView3D implements CityView {
   private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
   /** The era the buildings are drawn in (eraBuildings.ts) */
   private shownEra=0;
+  /** The era vehicles (eraVehicles.ts, art/vehicles) once their index is in, and the share of the buildings in the next era as last counted */
+  private vehicles?:EraVehicles;private nextEra={version:-1,era:0,share:0};
   /** Each building's era as last drawn, and the count it was drawn at (src/eraScore.ts buildingErasVersion) */
   private shownEras:{version:number;eras:Uint8Array|null}={version:-1,eras:null};
   private last:number;private created:number;private seconds=0;private frameTimes:number[]=[];private intervals:number[]=[];
@@ -197,6 +200,9 @@ export class CityView3D implements CityView {
     if(eraModels)loadEraIndex().then(index=>{if(!index||this.disposed)return;this.snapshot.eraModels=new EraModels(index);
       this.shownEra=mapEra(this.land as {era?:unknown});this.chunks.refreshAll();}).catch(error=>console.warn('PhaiCity: era buildings did not load',error));
     this.roadTraffic=new CityRoadTraffic(this.snapshot,this.terrain,setup.region,this.sprites.size);
+    // ... and what drives the roads, of the city's era and region too (eraVehicles.ts)
+    if(eraModels)loadVehicleIndex().then(index=>{if(!index||this.disposed)return;this.vehicles=new EraVehicles(index);this.roadTraffic.eraSource=this.wanderingVehicles(this.vehicles);})
+      .catch(error=>console.warn('PhaiCity: era vehicles did not load',error));
     this.foliage=new CityFoliage(this.snapshot,this.terrain,setup.region,this.sprites.size);
     this.navigation=new CityCamera(setup.map.width,setup.map.height,this.now,typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,this.terrain);
     // On a real-scale city map the camera comes down to the street
@@ -507,12 +513,14 @@ export class CityView3D implements CityView {
     // The city's buses driving their roads (buses.ts)
     const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
     if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
+      this.buses.vehicles=this.vehicles??null;this.buses.region=this.setup.region;this.buses.vehicleId=()=>transitVehicle(this.cityEra(),this.setup.region);
       this.buses.update(this.curves.drawnLines,this.seconds);}
     this.pedestrians.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds);
     // The cars of the city's real trips on the road graph (tripCars.ts, docs/NO_GRID_PLAN.md 1.5), and where there are
     // none (a province map, a city still without them) the old cars wandering the roads
     const tripMap=this.setup.map as unknown as TripCarsMap;
     if(!this.tripCars&&tripMap.trips){this.tripCars=new TripCars(tripMap,this.terrain,this.setup.region,this.sprites.size,this.snapshot.realUnits??1);this.scene.add(this.tripCars.root);}
+    if(this.tripCars){const t=this.tripCars;t.vehicles=this.vehicles??null;t.era=()=>this.cityEra();t.nextShare=()=>this.nextEraShare();t.camera=this.navigation.camera;t.pixelsPerUnit=this.chunks.pixelsPerUnit;}
     const tripsDrive=this.tripCars?.active??false;
     if(this.tripCars)this.tripCars.root.visible=tripsDrive;
     if(tripsDrive)this.tripCars!.update(this.navigation.target,this.navigation.distance,this.seconds,this.hourOfDay());
@@ -656,6 +664,17 @@ export class CityView3D implements CityView {
       const image=context.createImageData(width,height);for(let y=0;y<height;y++)image.data.set(pixels.subarray((height-y-1)*width*4,(height-y)*width*4),y*width*4);context.putImageData(image,0,0);return canvas.toDataURL('image/png');
     }finally{this.renderer.setRenderTarget(previous);target.dispose();this.chunks.mapLOD(false);this.outline.root.visible=outline;this.zones.root.visible=zones;if(this.streets)this.streets.root.visible=streets;this.sky.mesh.visible=true;if(this.province)this.province.root.visible=true;this.scene.fog=this.fog;}
   }
+  /** The city's era (gameMap.era), and the share of its buildings already in the next one, counted again only when they change */
+  private cityEra(){return mapEra(this.land as {era?:unknown});}
+  private nextEraShare(){const map=this.land as {buildingEras?:Uint8Array|null;buildingErasVersion?:number},era=this.cityEra(),version=map.buildingErasVersion??0;
+    if(version!==this.nextEra.version||era!==this.nextEra.era)this.nextEra={version,era,share:nextEraShare(era,map.buildingEras)};return this.nextEra.share;}
+  /** The wandering cars (pedestrians.ts) of the era and region once every vehicle of the era's mix has loaded */
+  private wanderingVehicles(vehicles:EraVehicles){const region=this.setup.region,hash=(n:number,k:number)=>((Math.sin(n*12.9898+k*78.233)*43758.5453)%1+1)%1;
+    return {key:()=>{const era=this.cityEra(),ready=vehicleMix(era,region).filter(({id})=>vehicles.has(id)&&!vehicles.model(id)).length===0;const next=this.nextEraShare();
+        return ready?`${era}:${Math.round(next*10)}:${vehicles.version}`:'';},
+      vehicle:(slot:number)=>{const id=pickVehicle(this.cityEra(),region,this.nextEraShare(),hash(slot,1),hash(slot,2)),entry=vehicles.entry(id);
+        const model=entry?vehicles.object(id,paintFor(id,entry,region,hash(slot,3))):null;return model&&entry?{model,slow:entry.slow,fly:entry.fly}:null;}};}
+
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
     this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.trains?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();

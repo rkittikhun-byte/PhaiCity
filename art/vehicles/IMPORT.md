@@ -1,0 +1,44 @@
+# The era vehicles: Blender to the game
+
+For the AI session (or person) that works on the vehicles next. Read the game's `CLAUDE.md`, `docs/3d/MODEL_SPEC.md`
+and `art/buildings/IMPORT.md` first; this file only covers what is special about the vehicles.
+
+## Done (22 Oct 2026, ไม้ไผ่38)
+
+Owner (22 Oct 2026): "รถที่มาวิ่ง ... ให้วิ่งตามยุค ตามสมัยได้ไหม คนก็เหมือนกัน บ้านเรือนก็เหมือนกัน".
+
+- **Blender** (`scripts/`): the kit reuses `art/buildings/scripts/lib` (palette, `mesh.Part`, `kit`, `scene`) and adds
+  its own colours (`v_*`, `vlib.VCOLORS`). `vlib.py`: wheels (car, spoked, wooden cart wheel, drone rotor), riders and
+  walkers, draught animals (buffalo, zebu ox), plates with a made-up pattern, lamps, mirrors, door lines, side
+  profiles (`shell`) and glass cabins (`greenhouse`). `vbodies.py`: the pickup, the box bus, the step-through
+  motorcycle, the bonneted truck front and the car, which several eras build on. `vehicles/era<n>.py`: one function a
+  vehicle, registered with its class (budget), paints, speed against a car (`slow`) and flying height (`fly`).
+- 31 vehicles in five sets (`blend/era<n>_vehicles.blend`, each vehicle an asset; `previews/era<n>_vehicles.png`).
+  Rail (the steam engine, the elevated train, the maglev) and the boats of the sheets are not here: they belong to the
+  railway and the water.
+- **Units:** metres, Blender Z up, the front at -Y, the origin the middle of the footprint on the ground; glTF Y up
+  with the front at **+Z**, as the game's cars drive.
+- **Export** (`scripts/export_game.py`, `./run.sh export`): `assets/models/vehicles/era<n>/<kind>.glb` (Draco, no
+  normals, vertex colours, about 5-10 KB each, 330 KB in all) with meshes `body`, `paint` (the faces in the kind's
+  first paint, white; the game tints each car), `lights` (headlamps, tail lights, the future's light strips: lit at
+  night) and `wheel0`, `wheel1` ... (one wheel of each set at the origin). `index.json` lists each vehicle's class,
+  size, triangles, paints (sRGB hex), `slow`, `fly` and its wheel sets (radius, axis `x` a wheel or `z` a rotor, and
+  every position in glTF metres). Budgets: `GAME_BUDGET` (body) and `WHEELS_BUDGET` in `eraVehicles.ts`.
+- **Game** (`src/render3d/city/eraVehicles.ts`): `ERA_MIX` and `REGION_MIX` (what drives in each era and region, by
+  shares), `transitVehicle` (the era's bus; the north's red songthaew in eras 2-3; the shuttle in era 5),
+  `nextEraShare` (the share of `map.buildingEras` already in the next era: that share of the cars take the next era's
+  mix), `paintFor` (songthaew colours by region), `EraVehicles` (loads each glb once, with a lighter copy from
+  meshoptimizer, `lod.ts`) and `VehiclePool` (one InstancedMesh a part, level and wheel set; wheels turn by the
+  distance driven, rotors spin). Used by `tripCars.ts` (the trips' cars; flyers fly over their routes), `buses.ts`
+  (transit) and `pedestrians.ts` `CityRoadTraffic` (the wandering cars where there are no trips), wired in
+  `index.ts`. Until the models load, and in headless tests, the procedural cars drive as before.
+- **Gallery:** `era-buildings.html`, group "Vehicles": the era and region's mix with its shares, or every vehicle of
+  the era, wheels turning.
+- **Tests:** `test/render3d/eraVehicles.test.ts` (mixes, regions, transition, budgets, sizes, the pool) and the era
+  cases in `test/render3d/tripCars.test.ts`.
+
+## Next
+
+- Animals walk with still legs; the buffalo and the riders could take a walk or pedal cycle.
+- The rail vehicles of the sheets (steam engine, elevated train, maglev) for `railTrains.ts`, and the boats for the
+  canals and rivers.

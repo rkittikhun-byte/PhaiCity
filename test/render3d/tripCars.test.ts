@@ -6,7 +6,10 @@
 // routes on the roads as drawn, keeping left, as many as the routes' cars, more in the rush hours, none on a road no
 // trip takes, slower where a road is jammed.
 
-import { Matrix4, Vector3 } from 'three';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { BoxGeometry, BufferAttribute, Group, Matrix4, Mesh, Vector3 } from 'three';
+import { EraVehicles } from '../../src/render3d/city/eraVehicles.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { hourShare, MAX_TRIP_CARS, outShare, TripCars } from '../../src/render3d/city/tripCars.js';
 import { roadCapacity, roadSpeed } from '../../src/roadLevels.js';
@@ -102,5 +105,60 @@ describe('the cars of the real trips', () => {
     for (const id of [...busy.graph.segments.keys()]) busy.graph.remove(id);
     far.update(new Vector3(500, 0, 250), 300, 100, 7.5);
     expect(far.drawn).toBe(0);
+  });
+});
+
+describe('the trip cars of the city\'s era', () => {
+  const index = JSON.parse(readFileSync(join(__dirname, '..', '..', 'assets/models/vehicles/index.json'), 'utf8'));
+  const scene = () => {
+    const g = new Group();
+    for (const name of ['body', 'paint', 'lights', 'wheel0']) {
+      const box = new BoxGeometry(1, 1, 1);
+      box.setAttribute('color', new BufferAttribute(new Float32Array(box.getAttribute('position').count * 3).fill(1), 3));
+      const mesh = new Mesh(box); mesh.name = name; g.add(mesh);
+    }
+    return g;
+  };
+  /** Every exported vehicle, loaded at once */
+  async function loaded() {
+    const vehicles = new EraVehicles(index, '', async () => ({ scene: scene() }), Promise.resolve(null));
+    for (const id of Object.keys(index.vehicles)) vehicles.model(id);
+    for (let k = 0; k < 4; k++) await new Promise(r => setTimeout(r, 0));
+    return vehicles;
+  }
+  /** The ids of the era vehicles drawn, by the pool's body meshes */
+  const drawnIds = (cars: TripCars): string[] => {
+    const pool = (cars as any).pool;
+    return [...pool.draws.values()].filter((d: any) => d.levels[0].count > 0).map((d: any) => d.model.id);
+  };
+
+  test('a village drives only its carts, bicycles and hand carts; in a transition a few of the next era\'s', async () => {
+    const vehicles = await loaded();
+    const { map } = town(300), cars = new TripCars(map, flat, 'northeast', U, U);
+    cars.vehicles = vehicles;
+    cars.era = () => 1;
+    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
+    expect(cars.drawn).toBeGreaterThan(5);
+    const ids = drawnIds(cars);
+    expect(ids.length).toBeGreaterThan(1);
+    for (const id of ids) expect(id.startsWith('era1/')).toBe(true);
+    // the procedural cars are put away
+    expect(carsOf(cars).length).toBe(0);
+    cars.nextShare = () => 1;
+    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
+    expect(drawnIds(cars).some(id => id.startsWith('era2/'))).toBe(true);
+  });
+
+  test('the future\'s flying taxis fly over their routes', async () => {
+    const vehicles = await loaded();
+    const { map } = town(600), cars = new TripCars(map, flat, 'central', U, U);
+    cars.vehicles = vehicles;
+    cars.era = () => 5;
+    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
+    const pool = (cars as any).pool, draw = pool.draws.get('era5/flying_taxi');
+    expect(draw.levels[0].count).toBeGreaterThan(0);
+    const m = new Matrix4(), p = new Vector3();
+    draw.levels[0].parts[0].mesh.getMatrixAt(0, m); p.setFromMatrixPosition(m);
+    expect(p.y).toBeGreaterThan(index.vehicles['era5/flying_taxi'].fly * U * 0.8);
   });
 });

@@ -674,6 +674,15 @@ const VEHICLE_POOL_IDS: Readonly<Record<RegionId, readonly string[]>> = {
 interface VehicleSlot {
   readonly model: Object3D;
   readonly speed: number;
+  /** World units it flies above the road (an era 5 flying taxi), 0 on it */
+  readonly fly?: number;
+}
+
+/** The era vehicles the wandering cars are made of once they load (eraVehicles.ts, set by the city view): a key that
+ * changes with the era and the models loaded, and each slot's vehicle (metres; speed against a car's) */
+export interface RoadTrafficEraSource {
+  key(): string;
+  vehicle(slot: number): { model: Object3D; slow: number; fly: number } | null;
 }
 
 /**
@@ -684,6 +693,8 @@ export class CityRoadTraffic {
   readonly root = new Group();
   private readonly vehicles: VehicleSlot[] = [];
   private builtSize = 0;
+  eraSource: RoadTrafficEraSource | null = null;
+  private builtKey = '';
 
   constructor(
     private readonly snapshot: TileSnapshot,
@@ -695,21 +706,29 @@ export class CityRoadTraffic {
   }
 
   private ensurePool(): void {
+    // The era's vehicles once they load, made again when the era changes
+    const key = this.eraSource?.key() ?? '';
+    if (key !== this.builtKey) {
+      for (const v of this.vehicles) this.root.remove(v.model);
+      this.vehicles.length = 0;
+      this.builtKey = key;
+    }
     if (this.vehicles.length === MAX_VEHICLES && this.builtSize === this.size) return;
     if (this.vehicles.length === 0) {
       const ids = VEHICLE_POOL_IDS[this.region] ?? VEHICLE_POOL_IDS.central;
       for (let i = 0; i < MAX_VEHICLES; i++) {
         const id = ids[i % ids.length];
         const entry = registry[id];
-        const model = entry ? entry.factory({ seed: i % 4, region: this.region }) : new Group();
+        const era = key ? this.eraSource!.vehicle(i) : null;
+        const model = era?.model ?? (entry ? entry.factory({ seed: i % 4, region: this.region }) : new Group());
         model.traverse(node => {
           const m = node as { isMesh?: boolean; castShadow?: boolean; receiveShadow?: boolean };
           if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; }
         });
         model.scale.setScalar(this.size);
         model.visible = false;
-        const speed = id === 'veh.etan' ? 3.2 : id === 'veh.truck' || id === 'veh.songthaew' ? 5.2 : id === 'veh.tuktuk' ? 5.8 : 7.0;
-        this.vehicles.push({ model, speed });
+        const speed = era ? 7.0 * era.slow : id === 'veh.etan' ? 3.2 : id === 'veh.truck' || id === 'veh.songthaew' ? 5.2 : id === 'veh.tuktuk' ? 5.8 : 7.0;
+        this.vehicles.push({ model, speed, fly: era ? era.fly : 0 });
         this.root.add(model);
       }
       this.builtSize = this.size;
@@ -798,7 +817,7 @@ export class CityRoadTraffic {
         const vx = px + Math.cos(heading) * lateral;
         const vz = pz - Math.sin(heading) * lateral;
 
-        slot.model.position.set(vx, this.terrain.sample(vx, vz), vz);
+        slot.model.position.set(vx, this.terrain.sample(vx, vz) + (slot.fly ?? 0) * this.size, vz);
         slot.model.rotation.y = heading;
         slot.model.visible = true;
         used++;

@@ -5,11 +5,15 @@
 // The city's buses (owner, 15 Oct 2026: "ป้ายรถเมล์ ไม่ต้องมีตั้งนะ แค่วาง รถเมล์ ก็ไปรับได้เลย"): each one put down on a
 // road (gameMap.buses, src/busStopTool.ts) drives from there to the town's middle (the ruler's house) and back along the
 // roads as drawn, turning where its way turns (docs/NO_GRID_PLAN.md 1.5, src/render3d/city/graphPaths.ts), picking people
-// up, as the simulation counts it (src/transit.ts); without the road graph or the house, up and down its road there. It
-// only reads the map and the roads' lines.
+// up, as the simulation counts it (src/transit.ts); without the road graph or the house, up and down its road there. Once
+// the era vehicles have loaded it is the era's bus (eraVehicles.ts transitVehicle: the red bus, the north's red
+// songthaew, the air-conditioned bus, the low-floor bus, the driverless shuttle). It only reads the map and the roads'
+// lines.
 
 import { Group, type Object3D } from 'three';
 import { registry } from '../models/registry.js';
+import type { RegionId } from '../regional/types.js';
+import { type EraVehicles, paintFor } from './eraVehicles.js';
 import type { Point } from '../../roadGeometry.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityHeightField } from './heightfield.js';
@@ -37,6 +41,11 @@ export class CityBuses {
   /** Each bus's way to the town's middle, made again when the roads, the buses or the house change */
   private ways: Array<Way | null> = [];
   private waysKey = '';
+  /** The era vehicles and the one the buses are now (set by the city view); the id the models were made as */
+  vehicles: EraVehicles | null = null;
+  vehicleId: () => string | null = () => null;
+  region: RegionId = 'central';
+  private madeAs = '';
 
   constructor(private readonly map: BusMap, private readonly terrain: CityHeightField, private readonly size: number) {
     this.root.name = 'buses';
@@ -45,8 +54,9 @@ export class CityBuses {
   /** Each frame: every bus on its road, at the time given (seconds); lines: the roads as drawn (roadCurves.ts) */
   update(lines: ReadonlyArray<{ points: Point[]; rail: boolean }>, seconds: number): void {
     const buses = this.map.buses ?? [];
+    this.eraModels();
     while (this.models.length < buses.length) {
-      const model = registry['veh.bus']?.factory({ seed: this.models.length }) ?? new Group();
+      const model = this.make(this.models.length);
       model.scale.setScalar(this.size);
       this.models.push(model); this.root.add(model);
     }
@@ -77,6 +87,22 @@ export class CityBuses {
       model.position.set(x0, this.terrain.sample(x0, z0), z0);
       model.rotation.y = turn;
     });
+  }
+
+  /** The bus as the era's vehicle when it has loaded, else the procedural bus */
+  private make(n: number): Object3D {
+    const id = this.madeAs, entry = id ? this.vehicles?.entry(id) : null;
+    const era = entry ? this.vehicles!.object(id, paintFor(id, entry, this.region, ((n * 0.618034) % 1))) : null;
+    return era ?? registry['veh.bus']?.factory({ seed: n }) ?? new Group();
+  }
+
+  /** Makes the buses again when the era's vehicle changes or loads */
+  private eraModels(): void {
+    const id = this.vehicleId(), ready = id && this.vehicles?.model(id) ? id : '';
+    if (ready === this.madeAs) return;
+    this.madeAs = ready;
+    for (const model of this.models) this.root.remove(model);
+    this.models.length = 0;
   }
 
   /** Each bus's way along the road graph from where it was put down to the ruler's house, when both are there */

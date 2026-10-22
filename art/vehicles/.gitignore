@@ -1,0 +1,7 @@
+__pycache__/
+*.blend1
+*.blend@
+# Per-vehicle renders: ./run.sh makes them again; the era<n>_vehicles.png line-ups are kept.
+previews/*/
+# Built files: ./run.sh makes them again from the scripts.
+blend/

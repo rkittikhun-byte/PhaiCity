@@ -8,9 +8,13 @@
 // A route has as many cars at once as its cars an hour times the time it takes (a road with no trips has none), fewer
 // at night, up to MAX_TRIP_CARS round the camera. One InstancedMesh for each part of each kind of car. It only reads the
 // city (map.trips, map.roadGraph); the old wandering cars (pedestrians.ts CityRoadTraffic) drive where there are no trips.
+// Once the era vehicles have loaded (eraVehicles.ts, art/vehicles) each car is one of the city's era and region, by
+// their shares, a few of the next era's while the city's buildings turn to it, its wheels turning as it goes; until
+// then, and without them, the procedural cars of the region drive.
 
 import { Group, InstancedMesh, Matrix4, type Mesh, type Object3D, Quaternion, Vector3 } from 'three';
 import { registry } from '../models/registry.js';
+import { type EraVehicles, paintFor, pickFrom, type VehicleModel, VehiclePool, vehicleMix } from './eraVehicles.js';
 import type { CityHeightField } from './heightfield.js';
 import type { RegionId } from '../regional/types.js';
 import { halfWidth } from '../../roadGeometry.js';
@@ -66,6 +70,8 @@ interface Path {
   /** The lateral offset of its lane (world units) at each point's piece, and lanes a way there */
   lane: Float32Array;
   lanes: Uint8Array;
+  /** World units from the start to each point */
+  dist: Float32Array;
   /** Seconds it takes, and its bounds (world units) */
   seconds: number;
   box: [number, number, number, number];
@@ -96,6 +102,17 @@ export class TripCars {
   private readonly up = new Vector3(0, 1, 0);
   /** Cars drawn in the last frame */
   drawn = 0;
+  /** The era vehicles (eraVehicles.ts), the city's era and the share of its buildings in the next one, the camera and
+   * the screen's pixels a world unit away (for the lighter copies far off); set by the city view */
+  vehicles: EraVehicles | null = null;
+  era: () => number = () => 1;
+  nextShare: () => number = () => 0;
+  camera: Object3D | null = null;
+  pixelsPerUnit = 0;
+  private pool: VehiclePool | null = null;
+  private mixKey = '';
+  private mixes: Array<Array<{ id: string; share: number; model: VehicleModel }>> = [];
+  private readonly eye = new Vector3();
 
   constructor(private readonly map: TripCarsMap, private readonly terrain: CityHeightField, private readonly region: RegionId,
     private readonly size: number, private readonly units: number) {
@@ -115,7 +132,9 @@ export class TripCars {
     const trips = this.map.trips, graph = this.map.roadGraph;
     if (!trips || !graph || distance > FAR) { this.hide(); return; }
     if (trips !== this.builtFor || graph.version !== this.builtVersion) this.build(trips, graph);
-    this.ensureKinds();
+    const eraMode = this.prepareEra();
+    if (eraMode) { this.hideKinds(); this.pool!.begin(); if (this.camera) this.eye.setFromMatrixPosition(this.camera.matrixWorld); }
+    else { this.pool?.hide(); this.ensureKinds(); }
     for (const kind of this.kinds) kind.count = 0;
     const busy = hourShare(hour), out = outShare(hour), span = Math.min(VIEW_SPAN, Math.max(160, distance * 1.1));
     const x0 = target.x - span, x1 = target.x + span, z0 = target.z - span, z1 = target.z + span;
@@ -139,11 +158,15 @@ export class TripCars {
         // ... the last one only now and then, by its share
         if (i === n - 1 && hash01(path.index, i, 3) >= cars * keep - (n - 1)) continue;
         const forward = hash01(path.index, i, 1) < out;
-        const along = (seconds + hash01(path.index, i, 2) * path.seconds + i * path.seconds / Math.max(1, n)) % path.seconds;
-        if (this.place(path, forward ? along : path.seconds - along, forward, i, x0, x1, z0, z1)) drawn++;
+        const model = eraMode ? this.pickModel(path.index, i) : null;
+        if (eraMode && !model) continue;
+        // ... a cart or a bicycle slower than a car along the same route
+        const along = (seconds * (model?.entry.slow ?? 1) + hash01(path.index, i, 2) * path.seconds + i * path.seconds / Math.max(1, n)) % path.seconds;
+        if (this.place(path, forward ? along : path.seconds - along, forward, i, x0, x1, z0, z1, model, seconds)) drawn++;
       }
     }
-    for (const kind of this.kinds) for (const { mesh } of kind.parts) {
+    if (eraMode) this.pool!.end();
+    else for (const kind of this.kinds) for (const { mesh } of kind.parts) {
       mesh.count = kind.count;
       mesh.instanceMatrix.needsUpdate = true;
       mesh.visible = kind.count > 0;
@@ -151,8 +174,47 @@ export class TripCars {
     this.drawn = drawn;
   }
 
+  /** Whether the era vehicles draw this frame: every model of the era's mix has loaded (the next era's join as they
+   * load); makes the pool's room for them when the era, the region's mix or the models change */
+  private prepareEra(): boolean {
+    const vehicles = this.vehicles;
+    if (!vehicles) return false;
+    const era = Math.max(1, Math.min(5, Math.round(this.era()) || 1)), next = era < 5 && this.nextShare() > 0;
+    const key = `${era}:${next}:${vehicles.version}`;
+    if (key !== this.mixKey) {
+      this.mixKey = key;
+      const eras = next ? [era, era + 1] : [era];
+      this.mixes = eras.map(e => vehicleMix(e, this.region).flatMap(({ id, share }) => {
+        const model = vehicles.model(id);
+        return model ? [{ id, share, model }] : [];
+      }));
+      const ready = vehicleMix(era, this.region).filter(({ id }) => vehicles.has(id) && !vehicles.model(id)).length === 0;
+      if (!ready || !this.mixes[0].length) { this.mixes = []; return false; }
+      this.pool ??= new VehiclePool();
+      if (!this.pool.root.parent) this.root.add(this.pool.root);
+      for (const mix of this.mixes) for (const { model, share } of mix) {
+        this.pool.ensure(model, Math.min(MAX_TRIP_CARS, Math.ceil(MAX_TRIP_CARS * share * 2.5) + 8));
+      }
+    }
+    return this.mixes.length > 0;
+  }
+
+  /** A car's vehicle, the same every frame: the next era's for its share of the cars */
+  private pickModel(route: number, i: number): VehicleModel | null {
+    const mixes = this.mixes, nextMix = mixes[1];
+    const mix = nextMix?.length && hash01(route, i, 6) < this.nextShare() ? nextMix : mixes[0];
+    if (!mix?.length) return null;
+    const id = pickFrom(mix, hash01(route, i, 5));
+    return mix.find(m => m.id === id)?.model ?? null;
+  }
+
+  private hideKinds(): void {
+    for (const kind of this.kinds) for (const { mesh } of kind.parts) { mesh.count = 0; mesh.visible = false; }
+  }
+
   /** One car of a route at a time along it (seconds from its start); whether it was drawn */
-  private place(path: Path, time: number, forward: boolean, i: number, x0: number, x1: number, z0: number, z1: number): boolean {
+  private place(path: Path, time: number, forward: boolean, i: number, x0: number, x1: number, z0: number, z1: number,
+    model: VehicleModel | null = null, seconds = 0): boolean {
     const { times, xs, zs } = path;
     let lo = 0, hi = times.length - 1;
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (times[mid] <= time) lo = mid; else hi = mid; }
@@ -168,6 +230,20 @@ export class TripCars {
     const side = (lane + 0.5) * laneWidth;
     x += dz / length * side;
     z -= dx / length * side;
+    if (model) {
+      // An era vehicle: a flyer over its route, its wheels turned by how far it has come (its rotors spinning)
+      const entry = model.entry, fly = entry.fly * this.size;
+      const y = this.terrain.sample(x, z) + (fly ? fly + Math.sin(seconds * 1.3 + i) * 0.4 * this.size : 0);
+      this.position.set(x, y, z);
+      this.turn.setFromAxisAngle(this.up, Math.atan2(dx, dz));
+      this.scale.setScalar(this.size);
+      this.matrix.compose(this.position, this.turn, this.scale);
+      const d = path.dist[lo] + (path.dist[hi] - path.dist[lo]) * f, travelled = forward ? d : path.dist[path.dist.length - 1] - d;
+      const wheel = entry.wheels[0], spin = !wheel ? 0 : wheel.axis === 'z' ? seconds * 30 + i : travelled / (wheel.radius * this.size);
+      const paint = paintFor(model.id, entry, this.region, hash01(path.index, i, 7));
+      const away = this.camera ? this.eye.distanceTo(this.position) : 0;
+      return this.pool!.add(model.id, this.matrix, paint, spin, away, this.pixelsPerUnit, this.size);
+    }
     const kinds = this.kinds, kind = kinds[Math.floor(hash01(path.index, i, 5) * kinds.length)];
     if (!kind || kind.count >= kind.parts[0]?.mesh.instanceMatrix.count) return false;
     this.position.set(x, this.terrain.sample(x, z), z);
@@ -216,10 +292,12 @@ export class TripCars {
         clock += pieceSeconds;
       }
       if (!ok || xs.length < 2 || clock <= 0) return;
+      const dist = new Float32Array(xs.length);
+      for (let j = 1; j < xs.length; j++) dist[j] = dist[j - 1] + Math.hypot(xs[j] - xs[j - 1], zs[j] - zs[j - 1]);
       let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
       for (let j = 0; j < xs.length; j++) { bx0 = Math.min(bx0, xs[j]); bx1 = Math.max(bx1, xs[j]); bz0 = Math.min(bz0, zs[j]); bz1 = Math.max(bz1, zs[j]); }
       this.paths.push({ route, index, xs: Float32Array.from(xs), zs: Float32Array.from(zs), times: Float32Array.from(times),
-        lane: Float32Array.from(lane), lanes: Uint8Array.from(lanes), seconds: clock, box: [bx0, bz0, bx1, bz1] });
+        lane: Float32Array.from(lane), lanes: Uint8Array.from(lanes), dist, seconds: clock, box: [bx0, bz0, bx1, bz1] });
     });
   }
 
@@ -257,7 +335,8 @@ export class TripCars {
   }
 
   private hide(): void {
-    for (const kind of this.kinds) for (const { mesh } of kind.parts) { mesh.count = 0; mesh.visible = false; }
+    this.hideKinds();
+    this.pool?.hide();
     this.drawn = 0;
   }
 
@@ -265,6 +344,8 @@ export class TripCars {
     for (const kind of new Set(this.kinds)) for (const { mesh } of kind.parts) mesh.dispose();
     this.kinds = [];
     this.paths = [];
+    this.pool?.dispose();
+    this.pool = null;
     this.root.clear();
   }
 }

@@ -6,6 +6,8 @@
 // in rows or one at a time to orbit, by day or by night, drawn with the city's own material (eraBuildingMaterial).
 // The frontage kinds (frontage.ts: shophouse bays and the 12 m house) show alone, or as the city stands them: a terrace
 // of bays side by side (left end, middles taking turns, right end) beside the bay that stands alone.
+// The era vehicles (eraVehicles.ts, art/vehicles) show as the roads of the era and region have them, each with its share,
+// or every vehicle of the era, their wheels (and rotors) turning.
 
 import {
   AmbientLight, BufferAttribute, BufferGeometry, DirectionalLight, Group, Mesh, PerspectiveCamera, PlaneGeometry,
@@ -15,6 +17,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene, TEMPLE_KINDS } from '../city/eraBuildings.js';
+import { EraVehicles, loadVehicleIndex, paintFor, transitVehicle, type VehicleIndex, vehicleMix } from '../city/eraVehicles.js';
+import type { RegionId } from '../regional/types.js';
 import { eraBuildingMaterial, setNightMode } from '../materials/library.js';
 import { SCENE } from '../../theme/tokens.js';
 
@@ -48,7 +52,10 @@ const TERRACE = ['left', 'mid', 'mid2', 'mid', 'mid2', 'right'];
 const terraceOf = (row: string): string[] => [...TERRACE.map(p => `bay${row}_${p}`), `bay${row}_one`];
 const GROUPS: [string, string, string][] = [['home', 'บ้าน', 'Homes'], ['shop', 'ร้านค้า', 'Shops'],
   ['frontage', 'ตามหน้ากว้างที่ทา (ช่อง 4 ม.)', 'By painted frontage (4 m cells)'],
-  ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services'], ['temple', 'วัด (ชุมชนสร้างเอง)', 'Temples (the community’s)']];
+  ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services'], ['temple', 'วัด (ชุมชนสร้างเอง)', 'Temples (the community’s)'],
+  ['vehicle', 'ยานพาหนะ', 'Vehicles']];
+NAMES.vehicles_mix = ['ที่วิ่งบนถนนของยุคและภาคนี้', 'On the roads of this era and region'];
+NAMES.vehicles_all = ['ยานพาหนะทุกแบบของยุคนี้', 'Every vehicle of this era'];
 
 function el<T extends HTMLElement>(id: string): T { return document.getElementById(id) as T; }
 let thai = true;
@@ -85,6 +92,37 @@ async function start(): Promise<void> {
   const readout = el<HTMLParagraphElement>('readout');
   if (!index) { readout.textContent = 'assets/models/buildings/index.json ?'; return; }
   const cache = new Map<string, Promise<Group>>();
+  const vehicleIndex: VehicleIndex | null = await loadVehicleIndex();
+  const vehicles = vehicleIndex ? new EraVehicles(vehicleIndex) : null;
+  const wheels: Group[] = [];
+
+  /** The era's vehicles side by side (the city's mix with its shares, or all of the era's), wheels ready to turn */
+  async function showVehicles(kind: string, mine: number, era: string, region: RegionId): Promise<void> {
+    if (!vehicles || !vehicleIndex) { readout.textContent = 'assets/models/vehicles/index.json ?'; return; }
+    const mix = kind === 'vehicles_mix' ? vehicleMix(Number(era), region)
+      : Object.keys(vehicleIndex.vehicles).filter(id => id.startsWith(`era${era}/`)).map(id => ({ id, share: 0 }));
+    const bus = transitVehicle(Number(era), region);
+    if (kind === 'vehicles_mix' && !mix.some(m => m.id === bus)) mix.push({ id: bus, share: 0 });
+    readout.textContent = thai ? 'กำลังโหลด…' : 'Loading…';
+    await Promise.all(mix.map(m => { vehicles.model(m.id); return vehicles.whenLoaded(m.id); }));
+    if (mine !== token) return;
+    shown.clear(); wheels.length = 0;
+    let x = 0;
+    const names: string[] = [];
+    for (const { id, share } of mix) {
+      const entry = vehicleIndex.vehicles[id], object = vehicles.object(id, paintFor(id, entry, region, 0));
+      if (!object) continue;
+      // side by side across, each facing the viewer, flyers a little up
+      object.rotation.y = -Math.PI / 2;
+      object.position.set(x + entry.length / 2, entry.fly ? 3 : 0, 0);
+      x += entry.length + 1.5;
+      object.traverse(node => { const m = node as Mesh; if (m.isMesh) m.castShadow = true; });
+      shown.add(object); wheels.push(object);
+      names.push(`${thai ? entry.th : entry.en}${share ? ` ${Math.round(share * 100)}%` : id === bus ? (thai ? ' (รถโดยสารประจำทาง)' : ' (public transport)') : ''}`);
+    }
+    frame();
+    readout.textContent = names.join(' · ');
+  }
 
   function model(era: string, region: string, kind: string): Promise<Group> {
     const key = `${era}/${region}/${kind}`;
@@ -119,6 +157,8 @@ async function start(): Promise<void> {
     current = kind;
     const mine = ++token, era = el<HTMLSelectElement>('era').value, region = el<HTMLSelectElement>('region').value;
     document.querySelectorAll<HTMLButtonElement>('nav button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
+    if (kind.startsWith('vehicles_')) { await showVehicles(kind, mine, era, region as RegionId); return; }
+    wheels.length = 0;
     const have = index!.buildings[`era${era}`]?.[region] ?? {};
     const frontage = Boolean(have.bay1_one);
     const terrace = /^terrace(\d)$/.exec(kind);
@@ -162,6 +202,15 @@ async function start(): Promise<void> {
   nav.append(all);
   for (const [prefix, th, en] of GROUPS) {
     const h = document.createElement('h2'); h.dataset.th = th; h.dataset.en = en; nav.append(h);
+    if (prefix === 'vehicle') {
+      for (const kind of ['vehicles_mix', 'vehicles_all']) {
+        const b = document.createElement('button');
+        b.dataset.kind = kind; b.dataset.th = NAMES[kind][0]; b.dataset.en = NAMES[kind][1];
+        b.addEventListener('click', () => show(kind));
+        nav.append(b);
+      }
+      continue;
+    }
     if (prefix === 'temple') {
       for (const kind of TEMPLE_KINDS) {
         const b = document.createElement('button');
@@ -208,7 +257,17 @@ async function start(): Promise<void> {
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(stage); resize();
-  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+  let last = performance.now();
+  renderer.setAnimationLoop(() => {
+    // the vehicles' wheels roll and their rotors spin
+    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    for (const v of wheels) for (const w of v.children) {
+      if (!w.name.startsWith('wheel')) continue;
+      const set = Number(w.name.slice(5, w.name.indexOf('.'))), spec = vehicleIndex?.vehicles[v.name.slice(8)]?.wheels[set];
+      if (spec?.axis === 'z') w.rotation.y += dt * 25; else w.rotation.x += dt * 2.5 / Math.max(0.2, spec?.radius ?? 0.3);
+    }
+    controls.update(); renderer.render(scene, camera);
+  });
   await show(params.get('kind') ?? 'all');
 }
 

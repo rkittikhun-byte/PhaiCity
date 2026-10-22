@@ -219,6 +219,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   exported by `art/buildings/scripts/export_game.py` to `assets/models/buildings/` (Draco; decoder in `assets/draco/`)
   and drawn by `src/render3d/city/eraBuildings.ts` in place of the procedural models (`TileSnapshot.toEra`), in
   `gameMap.era` for now. `era-buildings.html` shows them all.
+- **Era vehicles (owner, 22 Oct 2026):** everything that drives the roads in the look of the city's era and region, from
+  ox carts to flying taxis, built in Blender in `art/vehicles/` (31 vehicles, real metres; `README.md`, `IMPORT.md`),
+  exported to `assets/models/vehicles/` and drawn instanced by `src/render3d/city/eraVehicles.ts` for the trip cars,
+  the wandering cars and the transit buses (the era's mix by shares, the next era's few while buildings turn).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side
