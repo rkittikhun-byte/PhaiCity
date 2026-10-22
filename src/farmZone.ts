@@ -194,6 +194,13 @@ export function readFarmCells(saved: unknown, width: number, height: number): Ui
 const inside = (map: { width: number; height: number }, x: number, y: number): boolean =>
   x >= 0 && y >= 0 && x < map.width && y < map.height;
 
+/** Which tile values are roads (isRoadTile), as a table */
+const ROAD_VALUES: Uint8Array = (() => {
+  const out = new Uint8Array(BIT_MASK + 1);
+  for (let v = 0; v <= BIT_MASK; v++) if (isRoadTile(v)) out[v] = 1;
+  return out;
+})();
+
 /** Land a cart track crosses on its way to a road: open land and fields */
 const passable = (value: number): boolean => isOpenLand(value) || isFieldValue(value);
 
@@ -339,9 +346,10 @@ export function wayField(map: PlotMap, reach: number): Uint8Array {
     // (each tile's driveway asked once, not five times a tile and again in the search: the month's fields asked it
     // about 1.4 million times on a 480 x 480 city, a fifth of a month under Jest; the same ways, docs/NO_GRID_PLAN.md 5.1)
     const tile = map.tileSizeM || 16, starts: Array<[number, number]> = [], drive = new Uint8Array(width * height);
-    const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null;
+    // (the road tiles found from the map's array by a table of values, read into locals: a pass over every tile)
+    const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null, roads = ROAD_VALUES, mask = BIT_MASK;
     for (let y = 0, i = 0; y < height; y++) for (let x = 0; x < width; x++, i++) {
-      if (raw !== null && !isRoadTile(raw[i] & BIT_MASK)) continue;
+      if (raw !== null && roads[raw[i] & mask] === 0) continue;
       if (drivewayAt(map, x, y)) drive[i] = 1;
     }
     for (let y = 0, i = 0; y < height; y++) for (let x = 0; x < width; x++, i++) {
@@ -351,7 +359,9 @@ export function wayField(map: PlotMap, reach: number): Uint8Array {
       }
     }
     const dist = metreWays(map, starts, reach * tile, false, 0, 0, width, height, drive);
-    for (let i = 0; i < dist.length; i++) if (dist[i] !== Infinity) out[i] = waySteps(dist[i], tile);
+    // (Infinity read once: the global looked up for each of the map's tiles was most of this under Jest)
+    const none = Infinity;
+    for (let i = 0; i < dist.length; i++) { const d = dist[i]; if (d !== none) out[i] = waySteps(d, tile); }
     return out;
   }
   let frontier: number[] = [];
