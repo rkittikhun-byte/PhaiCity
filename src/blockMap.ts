@@ -11,13 +11,6 @@
  *
  */
 
-interface BlockCoordinate {
-  x: number;
-  y: number;
-}
-
-type ForEachFunction = (x: number, y: number) => any;
-
 type TransformationFunction = (n: number) => number;
 
 const ID: TransformationFunction = (n) => n;
@@ -63,18 +56,22 @@ export class BlockMap {
     this.data[index] = value;
   }
 
+  // PhaiCity: the simulation asks these of every tile each month (land value, pollution, crime, the services' cover):
+  // the block worked out in place, with no object made for its coordinate and no Math call, the same block as before
+  // (docs/NO_GRID_PLAN.md 5.1)
   public worldGet(worldX: number, worldY: number): number {
-    const {x, y} = this.toBlockCoordinate(worldX, worldY);
-    return this.get(x, y);
+    return this.data[this._width * this.toBlockIndex(worldY) + this.toBlockIndex(worldX)];
   }
 
   public worldSet(worldX: number, worldY: number, value: number) {
-    const {x, y} = this.toBlockCoordinate(worldX, worldY);
-    this.set(x, y, value);
+    this.data[this._width * this.toBlockIndex(worldY) + this.toBlockIndex(worldX)] = value;
   }
 
   public clear() {
-    this.forEach((x, y) => this.set(x, y, 0));
+    const data = this.data, width = this._width, height = this._height;
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) data[width * y + x] = 0;
+    }
   }
 
   public copyFrom(source: BlockMap, transform: TransformationFunction = ID) {
@@ -82,17 +79,10 @@ export class BlockMap {
       console.warn("Copying from incompatible blockMap!");
     }
 
-    this.forEach((x, y) => this.set(x, y, transform(source.get(x, y))));
-  }
-
-  private forEach(fn: ForEachFunction) {
-    const maxWidth = this.width;
-    const maxHeight = this.height;
-
-    for (let x = 0; x < maxWidth; x++) {
-      for (let y = 0; y < maxHeight; y++) {
-        fn(x, y);
-      }
+    // (x then y, the order it always went, for a transform that counts what it is given)
+    const data = this.data, width = this._width, height = this._height;
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) data[width * y + x] = transform(source.get(x, y));
     }
   }
 
@@ -106,17 +96,13 @@ export class BlockMap {
            map.blockSize !== this.blockSize;
   }
 
-  private toBlockCoordinate(worldX: number, worldY: number): BlockCoordinate {
-    const x = this.toBlockIndex(worldX);
-    const y = this.toBlockIndex(worldY);
-    return {x, y};
-  }
-
   private toBlockIndex(worldIndex: number): number {
-    return Math.floor(worldIndex / this.blockSize);
+    // Math.floor by `| 0`, one less below 0 where it cut a fraction off toward 0
+    const q = worldIndex / this.blockSize, i = q | 0;
+    return i > q ? i - 1 : i;
   }
 
   private toIndex(blockX: number, blockY: number) {
-    return this.width * blockY + blockX;
+    return this._width * blockY + blockX;
   }
 }
