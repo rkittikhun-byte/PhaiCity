@@ -13,7 +13,7 @@ import { MapGenerator } from "../src/mapGenerator.js";
 import {
   inFamily, laidOutline, outlineCorners, outlineOf, outlineTiles, outsideBy, TURNED_SIZES, turnedTilesOf,
 } from "../src/buildings/turnedFootprint";
-import { overlapDepth } from "../src/buildings/outlineOverlap";
+import { buildingAtPoint, overlapDepth } from "../src/buildings/outlineOverlap";
 import { roadPose } from "../src/buildings/roadPose";
 import { roadReach } from "../src/roadGeometry";
 import { isRoadTile } from "../src/roadTiles";
@@ -101,5 +101,22 @@ describe("buildings of every size turned to a slanted road", () => {
     expect(overlapDepth(o, outlineOf(100, 124, 0, 3, M, 40, 24))).toBeCloseTo(0);
     expect(overlapDepth(o, outlineOf(100, 120, 0, 3, M, 40, 24))).toBeCloseTo(4);
     expect(overlapDepth(o, outlineOf(141, 100, 0, 3, M, 40, 24))).toBeLessThan(0);
+  });
+});
+
+describe("the building under the mouse (docs/NO_GRID_PLAN.md 3A.4)", () => {
+  test("is found by its own outline, turned, not by the tile under the mouse", () => {
+    const c = city(), p = pose(c, 500, 3);
+    c.core.apply({ type: "build", tool: "police", x: p.x, z: p.z, rot: p.rot, stroke: 2 } as any);
+    const b = c.map.buildings.all().find((x: any) => x.tool === "police");
+    const o = laidOutline(c.map, b)!;
+    // a point just inside a corner of the outline, whose tile's middle lies outside it
+    const [cx, cz] = outlineCorners(o)[1], inX = cx + (o.x - cx) * 0.03, inZ = cz + (o.z - cz) * 0.03;
+    expect(outsideBy(o, inX, inZ)).toBeLessThan(0);
+    expect(buildingAtPoint(c.map, inX, inZ)?.id).toBe(b.id);
+    // ... and one just outside it is no building's
+    const outX = cx + (cx - o.x) * 0.05, outZ = cz + (cz - o.z) * 0.05;
+    expect(buildingAtPoint(c.map, outX, outZ)).toBeNull();
+    expect(buildingAtPoint(c.map, o.x, o.z, () => false)).toBeNull();
   });
 });

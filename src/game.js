@@ -53,6 +53,7 @@ import { canBuildKind, kindOfTool, POWER_KINDS, PLANT_TOOLS } from './powerPlant
 import { canDig, MINE_KINDS, MINE_TOOLS, mineKindOfTool } from './mining.ts';
 import { clearToolChoices, pageChoice, setToolChoices, toolChoicesFor } from './toolLevels.ts';
 import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
+import { buildingAtPoint } from './buildings/outlineOverlap.ts';
 import { drawModeOf, isAreaMode, isFarmTool, isPaintTool, isStraightMode, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
 import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, fieldFillRegion, fieldOutcome } from './farmZone.ts';
 import { FARM_ZONE } from './provinceRules.ts';
@@ -747,6 +748,12 @@ Game.prototype.inspectTile = function(x, y, point) {
     return;
   // Where it was clicked, in tiles, for the mark on plain ground (src/cityView.ts ToolHover.inspect)
   this._inspectPoint = point || {x: x + 0.5, y: y + 0.5};
+  // ... a building of the ruler's by its own outline, turned or square, at its centre tile (docs/NO_GRID_PLAN.md 3A.4)
+  var building = point ? this.buildingUnder(point, {x: x, y: y}) : null;
+  if (building) {
+    x = building.tile % this.gameMap.width;
+    y = Math.floor(building.tile / this.gameMap.width);
+  }
   // A building put up since the month's look over the map is found now
   this.core.objects.scan(this.gameMap, this.simulation._cityTime);
   var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
@@ -2679,12 +2686,25 @@ Game.prototype.keepBuildingPoses = function() {
 };
 
 
+// The ruler's building under a point (tiles, as the view gives it) by its outline as it stands, turned or square
+// (src/buildings/outlineOverlap.ts buildingAtPoint, docs/NO_GRID_PLAN.md 3A.4), or by the tile under it where the view
+// gives no point; stands: which buildings count
+Game.prototype.buildingUnder = function(point, tile, stands) {
+  var map = this.gameMap;
+  if (point && map.buildings && map.cellZones) {
+    var size = tileMetres(map);
+    return buildingAtPoint(map, point.x * size, point.y * size, stands);
+  }
+  return buildingAt(map.buildings, map.width, tile.x, tile.y, stands);
+};
+
+
 // The move tool (src/moveTool.ts, docs/METRE_DRAWING_PLAN.md 2.5): the first click picks up the ruler's building under
 // the mouse, the next puts it down where its outline stands, with the move command, for a tenth of its price
 Game.prototype.moveClick = function(x, y, tile, stroke) {
   var map = this.gameMap, game = this;
   if (!this.moving) {
-    var picked = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) {
+    var picked = this.buildingUnder(typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null, tile, function(b) {
       return b.tool !== TEMPLE_KIND && game.buildingStands(b);
     });
     if (picked === null) {
@@ -2805,7 +2825,9 @@ Game.prototype.moveHover = function(tile) {
     return hover;
   };
   if (!this.moving) {
-    var under = buildingAt(map.buildings, map.width, tile.x, tile.y, function(b) {
+    var pointer = typeof this.cityView.pointAt === 'function' ?
+      this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY) : null;
+    var under = this.buildingUnder(pointer, tile, function(b) {
       return b.tool !== TEMPLE_KIND && game.buildingStands(b);
     });
     this.writeDrawTip([t(under ? 'move.tip.pick' : 'move.tip.find')]);

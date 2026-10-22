@@ -7,7 +7,7 @@
 // can be drawn between them (the separating axis test of two rectangles). Until now only their tiles kept them apart,
 // so a building turned to a slanted road could reach half a tile into the next one's lot. Plain code, no DOM.
 
-import { laidOutline, outlineOf, type FootprintMap, type Outline } from "./turnedFootprint";
+import { laidOutline, outlineOf, outsideBy, type FootprintMap, type Outline } from "./turnedFootprint";
 import type { PlacedBuilding } from "./placedBuildings";
 
 /** How far two outlines may run into each other and still stand clear (metres): their edges meeting, a little off */
@@ -53,4 +53,21 @@ export function buildingInTheWay(map: FootprintMap, outline: Outline, except: nu
     if (outlinesOverlap(outline, o)) return b;
   }
   return null;
+}
+
+/**
+ * The building of the ruler's whose outline as it stands holds the point (px, pz) metres, or null (docs/NO_GRID_PLAN.md
+ * 3A.4): what the inspector and the move tool pick, by the building's own shape, turned or square, not by the tile
+ * under the mouse, whose middle may lie outside a turned outline the mouse is inside. The smallest where two touch.
+ */
+export function buildingAtPoint(map: FootprintMap, px: number, pz: number,
+  stands: (b: PlacedBuilding) => boolean = () => true): PlacedBuilding | null {
+  let best: PlacedBuilding | null = null;
+  for (const b of map.buildings?.all() ?? []) {
+    if (best && b.size >= best.size || !stands(b)) continue;
+    const o = standingOutline(map, b);
+    if (Math.abs(o.x - px) > o.half * Math.SQRT2 || Math.abs(o.z - pz) > o.half * Math.SQRT2) continue;
+    if (outsideBy(o, px, pz) <= 0) best = b;
+  }
+  return best;
 }
