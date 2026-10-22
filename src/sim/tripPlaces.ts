@@ -8,6 +8,7 @@
 // buildings are a list of their own (step 3B). Plain code, no DOM.
 
 import { plotAccess, type PlotMap, plotOf } from "../plots";
+import { type PlotListMap, plotShare, usesPlotList } from "../plotBuildings";
 import { roadCapacity, roadSpeed } from "../roadLevels";
 import type { RoadGraph } from "../roads/roadGraph";
 import { roadNet, type RoadNet } from "./roadNetwork";
@@ -40,7 +41,25 @@ export function tripNet(map: TripMap, graph: RoadGraph): { net: TripNet; roads: 
  */
 export function tripPlaces(map: TripMap, roads: RoadNet, riders?: (x: number, y: number) => number): TripPlaces {
   const homes: number[][] = [], jobs: number[][] = [];
-  for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+  // Where the plots are a list (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B), each plot from the tile it is counted
+  // at, with the people of its area
+  const list = usesPlotList(map) ? (map as unknown as PlotListMap).plotBuildings ?? null : null;
+  if (list) {
+    for (const plot of list.all()) {
+      const place = list.places.get(plot.id);
+      if (!place || plot.level < 1) continue;
+      const tile = place.anchor, x = tile % map.width, y = (tile - x) / map.width;
+      const access = plotAccess(map, x, y), k = access ? roads.segmentIndex.get(access.segment) ?? -1 : -1;
+      const people = plot.level * PEOPLE_A_LEVEL * plotShare(map, plot);
+      if (plot.kind === "residential") {
+        const drive = 1 - Math.max(0, Math.min(1, riders?.(x, y) ?? 0));
+        homes.push([tile, k, access?.t ?? 0, people * CARS_A_PERSON * drive]);
+      } else {
+        jobs.push([tile, k, access?.t ?? 0, people, plot.kind === "commercial" ? people : 0]);
+      }
+    }
+  }
+  for (let y = 0; y < map.height && !list; y++) for (let x = 0; x < map.width; x++) {
     const plot = plotOf(map, x, y);
     if (!plot || plot.level < 1) continue;
     const access = plotAccess(map, x, y), k = access ? roads.segmentIndex.get(access.segment) ?? -1 : -1;

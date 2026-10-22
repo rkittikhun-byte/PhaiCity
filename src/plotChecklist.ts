@@ -10,6 +10,7 @@
 // home, and a lot of four plots for the top level. The row the simulation's last look found holding it back
 // (map.plotWhy, PLOT_WHY) is marked. It only reads the city. Plain code: no DOM, i18n keys only.
 
+import { LOT_COLUMNS, type PlotListMap, usesPlotList } from "./plotBuildings";
 import { DENSITY_GRADES, gradeAt, LAND_GRADES } from "./objects/satisfaction.js";
 import {
   DENSITY_TO_RISE, LOT_LEVEL, lotOf, nearestRoad, PLOT_REACH, PLOT_TOP, PLOT_WHY, type PlotKind, type PlotMap, plotOf,
@@ -81,7 +82,14 @@ const at = (grid: Grid | undefined, x: number, y: number): number => grid?.world
 /** The level checklist of the plot at (x, y), or null where there is none (not a painted plot) */
 export function plotChecklist(city: ChecklistCity, x: number, y: number): PlotChecklist | null {
   const { map } = city;
-  const plot = plotOf(map, x, y);
+  // Where the plots are a list (src/plotBuildings.ts), the plot the tile shows, read where it is counted
+  const list = usesPlotList(map) ? (map as unknown as PlotListMap).plotBuildings ?? null : null;
+  const shown = list ? list.shownAt(y * map.width + x) : null, anchor = shown ? list!.places.get(shown.id)?.anchor : undefined;
+  if (anchor !== undefined) {
+    x = anchor % map.width;
+    y = (anchor - x) / map.width;
+  }
+  const plot = shown ?? plotOf(map, x, y);
   if (!plot) return null;
   const { kind, level } = plot, top = PLOT_TOP[kind];
   const target = level < top ? level + 1 : null;
@@ -143,7 +151,7 @@ export function plotChecklist(city: ChecklistCity, x: number, y: number): PlotCh
       add("land", level <= at(maps?.landValueMap, x, y) >> 5, "plot.check.land", { grade: landGrade }, "plot.hint.land_shop");
     }
     if (target === top) {
-      const ok = lotOf(map, x, y) !== null;
+      const ok = shown ? shown.columns.length >= LOT_COLUMNS : lotOf(map, x, y) !== null;
       add("lot", ok, ok ? "plot.check.lot" : "plot.check.lot_none", { level: LOT_LEVEL[kind] }, "plot.hint.lot");
     }
   }

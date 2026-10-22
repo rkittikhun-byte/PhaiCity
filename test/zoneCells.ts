@@ -99,13 +99,18 @@ describe("zone cells", () => {
     for (let y = 11; y <= 13; y++) for (let x = 10; x <= 30; x++) { const plot = plotOf(core.map, x, y); if (plot && plot.level > 0) grown.push(plot); }
     expect(grown.length).toBeGreaterThan(5);
     expect(core.simulation.evaluation.cityPop).toBeGreaterThan(0);
-    // Clearing a tile's cells takes its plot back, building and all
-    const built = (() => { for (let x = 10; x <= 30; x++) { const p = plotOf(core.map, x, 11); if (p && p.level > 0) return x; } return -1; })();
-    expect(built).toBeGreaterThan(0);
-    const there = cellsOf(core.map).cells.filter(c => Math.floor(c.x / 10) === built && Math.floor(c.z / 10) === 11).map(c => c.key);
+    // Clearing a plot's cells takes it back, building and all (its plots a list on this map: src/plotBuildings.ts)
+    const list = core.map.plotBuildings, grownPlot = list.all().find((p: any) => p.level > 0 && p.kind === "residential");
+    expect(grownPlot).toBeDefined();
+    const place = list.places.get(grownPlot.id), fronts = place.cols.map((i: number) => list.columns[i]), cu = cellsOf(core.map).cellUnits;
+    const there = cellsOf(core.map).cells.filter(c => fronts.some((f: any) =>
+      Math.hypot(c.x - c.nx * c.row * cu - f.x, c.z - c.nz * c.row * cu - f.z) < 0.3 * cu)).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: null, cells: there }).accepted).toBe(true);
-    expect(plotOf(core.map, built, 11)).toBeNull();
-    expect(core.map.getTileValue(built, 11)).toBe(0);
+    expect(list.get(grownPlot.id)).toBeUndefined();
+    for (const tile of place.tiles) {
+      if (list.shownBy.has(tile)) continue;
+      expect(core.map.getTileValue(tile % core.map.width, Math.floor(tile / core.map.width))).toBe(0);
+    }
   });
 
   test("each plot says why it does not grow, in both languages (docs/MUEANG_CS_PLAN.md M1.1)", () => {
@@ -265,11 +270,12 @@ describe("zone cells", () => {
     expect(pose()?.cells).toBe(3);
     expect(core.apply({ type: "zoneCells", zone: "commercial", cells: columns[3] }).accepted).toBe(true);
     expect(pose()?.cells).toBe(4);
-    // Three cells of one column are still too few for a plot of their own
+    // Three cells of one column are a plot too: where the plots are a list one row of paint is enough
+    // (docs/NO_GRID_PLAN.md 3B.1, src/plotBuildings.ts)
     const next = layout.byPlotTile.get(11 * w + 25)!.map(i => layout.cells[i]).filter(c => c.z > 105);
     const column = next.filter(c => Math.abs(c.x - next[0].x) < 0.01).slice(0, 3).map(c => c.key);
     expect(core.apply({ type: "zoneCells", zone: "residential", cells: column }).accepted).toBe(true);
-    expect(plotOf(core.map, 25, 11)).toBeNull();
+    expect(plotOf(core.map, 25, 11)).toMatchObject({ kind: "residential", level: 0 });
   });
 
   describe("along roads drawn in metres (docs/METRE_DRAWING_PLAN.md 3.1)", () => {

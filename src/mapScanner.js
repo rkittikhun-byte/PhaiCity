@@ -11,7 +11,9 @@
  *
  */
 
-import { plotFound } from "./plots.ts";
+import { luckOf, plotFound } from "./plots.ts";
+import { plotsFound, usesPlotList } from "./plotBuildings.ts";
+import { agentRandom, monthSeed } from "./sim/agentRandom.ts";
 import { Tile } from "./tile.ts";
 import { FLOOD, PORTBASE, RESBASE } from "./tileValues.ts";
 
@@ -47,6 +49,12 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
   // power manager which plots and buildings take from it
   var power = simData.powerManager;
   var roads = power && typeof power.usesRoads === 'function' && power.usesRoads();
+  // PhaiCity: on a map painted a cell at a time the plots are a list (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B):
+  // the tiles they show are passed by, and they are counted and grow where the tile each is counted at comes, each with
+  // its own luck from this stretch's number (src/sim/agentRandom.ts), so one built or gone leaves the others' alone
+  var list = painted && usesPlotList(this._map) ? this._map.plotBuildings || null : null;
+  var seed = list ? monthSeed() : 0;
+  var luckFor = function(plot) { return luckOf(agentRandom(seed, plot.id)); };
 
   for (var y = 0; y < this._map.height; y++) {
     for (var x = startX; x < maxX; x++) {
@@ -59,6 +67,14 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
       if (painted && tileValue >= RESBASE && tileValue < PORTBASE && !tile.isZone()) {
         if (tile.isConductive())
           simData.powerManager.setTilePower(x, y);
+        if (list) {
+          if (list.byAnchor.has(y * width + x)) {
+            plotsFound(this._map, x, y, simData, luckFor);
+            if (roads)
+              power.plotUser(x, y);
+          }
+          continue;
+        }
         if (plotFound(this._map, x, y, simData)) {
           if (roads)
             power.plotUser(x, y);

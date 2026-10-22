@@ -15,6 +15,7 @@ import { turnedTilesOf, type FootprintMap } from "../buildings/turnedFootprint";
 import { plotAccess, type PlotKind, type PlotMap, plotOf, PLOT_SHARE } from "../plots";
 import type { RoadGraph } from "../roads/roadGraph";
 import { isCityTileSize } from "../units";
+import { anchorUse, type PlotListMap, usesPlotList } from "../plotBuildings";
 import { blockTiles, centreSize, roadsMet } from "./roadAccess";
 import { roadNet, type RoadNet } from "./roadNetwork";
 import { segmentShape } from "./roadUpkeep";
@@ -166,11 +167,13 @@ export interface UtilityUsers {
  * before the map scan has found them */
 export function usersOnMap(map: UtilityMap & { sites?: Record<string, unknown> | null }, zoneBit: number): UtilityUsers {
   const plots: number[] = [], zones: number[] = [], sites = map.sites ?? null;
+  // (where the plots are a list, the tiles they are counted at: src/plotBuildings.ts)
+  const list = usesPlotList(map) ? (map as unknown as PlotListMap).plotBuildings ?? null : null;
   for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
     const i = y * map.width + x;
     if (map.getTileFlags(x, y) & zoneBit) {
       if (!sites || sites[i] === undefined) zones.push(i);
-    } else if (plotOf(map, x, y)) plots.push(i);
+    } else if (list ? list.byAnchor.has(i) : plotOf(map, x, y)) plots.push(i);
   }
   return { plots, zones };
 }
@@ -209,6 +212,13 @@ export function powerAlongRoads(map: UtilityMap, plants: readonly UtilitySource[
   }
   const list: SupplyUser[] = [], tilesOf: Array<() => number[]> = [];
   for (const tile of users.plots) {
+    // (the plots of the list counted at the tile, by their area, and every tile they show: src/plotBuildings.ts)
+    const listed = anchorUse(map as unknown as PlotListMap, tile, plotPower);
+    if (listed) {
+      list.push({ at: plotAttach(map, roads, tile), demand: listed.demand });
+      tilesOf.push(() => listed.tiles);
+      continue;
+    }
     const x = tile % map.width, plot = plotOf(map, x, (tile - x) / map.width);
     if (!plot) continue;
     list.push({ at: plotAttach(map, roads, tile), demand: plotPower(plot.kind, plot.level) });

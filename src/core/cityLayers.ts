@@ -21,6 +21,7 @@ import { isAnyRail, isAnyRoad } from "../roadTiles.js";
 import { tileMetres } from "../units.js";
 import { canalMarkStands, canalsKept, isBridgeTile, isWaterTile, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
+import { PlotBuildings, usesPlotList } from "../plotBuildings.js";
 import { farmKindsKept } from "../farmZone.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
@@ -107,6 +108,9 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     // ... and, on a map whose zones go a cell at a time, its painted cells (src/zoneCells.ts)
     map.cellZones = saved.cellZones === true;
     map.zoneCells = readZoneCells(saved.zoneCells);
+    // ... and its plots, where they are a list (src/plotBuildings.ts); an older save has none, and its tile plots are
+    // taken in when they are first formed
+    map.plotBuildings = saved.plots ? PlotBuildings.fromJSON(saved.plots) : null;
     // ... and the kind of each farm zone field (src/farmZone.ts)
     map.farmKinds = saved.farmKinds ? decodePresetLayer(saved.farmKinds, map.width, map.height) : null;
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
@@ -249,6 +253,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     // ... and its zone cells (src/zoneCells.ts)
     cellZones: map.cellZones ? true : undefined,
     zoneCells: map.cellZones ? writeZoneCells(map.zoneCells) : undefined,
+    // ... and its plots, where they are a list (src/plotBuildings.ts)
+    plots: map.plotBuildings && usesPlotList(map) && map.plotBuildings.size ? map.plotBuildings.toJSON() : undefined,
     // ... and the kinds of its farm zone's fields (src/farmZone.ts)
     farmKinds: encodeFarmKinds(map),
     // ... and the land the city owns (src/landBlocks.ts)

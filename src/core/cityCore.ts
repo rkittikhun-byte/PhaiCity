@@ -18,7 +18,8 @@ import { Random } from "../random.js";
 import { Simulation } from "../simulation.js";
 import { canBuildIn, type CityHooks, commandTarget, ensureCityLayers, readCityLayers, writeCityLayers } from "./cityLayers.js";
 import { completeBuildings } from "../buildings/buildingRecords.js";
-import { cellsOf, syncCellPlots } from "../zoneCells.js";
+import { cellsOf } from "../zoneCells.js";
+import { plotListOf, refreshCellPlots, usesPlotList } from "../plotBuildings.js";
 import { ownsLand } from "../landBlocks.js";
 import { eraMonth } from "../eraScore.js";
 import type { Era } from "../era.js";
@@ -132,14 +133,19 @@ export class CityCore {
     // Every ruler's building in gameMap.buildings, those of an older save taken from its tiles where its poses said
     // they are drawn (docs/METRE_DRAWING_PLAN.md 2.6)
     completeBuildings(this.map, saved?.buildingPoses ?? null);
-    // A city painted a cell at a time before its cells made plots (15 Oct 2026) gets its plots now, so it grows
-    if (saved && this.map.cellZones && this.map.zoneCells?.size) {
-      const owns = canBuildIn(this.map);
-      syncCellPlots(this.map, cellsOf(this.map, (x, y) => ownsLand(this.map, x, y) && owns(x, y)));
-    }
+    // A city painted a cell at a time before its cells made plots (15 Oct 2026) gets its plots now, so it grows; where
+    // the plots are a list (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B) they are formed from the paint, an older
+    // save's tile plots taken in at their levels
+    const listed = usesPlotList(this.map);
+    if (!listed && saved && this.map.cellZones && this.map.zoneCells?.size) this.formPlots();
     // Every road and railway of the tiles in the road and rail graphs, a map's own and an older save's too, so what
     // works on the graphs sees them all (docs/NO_GRID_PLAN.md 0.1)
     this.coverRoads();
+    // (... the plots of a list along them)
+    if (listed) {
+      plotListOf(this.map);
+      this.formPlots();
+    }
     // ... along which the power and the water run (docs/NO_GRID_PLAN.md step 2): handed out from the city as it is now
     this.simulation.primeUtilities();
     this.tools = setup.tools ?? new (GameTools as unknown as new (map: Legacy, rules: Legacy) => Legacy)(this.map,
@@ -150,6 +156,9 @@ export class CityCore {
     this.objects = CityObjects.restore(this.map, saved ? saved.objects : null);
     // The road and rail graphs given any road or railway tile they lack, as after each command (coverRoads)
     this.addSystem({ name: "roads", monthly: core => core.coverRoads() });
+    // The plots formed again from the paint where they are a list, so a plot's land freed since (a fire's or a
+    // bulldozer's dust settled) takes a plot again (src/plotBuildings.ts)
+    if (usesPlotList(this.map)) this.addSystem({ name: "plots", monthly: core => core.formPlots() });
     // The month's trips on the road graph, which come into the city half a month later (src/sim/cityTrips.ts)
     this.addSystem({ name: "trips", monthly: core => {
       const sim = core.simulation;
@@ -222,6 +231,13 @@ export class CityCore {
       this.emit({ type: "command", step: this.steps, command });
     }
     return outcome;
+  }
+
+  /** The plots the paint makes, formed again (src/plotBuildings.ts refreshCellPlots) */
+  formPlots(): void {
+    const owns = canBuildIn(this.map);
+    refreshCellPlots(this.map, cellsOf(this.map, (x, y) => ownsLand(this.map, x, y) && owns(x, y)), undefined,
+      this.simulation?._cityTime ?? 0);
   }
 
   /** When the road and rail graphs were last given the tiles they lacked: the map's tile changes and their versions */

@@ -42,7 +42,8 @@ import { chooseFestival, type Festival, FESTIVAL_IDS, FESTIVAL_SCALES, festivalP
 import { STATION_KINDS, transitProblem } from "./transit";
 import { buyBlock, LAND_ALL_OPEN, LAND_LOCKED, type LandMap, landProblem } from "./landBlocks";
 import { serviceProblem } from "./services";
-import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, syncCellPlots, tileRasterKeys, zoneCode } from "./zoneCells";
+import { type CellMap, type CellPlotMap, CELL_ZONES, type CellZone, cellPrice, cellsOf, paintNear, plotTileOfCell, tileRasterKeys, zoneCode } from "./zoneCells";
+import { type PlotListMap, refreshCellPlots } from "./plotBuildings";
 import { PAINT_PRICE_SHARE, PAINT_TOOLS } from "./plots";
 import { BUILDING_UPGRADE_TOOL, LEVEL_GROUPS, levelProblem } from "./buildingLevels";
 import { upgradeProblem } from "./buildingUpgradeTool";
@@ -1043,7 +1044,8 @@ export class CityCommands {
     const cellMap = city.map as unknown as (CellMap & CellPlotMap) | undefined;
     if (!pending || !cellMap?.cellZones || !paintNear(cellMap, pending.tiles)) return;
     const layout = cellsOf(cellMap, (x, y) => (city.ownsLand?.(x, y) ?? true) && (city.canBuildAt?.(x, y) ?? true));
-    syncCellPlots(cellMap, layout, pending.tiles);
+    // (a list of plots where the zones are painted a cell at a time: src/plotBuildings.ts)
+    refreshCellPlots(cellMap as unknown as PlotListMap & CellPlotMap, layout, pending.tiles, city.cityTime?.() ?? 0);
   }
 
   apply(command: Command): CommandOutcome {
@@ -1279,8 +1281,8 @@ export class CityCommands {
           const pt = plotTileOfCell(map, cell);
           if (pt >= 0) touched.add(pt);
         }
-        syncCellPlots(map as unknown as CellPlotMap, layout, touched);
         map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
+        refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, layout, touched, city.cityTime?.() ?? 0);
         return { accepted: true };
       }
       case "policy": {

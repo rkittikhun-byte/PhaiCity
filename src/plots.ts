@@ -357,8 +357,8 @@ export function plotDensity(map: PlotMap, x: number, y: number): number {
 
 // The simulation, as a plot sees it
 
-const ROUTE_FOUND = 1;
-const NO_ROAD_FOUND = -1;
+export const ROUTE_FOUND = 1;
+export const NO_ROAD_FOUND = -1;
 
 interface BlockMapLike {
   worldGet(x: number, y: number): number;
@@ -414,7 +414,7 @@ export const commuteCost = (minutes: number | null): number =>
  */
 export const PLOT_WHY = ["none", "power", "water", "road", "pollution", "land", "demand", "quiet", "lot", "top"] as const;
 export type PlotWhy = typeof PLOT_WHY[number];
-const WHY = (why: PlotWhy): number => PLOT_WHY.indexOf(why);
+export const WHY = (why: PlotWhy): number => PLOT_WHY.indexOf(why);
 
 export interface PlotSimData {
   blockMaps: {
@@ -439,18 +439,51 @@ export interface PlotSimData {
 }
 
 /** Where each kind's trips go, as for zones: homes to shops, shops to factories, factories to homes */
-const DESTINATIONS: Readonly<Record<PlotKind, (value: number) => boolean>> = {
+export const DESTINATIONS: Readonly<Record<PlotKind, (value: number) => boolean>> = {
   residential: (value) => value >= COMBASE && value < INDBASE,
   commercial: (value) => value >= INDBASE && value < PORTBASE,
   industrial: (value) => value >= RESBASE && value < COMBASE,
 };
 
+/**
+ * Where a plot's luck comes from: the city's one Random, drawn in the order the map is scanned (a plot of tiles), or a
+ * plot's own numbers for the month (a plot of the list, src/plotBuildings.ts; docs/NO_GRID_PLAN.md 4.3), with the same
+ * draws as Random's (src/random.ts)
+ */
+export interface Luck {
+  /** 0 to max, both included */
+  getRandom(max: number): number;
+  getRandom16(): number;
+  getRandom16Signed(): number;
+  /** True one time in (mask + 1) */
+  getChance(mask: number): boolean;
+}
+
+/** The city's one Random as a plot's luck */
+export const CITY_LUCK: Luck = {
+  getRandom: (max) => Random.getRandom(max),
+  getRandom16: () => Random.getRandom16(),
+  getRandom16Signed: () => Random.getRandom16Signed(),
+  getChance: (mask) => Random.getChance(mask),
+};
+
+/** A plot's own luck from a generator of numbers in [0, 1) (src/sim/agentRandom.ts), drawn as Random draws */
+export function luckOf(next: () => number): Luck {
+  const getRandom = (max: number): number => Math.floor(next() * (max + 1));
+  const getRandom16 = (): number => getRandom(65535);
+  return {
+    getRandom, getRandom16,
+    getRandom16Signed: () => { const value = getRandom16(); return value < 32768 ? value : value - 65536; },
+    getChance: (mask) => (getRandom16() & mask) === 0,
+  };
+}
+
 // The chances a zone grows or shrinks, as src/residential.js explains: about 9% a look when the score is good
-const grows = (score: number): boolean => score > -350 && score - 26380 > Random.getRandom16Signed();
-const shrinks = (score: number): boolean => score < 350 && score + 26380 < Random.getRandom16Signed();
+export const grows = (score: number, luck: Luck = CITY_LUCK): boolean => score > -350 && score - 26380 > luck.getRandom16Signed();
+export const shrinks = (score: number, luck: Luck = CITY_LUCK): boolean => score < 350 && score + 26380 < luck.getRandom16Signed();
 
 /** A home's score for its place, -3000–3000, as a zone's (src/residential.js evalResidential) */
-function homeScore(sim: PlotSimData, x: number, y: number, traffic: number): number {
+export function homeScore(sim: PlotSimData, x: number, y: number, traffic: number): number {
   if (traffic === NO_ROAD_FOUND) return -3000;
   const shield = sim.pollutionShield ?? 0;
   let land = sim.blockMaps.landValueMap.worldGet(x, y) - sim.blockMaps.pollutionDensityMap.worldGet(x, y) * (1 - shield);
@@ -478,7 +511,8 @@ export function plotBranchCode(plot: Plot): string {
  * upgrades to C2 or D3 when the surrounding environment improves. (The civic buildings were only looked for 4 tiles out
  * until docs/NO_GRID_PLAN.md 0.4.)
  */
-export function plotEnvironmentClass(map: PlotMap, sim: PlotSimData, x: number, y: number, kind: PlotKind): number {
+export function plotEnvironmentClass(map: PlotMap, sim: PlotSimData, x: number, y: number, kind: PlotKind,
+  luck: Luck = CITY_LUCK): number {
   const shield = sim.pollutionShield ?? 0;
   let score = sim.blockMaps.landValueMap.worldGet(x, y) - sim.blockMaps.pollutionDensityMap.worldGet(x, y) * (1 - shield);
   let natureBonus = 0;
@@ -503,7 +537,7 @@ export function plotEnvironmentClass(map: PlotMap, sim: PlotSimData, x: number, 
   const roadBonus = road && roadLevelAt(map, road.x, road.y) >= 3 ? 20 : 0;
   score += natureBonus + civicBonus + roadBonus;
   if (kind === "industrial") {
-    return score >= 85 ? 1 : (Random.getRandom16() & 1);
+    return score >= 85 ? 1 : (luck.getRandom16() & 1);
   }
   if (score < 30) return 0;
   if (score < 80) return 1;
@@ -527,9 +561,10 @@ function setLevel(map: PlotScanMap, x: number, y: number, sim: PlotSimData, plot
   }
 }
 
-/** What holds a plot back now (PLOT_WHY), from what plotFound weighs */
-function plotWhyOf(map: PlotMap, x: number, y: number, sim: PlotSimData, plot: Plot, powered: boolean, watered: boolean,
-                   noRoad: boolean): PlotWhy {
+/** What holds a plot back now (PLOT_WHY), from what plotFound weighs; rises: whether it may grow a level more (mayRise,
+ * or a plot of the list's own rule) */
+export function plotWhyOf(map: PlotMap, x: number, y: number, sim: PlotSimData, plot: Plot, powered: boolean, watered: boolean,
+                   noRoad: boolean, rises: boolean = mayRise(map, x, y, plot)): PlotWhy {
   const { kind, level } = plot, bm = sim.blockMaps;
   if (!powered) return "power";
   if (noRoad) return "road";
@@ -547,7 +582,7 @@ function plotWhyOf(map: PlotMap, x: number, y: number, sim: PlotSimData, plot: P
   } else if (kind === "commercial" && level > bm.landValueMap.worldGet(x, y) >> 5) {
     return "land";
   }
-  return mayRise(map, x, y, plot) ? "none" : "lot";
+  return rises ? "none" : "lot";
 }
 
 /**

@@ -15,6 +15,7 @@
 //   so a works pumped hard runs its ground low.
 // No DOM, jQuery or window here (CLAUDE.md, "Online plan" rule 3), and nothing random.
 
+import { anchorWater, type PlotListMap } from "./plotBuildings";
 import { BlockMap } from "./blockMap";
 import { decodePresetLayer, encodePresetLayer } from "./geo/presetMap";
 import {
@@ -426,13 +427,15 @@ export class WaterManager {
    * The same for a one-tile plot of painted zones (src/plots.ts): the water comes along the road it reaches, at
    * (roadX, roadY) (-1 with none), and it takes an eighth of a zone's share. needsWater false is an empty lot, which
    * takes none and is not counted (owner, 15 Oct 2026: "แก้เมืองหยุดโต": the empty lots of a growing town took the water
-   * its buildings needed, and the factories, scanned last, never had any).
+   * its buildings needed, and the factories, scanned last, never had any). demand and share: what the plots of the list
+   * counted at the tile take together, in zone shares, and their share of a tile's ground (src/plotBuildings.ts), else
+   * the tile's own plot's.
    */
   supplyPlot(x: number, y: number, roadX: number, roadY: number, census: CensusLike | null = null,
-             needsWater = true): boolean {
+             needsWater = true, demand?: number, share = 1): boolean {
     if (this.byRoads()) {
       const level = readPlotValue(this.map.getTileValue(x, y))?.level ?? 0;
-      return this.roadUser(x, y, false, needsWater ? plotWater(level) : 0, census, needsWater);
+      return this.roadUser(x, y, false, needsWater ? demand ?? plotWater(level) : 0, census, needsWater, share);
     }
     const piped = roadX >= 0 && this.view.hasWater(roadX, roadY);
     const watered = piped && (!needsWater || this.used < this.supply);
@@ -458,7 +461,8 @@ export class WaterManager {
    * Along the roads, a plot or zone the scan found: it is counted to take its share at this cycle's handing-out, and has
    * water now as the last handing-out gave it (as a building has power from the last power scan).
    */
-  private roadUser(x: number, y: number, zone: boolean, demand: number, census: CensusLike | null, needsWater: boolean): boolean {
+  private roadUser(x: number, y: number, zone: boolean, demand: number, census: CensusLike | null, needsWater: boolean,
+    plotShare = 1): boolean {
     const tile = y * this.map.width + x, answer = this.answers?.[tile] ?? 0;
     this.users.push({ tile, zone, demand });
     const watered = needsWater ? answer === 1 : answer !== 0;
@@ -468,7 +472,7 @@ export class WaterManager {
         if (this.inBounds(x + dx, y + dy)) this.zonesNext.worldSet(x + dx, y + dy, state);
       }
     }
-    const share = zone ? 1 : PLOT_SHARE;
+    const share = zone ? 1 : PLOT_SHARE * plotShare;
     if (census && (zone || needsWater)) {
       if (watered) census.wateredZoneCount += share;
       else census.dryZoneCount += share;
@@ -538,7 +542,9 @@ export class WaterManager {
     this.users = [];
     for (const tile of found.plots) {
       const x = tile % map.width, level = readPlotValue(map.getTileValue(x, (tile - x) / map.width))?.level ?? 0;
-      this.users.push({ tile, zone: false, demand: plotWater(level) });
+      // (the plots of the list counted at the tile, src/plotBuildings.ts, together)
+      const listed = anchorWater(map as unknown as PlotListMap, tile, plotWater);
+      this.users.push({ tile, zone: false, demand: listed ?? plotWater(level) });
     }
     for (const tile of found.zones) {
       const x = tile % map.width, value = map.getTileValue(x, (tile - x) / map.width);

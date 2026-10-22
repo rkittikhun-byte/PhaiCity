@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 4;
+export const SIM_VERSION = 5;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -22,6 +22,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   4: "on a real-scale city map power and water run along the road graph: each plant or works feeds the roads it meets, " +
     "each building takes by its kind and level, the nearest by road first, and the far ends go without when short; no " +
     "power from plot to plot, roads within 17 m joined by a short cable (NO_GRID_PLAN 2.2, 2.3)",
+  5: "on a map painted a cell at a time the plots are a list: runs of painted columns along a road, a shop a bay, a home " +
+    "12 m, a factory 16 m, counted by their area, each growing with its own luck when the scan comes to the tile it is " +
+    "counted at, two grown ones beside each other joining for the top level (NO_GRID_PLAN 3B)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */
