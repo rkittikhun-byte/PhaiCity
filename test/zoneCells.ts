@@ -13,8 +13,9 @@ import { Random } from "../src/random";
 import { PLOT_WHY, plotOf } from "../src/plots";
 import { hasKey } from "../src/i18n/index";
 import { STEPS_PER_YEAR } from "../src/core/cityCore";
-import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellPlotPose, cellsAlong, cellsInStrip, cellsNear, cellsOf, STRIP_CELLS, PLOT_ROWS, plotTileOfCell, rasterKey,
-  tileRasterKeys } from "../src/zoneCells";
+import { BRUSH_RADIUS_M, CELL_DEPTH, cellAt, cellLayout, cellPlotPose, cellsAlong, cellsInStrip, cellsNear, cellsOf, layoutSignature, STRIP_CELLS, PLOT_ROWS,
+  plotTileOfCell, rasterKey, tileRasterKeys } from "../src/zoneCells";
+import { blockAt, blockColumns, blockRows, buildableTest } from "../src/landBlocks";
 import { nearestOnLines, networkOf, roadLines } from "../src/roadGeometry";
 
 /** A bare 16 m map whose zones go a cell at a time, with a straight road and a slanted one */
@@ -237,6 +238,30 @@ describe("zone cells", () => {
     // ... where, with each road's rows meeting the other's on a jagged diagonal, 7% of it was bare
     expect(bare / points).toBeLessThan(0.05);
     expect(twice).toBe(0);
+  });
+
+  test("the cells are laid again only when a tile, a road's level or the land bought changed (docs/NO_GRID_PLAN.md 5.4)", () => {
+    const core = city(), map = core.map as any;
+    map.landBlocks = new Uint8Array(blockColumns(map) * blockRows(map)).fill(1);
+    // The land test read inline gives the signature a test asked tile by tile gives
+    const test = buildableTest(map);
+    expect(layoutSignature(map, test)).toBe(layoutSignature(map, (x, y) => test(x, y)));
+    // Asked again with nothing changed (the brush's every frame): the same layout, not laid or signed again
+    const first = cellsOf(map, buildableTest(map));
+    expect(cellsOf(map, buildableTest(map))).toBe(first);
+    // A road raised a level, with no tile changed
+    map.roadLevels[10 * map.width + 30] = 3;
+    const raised = cellsOf(map, buildableTest(map));
+    expect(raised).not.toBe(first);
+    expect(cellsOf(map, buildableTest(map))).toBe(raised);
+    // A block of land given back: its tiles are not the city's, and their cells go
+    map.landBlocks[blockAt(map, 30, 12)] = 0;
+    const sold = cellsOf(map, buildableTest(map));
+    expect(sold).not.toBe(raised);
+    expect(sold.cells.length).toBeLessThan(raised.cells.length);
+    // A tile changed
+    core.apply({ type: "tool", tool: "road", x: 40, y: 20 });
+    expect(cellsOf(map, buildableTest(map))).not.toBe(sold);
   });
 
   test("a map painted a tile at a time refuses cells", () => {

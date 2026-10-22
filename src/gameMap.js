@@ -157,6 +157,13 @@ GameMap.prototype.changeCount = function() {
 };
 
 
+// PhaiCity: the cells themselves (a tile's value and flags in 16 bits, value & BIT_MASK), for a reader going over every
+// tile that never writes them: a call a tile through getTileValue was most of such a pass (docs/NO_GRID_PLAN.md 5.4)
+GameMap.prototype.rawCells = function() {
+  return this._cells;
+};
+
+
 // The value and flags of the tile at an index together, for readers going over the whole map
 GameMap.prototype.rawTileAt = function(index) {
   return this._cells[index];

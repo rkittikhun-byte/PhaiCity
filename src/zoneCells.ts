@@ -14,13 +14,14 @@
 // random.
 
 import { isOpenLand, plotKindOfValue, plotTile } from "./plots";
-import { BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";
+import type { BuildableTest } from "./landBlocks";
+import { BIT_MASK, BLBNCNBIT as PLOT_FLAGS, ZONEBIT as ZONE_BIT } from "./tileFlags";
 import { DIRT } from "./tileValues";
 import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
 import { graphLines, withGraph } from "./roads/graphLines";
 import type { RoadGraph } from "./roads/roadGraph";
-import { tileMetres, tileOfUnits, unitsOfTile, unitsPerMetre as metreUnits } from "./units";
+import { TILE_UNITS, tileMetres, tileOfUnits, unitsOfTile, unitsPerMetre as metreUnits } from "./units";
 
 /** A cell's side and the raster a cell's middle is kept on (metres), and how many cells deep a road's rows go */
 export const CELL_M = 4;
@@ -58,6 +59,10 @@ export interface CellMap {
   readonly railGraph?: RoadGraph | null;
   readonly insideProvince?: Uint8Array | null;
   getTileValue(x: number, y: number): number;
+  /** The cells as the map keeps them (value & BIT_MASK, flags above), for a pass over every tile (src/gameMap.js) */
+  rawCells?(): ArrayLike<number>;
+  /** How many times any tile has changed (src/gameMap.js): the signature is kept while it stays the same */
+  changeCount?(): number;
   /** Whether this map's zones are painted a cell at a time */
   cellZones?: boolean;
   /** Painted cells: key → zone code */
@@ -245,15 +250,20 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   // One bit a raster square: a 7.7 km map is 59 million of them
   const [bits, covers] = rasterBits(Math.ceil(rasterWidth * rasterHeight / 8));
   const taken = { get: (k: number): boolean => (bits[k >> 3] & (1 << (k & 7))) !== 0, set: (k: number): void => { bits[k >> 3] |= 1 << (k & 7); } };
+  // (the layout's loops below ask these hundreds of thousands of times: whole numbers by `| 0` where the point is
+  // already known not to lie below 0, and Math.hypot only where a quick look at the two sides cannot answer, each the
+  // same answer as before; 0.95 s -> s under Jest on a 480 x 480 city, docs/NO_GRID_PLAN.md 5.4)
   const keyOf = (x: number, z: number): number => {
-    const rx = Math.floor(x / rasterUnits), rz = Math.floor(z / rasterUnits);
-    return rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight ? -1 : rz * rasterWidth + rx;
+    if (x < 0 || z < 0) return -1;
+    const rx = (x / rasterUnits) | 0, rz = (z / rasterUnits) | 0;
+    return rx >= rasterWidth || rz >= rasterHeight ? -1 : rz * rasterWidth + rx;
   };
   // The tiles read once, and whether the city may build on each when first asked: the roads' lines below read each
   // tile a few times, through the map about 1.5 million calls on a city map (19 Oct 2026: most of the 0.3-0.6 s the
   // cells took after each road drawn)
   const tiles = new Uint16Array(map.width * map.height), mayBuild = new Uint8Array(map.width * map.height);
-  for (let y = 0, i = 0; y < map.height; y++) for (let x = 0; x < map.width; x++, i++) tiles[i] = map.getTileValue(x, y);
+  const raw = map.rawCells?.() ?? null;
+  for (let y = 0, i = 0; y < map.height; y++) for (let x = 0; x < map.width; x++, i++) tiles[i] = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(x, y);
   const ownsAt = (x: number, y: number): boolean => {
     const i = y * map.width + x;
     if (!mayBuild[i]) mayBuild[i] = owns(x, y) ? 2 : 1;
@@ -303,7 +313,9 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
         const rx = cx + dx, rz = cz + dz;
         if (rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight) continue;
-        if (Math.hypot((rx + 0.5) * rasterUnits - px, (rz + 0.5) * rasterUnits - pz) <= reach) taken.set(rz * rasterWidth + rx);
+        const ox = (rx + 0.5) * rasterUnits - px, oz = (rz + 0.5) * rasterUnits - pz;
+        if (ox > reach || ox < -reach || oz > reach || oz < -reach) continue;
+        if (Math.hypot(ox, oz) <= reach) taken.set(rz * rasterWidth + rx);
       }
     }
   }
@@ -353,7 +365,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   }
   candidates.sort((a, b) => a.distance - b.distance);
   const cells: Cell[] = [], byKey = new Map<number, number>(), byTile = new Map<number, number[]>(), byPlotTile = new Map<number, number[]>();
-  const half = cellUnits / 2 - 0.15;
+  const half = cellUnits / 2 - 0.15, footReach = Math.ceil(half * Math.SQRT2 / rasterUnits) + 1;
   // The cells taken so far, by their middles, in buckets a cell wide: a cell too near one already taken (the nearer
   // road's, or its own row's on the inside of a bend) is left out, so no two overlap
   const bucket = new Map<number, Array<[number, number]>>(), gap = CELL_GAP * cellUnits;
@@ -361,7 +373,12 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const crowded = (x: number, z: number): boolean => {
     const bx = Math.floor(x / cellUnits), bz = Math.floor(z / cellUnits);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-      for (const [ox, oz] of bucket.get(bucketOf(bx + dx, bz + dz)) ?? []) if (Math.hypot(ox - x, oz - z) < gap) return true;
+      const near = bucket.get(bucketOf(bx + dx, bz + dz));
+      if (near === undefined) continue;
+      for (let n = 0; n < near.length; n++) {
+        const ox = near[n][0] - x, oz = near[n][1] - z;
+        if (ox < gap && ox > -gap && oz < gap && oz > -gap && Math.hypot(ox, oz) < gap) return true;
+      }
     }
     return false;
   };
@@ -369,13 +386,15 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   const covered = (k: number): boolean => (covers[k >> 3] & (1 << (k & 7))) !== 0;
   const footprint = (x: number, z: number, sin: number, cos: number, halfV: number, mark: boolean): number => {
     // The raster squares whose middles lie on the cell, set (mark) or counted where already covered
-    const reach = Math.ceil(half * Math.SQRT2 / rasterUnits) + 1, cx = Math.floor(x / rasterUnits), cz = Math.floor(z / rasterUnits);
+    // (x and z not below 0: place found the cell's key first)
+    const reach = footReach, cx = (x / rasterUnits) | 0, cz = (z / rasterUnits) | 0;
     let count = 0;
     for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) {
       const rx = cx + dx, rz = cz + dz;
       if (rx < 0 || rz < 0 || rx >= rasterWidth || rz >= rasterHeight) continue;
       const ox = (rx + 0.5) * rasterUnits - x, oz = (rz + 0.5) * rasterUnits - z;
-      if (Math.abs(ox * cos - oz * sin) > half || Math.abs(ox * sin + oz * cos) > halfV) continue;
+      const across = ox * cos - oz * sin, along = ox * sin + oz * cos;
+      if (across > half || across < -half || along > halfV || along < -halfV) continue;
       const k = rz * rasterWidth + rx;
       if (mark) covers[k >> 3] |= 1 << (k & 7); else if (covered(k)) count++;
     }
@@ -396,8 +415,10 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     for (const u of [-half, 0, half]) for (const v of [-halfV, 0, halfV]) {
       // u across the road, v along it
       const x = cell.x + cos * u + sin * v, z = cell.z - sin * u + cos * v, spot = keyOf(x, z);
-      const tx = tileOfUnits(x), ty = tileOfUnits(z);
-      if (spot < 0 || tx < 0 || ty < 0 || tx >= map.width || ty >= map.height ||
+      if (spot < 0) return false;
+      // (x and z not below 0, the spot being on the raster)
+      const tx = (x / TILE_UNITS) | 0, ty = (z / TILE_UNITS) | 0;
+      if (tx >= map.width || ty >= map.height ||
           !cellGround(tiles[ty * map.width + tx]) || !ownsAt(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) return false;
       // A road's tile is wider than the road drawn on it (taken above), so a cell may reach over its margin; a road
@@ -560,25 +581,74 @@ export function cellsAlong(layout: CellLayout, width: number, from: Point | null
   return keys;
 }
 
-/** What the roads, the land and the district look like to the cells, so the layout is found again only when it changes */
+/** What each tile value is to the cells' signature: 1 a road, 2 land a cell may lie on (open land or a plot), 0 neither */
+const SIGNATURE_CLASS: Uint8Array = (() => {
+  const out = new Uint8Array(BIT_MASK + 1);
+  for (let v = 0; v <= BIT_MASK; v++) out[v] = v >= 64 && v <= 238 ? 1 : isOpenLand(v) || plotKindOfValue(v) !== null ? 2 : 0;
+  return out;
+})();
+
+/** What the roads, the land and the district look like to the cells, so the layout is found again only when it changes.
+ *  A test made by buildableTest (src/landBlocks.ts) is read inline from its arrays, and the map's cells from its own
+ *  array: a call a tile made this 65-90 ms on a 480 x 480 city under Jest, asked on every frame a brush was in hand */
 export function layoutSignature(map: CellMap, owns: (x: number, y: number) => boolean): number {
-  let hash = map.width * 31 + map.height;
-  for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
-    const v = map.getTileValue(x, y), i = y * map.width + x;
-    const kind = v >= 64 && v <= 238 ? 1 + (map.roadLevels?.[i] ?? 1) : isOpenLand(v) || plotKindOfValue(v) !== null ? (owns(x, y) ? 0 : 20) : 30;
-    if (kind) hash = (Math.imul(hash, 16777619) ^ (i * 64 + kind)) | 0;
+  const width = map.width, height = map.height, levels = map.roadLevels ?? null, raw = map.rawCells?.() ?? null;
+  const land = (owns as Partial<BuildableTest>).land ?? null, blocks = land?.blocks ?? null, inside = land?.inside ?? null;
+  const size = land?.size ?? 1, columns = land?.columns ?? 0, imul = Math.imul, classes = SIGNATURE_CLASS;
+  let hash = width * 31 + height;
+  for (let y = 0, i = 0; y < height; y++) {
+    const blockRow = ((y / size) | 0) * columns;
+    for (let x = 0; x < width; x++, i++) {
+      const v = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(x, y), c = classes[v];
+      let kind = 30;
+      if (c === 1) kind = 1 + (levels !== null ? levels[i] : 1);
+      else if (c === 2) {
+        const mine = land !== null ? (blocks === null || blocks[blockRow + ((x / size) | 0)] === 1) && (inside === null || inside[i] === 1) : owns(x, y);
+        kind = mine ? 0 : 20;
+      }
+      if (kind) hash = (imul(hash, 16777619) ^ (i * 64 + kind)) | 0;
+    }
   }
   return hash;
 }
+
+/** A quick sum of an array's values in order, for seeing that it is unchanged (the road levels, the blocks bought) */
+function arrayStamp(values: ArrayLike<number> | null | undefined): number {
+  if (!values) return -1;
+  let hash = values.length;
+  for (let i = 0; i < values.length; i++) hash = (hash * 31 + values[i]) | 0;
+  return hash;
+}
+
+/** The signature last worked out for a map and a land, kept while no tile, road level or block bought changed: the 3D
+ *  view and the brush ask for the cells every frame (game.js cellLayout), and the map changes far less often */
+const signatures = new WeakMap<object, Array<{ changes: number; levels: number; blocks: number; inside: unknown; signature: number }>>();
 
 const layouts = new WeakMap<object, Array<{ signature: number; layout: CellLayout }>>();
 /** How many layouts of a map are kept: callers asking with different land (the buildings' poses with all of it, the
  * view and the commands with the city's) would otherwise lay the cells again in turn */
 const KEPT_LAYOUTS = 3;
 
+/** Every tile the city's own, as a test whose land the signature can keep (keptSignature) */
+const OWNS_ALL: BuildableTest = Object.assign(() => true, { land: { blocks: null, inside: null, size: 1, columns: 0 } });
+
+/** layoutSignature, kept while the map's tiles, its road levels and the land of a buildableTest are what they were (a
+ *  test of another kind is asked again each time) */
+function keptSignature(map: CellMap, owns: (x: number, y: number) => boolean): number {
+  const land = (owns as Partial<BuildableTest>).land, changes = map.changeCount?.();
+  if (!land || changes === undefined) return layoutSignature(map, owns);
+  const levels = arrayStamp(map.roadLevels), blocks = arrayStamp(land.blocks);
+  const list = signatures.get(map) ?? [];
+  const found = list.find((e) => e.changes === changes && e.levels === levels && e.blocks === blocks && e.inside === land.inside);
+  if (found) return found.signature;
+  const signature = layoutSignature(map, owns);
+  signatures.set(map, [{ changes, levels, blocks, inside: land.inside, signature }, ...list].slice(0, KEPT_LAYOUTS));
+  return signature;
+}
+
 /** The cells of a map, kept until its roads, buildings or land change */
-export function cellsOf(map: CellMap, owns: (x: number, y: number) => boolean = () => true): CellLayout {
-  const signature = layoutSignature(map, owns), kept = layouts.get(map) ?? [];
+export function cellsOf(map: CellMap, owns: (x: number, y: number) => boolean = OWNS_ALL): CellLayout {
+  const signature = keptSignature(map, owns), kept = layouts.get(map) ?? [];
   const found = kept.find((entry) => entry.signature === signature);
   if (found) return found.layout;
   const layout = cellLayout(map, owns);

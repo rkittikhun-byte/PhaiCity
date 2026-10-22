@@ -86,10 +86,10 @@ export function ownsLand(map: LandMap, x: number, y: number): boolean {
  * src/zoneCells.ts: reading the map's fields for each of a 480 x 480 city's tiles took 0.3 s a time under Jest, the map
  * object carrying a great many fields; docs/NO_GRID_PLAN.md 5.4). Made for one use: the arrays are those of now.
  */
-export function buildableTest(map: LandMap): (x: number, y: number) => boolean {
+export function buildableTest(map: LandMap): BuildableTest {
   const blocks = map.landBlocks ?? null, inside = map.insideProvince ?? null, width = map.width, height = map.height;
   const size = blockSizeOf(map), columns = Math.ceil(width / size);
-  return (x, y) => {
+  const test = (x: number, y: number): boolean => {
     if (blocks !== null) {
       if (x < 0 || y < 0 || x >= width || y >= height) return false;
       // (whole numbers by `| 0`, the tile on the map so not below 0: no Math call a tile)
@@ -97,7 +97,18 @@ export function buildableTest(map: LandMap): (x: number, y: number) => boolean {
     }
     return inside === null || inside[x + y * width] === 1;
   };
+  return Object.assign(test, { land: { blocks, inside, size, columns } });
 }
+
+/** The arrays a buildableTest reads, as they were when it was made: a reader going over every tile tests them inline,
+ *  and one that keeps what it found knows the land changed only when the blocks bought did (src/zoneCells.ts cellsOf) */
+export interface BuildableLand {
+  readonly blocks: ArrayLike<number> | null;
+  readonly inside: ArrayLike<number> | null;
+  readonly size: number;
+  readonly columns: number;
+}
+export type BuildableTest = ((x: number, y: number) => boolean) & { readonly land: BuildableLand };
 
 /** Whether any of a block's tiles is the province's own. */
 export function blockInProvince(map: LandMap, block: number): boolean {

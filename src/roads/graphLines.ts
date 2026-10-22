@@ -463,15 +463,26 @@ function shapeOf(at: Point, arms: JunctionArm[], through: number | null): Juncti
   return smooth ? { at, arms, through, smooth: true } : { at, arms, through };
 }
 
-/** Where two lines cross */
+/** Where two lines cross. (Asked of every pair of their points' steps where the two lines' boxes meet, for each drawn
+ *  road against each road of tiles, each time the cells are laid: the boxes compared without Math.min and Math.max,
+ *  and a step of p beside none of q's box passed by at once, the same crossings as before; docs/NO_GRID_PLAN.md 5.4) */
 function crossings(p: readonly Point[], q: readonly Point[]): Point[] {
   const out: Point[] = [];
+  let qx0 = Infinity, qx1 = -Infinity, qz0 = Infinity, qz1 = -Infinity;
+  for (let j = 0; j < q.length; j++) {
+    const x = q[j][0], z = q[j][1];
+    if (x < qx0) qx0 = x;
+    if (x > qx1) qx1 = x;
+    if (z < qz0) qz0 = z;
+    if (z > qz1) qz1 = z;
+  }
   for (let i = 1; i < p.length; i++) {
-    const [ax, az] = p[i - 1], [bx, bz] = p[i];
-    const px0 = Math.min(ax, bx), px1 = Math.max(ax, bx), pz0 = Math.min(az, bz), pz1 = Math.max(az, bz);
+    const ax = p[i - 1][0], az = p[i - 1][1], bx = p[i][0], bz = p[i][1];
+    const px0 = ax < bx ? ax : bx, px1 = ax < bx ? bx : ax, pz0 = az < bz ? az : bz, pz1 = az < bz ? bz : az;
+    if (qx1 < px0 || qx0 > px1 || qz1 < pz0 || qz0 > pz1) continue;
     for (let j = 1; j < q.length; j++) {
-      const [cx, cz] = q[j - 1], [dx, dz] = q[j];
-      if (Math.max(cx, dx) < px0 || Math.min(cx, dx) > px1 || Math.max(cz, dz) < pz0 || Math.min(cz, dz) > pz1) continue;
+      const cx = q[j - 1][0], cz = q[j - 1][1], dx = q[j][0], dz = q[j][1];
+      if ((cx > dx ? cx : dx) < px0 || (cx < dx ? cx : dx) > px1 || (cz > dz ? cz : dz) < pz0 || (cz < dz ? cz : dz) > pz1) continue;
       const rx = bx - ax, rz = bz - az, sx = dx - cx, sz = dz - cz, denom = rx * sz - rz * sx;
       if (Math.abs(denom) < 1e-12) continue;
       const wx = cx - ax, wz = cz - az, s = (wx * sz - wz * sx) / denom, t = (wx * rz - wz * rx) / denom;
