@@ -25,11 +25,12 @@ import { cutTile, LostTiles } from "./roads/roadCut";
 import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { drawnRoads, graphLines } from "./roads/graphLines";
-import { tileMetres, tileOfUnits, unitsPerMetre } from "./units";
+import { isCityTileSize, tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
 import { bodyMeets, drawnPoints, familyValue, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
   outsideBy, turnedOutlines, turnedTilesOf, turnsFootprint, type FootprintMap } from "./buildings/turnedFootprint";
 import type { BuildingMap } from "./buildings/buildingRecords";
+import { buildingInTheWay } from "./buildings/outlineOverlap";
 import { MOVE_BLOCKED, MOVE_NO_MONEY, movePrice, NO_BUILDING } from "./moveTool";
 import { TileUtils } from "./tileUtils.js";
 import { LINE_SHAPES, type LineShape, MAX_ROAD_PIECE, type RoadPath } from "./roadPieces";
@@ -94,6 +95,9 @@ export const NO_MONEY_FOR_CELLS = "not enough money";
 export const NEEDS_ROAD_BESIDE = "needs a road beside it";
 /** Why a turned building was refused: a road or railway runs inside its fence (src/buildings/turnedFootprint.ts) */
 export const LINE_IN_THE_WAY = "a road or railway is in the way";
+/** Why a building was refused on a real-scale city map: its outline would run into another building's
+ * (src/buildings/outlineOverlap.ts, docs/NO_GRID_PLAN.md 3A.2) */
+export const BUILDING_IN_THE_WAY = "another building is in the way";
 /** A road or railway as drawn, in metres, and how far its body reaches either side of its line */
 type DrawnBody = { points: [number, number][]; reach: number; rail: boolean; box: [number, number, number, number] };
 /** Why a road or railway was refused: it would run inside the ruler's house's fence */
@@ -724,6 +728,8 @@ export class CityCommands {
       const own = turnedTilesOf({ width, height, tileSizeM: metres, getTileValue: value, buildings: placed }, b.tile, centreValue) ??
         footprint(x, y, size).map((t) => t.y * width + t.x);
       let next: { x: number; y: number }[];
+      if (isCityTileSize(metres) && this.buildingInTheWay(newOutline ??
+        outlineOf((left + size / 2) * metres, (top + size / 2) * metres, 0, size, metres), b.id)) return { reason: BUILDING_IN_THE_WAY };
       if (newOutline) {
         const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null }, units = unitsPerMetre(metres);
         if (lineInOutline(newOutline, { width, height, tileSizeM: metres, getTileValue: value, roadGraph: graphs.roadGraph ?? null,
@@ -844,9 +850,16 @@ export class CityCommands {
     if (!map || !tool) return { reason: `no ${command.tool} tool` };
     if (!placesBuilding(command.tool, tool)) return { reason: "not a building" };
     const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
-    const { cx, cy } = blockOf(command.x, command.z, size, metres);
+    const { cx, cy, left, top } = blockOf(command.x, command.z, size, metres);
     if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { reason: "outside the map" };
-    if (!turnsFootprint(size, command.rot)) return { cx, cy, turned: null };
+    const turns = turnsFootprint(size, command.rot);
+    // (on a real-scale city map no building's outline may run into another's: src/buildings/outlineOverlap.ts)
+    if (size > 1 && isCityTileSize((map as { tileSizeM?: number | null }).tileSizeM)) {
+      const own = turns ? outlineOf(command.x, command.z, command.rot, size, metres)
+        : outlineOf((left + size / 2) * metres, (top + size / 2) * metres, 0, size, metres);
+      if (this.buildingInTheWay(own, null)) return { reason: BUILDING_IN_THE_WAY };
+    }
+    if (!turns) return { cx, cy, turned: null };
     const outline = outlineOf(command.x, command.z, command.rot, size, metres), units = unitsPerMetre(metres);
     const graphs = map as unknown as { roadGraph?: RoadGraph | null; railGraph?: RoadGraph | null };
     const footprintMap = { width: city.width, height: city.height, tileSizeM: metres,
@@ -857,6 +870,17 @@ export class CityCommands {
     const tiles = outlineTiles(outline, city.width, city.height, metres).map((i) => ({ x: i % city.width, y: Math.floor(i / city.width) }))
       .filter((t) => (t.x === cx && t.y === cy) || !isRoadTile(footprintMap.getTileValue(t.x, t.y)) && !isRailTile(footprintMap.getTileValue(t.x, t.y)));
     return { cx, cy, turned: { tool: command.tool, x: cx, y: cy, tiles } };
+  }
+
+  /** The building of the ruler's an outline would run into on this map, or null (src/buildings/outlineOverlap.ts) */
+  private buildingInTheWay(outline: ReturnType<typeof outlineOf>, except: number | null): PlacedBuilding | null {
+    const map = this.city.map;
+    if (!map) return null;
+    const placed = (map as unknown as BuildingMap).buildings;
+    if (!placed || !placed.size) return null;
+    return buildingInTheWay({ width: this.city.width, height: this.city.height,
+      tileSizeM: (map as { tileSizeM?: number | null }).tileSizeM ?? null,
+      getTileValue: (x: number, y: number) => map.getTile(x, y).getRawValue() & BIT_MASK, buildings: placed }, outline, except);
   }
 
   /**

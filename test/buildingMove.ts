@@ -7,7 +7,7 @@
 // for a tenth of its price, and put back by undo with the money.
 
 import type { PlacedBuildings } from "../src/buildings/placedBuildings";
-import { NEEDS_ROAD_BESIDE } from "../src/cityCommands";
+import { BUILDING_IN_THE_WAY, NEEDS_ROAD_BESIDE } from "../src/cityCommands";
 import { CityCore } from "../src/core/cityCore";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
@@ -242,8 +242,9 @@ describe("moving a building to another block", () => {
     core.apply({ type: "build", tool: "police", x: 330.4, z: 251.7, rot: 0.5, stroke: 1 });
     core.apply({ type: "build", tool: "fire", x: 600, z: 400, rot: 0, stroke: 2 });
     const move = (x: number, z: number) => core.apply({ type: "move", id: 1, x, z, rot: 0 });
-    // Onto the fire station, over the map's edge, a building that is not there
-    expect(move(600, 400)).toMatchObject({ accepted: false, reason: MOVE_BLOCKED });
+    // Onto the fire station (its outline runs into the station's: src/buildings/outlineOverlap.ts), over the map's edge,
+    // a building that is not there
+    expect(move(600, 400)).toMatchObject({ accepted: false, reason: BUILDING_IN_THE_WAY });
     expect(move(955, 400)).toMatchObject({ accepted: false, reason: "outside the map" });
     expect(core.apply({ type: "move", id: 7, x: 330, z: 251, rot: 0 })).toMatchObject({ accepted: false, reason: NO_BUILDING });
     // ... onto water, which is never cleared

@@ -20,7 +20,7 @@ import { bindGraphicsQuality } from './graphicsQuality.ts';
 import { BaseTool } from './baseTool.js';
 import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
-import { besideRoad, CityCommands, LINE_IN_THE_WAY, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { besideRoad, BUILDING_IN_THE_WAY, CityCommands, LINE_IN_THE_WAY, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
 import { MODE_RULES, modeChoosable, modeRule, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
 import { siteMonths } from './construction.ts';
@@ -2719,6 +2719,8 @@ Game.prototype.moveNote = function(reason, b) {
     return t('land.note.locked');
   if (reason === TEMPLE_IN_THE_WAY)
     return t('temple.in_the_way');
+  if (reason === BUILDING_IN_THE_WAY)
+    return t('tool.building_in_the_way');
   if (reason === NEEDS_ROAD_BESIDE)
     return t('tool.needs_road');
   if (reason === NEEDS_ROAD)
@@ -2755,6 +2757,8 @@ Game.prototype.refusalNote = function(refusal, toolName, x, y) {
     return t('service.note.needs_house', {level: houseNeeded(this.gameMap, toolName, x, y)});
   if (refusal.reason === LINE_IN_THE_WAY)
     return t('tool.line_in_the_way');
+  if (refusal.reason === BUILDING_IN_THE_WAY)
+    return t('tool.building_in_the_way');
   return this.moveNote(refusal.reason, {tool: toolName});
 };
 
