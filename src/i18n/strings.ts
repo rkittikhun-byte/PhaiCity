@@ -1551,6 +1551,7 @@ export const STRINGS: Record<string, Translation> = {
   "object.fact.road_speed": { en: "Cars go {speed} km/h ({clear} km/h when clear)", th: "รถวิ่ง {speed} กม./ชม. (ถนนโล่ง {clear} กม./ชม.)" },
   "object.fact.road_users": { en: "Used by the homes of {homes} streets: {work}% to work, {shop}% to the shops", th: "บ้านจาก {homes} ถนนใช้เส้นนี้: ไปทำงาน {work}% ไปซื้อของ {shop}%" },
   "object.fact.road_empty": { en: "No trips use this road yet", th: "ยังไม่มีใครใช้ถนนเส้นนี้เดินทาง" },
+  "object.fact.road_wear": { en: "Worn: in {condition}% condition, so slower, until its upkeep is paid", th: "ถนนทรุดโทรม สภาพ {condition}% รถจึงช้าลง จนกว่าจะจ่ายค่าบำรุง" },
   "object.fact.cells": { en: "Zone cells facing it: {painted} of {cells} painted", th: "ช่องเขตริมถนนนี้: ทาแล้ว {painted} จาก {cells} ช่อง" },
   "object.fact.outside": { en: "Outside the province: nothing can be built", th: "นอกเขตจังหวัด สร้างไม่ได้" },
   "object.fact.unowned": { en: "Land not yet bought", th: "ที่ดินยังไม่ได้ซื้อ" },

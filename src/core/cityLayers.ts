@@ -23,6 +23,7 @@ import { canalMarkStands, canalsKept, isBridgeTile, isWaterTile, newCanals } fro
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { PlotBuildings, usesPlotList } from "../plotBuildings.js";
 import { farmCellsKept, farmKindsKept, readFarmCells } from "../farmZone.js";
+import { readRoadWear, writeRoadWear } from "../sim/disasterLand.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
@@ -115,6 +116,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.farmKinds = saved.farmKinds ? decodePresetLayer(saved.farmKinds, map.width, map.height) : null;
     // ... and the cells each painted on part of its tile (docs/NO_GRID_PLAN.md 3C); a field with none is its whole tile
     map.farmCells = readFarmCells(saved.farmCells, map.width, map.height);
+    // ... and how worn each road is (src/sim/disasterLand.ts)
+    map.roadWear = readRoadWear(saved.roadWear);
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
     map.landBlocks = saved.land ? savedLand(map, saved.land) : null;
     map.landBought = saved.landBought || 0;
@@ -261,6 +264,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     farmKinds: encodeFarmKinds(map),
     // ... and the cells of those painted on part of their tile, by tile (src/farmZone.ts farmCellsKept)
     farmCells: farmCellsKept(map) ?? undefined,
+    // ... and how worn its roads are, by segment (src/sim/disasterLand.ts)
+    roadWear: writeRoadWear(map.roadWear),
     // ... and the land the city owns (src/landBlocks.ts)
     land: map.landBlocks ? encodePresetLayer(map.landBlocks) : undefined,
     landBought: map.landBlocks ? map.landBought || 0 : undefined,

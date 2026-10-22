@@ -1726,6 +1726,7 @@
 | `object.fact.road_speed` | `src/inspect.ts` | — | `Cars go {speed} km/h ({clear} km/h when clear)` | `รถวิ่ง {speed} กม./ชม. (ถนนโล่ง {clear} กม./ชม.)` |  |
 | `object.fact.road_users` | `src/inspect.ts` | — | `Used by the homes of {homes} streets: {work}% to work, {shop}% to the shops` | `บ้านจาก {homes} ถนนใช้เส้นนี้: ไปทำงาน {work}% ไปซื้อของ {shop}%` |  |
 | `object.fact.road_empty` | `src/inspect.ts` | — | `No trips use this road yet` | `ยังไม่มีใครใช้ถนนเส้นนี้เดินทาง` |  |
+| `object.fact.road_wear` | `src/inspect.ts` | — | `Worn: in {condition}% condition, so slower, until its upkeep is paid` | `ถนนทรุดโทรม สภาพ {condition}% รถจึงช้าลง จนกว่าจะจ่ายค่าบำรุง` | ถนนสึกทั้งเส้นเมื่อจ่ายค่าบำรุงไม่ครบ (src/sim/disasterLand.ts) |
 | `object.fact.cells` | `src/inspect.ts` | — | `Zone cells facing it: {painted} of {cells} painted` | `ช่องเขตริมถนนนี้: ทาแล้ว {painted} จาก {cells} ช่อง` | อำเภอที่ทาทีละช่อง (src/zoneCells.ts) |
 | `object.fact.outside` | `src/inspect.ts` | — | `Outside the province: nothing can be built` | `นอกเขตจังหวัด สร้างไม่ได้` |  |
 | `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |

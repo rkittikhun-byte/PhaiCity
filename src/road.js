@@ -135,7 +135,9 @@ var roadTile = function(map, x, y, simData, national) {
   var currentTile = map.getTile(x, y);
   var tileValue = currentTile.getValue();
 
-  if (!national && simData.budget.shouldDegradeRoad()) {
+  // PhaiCity: on a real-scale city map a road the city does not pay for wears along its whole length and slows its traffic
+  // (src/sim/disasterLand.ts roadWearMonth), not into 16 m holes of rubble a tile at a time
+  if (!national && !simData.wearsByLength && simData.budget.shouldDegradeRoad()) {
     if (Random.getChance(511)) {
       currentTile = map.getTile(x, y);
 

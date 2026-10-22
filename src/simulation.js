@@ -69,6 +69,8 @@ import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 import { seasonWind } from './wind.ts';
 import { coverAlongRoads } from './sim/serviceReach.ts';
 import { seatsAlongRoads } from './sim/serviceSeats.ts';
+import { roadWearMonth } from './sim/disasterLand.ts';
+import { roundedWind } from './sim/pollutionField.ts';
 import { usesPlotList } from './plotBuildings.ts';
 import { isCityTileSize } from './units.ts';
 
@@ -437,7 +439,12 @@ Simulation.prototype._constructSimData = function() {
     trafficManager: this._traffic,
     valves: this._valves,
     // PhaiCity: the stations found, by their service, on a real-scale city map (src/emergencyServices.js)
-    stations: this._stations
+    stations: this._stations,
+    // ... and there the month's wind, which blows a fire on (src/miscTiles.js), and roads that wear by their length
+    // (src/road.js; docs/NO_GRID_PLAN.md 4.4)
+    wind: this._stations ? roundedWind(seasonWind(this.getDate().month,
+      typeof this.resources.wind === 'number' ? this.resources.wind : 2)) : null,
+    wearsByLength: this._stations !== null
   };
 };
 
@@ -613,6 +620,7 @@ var simulate = function(simData) {
         this._miningMonth();
         this._farmingMonth();
         this._canalsMonth();
+        this._roadWearMonth();
         // ... and the tollways' tolls (src/roadLevels.ts), higher by the ruler's policy
         this.budget.tollFund += tollsThisMonth(this._map, this.blockMaps.trafficDensityMap) *
                                 (hasPolicy(this._map, 'higher_tolls') ? TOLL_RAISE : 1);
@@ -699,6 +707,17 @@ Simulation.prototype._simulate = function(simData) {
 
 // PhaiCity: the canals grow a level every few months while they stand, by the city's people and the land value along
 // them (src/canals.ts, docs/CANALS.md), and what they add to the land value nearby is worked out again when they change
+// PhaiCity: on a real-scale city map, a month of the roads' wear by the share of their upkeep paid
+// (src/sim/disasterLand.ts, docs/NO_GRID_PLAN.md 4.4)
+Simulation.prototype._roadWearMonth = function() {
+  if (!this._stations || !this._map.roadGraph)
+    return;
+  if (!(this._map.roadWear instanceof Map))
+    this._map.roadWear = new Map();
+  roadWearMonth(this._map.roadGraph, this._map.roadWear, this.budget.roadEffect / this.budget.MAX_ROAD_EFFECT);
+};
+
+
 Simulation.prototype._canalsMonth = function() {
   var map = this._map, landValue = this.blockMaps.landValueMap;
   var rose = growCanals(map, this._cityTime >> 2, this.evaluation.getPopulation(this._census),

@@ -15,6 +15,7 @@ import { Random } from './random.ts';
 import { TileUtils } from './tileUtils.js';
 import { DIRT, IZB, PLANT3_BASE, PLANT3_LAST, RADTILE, TINYEXP, TINYEXPLAST } from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
+import { fireChance, ROUND } from './sim/disasterLand.ts';
 
 var xDelta = [-1,  0,  1,  0 ];
 var yDelta = [ 0, -1,  0,  1 ];
@@ -25,11 +26,17 @@ var fireFound = function(map, x, y, simData) {
   if ((Random.getRandom16() & 3) !== 0)
     return;
 
+  // PhaiCity: on a real-scale city map the eight tiles round it, the corners less, and more downwind than upwind
+  // (src/sim/disasterLand.ts, docs/NO_GRID_PLAN.md 4.4); the four beside it, one in eight each, elsewhere
+  var wind = simData.wind || null;
+  var round = wind ? ROUND : null;
+
   // Try to set neighbouring tiles on fire as well
-  for (var i = 0; i < 4; i++) {
-    if (Random.getChance(7)) {
-      var xTem = x + xDelta[i];
-      var yTem = y + yDelta[i];
+  for (var i = 0; i < (round ? round.length : 4); i++) {
+    var catches = round ? Random.getRandom16() < fireChance(round[i][0], round[i][1], wind) * 65536 : Random.getChance(7);
+    if (catches) {
+      var xTem = x + (round ? round[i][0] : xDelta[i]);
+      var yTem = y + (round ? round[i][1] : yDelta[i]);
 
       if (map.testBounds(xTem, yTem)) {
         // PhaiCity: the neighbour catches fire (docs/NO_GRID_PLAN.md 0.4: the port looked at the burning tile itself and

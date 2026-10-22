@@ -13,6 +13,7 @@ import { roadCapacity, roadSpeed } from "../roadLevels";
 import type { RoadGraph } from "../roads/roadGraph";
 import { roadNet, type RoadNet } from "./roadNetwork";
 import { segmentLevel, type UpkeepMap } from "./roadUpkeep";
+import { wornSpeed } from "./disasterLand";
 import type { TripNet, TripPlaces } from "./trips";
 
 /** People a home, shop or factory plot of each level counts (the census's 20 people a level, src/plots.ts) */
@@ -20,7 +21,7 @@ const PEOPLE_A_LEVEL = 20;
 /** Of a home's people, the cars they drive out in the busiest hour, to work or to the shops */
 export const CARS_A_PERSON = 0.15;
 
-export type TripMap = PlotMap & UpkeepMap & { roadGraph?: RoadGraph | null };
+export type TripMap = PlotMap & UpkeepMap & { roadGraph?: RoadGraph | null; roadWear?: Map<number, number> | null };
 
 /** The roads as the trips see them, and the road graph's arrays they come from */
 export function tripNet(map: TripMap, graph: RoadGraph): { net: TripNet; roads: RoadNet } {
@@ -28,7 +29,8 @@ export function tripNet(map: TripMap, graph: RoadGraph): { net: TripNet; roads: 
   const speed = new Float64Array(m), capacity = new Float64Array(m);
   for (let k = 0; k < m; k++) {
     const level = segmentLevel(map, graph, graph.segment(roads.segmentIds[k]));
-    speed[k] = roadSpeed(level);
+    // (slower as it wears, src/sim/disasterLand.ts)
+    speed[k] = wornSpeed(roadSpeed(level), map.roadWear?.get(roads.segmentIds[k]) ?? 0);
     capacity[k] = roadCapacity(level);
   }
   return { roads, net: { offsets: roads.offsets, wayTo: roads.wayTo, waySegment: roads.waySegment, segA: roads.segA,

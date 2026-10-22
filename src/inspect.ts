@@ -186,6 +186,10 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
       const tripMap = map as unknown as { trips?: CityTrips | null; roadGraph?: RoadGraph | null; tileSizeM?: number | null };
       const size = tripMap.tileSizeM ?? 16;
       const trips = isCityTileSize(tripMap.tileSizeM) ? roadTrips(tripMap.trips, tripMap.roadGraph, (x + 0.5) * size, (y + 0.5) * size, size) : null;
+      // ... and how worn it is, where the city has not paid for it (src/sim/disasterLand.ts)
+      const near = isCityTileSize(tripMap.tileSizeM) ? tripMap.roadGraph?.nearest([(x + 0.5) * size, (y + 0.5) * size], size) : null;
+      const wear = near ? (map as unknown as { roadWear?: Map<number, number> | null }).roadWear?.get(near.segment) ?? 0 : 0;
+      if (wear > 0) facts.push({ key: "object.fact.road_wear", params: { condition: Math.round(100 * (1 - wear)) } });
       if (trips) {
         if (trips.cars > 0) {
           facts.push({ key: "object.fact.road_cars", params: { cars: trips.cars, capacity: trips.capacity } });

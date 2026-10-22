@@ -20,6 +20,8 @@ import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { NUCLEAR_KIND } from "./plantBlocks.ts";
 import { ZoneUtils } from './zoneUtils.js';
+import { isCityTileSize } from './units.ts';
+import { floodsOnto } from './sim/disasterLand.ts';
 
 var DisasterManager = EventEmitter(function(map, spriteManager, gameLevel) {
   this._map = map;
@@ -273,7 +275,10 @@ DisasterManager.prototype.doFlood = function(x, y, blockMaps) {
         var xx = x + Dx[i];
         var yy = y + Dy[i];
 
-        if (this._map.testBounds(xx, yy)) {
+        // PhaiCity: on a real-scale city map a flood runs onto land no higher than its own a little (src/sim/disasterLand.ts,
+        // docs/NO_GRID_PLAN.md 4.4)
+        if (this._map.testBounds(xx, yy) && (!isCityTileSize(this._map.tileSizeM) ||
+            floodsOnto(this._map.heights, y * this._map.width + x, yy * this._map.width + xx))) {
           var tile = this._map.getTile(xx, yy);
           var tileValue = tile.getValue();
 

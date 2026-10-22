@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 11;
+export const SIM_VERSION = 12;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -40,6 +40,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   11: "on a real-scale city map the police's and the fire brigade's cover runs along the roads from each station, falling " +
     "to nothing 320 m along them, in blocks of 2 tiles; schools' seats and hospitals' care go to the homes along the roads, " +
     "the nearest first, none past 3 km (basic), 6 km (higher) or 4 km (health) (NO_GRID_PLAN 4.3)",
+  12: "on a real-scale city map a fire catches the eight tiles round it, more downwind; a flood runs onto land no higher " +
+    "than its own by 0.5 m; an unpaid road wears along its length and slows its traffic, never breaking into rubble " +
+    "(NO_GRID_PLAN 4.4)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */
