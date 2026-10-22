@@ -2286,11 +2286,12 @@ Game.prototype.metrePoint = function(toolName, x, y, free, from) {
   var last = from ? from.last : draft && draft.metres.length ? draft.metres[draft.metres.length - 1] : null;
   var leaving = from ? null : last !== null ? draft.ways[draft.ways.length - 1] : null;
   // Asked for several times a frame (the marker, the preview, the tip): kept while nothing it depends on changes
+  var mpp = this.metresPerPixel();
   var key = [toolName, raw[0], raw[1], this._edits, last ? last.join(',') : '', leaving ? leaving.join(',') : '', !!from,
-             Math.round(this.metresPerPixel() * 1000)].join('|');
+             Math.round(mpp * 1000)].join('|');
   if (this._metrePoint && this._metrePoint.key === key)
     return this._metrePoint.at;
-  var lines = this.metreLines(toolName), mpp = this.metresPerPixel();
+  var lines = this.metreLines(toolName);
   var net = {lines: lines.metres, nodes: lines.nodes, half: lines.half};
   var snap = last === null ? snapStart(raw, mpp, net, ROAD_TOOLS.indexOf(toolName) !== -1 ? GRID_SPACING * size : 0) :
              snapNext(raw, mpp, net, last, leaving, from ? 0 : SNAP_DEGREES);

@@ -358,10 +358,10 @@ export class ToolOutline {
    * a junction, a ring filled with the tool's colour on a road's end, a white dot on a point along a road, a bar across
    * the road on its middle line, a small ring on a dashed guideline beside a road, and a plain small ring with a point
    * where it lands where the mouse is (or on a straight way from the last point). Each white edged dark, so it reads on
-   * any road or ground.
+   * any road or ground. A tool that does not say (the upgrade tool) keeps the ring.
    */
   private landingMarker(hover:ToolHover,x:number,y:number,z:number,r0:number,halfW:number):void {
-    const kind=hover.snapKind??null,flat=(g:BufferGeometry):BufferGeometry=>g.rotateX(-Math.PI/2);
+    const kind=hover.snapKind===undefined?'end':hover.snapKind,flat=(g:BufferGeometry):BufferGeometry=>g.rotateX(-Math.PI/2);
     const add=(geometry:BufferGeometry,colour:string,lift:number,order:number,soft=false):void=>{
       const mesh=new Mesh(geometry,cityToolMaterial(colour,soft));mesh.position.set(x,y+lift,z);mesh.renderOrder=order;this.root.add(mesh);};
     if(kind==='node'){
