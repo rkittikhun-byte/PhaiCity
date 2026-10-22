@@ -43,16 +43,40 @@ function wayOf(graph: RoadGraph, segments: number[], fromT: number, toT: number,
 /** The quickest way by length from each node of a graph's arrays out of some starts, and the segment each was reached by */
 function sweep(graph: RoadGraph, starts: Array<[number, number]>): { dist: Float64Array; via: Int32Array; from: Int32Array } {
   const net = roadNet(graph), n = net.nodeIds.length, dist = new Float64Array(n).fill(Infinity), via = new Int32Array(n).fill(-1);
-  const from = new Int32Array(n).fill(-1), open: Array<[number, number]> = [];
-  for (const [node, cost] of starts) if (cost < dist[node]) { dist[node] = cost; open.push([cost, node]); }
-  while (open.length) {
-    let best = 0;
-    for (let i = 1; i < open.length; i++) if (open[i][0] < open[best][0]) best = i;
-    const [cost, node] = open.splice(best, 1)[0];
+  const from = new Int32Array(n).fill(-1), heap: Array<[number, number]> = [];
+  // A binary heap of [cost, node], the cheapest on top
+  const push = (cost: number, node: number): void => {
+    heap.push([cost, node]);
+    for (let i = heap.length - 1; i > 0;) {
+      const p = (i - 1) >> 1;
+      if (heap[p][0] <= heap[i][0]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]];
+      i = p;
+    }
+  };
+  const pop = (): [number, number] => {
+    const top = heap[0], last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ;) {
+        const l = i * 2 + 1, r = l + 1;
+        let c = i;
+        if (l < heap.length && heap[l][0] < heap[c][0]) c = l;
+        if (r < heap.length && heap[r][0] < heap[c][0]) c = r;
+        if (c === i) break;
+        [heap[c], heap[i]] = [heap[i], heap[c]];
+        i = c;
+      }
+    }
+    return top;
+  };
+  for (const [node, cost] of starts) if (cost < dist[node]) { dist[node] = cost; push(cost, node); }
+  while (heap.length) {
+    const [cost, node] = pop();
     if (cost > dist[node]) continue;
     for (let w = net.offsets[node]; w < net.offsets[node + 1]; w++) {
       const next = net.wayTo[w], k = net.waySegment[w], c = cost + net.length[k];
-      if (c < dist[next]) { dist[next] = c; via[next] = k; from[next] = node; open.push([c, next]); }
+      if (c < dist[next]) { dist[next] = c; via[next] = k; from[next] = node; push(c, next); }
     }
   }
   return { dist, via, from };
