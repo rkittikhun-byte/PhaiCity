@@ -15,6 +15,7 @@ import { luckOf, plotFound } from "./plots.ts";
 import { plotsFound, usesPlotList } from "./plotBuildings.ts";
 import { agentRandom, monthSeed } from "./sim/agentRandom.ts";
 import { Tile } from "./tile.ts";
+import { BIT_MASK } from "./tileFlags.ts";
 import { FLOOD, PORTBASE, RESBASE } from "./tileValues.ts";
 
 // Tile to be filled to avoid creating lots of GC-able objects
@@ -56,8 +57,14 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
   var seed = list ? monthSeed() : 0;
   var luckFor = function(plot) { return luckOf(agentRandom(seed, plot.id)); };
 
+  // PhaiCity: the bare land, water and woods (below FLOOD) passed by from the map's own array, before the tile is
+  // copied out (docs/NO_GRID_PLAN.md 5.1: most of a city map's tiles)
+  var raw = typeof this._map.rawCells === 'function' ? this._map.rawCells() : null;
+
   for (var y = 0; y < this._map.height; y++) {
     for (var x = startX; x < maxX; x++) {
+      if (raw !== null && (raw[y * width + x] & BIT_MASK) < FLOOD)
+        continue;
       this._map.getTile(x, y, tile);
       var tileValue = tile.getValue();
 

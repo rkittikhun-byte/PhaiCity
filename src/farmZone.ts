@@ -428,16 +428,24 @@ export function fieldFillRegion(map: PlotMap, x: number, y: number, erase: boole
 
 /** The nearest water to (x, y) within radius tiles (a ring at a time), as its distance and its tile, or null */
 function nearestWater(map: FieldMap, x: number, y: number, radius: number): { distance: number; index: number } | null {
+  // (asked for every field looked at that has no kind yet: only each ring's own tiles, in the order the whole square
+  // was gone over, the nearest by its squared steps, which orders them as their distance does, and the map's own
+  // array where it has one; the same water as before, docs/NO_GRID_PLAN.md 5.1)
+  const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null, width = map.width, height = map.height;
   for (let r = 1; r <= radius; r++) {
-    let best: { distance: number; index: number } | null = null;
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const tx = x + dx, ty = y + dy;
-      if (!inside(map, tx, ty) || !isWater(map.getTileValue(tx, ty))) continue;
-      const distance = Math.hypot(dx, dy);
-      if (!best || distance < best.distance) best = { distance, index: ty * map.width + tx };
+    let best = -1, bestDx = 0, bestDy = 0, bestD2 = Infinity;
+    for (let dy = -r; dy <= r; dy++) {
+      const edge = dy === -r || dy === r, step = edge ? 1 : 2 * r;
+      for (let dx = -r; dx <= r; dx += step) {
+        const tx = x + dx, ty = y + dy;
+        if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
+        const i = ty * width + tx;
+        if (!isWater(raw !== null ? raw[i] & BIT_MASK : map.getTileValue(tx, ty))) continue;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) { best = i; bestD2 = d2; bestDx = dx; bestDy = dy; }
+      }
     }
-    if (best) return best;
+    if (best >= 0) return { distance: Math.hypot(bestDx, bestDy), index: best };
   }
   return null;
 }
