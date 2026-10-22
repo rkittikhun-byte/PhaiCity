@@ -147,6 +147,9 @@ export type HeatMap = "trafficDensityMap" | "pollutionDensityMap" | "crimeRateMa
 export type Overlays = Record<HeatMap, BlockMapLike> & {
   /** The water supply and the groundwater, read only (src/waterManager.ts); a city from before it has none */
   water?: WaterView;
+  /** On a real-scale city map, how full the fullest road on a tile is (its cars over what it takes), or null where no road
+   * is: the month's trips on the road graph (src/sim/cityTrips.ts), which the traffic layer shows on the roads */
+  roadFull?: (x: number, y: number) => number | null;
   /** How content the building on a tile is, 0–100, or null where none stands (src/objects/satisfaction.ts) */
   satisfaction?: (x: number, y: number) => number | null;
 };
@@ -206,9 +209,21 @@ function satisfactionColour(city: Rgb, score: number | null | undefined): Rgb {
   return score < 50 ? mix(DISCONTENT, SO_SO, Math.max(0, score - 20) / 30) : mix(SO_SO, CONTENT, Math.min(1, (score - 50) / 30));
 }
 
+/** A road's colour on the traffic layer by how full it is (its cars over what it takes): green while it flows freely,
+ * yellow as it fills, red when it is jammed (docs/NO_GRID_PLAN.md 1.6, as Cities: Skylines' traffic view) */
+export function trafficColour(full: number): Rgb {
+  if (!(full > TRAFFIC_FREE)) return CONTENT;
+  if (full < TRAFFIC_BUSY) return mix(CONTENT, SO_SO, (full - TRAFFIC_FREE) / (TRAFFIC_BUSY - TRAFFIC_FREE));
+  return mix(SO_SO, DISCONTENT, Math.min(1, (full - TRAFFIC_BUSY) / (TRAFFIC_JAM - TRAFFIC_BUSY)));
+}
+/** A road flows freely to this full, is yellow at TRAFFIC_BUSY and red from TRAFFIC_JAM */
+export const TRAFFIC_FREE = 0.5, TRAFFIC_BUSY = 0.85, TRAFFIC_JAM = 1.1;
+
 /** The colours at the bottom and the top of an overlay's scale, over empty land, for the legend. */
 export function heatRamp(layer: HeatLayer | "groundwater" | "satisfaction"): [Rgb, Rgb] {
   if (layer === "satisfaction") return [DISCONTENT, CONTENT];
+  // ... the roads from flowing freely to jammed (trafficColour)
+  if (layer === "traffic") return [CONTENT, DISCONTENT];
   const base = dimmed(KIND_COLOURS.dirt);
   return [base, mix(base, layer === "groundwater" ? GROUND_BLUE : HEAT[layer].colour, 0.9)];
 }
@@ -242,6 +257,10 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
   if (layer === "water") return waterColour(value, city, overlays.water, x, y);
   if (layer === "groundwater") return groundwaterColour(city, overlays.water, x, y);
   if (layer === "satisfaction") return satisfactionColour(city, overlays.satisfaction?.(x, y));
+  if (layer === "traffic" && overlays.roadFull) {
+    const full = overlays.roadFull(x, y);
+    return full === null ? dimmed(city) : trafficColour(full);
+  }
   const heat = HEAT[layer];
   return mix(dimmed(city), heat.colour, 0.9 * heatLevel(overlays[heat.map].worldGet(x, y), heat.max));
 }

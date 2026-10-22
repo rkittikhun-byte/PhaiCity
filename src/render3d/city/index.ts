@@ -26,6 +26,8 @@ import { RoadCurves, type RoadWorkerLike } from './roadCurves.js';
 import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
+import { TripCars, type TripCarsMap } from './tripCars.js';
+import { TrafficLayer, type TrafficLayerMap } from './trafficLayer.js';
 import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
 import { loadPeople } from './people3d.js';
@@ -130,7 +132,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
-  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private buses?:CityBuses;private problems?:ProblemIcons;
+  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private tripCars?:TripCars;private trafficLayer?:TrafficLayer;private buses?:CityBuses;private problems?:ProblemIcons;
   private bed:Mesh;private bedDrop:number;private wideBed:boolean;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
   /** The dug canals, drawn along their lines; the rest of the view reads their tiles as ground (canals.ts) */
   private canals:CityCanals;private land:CityMapReader;
@@ -332,6 +334,8 @@ export class CityView3D implements CityView {
   /** Where the game's clock puts the sun (src/dayClock.ts sunAngle): 0 rising, π setting, on to 2π through the night;
    * the auto cycle follows it from then on */
   setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
+  /** The hour of the day (0-24) the sun says: risen at 6, set at 18 (setSunAngle), for the trips' cars */
+  private hourOfDay():number{const angle=this.clockAngle??((this.seconds/this.CYCLE_DURATION)%1.0)*Math.PI*2;return (6+angle/Math.PI*12)%24;}
   /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, shown in its place */
   setSky(sky:Weather|null):void{this.skyNow=sky;}
   /** Switch between Day Mode, Dark Mode and Auto Day/Night Cycle */
@@ -426,10 +430,14 @@ export class CityView3D implements CityView {
   zoneGrid(on:boolean):void {if(this.cells)this.cells.show(on);else this.zones.show(on);}
   pointAt(x:number,y:number):{x:number;y:number}|null{const p=groundAt(this.navigation.camera,x,y,this.width,this.height,this.terrain);
     return p&&p.x>=0&&p.z>=0&&p.x<this.setup.map.width*10&&p.z<this.setup.map.height*10?{x:p.x/10,y:p.z/10}:null;}
-  /** A layer of the city map over the ground, or none (layerOverlay.ts) */
-  showLayer(tiles:HTMLCanvasElement|null):void {
+  /** A layer of the city map over the ground, or none (layerOverlay.ts); the traffic layer also on the roads themselves,
+   * each in its traffic's colour (trafficLayer.ts), where the city has trips on its road graph */
+  showLayer(tiles:HTMLCanvasElement|null,layer?:string):void {
     if(!this.layer){if(!tiles)return;this.layer=new LayerOverlay(this.setup.map.width,this.setup.map.height,this.terrain);this.scene.add(this.layer.root);}
     this.layer.show(tiles);
+    const trafficMap=this.setup.map as unknown as TrafficLayerMap;
+    if(!this.trafficLayer&&layer==='traffic'&&trafficMap.trips){this.trafficLayer=new TrafficLayer(trafficMap,this.terrain,this.snapshot.realUnits??1);this.scene.add(this.trafficLayer.root);}
+    this.trafficLayer?.show(Boolean(tiles)&&layer==='traffic');
   }
   /** The ground the object on a tile stands on, as drawn and turned (overlay.ts inspected): its lot (roadCurves.ts), else
    * the building, plot or shophouse terrace placed there; null for open land, woods, water, roads and an empty zone */
@@ -496,7 +504,16 @@ export class CityView3D implements CityView {
     if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
       this.buses.update(this.curves.drawnLines,this.seconds);}
     this.pedestrians.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds);
-    this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
+    // The cars of the city's real trips on the road graph (tripCars.ts, docs/NO_GRID_PLAN.md 1.5), and where there are
+    // none (a province map, a city still without them) the old cars wandering the roads
+    const tripMap=this.setup.map as unknown as TripCarsMap;
+    if(!this.tripCars&&tripMap.trips){this.tripCars=new TripCars(tripMap,this.terrain,this.setup.region,this.sprites.size,this.snapshot.realUnits??1);this.scene.add(this.tripCars.root);}
+    const tripsDrive=this.tripCars?.active??false;
+    if(this.tripCars)this.tripCars.root.visible=tripsDrive;
+    if(tripsDrive)this.tripCars!.update(this.navigation.target,this.navigation.distance,this.seconds,this.hourOfDay());
+    this.roadTraffic.root.visible=!tripsDrive;
+    this.trafficLayer?.update();
+    if(!tripsDrive)this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
     this.foliage.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance);
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);
@@ -632,7 +649,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

@@ -458,9 +458,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
 
   this.mapWindow = new MapWindow(opacityLayerID, 'mapWindow');
   // The layer the city map shows lies over the city's ground while the window is open (src/render3d/city/layerOverlay.ts)
-  this.mapWindow.onLayer = function(tiles) {
+  this.mapWindow.onLayer = function(tiles, layer) {
     if (typeof this.cityView.showLayer === 'function')
-      this.cityView.showLayer(tiles);
+      this.cityView.showLayer(tiles, layer);
   }.bind(this);
   this.mapWindow.addEventListener(Messages.MAP_WINDOW_CLOSED, function(target) {
     this.genericDialogClosure();
@@ -801,6 +801,17 @@ Game.prototype.mapOverlays = function() {
     var score = scores[y * map.width + x];
     return score < 0 ? null : score;
   };
+  // ... and on a real-scale city map the roads as full as the month's trips make them (src/sim/cityTrips.ts)
+  var trips = map.trips;
+  if (trips && trips.roadTiles) {
+    var full = new Float32Array(map.width * map.height).fill(-1);
+    for (var t = 0; t < trips.roadTiles.length; t++)
+      full[trips.roadTiles[t]] = trips.roadFull[t];
+    overlays.roadFull = function(x, y) {
+      var value = full[y * map.width + x];
+      return value < 0 ? null : value;
+    };
+  }
   return overlays;
 };
 
