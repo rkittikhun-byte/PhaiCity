@@ -40,7 +40,7 @@ function town(cars: number) {
   };
   const result = monthTrips({ net, places, seed: 9 });
   const trips = { roads, net, places, result, step: 0, homeToWork: new Float32Array(0), jobToHome: new Float32Array(0),
-    trafficTiles: new Int32Array(0), traffic: new Uint8Array(0) };
+    trafficTiles: new Int32Array(0), traffic: new Uint8Array(0), roadTiles: new Int32Array(0), roadFull: new Float32Array(0) };
   const map = { width: 200, height: 200, tileSizeM: 16, roadGraph: graph, trips };
   void homes; void jobs;
   return { graph, map, side, main };
