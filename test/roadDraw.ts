@@ -8,7 +8,7 @@
 
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
-import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapToRoads, snapWay, type Metres } from "../src/roads/roadDraw";
+import { alongside, lineLength, lineOfPoints, linePrice, lineTiles, snapWay, type Metres } from "../src/roads/roadDraw";
 import { isRoadTile } from "../src/roadTiles";
 
 /** A bare 16 m city map, 60 × 40 tiles (960 × 640 m) */
@@ -70,17 +70,6 @@ describe("drawing roads in metres", () => {
     // A bridge tile costs five times a tile
     expect(linePrice(10, 16, 160, [...Array(10).fill(10), 50])).toBe(140);
     expect(linePrice(10, 16, 0, [])).toBe(0);
-  });
-
-  test("a click lands on a node, else a road's end, else the nearest point of a road, within reach", () => {
-    const lines: Metres[][] = [[[0, 100], [200, 100]], [[100, 100], [100, 300]]];
-    const nodes: Metres[] = [[100, 100]];
-    expect(snapToRoads([103, 104], 8, nodes, lines)).toMatchObject({ point: [100, 100], kind: "node" });
-    expect(snapToRoads([196, 103], 8, nodes, lines)).toMatchObject({ point: [200, 100], kind: "end", way: [1, 0] });
-    const on = snapToRoads([150.5, 106], 8, nodes, lines)!;
-    expect(on.kind).toBe("road");
-    expect(on.point).toEqual([150.5, 100]);
-    expect(snapToRoads([150, 120], 8, nodes, lines)).toBeNull();
   });
 
   test("a point nearly straight on from the last lands straight on, and square to the road it left", () => {

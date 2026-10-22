@@ -4,9 +4,9 @@
 
 // Drawing a road or railway in metres (docs/METRE_DRAWING_PLAN.md 1.5): the clicked points as the line the road command
 // lays (src/cityCommands.ts road), the tiles it will lay worked out exactly as the command works them out, its length
-// and price by the metre, where a click lands (a node, a road's end, the road itself, or a straight or square way from
-// the last point), and whether it runs too close alongside a road already there. Plain code, no DOM: metres from the
-// map's corner, x east and z south.
+// and price by the metre, a straight or square way from the last point (where a click lands: src/roads/roadSnap.ts),
+// and whether it runs too close alongside a road already there. Plain code, no DOM: metres from the map's corner, x
+// east and z south.
 
 import { RoadGraph } from "./roadGraph";
 import { segmentTiles, type RasterMap } from "./roadRaster";
@@ -103,49 +103,6 @@ export function linePrice(tilePrice: number, tileSizeM: number, metres: number, 
   if (!tileCosts.length) return 0;
   const fresh = tileCosts.filter((cost) => cost > 0).length, extra = tileCosts.reduce((sum, cost) => sum + Math.max(0, cost - tilePrice), 0);
   return Math.round(tilePrice * metres / tileSizeM * fresh / tileCosts.length) + extra;
-}
-
-/** Where a click joins a road: a node or a road's end, or the road itself, and the way the road runs there */
-export interface RoadSnap {
-  point: Metres;
-  kind: "node" | "end" | "road";
-  /** The way the road runs there (out of its end for an end), a unit vector */
-  way: Metres | null;
-}
-
-/**
- * Where a click near the roads lands (docs/METRE_DRAWING_PLAN.md 3: only onto what is on the screen, within reach):
- * a node within reach (where roads meet), else a road's end, else the nearest point of a road's middle line; null
- * when none is that near. nodes: the junctions; lines: the roads' middle lines, each as points.
- */
-export function snapToRoads(p: Metres, reach: number, nodes: readonly Metres[], lines: readonly (readonly Metres[])[]): RoadSnap | null {
-  let node: Metres | null = null, nodeD = reach;
-  for (const n of nodes) { const d = dist(n, p); if (d <= nodeD) { node = n; nodeD = d; } }
-  let end: RoadSnap | null = null, endD = reach;
-  let on: RoadSnap | null = null, onD = reach;
-  for (const line of lines) {
-    if (line.length < 2) continue;
-    for (const [i, j] of [[0, 1], [line.length - 1, line.length - 2]]) {
-      const d = dist(line[i], p);
-      if (d <= endD) {
-        const len = dist(line[i], line[j]) || 1;
-        end = { point: line[i], kind: "end", way: [(line[i][0] - line[j][0]) / len, (line[i][1] - line[j][1]) / len] };
-        endD = d;
-      }
-    }
-    for (let i = 1; i < line.length; i++) {
-      const a = line[i - 1], b = line[i], dx = b[0] - a[0], dz = b[1] - a[1], len2 = dx * dx + dz * dz;
-      if (!len2) continue;
-      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / len2));
-      const q: Metres = [a[0] + dx * t, a[1] + dz * t], d = dist(q, p);
-      if (d <= onD) { const len = Math.sqrt(len2); on = { point: q, kind: "road", way: [dx / len, dz / len] }; onD = d; }
-    }
-  }
-  if (node) {
-    const along = on && dist(on.point, node) < 1 ? on.way : null;
-    return { point: node, kind: "node", way: along };
-  }
-  return end ?? on;
 }
 
 /**

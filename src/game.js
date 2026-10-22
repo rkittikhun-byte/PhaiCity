@@ -62,7 +62,8 @@ import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine 
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
 import { canalGraphLines } from './roads/canalLines.ts';
-import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice, snapToRoads, snapWay } from './roads/roadDraw.ts';
+import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice } from './roads/roadDraw.ts';
+import { MARK_STEP_M, snapNext, snapPoints, snapStart } from './roads/roadSnap.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
 import { roadPose } from './buildings/roadPose.ts';
@@ -2118,6 +2119,20 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.linePoint = linePoint;
     var started = this.lineDraft && this.lineDraft.tool === this.inputStatus.toolName ? this.lineDraft.startPoint : null;
     hover.lineStart = started || null;
+    // ... in the look of what it lands on, for the tools that draw in metres (metrePoint): a junction, a road's end, a
+    // point along a road, the road's middle line or a guideline, with the way the road runs there
+    if (isMetreTool(this.inputStatus.toolName)) {
+      var landing = this.metrePoint(this.inputStatus.toolName, this.inputStatus.mouseX, this.inputStatus.mouseY,
+                                    this.inputStatus.shiftHeld);
+      var metresATile = tileMetres(cityMap);
+      if (landing !== null) {
+        hover.snapKind = landing.guide;
+        hover.snapWay = landing.way ? {x: landing.way[0], y: landing.way[1]} : null;
+        hover.snapGuide = landing.guideLine ? landing.guideLine.map(function(m) {
+          return {x: m[0] / metresATile, y: m[1] / metresATile};
+        }) : null;
+      }
+    }
   }
 
   // Drawing by modes (src/drawModes.ts): the line, curve, grid, rectangle or fill it would build, and beside the
@@ -2143,8 +2158,13 @@ Game.prototype.calculateMouseForPaint = function() {
   }
   // ... and where the mouse is when the click would land elsewhere, joined to where it lands (src/drawReadout.ts)
   var readout = preview !== null ? preview.readout : null;
-  if (readout && (readout.raw.x !== readout.landed.x || readout.raw.y !== readout.landed.y))
+  if (readout && readout.mouse) {
+    // ... exactly, for the tools that draw in metres, when the snap moves the click more than a few pixels
+    if (readout.moved > CURSOR_LINK_PIXELS * this.metresPerPixel())
+      hover.cursorPoint = readout.mouse;
+  } else if (readout && (readout.raw.x !== readout.landed.x || readout.raw.y !== readout.landed.y)) {
     hover.cursorPoint = {x: readout.raw.x + 0.5, y: readout.raw.y + 0.5};
+  }
   this.showDrawTip(preview);
   // ... the tip beside the mouse saying why a building may not go there (a building has no drawing to show)
   if (preview === null && refusalTip)
@@ -2173,6 +2193,9 @@ Game.prototype.areaCentresFor = function(drag, size) {
   return areaCentres(from, to, size);
 };
 
+
+// A snap that moves a click more than this many pixels shows the mouse joined to where it lands
+var CURSOR_LINK_PIXELS = 3;
 
 // The erasers' grey, and the farm zone's olive from the theme (src/theme/tokens.ts)
 var ERASER_COLOUR = '#8c8c8c';
@@ -2252,36 +2275,51 @@ var isMetreTool = function(toolName) {
   return toolName === 'rail' || toolName === 'canal' || ROAD_TOOLS.indexOf(toolName) !== -1;
 };
 
-// ... and a click of one lands (src/roads/roadDraw.ts): on a junction, a road's end or the road itself within
-// SNAP_METRE_PIXELS of it on the screen (only what can be seen, and nothing further), else straight on from the last
-// point, along, square to or at 15° steps from the road it left, or north, east, south, west or between, when nearly
-// so; just where clicked with Shift held or snapping off. The point in metres (m), the ground under the mouse (raw), why
-// it moved (guide: node, end, road, way, angle or null) and the way of the road it joins there
+// ... and a click of one lands (src/roads/roadSnap.ts; owner, 22 Oct 2026: "จุด B มีจุด snap อยู่ ทำให้จุด B ชิดกว่านี้
+// และจุด A มีจุดให้ snap หลายจุดกว่านี้"): the first point (A) on a junction or a road's end the mouse is right on, a point
+// along a road about every 8 m, anywhere on a road (its edges too) or the guideline a block of plots from a straight
+// road; every later point (B) close to the mouse: on a junction, an end or a road only when the mouse is on it or a few
+// pixels off, onto a straight way from the last point only when that moves it a few pixels and metres; just where
+// clicked with Shift held or snapping off. from: the point and way it goes on from, when not the line being drawn (a
+// road drawn freely). The point in metres (m), the ground under the mouse (raw), why it moved (guide: a kind of
+// roadSnap's or null), the way of the road it joins there and a guideline's stretch (guideLine, metres)
 var SNAP_METRE_PIXELS = 14;
-Game.prototype.metrePoint = function(toolName, x, y, free) {
+Game.prototype.metrePoint = function(toolName, x, y, free, from) {
   var view = this.cityView;
   var point = typeof view.pointAt === 'function' ? view.pointAt(x, y) : view.tileAt(x, y);
   if (point === null)
     return null;
   var size = tileMetres(this.gameMap), raw = [point.x * size, point.y * size];
   if (free || !snapOn())
-    return {m: raw, raw: raw, guide: null, way: null};
-  var lines = this.metreLines(toolName);
+    return {m: raw, raw: raw, guide: null, way: null, guideLine: null};
   var draft = this.lineDraft && this.lineDraft.tool === toolName && this.lineDraft.metres ? this.lineDraft : null;
-  var last = draft && draft.metres.length ? draft.metres[draft.metres.length - 1] : null;
-  var reach = this.reachTiles(SNAP_METRE_PIXELS, 0.02, 6) * size;
-  var snap = snapToRoads(raw, reach, lines.nodes, lines.metres);
-  // ... never back onto the point the line is drawn from
-  if (snap !== null && (last === null || Math.hypot(snap.point[0] - last[0], snap.point[1] - last[1]) > 1))
-    return {m: snap.point, raw: raw, guide: snap.kind, way: snap.way};
-  if (last !== null) {
-    var leaving = draft.ways[draft.ways.length - 1];
-    var straight = snapWay(last, raw, leaving, SNAP_DEGREES);
-    if (straight !== null)
-      return {m: straight, raw: raw, guide: leaving ? 'way' : 'angle', way: null};
-  }
-  return {m: raw, raw: raw, guide: null, way: null};
+  var last = from ? from.last : draft && draft.metres.length ? draft.metres[draft.metres.length - 1] : null;
+  var leaving = from ? null : last !== null ? draft.ways[draft.ways.length - 1] : null;
+  // Asked for several times a frame (the marker, the preview, the tip): kept while nothing it depends on changes
+  var mpp = this.metresPerPixel();
+  var key = [toolName, raw[0], raw[1], this._edits, last ? last.join(',') : '', leaving ? leaving.join(',') : '', !!from,
+             Math.round(mpp * 1000)].join('|');
+  if (this._metrePoint && this._metrePoint.key === key)
+    return this._metrePoint.at;
+  var lines = this.metreLines(toolName);
+  var net = {lines: lines.metres, nodes: lines.nodes, half: lines.half};
+  var snap = last === null ? snapStart(raw, mpp, net, ROAD_TOOLS.indexOf(toolName) !== -1 ? GRID_SPACING * size : 0) :
+             snapNext(raw, mpp, net, last, leaving, from ? 0 : SNAP_DEGREES);
+  var at = snap === null ? {m: raw, raw: raw, guide: null, way: null, guideLine: null} :
+           {m: snap.point, raw: raw, guide: snap.kind, way: snap.way, guideLine: snap.guide || null};
+  this._metrePoint = {key: key, at: at};
+  return at;
 };
+
+
+// Metres a pixel on the screen at the mouse, for how near a click snaps (src/roads/roadSnap.ts)
+Game.prototype.metresPerPixel = function() {
+  return this.reachTiles(SNAP_METRE_PIXELS, 0.0005, 60) * tileMetres(this.gameMap) / SNAP_METRE_PIXELS;
+};
+
+
+// How far either side of its middle line a railway and a canal lie on the ground (metres), for a click on them
+var RAIL_HALF_M = 2.5, CANAL_HALF_M = 7.5;
 
 
 // The roads (or railways, or canals) in metres and where they meet, for the tools that draw them (networkLines,
@@ -2313,6 +2351,7 @@ Game.prototype.canalNetwork = function() {
     var inMetres = function(p) { return [p[0] * toMetres, p[1] * toMetres]; };
     this._canalLines = {edits: this._edits, lines: lines,
                         metres: lines.map(function(line) { return line.map(inMetres); }),
+                        half: lines.map(function() { return CANAL_HALF_M; }),
                         nodes: network.junctions.concat(graph ? graph.junctions : []).map(inMetres)};
   }
   return this._canalLines;
@@ -2381,7 +2420,8 @@ Game.prototype.freeRoad = function(data) {
     this._freeRoad = start ? {stroke: data.stroke, last: start.m} : null;
     return;
   }
-  var here = this.metrePoint(toolName, data.x, data.y, !data.release || shift);
+  // ... and lets go as a line's end lands, close to the mouse (src/roads/roadSnap.ts snapNext)
+  var here = this.metrePoint(toolName, data.x, data.y, !data.release || shift, {last: free.last});
   if (here === null)
     return;
   var size = tileMetres(this.gameMap);
@@ -2586,7 +2626,11 @@ Game.prototype.networkLines = function(rail) {
                    metres: drawn.lines.map(function(line) {
                      return line.points.map(function(p) { return [p[0] * toMetres, p[1] * toMetres]; });
                    }),
-                   nodes: drawn.points.map(function(p) { return [p[0] * toMetres, p[1] * toMetres]; })};
+                   nodes: drawn.points.map(function(p) { return [p[0] * toMetres, p[1] * toMetres]; }),
+                   // ... and how far each lies either side of its middle line on the ground, for a click on it
+                   half: drawn.lines.map(function(line) {
+                     return rail ? RAIL_HALF_M : roadReach(line.level || 1, realUnits(map.tileSizeM)) * toMetres;
+                   })};
   }
   return this[cache].lines;
 };
@@ -2823,6 +2867,8 @@ var DOT_STEP = 10;
 Game.prototype.snapDots = function(toolName, tile) {
   if (modeGroupOf(toolName) !== 'line' || toolName === 'wire')
     return null;
+  if (isMetreTool(toolName))
+    return this.metreDots(toolName);
   // As far as a click grabs (roadReach; metrePoint for the roads and railways), so each dot in sight is one a click near
   // it lands on
   var tiles = isMetreTool(toolName) ? this.reachTiles(SNAP_METRE_PIXELS, 0.02, 6) : this.roadReach();
@@ -2857,6 +2903,35 @@ Game.prototype.snapDots = function(toolName, tile) {
   dots = dots.filter(function(dot) {
     return !ends.some(function(end) { return Math.hypot(end.x - dot.x, end.y - dot.y) < 0.5; });
   }).concat(ends);
+  this._snapDots = {key: key, dots: dots};
+  return dots;
+};
+
+
+// ... for the road, railway and canal tools, which draw in metres (src/roads/roadSnap.ts snapPoints): round the mouse,
+// within DOT_PIXELS on the screen (and the points either side however near the camera), where a click lands exactly:
+// for the first point the points along the roads (about every 8 m between their junctions, while they are at least
+// DOT_GAP_PIXELS apart on the screen), their junctions and their dead ends, for a later point, which lands close to the
+// mouse, only the junctions and the dead ends. In tiles: end a dead end, node a junction.
+var DOT_PIXELS = 40, DOT_GAP_PIXELS = 8;
+Game.prototype.metreDots = function(toolName) {
+  var view = this.cityView;
+  var here = typeof view.pointAt === 'function' ? view.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY) : null;
+  if (here === null)
+    return null;
+  var size = tileMetres(this.gameMap), mpp = this.metresPerPixel();
+  var draft = this.lineDraft && this.lineDraft.tool === toolName && this.lineDraft.metres ? this.lineDraft : null;
+  var first = !draft || draft.metres.length === 0;
+  var key = [toolName, Math.round(here.x * size * 4), Math.round(here.y * size * 4), this._edits, first,
+             Math.round(mpp * 1000)].join('|');
+  if (this._snapDots && this._snapDots.key === key)
+    return this._snapDots.dots;
+  var lines = this.metreLines(toolName);
+  var dots = snapPoints([here.x * size, here.y * size], Math.max(DOT_PIXELS * mpp, MARK_STEP_M * 1.5),
+                        {lines: lines.metres, nodes: lines.nodes, half: lines.half},
+                        first && MARK_STEP_M >= DOT_GAP_PIXELS * mpp).map(function(at) {
+    return {x: at.point[0] / size, y: at.point[1] / size, end: at.kind === 'end', node: at.kind === 'node'};
+  });
   this._snapDots = {key: key, dots: dots};
   return dots;
 };
@@ -3140,7 +3215,8 @@ Game.prototype.drawPreview = function(tile) {
   var metre = isMetreTool(toolName);
   var key = [toolName, mode, tile.x, tile.y, this._edits, draft ? JSON.stringify(draft.metres || draft.points) : '',
              drag ? [drag.from.x, drag.from.y, drag.to.x, drag.to.y].join(',') : '', snapOn(),
-             metre ? [this.inputStatus.mouseX, this.inputStatus.mouseY, this.inputStatus.shiftHeld].join(',') : ''].join('|');
+             metre ? [this.inputStatus.mouseX, this.inputStatus.mouseY, this.inputStatus.shiftHeld,
+                      Math.round(this.metresPerPixel() * 1000)].join(',') : ''].join('|');
   if (this._preview !== null && this._preview.key === key)
     return this._preview;
 
@@ -3168,10 +3244,11 @@ Game.prototype.drawPreview = function(tile) {
     var tileOf = function(m) { return {x: Math.floor(m[0] / size), y: Math.floor(m[1] / size)}; };
     var drawn = draft !== null && draft.metres ? draft.metres : [];
     if (at !== null) {
-      guide = at.guide === 'node' || at.guide === 'end' ? 'road' : at.guide === 'way' ? 'way' : null;
+      guide = at.guide === 'node' || at.guide === 'end' ? 'road' : at.guide === 'way' ? 'way' : at.guide === 'guide' ? 'spacing' : null;
+      // ... and beside the mouse what it lands on and how far from the mouse (src/drawReadout.ts)
       readout = {name: POINT_NAMES[drawn.length] || '?', raw: tileOf(at.raw), landed: tileOf(at.m),
-                 why: at.guide === 'end' ? 'end' : at.guide === 'node' || at.guide === 'road' ? 'road' :
-                      at.guide === 'way' ? 'way' : at.guide === 'angle' ? 'angle' : 'none',
+                 why: at.guide === 'guide' ? 'spacing' : at.guide || 'none',
+                 moved: Math.hypot(at.m[0] - at.raw[0], at.m[1] - at.raw[1]), mouse: {x: at.raw[0] / size, y: at.raw[1] / size},
                  start: drawn.length > 0 ? tileOf(drawn[0]) : null};
       if (drawn.length > 0) {
         line = lineOfPoints(drawn.concat([at.m]));
@@ -3313,7 +3390,7 @@ Game.prototype.showDrawTip = function(preview) {
     if (readout.start)
       parts.push(pointText('A', readout.start, tileHeight(map, readout.start)));
     parts.push(nextText(readout.name, readout.raw, tileHeight(map, readout.raw), readout.landed, tileHeight(map, readout.landed),
-                        readout.why));
+                        readout.why, readout.moved));
   }
   if (preview.angle !== null && preview.angle !== undefined && preview.tiles.length > 1)
     parts.push('∠ ' + preview.angle + '°');

@@ -11,8 +11,8 @@
 import { t } from "./i18n/index";
 import type { TilePoint } from "./cityView";
 
-/** Why a click lands where it does (src/game.js snapTile) */
-export type SnapWhy = "on" | "end" | "road" | "spacing" | "angle" | "way" | "none";
+/** Why a click lands where it does (src/game.js snapTile; the road tools' kinds, src/roads/roadSnap.ts) */
+export type SnapWhy = "on" | "node" | "end" | "mark" | "road" | "spacing" | "angle" | "way" | "none";
 
 /** The pixels a tile takes on the screen round (x, y), from where the view finds the ground there; null off the map */
 export function pixelsPerTile(view: { pointAt?(x: number, y: number): { x: number; y: number } | null }, x: number,
@@ -66,11 +66,13 @@ export function pointText(name: string, tile: TilePoint, z: number | null): stri
   return t("draw.debug.point", { name, x: tile.x, y: tile.y, z: metres(z) });
 }
 
-/** The next click: where the mouse is, where it would land, and why: "B: เมาส์ (…) → ลงที่ (…) · ต่อปลายถนน" */
+/** The next click: where the mouse is, where it would land, and why: "B: เมาส์ (…) → ลงที่ (…) · ต่อปลายถนน", and how
+ * many metres from the mouse when a snap moves it (moved, from a tenth of a metre) */
 export function nextText(name: string, raw: TilePoint, rawZ: number | null, landed: TilePoint, landedZ: number | null,
-                         why: SnapWhy): string {
-  return t("draw.debug.next", { name, cx: raw.x, cy: raw.y, cz: metres(rawZ), x: landed.x, y: landed.y, z: metres(landedZ),
+                         why: SnapWhy, moved?: number | null): string {
+  const text = t("draw.debug.next", { name, cx: raw.x, cy: raw.y, cz: metres(rawZ), x: landed.x, y: landed.y, z: metres(landedZ),
     why: t(`draw.debug.why.${why}`) });
+  return moved !== undefined && moved !== null && moved >= 0.1 ? text + " · " + t("draw.debug.moved", { metres: moved.toFixed(1) }) : text;
 }
 
 /** After a line is built: where each point was clicked and where it was used, and how many of its tiles were laid,

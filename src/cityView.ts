@@ -52,9 +52,16 @@ export interface ToolHover {
   lineStart?: { x: number; y: number } | null;
   /** ... and where the mouse is when the click would land elsewhere (a snap moved it, src/drawReadout.ts), in tiles */
   cursorPoint?: { x: number; y: number } | null;
+  /** ... what it lands on, shown in a look of its own (src/roads/roadSnap.ts SnapKind: node a junction, end a road's
+   * end, mark a point along a road, road its middle line, guide a guideline beside a road, way or angle a straight way
+   * from the last point; null where the mouse is), the way the road runs there (a unit vector), and a guideline's
+   * stretch near it (in tiles) */
+  snapKind?: string | null;
+  snapWay?: { x: number; y: number } | null;
+  snapGuide?: ReadonlyArray<{ x: number; y: number }> | null;
   /** ... and a point on each road (or railway) tile near the mouse, on its middle line, where a click may join it; end:
-   * a dead end, where a line goes on from it (src/game.js snapDots) */
-  snapDots?: ReadonlyArray<{ x: number; y: number; end: boolean }> | null;
+   * a dead end, where a line goes on from it; node: a junction (src/game.js snapDots) */
+  snapDots?: ReadonlyArray<{ x: number; y: number; end: boolean; node?: boolean }> | null;
   /** ... and how many pixels a tile takes on the screen there, so they keep their size whatever the zoom */
   tilePixels?: number | null;
   /** The line is drawn in the straight mode: shown as one straight line from its start to its end */
