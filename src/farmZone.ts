@@ -17,9 +17,10 @@
 
 import { drivewayAt, isOpenLand, type PlotMap } from "./plots";
 import { NO_BURNING_YIELD } from "./policies";
+import { isRoadTile } from "./roadLevels";
 import { FARM_KINDS, FARM_ZONE, type FarmKind, type FarmZoneSpec } from "./provinceRules";
 import { Random } from "./random";
-import { BULLBIT, BURNBIT } from "./tileFlags";
+import { BIT_MASK, BULLBIT, BURNBIT } from "./tileFlags";
 import { FIELD_BASE, FIELD_LAST, WATER_HIGH, WATER_LOW } from "./tileValues";
 
 export { FARM_KINDS };
@@ -218,7 +219,7 @@ const DIAGONALS = [[1, -1], [1, 1], [-1, 1], [-1, -1]] as const;
  * Infinity where it does not reach.
  */
 function metreWays(map: PlotMap, starts: ReadonlyArray<[number, number]>, limit: number, startsLead = false,
-                   x0 = 0, y0 = 0, w = map.width, h = map.height): Float64Array {
+                   x0 = 0, y0 = 0, w = map.width, h = map.height, drive: Uint8Array | null = null): Float64Array {
   const width = map.width, tile = map.tileSizeM || 16, diagonal = tile * Math.SQRT2;
   const dist = new Float64Array(w * h).fill(Infinity), open = new Uint8Array(w * h);
   const local = (x: number, y: number): number => (x < x0 || y < y0 || x >= x0 + w || y >= y0 + h ? -1 : (y - y0) * w + (x - x0));
@@ -264,7 +265,7 @@ function metreWays(map: PlotMap, starts: ReadonlyArray<[number, number]>, limit:
   }
   const step = (nx: number, ny: number, nd: number): void => {
     const j = local(nx, ny);
-    if (j < 0 || nd > limit + 1e-6 || nd >= dist[j] || drivewayAt(map, nx, ny)) return;
+    if (j < 0 || nd > limit + 1e-6 || nd >= dist[j] || (drive !== null ? drive[ny * width + nx] === 1 : drivewayAt(map, nx, ny))) return;
     dist[j] = nd;
     push(nd, j);
   };
@@ -335,12 +336,21 @@ export function wayField(map: PlotMap, reach: number): Uint8Array {
   const { width, height } = map, out = new Uint8Array(width * height);
   if (waysInMetres(map)) {
     // Every tile beside a road has its way, a tile's width from the road; open land and fields lead on, in metres
-    const tile = map.tileSizeM || 16, starts: Array<[number, number]> = [];
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      if (drivewayAt(map, x, y)) continue;
-      if (SIDES.some(([dx, dy]) => drivewayAt(map, x + dx, y + dy))) starts.push([y * width + x, tile]);
+    // (each tile's driveway asked once, not five times a tile and again in the search: the month's fields asked it
+    // about 1.4 million times on a 480 x 480 city, a fifth of a month under Jest; the same ways, docs/NO_GRID_PLAN.md 5.1)
+    const tile = map.tileSizeM || 16, starts: Array<[number, number]> = [], drive = new Uint8Array(width * height);
+    const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null;
+    for (let y = 0, i = 0; y < height; y++) for (let x = 0; x < width; x++, i++) {
+      if (raw !== null && !isRoadTile(raw[i] & BIT_MASK)) continue;
+      if (drivewayAt(map, x, y)) drive[i] = 1;
     }
-    const dist = metreWays(map, starts, reach * tile);
+    for (let y = 0, i = 0; y < height; y++) for (let x = 0; x < width; x++, i++) {
+      if (drive[i]) continue;
+      if (y > 0 && drive[i - width] || x < width - 1 && drive[i + 1] || y < height - 1 && drive[i + width] || x > 0 && drive[i - 1]) {
+        starts.push([i, tile]);
+      }
+    }
+    const dist = metreWays(map, starts, reach * tile, false, 0, 0, width, height, drive);
     for (let i = 0; i < dist.length; i++) if (dist[i] !== Infinity) out[i] = waySteps(dist[i], tile);
     return out;
   }

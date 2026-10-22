@@ -68,10 +68,10 @@ export class BlockMap {
   }
 
   public clear() {
-    const data = this.data, width = this._width, height = this._height;
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) data[width * y + x] = 0;
-    }
+    // (a whole array of zeros at once: filled a column at a time, out of order, it was a sparse array, slow to read)
+    const n = this._width * this._height;
+    if (this.data.length === n) this.data.fill(0);
+    else this.data = new Array<number>(n).fill(0);
   }
 
   public copyFrom(source: BlockMap, transform: TransformationFunction = ID) {
