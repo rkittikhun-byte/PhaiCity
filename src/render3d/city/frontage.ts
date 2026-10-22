@@ -30,11 +30,10 @@ export { frontageColumns, type FrontageColumn } from '../../plotColumns.js';
 /** A frontage building's depth, a plot's (metres), and a house's cells along the road */
 export const FRONTAGE_DEPTH_M = 16;
 export const HOUSE_CELLS = 3;
-/** The shop levels each era draws as shophouse bays: the lower row up to the first, the taller up to the second; above
- * that the era's tile model (its office towers in eras 4 and 5) */
-export const BAY_LEVELS: Readonly<Record<number, readonly [number, number]>> = { 1: [2, 4], 2: [2, 4], 3: [2, 4], 4: [1, 2], 5: [1, 2] };
-/** ... and the home levels each era draws as a 12 m house (above: its walk-up flats and condominiums) */
-export const HOUSE_LEVELS: Readonly<Record<number, readonly [number, number]>> = { 1: [2, 4], 2: [2, 4], 3: [1, 3], 4: [1, 3], 5: [1, 3] };
+import { BAY_LEVELS, HOUSE_LEVELS } from '../../plotBuildings.js';
+/** The shop levels each era draws as shophouse bays, and the home levels as a 12 m house: the simulation's, as a plot's
+ * width follows the building it grows (src/plotBuildings.ts needColumns) */
+export { BAY_LEVELS, HOUSE_LEVELS } from '../../plotBuildings.js';
 /** How many columns beside a plot that lie on no plot of their zone it draws, at most, either way */
 export const ORPHAN_REACH = 3;
 
@@ -114,6 +113,43 @@ export function houseSize(plot: FrontagePlot): 1 | 2 | 0 {
   const [low, high] = HOUSE_LEVELS[plot.era] ?? [0, 0];
   if (plot.kind !== 'residential' || plot.lot || plot.level < 1 || plot.level > high) return 0;
   return plot.level <= low ? 1 : 2;
+}
+
+/**
+ * The buildings of one plot of a list (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B) by its frontage, or null when
+ * nothing fits (its one model stands on its columns): a shophouse bay on each of its columns, joined into one terrace
+ * with the bays of the plots beside it, or its 12 m house on its three. own: its columns' indices, left to right;
+ * plotOf: the plot a column belongs to, as its frontage sees it (null for none).
+ */
+export function listFrontagePieces(columns: readonly FrontageColumn[], cu: number, own: readonly number[], plot: FrontagePlot,
+  metre: number, plotOf: (column: number) => FrontagePlot | null): FrontagePiece[] | null {
+  if (!own.length) return null;
+  const depth = FRONTAGE_DEPTH_M * metre, back = depth / 2 - cu / 2;
+  const pose = (c: FrontageColumn): { x: number; z: number; rotation: number } =>
+    ({ x: c.x + c.nx * back, z: c.z + c.nz * back, rotation: Math.atan2(-c.nx, -c.nz) });
+  const row = bayRow(plot);
+  if (row) {
+    const bays = (k: number): boolean => {
+      if (k < 0) return false;
+      const other = plotOf(k);
+      return Boolean(other && bayRow(other));
+    };
+    return own.map(k => {
+      const c = columns[k], left = bays(c.left), right = bays(c.right);
+      let place: BayPlace = left && right ? 'mid' : left ? 'right' : right ? 'left' : 'one';
+      if (place === 'mid') {
+        let steps = 0, j = c.left;
+        while (j >= 0 && bays(j) && steps < 512) { steps++; j = columns[j].left; }
+        place = steps % 2 ? 'mid' : 'mid2';
+      }
+      return { kind: `bay${row}_${place}` as FrontageKind, ...pose(c), width: cu, depth };
+    });
+  }
+  const size = houseSize(plot);
+  if (size && own.length === HOUSE_CELLS) {
+    return [{ kind: `house12_${size}` as FrontageKind, ...pose(columns[own[1]]), width: HOUSE_CELLS * cu, depth }];
+  }
+  return null;
 }
 
 /**

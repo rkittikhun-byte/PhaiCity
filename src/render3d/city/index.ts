@@ -447,9 +447,11 @@ export class CityView3D implements CityView {
   objectGround(index:number):[number,number][]|null {
     const lot=this.curves.lotAt(index);if(lot)return lot.map(p=>[p[0],p[1]]);
     const s=this.snapshot,c=s.coverage[index],anchor=c!==undefined&&c>=0?c:index;
-    const p=s.placement(anchor,'central');
-    if(!p||['terrain','road','rail','shore','debug','veg','power'].includes(p.kind)||p.id?.endsWith('zone_empty'))return null;
-    const g=p.ground(),sin=Math.sin(g.rotation),cos=Math.cos(g.rotation),hw=g.width/2,hd=g.depth/2;
+    // (a plot of a list by its own columns, whichever of its tiles: src/plotBuildings.ts)
+    const plotGround=s.listPlotGround(index);
+    const p=plotGround?null:s.placement(anchor,'central');
+    if(!plotGround&&(!p||['terrain','road','rail','shore','debug','veg','power'].includes(p.kind)||p.id?.endsWith('zone_empty')))return null;
+    const g=plotGround??p!.ground(),sin=Math.sin(g.rotation),cos=Math.cos(g.rotation),hw=g.width/2,hd=g.depth/2;
     const at=(u:number,v:number):[number,number]=>[g.x+cos*u+sin*v,g.z-sin*u+cos*v];
     return [at(-hw,-hd),at(hw,-hd),at(hw,hd),at(-hw,hd)];
   }

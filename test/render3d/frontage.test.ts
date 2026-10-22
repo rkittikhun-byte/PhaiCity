@@ -11,8 +11,8 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { CityCore } from '../../src/core/cityCore';
 import { MapGenerator } from '../../src/mapGenerator.js';
-import { plotOf, plotTile } from '../../src/plots';
-import { BLBNCNBIT, POWERBIT } from '../../src/tileFlags';
+import { plotOf } from '../../src/plots';
+import { joinNeighbour, putPlotLevel } from '../../src/plotBuildings';
 import { cellsOf } from '../../src/zoneCells';
 import { BAY_LEVELS, bayRow, FRONTAGE_KINDS, frontagePlan, houseSize } from '../../src/render3d/city/frontage.js';
 import { EraModels, type EraIndex } from '../../src/render3d/city/eraBuildings.js';
@@ -57,11 +57,15 @@ function paint(core: CityCore, zone: 'residential' | 'commercial', x0: number, x
   expect(core.apply({ type: 'zoneCells', zone, cells: south(core, x0, x1).map(c => c.key) }).accepted).toBe(true);
 }
 
-/** Every plot on row 11 between x0 and x1 grown to a level */
+/** Every plot counted on row 11 between x0 and x1 grown to a level: the plots of the list this map keeps
+ * (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B) */
 function grow(core: CityCore, x0: number, x1: number, level: number): void {
-  for (let x = x0; x <= x1; x++) {
-    const plot = plotOf(core.map as any, x, 11);
-    if (plot) core.map.setTile(x, 11, plotTile(plot.kind, level), BLBNCNBIT | POWERBIT);
+  const list = (core.map as any).plotBuildings;
+  for (const p of list.all()) {
+    const anchor = list.places.get(p.id)?.anchor;
+    if (anchor === undefined) continue;
+    const x = anchor % core.map.width, y = Math.floor(anchor / core.map.width);
+    if (y === 11 && x >= x0 && x <= x1) putPlotLevel(core.map as any, p, level);
   }
 }
 
@@ -149,17 +153,24 @@ describe('frontage: era models by the painted cells along the road', () => {
     grow(core, 20, 20, 1);
     const s = snapshot(core);
     expect(drawn(s, 20, 20).map(kindOf)).toEqual(['bay1_one', 'bay1_one']);
-    // ... next to each other they join
+    // ... next to each other they join, once the shop painted between them is built
     paint(core, 'commercial', cols[1] - 1, cols[1] + 1);
+    grow(core, 20, 20, 1);
     s.sync(core.map as never);
     expect(drawn(s, 20, 20).sort(leftToRight).map(kindOf)).toEqual(['bay1_left', 'bay1_mid', 'bay1_right']);
-    // ... in era 4 a level-3 shop is an office tower, the era's tile model
+    // ... in era 4 a level-3 shop is an office tower, the era's tile model, on a plot a tile wide: the three bays and
+    // the fourth column joined into one (src/plotBuildings.ts needColumns, joinNeighbour)
     (core.map as any).era = 4;
-    grow(core, 20, 20, 3);
+    paint(core, 'commercial', cols[3] - 1, cols[3] + 1);
+    const list = (core.map as any).plotBuildings, shops = list.all().filter((p: any) => list.places.get(p.id)?.anchor === 11 * s.width + 20);
+    const first = shops[0];
+    while (joinNeighbour(core.map as any, list, first));
+    expect(first.columns.length).toBe(4);
+    putPlotLevel(core.map as any, first, 3);
     s.sync(core.map as never);
     const tower = s.placement(11 * s.width + 20, 'central')!;
     expect(tower.id).toBe('era.4.shop_3');
-    expect(tower.parts).toBeUndefined();
+    expect(tower.parts).toEqual([]);
     // ... and with no frontage models in the index every plot keeps its tile model
     (core.map as any).era = 3;
     grow(core, 20, 20, 1);
@@ -169,22 +180,27 @@ describe('frontage: era models by the painted cells along the road', () => {
     expect(plain.placement(11 * s.width + 20, 'central')!.id).toBe('era.3.shop_1');
   });
 
-  test('paint left beside a plot is drawn by it, as part of its terrace', () => {
+  test('paint beside a plot, three cells of a column, is a plot of its own that joins the terrace once it grows', () => {
+    // (where the plots are a list, docs/NO_GRID_PLAN.md 3B.1: one row of paint is enough, and no paint is left over
+    // for a plot beside it to draw)
     const core = city();
     const cols = columnsOn(core, 30), next = columnsOn(core, 31);
-    // Tile 30 painted whole, and three cells of a column of tile 31: not enough for a plot there (a column the whole
-    // plot deep would be one, zoneCells PLOT_COVER)
     paint(core, 'commercial', 300, 310);
     const stub = south(core, next[0] - 1, next[0] + 1).filter(c => c.row < 3).map(c => c.key);
     expect(stub.length).toBe(3);
     expect(core.apply({ type: 'zoneCells', zone: 'commercial', cells: stub }).accepted).toBe(true);
-    expect(plotOf(core.map as any, 31, 11)).toBeNull();
+    expect(plotOf(core.map as any, 31, 11)).toMatchObject({ kind: 'commercial', level: 0 });
     grow(core, 30, 30, 2);
     const s = snapshot(core);
-    const bays = drawn(s, 29, 32);
+    let bays = drawn(s, 29, 32);
+    expect(bays.length).toBe(cols.length);
+    expect(bays.sort(leftToRight).map(kindOf)[0]).toBe('bay1_left');
+    grow(core, 31, 31, 2);
+    s.sync(core.map as never);
+    bays = drawn(s, 29, 32);
     expect(bays.length).toBe(cols.length + 1);
-    expect(bays.every(b => b.tile === 30)).toBe(true);
     const kinds = bays.sort(leftToRight).map(kindOf);
+    expect(kinds[0]).toBe('bay1_left');
     expect(kinds[kinds.length - 1]).toBe('bay1_right');
   });
 
@@ -205,9 +221,12 @@ describe('frontage: era models by the painted cells along the road', () => {
     grow(core, 40, 40, 1);
     s.sync(core.map as never);
     expect(s.placement(11 * s.width + 40, 'central')!.id).toBe('era.3.house12_1');
+    // ... a fourth column painted beside it is a plot of its own, an empty lot, and the house stays
+    // (src/plotBuildings.ts: a plot keeps its columns)
     paint(core, 'residential', cols[3] - 1, cols[3] + 1);
     s.sync(core.map as never);
-    expect(s.placement(11 * s.width + 40, 'central')!.id).toBe('era.3.home_1');
+    expect(s.placement(11 * s.width + 40, 'central')!.id).toBe('era.3.house12_1');
+    expect((core.map as any).plotBuildings.all().map((p: any) => p.columns.length)).toEqual([3, 1]);
   });
 
   test('one column of shop paint the whole plot deep is a plot of its own: a lone shophouse bay', () => {
@@ -228,6 +247,10 @@ describe('frontage: era models by the painted cells along the road', () => {
     const core = city();
     paint(core, 'commercial', 500, 510);
     (core.map as any).era = 4;
+    // (the tile's four shop columns one plot a tile wide, as an office tower takes: src/plotBuildings.ts)
+    const list = (core.map as any).plotBuildings, first = list.all()[0];
+    grow(core, 50, 50, 1);
+    while (joinNeighbour(core.map as any, list, first));
     grow(core, 50, 50, 3);
     const s = snapshot(core);
     // as in the game, whose roads are curves its buildings stand against
@@ -250,7 +273,9 @@ describe('frontage: era models by the painted cells along the road', () => {
     grow(core, 44, 44, 2);
     const s = snapshot(core);
     expect(drawn(s, 44, 44).length).toBe(2);
+    // (a plot of its own, an empty lot until it grows: src/plotBuildings.ts)
     paint(core, 'commercial', cols[2] - 1, cols[2] + 1);
+    grow(core, 44, 44, 2);
     expect(s.sync(core.map as never)).toContain(11 * s.width + 44);
     expect(drawn(s, 44, 44).length).toBe(3);
   });

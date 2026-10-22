@@ -8,14 +8,15 @@ import { staircase as staircaseOf, staircaseVariant } from '../models/road/centr
 import { railForMask } from '../models/rail/track.js';
 import { powerForMask } from '../models/power/power.js';
 import { BIT_MASK, POWERBIT, ZONEBIT } from '../../tileFlags.js';
-import { cellPlotPose, type CellMap } from '../../zoneCells.js';
+import { CELL_M, cellPlotPose, type CellMap } from '../../zoneCells.js';
 import { CIVIC, FARM, HARBOUR, MINE, PLANT2, PLANT2_BASE, PLANT3, PLANT3_BASE, POWERPLANT, STATION, WASTE } from '../../tileValues.js';
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
-import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, readPlotValue } from '../../plots.js';
+import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, plotTile, PLOT_TOP, readPlotValue } from '../../plots.js';
+import { LOT_COLUMNS, type PlotBuilding, type PlotBuildings, type PlotListMap, usesPlotList } from '../../plotBuildings.js';
 import type { CityMapReader } from './types.js';
-import { FrontagePlacement, Placement, RoadsidePlacement, type PlacementFields } from './placement.js';
-import { frontagePieces, mapFrontagePlan, type FrontagePlan, type FrontagePlot } from './frontage.js';
+import { FrontagePlacement, type FrontageGround, Placement, RoadsidePlacement, type PlacementFields } from './placement.js';
+import { FRONTAGE_DEPTH_M, frontagePieces, listFrontagePieces, mapFrontagePlan, type FrontagePlan, type FrontagePlot } from './frontage.js';
 import { roadReach } from '../../roadGeometry.js';
 import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
@@ -254,6 +255,8 @@ export class TileSnapshot implements CityMapReader {
     changed.push(...this.posesMoved(map));
     // ... and a big building's site that came or was finished changes no tile either (src/construction.ts)
     changed.push(...this.sitesMoved(map));
+    // ... and a plot of the list that grew, joined or went, which the tile it is counted at may not show (plotsMoved)
+    changed.push(...this.plotsMoved());
     if (count >= 0 && count === this.seenChanges && !this.initialSync) {
       if (rl) for (let i = 0; i < rl.length; i++) if (rl[i] !== this.levelsCopy[i]) { this.levelsCopy[i] = rl[i]; changed.push(i); }
       changed.push(...this.paintMoved(map));
@@ -289,6 +292,25 @@ export class TileSnapshot implements CityMapReader {
     if (first) this.paintSeen = (map as { zoneCellsVersion?: number }).zoneCellsVersion ?? 0;
     else changed.push(...this.paintMoved(map));
     return changed;
+  }
+  /** The list's count of changes when last looked at, and what each tile the plots are counted at drew then */
+  private plotsSeen = -1;
+  private plotSigns = new Map<number, string>();
+  /** The tiles whose plots of the list changed since the last look (src/plotBuildings.ts): each is drawn from the tile
+   * it is counted at, which a change to it need not touch */
+  private plotsMoved(): number[] {
+    const list = this.plotList();
+    if (!list || list.version === this.plotsSeen) return [];
+    this.plotsSeen = list.version;
+    const signs = new Map<number, string>();
+    for (const [anchor, ids] of list.byAnchor) {
+      signs.set(anchor, ids.map(id => { const p = list.get(id); return p ? `${id}:${p.level}:${p.value}:${p.style}:${p.columns.join(',')}` : ''; }).join(';'));
+    }
+    const moved: number[] = [];
+    for (const [anchor, sign] of signs) if (this.plotSigns.get(anchor) !== sign) moved.push(anchor);
+    for (const anchor of this.plotSigns.keys()) if (!signs.has(anchor)) moved.push(anchor);
+    this.plotSigns = signs;
+    return moved;
   }
   /** The painted cells' count of changes when last looked at (src/zoneCells.ts zoneCellsVersion), and the plots'
    * frontage worked out from them (frontage.ts), again when a tile or the paint changes */
@@ -580,6 +602,100 @@ export class TileSnapshot implements CityMapReader {
       powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:hash%SEED_BUCKETS,variant:lot.value,state,
         waterMask:0,landMask:15,worldOrigin:[cx,cz],worldRotationY:rotation}});
   }
+  /** The plots of the list where the city keeps them as one (src/plotBuildings.ts), or null */
+  private plotList():PlotBuildings|null {
+    const s=this.source as unknown as PlotListMap|null;
+    return s&&usesPlotList(s)&&this.paintedZones?s.plotBuildings??null:null;
+  }
+  /**
+   * The buildings of the plots counted at tile i (src/plotBuildings.ts, docs/NO_GRID_PLAN.md 3B): each plot's shophouse
+   * bays or 12 m house along its own columns (frontage.ts), or its one model standing on them, its front against the
+   * road, no wider than they are; null where none counted here has a building
+   */
+  private listPlacement(i:number,region:RegionId,list:PlotBuildings):Placement|null {
+    const plots=list.atAnchor(i).filter(p=>p.level>0);
+    if(!plots.length||!this.source)return null;
+    const metre=unitsPerMetre(tileMetres(this.source)),cu=CELL_M*metre,placed:Placement[]=[];
+    let ground:FrontageGround|null=null;
+    const frontPlot=(p:PlotBuilding):FrontagePlot=>({kind:p.kind,level:p.level,lot:p.columns.length>=LOT_COLUMNS,era:this.eraOf(list.places.get(p.id)?.anchor??i)});
+    for(const plot of plots){
+      const place=list.places.get(plot.id);
+      const own=place?this.plotGround(list,plot):null;
+      if(!place||!own)continue;
+      // (the ground and far box of them all: from the first plot's left end to the last's right end along its road)
+      if(!ground)ground={...own};
+      else{
+        const g:FrontageGround=ground,rx:number=Math.cos(g.rotation),rz:number=-Math.sin(g.rotation),half=g.width/2;
+        const a=(g.x-own.x)*rx+(g.z-own.z)*rz;
+        const lo=Math.min(-half,-a-own.width/2),hi=Math.max(half,-a+own.width/2),mid=(lo+hi)/2;
+        ground={x:g.x+rx*mid,z:g.z+rz*mid,rotation:g.rotation,width:hi-lo,depth:g.depth};
+      }
+      const fp=frontPlot(plot);
+      const pieces=this.eraModels?.hasFrontage?listFrontagePieces(list.columns,cu,place.cols,fp,metre,k=>{
+        const other=list.ofColumn(k);return other?frontPlot(other):null;}):null;
+      if(pieces?.length){
+        let ok=true;const mine:Placement[]=[];
+        for(const piece of pieces){
+          const height=this.eraModels!.height(fp.era,region,piece.kind);
+          if(height===null){ok=false;break;}
+          const base=this.listModel(i,plot,region,own);
+          if(!base){ok=false;break;}
+          mine.push(new RoadsidePlacement({...base,id:eraModelId(fp.era,piece.kind),x:piece.x,z:piece.z,rotation:piece.rotation,
+            height,scale:metre,fill:metre,eraKind:piece.kind,
+            options:{...base.options,seed:0,variant:0,state:'closed',worldOrigin:[piece.x,piece.z],worldRotationY:piece.rotation}}));
+        }
+        if(ok){placed.push(...mine);continue;}
+      }
+      const one=this.listModel(i,plot,region,own);
+      if(one)placed.push(one);
+    }
+    if(!placed.length||!ground)return null;
+    const [main,...parts]=placed;
+    return new FrontagePlacement({...main},ground,parts);
+  }
+  /** The ground a plot of the list stands on, from its columns (world units, turned to face its road): as wide as they
+   * run along the road, a plot deep from the road's edge; null when it stands nowhere */
+  private plotGround(list:PlotBuildings,plot:PlotBuilding):FrontageGround|null {
+    const place=list.places.get(plot.id);
+    if(!place||!place.cols.length||!this.source)return null;
+    const metre=unitsPerMetre(tileMetres(this.source)),cu=CELL_M*metre;
+    const cols=place.cols.map(k=>list.columns[k]),first=cols[0],last=cols[cols.length-1];
+    let nx=0,nz=0;for(const c of cols){nx+=c.nx;nz+=c.nz;}
+    const len=Math.hypot(nx,nz)||1;nx/=len;nz/=len;
+    const rotation=Math.atan2(-nx,-nz),width=Math.hypot(last.x-first.x,last.z-first.z)+cu;
+    // its front edge's middle: the front row's middles less half a cell, toward the road
+    const fx=(first.x+last.x)/2-nx*cu/2,fz=(first.z+last.z)/2-nz*cu/2,depth=FRONTAGE_DEPTH_M*metre;
+    return {x:fx+nx*depth/2,z:fz+nz*depth/2,rotation,width,depth};
+  }
+  /** The ground of the plot of the list a tile shows (src/plotBuildings.ts), for the inspector's mark (index.ts
+   * objectGround): the plot's own, whichever tile of it was clicked; null where the plots are no list or none is there */
+  listPlotGround(index:number):FrontageGround|null {
+    const list=this.plotList(),plot=list?.shownAt(index)??null;
+    return list&&plot?this.plotGround(list,plot):null;
+  }
+  /** A plot of the list's one model, standing on its columns (own: the ground they make, world units), its front against
+   * the road, drawn no wider than they are */
+  private listModel(i:number,plot:PlotBuilding,region:RegionId,own:FrontageGround):Placement|null {
+    const top=plot.level>=PLOT_TOP[plot.kind],size=top?LOT_SIZE:1;
+    const named=`plot.${PLOT_MODEL_PREFIX[plot.kind]}_${plot.level}`;
+    const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[plotTile(plot.kind,1,plot.value,plot.style)]?.id??null:registry[named]?named:null;
+    const x=i%this.width,y=Math.floor(i/this.width);
+    const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
+    let p:Placement|null=new Placement({index:i,x:own.x,z:own.z,id,kind:plot.kind,eraKind:plotEraKind(plot.kind,plot.level,top),
+      footprint:[size,size],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
+      color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation:own.rotation,scale:1,
+      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:(plot.id*2654435761>>>0)%SEED_BUCKETS,variant:plot.value,
+        state:'closed',waterMask:0,landMask:15,worldOrigin:[own.x,own.z],worldRotationY:own.rotation}});
+    p=this.atRealSize(this.toEra(p));
+    if(!p)return null;
+    const factor=this.realUnits?shareOf(p):1,scale=BUILDING_SCALE*factor;
+    // as deep as its model: an era model is in metres, a tile 16 m deep, the others 10 model units a tile
+    const deep=size*(p.id?.startsWith('era.')?16:10)*scale,wide=deep;
+    const fit=Math.min(1,own.width/Math.max(1e-6,wide));
+    // ... its front at the plot's front edge: from the plot's middle away from the road by its depth less the plot's
+    const nx=-Math.sin(own.rotation),nz=-Math.cos(own.rotation),shift=deep*fit/2-own.depth/2;
+    return p.againstRoad(own.x+nx*shift,own.z+nz*shift,own.rotation,scale*fit);
+  }
   /** A painted plot's building, facing its road, or null for an empty plot, whose painted ground is enough. */
   private plotPlacement(i:number,x:number,y:number,plot:Plot,region:RegionId,hash:number):Placement|null {
     if(plot.level<=0)return null;
@@ -653,6 +769,10 @@ export class TileSnapshot implements CityMapReader {
   placement(i:number,region:RegionId):Placement|null {
     // The farm zone's fields are drawn by their own layer (farmFields.ts), not as a tile's dirt
     if(isFieldValue(this.values[i]))return null;
+    // Where the plots are a list (src/plotBuildings.ts), each is drawn once, on its own columns, from the tile it is
+    // counted at; the other tiles it shows draw nothing of it
+    const list=this.plotList();
+    if(list&&!(this.flags[i]&ZONEBIT)&&plotKindOfValue(this.values[i])!==null)return this.listPlacement(i,region,list);
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
     const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));

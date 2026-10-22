@@ -29,7 +29,7 @@
 
 import { frontageColumns, type FrontageColumn } from "./plotColumns";
 import {
-  CITY_LUCK, commuteCost, DESTINATIONS, grows, homeScore, isOpenLand, type Luck, LOT_LEVEL, NO_ROAD_FOUND, nearestRoad,
+  CITY_LUCK, commuteCost, DESTINATIONS, grows, homeScore, isOpenLand, type Luck, NO_ROAD_FOUND, nearestRoad,
   PLOT_KINDS, PLOT_SHARE, PLOT_TOP, type PlotKind, plotKindOfValue, plotEnvironmentClass, type PlotScanMap,
   type PlotSimData, plotTile, plotWhyOf, readPlotValue, ROUTE_FOUND, shrinks, tripMinutes, WHY, DENSITY_TO_RISE,
 } from "./plots";
@@ -39,13 +39,37 @@ import { CELL_M, type CellLayout, type CellMap, type CellPlotMap, PLOT_ROWS, ras
 import { BLBNCNBIT, POWERBIT, ZONEBIT } from "./tileFlags";
 import { DIRT } from "./tileValues";
 import { isCityTileSize } from "./units";
+import { mapEra } from "./era";
 
 /** How many columns (4 m each) along its road each kind's plot takes: a shophouse bay, a 12 m house, a 16 m works */
 export const PLOT_FRONTAGE: Readonly<Record<PlotKind, number>> = { residential: 3, commercial: 1, industrial: 4 };
 /** How wide a plot must be for its kind's top level (columns): 32 m, the side of an old lot of four tile plots */
 export const LOT_COLUMNS = 8;
-/** The widest two plots joined may be (columns) */
+/** ... and for a building of a whole tile, a walk-up block, an office tower or a works (columns): 16 m */
+export const TILE_COLUMNS = 4;
+/** The widest plots joined may be (columns) */
 export const MERGE_MAX_COLUMNS = 12;
+/** The shop levels each era builds as shophouse bays (art/buildings, src/render3d/city/frontage.ts), on one column each:
+ * the lower row up to the first, the taller up to the second; above that the era's tile model (its office towers in
+ * eras 4 and 5), a tile wide */
+export const BAY_LEVELS: Readonly<Record<number, readonly [number, number]>> = { 1: [2, 4], 2: [2, 4], 3: [2, 4], 4: [1, 2], 5: [1, 2] };
+/** ... and the home levels each era builds as a 12 m house on three columns (above: its walk-up flats and
+ * condominiums, a tile wide) */
+export const HOUSE_LEVELS: Readonly<Record<number, readonly [number, number]>> = { 1: [2, 4], 2: [2, 4], 3: [1, 3], 4: [1, 3], 5: [1, 3] };
+
+/**
+ * How many columns along its road a building of a kind and level needs in an era (docs/NO_GRID_PLAN.md 3B.2): a
+ * shophouse bay one, a 12 m house three (PLOT_FRONTAGE), a building of a whole tile four, the top level eight (a lot).
+ * A plot narrower than its next level needs takes in the plots of its kind beside it first (joinNeighbour).
+ */
+export function needColumns(kind: PlotKind, level: number, era: number): number {
+  if (level >= PLOT_TOP[kind]) return LOT_COLUMNS;
+  if (level <= 0) return 1;
+  const bays = (BAY_LEVELS[era] ?? BAY_LEVELS[1])[1], houses = (HOUSE_LEVELS[era] ?? HOUSE_LEVELS[1])[1];
+  if (kind === "commercial") return level <= bays ? 1 : TILE_COLUMNS;
+  if (kind === "residential") return level <= houses ? PLOT_FRONTAGE.residential : TILE_COLUMNS;
+  return PLOT_FRONTAGE.industrial;
+}
 
 const ZONE_KIND: readonly (PlotKind | null)[] = [null, "residential", "commercial", "industrial"];
 const codeOf = (kind: PlotKind): number => PLOT_KINDS.indexOf(kind) + 1;
@@ -423,32 +447,37 @@ function setPlot(map: PlotListMap, list: PlotBuildings, plot: PlotBuilding, leve
   list.version++;
 }
 
-/** Whether a plot of the list may grow a level: the top level only when it is LOT_COLUMNS wide */
-export function plotMayRise(plot: PlotBuilding): boolean {
-  return plot.level + 1 < PLOT_TOP[plot.kind] || plot.columns.length >= LOT_COLUMNS;
+/** A plot's building put to a level (and class), as the simulation grows it, for tests and the tools: the tiles it shows
+ * show it */
+export function putPlotLevel(map: PlotListMap, plot: PlotBuilding, level: number, value = plot.value): void {
+  const list = map.plotBuildings;
+  if (list && list.get(plot.id) === plot) setPlot(map, list, plot, Math.max(0, Math.min(PLOT_TOP[plot.kind], level)), value, plot.style);
+}
+
+/** Whether a plot of the list is wide enough for its next level's building in an era (needColumns) */
+export function plotMayRise(plot: PlotBuilding, era = 1): boolean {
+  return plot.columns.length >= needColumns(plot.kind, plot.level + 1, era);
 }
 
 /**
- * Two plots side by side along the road join into one when the narrower cannot rise to the top level without it
- * (docs/NO_GRID_PLAN.md 3B.2): both of one kind, both grown to their kind's lot level, no wider together than
- * MERGE_MAX_COLUMNS. The older keeps its id and time, the lower level and the richer class. Returns whether they joined.
+ * A plot too narrow for its next level's building takes in the plot of its kind beside it along the road
+ * (docs/NO_GRID_PLAN.md 3B.2; owner's taste, docs/design/LOOK_BOOK.md: a building stands on the ground it takes), as a lot
+ * of four tile plots once joined: one no taller than it, an empty lot of its kind too, no wider together than
+ * MERGE_MAX_COLUMNS. It keeps its id, its time and its level, and the richer class; the other's building makes way.
+ * Returns whether they joined.
  */
 export function joinNeighbour(map: PlotListMap, list: PlotBuildings, plot: PlotBuilding): boolean {
   const place = list.places.get(plot.id);
-  if (!place || plot.level < LOT_LEVEL[plot.kind]) return false;
+  if (!place || plot.level < 1) return false;
   for (const side of ["right", "left"] as const) {
     const end = side === "right" ? place.cols[place.cols.length - 1] : place.cols[0];
     const other = list.ofColumn(list.columns[end][side]);
-    if (!other || other.id === plot.id || other.kind !== plot.kind || other.level < LOT_LEVEL[plot.kind] ||
+    if (!other || other.id === plot.id || other.kind !== plot.kind || other.level > plot.level ||
       plot.columns.length + other.columns.length > MERGE_MAX_COLUMNS) continue;
-    const [keep, drop] = plot.id < other.id ? [plot, other] : [other, plot];
-    const columns = side === "right" ? [...plot.columns, ...other.columns] : [...other.columns, ...plot.columns];
-    keep.columns = columns;
-    keep.level = Math.min(plot.level, other.level);
-    keep.value = Math.max(plot.value, other.value);
-    keep.born = Math.min(plot.born, other.born);
-    list.remove(drop.id);
-    for (let i = 0; i < list.owner.length; i++) if (list.owner[i] === drop.id) list.owner[i] = keep.id;
+    plot.columns = side === "right" ? [...plot.columns, ...other.columns] : [...other.columns, ...plot.columns];
+    plot.value = Math.max(plot.value, other.value);
+    list.remove(other.id);
+    for (let i = 0; i < list.owner.length; i++) if (list.owner[i] === other.id) list.owner[i] = plot.id;
     placePlots(list, map.width);
     writePlotTiles(map, list);
     return true;
@@ -552,14 +581,22 @@ function growPlot(map: PlotScanMap & PlotListMap, list: PlotBuildings, plot: Plo
       return;
     }
   }
-  const rises = plotMayRise(plot);
+  const rises = plotMayRise(plot, mapEra(map as { era?: unknown }));
   if (map.plotWhy !== undefined) {
     const why = map.plotWhy ?? (map.plotWhy = new Uint8Array(map.width * map.height));
     const reason = WHY(plotWhyOf(map, x, y, sim, plot, powered, watered, traffic === NO_ROAD_FOUND || cutOff, rises));
-    for (const t of list.places.get(plot.id)?.tiles ?? []) if (list.shownBy.get(t) === plot.id || t === y * map.width + x) why[t] = reason;
+    // (one mark a plot, at the tile it is counted at, which the checklist reads: src/plotChecklist.ts)
+    const anchor = y * map.width + x;
+    for (const t of list.places.get(plot.id)?.tiles ?? []) if (t !== anchor && list.shownBy.get(t) === plot.id) why[t] = 0;
+    why[anchor] = reason;
   }
-  // The top level wants a plot as wide as an old lot: one grown far enough joins the plot beside it first
-  const mayRise = (): boolean => plotMayRise(plot) || joinNeighbour(map, list, plot) && list.get(plot.id) === plot && plotMayRise(plot);
+  // A building wider than its plot (a tile's, a lot's) takes in the plots beside it first, one at a time, as long as
+  // it rises (joinNeighbour)
+  const era = mapEra(map as { era?: unknown });
+  const mayRise = (): boolean => {
+    for (let n = 0; n < MERGE_MAX_COLUMNS && !plotMayRise(plot, era); n++) if (!joinNeighbour(map, list, plot)) return false;
+    return plotMayRise(plot, era);
+  };
   const bm = sim.blockMaps;
   if (kind === "residential") {
     if (level > 1 && !luck.getChance(7)) return;

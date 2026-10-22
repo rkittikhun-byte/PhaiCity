@@ -12,7 +12,8 @@ import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
 import { plotOf, plotTile } from "../src/plots";
 import {
-  cutRun, formPlots, joinNeighbour, LOT_COLUMNS, PLOT_FRONTAGE, PlotBuildings, plotShare, usesPlotList,
+  cutRun, formPlots, joinNeighbour, LOT_COLUMNS, needColumns, PLOT_FRONTAGE, PlotBuildings, plotMayRise, plotShare,
+  putPlotLevel, TILE_COLUMNS, usesPlotList,
 } from "../src/plotBuildings";
 import { cellsOf, PLOT_ROWS, syncCellPlots } from "../src/zoneCells";
 import { BLBNCNBIT } from "../src/tileFlags";
@@ -164,24 +165,35 @@ describe("plots as buildings (docs/NO_GRID_PLAN.md 3B)", () => {
     expect(plots.every((p: any) => p.level === 3 && p.value === 1)).toBe(true);
   });
 
-  test("two plots side by side, grown far enough, join for the top level, the older keeping its id and time", () => {
+  test("a plot too narrow for its next building takes in the plot beside it, keeping its id and time", () => {
+    // a 12 m house is three columns; a building of a whole tile four, the top level eight (an old lot's side)
+    expect([needColumns("residential", 2, 1), needColumns("residential", 4, 3), needColumns("residential", 5, 3)])
+      .toEqual([3, TILE_COLUMNS, LOT_COLUMNS]);
+    expect([needColumns("commercial", 2, 4), needColumns("commercial", 3, 4), needColumns("commercial", 3, 3)]).toEqual([1, 4, 1]);
     const core = city(), cols = columns(core, 100, 400);
     core.apply({ type: "zoneCells", zone: "residential", cells: cols.slice(0, 9).flat() });
     const [a, b, c] = list(core).all();
     expect([a, b, c].map((p) => p.columns.length)).toEqual([3, 3, 3]);
-    for (const p of [a, b, c]) p.level = 4;
-    b.born = -5;
+    for (const p of [a, b, c]) putPlotLevel(core.map, p, 4);
+    a.born = -5;
+    expect(plotMayRise(a, 3)).toBe(false);
     expect(joinNeighbour(core.map, list(core), a)).toBe(true);
     const joined = list(core).all();
-    expect(joined.map((p) => [p.id, p.columns.length])).toEqual([[a.id, 6], [c.id, 3]]);
+    expect(joined.map((p) => [p.id, p.columns.length, p.level])).toEqual([[a.id, 6, 4], [c.id, 3, 4]]);
     expect(joined[0].born).toBe(-5);
-    expect(joined[0].columns.length < LOT_COLUMNS).toBe(true);
+    expect(plotMayRise(joined[0], 3)).toBe(false);
     expect(joinNeighbour(core.map, list(core), joined[0])).toBe(true);
     expect(list(core).all().map((p) => p.columns.length)).toEqual([9]);
-    // ... and a plot not grown far enough does not
+    expect(plotMayRise(list(core).all()[0], 3)).toBe(true);
+    // ... never a taller one, and an empty plot takes in nothing
     const other = city(), more = columns(other, 100, 400);
     other.apply({ type: "zoneCells", zone: "residential", cells: more.slice(0, 6).flat() });
-    expect(joinNeighbour(other.map, list(other), list(other).all()[0])).toBe(false);
+    const [d, e] = list(other).all();
+    expect(joinNeighbour(other.map, list(other), d)).toBe(false);
+    putPlotLevel(other.map, d, 2);
+    putPlotLevel(other.map, e, 3);
+    expect(joinNeighbour(other.map, list(other), d)).toBe(false);
+    expect(joinNeighbour(other.map, list(other), e)).toBe(true);
   });
 
   test("a plot whose tile the bulldozer takes is gone; its paint makes an empty plot once the ground is clear", () => {
