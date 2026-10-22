@@ -458,6 +458,20 @@ export class AutoPlayer {
       const f = sides?.[side];
       return f !== undefined && f.value < f.target * CARE_FIRST_BELOW;
     });
+    // ... but first what the era card says the next era still needs (src/eraScore.ts symbols), as a ruler reading it
+    // builds: the first it can build, else money saved for it, which the zones leave alone (eraWant; a water works the
+    // market town waited a year for while its water was not yet short, docs/GAME_DESIGN.md 6.5). After the zones, the
+    // secondary school the technicians need waited three years in a market town whose zones took each year's taxes
+    // first (docs/GAME_DESIGN.md 16)
+    this.eraWant = 0;
+    for (const tool of this.symbolTools()) {
+      const price = core.tools?.[tool]?.toolCost ?? 0;
+      if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); this.eraWant = price + ERA_ASK_SPARE; break; }
+      const n = this.asked++;
+      if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) continue;
+      saveFor(price + ERA_ASK_SPARE);
+      break;
+    }
     if (!careShort) this.paintAhead(valves);
     // ... a landfill more when one is nearly full or rubbish lies in the streets (src/waste.ts)
     const waste = sim._waste;
@@ -468,17 +482,6 @@ export class AutoPlayer {
     const made = rubbishOf(population / 1, 0);
     if ((nearlyFull || room * WASTE_SPECS.landfill.takes < made || (waste?.overflow ?? 0) > OVERFLOW_AT) && budget.totalFunds > 800) {
       this.place("landfill", x + PLANT_FROM, y - 8 - this.year);
-    }
-    // ... and what the era card says the next era still needs (src/eraScore.ts symbols), as a ruler reading it builds:
-    // the first it can build, else money saved for it (a water works the market town waited a year for while its water
-    // was not yet short, docs/GAME_DESIGN.md 6.5)
-    for (const tool of this.symbolTools()) {
-      const price = core.tools?.[tool]?.toolCost ?? 0;
-      if (budget.totalFunds < price + ERA_ASK_SPARE) { saveFor(price + ERA_ASK_SPARE); break; }
-      const n = this.asked++;
-      if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) continue;
-      saveFor(price + ERA_ASK_SPARE);
-      break;
     }
     // ... then a power plant more once the plants give all they have and zones go without (the factories painted by them
     // stay empty and the town has no jobs for newcomers), saved for before anything else is bought: a town that spends
@@ -1199,7 +1202,7 @@ export class AutoPlayer {
     }
     const tool = core.tools.residential;
     const each = cellPrice(tool?.toolCost ?? 100, PAINT_PRICE_SHARE, tileMetres(map)) * (tool?.costFactor ?? 1);
-    const keep = this.kept - this.capsKept;
+    const keep = this.kept - this.capsKept + this.eraWant;
     const spare = Math.min(budget.totalFunds - keep - EXPAND_FROM / 3, (budget.totalFunds - keep) * share);
     const cells = Math.floor(Math.min(PAINT_MOST, room * CELLS_A_PLOT, spare / Math.max(each, 0.01)));
     if (cells < CELLS_A_PLOT * 4) {
@@ -1302,7 +1305,7 @@ export class AutoPlayer {
       if (!clear) continue;
       const price = (length + 1) * each;
       // (out of the money the zones may spend: not what is kept for power and water, but what is for a stadium)
-      if (budget.totalFunds - (this.kept - this.capsKept) < price + EXPAND_FROM / 3) break;
+      if (budget.totalFunds - (this.kept - this.capsKept + this.eraWant) < price + EXPAND_FROM / 3) break;
       const before = budget.totalFunds;
       const centre = (cx: number, cy: number): [number, number] => [(cx + 0.5) * size, (cy + 0.5) * size];
       const out = core.apply({ type: "road", tool: "road" as never, from: centre(x, y), to: centre(x + dx * length, y + dy * length),
