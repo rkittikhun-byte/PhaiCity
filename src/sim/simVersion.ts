@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 15;
+export const SIM_VERSION = 16;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -49,6 +49,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "(NO_GRID_PLAN 4.4)",
   15: "a building whose laid tiles are its square block is never mended over a road, railway or power line on that " +
     "block (one put down against a slanted road kept a corner of it road, which its first mending took, cutting the road)",
+  16: "on a real-scale city map, short of power, the ruler's services (police and fire stations, the water works, the " +
+    "ruler's house, schools and hospitals, not temples) take theirs before every home, shop and factory on their roads, " +
+    "the nearest of them first; the roads go short from the nearest building that went without (GAME_DESIGN 16)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

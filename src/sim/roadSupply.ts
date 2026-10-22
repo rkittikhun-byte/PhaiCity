@@ -10,7 +10,10 @@
 //   the roads that meet make a network (union-find over the graph's nodes); a plant or works joins the networks it
 //   touches; each network's supply is what its sources give, and each building on it takes what its kind and size use;
 //   short of supply, the buildings nearest a source by road are served first (one Dijkstra from all the sources), and
-//   the far ends go without: where the supply ran out is a distance along the roads, which the player can see and mend.
+//   the far ends go without: where the supply ran out is a distance along the roads, which the player can see and mend;
+//   but the ruler's own services (a user marked `first`: schools, hospitals, police, fire, the water works, the ruler's
+//   house) take theirs before any home, shop or factory, the nearest of them first (decided 22 Oct 2026, ไม้ไผ่พ่อ: a
+//   kindergarten far down the road sat dark at 0 places while the one plant lit the homes nearer it, docs/GAME_DESIGN.md 16).
 //
 // Plain code, typed arrays and plain numbers in and out, + - * / only in what decides, so every engine and a worker or
 // the server make the same answer. No DOM, nothing random.
@@ -33,8 +36,9 @@ export interface Attach { k: number; t: number }
 /** A plant, works or well: the roads it touches and what it gives */
 export interface SupplySource { at: readonly Attach[]; amount: number }
 
-/** A building that takes from the supply: the road it reaches and what it takes (0 takes nothing, but is reached) */
-export interface SupplyUser { at: Attach | null; demand: number }
+/** A building that takes from the supply: the road it reaches and what it takes (0 takes nothing, but is reached);
+ *  first: one of the ruler's services, served before every user that is not, wherever it lies on its network */
+export interface SupplyUser { at: Attach | null; demand: number; first?: boolean }
 
 /** Short cables and pipes between roads that nearly meet (src/sim/cityUtilities.ts gapLinks): each joins node a[i] to
  * node b[i], length[i] metres apart along it */
@@ -145,7 +149,8 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
     return d;
   };
 
-  // Each user's network and distance; then each network's users, nearest first (ties by their order given)
+  // Each user's network and distance; then each network's users, the services first, then nearest first (ties by their
+  // order given)
   const n = users.length, served = new Uint8Array(n), reached = new Uint8Array(n), distance = new Float64Array(n).fill(Infinity);
   const part = new Float64Array(n);
   const byNetwork = new Map<number, number[]>();
@@ -165,8 +170,9 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
   let used = 0, short = false;
   for (const r of [...byNetwork.keys()].sort((a, b) => a - b)) {
     const list = byNetwork.get(r)!;
-    list.sort((a, b) => distance[a] - distance[b] || a - b);
-    let left = supplyOf[r], out = false;
+    const rank = (i: number): number => (users[i].first ? 0 : 1);
+    list.sort((a, b) => rank(a) - rank(b) || distance[a] - distance[b] || a - b);
+    let left = supplyOf[r], out = false, nearestShort = Infinity;
     for (const i of list) {
       const demand = users[i].demand;
       if (!(demand > 0)) { served[i] = 1; part[i] = 1; continue; }
@@ -175,13 +181,17 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
         part[i] = 1;
         left -= demand;
         used += demand;
-      } else if (!out) {
+        continue;
+      }
+      if (!out) {
         out = true;
         short = true;
-        cut.set(r, distance[i]);
         part[i] = left > 0 ? left / demand : 0;
       }
+      // (where it ran out: the nearest user that went without, the same as the first one when none comes first)
+      if (distance[i] < nearestShort) nearestShort = distance[i];
     }
+    if (out) cut.set(r, nearestShort);
   }
   // Each road: served where its middle lies nearer its network's sources than where the supply ran out
   const roads = new Uint8Array(segments);

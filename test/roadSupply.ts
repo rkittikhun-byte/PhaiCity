@@ -75,6 +75,25 @@ describe("handing a supply out along the roads", () => {
     expect(linked.distance[1]).toBe(200 + 16 + 100 + 50);
   });
 
+  test("the ruler's services take theirs first, wherever they lie; the roads go short from the nearest user without", () => {
+    const net = row(4);
+    // Homes at 50, 150 and 250 m, a school at the far end (350 m); the source gives 2
+    const users = [0.5, 1.5, 2.5].map((at) => ({ at: { k: Math.floor(at), t: at % 1 }, demand: 1 }));
+    const school = { at: { k: 3, t: 0.5 }, demand: 1, first: true };
+    const out = supplyAlongRoads(net, [{ at: [{ k: 0, t: 0 }], amount: 2 }], [...users, school]);
+    expect(Array.from(out.served)).toEqual([1, 0, 0, 1]);
+    // (the home at 150 m is the nearest to go without: its road and every one past it are short)
+    expect(Array.from(out.roads)).toEqual([ROAD_SERVED, ROAD_SHORT, ROAD_SHORT, ROAD_SHORT]);
+    // ... and among the services, the nearest first; a service that goes without leaves every home without
+    const two = supplyAlongRoads(net, [{ at: [{ k: 0, t: 0 }], amount: 1.5 }],
+      [...users, school, { at: { k: 2, t: 0.5 }, demand: 1, first: true }]);
+    expect(Array.from(two.served)).toEqual([0, 0, 0, 0, 1]);
+    expect(Array.from(two.part)).toEqual([0, 0, 0, 0.5, 1]);
+    // Without a service the order is the distance alone, as before
+    const none = supplyAlongRoads(net, [{ at: [{ k: 0, t: 0 }], amount: 2 }], [...users, { ...school, first: false }]);
+    expect(Array.from(none.served)).toEqual([1, 1, 0, 0]);
+  });
+
   test("a user that takes nothing is reached all the same, past where the supply ran out too", () => {
     const net = row(2);
     const out = supplyAlongRoads(net, [{ at: [{ k: 0, t: 0 }], amount: 1 }],
@@ -168,6 +187,25 @@ describe("power along the roads in a city", () => {
     expect(Math.max(...lit)).toBeLessThanOrEqual(Math.min(...dark));
     expect(told).toBeGreaterThan(0);
     expect(core.simulation._powerManager.load).toBe(1);
+  });
+
+  test("short of power, a school at the far end keeps it before the homes nearer the plant", () => {
+    const core = city();
+    road(core, 10, 2, 58);
+    core.apply({ type: "tool", tool: "coal", x: 4, y: 8 } as any);
+    expect(core.apply({ type: "tool", tool: "primary_school", x: 55, y: 12 } as any).accepted).toBe(true);
+    const along: Array<[number, number]> = [];
+    for (let x = 8; x <= 52; x++) along.push([x, 11], [x, 9]);
+    homes(core, along, 5);
+    core.simulation._powerManager.outputFactor = 40 / 700;
+    settle(core);
+    expect(powered(core, 55, 12)).toBe(true);
+    const lit = along.filter(([x, y]) => powered(core, x, y)).map(([x]) => x);
+    expect(lit.length).toBeGreaterThan(0);
+    expect(lit.length).toBeLessThan(along.length);
+    // ... and the homes still the nearest first
+    const dark = along.filter(([x, y]) => !powered(core, x, y)).map(([x]) => x);
+    expect(Math.max(...lit)).toBeLessThanOrEqual(Math.min(...dark));
   });
 
   test("a road network with no plant is dark until a road joins it, or ends within a short cable's reach of a lit one", () => {

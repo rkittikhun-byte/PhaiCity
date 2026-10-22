@@ -14,6 +14,7 @@
 import { turnedTilesOf, type FootprintMap } from "../buildings/turnedFootprint";
 import { plotAccess, type PlotKind, type PlotMap, plotOf, PLOT_SHARE } from "../plots";
 import type { RoadGraph } from "../roads/roadGraph";
+import { CIVIC, FIRESTATION, POLICESTATION, WATER_WORKS } from "../tileValues";
 import { isCityTileSize } from "../units";
 import { anchorUse, type PlotListMap, usesPlotList } from "../plotBuildings";
 import { blockTiles, centreSize, roadsMet } from "./roadAccess";
@@ -151,6 +152,16 @@ export function plotAttach(map: UtilityMap, roads: RoadNet, tile: number): Attac
   return access && k !== undefined ? { k, t: access.t } : null;
 }
 
+/** Whether the building on centre tile `centre` is one of the ruler's services, which take their power before every
+ *  home, shop and factory on their roads (src/sim/roadSupply.ts SupplyUser.first; decided 22 Oct 2026, docs/GAME_DESIGN.md
+ *  16): a police or fire station, the water works, and the civic buildings (the ruler's house, schools, hospitals), but
+ *  not a temple, which the people built (src/temples.ts) */
+export function servesFirst(map: UtilityMap & { civicKinds?: Record<string, string> | null }, centre: number): boolean {
+  const value = map.getTileValue(centre % map.width, Math.floor(centre / map.width));
+  if (value === POLICESTATION || value === FIRESTATION || value === WATER_WORKS) return true;
+  return value === CIVIC && map.civicKinds?.[centre] !== "temple";
+}
+
 /** The tiles a building on centre tile `centre` stands on: as laid turned, else its square block */
 export function buildingTiles(map: UtilityMap, centre: number, size: number): number[] {
   const value = map.getTileValue(centre % map.width, Math.floor(centre / map.width));
@@ -200,7 +211,8 @@ export interface RoadPower {
 
 /**
  * The power along the roads: each plant feeds the roads it meets; each plot takes its level's power (plotPower) and each
- * zone or building its tiles' worth, the nearest to a plant by road first, until the power runs out.
+ * zone or building its tiles' worth, the ruler's services first (servesFirst), then the nearest to a plant by road,
+ * until the power runs out.
  */
 export function powerAlongRoads(map: UtilityMap, plants: readonly UtilitySource[], users: UtilityUsers): RoadPower {
   const roads = roadNet(map.roadGraph!), sources: SupplySource[] = [], powered: number[] = [];
@@ -227,7 +239,7 @@ export function powerAlongRoads(map: UtilityMap, plants: readonly UtilitySource[
   for (const centre of users.zones) {
     if (isSource.has(centre)) continue;
     const size = centreSize(map.getTileValue(centre % map.width, Math.floor(centre / map.width)));
-    list.push({ at: buildingAttach(map, roads, centre, size), demand: size * size });
+    list.push({ at: buildingAttach(map, roads, centre, size), demand: size * size, first: servesFirst(map, centre) });
     tilesOf.push(() => buildingTiles(map, centre, size));
   }
   const result = supplyAlongRoads(roads, sources, list, gapLinks(map.roadGraph!, roads));
