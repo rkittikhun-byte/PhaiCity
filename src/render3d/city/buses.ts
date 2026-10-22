@@ -3,25 +3,40 @@
  */
 
 // The city's buses (owner, 15 Oct 2026: "ป้ายรถเมล์ ไม่ต้องมีตั้งนะ แค่วาง รถเมล์ ก็ไปรับได้เลย"): each one put down on a
-// road (gameMap.buses, src/busStopTool.ts) drives up and down its road there, picking people up, as the simulation counts
-// it (src/transit.ts). It only reads the map and the roads' lines.
+// road (gameMap.buses, src/busStopTool.ts) drives from there to the town's middle (the ruler's house) and back along the
+// roads as drawn, turning where its way turns (docs/NO_GRID_PLAN.md 1.5, src/render3d/city/graphPaths.ts), picking people
+// up, as the simulation counts it (src/transit.ts); without the road graph or the house, up and down its road there. It
+// only reads the map and the roads' lines.
 
 import { Group, type Object3D } from 'three';
 import { registry } from '../models/registry.js';
 import type { Point } from '../../roadGeometry.js';
+import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityHeightField } from './heightfield.js';
+import { pointAlong, type Way, wayBetween } from './graphPaths.js';
 
 /** How far a bus drives either way from where it was put down (world units), and how fast */
 const RUN = 60;
 const SPEED = 6;
+/** Seconds a bus halts at each end of its way */
+const HALT = 4;
 /** How far left of the road's middle it keeps, as traffic does in Thailand (world units, about 1.6 m) */
 const LANE = 1;
 
-interface BusMap { readonly width: number; buses?: number[] }
+interface BusMap {
+  readonly width: number;
+  buses?: number[];
+  readonly roadGraph?: RoadGraph | null;
+  readonly tileSizeM?: number | null;
+  readonly rulerHouse?: { readonly x: number; readonly y: number } | null;
+}
 
 export class CityBuses {
   readonly root = new Group();
   private readonly models: Object3D[] = [];
+  /** Each bus's way to the town's middle, made again when the roads, the buses or the house change */
+  private ways: Array<Way | null> = [];
+  private waysKey = '';
 
   constructor(private readonly map: BusMap, private readonly terrain: CityHeightField, private readonly size: number) {
     this.root.name = 'buses';
@@ -36,11 +51,24 @@ export class CityBuses {
       this.models.push(model); this.root.add(model);
     }
     this.models.forEach((model, n) => { model.visible = n < buses.length; });
+    this.planWays(buses);
     buses.forEach((index, n) => {
+      const way = this.ways[n], model = this.models[n];
+      if (way) {
+        // Out to the town's middle and back, a halt of a few seconds at each end
+        const lap = way.length * 2 / SPEED + HALT * 2, time = (seconds + n * 7) % lap;
+        const out = time < way.length / SPEED + HALT;
+        const run = out ? Math.min(way.length, Math.max(0, (time - HALT) * SPEED)) : Math.max(0, way.length - (time - way.length / SPEED - HALT * 2) * SPEED);
+        const at = pointAlong(way, run), turn = Math.atan2(out ? at.dx : -at.dx, out ? at.dz : -at.dz);
+        const x0 = at.x + Math.cos(turn) * LANE, z0 = at.z - Math.sin(turn) * LANE;
+        model.position.set(x0, this.terrain.sample(x0, z0), z0);
+        model.rotation.y = turn;
+        model.visible = true;
+        return;
+      }
       const x = (index % this.map.width + 0.5) * 10, z = (Math.floor(index / this.map.width) + 0.5) * 10;
       const phase = seconds * SPEED / RUN + n;
       const place = this.along(lines, x, z, Math.sin(phase) * RUN);
-      const model = this.models[n];
       if (!place) { model.visible = false; return; }
       // It faces the way it drives: back along the line while its run swings back
       const turn = place.turn + (Math.cos(phase) < 0 ? Math.PI : 0);
@@ -48,6 +76,21 @@ export class CityBuses {
       const x0 = place.x + Math.cos(turn) * LANE, z0 = place.z - Math.sin(turn) * LANE;
       model.position.set(x0, this.terrain.sample(x0, z0), z0);
       model.rotation.y = turn;
+    });
+  }
+
+  /** Each bus's way along the road graph from where it was put down to the ruler's house, when both are there */
+  private planWays(buses: readonly number[]): void {
+    const graph = this.map.roadGraph, house = this.map.rulerHouse, size = this.map.tileSizeM ?? 16;
+    const key = `${graph?.version ?? -1}:${buses.join(',')}:${house ? `${house.x},${house.y}` : '-'}`;
+    if (key === this.waysKey) return;
+    this.waysKey = key;
+    const units = 10 / size;
+    this.ways = buses.map((index) => {
+      if (!graph?.segments.size || !house) return null;
+      const from: [number, number] = [(index % this.map.width + 0.5) * size, (Math.floor(index / this.map.width) + 0.5) * size];
+      const way = wayBetween(graph, from, [(house.x + 0.5) * size, (house.y + 0.5) * size], units, size * 3);
+      return way && way.length > 20 ? way : null;
     });
   }
 

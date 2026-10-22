@@ -28,6 +28,7 @@ import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { TripCars, type TripCarsMap } from './tripCars.js';
 import { TrafficLayer, type TrafficLayerMap } from './trafficLayer.js';
+import { RailTrains, type TrainMap } from './railTrains.js';
 import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
 import { loadPeople } from './people3d.js';
@@ -132,7 +133,7 @@ export class CityView3D implements CityView {
   private environment?:WebGLRenderTarget;private pixelWidth=0;private pixelHeight=0;private headless:boolean;
   private qualityFrames=0;private lastQualityChange:number;private lastMotion:number;private fastSince:number|null=null;
   private cameraPose:number[]=[];
-  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private tripCars?:TripCars;private trafficLayer?:TrafficLayer;private buses?:CityBuses;private problems?:ProblemIcons;
+  private streets?:StreetLabels;private province?:ProvinceBackdropView;private curves:RoadCurves;private cells?:ZoneCellsView;private layer?:LayerOverlay;private tripCars?:TripCars;private trafficLayer?:TrafficLayer;private trains?:RailTrains;private buses?:CityBuses;private problems?:ProblemIcons;
   private bed:Mesh;private bedDrop:number;private wideBed:boolean;private sky:SkyDome;private fog:Fog;private fogNear:number;private fogFar:number;private wind={x:0,y:0,strength:0};private swaySeconds=0;private houseSign='';
   /** The dug canals, drawn along their lines; the rest of the view reads their tiles as ground (canals.ts) */
   private canals:CityCanals;private land:CityMapReader;
@@ -513,6 +514,10 @@ export class CityView3D implements CityView {
     if(tripsDrive)this.tripCars!.update(this.navigation.target,this.navigation.distance,this.seconds,this.hourOfDay());
     this.roadTraffic.root.visible=!tripsDrive;
     this.trafficLayer?.update();
+    // A real train along the railway as drawn, where the city map's railways are in the rail graph (railTrains.ts)
+    const trainMap=this.setup.map as unknown as TrainMap;
+    if(!this.trains&&this.snapshot.realUnits&&trainMap.railGraph?.segments.size){this.trains=new RailTrains(trainMap,this.terrain,this.sprites.size);this.scene.add(this.trains.root);}
+    if(this.trains){this.trains.update(this.seconds);this.sprites.hideTrains=this.trains.active;}
     if(!tripsDrive)this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
     this.foliage.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance);
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
@@ -649,7 +654,7 @@ export class CityView3D implements CityView {
   }
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.trains?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}
