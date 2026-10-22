@@ -98,7 +98,10 @@ describe('roads as drawn in 3D', () => {
     for (let x = 5; x <= 40; x++) core.apply({ type: 'tool', tool: 'road', x, y: 10 });
     core.apply({ type: 'road', tool: 'road', from: [20 * 16 + 8, 10 * 16 + 8], to: [20 * 16 + 8, 2 * 16 + 8], stroke: 1 });
     const graph = (core.map as any).roadGraph as RoadGraph;
-    expect(graph.segments.size).toBe(1);
+    // ... one drawn segment; the road of tiles is in the graph too, made from its tiles (docs/NO_GRID_PLAN.md 0.1), and
+    // the drawn road's end is a junction of it
+    expect([...graph.segments.values()].filter((s) => !s.traced)).toHaveLength(1);
+    expect(graph.degree(graph.nodeNear([20 * 16 + 8, 10 * 16 + 8], 0.5)!.id)).toBe(3);
     const curves = new RoadCurves(snapshotOf(core), flat);
     const roads = curves.drawnLines.filter((l) => !l.rail);
     // The tile road is one line (not cut where the new road leaves it), the new road another

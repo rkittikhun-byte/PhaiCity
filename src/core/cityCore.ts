@@ -26,6 +26,8 @@ import { festivalMonth, type FestivalNews } from "../festivals.js";
 import { trainingCity, trainMonth, type TrainedYear } from "../trainedPeople.js";
 import { type SiteDone, sitesMonth } from "../construction.js";
 import { templeMonth, type TempleNews } from "../temples.js";
+import { coverCityRoads } from "../roads/roadCover.js";
+import { isCityTileSize } from "../units.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -129,12 +131,17 @@ export class CityCore {
       const owns = canBuildIn(this.map);
       syncCellPlots(this.map, cellsOf(this.map, (x, y) => ownsLand(this.map, x, y) && owns(x, y)));
     }
+    // Every road and railway of the tiles in the road and rail graphs, a map's own and an older save's too, so what
+    // works on the graphs sees them all (docs/NO_GRID_PLAN.md 0.1)
+    this.coverRoads();
     this.tools = setup.tools ?? new (GameTools as unknown as new (map: Legacy, rules: Legacy) => Legacy)(this.map,
       this.simulation.rules ?? null);
     this.commands = new CityCommands(commandTarget(this.map, this.simulation, this.tools,
       on => Tools.setAutoBulldoze(on), setup.hooks));
     // Every building as an object of its own (src/objects/), found on the tiles again each month
     this.objects = CityObjects.restore(this.map, saved ? saved.objects : null);
+    // The road and rail graphs given any road or railway tile they lack, as after each command (coverRoads)
+    this.addSystem({ name: "roads", monthly: core => core.coverRoads() });
     this.addSystem({ name: "objects", monthly: core => {
       const { added, removed } = core.objects.scan(core.map, core.simulation._cityTime);
       for (const object of added) core.emit({ type: "built", object });
@@ -195,11 +202,30 @@ export class CityCore {
     this.commands.cutLost();
     const outcome = this.commands.apply(command);
     this.commands.cutLost();
+    this.coverRoads();
     if (outcome.accepted) {
       this.log.push({ step: this.steps, command });
       this.emit({ type: "command", step: this.steps, command });
     }
     return outcome;
+  }
+
+  /** When the road and rail graphs were last given the tiles they lacked: the map's tile changes and their versions */
+  private covered: string | null = null;
+
+  /**
+   * The road and rail graphs given every road and railway tile they lack, on a real-scale city map (src/roads/roadCover.ts,
+   * docs/NO_GRID_PLAN.md 0.1): a map's own roads, an older save's, a road laid tile by tile or only partly. Looked at
+   * again only when a tile or a graph changed since; it adds nothing when they have them all, so a city opened from
+   * its save goes on as it would have.
+   */
+  coverRoads(): void {
+    const map = this.map;
+    if (!isCityTileSize(map.tileSizeM)) return;
+    const key = () => `${map.changeCount?.() ?? -1}:${map.roadGraph?.version ?? -1}:${map.railGraph?.version ?? -1}`;
+    if (this.covered === key()) return;
+    coverCityRoads(map, true);
+    this.covered = key();
   }
 
   /** One step of the simulation, then the city's time, which turns the months and runs the monthly systems */

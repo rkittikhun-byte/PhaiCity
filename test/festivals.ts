@@ -569,7 +569,7 @@ describe("a province city's festivals in the core", () => {
     const orders = [{ step: 10, command: { type: "festival", id: "songkran", scale: "grand" } as Command },
       { step: 300, command: { type: "festival", id: "silk", scale: "none" } as Command }];
     const first = play(orders);
-    expect(first.core.systemNames).toEqual(["objects", "era", "festivals", "trained", "construction", "temples"]);
+    expect(first.core.systemNames).toEqual(["roads", "objects", "era", "festivals", "trained", "construction", "temples"]);
     const held = first.news.filter((n) => n.type === "festival").map((n) => n.type === "festival" ? `${n.id}:${n.scale}` : "");
     // ... the next New Year coming in the year's last steps
     expect(held).toEqual(["new_year:modest", "songkran:grand", "bun_bang_fai:modest", "loy_krathong:modest", "silk:none",

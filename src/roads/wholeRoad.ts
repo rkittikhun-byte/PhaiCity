@@ -32,7 +32,13 @@ export function wholeRoadTiles(map: WholeRoadMap, x: number, z: number, tx: numb
   const value = (i: number): number => map.getTileValue(i % width, Math.floor(i / width));
   const isRoad = (i: number): boolean => isRoadTile(value(i));
   const graph = map.roadGraph;
-  const near = graph?.segments.size ? graph.nearest([x, z], size) : null;
+  // ... drawn: a map's own road, which the graph has from its tiles (src/roads/roadCover.ts), goes by its tiles' stretch
+  let near: { segment: number; distance: number } | null = null;
+  for (const id of graph?.segments.size ? graph.segmentsNear([x, z], size) : []) {
+    if (graph!.segment(id).traced) continue;
+    const on = graph!.nearestOn(id, [x, z]);
+    if (on.distance <= size && (!near || on.distance < near.distance)) near = { segment: id, distance: on.distance };
+  }
   if (graph && near) return segmentTiles(graph, near.segment, { width, height, tileSizeM: size }).filter(isRoad);
   if (tx < 0 || ty < 0 || tx >= width || ty >= height || !isRoad(ty * width + tx)) return [];
   const index = ty * width + tx, levels = map.roadLevels, pieces = map.roadPieces, paths = map.roadPaths;

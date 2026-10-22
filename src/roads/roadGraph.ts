@@ -35,6 +35,8 @@ export interface RoadSegment {
   national?: boolean;
   /** The stroke it was drawn in (src/roadPieces.ts piece), kept by both halves when it is split */
   piece?: number;
+  /** Made from road tiles that were not drawn (a map's own roads, src/roads/roadCover.ts), not drawn by the player */
+  traced?: boolean;
 }
 
 /** What a new road is drawn as: two ends for a line; two ends and two inner control points for a curve */
@@ -46,6 +48,7 @@ export interface DrawnRoad {
   level: number;
   national?: boolean;
   piece?: number;
+  traced?: boolean;
 }
 
 /** What adding a road did: its own segments, end to end, and the old segments split to meet it (each old id replaced
@@ -306,6 +309,7 @@ export class RoadGraph {
       id: -1, a, b, shape: curve ? "curve" : "line", level: road.level,
       ...(curve ? { c1: road.c1, c2: road.c2 } : {}),
       ...(road.national ? { national: true } : {}), ...(road.piece !== undefined ? { piece: road.piece } : {}),
+      ...(road.traced ? { traced: true } : {}),
     };
     // Where it crosses the roads already there, along itself (t) and along each of them
     const ownControls = curve ? [[pa.x, pa.z], road.c1!, road.c2!, [pb.x, pb.z]] as Vec[] : null;
@@ -369,6 +373,23 @@ export class RoadGraph {
       this.watched = watched;
       this.version = version;
     }
+  }
+
+  /**
+   * Joins a node to a road beside it with a straight segment of no stroke: the road `id` split at t (or its end's node,
+   * within END_M of it) and the node joined to that point (src/roads/roadCover.ts, a road whose end lies beside another
+   * on the tiles, which the simulation has always taken as joined). Neither road moves. The new segment's id, or null
+   * when they meet already.
+   */
+  link(node: number, id: number, t: number, level: number, national = false, traced = true): number | null {
+    this.node(node);
+    this.version++;
+    const m = this.splitAt(id, t, []);
+    if (m === node || this.segmentsAt(node).some((s) => { const seg = this.segment(s); return seg.a === m || seg.b === m; })) return null;
+    const seg: RoadSegment = { id: this.nextSegment++, a: node, b: m, shape: "line", level, ...(national ? { national: true } : {}),
+      ...(traced ? { traced: true } : {}) };
+    this.put(seg);
+    return seg.id;
   }
 
   /**
@@ -439,7 +460,7 @@ export class RoadGraph {
       nodes: [...this.nodes.values()].sort((p, q) => p.id - q.id).map(n => [n.id, round(n.x), round(n.z)]),
       segments: [...this.segments.values()].sort((p, q) => p.id - q.id).map(s => [s.id, s.a, s.b, s.level,
         s.shape === "curve" && s.c1 && s.c2 ? [round(s.c1[0]), round(s.c1[1]), round(s.c2[0]), round(s.c2[1])] : [],
-        s.national ? 1 : 0, s.piece ?? -1]),
+        s.national ? 1 : 0, s.piece ?? -1, ...(s.traced ? [1] : [])]),
       next: [this.nextNode, this.nextSegment],
     };
   }
@@ -449,11 +470,12 @@ export class RoadGraph {
     const g = new RoadGraph();
     for (const [id, x, z] of data.nodes) g.setNode({ id, x, z });
     for (const row of data.segments) {
-      const [id, a, b, level, c, national, piece] = row as [number, number, number, number, number[], number, number];
+      const [id, a, b, level, c, national, piece, traced] = row as [number, number, number, number, number[], number, number, number?];
       const seg: RoadSegment = { id, a, b, level, shape: c.length === 4 ? "curve" : "line" };
       if (c.length === 4) { seg.c1 = [c[0], c[1]]; seg.c2 = [c[2], c[3]]; }
       if (national) seg.national = true;
       if (piece >= 0) seg.piece = piece;
+      if (traced) seg.traced = true;
       g.put(seg);
     }
     [g.nextNode, g.nextSegment] = data.next;
