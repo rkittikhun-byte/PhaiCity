@@ -14,11 +14,25 @@
 import { Config } from './config.js';
 
 // Decorate the given object, by adding {add|remove}EventListener methods, and an internal '_emitEvent' method
+// PhaiCity: each object keeps its own listeners (docs/NO_GRID_PLAN.md 0.3). The original kept one list for every object
+// a decorated constructor made, so every city's simulation in one page or process heard every other's months (a new
+// city's month ran an old city's monthly systems too, drawing from the one Random, so the same seed and commands did not
+// make the same city twice), and each sprite heard every other sprite's crashes.
 var EventEmitter = function(obj) {
-  var events = {};
+  var shared = {};
+
+  // The listeners of the object a method is called on (the shared list only for a call on no object)
+  var eventsOf = function(self) {
+    if (self === undefined || self === null || self === globalThis)
+      return shared;
+    if (!Object.prototype.hasOwnProperty.call(self, '_eventListeners'))
+      Object.defineProperty(self, '_eventListeners', {value: {}, writable: true, configurable: true});
+    return self._eventListeners;
+  };
 
 
   var addListener = function(event, listener) {
+    var events = eventsOf(this);
     if (!(event in events))
       events[event] = [];
 
@@ -29,6 +43,7 @@ var EventEmitter = function(obj) {
 
 
   var removeListener = function(event, listener) {
+    var events = eventsOf(this);
     if (!(event in events))
       events[event] = [];
 
@@ -47,6 +62,7 @@ var EventEmitter = function(obj) {
         throw new Error('Sending undefined event!');
     }
 
+    var events = eventsOf(this);
     if (!(event in events))
       events[event] = [];
 

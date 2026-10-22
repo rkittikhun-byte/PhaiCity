@@ -116,10 +116,16 @@ describe("the roads as drawn in a save", () => {
     const core = city();
     for (let x = 2; x <= 40; x++) core.apply({ type: "tool", tool: "road", x, y: 10 });
     const old = JSON.parse(JSON.stringify({ ...core.save(), width: 60, height: 40, version: 4 }));
+    // (a save of version 4 kept no graphs)
+    delete old.roads;
+    delete old.rails;
     (Storage as any).transitionOldSave(old);
     expect(old.roads).toBeUndefined();
+    // ... and opened, its road is in the graph as a road of tiles (docs/NO_GRID_PLAN.md 0.1), with nothing drawn
     const again = new CityCore({ sandbox: true, map: new (GameMap as any)(60, 40), saved: old });
-    expect(again.map.roadGraph).toBeNull();
+    const segments = [...again.map.roadGraph.segments.values()];
+    expect(segments.length).toBeGreaterThan(0);
+    expect(segments.every((s: any) => s.traced && s.piece === undefined)).toBe(true);
   });
 });
 
