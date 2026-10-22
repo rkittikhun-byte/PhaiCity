@@ -162,8 +162,9 @@ export type Command =
   | { type: "festival"; id: typeof FESTIVAL_IDS[number]; scale: typeof FESTIVAL_SCALES[number] }
   /** The block of land at (x, y) bought (src/landBlocks.ts) */
   | { type: "land"; x: number; y: number }
-  /** Zone cells painted (zone) or cleared (zone null) on a map whose zones go a cell at a time (src/zoneCells.ts) */
-  | { type: "zoneCells"; zone: CellZone | null; cells: number[] }
+  /** Zone cells painted (zone) or cleared (zone null) on a map whose zones go a cell at a time (src/zoneCells.ts); a
+   * stroke undoes with its cells and the plots they made */
+  | { type: "zoneCells"; zone: CellZone | null; cells: number[]; stroke?: number }
   /**
    * The farm zone's cells painted (erase false) or rubbed out (erase true) on a map whose zones go a cell at a time
    * (src/farmZone.ts farmCellKey: a tile's index x 16 and its cell's bit): a field is the shape its cells make
@@ -522,6 +523,7 @@ export function commandProblem(command: unknown, width: number, height: number):
       if (!isOneOf(FESTIVAL_IDS, c.id)) return `unknown festival ${String(c.id)}`;
       return isOneOf(FESTIVAL_SCALES, c.scale) ? null : `unknown scale ${String(c.scale)}`;
     case "zoneCells":
+      if (c.stroke !== undefined && !isInteger(c.stroke, 0, Number.MAX_SAFE_INTEGER)) return "bad stroke";
       if (c.zone !== null && !isOneOf(CELL_ZONES, c.zone)) return `unknown zone ${String(c.zone)}`;
       if (!Array.isArray(c.cells) || c.cells.length > MAX_CELLS || !c.cells.every((k) => isInteger(k, 0, Number.MAX_SAFE_INTEGER))) {
         return "bad cells";
@@ -1405,6 +1407,8 @@ export class CityCommands {
         const each = tool ? cellPrice(tool.toolCost ?? 100, PAINT_PRICE_SHARE, tileMetres(map)) * (tool.costFactor ?? 1) : 0;
         const cost = Math.ceil(cells.length * each);
         if (city.budget.totalFunds < cost) return { accepted: false, reason: NO_MONEY_FOR_CELLS };
+        // (what each cell was, for undo: docs/NO_GRID_PLAN.md 5.3, the paint and the plots it made as they were)
+        const was = cells.map((key) => [key, painted.get(key) ?? 0] as const);
         for (const key of cells) if (code) painted.set(key, code); else painted.delete(key);
         if (cost) city.budget.spend(cost);
         // The tiles the paint covers enough become plots, which grow buildings (src/zoneCells.ts syncCellPlots)
@@ -1417,6 +1421,16 @@ export class CityCommands {
         }
         map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
         refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, layout, touched, city.cityTime?.() ?? 0);
+        const back = (): void => {
+          for (const [key, before] of was) if (before) painted.set(key, before); else painted.delete(key);
+          map.zoneCellsVersion = (map.zoneCellsVersion ?? 0) + 1;
+          refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, cellsOf(map, (x, y) => (city.ownsLand?.(x, y) ?? true) &&
+            (city.canBuildAt?.(x, y) ?? true)), touched, city.cityTime?.() ?? 0);
+        };
+        const stroke = command.stroke ?? null, time = city.cityTime?.() ?? 0;
+        this.history.record(stroke, [], cost, time);
+        if (cost) (this.history.last()!.also ??= []).push(back);
+        else this.history.attach(stroke, back, time);
         return { accepted: true };
       }
       case "farmCells":

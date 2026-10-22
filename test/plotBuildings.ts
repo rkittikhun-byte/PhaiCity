@@ -208,4 +208,17 @@ describe("plots as buildings (docs/NO_GRID_PLAN.md 3B)", () => {
     core.run(STEPS_PER_YEAR / 4);
     expect(list(core).all().some((p) => p.level === 0)).toBe(true);
   });
+
+  test("a stroke of zone paint undoes as one: its cells and the plots they made, and the money (5.3)", () => {
+    const core = city(), cols = columns(core, 100, 400), funds = core.simulation.budget.totalFunds;
+    const painted = () => [...((core.map as any).zoneCells as Map<number, number>).keys()].length;
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: cols.slice(0, 3).map((c) => c[0]), stroke: 9 } as any).accepted).toBe(true);
+    expect(core.apply({ type: "zoneCells", zone: "commercial", cells: cols.slice(3, 6).map((c) => c[0]), stroke: 9 } as any).accepted).toBe(true);
+    expect(list(core).all()).toHaveLength(6);
+    expect(painted()).toBe(6);
+    expect(core.apply({ type: "undo" } as any)).toMatchObject({ undone: true });
+    expect(painted()).toBe(0);
+    expect(list(core).all()).toHaveLength(0);
+    expect(core.simulation.budget.totalFunds).toBe(funds);
+  });
 });

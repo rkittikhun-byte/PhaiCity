@@ -1250,7 +1250,7 @@ Game.prototype.cellLayout = function() {
 
 
 // Paints the cells (their keys) with the brush in hand, or clears them with the eraser, as one command
-Game.prototype.paintCells = function(cells, screenX) {
+Game.prototype.paintCells = function(cells, screenX, stroke) {
   var toolName = this.inputStatus.toolName;
   var tool = this.inputStatus.currentTool;
   if (tool === null || cells.length === 0)
@@ -1260,7 +1260,11 @@ Game.prototype.paintCells = function(cells, screenX) {
     if (PAINT_TOOLS[kind] === toolName)
       zone = kind;
   });
-  var outcome = this.applyCommand({type: 'zoneCells', zone: zone, cells: cells});
+  // (a stroke of the brush undoes as one, docs/NO_GRID_PLAN.md 5.3)
+  var command = {type: 'zoneCells', zone: zone, cells: cells};
+  if (stroke !== undefined && stroke !== null)
+    command.stroke = stroke;
+  var outcome = this.applyCommand(command);
   if (!outcome.accepted && outcome.reason === HOUSE_FIRST) {
     showCornerNote(t('house.note.first'), 4000);
   }
@@ -1283,14 +1287,14 @@ Game.prototype.paintCellStroke = function(data) {
   if (mode === 'strip') {
     var strip = cellsInStrip(layout, this.gameMap.width, last, world);
     if (strip.length)
-      this.paintCells(strip, data.x);
+      this.paintCells(strip, data.x, data.stroke);
     return;
   }
   // The round brush: every cell within a few metres of where the mouse went (docs/METRE_DRAWING_PLAN.md 3.2)
   if (mode === 'circle') {
     var round = cellsNear(layout, this.gameMap.width, last, world, BRUSH_RADIUS_M * unitsPerMetre(tileMetres(this.gameMap)));
     if (round.length)
-      this.paintCells(round, data.x);
+      this.paintCells(round, data.x, data.stroke);
     return;
   }
   var rawKeys = cellsAlong(layout, this.gameMap.width, last, world);
@@ -1305,14 +1309,14 @@ Game.prototype.paintCellStroke = function(data) {
         return other.road === ref.road && (other.nx * ref.nx + other.nz * ref.nz) > 0.5;
       }).map(function(other) { return other.key; });
       if (fillKeys.length) {
-        this.paintCells(fillKeys, data.x);
+        this.paintCells(fillKeys, data.x, data.stroke);
         return;
       }
     }
   }
   // Exactly the cells the mouse went over, one at a time (owner, 18 Oct 2026: "ให้วาดได้ทีละแถวเรียงๆ กันไป ถึงแม้จะลากยากไปขนาดไหน
   // ก็ตาม"), not the whole plot's depth as it once painted: a drag along a road paints a row, the next drag the next row
-  this.paintCells(rawKeys, data.x);
+  this.paintCells(rawKeys, data.x, data.stroke);
 };
 
 
@@ -3650,7 +3654,7 @@ Game.prototype.handleToolArea = function(data) {
   if (this.isCellBrush(toolName)) {
     var keys = this.cellsInArea(data.from, data.to);
     if (keys.length)
-      this.paintCells(keys, data.to.x);
+      this.paintCells(keys, data.to.x, data.stroke);
     this.resetDraft();
     return;
   }
