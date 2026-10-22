@@ -32,6 +32,12 @@ export function isTurned(rot: number | null | undefined): boolean {
   return off > 1e-3;
 }
 
+/** The quarter turn nearest a turn (radians), so a building on its square block of tiles stands square to them */
+export function quarterTurn(rot: number): number {
+  const q = Math.round(rot / (Math.PI / 2)) & 3;
+  return q === 0 ? 0 : q === 1 ? Math.PI / 2 : q === 2 ? Math.PI : -Math.PI / 2;
+}
+
 /** The centre tile of a building laid turned: the tile under its middle (metres), which lies inside its outline whatever
  * its size (a square block's centre, one in from its top left, may not: a 2 x 2's lies up to a tile off its middle) */
 export function turnedCentre(x: number, z: number, tileSizeM: number): { cx: number; cy: number } {

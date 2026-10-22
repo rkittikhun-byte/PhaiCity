@@ -22,6 +22,7 @@ import { MapGenerator } from '../../src/mapGenerator.js';
 import { realUnits } from '../../src/roadGeometry.js';
 import { besideRoad } from '../../src/cityCommands';
 import { blockOf } from '../../src/buildings/placedBuildings';
+import { isTurned, TURNED_SIZES } from '../../src/buildings/turnedFootprint';
 import { isRoadTile } from '../../src/roadTiles';
 import { RoadCurves } from '../../src/render3d/city/roadCurves.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
@@ -73,8 +74,11 @@ function built(tool: string, size: number, angle: number, era: boolean) {
   const isRoad = (tx: number, ty: number): boolean => map.testBounds(tx, ty) && isRoadTile(map.getTileValue(tx, ty));
   // ... a point on the road, and out from it on the side away from it
   const nx = -r.tz, nz = r.tx;
-  let gap = REACH + 0.6 + size * 5 * BUILDING_SCALE, back = 0;
-  for (; back <= 24; back++) {
+  // (a building turned to a slanted road takes its turned outline's tiles, its whole lot deep, so the game stands it
+  // back from no staircase of tiles: src/buildings/roadPose.ts poseAt)
+  const turns = TURNED_SIZES.has(size) && isTurned(Math.atan2(-nx, -nz));
+  let gap = REACH + 0.6 + size * 5 * (turns ? 1 : BUILDING_SCALE), back = 0;
+  for (; back <= 24 && !turns; back++) {
     const g = gap + back * U, block = blockOf(300 + nx * g, 245 + nz * g, size, 10);
     let clear = true;
     for (let ty = block.top; ty < block.top + size; ty++) for (let tx = block.left; tx < block.left + size; tx++) clear &&= !isRoad(tx, ty);

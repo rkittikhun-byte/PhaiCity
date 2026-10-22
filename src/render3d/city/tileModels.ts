@@ -22,7 +22,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
-import { laidOutline, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
+import { isTurned, laidOutline, outlineOf, type Outline, quarterTurn, TURNED_SIZES, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
 import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
@@ -160,6 +160,10 @@ export function poseAgainstRoad(x: number, z: number, size: number, near: RoadNe
 export const ROAD_GAP = .4;
 /** How far at most a building is slid along the way it faces to stand against its road (world units: 2.5 tiles) */
 const SLIDE_MAX = 25;
+/** How far past the edge of the ground it holds a building's drawn front may be slid to its road (metres): over the
+ * road's own tile beside a square block, where the road is drawn narrower than its tile, and no further */
+export const SLIDE_PAST_M = 1.5;
+
 /**
  * How far to slide a building along the way it faces (its front (sin, cos) of its turn) so its front, `front` world units
  * ahead of its middle (x, z), stands ROAD_GAP from the edge of the road it faces, as Cities: Skylines stands a building
@@ -790,11 +794,52 @@ export class TileSnapshot implements CityMapReader {
     const front=p.front??this.frontOf(p);
     p.front=front;
     if(!this.roadSnap)return p;
-    const slide=slideToRoad(p.x,p.z,p.rotation,front,this.roadSnap);
+    // ... never further than SLIDE_PAST_M past the ground it holds, so what is drawn of it stays inside its fence
+    // (compounds.ts; LOOK_BOOK "ที่ที่อาคารจองไว้แต่ดูว่างเปล่า"): a square block behind a road's second row of tiles
+    // keeps its building, with a driveway out to the road
+    const limit=this.slideLimit(p,front);
+    const slide=Math.min(slideToRoad(p.x,p.z,p.rotation,front,this.roadSnap),limit??Infinity);
     if(Math.abs(slide)<1e-3)return p;
     const dx=Math.sin(p.rotation)*slide,dz=Math.cos(p.rotation)*slide;
     for(const q of [p,...(p.parts??[])]){q.x+=dx;q.z+=dz;q.options={...q.options,worldOrigin:[q.x,q.z]};}
     return p;
+  }
+  /** The ground the building of the ruler's whose centre tile is i holds (metres): its outline when its tiles were laid
+   * by it, else its square block of tiles (src/buildings/turnedFootprint.ts laidOutline); null when the map keeps no
+   * record of it (gameMap.buildings) or it is one tile */
+  private heldOutline(i:number):Outline|null {
+    const map=this.source,b=map?.buildings?.atTile(i);
+    const size=b?.size??0;
+    if(!map||!b||size<2)return null;
+    const held=laidOutline(map as unknown as FootprintMap,b as unknown as PlacedBuilding);
+    if(held)return held;
+    const metres=tileMetres(map),left=i%this.width-1,top=Math.floor(i/this.width)-1;
+    return outlineOf((left+size/2)*metres,(top+size/2)*metres,0,size,metres);
+  }
+  /** How far a building may be slid ahead to its road (world units): until its drawn front stands SLIDE_PAST_M past the
+   * ground it holds (heldOutline); null for a building the map keeps no record of */
+  private slideLimit(p:Placement,front:number):number|null {
+    const held=this.heldOutline(p.index);
+    if(!held)return null;
+    const units=unitsPerMetre(tileMetres(this.source!)),fx=Math.sin(p.rotation),fz=Math.cos(p.rotation);
+    // how far the held ground reaches ahead of the drawn middle, the way the building faces
+    const reach=held.hu*Math.abs(held.ux*fx+held.uz*fz)+held.hv*Math.abs(held.vx*fx+held.vz*fz);
+    const ahead=(held.x*units-p.x)*fx+(held.z*units-p.z)*fz+reach*units;
+    return Math.max(0,ahead+SLIDE_PAST_M*units-front);
+  }
+  /**
+   * The square block of tiles a building of the ruler's (two tiles a side and up) stands on, on a real-scale map, when
+   * the 3D view would otherwise draw it turned past them: one put down a tile at a time and never turned, or turned to a
+   * slanted road before its tiles turned with it (its kept turn not its tiles', laidOutline). Its middle in world units
+   * and its kept turn; null for the rest. Such a building is drawn on that block, square to it (owner, 21 Oct 2026: "ถ้า
+   * พื้นที่ที่กันไว้ ก็ควรจะมีพื้นที่กั้นไว้นะ"; docs/NO_GRID_PLAN.md 3A): the auto player's house was drawn turned to its
+   * road on a square block and fence, its lawn past the fence.
+   */
+  private squareBlock(i:number,size:number):{x:number;z:number;rot:number|null}|null {
+    const map=this.source,b=map?.buildings?.atTile(i);
+    if(!this.realUnits||!map||!b||b.size!==size||!TURNED_SIZES.has(size)||(b.rot!==null&&!isTurned(b.rot)))return null;
+    if(laidOutline(map as unknown as FootprintMap,b as unknown as PlacedBuilding))return null;
+    return {x:(i%this.width-1+size/2)*10,z:(Math.floor(i/this.width)-1+size/2)*10,rot:b.rot};
   }
   /** How far ahead of its middle a building's front stands as drawn (world units): an era model is in metres, its tiles
    * 16 m each less half a metre clear (art/buildings/PLAN.md), the others 10 model units a tile less half a unit clear
@@ -834,6 +879,11 @@ export class TileSnapshot implements CityMapReader {
    * with their zones and are left alone; null when it is not a building standing against a road.
    */
   poseToKeep(i:number,region:RegionId='central'):[number,number,number]|null {
+    // A building on its square block of tiles is kept there, square to them (squareBlock), also when it was kept turned
+    // past them before (the turn kept then is put right): its block, so its kept outline is its tiles' and nothing the
+    // simulation reads changes
+    const held=this.source?.buildings?.atTile(i)?.size??0,block=held?this.squareBlock(i,held):null;
+    if(block){const turn=this.blockTurn(block,held);return turn===null?null:[block.x,block.z,turn];}
     if(this.placedPose(i))return null;
     const p=this.placement(i,region);
     if(!p||!p.posed||['residential','commercial','industrial'].includes(p.kind))return null;
@@ -857,6 +907,16 @@ export class TileSnapshot implements CityMapReader {
     const b=this.source?.buildings?.atTile(i);
     return Boolean(b&&laidOutline(this.source as unknown as FootprintMap,b as unknown as PlacedBuilding));
   }
+  /** The turn of a building on its square block (squareBlock): the quarter turn nearest the one kept for it, else nearest
+   * facing the road beside it, else null (no road near) */
+  private blockTurn(block:{x:number;z:number;rot:number|null},size:number):number|null {
+    if(block.rot!==null)return quarterTurn(block.rot);
+    const near=this.roadSnap?.(block.x,block.z,size*5+28)??null;
+    if(!near)return null;
+    let nx=-near.tz,nz=near.tx;
+    if(nx*(block.x-near.x)+nz*(block.z-near.z)<0){nx=-nx;nz=-nz;}
+    return quarterTurn(Math.atan2(-nx,-nz));
+  }
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
     const zoned=p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial';
@@ -867,6 +927,9 @@ export class TileSnapshot implements CityMapReader {
       (!zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)&&!this.laidTurned(p.index))return p;
     const factor=this.realUnits?shareOf(p):1;
     const scale=BUILDING_SCALE*factor;
+    // On its square block of tiles, square to them, facing the side its road is on (squareBlock)
+    const block=this.squareBlock(p.index,size);
+    if(block){const turn=this.blockTurn(block,size);return turn===null?p:p.againstRoad(block.x,block.z,turn,scale);}
     // Where the player put it down in metres, or where the game kept it standing (gameMap.buildings)
     const kept=this.placedPose(p.index);
     if(kept){

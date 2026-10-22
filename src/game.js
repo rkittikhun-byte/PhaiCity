@@ -68,6 +68,7 @@ import { MARK_STEP_M, snapNext, snapPoints, snapStart } from './roads/roadSnap.t
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
 import { roadPose } from './buildings/roadPose.ts';
+import { isTurned } from './buildings/turnedFootprint.ts';
 import { layerPixels, toolLayer } from './cityMap.ts';
 import { seasonWind } from './wind.ts';
 import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
@@ -2667,14 +2668,16 @@ Game.prototype.networkLines = function(rail) {
 
 
 // Every building's pose kept with the city (gameMap.buildings, saved), taken from the 3D view for those never turned
-// (put down before the buildings were kept in metres): only where the building is drawn, never what the simulation does
+// (put down before the buildings were kept in metres, or a tile at a time): only where the building is drawn, never what
+// the simulation does. One on its square block of tiles is kept there, square to them, and one kept turned past its
+// square block before is put right (the view's poseToKeep, docs/NO_GRID_PLAN.md 3A)
 Game.prototype.keepBuildingPoses = function() {
   var map = this.gameMap, view = this.cityView;
   if (!map.cellZones || !map.buildings || !view || typeof view.buildingPoseOf !== 'function')
     return 0;
   var units = unitsPerMetre(tileMetres(map)), kept = 0;
   map.buildings.all().forEach(function(b) {
-    if (b.rot !== null)
+    if (b.rot !== null && !isTurned(b.rot))
       return;
     var pose = view.buildingPoseOf(b.tile % map.width, Math.floor(b.tile / map.width));
     if (pose) {

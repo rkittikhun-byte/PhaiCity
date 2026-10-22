@@ -31,7 +31,7 @@ export interface CityMapReader {
   /** The ruler's buildings where they were put down, in metres (src/buildings/placedBuildings.ts): the view stands each
    * model at its middle and turn, by its centre tile */
   readonly buildings?: {
-    atTile(tile: number): { readonly x: number; readonly z: number; readonly rot: number | null } | undefined;
+    atTile(tile: number): { readonly x: number; readonly z: number; readonly rot: number | null; readonly size?: number; readonly tile?: number } | undefined;
     /** Every one, and a count of the changes made to them (a move), so the view stands a moved one again */
     all?(): ReadonlyArray<{ readonly tile: number; readonly x: number; readonly z: number; readonly rot: number | null }>;
     readonly version?: number;

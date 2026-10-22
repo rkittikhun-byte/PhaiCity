@@ -15,7 +15,7 @@
 import { BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Group, Mesh } from 'three';
 import { RAMPS } from '../../theme/tokens.js';
 import { mapEra } from '../../era.js';
-import { laidOutline, outlineCorners, outlineOf, type FootprintMap, type Outline } from '../../buildings/turnedFootprint.js';
+import { laidOutline, outlineCorners, outlineOf, quarterTurn, type FootprintMap, type Outline } from '../../buildings/turnedFootprint.js';
 import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { eraBuildingMaterial } from '../materials/library.js';
 import { mergeGeometry } from '../util/geometry.js';
@@ -40,8 +40,10 @@ export function compoundSides(b: PlacedBuilding, width: number, tileSizeM: numbe
   const corner = b.size > 1 ? 1 : 0, left = (b.tile % width - corner) * tileSizeM, top = (Math.floor(b.tile / width) - corner) * tileSizeM;
   const square = outlineOf(left + b.size * tileSizeM / 2, top + b.size * tileSizeM / 2, 0, b.size, tileSizeM);
   const corners = outlineCorners(turned ?? square);
-  // the front: the side the building faces, (sin rot, cos rot) from its middle
-  const o = turned ?? square, fx = Math.sin(b.rot ?? 0), fz = Math.cos(b.rot ?? 0);
+  // the front: the side the building faces, (sin rot, cos rot) from its middle; on its square block the side of it
+  // nearest that way, as the 3D view draws it square to its block (tileModels.ts squareBlock)
+  const facing = b.rot === null ? 0 : turned ? b.rot : quarterTurn(b.rot);
+  const o = turned ?? square, fx = Math.sin(facing), fz = Math.cos(facing);
   return corners.map(([ax, az], k) => {
     const [bx, bz] = corners[(k + 1) % 4], mx = (ax + bx) / 2 - o.x, mz = (az + bz) / 2 - o.z;
     return { ax, az, bx, bz, gate: b.rot !== null && (mx * fx + mz * fz) / Math.hypot(mx, mz) > 0.9 };
