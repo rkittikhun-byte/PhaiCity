@@ -145,4 +145,44 @@ describe("road graph", () => {
     back.add({ from: [10, 300], to: [20, 300], level: 1 });
     expect(Math.max(...back.segments.keys())).toBe(a.next[1]);
   });
+  test("a node's roads and the nodes near a point come from the indexes as they would from going over all (NO_GRID_PLAN 0.2)", () => {
+    // A tangle of roads drawn, crossed, cut and undone, the indexes checked against a walk over every node and segment
+    let seed = 7;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const g = new RoadGraph();
+    const check = () => {
+      for (const n of g.nodes.values()) {
+        const all = [...g.segments.values()].filter(s => s.a === n.id || s.b === n.id).map(s => s.id).sort((a, b) => a - b);
+        expect(g.segmentsAt(n.id)).toEqual(all);
+        expect(g.degree(n.id)).toBe(all.length);
+      }
+      for (let k = 0; k < 20; k++) {
+        const p: Vec = [rnd() * 400, rnd() * 400], reach = rnd() * 30;
+        let best: number | null = null, bestD = reach;
+        for (const n of [...g.nodes.values()].sort((a, b) => a.id - b.id)) {
+          const d = Math.hypot(n.x - p[0], n.z - p[1]);
+          if (d <= bestD) { best = n.id; bestD = d; }
+        }
+        expect(g.nodeNear(p, reach)?.id ?? null).toBe(best);
+      }
+    };
+    for (let round = 0; round < 6; round++) {
+      const mark = g.mark();
+      for (let k = 0; k < 12; k++) {
+        const from: Vec = [rnd() * 400, rnd() * 400], to: Vec = [rnd() * 400, rnd() * 400];
+        if (rnd() < 0.4) g.add({ from, to, c1: [rnd() * 400, rnd() * 400], c2: [rnd() * 400, rnd() * 400], level: 2 });
+        else g.add({ from, to, level: 1 + Math.floor(rnd() * 8) });
+      }
+      check();
+      const ids = [...g.segments.keys()];
+      for (let k = 0; k < 5 && ids.length; k++) {
+        const id = ids[Math.floor(rnd() * ids.length)];
+        if (g.segments.has(id)) g.cut(id, 0.3, 0.6);
+      }
+      check();
+      if (round % 2) { g.undo(mark); check(); }
+    }
+    const back = RoadGraph.fromJSON(JSON.parse(JSON.stringify(g.toJSON())));
+    for (const n of g.nodes.values()) expect(back.segmentsAt(n.id)).toEqual(g.segmentsAt(n.id));
+  });
 });
