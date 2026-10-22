@@ -124,6 +124,49 @@ describe("the auto player", () => {
     expect(core.map.rulerHouse?.level).toBeGreaterThanOrEqual(2);
   });
 
+  test("reads the era card each month, and orders what it asks for ahead of a power plant bought early (15)", () => {
+    Random.seed(5);
+    const core = town();
+    const player = new AutoPlayer(core, { town: { x: 40, y: 30 }, paintFirst: 300, paintEachYear: 0 });
+    player.start();
+    // (past the first plant's six months as a site)
+    core.run(16 * 4 * 7);
+    const map = core.map as any, sim = core.simulation as any, p = player as any;
+    // The card, as the month's era score left it: care for a twentieth of the people against the 20% aimed at
+    map.eraScore = { factors: { health: { value: 0.05, target: 0.2 } }, symbols: [] };
+    sim.evaluation.cityPop = 2000;
+    const school = core.tools!.health_centre.toolCost, plant = core.tools!.coal.toolCost;
+    // Too little money for it: nothing built, and its price kept from capacity bought early
+    sim.budget.setFunds(school - 1);
+    const before = player.log.length;
+    p.readEraCard();
+    expect(player.log.slice(before).some((line: string) => line.includes("era card (month)"))).toBe(false);
+    expect(p.eraWant).toBeGreaterThanOrEqual(school);
+    // ... so a plant that the meter would buy early (from 65% used, with ฿1,500 to spare) waits for it
+    // (in a market town, which may build a second plant)
+    map.era = 2;
+    expect(core.commands.lock("coal")).toBeNull();
+    Object.defineProperty(sim._powerManager, "load", { value: 0.7, configurable: true });
+    sim.budget.setFunds(plant + 200 + 1500 + 10);
+    const plants = () => player.log.filter((line: string) => /^year \d+: coal at/.test(line)).length;
+    const plantsBefore = plants();
+    p.planCapacity(false);
+    expect(plants()).toBe(plantsBefore);
+    // With the money there, the month's reading builds the health post at once ...
+    p.readEraCard();
+    expect(player.log.some((line: string) => /era card \(month\): health 5\/20, health_centre/.test(line))).toBe(true);
+    expect(p.eraWant).toBe(0);
+    // ... and none more while it stands as a site, whose places the score does not count yet
+    const asked = player.log.filter((line: string) => line.includes("era card (month)")).length;
+    sim.budget.setFunds(30000);
+    p.readEraCard();
+    expect(player.log.filter((line: string) => line.includes("era card (month)")).length).toBe(asked);
+    // ... while with nothing on the card the meter buys its plant early
+    p.planCapacity(false);
+    expect(plants()).toBe(plantsBefore + 1);
+    delete sim._powerManager.load;
+  });
+
   test("buys a block of land for a building dearer than it, and clears plots for a cheaper one (6.5)", () => {
     Random.seed(5);
     const core = town();

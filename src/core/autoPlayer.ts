@@ -414,6 +414,8 @@ export class AutoPlayer {
       }
       if (this.asks.length) this.answerFestivals();
       if (this.later.length && step % STEPS_PER_MONTH === 0) this.tryLater();
+      // (the era card read before the meters, so the school it asks for comes ahead of a plant bought early)
+      if (step % STEPS_PER_MONTH === 0 && step > 0) this.readEraCard();
       if (step % STEPS_PER_MONTH === 0) this.planCapacity(false);
       if (step % STEPS_PER_MONTH === STEPS_PER_MONTH / 2) this.easeTraffic();
       if (this.cellsLater.length && step % STEPS_PER_MONTH === 0) this.paintLater();
@@ -422,6 +424,7 @@ export class AutoPlayer {
     this.noted.clear();
     this.towers = 0;
     this.noRoom.delete("watertower");
+    this.askNoRoom.clear();
     const population = sim.evaluation.cityPop;
     const { x, y } = this.options.town;
     // First what the news asks for when a kind of zone can grow no more without it (src/simulation.js _sendMessages): a
@@ -513,35 +516,7 @@ export class AutoPlayer {
       // First more care or seats while the era score finds them short of the era's aim, as a ruler reading the era
       // card would build (owner, 20 Oct 2026: the 10-year play sat at 90% in era 2 for want of health), before the
       // services the people ask for by their numbers alone (a town short of care built a big police station first)
-      const factors = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
-      // ... the first it can afford, else it saves for it rather than painting more (a ruler reading the era card)
-      for (const [side, tools] of ERA_ASKS) {
-        const f = factors?.[side];
-        if (!f || f.value >= f.target) continue;
-        // (none more while one of the side is still being built, whose places the score does not count yet: the first
-        // year built three primary schools for a village of 1,100, src/construction.ts)
-        if (this.building(side)) continue;
-        // (only those the district office is high enough for and the city can build: place() buys land when a
-        // building finds no room)
-        const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null && !this.waits(tool));
-        if (!allowed.length) continue;
-        // ... as many as the places short of the aim, and of the next year's growth (ASK_AHEAD), no more than ASK_MOST:
-        // a town growing by 3,000 people a year that built one health post a year stayed short of care for six years.
-        // The places are people cared for, or children's seats (the education side's basic share, src/eraScore.ts)
-        const era = Math.min(5, Math.max(1, core.map.era ?? 1)) as 1 | 2 | 3 | 4 | 5;
-        const base = side === "health" ? population : population * CHILDREN_SHARE / Math.max(0.1, ERA_RULES[era].education.basic);
-        let short = (f.target * (1 + ASK_AHEAD) - f.value) * base;
-        for (let built = 0; short > 0 && built < ASK_MOST; built++) {
-          const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE + this.keptNow);
-          const n = this.asked++;
-          const tool = affordable.find((tool) => this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20));
-          if (!tool) {
-            if (affordable.length < allowed.length) saveFor(Math.min(...allowed.map((tool) => core.tools?.[tool]?.toolCost ?? 0)) + ERA_ASK_SPARE);
-            break;
-          }
-          short -= isServiceKind(tool) ? SERVICE_SPECS[tool].places : short;
-        }
-      }
+      this.askEra(population, saveFor);
       // ... then the school itself, with money set aside for it before the services its people ask for by their numbers,
       // the district office's own rise and more zones (src/trainedPeople.ts); the era card's asks come first
       if (goal && !saving) {
@@ -634,6 +609,9 @@ export class AutoPlayer {
    *  build now (not what waits for its era, as the village's second plant waits for the market town) */
   private kept = 0;
   private keptNow = 0;
+  /** ... and of that, the part for a meter at BUILD_AT or a town short of water, which the era card's asks leave alone;
+   *  the part for capacity bought early (from RESERVE_AT) waits for them (readEraCard) */
+  private keptUrgent = 0;
   /** ... of which for the stadium, port or airport, which the zones do not wait for */
   private capsKept = 0;
   /** Water towers put up this year */
@@ -648,16 +626,17 @@ export class AutoPlayer {
    */
   private planCapacity(yearEnd: boolean): void {
     const core = this.core, sim = core.simulation, budget = sim.budget, { x, y } = this.options.town;
-    let kept = 0, keptNow = 0, capsKept = 0;
+    let kept = 0, keptNow = 0, keptUrgent = 0, capsKept = 0;
     const load = sim._powerManager?.load ?? 0;
     if (load >= RESERVE_AT && !this.underway(POWER_TOOLS) && core.tools) {
       const tool = this.plantTool(), price = (core.tools[tool]?.toolCost ?? 0) + CAPACITY_SPARE;
       const waits = this.waits(tool);
-      const now = load >= BUILD_AT ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP;
+      const now = load >= BUILD_AT ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP + this.eraWant;
       if (!(now && !waits && this.tryCapacity(tool, yearEnd, () => this.placePlant()))) {
         const keep = Math.round(price * ramp(load));
         kept += keep;
         if (!waits) keptNow += keep;
+        if (!waits && load >= BUILD_AT) keptUrgent += keep;
         if (yearEnd) this.note(`power: ${Math.round(load * 100)}% used, keeping ฿${keep} for a ${tool} plant${waits ? " once it may be built" : ""}`);
       }
     }
@@ -676,12 +655,13 @@ export class AutoPlayer {
             if (!this.place("watertower", x + ((n * 7) % 25) - 12, y + ((n * 9) % 25) - 12, 14, false)) { this.noRoom.add("watertower"); break; }
           }
         }
-        const built = !waits && (use >= BUILD_AT || short ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP) &&
+        const built = !waits && (use >= BUILD_AT || short ? budget.totalFunds >= price : budget.totalFunds >= price + BUILD_EARLY_KEEP + this.eraWant) &&
           this.tryCapacity("waterworks", yearEnd, () => this.place("waterworks", x - 10 - (this.year % 12), y + 8));
         if (!built) {
           const keep = Math.round(price * (short ? 1 : ramp(use)));
           kept += keep;
           if (!waits) keptNow += keep;
+          if (!waits && (short || use >= BUILD_AT)) keptUrgent += keep;
           if (yearEnd) this.note(`water: ${Math.round(use * 100)}% used, keeping ฿${keep} for a water works${waits ? " once it may be built" : ""}`);
         }
       }
@@ -703,6 +683,7 @@ export class AutoPlayer {
     }
     this.kept = kept;
     this.keptNow = keptNow;
+    this.keptUrgent = keptUrgent;
     this.capsKept = capsKept;
   }
 
@@ -781,6 +762,96 @@ export class AutoPlayer {
       tools.push(tool);
     }
     return tools;
+  }
+
+  /**
+   * More care or seats while the era score finds a side short of the era's aim (ERA_ASKS), the first the treasury pays
+   * for past the power and water a full meter needs now (keptUrgent: ahead of the plant or works bought early, from
+   * RESERVE_AT), else saveFor the cheapest; the year's turn and each month (readEraCard)
+   */
+  private askEra(population: number, saveFor: (price: number) => void, monthly = false): void {
+    const core = this.core, budget = core.simulation.budget, { x, y } = this.options.town;
+    const factors = (core.map as { eraScore?: { factors?: Record<string, { value: number; target: number }> } }).eraScore?.factors;
+    // ... the first it can afford, else it saves for it rather than painting more (a ruler reading the era card)
+    for (const [side, tools] of ERA_ASKS) {
+      const f = factors?.[side];
+      if (!f || f.value >= f.target) continue;
+      // (none more while one of the side is still being built, whose places the score does not count yet: the first
+      // year built three primary schools for a village of 1,100, src/construction.ts)
+      if (this.building(side)) continue;
+      // (only those the district office is high enough for and the city can build: place() buys land when a
+      // building finds no room; in the month, none that found no room this year)
+      const allowed = tools.filter((tool) => serviceProblem(tool, core.map.rulerHouse?.level ?? 0) === null && !this.waits(tool) &&
+        !(monthly && this.askNoRoom.has(tool)));
+      if (!allowed.length) continue;
+      // ... as many as the places short of the aim, and of the next year's growth (ASK_AHEAD), no more than ASK_MOST:
+      // a town growing by 3,000 people a year that built one health post a year stayed short of care for six years.
+      // The places are people cared for, or children's seats (the education side's basic share, src/eraScore.ts)
+      const era = Math.min(5, Math.max(1, core.map.era ?? 1)) as 1 | 2 | 3 | 4 | 5;
+      const base = side === "health" ? population : population * CHILDREN_SHARE / Math.max(0.1, ERA_RULES[era].education.basic);
+      let short = (f.target * (1 + ASK_AHEAD) - f.value) * base;
+      for (let built = 0; short > 0 && built < ASK_MOST; built++) {
+        const affordable = allowed.filter((tool) => budget.totalFunds >= (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE + this.keptUrgent);
+        const n = this.asked++;
+        const tool = affordable.find((tool) => {
+          if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) return true;
+          this.askNoRoom.add(tool);
+          return false;
+        });
+        if (!tool) {
+          if (affordable.length < allowed.length) saveFor(Math.min(...allowed.map((tool) => core.tools?.[tool]?.toolCost ?? 0)) + ERA_ASK_SPARE);
+          break;
+        }
+        if (monthly) this.note(`era card (month): ${side} ${Math.floor(f.value * 100)}/${Math.floor(f.target * 100)}, ${tool}`);
+        short -= isServiceKind(tool) ? SERVICE_SPECS[tool].places : short;
+      }
+    }
+  }
+
+  /** The era card's buildings that found no place this year, tried again by the month only after the year's turn */
+  private readonly askNoRoom = new Set<string>();
+  /** The price of what the era card asked for last month that the treasury could not pay yet: kept from the power plant
+   *  or water works bought early (planCapacity, from RESERVE_AT to BUILD_AT), as a ruler reading the card orders the
+   *  school that trains the next era's people before capacity the town does not need yet */
+  private eraWant = 0;
+
+  /**
+   * The era card read at the month's turn, as a ruler sees it (owner, 22 Oct 2026; it was read only at the year's turn,
+   * and a town whose education fell a point short of its aim in month 42 ordered its schools in month 48 and opened them
+   * in month 53, its market town a year late, docs/GAME_DESIGN.md 15): the symbols it lists missing that the city may
+   * build (symbolTools: the secondary school for the technicians), then more seats or care where a side is short
+   * (askEra), then the school for the trained people a building waited for (trainingGoal). What the treasury cannot pay
+   * yet is kept from the capacity bought early (eraWant). Nothing else of the year's turn (zones, services by numbers,
+   * the district office) moves to the month.
+   */
+  private readEraCard(): void {
+    const core = this.core, budget = core.simulation.budget, { x, y } = this.options.town;
+    let want = 0;
+    const wantFor = (price: number): void => { want = Math.max(want, price); };
+    for (const tool of this.symbolTools()) {
+      if (this.askNoRoom.has(tool)) continue;
+      const price = (core.tools?.[tool]?.toolCost ?? 0) + ERA_ASK_SPARE;
+      if (budget.totalFunds < price + this.keptUrgent) { wantFor(price); break; }
+      const n = this.asked++;
+      if (this.place(tool, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) {
+        this.note(`era card (month): ${tool}`);
+        continue;
+      }
+      this.askNoRoom.add(tool);
+    }
+    const population = core.simulation.evaluation.cityPop;
+    this.askEra(population, wantFor, true);
+    const goal = this.trainingGoal();
+    if (goal && !this.askNoRoom.has(goal) && serviceProblem(goal, core.map.rulerHouse?.level ?? 0) === null) {
+      const price = (core.tools?.[goal]?.toolCost ?? 0) + ERA_ASK_SPARE;
+      if (budget.totalFunds < price + this.keptUrgent) wantFor(price);
+      else {
+        const n = this.asked++;
+        if (this.place(goal, x + ((n * 13) % 41) - 20, y + ((n * 17) % 41) - 20)) this.note(`era card (month): training, ${goal}`);
+        else this.askNoRoom.add(goal);
+      }
+    }
+    this.eraWant = want;
   }
 
   /** Whether the city cannot build the tool yet (src/unlocks.ts), noting why once a year */
