@@ -78,6 +78,13 @@ export interface ToolHover {
   roadWidth?: number;
   /** Active drawing mode ('straight' | 'curve' | 'scurve' | 'free' | 'rectangle' | 'grid' | 'fill') */
   drawMode?: string;
+  /** The inspector (the query tool in hand, or the card it opened): the point it looks at, in tiles. A view shows the
+   * object there by its own outline, turned as it stands, a road by its drawn stretch, and plain ground by a soft round
+   * mark at the point, never a tile (owner, 22 Oct 2026: "ที่เปล่าๆ คลิกได้เป็นตาราง แนวเฉียง คืออะไร ... ทุก object พอคลิก
+   * แล้วจะต้องได้ rect เหมือนตอนวาง") */
+  inspect?: { x: number; y: number } | null;
+  /** ... and the tiles of the road stretch the card shows (src/inspect.ts path) */
+  inspectPath?: readonly TilePoint[] | null;
 }
 
 export interface CityView {
