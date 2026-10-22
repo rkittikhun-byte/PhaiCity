@@ -410,16 +410,20 @@ var pollutionTerrainLandValueScan = function(map, census, blockMaps, industryPol
 //    * The zone has a low value
 //    * The zone is a slum
 //    * The zone is far away from those pesky police
-var crimeScan = function(census, blockMaps) {
+// covered (PhaiCity): the police's cover is already worked out along the roads (a real-scale city map,
+// src/sim/serviceReach.ts), so it is not smoothed over the blocks
+var crimeScan = function(census, blockMaps, covered) {
   var policeStationMap = blockMaps.policeStationMap;
   var policeStationEffectMap = blockMaps.policeStationEffectMap;
   var crimeRateMap = blockMaps.crimeRateMap;
   var landValueMap = blockMaps.landValueMap;
   var populationDensityMap = blockMaps.populationDensityMap;
 
-  smoothMap(policeStationMap, policeStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
-  smoothMap(policeStationEffectMap, policeStationMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
-  smoothMap(policeStationMap, policeStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
+  if (!covered) {
+    smoothMap(policeStationMap, policeStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
+    smoothMap(policeStationEffectMap, policeStationMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
+    smoothMap(policeStationMap, policeStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
+  }
 
   var totalCrime = 0;
   var crimeZoneCount = 0;
@@ -574,10 +578,13 @@ var populationDensityScan = function(map, blockMaps, centre) {
 
 
 // Compute the radius of coverage for the firestations found during the map scan
-var fireAnalysis = function(blockMaps) {
+// covered (PhaiCity): worked out along the roads already (src/sim/serviceReach.ts), so not smoothed
+var fireAnalysis = function(blockMaps, covered) {
   var fireStationMap = blockMaps.fireStationMap;
   var fireStationEffectMap = blockMaps.fireStationEffectMap;
 
+  if (covered)
+    return;
   smoothMap(fireStationMap, fireStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
   smoothMap(fireStationEffectMap, fireStationMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);
   smoothMap(fireStationMap, fireStationEffectMap, SMOOTH_NEIGHBOURS_THEN_BLOCK);

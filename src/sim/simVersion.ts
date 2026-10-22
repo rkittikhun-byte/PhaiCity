@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 10;
+export const SIM_VERSION = 11;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -37,6 +37,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   10: "on a real-scale city map the open land round a block adds to its land value by its share in squares 32, 64 and " +
     "96 m round the block's middle, not by the 64 m block it lies in, and what the ruler's house, the metro, the canals, " +
     "the fields and the festivals add is measured at the block's middle (NO_GRID_PLAN 4.2)",
+  11: "on a real-scale city map the police's and the fire brigade's cover runs along the roads from each station, falling " +
+    "to nothing 320 m along them, in blocks of 2 tiles; schools' seats and hospitals' care go to the homes along the roads, " +
+    "the nearest first, none past 3 km (basic), 6 km (higher) or 4 km (health) (NO_GRID_PLAN 4.3)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

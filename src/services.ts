@@ -138,10 +138,14 @@ interface CensusLike {
 export class Services {
   places: Record<ServiceField, number> = { basic: 0, higher: 0, health: 0 };
   counts: Partial<Record<ServiceKind, number>> = {};
+  /** Each one found, its centre tile, field and places (none without power): their seats go along the roads on a
+   * real-scale city map (src/sim/serviceSeats.ts) */
+  sites: Array<{ centre: number; field: ServiceField; places: number }> = [];
 
   clearCycle(): void {
     this.places = { basic: 0, higher: 0, health: 0 };
     this.counts = {};
+    this.sites = [];
   }
 
   /** A civic building's centre: a school or hospital pays its upkeep, and gives its places when it has power. */
@@ -152,7 +156,9 @@ export class Services {
     if (spec.field === "health") census.healthUpkeep = (census.healthUpkeep ?? 0) + spec.upkeep;
     else census.educationUpkeep = (census.educationUpkeep ?? 0) + spec.upkeep;
     this.counts[kind] = (this.counts[kind] ?? 0) + 1;
-    if ((map.getTileFlags(x, y) & POWERBIT) !== 0) this.places[spec.field] += spec.places;
+    const powered = (map.getTileFlags(x, y) & POWERBIT) !== 0;
+    if (powered) this.places[spec.field] += spec.places;
+    this.sites.push({ centre: y * map.width + x, field: spec.field, places: powered ? spec.places : 0 });
     return true;
   }
 }

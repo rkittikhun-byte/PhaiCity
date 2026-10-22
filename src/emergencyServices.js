@@ -32,6 +32,13 @@ var handleService = function(censusStat, budgetEffect, blockMap, group, upkeepSt
     if (!connectedToRoads)
       effect = Math.floor(effect / 2);
 
+    // PhaiCity: on a real-scale city map the station's cover runs along the roads from it, worked out after the scan
+    // (src/sim/serviceReach.ts, docs/NO_GRID_PLAN.md 4.3)
+    if (simData.stations) {
+      simData.stations[group].push({centre: y * map.width + x, size: 3, effect: effect});
+      return;
+    }
+
     var currentEffect = simData.blockMaps[blockMap].worldGet(x, y);
     currentEffect += effect;
     simData.blockMaps[blockMap].worldSet(x, y, currentEffect);

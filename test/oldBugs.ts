@@ -24,24 +24,29 @@ function city(width = 40, height = 40) {
 
 describe("old bugs of the port", () => {
   test("a fire spreads to the woods beside it", () => {
-    const core = city(), map = core.map;
-    for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) map.setTile(x, y, WOODS, BURNBIT | BULLBIT);
-    map.setTile(20, 20, FIRE, ANIMBIT);
-    Random.seed(5);
-    let most = 0, burnt = 0;
-    for (let step = 0; step < 64 * 4; step++) {
-      core.step();
-      let fires = 0;
-      for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) {
-        const v = map.getTileValue(x, y);
-        if (v >= FIRE && v <= LASTFIRE) fires++;
+    // (a fire may go out before it catches the woods, as one in eleven does each time the scan comes by: over a few
+    // cities most spread, whatever else draws on the city's chances first, such as the pollution scan, docs/NO_GRID_PLAN.md 4.1)
+    let spread = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const core = city(), map = core.map;
+      for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) map.setTile(x, y, WOODS, BURNBIT | BULLBIT);
+      map.setTile(20, 20, FIRE, ANIMBIT);
+      Random.seed(seed);
+      let most = 0, burnt = 0;
+      for (let step = 0; step < 64 * 4; step++) {
+        core.step();
+        let fires = 0;
+        for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) {
+          const v = map.getTileValue(x, y);
+          if (v >= FIRE && v <= LASTFIRE) fires++;
+        }
+        most = Math.max(most, fires);
       }
-      most = Math.max(most, fires);
+      for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) if (map.getTileValue(x, y) !== WOODS) burnt++;
+      // More than the one tile it started on caught fire, and burnt out
+      if (most > 1 && burnt > 1) spread++;
     }
-    for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) if (map.getTileValue(x, y) !== WOODS) burnt++;
-    // More than the one tile it started on caught fire, and burnt out
-    expect(most).toBeGreaterThan(1);
-    expect(burnt).toBeGreaterThan(1);
+    expect(spread).toBeGreaterThanOrEqual(4);
   });
 
   test("a flood comes out of the water onto the bare ground beside it", () => {

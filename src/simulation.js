@@ -67,6 +67,10 @@ import { nextWeather, startingWeather, weatherTraffic, weatherVisitors } from '.
 import { spellBeginning, stormDuring } from './rainSpells.ts';
 import { NO_DROUGHT, WaterManager } from './waterManager.ts';
 import { seasonWind } from './wind.ts';
+import { coverAlongRoads } from './sim/serviceReach.ts';
+import { seatsAlongRoads } from './sim/serviceSeats.ts';
+import { usesPlotList } from './plotBuildings.ts';
+import { isCityTileSize } from './units.ts';
 
 // rules (PhaiCity): the province's rules (src/provinceRules.ts resolveRules); none means the game's own.
 // resources (PhaiCity): the province's resource levels, 0–5 by id (src/geo/provinceResources.ts); none for a
@@ -172,6 +176,12 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._transit = new Transit(this._map.width, this._map.height);
   this._traffic.transit = this._transit;
 
+  // PhaiCity: on a real-scale city map the police's and the fire brigade's cover runs along the roads from each station
+  // (src/sim/serviceReach.ts, docs/NO_GRID_PLAN.md 4.3): kept in blocks of 2 tiles, as the land's values are, not 8
+  var metric = isCityTileSize(this._map.tileSizeM);
+  var stationBlock = metric ? 2 : 8;
+  this._stations = metric ? {police: [], fire: []} : null;
+
   this.blockMaps = {
     // Holds a "distance score" for the block from the city centre, range  -64 to 64
     cityCentreDistScoreMap: new BlockMap(this._map.width, this._map.height, 8),
@@ -180,19 +190,19 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
     crimeRateMap: new BlockMap(this._map.width, this._map.height, 2),
 
     // A map used to note positions of fire stations during the map scan, range 0-1000
-    fireStationMap: new BlockMap(this._map.width, this._map.height, 8),
+    fireStationMap: new BlockMap(this._map.width, this._map.height, stationBlock),
 
     // Holds a value containing a score representing the effect of fire cover in this neighborhood, range 0-1000
-    fireStationEffectMap: new BlockMap(this._map.width, this._map.height, 8),
+    fireStationEffectMap: new BlockMap(this._map.width, this._map.height, stationBlock),
 
     // Holds scores representing the land value in the range 0-250
     landValueMap: new BlockMap(this._map.width, this._map.height, 2),
 
     // A map used to note positions of police stations during the map scan, range 0-1000
-    policeStationMap: new BlockMap(this._map.width, this._map.height, 8),
+    policeStationMap: new BlockMap(this._map.width, this._map.height, stationBlock),
 
     // Holds a value containing a score representing how much crime is dampened in this block, range 0-1000
-    policeStationEffectMap: new BlockMap(this._map.width, this._map.height, 8),
+    policeStationEffectMap: new BlockMap(this._map.width, this._map.height, stationBlock),
 
     // Holds a value representing the amount of pollution in a neighbourhood, in the range 0-255
     pollutionDensityMap: new BlockMap(this._map.width, this._map.height, 2),
@@ -389,6 +399,22 @@ Simulation.prototype._clearCensus = function() {
   this._waste.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
+  if (this._stations) {
+    this._stations.police = [];
+    this._stations.fire = [];
+  }
+};
+
+
+// PhaiCity: on a real-scale city map, the cover of the stations the scan found, along the roads from each (both maps
+// of a service, the stations' and their effect's, hold it: src/sim/serviceReach.ts); false on any other map
+Simulation.prototype._coverAlongRoads = function(service) {
+  if (!this._stations)
+    return false;
+  var stationMap = this.blockMaps[service + 'StationMap'], effectMap = this.blockMaps[service + 'StationEffectMap'];
+  coverAlongRoads(this._map, this._stations[service], stationMap);
+  effectMap.copyFrom(stationMap, function(v) { return v; });
+  return true;
 };
 
 
@@ -409,7 +435,9 @@ Simulation.prototype._constructSimData = function() {
     touristTrips: touristTrips(this._tourism),
     spriteManager: this.spriteManager,
     trafficManager: this._traffic,
-    valves: this._valves
+    valves: this._valves,
+    // PhaiCity: the stations found, by their service, on a real-scale city map (src/emergencyServices.js)
+    stations: this._stations
   };
 };
 
@@ -501,9 +529,9 @@ Simulation.prototype.init = function() {
   this._powerManager.doPowerScan(this._census);
   this._waterManager.doWaterScan(month, false);
   this._pollutionTerrainLandValueScan();
-  BlockMapUtils.crimeScan(this._census, this.blockMaps);
+  BlockMapUtils.crimeScan(this._census, this.blockMaps, this._coverAlongRoads('police'));
   BlockMapUtils.populationDensityScan(this._map, this.blockMaps, this._house());
-  BlockMapUtils.fireAnalysis(this.blockMaps);
+  BlockMapUtils.fireAnalysis(this.blockMaps, this._coverAlongRoads('fire'));
   // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
   this._setTourism(this._visitors(month));
 };
@@ -637,7 +665,7 @@ var simulate = function(simData) {
 
     case 13:
       if ((this._simCycle % speedCrimeScan[speedIndex]) === 0)
-        BlockMapUtils.crimeScan(this._census, this.blockMaps);
+        BlockMapUtils.crimeScan(this._census, this.blockMaps, this._coverAlongRoads('police'));
       break;
 
     case 14:
@@ -648,7 +676,7 @@ var simulate = function(simData) {
 
     case 15:
       if ((this._simCycle % speedFireAnalysis[speedIndex]) === 0)
-        BlockMapUtils.fireAnalysis(this.blockMaps);
+        BlockMapUtils.fireAnalysis(this.blockMaps, this._coverAlongRoads('fire'));
 
       this.disasterManager.doDisasters(this._census, this._seasonalRisks(this.getDate().month));
       break;
@@ -938,7 +966,11 @@ var TOURIST_FEE_TAKE = 0.02;
 // A month of the schools and hospitals (src/services.ts): the levels their places give the people, which the demand and
 // the scans use, and, at most once a year each, the news when a town lacks schools or hospitals
 Simulation.prototype._servicesMonth = function() {
-  var levels = serviceLevels(this._services.places, peopleOf(this._census));
+  // PhaiCity: on a real-scale city map whose plots are a list, the places go to the homes along the roads, the nearest
+  // first, none past a field's reach (src/sim/serviceSeats.ts, docs/NO_GRID_PLAN.md 4.3)
+  var people = peopleOf(this._census);
+  var levels = (usesPlotList(this._map) ? seatsAlongRoads(this._map, this._services.sites, people) : null) ||
+               serviceLevels(this._services.places, people);
   this._serviceLevels = levels;
   this._valves.familyPull = familyPull(levels);
   this._valves.skilled = skilled(levels);
