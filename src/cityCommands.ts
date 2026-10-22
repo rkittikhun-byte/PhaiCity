@@ -100,7 +100,7 @@ export const LINE_IN_THE_WAY = "a road or railway is in the way";
  * (src/buildings/outlineOverlap.ts, docs/NO_GRID_PLAN.md 3A.2) */
 export const BUILDING_IN_THE_WAY = "another building is in the way";
 /** A road or railway as drawn, in metres, and how far its body reaches either side of its line */
-type DrawnBody = { points: [number, number][]; reach: number; rail: boolean; box: [number, number, number, number] };
+type DrawnBody = { points: [number, number][]; reach: number; rail: boolean; box: [number, number, number, number]; level: number };
 /** Why a road or railway was refused: it would run inside the ruler's house's fence */
 export const HOUSE_IN_THE_WAY = "the ruler's house is in the way";
 /** The most cells one command paints */
@@ -939,11 +939,26 @@ export class CityCommands {
         const points = line.points.map((p) => [p[0] * toMetres, p[1] * toMetres] as [number, number]);
         const box: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
         for (const [x, z] of points) { box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], z); box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], z); }
-        bodies.push({ points, reach: rail ? RAIL_REACH_M : roadReach(line.level, real) / units, rail, box });
+        bodies.push({ points, reach: rail ? RAIL_REACH_M : roadReach(line.level, real) / units, rail, box, level: line.level });
       }
     }
     this.drawnCache = { changes, key, bodies };
     return bodies;
+  }
+
+  /** The roads as drawn, in world units (10 a tile) with their levels: what a building of the ruler's stands against
+   * (src/buildings/roadPose.ts), as the game's outline and click stand it (src/game.js networkLines); the auto player
+   * puts its buildings down against them as a player does (src/core/autoPlayer.ts) */
+  roadLines(): { lines: [number, number][][]; levels: number[] } | null {
+    const bodies = this.drawnBodies(), map = this.city.map as { tileSizeM?: number | null } | undefined;
+    if (!bodies || !map) return null;
+    const units = unitsPerMetre(tileMetres(map)), lines: [number, number][][] = [], levels: number[] = [];
+    for (const body of bodies) {
+      if (body.rail) continue;
+      lines.push(body.points.map(([x, z]) => [x * units, z * units] as [number, number]));
+      levels.push(body.level);
+    }
+    return { lines, levels };
   }
 
   /** Where the build command in hand puts its building down, in metres */

@@ -22,6 +22,10 @@ import { blockColumns, blockPrice, blockRows, blockSizeOf, ownsLand } from "../l
 import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
 import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
+import { roadPose } from "../buildings/roadPose.js";
+import { TURNED_SIZES } from "../buildings/turnedFootprint.js";
+import { placesBuilding } from "../gameTools.js";
+import { realUnits } from "../roadGeometry.js";
 import { isRoadTile } from "../roadLevels.js";
 import { cellsOf, plotTileOfCell } from "../zoneCells.js";
 import { CHILDREN_SHARE, isServiceKind, SERVICE_SPECS, serviceProblem } from "../services.js";
@@ -917,10 +921,13 @@ export class AutoPlayer {
   /** Why the last tries of a tool failed, and how often */
   private failures = new Map<string, number>();
 
-  /** A tool at (x, y); true when it built, counting what it cost */
+  /** A tool at (x, y); true when it built, counting what it cost. A building of two tiles a side and up is put down
+   * against its road as a player puts one (roadCommand), else, or where that is refused, at (x, y) by the tile */
   private apply(tool: string, x: number, y: number, quiet = false): boolean {
     const budget = this.core.simulation.budget, before = budget.totalFunds;
-    const outcome = this.core.apply({ type: "tool", tool: tool as never, x, y });
+    const posed = this.roadCommand(tool, x, y);
+    let outcome = posed ? this.core.apply(posed) : null;
+    if (!outcome || !outcome.accepted || outcome.toolResult !== 0) outcome = this.core.apply({ type: "tool", tool: tool as never, x, y });
     const cost = before - budget.totalFunds;
     if (!outcome.accepted || outcome.toolResult !== 0 || cost <= 0) {
       const why = !outcome.accepted ? String(outcome.reason) : `tool result ${String(outcome.toolResult)}`;
@@ -931,6 +938,40 @@ export class AutoPlayer {
     if (!quiet) this.note(`${tool} at ${x},${y} ฿${cost}`);
     return true;
   }
+
+  /**
+   * The build command a player's click near the tile (x, y) gives a building of two tiles a side and up on a map painted
+   * a cell at a time (src/game.js buildingPose): its outline against the road nearest its block's middle, turned to face
+   * it, its front at the road's edge, moved along the road to the nearest place the game takes it; null where its block
+   * there stands beside no road, or the game would refuse it. So the auto player's buildings stand turned to a slanted
+   * road on their turned outline and fence, as a player's do, not square on a block the 3D view drew turned past its
+   * fence (docs/NO_GRID_PLAN.md 3A).
+   */
+  private roadCommand(tool: string, x: number, y: number): { type: "build"; tool: never; x: number; z: number; rot: number } | null {
+    const core = this.core, map = core.map, spec = core.tools?.[tool], size = spec?.size ?? 1;
+    if (!map.cellZones || !TURNED_SIZES.has(size) || !placesBuilding(tool, spec)) return null;
+    const isRoad = (tx: number, ty: number): boolean =>
+      tx >= 0 && ty >= 0 && tx < map.width && ty < map.height && isRoadTile(map.getTileValue(tx, ty));
+    if (!besideRoad(map.width, map.height, isRoad, x, y, size)) return null;
+    const drawn = core.commands.roadLines();
+    if (!drawn || !drawn.lines.length) return null;
+    const metres = tileMetres(map), toMetres = metres / 10;
+    const command = (pose: [number, number, number]) => ({ type: "build" as const, tool: tool as never,
+      x: Math.round(pose[0] * toMetres * 100) / 100, z: Math.round(pose[1] * toMetres * 100) / 100, rot: pose[2] });
+    // (the pose a click there shows first, not moved along the road to where it fits as the game's outline is: the auto
+    // player tries the spots round about itself, and a spot refused is asked once while the city stands as it is)
+    const pose = roadPose({ width: map.width, height: map.height, tileSizeM: metres, realUnits: realUnits(metres), isRoad },
+      drawn.lines, drawn.levels, (x - 1 + size / 2) * 10, (y - 1 + size / 2) * 10, size);
+    if (!pose) return null;
+    const built = command(pose), key = `${tool}:${built.x},${built.z},${built.rot}`, changes = map.changeCount?.() ?? -1;
+    if (this.posesAsked.changes !== changes) this.posesAsked = { changes, refused: new Set() };
+    if (this.posesAsked.refused.has(key)) return null;
+    if (core.commands.quoteBuild(built) === null) return built;
+    this.posesAsked.refused.add(key);
+    return null;
+  }
+  /** The road poses the game refused while the map stood as it was (its count of changes) */
+  private posesAsked: { changes: number; refused: Set<string> } = { changes: -2, refused: new Set() };
 
   /** A building at the nearest spot round (cx, cy) the game takes, as a player tries spots near a road */
   private place(tool: string, cx: number, cy: number, reach = 40, buy = true): boolean {
