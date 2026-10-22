@@ -44,7 +44,8 @@ describe('the farm zone in 3D', () => {
     view.update([], MAY, 300, 0);
     const counts = view.counts();
     expect(counts.fields).toBe(18 * 4 + 18 * 2 + 18 + 18 + 1);
-    expect(counts.row).toBe(18 * 2 * 4);
+    // (two rows across each quarter of a crop field, side by side: they once all lay on its middle line)
+    expect(counts.row).toBe(18 * 2 * 8);
     expect(counts.tree).toBe(18 * 4);
     expect(counts.aerator).toBe(18);
     // The village era's buffalo and field huts, no machines
@@ -113,6 +114,65 @@ describe('the farm zone in 3D', () => {
     expect(Math.min(...xs)).toBeCloseTo(20.7);
     expect(Math.max(...xs)).toBeCloseTo(199.3);
     expect(Math.min(...zs)).toBeCloseTo(20.7);
+    view.dispose();
+  });
+});
+
+describe('the farm zone painted in cells (docs/NO_GRID_PLAN.md 3C)', () => {
+  /** A city map's fields: a whole paddy at (4, 4) and, east of it, one painted only on its left half */
+  function cellMap() {
+    const values = new Uint16Array(W * H), farmKinds = new Uint8Array(W * H), farmCells = new Uint16Array(W * H);
+    for (const x of [4, 5]) { values[4 * W + x] = fieldTile(2); farmKinds[4 * W + x] = kindCode('paddy'); }
+    farmCells[4 * W + 5] = 0x3333;
+    return { width: W, height: H, values, farmKinds, farmCells, cellZones: true, tileSizeM: 16, era: 1, farmCellsVersion: 0,
+      getTileValue: (x: number, y: number) => values[y * W + x] };
+  }
+  const groundOf = (view: CityFarmFields) => {
+    const ground = view.root.children.find((c) => c.name === 'farm_fields/ground') as Mesh;
+    return ground.geometry.getAttribute('position') as BufferAttribute;
+  };
+
+  test('a field is drawn on the cells painted, its water inside a dike along what was painted', () => {
+    const map = cellMap(), view = new CityFarmFields(map, flat);
+    view.update([], MAY, 300, 0);
+    const position = groundOf(view);
+    let maxX = -Infinity, maxWater = -Infinity, waterAtJoin = false;
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i), y = position.getY(i);
+      maxX = Math.max(maxX, x);
+      if (y > 0.08) { maxWater = Math.max(maxWater, x); if (Math.abs(x - 50) < 1e-6) waterAtJoin = true; }
+    }
+    // the half-painted tile reaches 5 units (8 m) into its tile, not its whole 10
+    expect(maxX).toBeCloseTo(55);
+    // ... its water stands back by the dike there, and runs on across the join with the whole paddy beside it
+    expect(maxWater).toBeCloseTo(55 - 0.7);
+    expect(waterAtJoin).toBe(true);
+    view.dispose();
+  });
+
+  test('is drawn again when cells are painted, and recoloured with the month whatever its shape', () => {
+    const map = cellMap(), view = new CityFarmFields(map, flat);
+    view.update([], MAY, 300, 0);
+    const before = groundOf(view).count;
+    map.farmCells[4 * W + 5] = 0x0001;
+    map.farmCellsVersion = 1;
+    view.update([], MAY, 300, 0.1);
+    view.update([], MAY, 300, 1);
+    expect(groundOf(view).count).not.toBe(before);
+    const ground = view.root.children.find((c) => c.name === 'farm_fields/ground') as Mesh;
+    const colours = (ground.geometry.getAttribute('color') as BufferAttribute).array.slice();
+    view.update([], OCTOBER, 300, 2);
+    expect((ground.geometry.getAttribute('color') as BufferAttribute).array).not.toEqual(colours);
+    view.dispose();
+  });
+
+  test('the brush shows the cells it would paint, and nothing when put away', () => {
+    const map = cellMap(), view = new CityFarmFields(map, flat);
+    view.showBrush([(6 * W + 6) * 16 + 0, (6 * W + 6) * 16 + 5], '#4fbf5a');
+    const brush = view.root.children.find((c) => c.name === 'farm_fields/brush') as InstancedMesh;
+    expect(brush.count).toBe(2);
+    view.showBrush(null, null);
+    expect(view.root.children.find((c) => c.name === 'farm_fields/brush')).toBeUndefined();
     view.dispose();
   });
 });

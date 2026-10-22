@@ -20,7 +20,8 @@ import { bindGraphicsQuality } from './graphicsQuality.ts';
 import { BaseTool } from './baseTool.js';
 import { DRAWN_TILE_M, tileMetres, unitsPerMetre } from './units.ts';
 import { BudgetWindow } from './budgetWindow.js';
-import { besideRoad, BUILDING_IN_THE_WAY, CityCommands, LINE_IN_THE_WAY, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, OUTSIDE_PROVINCE, placeProblem } from './cityCommands.ts';
+import { besideRoad, BUILDING_IN_THE_WAY, CityCommands, LINE_IN_THE_WAY, MAX_CELLS, NEEDS_ROAD_BESIDE, NEEDS_WATER, NO_RESOURCE, NOTHING_TO_PAINT, OUTSIDE_PROVINCE,
+  placeProblem } from './cityCommands.ts';
 import { CityCore } from './core/cityCore.ts';
 import { MODE_RULES, modeChoosable, modeRule, ONLINE_MODE, startingFundsIn } from './gameModes.ts';
 import { siteMonths } from './construction.ts';
@@ -55,7 +56,7 @@ import { clearToolChoices, pageChoice, setToolChoices, toolChoicesFor } from './
 import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
 import { buildingAtPoint } from './buildings/outlineOverlap.ts';
 import { drawModeOf, isAreaMode, isFarmTool, isPaintTool, isStraightMode, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
-import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, fieldFillRegion, fieldOutcome } from './farmZone.ts';
+import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, farmCellsInRect, farmCellsNear, fieldFillRegion, fieldOutcome } from './farmZone.ts';
 import { FARM_ZONE } from './provinceRules.ts';
 import { SCENE } from './theme/tokens.ts';
 import { BRUSH_RADIUS_M, cellsAlong, cellsInStrip, cellsNear, cellsOf } from './zoneCells.ts';
@@ -1169,6 +1170,79 @@ Game.prototype.isCellBrush = function(toolName) {
 };
 
 
+// On a map whose zones go a cell at a time the farm zone's brush and eraser paint its cells, about 4 m a side, the shape
+// the brush went (src/farmZone.ts, docs/NO_GRID_PLAN.md 3C; owner, 21 Oct 2026: the fields were 16 m squares); the
+// fill still takes whole tiles of open land
+Game.prototype.isFarmCellBrush = function(toolName) {
+  return this.gameMap.cellZones === true && isFarmTool(toolName) && drawModeOf(toolName) !== 'fill' &&
+         typeof this.cityView.pointAt === 'function';
+};
+
+
+// How far either side of where the mouse goes the farm brush paints, metres, by its mode: the brush a stroke about a
+// tile wide, the round brush wider
+var FARM_BRUSH_M = {brush: 7, circle: 14};
+
+
+// The farm cells the brush in hand paints from one point to the next (metres; from null, at one point)
+Game.prototype.farmCellsAt = function(from, to) {
+  return farmCellsNear(this.gameMap, from, to, FARM_BRUSH_M[drawModeOf(this.inputStatus.toolName)] || FARM_BRUSH_M.brush);
+};
+
+
+// The farm cells inside a rectangle dragged between two points on the view
+Game.prototype.farmCellsInArea = function(from, to) {
+  var a = this.cityView.pointAt(from.x, from.y), b = this.cityView.pointAt(to.x, to.y) || a, size = tileMetres(this.gameMap);
+  return a === null ? [] : farmCellsInRect(this.gameMap, [a.x * size, a.y * size], [b.x * size, b.y * size]);
+};
+
+
+// Paints the farm cells (their keys) with the brush in hand, or rubs them out with the eraser, a command at a time
+Game.prototype.paintFarmCells = function(cells, screenX, stroke) {
+  var toolName = this.inputStatus.toolName;
+  var tool = this.inputStatus.currentTool;
+  if (tool === null || cells.length === 0)
+    return;
+  var painted = false, reason = null;
+  for (var i = 0; i < cells.length; i += MAX_CELLS) {
+    var outcome = this.applyCommand({type: 'farmCells', erase: toolName === FARM_ERASE_TOOL, cells: cells.slice(i, i + MAX_CELLS),
+                                     stroke: stroke});
+    painted = painted || outcome.accepted;
+    reason = outcome.accepted ? reason : outcome.reason;
+  }
+  if (!painted && reason === HOUSE_FIRST)
+    showCornerNote(t('house.note.first'), 4000);
+  // ... and, where nothing took the paint for want of a way to a road, says how far a field may lie from one
+  if (!painted && toolName === FARM_PAINT_TOOL && reason === NOTHING_TO_PAINT && this.farmNoWay(cells))
+    showCornerNote(t('tool.needs_way_m', {metres: this.farmZoneRules().reach * tileMetres(this.gameMap)}), OUTSIDE_NOTE_MS);
+  this.gameAudio.toolUsed(toolName, painted ? tool.TOOLRESULT_OK : tool.TOOLRESULT_FAILED, screenX);
+};
+
+
+// Whether the farm cells lie on open land with no way to a road within the farm zone's reach
+Game.prototype.farmNoWay = function(cells) {
+  var map = this.gameMap, reach = this.farmZoneRules().reach;
+  return cells.some(function(key) {
+    var tile = Math.floor(key / 16);
+    return fieldOutcome(map, tile % map.width, Math.floor(tile / map.width), reach) === 'no_way';
+  });
+};
+
+
+// A press or a drag of the farm brush: its cells along where the mouse went since the last
+Game.prototype.farmCellStroke = function(data) {
+  if (data.release)
+    return;
+  var point = this.cityView.pointAt(data.x, data.y);
+  if (point === null)
+    return;
+  var size = tileMetres(this.gameMap), at = [point.x * size, point.y * size];
+  var last = this._farmStroke && this._farmStroke.stroke === data.stroke ? this._farmStroke.point : null;
+  this._farmStroke = {stroke: data.stroke, point: at};
+  this.paintFarmCells(this.farmCellsAt(last, at), data.x, data.stroke);
+};
+
+
 // The cells along the roads, on land the city may build on: the same layout the commands check against
 Game.prototype.cellLayout = function() {
   var map = this.gameMap;
@@ -1740,6 +1814,12 @@ Game.prototype.handleTool = function(data) {
     this.paintCellStroke(data);
     return;
   }
+  // ... and the farm brush the farm zone's cells (src/farmZone.ts), a rectangle being dragged (handleToolArea)
+  if (this.isFarmCellBrush(this.inputStatus.toolName)) {
+    if (drawModeOf(this.inputStatus.toolName) !== 'rectangle')
+      this.farmCellStroke(data);
+    return;
+  }
 
   // A road or railway drawn freely, in metres (freeRoad)
   if (isMetreTool(this.inputStatus.toolName) && drawModeOf(this.inputStatus.toolName) === 'free') {
@@ -1817,7 +1897,8 @@ Game.prototype.handleTool = function(data) {
     // The farm zone needs a cart track to a road within reach (src/farmZone.ts)
     if (toolName === FARM_PAINT_TOOL && outcome.accepted && result === tool.TOOLRESULT_FAILED &&
         fieldOutcome(this.gameMap, tileCoords.x, tileCoords.y, this.farmZoneRules().reach) === 'no_way')
-      showCornerNote(t('tool.needs_way', {reach: this.farmZoneRules().reach}), OUTSIDE_NOTE_MS);
+      showCornerNote(this.gameMap.cellZones ? t('tool.needs_way_m', {metres: this.farmZoneRules().reach * tileMetres(this.gameMap)}) :
+                     t('tool.needs_way', {reach: this.farmZoneRules().reach}), OUTSIDE_NOTE_MS);
     // On a map painted a cell at a time every building stands beside a road (src/cityCommands.ts)
     if (outcome.reason === NEEDS_ROAD_BESIDE) {
       showCornerNote(t('tool.needs_road'), OUTSIDE_NOTE_MS);
@@ -2100,6 +2181,24 @@ Game.prototype.calculateMouseForPaint = function() {
     var refusal = this.core.commands.quoteBuild(this.buildCommand(this.inputStatus.toolName, pose));
     hover.colour = refusal !== null ? OUTSIDE_COLOUR : this.inputStatus.toolColour || 'yellow';
     var refusalTip = refusal !== null ? this.refusalNote(refusal, this.inputStatus.toolName, tile.x, tile.y) : null;
+  }
+
+  // The farm brush on a map painted a cell at a time shows the cells it would paint there, or that a dragged rectangle
+  // will, not a tile (src/farmZone.ts; docs/NO_GRID_PLAN.md 3C)
+  if (this.isFarmCellBrush(this.inputStatus.toolName)) {
+    hover.cellPoint = this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
+    var farmDrag = this.inputStatus.areaDrag, farmMetres = tileMetres(cityMap);
+    if (farmDrag && drawModeOf(this.inputStatus.toolName) === 'rectangle') {
+      var farmKey = [farmDrag.from.x, farmDrag.from.y, farmDrag.to.x, farmDrag.to.y].join();
+      if (this._farmDragKey !== farmKey) {
+        this._farmDragKey = farmKey;
+        this._farmDragCells = this.farmCellsInArea(farmDrag.from, farmDrag.to);
+      }
+      hover.farmCellKeys = this._farmDragCells;
+    } else if (hover.cellPoint) {
+      hover.farmCellKeys = this.farmCellsAt(null, [hover.cellPoint.x * farmMetres, hover.cellPoint.y * farmMetres]);
+    }
+    return hover;
   }
 
   // A zone brush on a map painted a cell at a time shows the cell under the mouse (src/zoneCells.ts)
@@ -3554,6 +3653,12 @@ Game.prototype.handleToolArea = function(data) {
     var keys = this.cellsInArea(data.from, data.to);
     if (keys.length)
       this.paintCells(keys, data.to.x);
+    this.resetDraft();
+    return;
+  }
+  // ... and with the farm brush, every farm cell inside it (farmCellsInArea)
+  if (this.isFarmCellBrush(toolName)) {
+    this.paintFarmCells(this.farmCellsInArea(data.from, data.to), data.to.x, data.stroke);
     this.resetDraft();
     return;
   }

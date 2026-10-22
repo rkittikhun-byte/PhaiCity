@@ -22,7 +22,7 @@ import { tileMetres } from "../units.js";
 import { canalMarkStands, canalsKept, isBridgeTile, isWaterTile, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { PlotBuildings, usesPlotList } from "../plotBuildings.js";
-import { farmKindsKept } from "../farmZone.js";
+import { farmCellsKept, farmKindsKept, readFarmCells } from "../farmZone.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
 import { readWeather } from "../weather.js";
@@ -113,6 +113,8 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.plotBuildings = saved.plots ? PlotBuildings.fromJSON(saved.plots) : null;
     // ... and the kind of each farm zone field (src/farmZone.ts)
     map.farmKinds = saved.farmKinds ? decodePresetLayer(saved.farmKinds, map.width, map.height) : null;
+    // ... and the cells each painted on part of its tile (docs/NO_GRID_PLAN.md 3C); a field with none is its whole tile
+    map.farmCells = readFarmCells(saved.farmCells, map.width, map.height);
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
     map.landBlocks = saved.land ? savedLand(map, saved.land) : null;
     map.landBought = saved.landBought || 0;
@@ -257,6 +259,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     plots: map.plotBuildings && usesPlotList(map) && map.plotBuildings.size ? map.plotBuildings.toJSON() : undefined,
     // ... and the kinds of its farm zone's fields (src/farmZone.ts)
     farmKinds: encodeFarmKinds(map),
+    // ... and the cells of those painted on part of their tile, by tile (src/farmZone.ts farmCellsKept)
+    farmCells: farmCellsKept(map) ?? undefined,
     // ... and the land the city owns (src/landBlocks.ts)
     land: map.landBlocks ? encodePresetLayer(map.landBlocks) : undefined,
     landBought: map.landBlocks ? map.landBought || 0 : undefined,

@@ -222,6 +222,7 @@ export const STRINGS: Record<string, Translation> = {
   "choice.farm_erase": { en: "Erase", th: "ลบ" },
   "about.zone.farm": { en: "Farmland: paddies, crop fields, orchards and fish ponds, chosen by the land; it needs a cart track to a road nearby, not a road beside it. It feeds the town and sells its crop, but draws the groundwater, its chemicals seep into the ground and its stubble burns from February to April.", th: "โซนเกษตร: นา ไร่ สวน บ่อปลา เกมเลือกตามพื้นที่ ไม่ต้องติดถนน แค่มีทางเกวียนไปถึงถนนไม่ไกล เลี้ยงคนในเมืองและขายผลผลิต แต่ใช้น้ำใต้ดิน สารเคมีลงดิน และเผาตอซังช่วง ก.พ.–เม.ย." },
   "tool.needs_way": { en: "Farmland needs a way to a road within {reach} tiles", th: "โซนเกษตรต้องมีทางไปถึงถนนภายใน {reach} ช่อง" },
+  "tool.needs_way_m": { en: "Farmland needs a way to a road within {metres} m", th: "โซนเกษตรต้องมีทางไปถึงถนนภายใน {metres} ม." },
   "farm.kind.paddy": { en: "Rice paddy", th: "นาข้าว" },
   "farm.kind.field": { en: "Crop field", th: "ไร่" },
   "farm.kind.orchard": { en: "Orchard", th: "สวน" },

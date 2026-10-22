@@ -14,10 +14,12 @@
 // writes it.
 
 import { BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
-  IcosahedronGeometry, InstancedMesh, type Material, Matrix4, Mesh, MeshStandardMaterial, Object3D } from 'three';
+  IcosahedronGeometry, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D,
+  PlaneGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mapEra } from '../../era.js';
-import { FARM_ERA_LOOKS, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode, type FarmKind } from '../../farmZone.js';
+import { FARM_ERA_LOOKS, farmSide, type FarmLook, FIELD_BURNING_MONTHS, fieldCells, fieldLevelOf, fullCells, kindOfCode,
+  type FarmKind, type FieldMap } from '../../farmZone.js';
 import { FARM, FIELD_BASE } from '../../tileValues.js';
 import { SCENE } from '../../theme/tokens.js';
 import { getRegionKit } from '../regional/index.js';
@@ -29,6 +31,12 @@ export interface FarmViewMap {
   readonly height: number;
   readonly farmKinds?: Uint8Array | null;
   readonly era?: unknown;
+  /** The cells of each field painted on part of its tile, its tiles' size, whether its zones go a cell at a time, and a
+   * count of changes to the cells (src/farmZone.ts fieldCells; docs/NO_GRID_PLAN.md 3C) */
+  readonly farmCells?: Uint16Array | null;
+  readonly tileSizeM?: number | null;
+  readonly cellZones?: boolean;
+  readonly farmCellsVersion?: number;
   getTileValue(x: number, y: number): number;
 }
 
@@ -75,7 +83,8 @@ type Prop = FarmLook | 'row' | 'tree' | 'trunk' | 'aerator';
 /** A stable number for a tile, for which fields get which prop */
 const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>> 15; return Math.imul(h, 2246822519) >>> 0; };
 
-interface Field { index: number; level: number; kind: FarmKind | null }
+/** A field as drawn: its tile, level and kind, and its painted cells (bits row by row; every one of a whole tile) */
+interface Field { index: number; level: number; kind: FarmKind | null; cells: number }
 
 export class CityFarmFields {
   readonly root = new Group();
@@ -91,9 +100,18 @@ export class CityFarmFields {
   private dirtyAt: number | null = 0;
   private shownMonth = -1;
   private shownEra = 0;
+  private shownCells = -1;
+  /** How many vertices each field's outer ground and inner part took, as built, for recolouring */
+  private verts: Array<[number, number]> = [];
   private drones: Array<{ mesh: InstancedMesh; n: number; x: number; y: number; z: number }> = [];
   /** Each prop's shapes, merged by material once and shared by every rebuild */
   private readonly shapeCache = new Map<Prop, Group>();
+  /** The cells the brush in hand would paint, over everything as the tools' outlines are, and what they were */
+  private brush: InstancedMesh | null = null;
+  private brushKey = '';
+  private readonly brushPlane = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private readonly brushMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45,
+    depthWrite: false, depthTest: false });
 
   /** metre: world units a metre (a real-scale city map's), for the region's props built in metres */
   constructor(private readonly map: FarmViewMap, private readonly terrain: { sample(x: number, z: number): number },
@@ -117,6 +135,8 @@ export class CityFarmFields {
     for (const i of changed) {
       if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0) { this.dirtyAt ??= seconds; break; }
     }
+    // ... and when the brush painted or rubbed out cells of a field (no tile need change)
+    if ((this.map.farmCellsVersion ?? 0) !== this.shownCells) { this.shownCells = this.map.farmCellsVersion ?? 0; this.dirtyAt ??= seconds; }
     const era = mapEra(this.map as { era?: unknown });
     let hubs: number[] = [];
     if (this.dirtyAt !== null && seconds - this.dirtyAt >= REBUILD_AFTER - (this.ground ? 0 : REBUILD_AFTER)) {
@@ -138,6 +158,32 @@ export class CityFarmFields {
     return hubs;
   }
 
+  /**
+   * The farm cells the brush in hand would paint (their keys, src/farmZone.ts farmCellKey), each a flat square on the
+   * land in the brush's colour; none when null (docs/NO_GRID_PLAN.md 3C: the brush shows the shape it paints, not a tile)
+   */
+  showBrush(keys: readonly number[] | null, colour: string | null): void {
+    const key = keys && keys.length ? `${keys.length}:${keys[0]}:${keys[keys.length - 1]}:${colour}` : '';
+    if (key === this.brushKey) return;
+    this.brushKey = key;
+    if (this.brush) { this.root.remove(this.brush); this.brush.dispose(); this.brush = null; }
+    if (!keys || !keys.length) return;
+    const side = this.side(), cell = UNITS / side, width = this.map.width;
+    if (colour) this.brushMaterial.color.set(colour);
+    const mesh = new InstancedMesh(this.brushPlane, this.brushMaterial, keys.length), m = new Matrix4();
+    keys.forEach((k, n) => {
+      const tile = Math.floor(k / 16), bit = k % 16, tx = tile % width, tz = Math.floor(tile / width);
+      const x = tx * UNITS + (bit % side + 0.5) * cell, z = tz * UNITS + (Math.floor(bit / side) + 0.5) * cell;
+      mesh.setMatrixAt(n, m.makeScale(cell * 0.92, 1, cell * 0.92).setPosition(x, this.terrain.sample(x, z) + INNER_LIFT + 0.1, z));
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 25;
+    mesh.name = 'farm_fields/brush';
+    this.brush = mesh;
+    this.root.add(mesh);
+  }
+
   /** How many of each thing are drawn, for tests and the bench */
   counts(): Record<string, number> {
     const out: Record<string, number> = { fields: this.fields.length };
@@ -152,6 +198,9 @@ export class CityFarmFields {
     this.ground?.geometry.dispose();
     this.groundMaterial.dispose();
     this.materials.forEach((m) => m.dispose());
+    this.brush?.dispose();
+    this.brushPlane.dispose();
+    this.brushMaterial.dispose();
   }
 
   private valueAt(i: number): number {
@@ -167,7 +216,7 @@ export class CityFarmFields {
       const v = this.valueAt(i);
       if (v < FIELD_BASE || v > FIELD_BASE + 5) continue;
       const level = v - FIELD_BASE, kind = level > 0 ? kindOfCode(kinds?.[i] ?? 0) : null;
-      fields.push({ index: i, level, kind });
+      fields.push({ index: i, level, kind, cells: fieldCells(this.map as unknown as FieldMap, i) });
       now[i] = 1 + level * 5 + (kind ? 1 + ['paddy', 'field', 'orchard', 'pond'].indexOf(kind) : 0);
     }
     for (let i = 0; i < now.length && !changedHub; i++) if (now[i] !== before[i]) changedHub = true;
@@ -197,15 +246,25 @@ export class CityFarmFields {
     }
   }
 
+  /** Cells a side of a tile (src/farmZone.ts farmSide): 4 on a real-scale city map, 1 (whole tiles) elsewhere */
+  private side(): number { return farmSide(this.map); }
+
+  /**
+   * The fields' ground, on the cells painted (docs/NO_GRID_PLAN.md 3C: the shape the brush went, not 16 m tiles): a
+   * whole tile as one patch, a tile painted in part as a patch for each run of painted cells along its rows. A paddy's
+   * or a pond's dike only where the field ends, along the edge of what was painted, not round every tile (owner, 21 Oct
+   * 2026: "นาเป็นสี่เหลี่ยม 16 ม. พร้อมคันนาทุกช่อง" was the grid he saw): fields of one kind grown side by side are one
+   * sheet of water inside one bank.
+   */
   private buildGround(month: number): void {
     this.ground?.geometry.dispose();
     if (this.ground) this.root.remove(this.ground);
     this.ground = null;
+    this.verts = [];
     if (!this.fields.length) return;
     const positions: number[] = [], colours: number[] = [], outer = new Color(), inner = new Color();
-    const quad = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color): void => {
-      // Two quads a side, so the patch follows the land within the tile
-      const n = 2;
+    const quad = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color, n: number): number => {
+      // n quads a side, so the patch follows the land within the tile
       for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
         const xa = x0 + (x1 - x0) * a / n, xb = x0 + (x1 - x0) * (a + 1) / n;
         const za = z0 + (z1 - z0) * b / n, zb = z0 + (z1 - z0) * (b + 1) / n;
@@ -213,27 +272,54 @@ export class CityFarmFields {
         p(xa, za); p(xa, zb); p(xb, za);
         p(xb, za); p(xa, zb); p(xb, zb);
       }
+      return 6 * n * n;
     };
-    // A dike only where the paddy or pond ends, along the edge of what was painted, not round every 16 m tile
-    // (docs/NO_GRID_PLAN.md 3C; owner, 21 Oct 2026: "นาเป็นสี่เหลี่ยม 16 ม. พร้อมคันนาทุกช่อง" was the grid he saw):
-    // fields of one kind grown side by side are one sheet of water inside one bank
+    const side = this.side(), full = fullCells(side), cell = UNITS / side, { width, height } = this.map;
     const byIndex = new Map<number, Field>();
     for (const field of this.fields) byIndex.set(field.index, field);
-    const joins = (field: Field, x: number, y: number): boolean => {
-      if (x < 0 || y < 0 || x >= this.map.width || y >= this.map.height) return false;
-      const other = byIndex.get(y * this.map.width + x);
-      return Boolean(other && other.kind === field.kind && other.level > 0);
+    // Whether the cell (cx, cz) of the whole map, cells counted from its top left, is painted with a field like this one
+    const joins = (field: Field, cx: number, cz: number): boolean => {
+      if (cx < 0 || cz < 0 || cx >= width * side || cz >= height * side) return false;
+      const tx = Math.floor(cx / side), tz = Math.floor(cz / side), other = byIndex.get(tz * width + tx);
+      return Boolean(other && other.kind === field.kind && other.level > 0 && (other.cells >> ((cz - tz * side) * side + (cx - tx * side))) & 1);
     };
     for (const field of this.fields) {
-      const x = field.index % this.map.width, y = Math.floor(field.index / this.map.width);
-      const x0 = x * UNITS, z0 = y * UNITS, x1 = x0 + UNITS, z1 = z0 + UNITS;
+      const x = field.index % width, y = Math.floor(field.index / width), cx0 = x * side, cz0 = y * side;
       const insideToo = this.tones(field, month, outer, inner);
-      quad(x0, z0, x1, z1, LIFT, outer);
-      if (insideToo) {
-        const inset = field.kind === 'pond' ? 1.4 : 0.7;
-        const at = (dx: number, dy: number): number => (joins(field, x + dx, y + dy) ? 0 : inset);
-        quad(x0 + at(-1, 0), z0 + at(0, -1), x1 - at(1, 0), z1 - at(0, 1), INNER_LIFT, inner);
+      const inset = field.kind === 'pond' ? 1.4 : 0.7;
+      // A whole tile as one run, else each run of painted cells along a row: [first column, last column, row, last row]
+      const runs: Array<[number, number, number, number]> = [];
+      if (field.cells === full) runs.push([0, side - 1, 0, side - 1]);
+      else {
+        for (let r = 0; r < side; r++) {
+          for (let c = 0; c < side; c++) {
+            if (!((field.cells >> (r * side + c)) & 1)) continue;
+            let e = c;
+            while (e + 1 < side && (field.cells >> (r * side + e + 1)) & 1) e++;
+            runs.push([c, e, r, r]);
+            c = e;
+          }
+        }
       }
+      let outerVerts = 0, innerVerts = 0;
+      for (const [c0, c1, r0, r1] of runs) {
+        const x0 = x * UNITS + c0 * cell, x1 = x * UNITS + (c1 + 1) * cell, z0 = y * UNITS + r0 * cell, z1 = y * UNITS + (r1 + 1) * cell;
+        const n = field.cells === full ? 2 : 1;
+        outerVerts += quad(x0, z0, x1, z1, LIFT, outer, n);
+        if (!insideToo) continue;
+        // ... a dike on a side where any cell across it is not this field's kind
+        let top = 0, bottom = 0, left = 0, right = 0;
+        for (let c = c0; c <= c1; c++) {
+          if (!joins(field, cx0 + c, cz0 + r0 - 1)) top = inset;
+          if (!joins(field, cx0 + c, cz0 + r1 + 1)) bottom = inset;
+        }
+        for (let r = r0; r <= r1; r++) {
+          if (!joins(field, cx0 + c0 - 1, cz0 + r)) left = inset;
+          if (!joins(field, cx0 + c1 + 1, cz0 + r)) right = inset;
+        }
+        innerVerts += quad(x0 + left, z0 + top, x1 - right, z1 - bottom, INNER_LIFT, inner, n);
+      }
+      this.verts.push([outerVerts, innerVerts]);
     }
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
@@ -252,11 +338,11 @@ export class CityFarmFields {
     const attribute = this.ground.geometry.getAttribute('color') as BufferAttribute, outer = new Color(), inner = new Color();
     let v = 0;
     const paint = (c: Color, count: number) => { for (let k = 0; k < count; k++, v++) attribute.setXYZ(v, c.r, c.g, c.b); };
-    for (const field of this.fields) {
-      const insideToo = this.tones(field, month, outer, inner);
-      paint(outer, 24);
-      if (insideToo) paint(inner, 24);
-    }
+    this.fields.forEach((field, n) => {
+      const insideToo = this.tones(field, month, outer, inner), [outerVerts, innerVerts] = this.verts[n] ?? [0, 0];
+      paint(outer, outerVerts);
+      if (insideToo) paint(inner, innerVerts);
+    });
     attribute.needsUpdate = true;
     this.props(this.shownEra || mapEra(this.map as { era?: unknown }), month);
   }
@@ -291,21 +377,28 @@ export class CityFarmFields {
     const grown = this.fields.filter((f) => f.level > 0 && f.kind);
     const rows = cropHeight(month);
     for (const f of grown) {
-      const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), cx = (x + 0.5) * UNITS, cz = (y + 0.5) * UNITS;
+      const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), [cx, cz] = this.paintedMiddle(f);
       const along = (hashOf(Math.floor(x / 4) + Math.floor(y / 4) * 977) & 1) ? 0 : Math.PI / 2;
+      // (each quarter of the tile the field mostly covers: rows and trees only on what was painted)
+      const quarters = this.quarters(f);
       if (f.kind === 'field') {
         const tall = (0.3 + 0.5 * rows) * (0.7 + 0.1 * f.level);
-        for (let r = 0; r < 4; r++) {
-          const off = -3.4 + r * 2.27, dx = along ? 0 : off, dz = along ? off : 0;
-          add('row', at(cx + dx, cz + dz, tall / 2, 8.6, tall, 0.9, along));
+        // (rows across the way they run: they once all lay on the tile's middle line, one over another)
+        for (const [qx, qz] of quarters) {
+          const crossQ = along ? qx : qz, lengthQ = along ? qz : qx;
+          for (const off of crossQ < 0 ? [-3.4, -1.13] : [1.13, 3.4]) {
+            const mx = (x + 0.5) * UNITS + (along ? off : lengthQ), mz = (y + 0.5) * UNITS + (along ? lengthQ : off);
+            add('row', at(mx, mz, tall / 2, 4.3, tall, 0.9, along));
+          }
         }
       } else if (f.kind === 'orchard') {
         const grownUp = 0.6 + 0.12 * f.level;
-        for (const [dx, dz] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) {
-          add('trunk', at(cx + dx, cz + dz, 0.9 * grownUp, grownUp, grownUp, grownUp));
-          add('tree', at(cx + dx, cz + dz, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
+        for (const [dx, dz] of quarters) {
+          const tx = (x + 0.5) * UNITS + dx, tz = (y + 0.5) * UNITS + dz;
+          add('trunk', at(tx, tz, 0.9 * grownUp, grownUp, grownUp, grownUp));
+          add('tree', at(tx, tz, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
         }
-      } else if (f.kind === 'pond' && f.level >= 2) {
+      } else if (f.kind === 'pond' && f.level >= 2 && quarters.length >= 2) {
         add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, hashOf(f.index) % 6));
       }
     }
@@ -319,8 +412,10 @@ export class CityFarmFields {
         if ((prop === 'buffalo' || prop === 'tractor' || prop === 'harvester') && f.kind !== 'paddy' && f.kind !== 'field') continue;
         if (prop === 'greenhouse' && f.kind !== 'field' && f.kind !== 'orchard') continue;
         if (f.kind === 'pond' && prop !== 'solar' && prop !== 'drone') continue;
-        const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width);
-        const cx = (x + 0.5) * UNITS + ((h >> 8) % 5 - 2), cz = (y + 0.5) * UNITS + ((h >> 12) % 5 - 2), turn = (h >> 16) % 628 / 100;
+        // (on what was painted of its tile: a field painted on less than half of it has none)
+        if (this.quarters(f).length < 2) continue;
+        const [mx, mz] = this.paintedMiddle(f);
+        const cx = mx + ((h >> 8) % 5 - 2), cz = mz + ((h >> 12) % 5 - 2), turn = (h >> 16) % 628 / 100;
         if (prop === 'drone') drones.push([cx, this.terrain.sample(cx, cz) + 5, cz]);
         else add(prop, at(cx, cz, prop === 'buffalo' ? INNER_LIFT : LIFT, 1, 1, 1, turn));
       }
@@ -330,6 +425,32 @@ export class CityFarmFields {
       const list = this.instance('drone', drones.map(([x, y, z]) => new Matrix4().makeTranslation(x, y, z)));
       for (const mesh of list) drones.forEach(([x, y, z], n) => this.drones.push({ mesh, n, x, y, z }));
     }
+  }
+
+  /** The middle of what was painted of a field's tile (world units): its tile's middle when painted whole */
+  private paintedMiddle(f: Field): [number, number] {
+    const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), side = this.side();
+    if (f.cells === fullCells(side)) return [(x + 0.5) * UNITS, (y + 0.5) * UNITS];
+    let sx = 0, sz = 0, n = 0;
+    for (let bit = 0; bit < side * side; bit++) {
+      if (!((f.cells >> bit) & 1)) continue;
+      sx += (bit % side + 0.5) / side; sz += (Math.floor(bit / side) + 0.5) / side; n++;
+    }
+    return n ? [(x + sx / n) * UNITS, (y + sz / n) * UNITS] : [(x + 0.5) * UNITS, (y + 0.5) * UNITS];
+  }
+
+  /** The quarters of a field's tile it covers at least half of, as their middles from the tile's middle (world units):
+   * all four of a whole tile */
+  private quarters(f: Field): Array<[number, number]> {
+    const side = this.side(), all: Array<[number, number]> = [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]];
+    if (side < 2 || f.cells === fullCells(side)) return all;
+    const half = side / 2;
+    return all.filter(([qx, qz]) => {
+      const c0 = qx < 0 ? 0 : Math.floor(half), r0 = qz < 0 ? 0 : Math.floor(half), c1 = qx < 0 ? Math.ceil(half) : side, r1 = qz < 0 ? Math.ceil(half) : side;
+      let painted = 0, cells = 0;
+      for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) { cells++; if ((f.cells >> (r * side + c)) & 1) painted++; }
+      return painted * 2 >= cells;
+    });
   }
 
   /** The shapes of a prop, each with its material: plain boxes and cones, or the region's own (granaries, hut roofs) */

@@ -281,6 +281,7 @@
 | `choice.farm_erase` | `src/toolLevels.ts` | — | `Erase` | `ลบ` |  |
 | `about.zone.farm` | `src/toolShortcuts.ts` | — | `Farmland: paddies, crop fields, orchards and fish ponds, chosen by the land; it needs a cart track to a road nearby, not a road beside it. It feeds the town and sells its crop, but draws the groundwater, its chemicals seep into the ground and its stubble burns from February to April.` | `โซนเกษตร: นา ไร่ สวน บ่อปลา เกมเลือกตามพื้นที่ ไม่ต้องติดถนน แค่มีทางเกวียนไปถึงถนนไม่ไกล เลี้ยงคนในเมืองและขายผลผลิต แต่ใช้น้ำใต้ดิน สารเคมีลงดิน และเผาตอซังช่วง ก.พ.–เม.ย.` | คำอธิบายในป้ายเครื่องมือ |
 | `tool.needs_way` | `src/game.js` | — | `Farmland needs a way to a road within {reach} tiles` | `โซนเกษตรต้องมีทางไปถึงถนนภายใน {reach} ช่อง` | ป้ายมุมเมื่อทาไกลถนนเกินไป |
+| `tool.needs_way_m` | `src/game.js` | — | `Farmland needs a way to a road within {metres} m` | `โซนเกษตรต้องมีทางไปถึงถนนภายใน {metres} ม.` | ป้ายมุมเมื่อทาไกลถนนเกินไป บนแผนที่ที่ทาเป็นช่องย่อย (วัดเป็นเมตร) |
 | `farm.kind.paddy` | `src/inspect.ts` | — | `Rice paddy` | `นาข้าว` | ชนิดแปลงเกษตรที่เกมเลือก |
 | `farm.kind.field` | `src/inspect.ts` | — | `Crop field` | `ไร่` |  |
 | `farm.kind.orchard` | `src/inspect.ts` | — | `Orchard` | `สวน` |  |

@@ -507,6 +507,8 @@ export class CityView3D implements CityView {
     this.streets?.update(this.navigation.camera,this.navigation.distance,visible);
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
     this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellKeys??null);
+    // ... and the farm brush's cells (farmFields.ts)
+    this.farms?.showBrush(hover?.farmCellKeys??null,hover?.colour??null);
     // Icons over the plots held back for want of power, water or a road (problemIcons.ts)
     const whyMap=this.setup.map as unknown as {width:number;height:number;plotWhy?:Uint8Array|null};
     if(whyMap.plotWhy){if(!this.problems){this.problems=new ProblemIcons(whyMap,this.terrain);this.overlay.add(this.problems.root);}this.problems.update(this.seconds);}

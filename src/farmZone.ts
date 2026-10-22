@@ -74,6 +74,120 @@ export interface FieldMap extends PlotMap {
   farmKinds?: Uint8Array | null;
   /** The city's era, 1-5 (src/era.ts) */
   era?: number;
+  /** Whether its zones are painted a cell at a time (a real-scale city map, src/zoneCells.ts), and its tiles' size */
+  cellZones?: boolean;
+  tileSizeM?: number | null;
+  /** The cells of each field painted (fieldCells), kept beside the tiles and saved; 0 where every cell is */
+  farmCells?: Uint16Array | null;
+}
+
+// --- The painted shape of the fields (docs/NO_GRID_PLAN.md 3C) ---------------------------------------------------------
+// On a real-scale city map the farm brush paints cells about 4 m a side, as the zones' cells are (src/zoneCells.ts
+// CELL_M), not whole 16 m tiles (owner, 21 Oct 2026: "นาเป็นสี่เหลี่ยม 16 ม." was the grid he saw): the fields are the
+// shape the brush went, and their dikes run along it (src/render3d/city/farmFields.ts). A field's level and kind stay
+// the tile's, so the simulation, saves, undo, fire and the bulldozer keep their tiles; a tile is a field while any of
+// its cells is painted, and it counts as much as is painted of it (fieldShare). Elsewhere, and where a tool paints a
+// whole tile (the fill, the auto player), every cell of the tile is the field.
+
+/** About how many metres a side a field's cell is */
+export const FARM_CELL_M = 4;
+
+/** How many cells a side a tile of this map has: 4 on a 16 m city map; 1, a whole tile, where the zones are not
+ * painted a cell at a time */
+export function farmSide(map: { cellZones?: boolean; tileSizeM?: number | null }): number {
+  if (!map.cellZones) return 1;
+  return Math.max(1, Math.min(4, Math.round((map.tileSizeM || 16) / FARM_CELL_M)));
+}
+
+/** Every cell of a tile `side` cells a side, as bits row by row from its top left */
+export const fullCells = (side: number): number => (side >= 4 ? 0xffff : (1 << (side * side)) - 1);
+
+/** How many cells a mask holds */
+export function cellCount(mask: number): number {
+  let n = 0;
+  for (let m = mask; m; m &= m - 1) n++;
+  return n;
+}
+
+/** The painted cells of the field on tile i: its kept mask, or every cell where it keeps none (a whole tile painted) */
+export function fieldCells(map: FieldMap, i: number): number {
+  const full = fullCells(farmSide(map)), mask = (map.farmCells?.[i] ?? 0) & full;
+  return mask || full;
+}
+
+/** How much of tile i its field covers, 0-1: what it counts as (its crop, its work, the food it gives) */
+export function fieldShare(map: FieldMap, i: number): number {
+  const side = farmSide(map);
+  return side <= 1 ? 1 : cellCount(fieldCells(map, i)) / (side * side);
+}
+
+/** A farm cell's key, its tile and its bit (row * side + column): as the farmCells command names them */
+export const farmCellKey = (tile: number, bit: number): number => tile * 16 + bit;
+export const farmCellTile = (key: number): number => Math.floor(key / 16);
+export const farmCellBit = (key: number): number => key % 16;
+
+/**
+ * The cells whose middles lie within `radius` metres of the stretch from `from` to `to` (metres; a point when from is
+ * null), on the map: their keys. What the farm brush paints where the mouse went.
+ */
+export function farmCellsNear(map: FieldMap, from: readonly [number, number] | null, to: readonly [number, number],
+                              radius: number): number[] {
+  const side = farmSide(map), metres = map.tileSizeM || 16, cell = metres / side, a = from ?? to, out: number[] = [];
+  const x0 = Math.min(a[0], to[0]) - radius, x1 = Math.max(a[0], to[0]) + radius;
+  const z0 = Math.min(a[1], to[1]) - radius, z1 = Math.max(a[1], to[1]) + radius;
+  const dx = to[0] - a[0], dz = to[1] - a[1], length2 = dx * dx + dz * dz;
+  for (let cz = Math.max(0, Math.floor(z0 / cell)); cz <= Math.min(map.height * side - 1, Math.floor(z1 / cell)); cz++) {
+    for (let cx = Math.max(0, Math.floor(x0 / cell)); cx <= Math.min(map.width * side - 1, Math.floor(x1 / cell)); cx++) {
+      const px = (cx + 0.5) * cell, pz = (cz + 0.5) * cell;
+      const t = length2 > 0 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / length2)) : 0;
+      if (Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t) > radius) continue;
+      const tx = Math.floor(cx / side), ty = Math.floor(cz / side);
+      out.push(farmCellKey(ty * map.width + tx, (cz - ty * side) * side + (cx - tx * side)));
+    }
+  }
+  return out;
+}
+
+/** The cells whose middles lie inside the rectangle between two corners (metres): what a dragged rectangle paints */
+export function farmCellsInRect(map: FieldMap, a: readonly [number, number], b: readonly [number, number]): number[] {
+  const side = farmSide(map), metres = map.tileSizeM || 16, cell = metres / side, out: number[] = [];
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
+  for (let cz = Math.max(0, Math.ceil(z0 / cell - 0.5)); cz <= Math.min(map.height * side - 1, Math.floor(z1 / cell - 0.5)); cz++) {
+    for (let cx = Math.max(0, Math.ceil(x0 / cell - 0.5)); cx <= Math.min(map.width * side - 1, Math.floor(x1 / cell - 0.5)); cx++) {
+      const tx = Math.floor(cx / side), ty = Math.floor(cz / side);
+      out.push(farmCellKey(ty * map.width + tx, (cz - ty * side) * side + (cx - tx * side)));
+    }
+  }
+  return out;
+}
+
+/** The fields' painted cells as a save keeps them: by tile, only where a field covers part of its tile, or null */
+export function farmCellsKept(map: FieldMap): Record<string, number> | null {
+  const cells = map.farmCells;
+  if (!cells || cells.length !== map.width * map.height) return null;
+  const full = fullCells(farmSide(map)), kept: Record<string, number> = {};
+  let any = false;
+  for (let i = 0; i < cells.length; i++) {
+    const mask = cells[i] & full;
+    if (!mask || mask === full || !isFieldValue(map.getTileValue(i % map.width, Math.floor(i / map.width)))) continue;
+    kept[i] = mask;
+    any = true;
+  }
+  return any ? kept : null;
+}
+
+/** The fields' painted cells from a save (farmCellsKept), on a map width x height; null when it keeps none */
+export function readFarmCells(saved: unknown, width: number, height: number): Uint16Array | null {
+  if (!saved || typeof saved !== "object") return null;
+  const cells = new Uint16Array(width * height);
+  let any = false;
+  for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
+    const i = Number(key);
+    if (!Number.isInteger(i) || i < 0 || i >= cells.length || !Number.isInteger(value)) continue;
+    cells[i] = (value as number) & 0xffff;
+    any = true;
+  }
+  return any ? cells : null;
 }
 
 const inside = (map: { width: number; height: number }, x: number, y: number): boolean =>
@@ -84,12 +198,113 @@ const passable = (value: number): boolean => isOpenLand(value) || isFieldValue(v
 
 const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
 
+// --- The cart tracks (ทางเกวียน) a field needs to a road ---------------------------------------------------------------
+// On a real-scale city map the way is measured in metres, as the crow flies from tile to tile across open land and
+// fields, diagonally too (a track never squeezes between two blocked tiles' corners): a field may lie as far as the
+// province's reach (FarmZoneSpec.reach tiles of 16 m, 128 m) from the road its track meets, round about it, not in the
+// diamond of tile steps the way once was (docs/NO_GRID_PLAN.md 3C). Elsewhere it is tile steps, as before. Either way
+// the answer is in tiles' worth (1 beside a road), which what reads it keeps.
+
+/** Whether a map measures its fields' ways in metres */
+const waysInMetres = (map: PlotMap & { cellZones?: boolean }): boolean => map.cellZones === true;
+
+const DIAGONALS = [[1, -1], [1, 1], [-1, 1], [-1, -1]] as const;
+
+/**
+ * The way to a road over open land and fields in metres from every tile whose way the search starts at, as far as
+ * `limit` metres: a search out from `starts` (their map indices and metres), each step a tile across (tileSizeM) or a
+ * diagonal (that x √2) where both tiles beside it are open, only open land and fields leading on; within the window of
+ * tiles x0..x0+w-1, y0..y0+h-1 (the whole map unless given). Metres by the window's own index (y - y0) * w + (x - x0),
+ * Infinity where it does not reach.
+ */
+function metreWays(map: PlotMap, starts: ReadonlyArray<[number, number]>, limit: number, startsLead = false,
+                   x0 = 0, y0 = 0, w = map.width, h = map.height): Float64Array {
+  const width = map.width, tile = map.tileSizeM || 16, diagonal = tile * Math.SQRT2;
+  const dist = new Float64Array(w * h).fill(Infinity), open = new Uint8Array(w * h);
+  const local = (x: number, y: number): number => (x < x0 || y < y0 || x >= x0 + w || y >= y0 + h ? -1 : (y - y0) * w + (x - x0));
+  const isOpen = (x: number, y: number): boolean => {
+    const k = local(x, y);
+    if (k < 0) return false;
+    if (!open[k]) open[k] = passable(map.getTileValue(x, y)) ? 2 : 1;
+    return open[k] === 2;
+  };
+  // (startsLead: the starts lead on whatever stands there, as the tile a field is asked for does)
+  if (startsLead) for (const [i] of starts) { const k = local(i % width, Math.floor(i / width)); if (k >= 0) open[k] = 2; }
+  // A binary heap of [metres, window index]
+  const heapD: number[] = [], heapK: number[] = [];
+  const push = (d: number, k: number): void => {
+    let n = heapD.length;
+    heapD.push(d); heapK.push(k);
+    while (n > 0) {
+      const parent = (n - 1) >> 1;
+      if (heapD[parent] <= d) break;
+      heapD[n] = heapD[parent]; heapK[n] = heapK[parent]; n = parent;
+    }
+    heapD[n] = d; heapK[n] = k;
+  };
+  const pop = (): [number, number] => {
+    const top: [number, number] = [heapD[0], heapK[0]], d = heapD.pop()!, k = heapK.pop()!;
+    if (heapD.length) {
+      let n = 0;
+      for (;;) {
+        const a = 2 * n + 1, b = a + 1;
+        let m = n, md = d;
+        if (a < heapD.length && heapD[a] < md) { m = a; md = heapD[a]; }
+        if (b < heapD.length && heapD[b] < md) { m = b; md = heapD[b]; }
+        if (m === n) break;
+        heapD[n] = heapD[m]; heapK[n] = heapK[m]; n = m;
+      }
+      heapD[n] = d; heapK[n] = k;
+    }
+    return top;
+  };
+  for (const [i, d] of starts) {
+    const k = local(i % width, Math.floor(i / width));
+    if (k >= 0 && d < dist[k]) { dist[k] = d; push(d, k); }
+  }
+  const step = (nx: number, ny: number, nd: number): void => {
+    const j = local(nx, ny);
+    if (j < 0 || nd > limit + 1e-6 || nd >= dist[j] || drivewayAt(map, nx, ny)) return;
+    dist[j] = nd;
+    push(nd, j);
+  };
+  while (heapD.length) {
+    const [d, k] = pop();
+    const x = x0 + (k % w), y = y0 + Math.floor(k / w);
+    if (d > dist[k] || !isOpen(x, y)) continue;
+    for (const [dx, dy] of SIDES) step(x + dx, y + dy, d + tile);
+    // (between two open tiles only, never through a corner of something in the way)
+    for (const [dx, dy] of DIAGONALS) if (isOpen(x + dx, y) && isOpen(x, y + dy)) step(x + dx, y + dy, d + diagonal);
+  }
+  return dist;
+}
+
+/** Tiles' worth of a way of `metres` (1 beside a road), for what reads a way in tiles */
+const waySteps = (metres: number, tile: number): number => Math.max(1, Math.min(255, Math.ceil(metres / tile - 1e-6)));
+
 /**
  * How far (x, y) is from a road along a way over open land and fields, in tiles (1 beside a road), or -1 when no road
  * lies within reach that way. Motorways and tollways give no way in (src/plots.ts drivewayAt).
  */
 export function wayToRoad(map: PlotMap, x: number, y: number, reach: number): number {
   if (!inside(map, x, y)) return -1;
+  if (waysInMetres(map)) {
+    // (from the tile out, the way's metres the same as wayField's from the roads in)
+    const tile = map.tileSizeM || 16, limit = reach * tile;
+    const x0 = Math.max(0, x - reach), y0 = Math.max(0, y - reach);
+    const w = Math.min(map.width - 1, x + reach) - x0 + 1, h = Math.min(map.height - 1, y + reach) - y0 + 1;
+    const dist = metreWays(map, [[y * map.width + x, 0]], limit, true, x0, y0, w, h);
+    let best = Infinity;
+    for (let ty = y0; ty < y0 + h; ty++) {
+      for (let tx = x0; tx < x0 + w; tx++) {
+        const d = dist[(ty - y0) * w + (tx - x0)];
+        if (d === Infinity || d + tile > limit + 1e-6) continue;
+        if ((tx === x && ty === y || passable(map.getTileValue(tx, ty))) &&
+            SIDES.some(([dx, dy]) => drivewayAt(map, tx + dx, ty + dy))) best = Math.min(best, d + tile);
+      }
+    }
+    return best === Infinity ? -1 : waySteps(best, tile);
+  }
   const span = 2 * reach + 1, seen = new Uint8Array(span * span);
   const at = (tx: number, ty: number): number => (ty - y + reach) * span + (tx - x + reach);
   let frontier: Array<[number, number]> = [[x, y]];
@@ -118,6 +333,17 @@ export function wayToRoad(map: PlotMap, x: number, y: number, reach: number): nu
  */
 export function wayField(map: PlotMap, reach: number): Uint8Array {
   const { width, height } = map, out = new Uint8Array(width * height);
+  if (waysInMetres(map)) {
+    // Every tile beside a road has its way, a tile's width from the road; open land and fields lead on, in metres
+    const tile = map.tileSizeM || 16, starts: Array<[number, number]> = [];
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      if (drivewayAt(map, x, y)) continue;
+      if (SIDES.some(([dx, dy]) => drivewayAt(map, x + dx, y + dy))) starts.push([y * width + x, tile]);
+    }
+    const dist = metreWays(map, starts, reach * tile);
+    for (let i = 0; i < dist.length; i++) if (dist[i] !== Infinity) out[i] = waySteps(dist[i], tile);
+    return out;
+  }
   let frontier: number[] = [];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     if (!drivewayAt(map, x, y)) continue;
@@ -256,11 +482,12 @@ export interface FieldsMonth {
   counts: Record<FarmKind, number>;
 }
 
-/** Each grown field, as this cycle's scan found it */
+/** Each grown field, as this cycle's scan found it, and how much of its tile it covers (fieldShare) */
 interface Found {
   index: number;
   level: number;
   kind: FarmKind;
+  share?: number;
 }
 
 const UNITS_FULL = 7 * 32;
@@ -331,10 +558,11 @@ export class FarmFields {
     let kind = kindOfCode(kinds[i]);
     if (level > 0 && !kind) kinds[i] = kindCode(kind = pickKind(map, x, y, this.spec, this.groundShare(i)));
     if (level > 0 && kind) {
-      const jobs = level * this.spec.kinds[kind].jobs;
+      // (a field painted over part of its tile works and gives as much as it covers: docs/NO_GRID_PLAN.md 3C)
+      const share = fieldShare(map, i), jobs = level * this.spec.kinds[kind].jobs * share;
       census.farmPop = (census.farmPop ?? 0) + jobs;
       this.jobsCycle += jobs;
-      this.found.push({ index: i, level, kind });
+      this.found.push({ index: i, level, kind, share });
     } else {
       this.empty++;
     }
@@ -383,22 +611,22 @@ export class FarmFields {
     const provinceFactor = 0.6 + 0.2 * Math.max(0, Math.min(5, this.farmland));
     const burnMonth = FIELD_BURNING_MONTHS.includes(month);
     for (const field of this.found) {
-      const kind = spec.kinds[field.kind], level = field.level, i = field.index;
+      const kind = spec.kinds[field.kind], level = field.level, i = field.index, covers = field.share ?? 1;
       const x = i % width, y = (i - x) / width;
-      result.levels += level;
+      result.levels += level * covers;
       result.counts[field.kind]++;
       const share = this.groundShare(i);
-      let sale = kind.sale * level * provinceFactor * (0.5 + 0.5 * share) * (dry ? spec.dryYield : 1);
+      let sale = kind.sale * level * covers * provinceFactor * (0.5 + 0.5 * share) * (dry ? spec.dryYield : 1);
       if (kind.burns && this.noBurning) sale *= NO_BURNING_YIELD;
       if (this.hubs[i]) sale *= 1 + spec.hubBonus;
       result.income += sale;
       // The groundwater it draws, more in the dry season (src/groundwater.ts)
       if (this.ground && kind.draw > 0 && this.ground.natural[i] < 7) {
-        const draw = Math.round(kind.draw * level * (dry ? spec.dryDraw : 1));
+        const draw = Math.round(kind.draw * level * covers * (dry ? spec.dryDraw : 1));
         this.ground.stores[i] = Math.max(0, this.ground.stores[i] - draw);
       }
       // ... the chemicals that seep into the ground (src/mining.ts, which cleans a little away each month)
-      if (poison) poison[i] = Math.min(255, poison[i] + Math.round(kind.chemicals * level));
+      if (poison) poison[i] = Math.min(255, poison[i] + Math.round(kind.chemicals * level * covers));
       // ... the stubble it burns from February to April, unless the ruler forbids it
       if (kind.burns && burnMonth && !this.noBurning) {
         result.burning++;

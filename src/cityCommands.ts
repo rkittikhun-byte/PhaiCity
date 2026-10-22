@@ -18,6 +18,10 @@
 
 import { CANAL_TOOL, isBridgeTile, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
+import { cellCount, FARM_ERASE_TOOL, FARM_PAINT_TOOL, farmCellBit, farmCellTile, farmSide, fieldCells, FIELD_FLAGS,
+  fieldLevelOf, fieldOutcome, fieldTile, fullCells, isFieldValue, type FieldMap } from "./farmZone";
+import { FARM_ZONE } from "./provinceRules";
+import { isWoodsValue } from "./plots";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile, roadLevelAt, ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
@@ -160,6 +164,12 @@ export type Command =
   | { type: "land"; x: number; y: number }
   /** Zone cells painted (zone) or cleared (zone null) on a map whose zones go a cell at a time (src/zoneCells.ts) */
   | { type: "zoneCells"; zone: CellZone | null; cells: number[] }
+  /**
+   * The farm zone's cells painted (erase false) or rubbed out (erase true) on a map whose zones go a cell at a time
+   * (src/farmZone.ts farmCellKey: a tile's index x 16 and its cell's bit): a field is the shape its cells make
+   * (docs/NO_GRID_PLAN.md 3C), priced by the share of a tile painted; a stroke undoes with its tiles and cells.
+   */
+  | { type: "farmCells"; erase: boolean; cells: number[]; stroke?: number }
   | { type: "debugFunds" };
 
 export interface CommandOutcome {
@@ -513,6 +523,12 @@ export function commandProblem(command: unknown, width: number, height: number):
       return isOneOf(FESTIVAL_SCALES, c.scale) ? null : `unknown scale ${String(c.scale)}`;
     case "zoneCells":
       if (c.zone !== null && !isOneOf(CELL_ZONES, c.zone)) return `unknown zone ${String(c.zone)}`;
+      if (!Array.isArray(c.cells) || c.cells.length > MAX_CELLS || !c.cells.every((k) => isInteger(k, 0, Number.MAX_SAFE_INTEGER))) {
+        return "bad cells";
+      }
+      return null;
+    case "farmCells":
+      if (typeof c.erase !== "boolean") return "bad erase";
       if (!Array.isArray(c.cells) || c.cells.length > MAX_CELLS || !c.cells.every((k) => isInteger(k, 0, Number.MAX_SAFE_INTEGER))) {
         return "bad cells";
       }
@@ -946,6 +962,93 @@ export class CityCommands {
     return bodies;
   }
 
+  /**
+   * The farm zone's cells painted or rubbed out (the "farmCells" command, src/farmZone.ts): a tile of open land with its
+   * way to a road becomes an empty field with the cells painted on it, a field takes more cells, as the brush and its
+   * checks paint a whole tile (src/farmTool.ts: the house first, the province, the city's land, what it may build yet,
+   * the way to a road); a field rubbed out of its last cell is bare ground again. Priced by the share of a tile painted
+   * and what is cleared, as the brush prices a tile; one undo step with its tiles and the cells they keep.
+   */
+  private farmCells(command: Extract<Command, { type: "farmCells" }>): CommandOutcome {
+    const city = this.city, map = city.map as unknown as (FieldMap & { paintedZones?: boolean }) | undefined;
+    if (!map || !map.paintedZones || !city.map) return { accepted: false, reason: NO_CELL_ZONES };
+    const side = farmSide(map), full = fullCells(side), width = city.width, height = city.height;
+    if (side < 2) return { accepted: false, reason: NO_CELL_ZONES };
+    const toolName = command.erase ? FARM_ERASE_TOOL : FARM_PAINT_TOOL;
+    const tool = city.tools[toolName] as (typeof city.tools)[string] & { reach?: number } | undefined;
+    if (!tool) return { accepted: false, reason: `no ${toolName} tool` };
+    const byTile = new Map<number, number>();
+    for (const key of command.cells) {
+      const tile = farmCellTile(key), bit = farmCellBit(key);
+      if (tile >= width * height || bit >= side * side) continue;
+      byTile.set(tile, (byTile.get(tile) ?? 0) | (1 << bit));
+    }
+    const kept = map.farmCells ?? new Uint16Array(width * height), tiles = city.map;
+    const value = (x: number, y: number): number => tiles.getTile(x, y).getRawValue() & BIT_MASK;
+    const reach = tool.reach ?? FARM_ZONE.reach, price = tool.toolCost ?? 0;
+    const plans: Array<{ x: number; y: number; tile: number; mask: number; to: number | null }> = [];
+    let applied = 0, clearing = 0;
+    for (const [tile, bits] of [...byTile].sort((a, b) => a[0] - b[0])) {
+      const x = tile % width, y = (tile - x) / width, v = value(x, y), field = isFieldValue(v);
+      if (command.erase) {
+        if (!field) continue;
+        const now = fieldCells(map, tile), next = now & ~bits;
+        if (next === now) continue;
+        // (a grown field rubbed out of its last cell at the bulldozer's price, as the eraser clears a tile)
+        if (!next && fieldLevelOf(v) > 0) applied += 1;
+        plans.push({ x, y, tile, mask: next === full ? 0 : next, to: next ? null : DIRT });
+        continue;
+      }
+      if (this.toolProblem({ type: "tool", tool: toolName as never, x, y }, null)) continue;
+      if (field) {
+        const now = fieldCells(map, tile), next = now | bits;
+        if (next === now) continue;
+        applied += price * (cellCount(next) - cellCount(now)) / (side * side);
+        plans.push({ x, y, tile, mask: next === full ? 0 : next, to: null });
+        continue;
+      }
+      if (fieldOutcome(map, x, y, reach) !== "paint") continue;
+      applied += price * cellCount(bits) / (side * side);
+      if (isWoodsValue(v)) clearing += tool.clearWoodsCost ?? 1;
+      else if (v !== DIRT) applied += 1;
+      plans.push({ x, y, tile, mask: bits === full ? 0 : bits, to: fieldTile(0) });
+    }
+    if (!plans.length) return { accepted: false, reason: NOTHING_TO_PAINT };
+    const cost = Math.round(applied * (tool.costFactor ?? 1)) + clearing;
+    if (city.budget.totalFunds < cost) return { accepted: false, reason: NO_MONEY_FOR_CELLS, toolResult: 2 };
+    map.farmCells = kept;
+    const masks = plans.map((p) => ({ tile: p.tile, before: kept[p.tile] }));
+    const changes: TileChange[] = [];
+    for (const p of plans) {
+      kept[p.tile] = p.mask;
+      if (p.to === null) continue;
+      const before = tiles.getTile(p.x, p.y).getRawValue();
+      tiles.setTile(p.x, p.y, p.to, p.to === DIRT ? 0 : FIELD_FLAGS);
+      changes.push({ x: p.x, y: p.y, before, after: tiles.getTile(p.x, p.y).getRawValue() });
+    }
+    if (cost) city.budget.spend(cost);
+    // ... the fields' cells kept, then the version the 3D view hears it by
+    const bump = (): void => { (map as { farmCellsVersion?: number }).farmCellsVersion = ((map as { farmCellsVersion?: number }).farmCellsVersion ?? 0) + 1; };
+    bump();
+    const stroke = command.stroke ?? null, time = city.cityTime?.() ?? 0, real = changes.filter((c) => c.after !== c.before);
+    const back = (): void => { for (const m of masks) kept[m.tile] = m.before; bump(); };
+    this.history.record(stroke, real, cost, time);
+    if (real.length || cost) (this.history.last()!.also ??= []).push(back);
+    else this.history.attach(stroke, back, time);
+    return { accepted: true, toolResult: 0 };
+  }
+
+  /** The cells a field at (x, y) painted on part of its tile still lacks (farmCells keys), or null */
+  private partialField(x: number, y: number): number[] | null {
+    const map = this.city.map as unknown as FieldMap | undefined;
+    if (!map?.farmCells || x < 0 || y < 0 || x >= this.city.width || y >= this.city.height) return null;
+    const tile = y * this.city.width + x, full = fullCells(farmSide(map));
+    if (!isFieldValue(map.getTileValue(x, y)) || fieldCells(map, tile) === full) return null;
+    const missing: number[] = [], have = fieldCells(map, tile);
+    for (let bit = 0; bit < 16; bit++) if ((full >> bit) & 1 && !((have >> bit) & 1)) missing.push(tile * 16 + bit);
+    return missing;
+  }
+
   /** The roads as drawn, in world units (10 a tile) with their levels: what a building of the ruler's stands against
    * (src/buildings/roadPose.ts), as the game's outline and click stand it (src/game.js networkLines); the auto player
    * puts its buildings down against them as a player does (src/core/autoPlayer.ts) */
@@ -1120,6 +1223,9 @@ export class CityCommands {
       case "tool": {
         const tool = city.tools[command.tool];
         if (!tool) return { accepted: false, reason: `no ${command.tool} tool` };
+        // The farm brush over a field painted on part of its tile paints the rest of it (src/farmZone.ts fieldCells)
+        const partial = command.tool === FARM_PAINT_TOOL ? this.partialField(command.x, command.y) : null;
+        if (partial) return this.farmCells({ type: "farmCells", erase: false, cells: partial, stroke: command.stroke });
         // A road or railway stroke's tiles, in the order drawn (src/roadPieces.ts RoadPath)
         const lays = tool.roadLevel ? isRoadTile : command.tool === "rail" ? isRailTile : null;
         const line = command.stroke === undefined ? null : `${command.stroke}:${command.part ?? 0}`;
@@ -1151,6 +1257,13 @@ export class CityCommands {
         // A road or railway drawn in metres loses what ran over a tile the bulldozer cleared (src/roads/roadCut.ts)
         const cutBack = applied && map && command.tool === "bulldozer" ? this.cutGraphs(before) : [];
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
+        // ... a field the brush painted whole is every cell of its tile (src/farmZone.ts fieldCells)
+        const fieldMap = map as unknown as FieldMap | undefined;
+        if (applied && command.tool === FARM_PAINT_TOOL && fieldMap?.farmCells) {
+          for (const c of before) {
+            if (!isFieldValue(c.before & BIT_MASK) && isFieldValue(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK)) fieldMap.farmCells[c.y * city.width + c.x] = 0;
+          }
+        }
         if (applied && tool.transitKind && isOneOf(STATION_KINDS, tool.transitKind)) {
           city.setStationKind?.(command.x, command.y, tool.transitKind);
         }
@@ -1306,6 +1419,8 @@ export class CityCommands {
         refreshCellPlots(map as unknown as PlotListMap & CellPlotMap, layout, touched, city.cityTime?.() ?? 0);
         return { accepted: true };
       }
+      case "farmCells":
+        return this.farmCells(command);
       case "policy": {
         const map = city.houseMap as PolicyMap | undefined;
         const refused = policyProblem(map, command.policy, command.on);
