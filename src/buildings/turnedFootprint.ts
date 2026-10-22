@@ -32,6 +32,12 @@ export function isTurned(rot: number | null | undefined): boolean {
   return off > 1e-3;
 }
 
+/** The centre tile of a building laid turned: the tile under its middle (metres), which lies inside its outline whatever
+ * its size (a square block's centre, one in from its top left, may not: a 2 x 2's lies up to a tile off its middle) */
+export function turnedCentre(x: number, z: number, tileSizeM: number): { cx: number; cy: number } {
+  return { cx: Math.floor(x / tileSizeM), cy: Math.floor(z / tileSizeM) };
+}
+
 /** Whether a building of this size and turn takes its turned outline's tiles */
 export const turnsFootprint = (size: number, rot: number | null | undefined): boolean => TURNED_SIZES.has(size) && isTurned(rot);
 

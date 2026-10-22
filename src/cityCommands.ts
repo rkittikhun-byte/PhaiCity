@@ -28,7 +28,7 @@ import { drawnRoads, graphLines } from "./roads/graphLines";
 import { isCityTileSize, tileMetres, tileOfUnits, unitsPerMetre } from "./units";
 import { blockOf, type PlacedBuilding, PlacedBuildings } from "./buildings/placedBuildings";
 import { bodyMeets, drawnPoints, familyValue, laidOutline, lineInOutline, outlineOf, outlineTiles, RAIL_REACH_M,
-  outsideBy, turnedOutlines, turnedTilesOf, turnsFootprint, type FootprintMap } from "./buildings/turnedFootprint";
+  outsideBy, turnedCentre, turnedOutlines, turnedTilesOf, turnsFootprint, type FootprintMap } from "./buildings/turnedFootprint";
 import type { BuildingMap } from "./buildings/buildingRecords";
 import { buildingInTheWay } from "./buildings/outlineOverlap";
 import { MOVE_BLOCKED, MOVE_NO_MONEY, movePrice, NO_BUILDING } from "./moveTool";
@@ -717,7 +717,10 @@ export class CityCommands {
     const width = city.width, height = city.height, tool = city.tools[b.tool];
     const x = b.tile % width, y = Math.floor(b.tile / width), size = b.size;
     if (!tool || !map.getTile(x, y).isZone() && size > 1) return { reason: NO_BUILDING };
-    const block = blockOf(command.x, command.z, size, tileMetres(map)), { left, top, cx, cy } = block, to = cy * width + cx;
+    // (laid turned, its centre is the tile under its middle: turnedCentre)
+    const block = blockOf(command.x, command.z, size, tileMetres(map)), { left, top } = block;
+    const { cx, cy } = turnsFootprint(size, command.rot) ? turnedCentre(command.x, command.z, tileMetres(map)) : block;
+    const to = cy * width + cx;
     // A building turned to a slanted road, before or after, takes the tiles of its outline where it goes, its own lifted
     // first (src/buildings/turnedFootprint.ts)
     const metres = tileMetres(map), oldOutline = laidOutline(map as unknown as FootprintMap, b);
@@ -851,7 +854,9 @@ export class CityCommands {
     if (!map || !tool) return { reason: `no ${command.tool} tool` };
     if (!placesBuilding(command.tool, tool)) return { reason: "not a building" };
     const size = tool.size ?? 1, metres = tileMetres(map as { tileSizeM?: number | null });
-    const { cx, cy, left, top } = blockOf(command.x, command.z, size, metres);
+    const { left, top, ...square } = blockOf(command.x, command.z, size, metres);
+    // (laid turned, its centre is the tile under its middle, inside its outline whatever its size: turnedCentre)
+    const { cx, cy } = turnsFootprint(size, command.rot) ? turnedCentre(command.x, command.z, metres) : square;
     if (cx < 0 || cy < 0 || cx >= city.width || cy >= city.height) return { reason: "outside the map" };
     const turns = turnsFootprint(size, command.rot);
     // (on a real-scale city map no building's outline may run into another's: src/buildings/outlineOverlap.ts)

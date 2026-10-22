@@ -80,6 +80,19 @@ describe("buildings of every size turned to a slanted road", () => {
     for (const i of mine) expect(inFamily(value(c.core, i), centre as number, size as number)).toBe(false);
   });
 
+  test("a turned 2 x 2's centre is the tile under its middle, inside its outline wherever along the road", () => {
+    // (a square block's centre, one in from its top left, may lie a tile off a 2 x 2's middle, outside its turned outline)
+    for (const along of [300, 309, 318, 327, 336]) {
+      const c = city(), p = pose(c, along, 2);
+      expect(c.core.apply({ type: "build", tool: "solar", x: p.x, z: p.z, rot: p.rot, stroke: 2 } as any)).toMatchObject({ accepted: true });
+      const b = c.map.buildings.all().find((x: any) => x.tool === "solar");
+      expect([b.tile % W, Math.floor(b.tile / W)]).toEqual([Math.floor(p.x / M), Math.floor(p.z / M)]);
+      expect(value(c.core, b.tile)).toBe(PLANT2);
+      const o = laidOutline(c.map, b)!;
+      expect(outsideBy(o, (b.tile % W + 0.5) * M, (Math.floor(b.tile / W) + 0.5) * M)).toBeLessThanOrEqual(0);
+    }
+  });
+
   test("a 2 x 2 stands with its whole lot against the road, as a 3 x 3 does", () => {
     const line: [number, number][] = [[0, 0], [400, 200]];
     const map = { width: 100, height: 100, tileSizeM: M, realUnits: U, isRoad: () => false };
