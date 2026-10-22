@@ -15,7 +15,7 @@ export const OVERLAP_SLACK_M = 0.5;
 
 /** How far apart two outlines are along an axis (unit vector): positive when a gap lies between them there */
 function gapAlong(a: Outline, b: Outline, nx: number, nz: number): number {
-  const reach = (o: Outline): number => o.half * (Math.abs(o.ux * nx + o.uz * nz) + Math.abs(o.vx * nx + o.vz * nz));
+  const reach = (o: Outline): number => o.hu * Math.abs(o.ux * nx + o.uz * nz) + o.hv * Math.abs(o.vx * nx + o.vz * nz);
   return Math.abs((b.x - a.x) * nx + (b.z - a.z) * nz) - reach(a) - reach(b);
 }
 

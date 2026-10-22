@@ -21,7 +21,8 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
-import { turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
+import { laidOutline, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
+import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
 import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
@@ -730,13 +731,20 @@ export class TileSnapshot implements CityMapReader {
     const units=unitsPerMetre(tileMetres(this.source!));
     return [b.x*units,b.z*units,b.rot];
   }
+  /** Whether the building whose centre tile is i was laid turned, its tiles its turned outline's
+   * (src/buildings/turnedFootprint.ts laidOutline) */
+  private laidTurned(i:number):boolean {
+    const b=this.source?.buildings?.atTile(i);
+    return Boolean(b&&laidOutline(this.source as unknown as FootprintMap,b as unknown as PlacedBuilding));
+  }
   private againstRoad(p:Placement):Placement {
     const size=Math.max(p.footprint[0],p.footprint[1]);
     const zoned=p.kind==='residential'||p.kind==='commercial'||p.kind==='industrial';
     // Every building (owner, 15 Oct 2026: "tool ทุก tool จะต้อง snap กับ ถนน") and every grown plot/lot/zone stands
     // aligned with and facing its road; not the ground, roads, railways, power lines and shores
+    // (a 2 x 2 laid turned to its road stands at its kept pose as a 3 x 3 does: docs/NO_GRID_PLAN.md 3A.1)
     if(['terrain','road','rail','shore','debug','veg','park'].includes(p.kind)||
-      !zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)return p;
+      (!zoned&&size<3&&!['services','transport'].includes(p.kind)||p.kind==='power'&&size<3)&&!this.laidTurned(p.index))return p;
     const factor=this.realUnits?shareOf(p):1;
     const scale=BUILDING_SCALE*factor;
     // Where the player put it down in metres, or where the game kept it standing (gameMap.buildings)

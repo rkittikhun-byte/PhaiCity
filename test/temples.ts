@@ -108,7 +108,7 @@ describe("a community builds its temple", () => {
     expect(t).toBeDefined();
     const b = map.buildings.atTile(t.tile);
     expect(isTurned(b.rot)).toBe(true);
-    const outline = outlineTiles({ x: b.x, z: b.z, half: 24, ux: Math.cos(b.rot), uz: -Math.sin(b.rot), vx: Math.sin(b.rot), vz: Math.cos(b.rot) }, W, H, M);
+    const outline = outlineTiles({ x: b.x, z: b.z, half: 24, hu: 24, hv: 24, ux: Math.cos(b.rot), uz: -Math.sin(b.rot), vx: Math.sin(b.rot), vz: Math.cos(b.rot) }, W, H, M);
     for (const i of outline) {
       const v = map.getTileValue(i % W, Math.floor(i / W));
       expect(isRoadTile(v) || v >= CIVIC - 4 && v <= CIVIC + 4).toBe(true);

@@ -30,7 +30,8 @@ import { MiscUtils } from './miscUtils.js';
 import { PowerManager } from './powerManager.js';
 import { chancePerCycle, DEFAULT_CLIMATE, DEFAULT_RULES, seasonalRisks } from './provinceRules.ts';
 import { plantPollution, powerKindAt } from './powerPlants.ts';
-import { NUCLEAR_KIND, plantCentreOf } from './plantBlocks.ts';
+import { isPlantCentre, NUCLEAR_KIND, plantCentreOf } from './plantBlocks.ts';
+import { turnedOwnerAt } from './buildings/turnedFootprint.ts';
 import { BUS_STOP, CIVIC, COALBASE, FARM, HARBOUR, MINE, STATION, WASTE } from './tileValues.ts';
 import { Transit } from './transit.ts';
 import {
@@ -93,6 +94,13 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   this._plantPollution = function(x, y, tileValue) {
     // (a plant on only the tiles its model covers, src/plantBlocks.ts; a nuclear one pollutes as the old one, not at all)
     var sized = plantCentreOf(x, y, tileValue);
+    // ... a tile of a plant laid turned past its square has its square's edge value: its centre is its owner's
+    // (src/buildings/turnedFootprint.ts)
+    if (sized && !(map.testBounds(sized.x, sized.y) && isPlantCentre(map.getTileValue(sized.x, sized.y)))) {
+      var owner = turnedOwnerAt(map, x, y);
+      if (owner)
+        sized = {x: owner.b.tile % map.width, y: Math.floor(owner.b.tile / map.width)};
+    }
     if (sized && (map.powerKinds || {})[sized.y * map.width + sized.x] === NUCLEAR_KIND)
       return 0;
     if (sized)

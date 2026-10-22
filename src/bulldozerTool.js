@@ -19,7 +19,7 @@ import { ANIMBIT, BULLBIT } from "./tileFlags.ts";
 import { TileUtils } from './tileUtils.js';
 import * as TileValues from "./tileValues.ts";
 import { ZoneUtils } from './zoneUtils.js';
-import { turnedTilesOf } from './buildings/turnedFootprint.ts';
+import { turnedOwnerAt, turnedTilesOf } from './buildings/turnedFootprint.ts';
 
 // PhaiCity: it works by dragging the mouse (owner, 18 Oct 2026: "รื้อถอน เอาแบบลากเม้าส์ ได้เลย"), and takes what the
 // mouse went over only when it is released, the tiles shown red while it is dragged (owner: "ให้คลิก drag จนกว่า จะปล่อย
@@ -94,6 +94,20 @@ BulldozerTool.prototype.doTool = function(x, y, blockMaps) {
   var deltaX;
   var deltaY;
 
+  // PhaiCity: a building turned to a slanted road takes its turned outline's tiles, whatever its size
+  // (src/buildings/turnedFootprint.ts, docs/NO_GRID_PLAN.md 3A.1), and goes whole; a tile of it past its square has its
+  // square's edge value, so it is found by its owner's outline, not by the value
+  var owner = this._map.testBounds(x, y) ? turnedOwnerAt(this._map, x, y) : null;
+  var turned = owner ? turnedTilesOf(this._map, owner.b.tile, this._worldEffects.getTileValue(owner.b.tile % this._map.width,
+    Math.floor(owner.b.tile / this._map.width))) : null;
+  if (turned) {
+    this.addCost(this.bulldozerCost);
+    this._emitEvent(owner.b.size >= 3 ? SOUND_EXPLOSIONHIGH : SOUND_EXPLOSIONLOW);
+    turned.forEach(function(i) { this.putRubble(i % this._map.width, Math.floor(i / this._map.width), 1); }, this);
+    this.result = this.TOOLRESULT_OK;
+    return;
+  }
+
   if (tile.isZone()) {
     zoneSize = ZoneUtils.checkZoneSize(tileValue);
     deltaX = 0;
@@ -122,12 +136,7 @@ BulldozerTool.prototype.doTool = function(x, y, blockMaps) {
 
       case 3:
         this._emitEvent(SOUND_EXPLOSIONHIGH);
-        // PhaiCity: a building turned to a slanted road takes its turned outline's tiles (src/buildings/turnedFootprint.ts)
-        var turned = turnedTilesOf(this._map, centerY * this._map.width + centerX, this._worldEffects.getTileValue(centerX, centerY));
-        if (turned)
-          turned.forEach(function(i) { this.putRubble(i % this._map.width, Math.floor(i / this._map.width), 1); }, this);
-        else
-          this.putRubble(centerX - 1, centerY - 1, 3);
+        this.putRubble(centerX - 1, centerY - 1, 3);
         break;
 
       case 4:

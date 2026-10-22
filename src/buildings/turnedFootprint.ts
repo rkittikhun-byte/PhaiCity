@@ -20,8 +20,10 @@
 
 import type { PlacedBuilding } from "./placedBuildings";
 
-/** The sizes of building that turn their footprint with them: the 3 x 3s of the ruler's */
-export const TURNED_SIZES: ReadonlySet<number> = new Set([3]);
+/** The sizes of building that turn their footprint with them: every building of the ruler's two tiles a side and up (the
+ * 3 x 3s since 21 Oct 2026; the 2 x 2 plants, the 4 x 4 stadium and port and the 6 x 6 airport since docs/NO_GRID_PLAN.md
+ * 3A.1). A one-tile building is its own centre tile, so it has nothing to turn. */
+export const TURNED_SIZES: ReadonlySet<number> = new Set([2, 3, 4, 6]);
 
 /** Whether a turn is off the quarter turns, so the outline no longer lies square to the tiles */
 export function isTurned(rot: number | null | undefined): boolean {
@@ -33,26 +35,33 @@ export function isTurned(rot: number | null | undefined): boolean {
 /** Whether a building of this size and turn takes its turned outline's tiles */
 export const turnsFootprint = (size: number, rot: number | null | undefined): boolean => TURNED_SIZES.has(size) && isTurned(rot);
 
-/** A turned square: its middle (metres), its half side, and its axes (unit vectors across and ahead) */
-export interface Outline { x: number; z: number; half: number; ux: number; uz: number; vx: number; vz: number }
+/**
+ * A turned rectangle: its middle (metres), its half width across (hu) and half depth ahead (hv), the larger of the two
+ * (half, which with SQRT2 bounds its corners), and its axes (unit vectors across and ahead). A building's is its lot,
+ * its real width and depth (docs/NO_GRID_PLAN.md 3A.1): every model in art/buildings is made on whole 16 m tiles
+ * (assets/models/buildings/index.json lists each kind's tiles), so every lot is still its tiles' square, w = d = size
+ * tiles; a kind with a lot of its own needs only its w and d given here.
+ */
+export interface Outline { x: number; z: number; half: number; hu: number; hv: number; ux: number; uz: number; vx: number; vz: number }
 
 /** The outline of a building of `size` tiles of `tileSizeM` metres, middle (x, z), turned `rot` as the view turns it
- * (its front facing (sin rot, cos rot)) */
-export function outlineOf(x: number, z: number, rot: number, size: number, tileSizeM: number): Outline {
+ * (its front facing (sin rot, cos rot)), `w` metres wide and `d` deep (its tiles' square unless given) */
+export function outlineOf(x: number, z: number, rot: number, size: number, tileSizeM: number,
+  w = size * tileSizeM, d = w): Outline {
   const s = Math.sin(rot), c = Math.cos(rot);
   // ahead (its front) is (sin, cos); across is that turned a quarter
-  return { x, z, half: size * tileSizeM / 2, vx: s, vz: c, ux: c, uz: -s };
+  return { x, z, half: Math.max(w, d) / 2, hu: w / 2, hv: d / 2, vx: s, vz: c, ux: c, uz: -s };
 }
 
 /** Its four corners, in metres, going round */
 export function outlineCorners(o: Outline): [number, number][] {
-  const h = o.half;
-  return [[-h, -h], [h, -h], [h, h], [-h, h]].map(([u, v]) => [o.x + o.ux * u + o.vx * v, o.z + o.uz * u + o.vz * v]);
+  const hu = o.hu, hv = o.hv;
+  return [[-hu, -hv], [hu, -hv], [hu, hv], [-hu, hv]].map(([u, v]) => [o.x + o.ux * u + o.vx * v, o.z + o.uz * u + o.vz * v]);
 }
 
 /** How far a point lies outside the outline (metres; 0 or less inside) */
 export function outsideBy(o: Outline, px: number, pz: number): number {
-  const dx = px - o.x, dz = pz - o.z, u = Math.abs(dx * o.ux + dz * o.uz) - o.half, v = Math.abs(dx * o.vx + dz * o.vz) - o.half;
+  const dx = px - o.x, dz = pz - o.z, u = Math.abs(dx * o.ux + dz * o.uz) - o.hu, v = Math.abs(dx * o.vx + dz * o.vz) - o.hv;
   if (u <= 0 && v <= 0) return Math.max(u, v);
   return Math.hypot(Math.max(u, 0), Math.max(v, 0));
 }

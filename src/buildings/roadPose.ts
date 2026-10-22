@@ -10,7 +10,7 @@
 // click both come from here (src/game.js buildingPose).
 
 import { blockOf } from "./placedBuildings";
-import { isTurned } from "./turnedFootprint";
+import { isTurned, TURNED_SIZES } from "./turnedFootprint";
 import { besideRoad } from "../cityCommands";
 import { roadReach } from "../roadGeometry";
 import { unitsPerMetre } from "../units";
@@ -118,10 +118,10 @@ function poseAt(map: RoadPoseMap, line: readonly Point[], level: number, along: 
   const at = pointAlong(line, along);
   if (at === null) return null;
   const nx = at.nx * side, nz = at.nz * side, { rx, rz } = at;
-  // (a 3 x 3 its whole block deep, as it takes the tiles of its outline turned with it, the outline's front at the road's
-  // edge: src/buildings/turnedFootprint.ts)
-  const turns = size === 3 && isTurned(Math.atan2(-nx, -nz)), metre = unitsPerMetre(map.tileSizeM);
-  let gap = roadReach(level, map.realUnits) + 0.6 + size * 5 * (size === 3 ? 1 : options.buildingScale ?? 1) + back;
+  // (a building of two tiles a side and up its whole block deep, as it takes the tiles of its outline turned with it,
+  // the outline's front at the road's edge: src/buildings/turnedFootprint.ts; a one-tile one as deep as it is drawn)
+  const whole = TURNED_SIZES.has(size), turns = whole && isTurned(Math.atan2(-nx, -nz)), metre = unitsPerMetre(map.tileSizeM);
+  let gap = roadReach(level, map.realUnits) + 0.6 + size * 5 * (whole ? 1 : options.buildingScale ?? 1) + back;
   const inside = (tx: number, ty: number): boolean => tx >= 0 && ty >= 0 && tx < map.width && ty < map.height;
   for (let step = 0; step <= 24 && !turns; step++) {
     const block = blockOf(rx + nx * (gap + step * metre), rz + nz * (gap + step * metre), size, 10);

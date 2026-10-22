@@ -11,6 +11,7 @@ import type { CityHeightField } from './heightfield.js';
 import { smoothLine, type Point } from './roadCurves.js';
 import { BUILDING_SCALE, poseAgainstRoad, type RoadNear, slideToRoad } from './tileModels.js';
 import { Placement } from './placement.js';
+import { TURNED_SIZES } from '../../buildings/turnedFootprint.js';
 import type { CityMapReader } from './types.js';
 
 /**
@@ -342,9 +343,9 @@ export class ToolOutline {
     if(near||hover.pose){
       // The building the tool would put down, stood against its road as the city view will draw it (placement.ts)
       const pose=hover.pose?{x:hover.pose[0],z:hover.pose[1],rotation:hover.pose[2]}:poseAgainstRoad(x,z,size,near!);
-      // (a 3 x 3 put down where the game posed it shows the outline it takes, its whole block turned with it, fenced
-      // as it will be: src/buildings/turnedFootprint.ts)
-      const whole=size===3&&!!hover.pose;
+      // (a building of two tiles a side and up put down where the game posed it shows the outline it takes, its whole
+      // block turned with it, fenced as it will be: src/buildings/turnedFootprint.ts)
+      const whole=TURNED_SIZES.has(size)&&!!hover.pose;
       const g=Placement.ofTool(size,x,z).againstRoad(pose.x,pose.z,pose.rotation,whole?1:BUILDING_SCALE).ground();
       // ... its front against the road it faces, as the building will stand (tileModels.ts toRoadEdge)
       const slide=this.snap&&!whole?slideToRoad(g.x,g.z,g.rotation,g.depth/2,this.snap):0;
