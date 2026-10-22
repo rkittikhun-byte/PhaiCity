@@ -43,7 +43,10 @@ describe("seats and care along the roads", () => {
     const along = seatsAlongRoads(map, [{ centre, field: "basic", places: 200 }], people)!;
     const citywide = serviceLevels({ basic: 200, higher: 0, health: 0 }, people);
     expect(along).not.toBeNull();
-    expect(Math.abs(along.basic - citywide.basic)).toBeLessThanOrEqual(5);
+    // (the home the seats ran out at takes what was left of them, so not a point lower)
+    expect(along.basic).toBe(citywide.basic);
+    const care = seatsAlongRoads(map, [{ centre, field: "health", places: 1500 }], people)!;
+    expect(care.health).toBe(serviceLevels({ basic: 0, higher: 0, health: 1500 }, people).health);
   });
 
   test("the same school beyond a child's reach along the roads serves none; with none there are no seats", () => {

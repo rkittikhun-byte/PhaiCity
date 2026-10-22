@@ -45,6 +45,10 @@ describe("handing a supply out along the roads", () => {
     // A source in the middle serves both ways out from it
     const middle = supplyAlongRoads(net, [{ at: [{ k: 2, t: 0 }], amount: 2 }], users);
     expect(Array.from(middle.served)).toEqual([0, 0, 1, 1]);
+    // The first user it ran out at has a share of what was left; those past it none
+    const part = supplyAlongRoads(net, [{ at: [{ k: 0, t: 0 }], amount: 2.25 }], users);
+    expect(Array.from(part.part)).toEqual([0, 1, 0.25, 1]);
+    expect(Array.from(part.served)).toEqual([0, 1, 0, 1]);
   });
 
   test("a network with no source gets nothing, and a source on several networks joins them", () => {

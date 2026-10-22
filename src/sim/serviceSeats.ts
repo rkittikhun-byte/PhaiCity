@@ -68,8 +68,10 @@ export function seatsAlongRoads(map: UtilityMap & PlotListMap & { roadGraph?: Ro
     const reach = supplyAlongRoads(roads, sources, users, links).distance;
     const near = users.map((u, i) => (reach[i] <= SEAT_REACH_M[field] ? u : { at: null, demand: u.demand }));
     const result = supplyAlongRoads(roads, sources, near, links);
+    // (the home the places ran out at gets what was left of them: with every home within reach, the city scores as by
+    // its places and people, not a point lower for the last home's whole demand)
     let got = 0;
-    near.forEach((u, i) => { if (u.at && result.served[i]) got += u.demand; });
+    near.forEach((u, i) => { if (u.at) got += u.demand * result.part[i]; });
     levels[field] = share(got, wanted);
   }
   return levels;

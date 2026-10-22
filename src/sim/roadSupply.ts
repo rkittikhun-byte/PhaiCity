@@ -46,6 +46,9 @@ export const ROAD_NONE = 0, ROAD_SERVED = 1, ROAD_SHORT = 2;
 export interface SupplyResult {
   /** Each user served (1) or not (0), in the order given */
   served: Uint8Array;
+  /** ... and the share of its demand each user got, 0-1: 1 served, the first one the supply ran out at what was left
+   *  of it, 0 the rest (what a school's last seats give a home that wants more, src/sim/serviceSeats.ts) */
+  part: Float64Array;
   /** Each user's network had a source (1), whether or not it was served: its road is "piped" */
   reached: Uint8Array;
   /** Each user's distance from the nearest source along the roads (metres; Infinity with none) */
@@ -144,6 +147,7 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
 
   // Each user's network and distance; then each network's users, nearest first (ties by their order given)
   const n = users.length, served = new Uint8Array(n), reached = new Uint8Array(n), distance = new Float64Array(n).fill(Infinity);
+  const part = new Float64Array(n);
   const byNetwork = new Map<number, number[]>();
   for (let i = 0; i < n; i++) {
     const at = users[i].at;
@@ -165,15 +169,17 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
     let left = supplyOf[r], out = false;
     for (const i of list) {
       const demand = users[i].demand;
-      if (!(demand > 0)) { served[i] = 1; continue; }
+      if (!(demand > 0)) { served[i] = 1; part[i] = 1; continue; }
       if (!out && demand <= left + EPSILON) {
         served[i] = 1;
+        part[i] = 1;
         left -= demand;
         used += demand;
       } else if (!out) {
         out = true;
         short = true;
         cut.set(r, distance[i]);
+        part[i] = left > 0 ? left / demand : 0;
       }
     }
   }
@@ -184,5 +190,5 @@ export function supplyAlongRoads(net: SupplyNet, sources: readonly SupplySource[
     if (!(supplyOf[r] > 0)) continue;
     roads[k] = distanceAt(k, 0.5) < (cut.get(r) ?? Infinity) ? ROAD_SERVED : ROAD_SHORT;
   }
-  return { served, reached, distance, roads, supply, used, short };
+  return { served, part, reached, distance, roads, supply, used, short };
 }
