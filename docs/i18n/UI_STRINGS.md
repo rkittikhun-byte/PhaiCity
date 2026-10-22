@@ -359,6 +359,9 @@
 | `draw.debug.why.angle` | `src/drawReadout.ts` | — | `onto a straight or 45° line` | `ดัดเข้าแนวตรงหรือ 45°` |  |
 | `draw.debug.why.way` | `src/drawReadout.ts` | — | `along the line it goes on from` | `ตามแนวเส้นเดิม` |  |
 | `draw.debug.why.none` | `src/drawReadout.ts` | — | `where clicked` | `ตรงจุดที่คลิก` |  |
+| `draw.debug.why.node` | `src/drawReadout.ts` | — | `joins the junction` | `ต่อที่ทางแยก` | จุดลงตรงกลางทางแยก เมื่อเมาส์อยู่บนทางแยก (ไม้ไผ่34 22 ต.ค. 2026) |
+| `draw.debug.why.mark` | `src/drawReadout.ts` | — | `on a point along the line` | `จุดแบ่งบนเส้นเดิม` | จุด A ลงที่จุดแบ่งบนถนน ราว 8 ม. ระหว่างทางแยก (ไม้ไผ่34 22 ต.ค. 2026) |
+| `draw.debug.moved` | `src/drawReadout.ts` | — | `{metres} m from the mouse` | `ห่างเมาส์ {metres} ม.` | จุดที่จะลงห่างจากเมาส์กี่เมตร เมื่อการดูดย้ายจุด (ไม้ไผ่34 22 ต.ค. 2026) |
 | `draw.debug.click` | `src/drawReadout.ts` | — | `{name} clicked ({cx}, {cy}), used ({x}, {y})` | `{name} คลิก ({cx}, {cy}) ใช้ ({x}, {y})` | สรุปหลังสร้างเส้นเสร็จ |
 | `draw.debug.laid` | `src/drawReadout.ts` | — | `laid {laid}/{total} tiles` | `วางได้ {laid}/{total} ช่อง` |  |
 | `draw.debug.refused` | `src/drawReadout.ts` | — | `{count} not laid: {why}` | `{count} ช่องวางไม่ได้: {why}` |  |

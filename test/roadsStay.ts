@@ -12,8 +12,10 @@
 import { CityCore, STEPS_PER_YEAR } from "../src/core/cityCore";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
+import { roadReach } from "../src/roadGeometry";
 import { drawnRoads, graphLines } from "../src/roads/graphLines";
 import { RoadGraph } from "../src/roads/roadGraph";
+import { snapNext, snapStart, WAY_MAX_M, type SnapNet } from "../src/roads/roadSnap";
 import { isLineRail, isLineRoad, isPowerCrossing } from "../src/roadTiles";
 import { Storage } from "../src/storage.js";
 
@@ -131,6 +133,14 @@ const ACROSS: Drawn = { from: [300.5, 20.25], to: [180.75, 400.5] };
 const TWICE: Drawn = { from: [120.5, 610.25], c1: [300.5, 380.75], c2: [600.25, 380.5], to: [800.5, 620.25] };
 const RAILWAY: Drawn = { from: [400.25, 20.5], to: [420.5, 630.25] };
 
+/** The roads as the road tool snaps to them (src/game.js networkLines, metrePoint), in metres */
+function snapNet(core: CityCore): SnapNet {
+  const map = lineMap(core), drawn = drawnRoads(map, graphLines(graphOf(core), map, false), false);
+  return { lines: drawn.lines.map((line) => line.points.map(([x, z]): P => [x / U, z / U])),
+    nodes: drawn.points.map(([x, z]): P => [x / U, z / U]),
+    half: drawn.lines.map((line) => roadReach(line.level || 1, U) / U) };
+}
+
 describe("a road drawn in metres stays where it was drawn", () => {
   test("roads drawn on from its ends, at any angle, leave it as drawn, and are where they were drawn", () => {
     const core = city(), strokes: Stroke[] = [];
@@ -234,6 +244,52 @@ describe("a road drawn in metres stays where it was drawn", () => {
     const more = { type: "road" as const, tool: "road" as const, from: along(SLANT, 0.5), to: [500.5, 40.25] as P, stroke: 99 };
     core.apply(more);
     again.apply(more);
+    expect(JSON.stringify(graphOf(again).toJSON())).toBe(JSON.stringify(graphOf(core).toJSON()));
+    expectAllWhereDrawn(again, strokes);
+  });
+
+  test("roads drawn by an unsteady hand, each click landing as the tool lands it, stay where they landed, saved and opened", () => {
+    // Clicks 5 to 20 pixels off where they are meant (docs/design/LOOK_BOOK.md), a 16 m tile 32 pixels across
+    const MPP = 0.5, SPACING = 7 * 16;
+    let state = 5;
+    const next = (): number => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    const shaky = (q: P, maxPx = 20): P => {
+      const angle = next() * Math.PI * 2, px = 5 + next() * (maxPx - 5);
+      return [q[0] + Math.cos(angle) * px * MPP, q[1] + Math.sin(angle) * px * MPP];
+    };
+    const core = city(), strokes: Stroke[] = [];
+    const LEVEL: Drawn = { from: [40.5, 560.25], to: [920.75, 600.5] };
+    draw(core, strokes, SLANT);
+    draw(core, strokes, LEVEL);
+    const slant = asDrawn(SLANT), level = asDrawn(LEVEL);
+    // Square off the slant either side, from it to the other road, and from open land onto it
+    const across: P = [-0.434, 0.901];
+    const meant: Array<[P | null, P, Drawn | null]> = [
+      [along(SLANT, 0.15), [along(SLANT, 0.15)[0] + across[0] * 130, along(SLANT, 0.15)[1] + across[1] * 130], null],
+      [along(SLANT, 0.45), [along(SLANT, 0.45)[0] - across[0] * 150, along(SLANT, 0.45)[1] - across[1] * 150], null],
+      [along(SLANT, 0.7), along(LEVEL, 0.52), LEVEL],
+      [null, along(SLANT, 0.88), SLANT],
+    ];
+    for (const [onRoad, end, endRoad] of meant) {
+      // A: meant on the slant, it lands on it; meant in open land, where the mouse is or on a guideline
+      const pa = shaky(onRoad ?? [300.5, 470.25]), a = snapStart(pa, MPP, snapNet(core), SPACING);
+      if (onRoad) {
+        expect(["node", "end", "mark", "road"]).toContain(a?.kind);
+        expect(slant.off(a!.point)).toBeLessThan(0.002);
+      }
+      const from = a ? a.point : pa;
+      // B: meant on a road a few pixels off it, it lands on it; meant in open land, within a few metres of the mouse
+      const pb = shaky(end, endRoad ? 10 : 20), b = snapNext(pb, MPP, snapNet(core), from, a ? a.way : null, 7);
+      if (endRoad) {
+        expect(b?.kind).toBe("road");
+        expect((endRoad === SLANT ? slant : level).off(b!.point)).toBeLessThan(0.002);
+      } else {
+        expect(Math.hypot((b ? b.point : pb)[0] - pb[0], (b ? b.point : pb)[1] - pb[1])).toBeLessThanOrEqual(WAY_MAX_M);
+      }
+      draw(core, strokes, { from, to: b ? b.point : pb });
+    }
+    expectAllWhereDrawn(core, strokes);
+    const again = saveAndOpen(core);
     expect(JSON.stringify(graphOf(again).toJSON())).toBe(JSON.stringify(graphOf(core).toJSON()));
     expectAllWhereDrawn(again, strokes);
   });

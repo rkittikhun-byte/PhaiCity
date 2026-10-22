@@ -7,7 +7,7 @@
 // house): what a line cannot build on is the stretch of the line over it, red, as wide as the road; a building it
 // meets, or a one-tile tool points at, shows as the building's own turned outline.
 
-import { BufferGeometry, Mesh } from 'three';
+import { BufferGeometry, Mesh, Vector3 } from 'three';
 import { ToolOutline } from '../../src/render3d/city/overlay.js';
 import type { ToolHover } from '../../src/cityView.js';
 
@@ -95,6 +95,50 @@ describe('the tools\' outlines on a city map', () => {
     const points = meshes(tool).flatMap((m) => m.points);
     expect(tileSquares(points)).toBe(false);
     for (const [cx, cz] of lot) expect(points.some(([x, z]) => Math.hypot(x - cx, z - cz) < 0.5)).toBe(true);
+  });
+
+  test('where a click of a road tool lands is marked in a look of its own for each thing it lands on', () => {
+    // Every mesh's corners where they lie on the ground, turned as the mesh is
+    const placed = (tool: ToolOutline): { vertices: number; points: Point[] }[] => {
+      const out: { vertices: number; points: Point[] }[] = [];
+      tool.root.updateMatrixWorld(true);
+      tool.root.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const position = (o.geometry as BufferGeometry).getAttribute('position'), points: Point[] = [];
+        for (let i = 0; i < position.count; i++) {
+          const v = new Vector3(position.getX(i), position.getY(i), position.getZ(i)).applyMatrix4(o.matrixWorld);
+          points.push([v.x, v.z]);
+        }
+        out.push({ vertices: position.count, points });
+      });
+      return out;
+    };
+    // A road running east along row 7 (z = 75), the click landing at x = 103 on it
+    const look = (snapKind: string | null, extra: Partial<ToolHover> = {}) => {
+      const tool = outline();
+      tool.update({ tile: { x: 10, y: 7 }, size: 1, colour: '#4a4f52', linePoint: { x: 10.3, y: 7.5 }, roadWidth: 7,
+        tilePixels: 32, snapKind, snapWay: { x: 1, y: 0 }, ...extra } as ToolHover);
+      return placed(tool);
+    };
+    const kinds = [null, 'node', 'end', 'mark', 'road', 'guide'];
+    const shapes = kinds.map((kind) => look(kind, kind === 'guide' ? { snapGuide: [{ x: 6, y: 7.5 }, { x: 14, y: 7.5 }] } : {}));
+    const signature = (drawn: { vertices: number }[]): string => drawn.map((m) => m.vertices).join(',');
+    expect(new Set(shapes.map(signature)).size).toBe(kinds.length);
+    // A junction is a diamond, its corners out along the map's axes from where it lands
+    const node = shapes[1].flatMap((m) => m.points).filter(([x, z]) => Math.hypot(x - 103, z - 75) > 1);
+    expect(node.every(([x, z]) => Math.abs(x - 103) < 0.01 || Math.abs(z - 75) < 0.01)).toBe(true);
+    // The road's middle line: a bar across the road (north–south here), wider than the road and thin along it
+    const bar = shapes[4].map((m) => m.points).find((points) => {
+      const zs = points.map(([, z]) => z), xs = points.map(([x]) => x);
+      return Math.max(...zs) - Math.min(...zs) > 7 && Math.max(...xs) - Math.min(...xs) < 1.5;
+    });
+    expect(bar).toBeDefined();
+    // A guideline: dashes along it, from one end of its stretch to the other
+    const dashes = shapes[5].filter((m) => m.points.every(([, z]) => Math.abs(z - 75) < 0.2));
+    expect(dashes.length).toBeGreaterThan(5);
+    const xs = dashes.flatMap((m) => m.points.map(([x]) => x));
+    expect(Math.min(...xs)).toBeLessThan(65);
+    expect(Math.max(...xs)).toBeGreaterThan(135);
   });
 
   describe('the inspector', () => {
