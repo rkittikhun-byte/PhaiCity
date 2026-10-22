@@ -33,14 +33,24 @@ describe("a real-scale city counted from its lists", () => {
     const grown = map.plotBuildings.all().filter((p: any) => p.level > 0);
     expect(grown.length).toBeGreaterThan(50);
     expect(zoned.length).toBe(grown.length);
+    const order = new Map(zoned.map((b, i) => [b, i]));
     for (const b of zoned) {
       const plot = map.plotBuildings.get(b.id - PLOT_OBJECT_BASE), place = map.plotBuildings.places.get(plot.id);
       expect((b as any).plot).toBe(plot.id);
       expect(b.coverTiles(map.width, map.height)).toEqual(place.tiles);
       expect([b.x, b.y]).toEqual([place.anchor % map.width, Math.floor(place.anchor / map.width)]);
       expect((b as any).level(map)).toBe(plot.level);
-      // ... clicked on any of its tiles, unless a plot before it in the list lies there too
-      expect(core.objects.at(b.x, b.y)?.kind).toBe(b.kind);
+      // ... clicked on any of its tiles, unless a plot before it in the list, or a building the ruler put down, lies
+      // there too
+      const anchor = b.y * map.width + b.x;
+      for (const tile of place.tiles) {
+        const at = core.objects.at(tile % map.width, Math.floor(tile / map.width));
+        expect(at).not.toBeNull();
+        if (at === b) continue;
+        expect(at!.coverTiles(map.width, map.height)).toContain(tile);
+        if (order.has(at!)) expect(order.get(at!)!).toBeLessThan(order.get(b)!);
+      }
+      expect(place.tiles).toContain(anchor);
     }
   });
 
