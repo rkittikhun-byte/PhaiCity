@@ -31,7 +31,7 @@ export interface Snap {
 export interface SnapNet {
   /** Each road's middle line, as points */
   lines: readonly (readonly Metres[])[];
-  /** Where roads meet */
+  /** Where roads meet, as the map gives them (taken only where three arms of the lines meet: jointsOf) */
   nodes: readonly Metres[];
   /** Each line's half width on the ground with its shoulder (metres); DEFAULT_HALF_M where not given */
   half?: readonly number[];
@@ -39,10 +39,10 @@ export interface SnapNet {
 
 /** How near the mouse must be, in pixels on the screen, for each kind to take the first point (A) (a road: from its
  * edge) ... */
-export const START_PIXELS = { node: 10, road: 14, mark: 4, guide: 8 } as const;
+export const START_PIXELS = { node: 10, road: 16, mark: 4, guide: 8 } as const;
 /** ... and each later point (B), which lands near the mouse */
 export const NEXT_PIXELS = { node: 7, road: 6, way: 6 } as const;
-/** B moved onto a straight way never more than this many metres */
+/** B moved onto a straight way never more than this many metres (half that onto the 15° steps between the main ways) */
 export const WAY_MAX_M = 3;
 /** The points along a road A lands on: its stretch between two junctions or ends cut into equal parts about this long */
 export const MARK_STEP_M = 8;
@@ -119,6 +119,62 @@ function pointAlong(line: readonly Metres[], s: number): Metres {
   return [line[line.length - 1][0], line[line.length - 1][1]];
 }
 
+/**
+ * Where the roads meet and where they stop, from the lines themselves (kept per net): a junction where three or more
+ * arms meet (a line running through counts two, one ending there one), a dead end where a line's end meets nothing.
+ * The given nodes count only where they are such a junction: a road the map brought in tiles gives its junction's
+ * tile, which may lie a tile off the lines (16.8 m on Mueang Khon Kaen's state roads), where no road is.
+ */
+interface Joints {
+  nodes: Metres[];
+  ends: Array<{ point: Metres; way: Metres }>;
+  /** Each line's bounds and length */
+  boxes: number[][];
+  lengths: number[];
+}
+const jointCache = new WeakMap<object, Joints>();
+function jointsOf(net: SnapNet): Joints {
+  const kept = jointCache.get(net.lines);
+  if (kept) return kept;
+  const boxes = net.lines.map((line) => {
+    const xs = line.map((q) => q[0]), zs = line.map((q) => q[1]);
+    return [Math.min(...xs) - SAME_M, Math.max(...xs) + SAME_M, Math.min(...zs) - SAME_M, Math.max(...zs) + SAME_M];
+  });
+  const lengths = net.lines.map(lengthOf);
+  const arms = (p: readonly number[]): number => {
+    let count = 0;
+    net.lines.forEach((line, n) => {
+      const [x0, x1, z0, z1] = boxes[n];
+      if (line.length < 2 || p[0] < x0 || p[0] > x1 || p[1] < z0 || p[1] > z1) return;
+      const on = onLine(line, p);
+      if (on.d >= SAME_M) return;
+      const atStart = dist(line[0], p) < SAME_M, atEnd = dist(line[line.length - 1], p) < SAME_M;
+      count += atStart && atEnd && lengths[n] > SAME_M * 2 ? 2 : atStart || atEnd ? 1 : 2;
+    });
+    return count;
+  };
+  const nodes: Metres[] = [];
+  const isNode = (p: readonly number[]): boolean => nodes.some((q) => dist(q, p) < SAME_M);
+  for (const node of net.nodes) if (!isNode(node) && arms(node) >= 3) nodes.push([node[0], node[1]]);
+  const ends: Array<{ point: Metres; way: Metres }> = [];
+  net.lines.forEach((line) => {
+    if (line.length < 2) return;
+    for (const [i, j] of [[0, 1], [line.length - 1, line.length - 2]]) {
+      const p = line[i];
+      if (isNode(p)) continue;
+      const count = arms(p);
+      if (count >= 3) nodes.push([p[0], p[1]]);
+      else if (count === 1) {
+        const len = dist(p, line[j]) || 1;
+        ends.push({ point: [p[0], p[1]], way: [(p[0] - line[j][0]) / len, (p[1] - line[j][1]) / len] });
+      }
+    }
+  });
+  const joints = { nodes, ends, boxes, lengths };
+  jointCache.set(net.lines, joints);
+  return joints;
+}
+
 /** Where along each line its stretches start and stop: its ends and every junction on it, in order (kept per net) */
 const anchorCache = new WeakMap<object, Map<number, number[]>>();
 function anchorsOf(net: SnapNet, n: number): number[] {
@@ -126,11 +182,9 @@ function anchorsOf(net: SnapNet, n: number): number[] {
   if (!byLine) anchorCache.set(net.lines, byLine = new Map());
   let anchors = byLine.get(n);
   if (!anchors) {
-    const line = net.lines[n], length = lengthOf(line);
-    const xs = line.map((p) => p[0]), zs = line.map((p) => p[1]);
-    const x0 = Math.min(...xs) - SAME_M, x1 = Math.max(...xs) + SAME_M, z0 = Math.min(...zs) - SAME_M, z1 = Math.max(...zs) + SAME_M;
-    anchors = [0, length];
-    for (const node of net.nodes) {
+    const joints = jointsOf(net), line = net.lines[n], [x0, x1, z0, z1] = joints.boxes[n];
+    anchors = [0, joints.lengths[n]];
+    for (const node of joints.nodes) {
       if (node[0] < x0 || node[0] > x1 || node[1] < z0 || node[1] > z1) continue;
       const on = onLine(line, node);
       if (on.d < SAME_M) anchors.push(on.along);
@@ -157,7 +211,7 @@ export function marksAlong(net: SnapNet, n: number, from = -Infinity, to = Infin
   return out;
 }
 
-/** The nearest junction (or road's end) to p within reach, other than near the point a line is drawn from */
+/** The nearest junction to p within reach, other than near the point a line is drawn from */
 function nearestNode(p: Metres, nodes: readonly Metres[], reach: number, last: Metres | null): Metres | null {
   let best: Metres | null = null, bestD = reach;
   for (const node of nodes) {
@@ -167,18 +221,14 @@ function nearestNode(p: Metres, nodes: readonly Metres[], reach: number, last: M
   return best;
 }
 
-/** The roads' dead ends (the first and last point of each line), each with the way out of it */
+/** The nearest dead end to p within reach, with the way out of it, other than the point a line is drawn from */
 function nearestEnd(p: Metres, net: SnapNet, reach: number, last: Metres | null): Snap | null {
   let best: Snap | null = null, bestD = reach;
-  for (const line of net.lines) {
-    if (line.length < 2) continue;
-    for (const [i, j] of [[0, 1], [line.length - 1, line.length - 2]]) {
-      const d = dist(line[i], p);
-      if (d > bestD || (last && dist(line[i], last) <= SAME_M)) continue;
-      const len = dist(line[i], line[j]) || 1;
-      best = { point: [line[i][0], line[i][1]], kind: "end", way: [(line[i][0] - line[j][0]) / len, (line[i][1] - line[j][1]) / len] };
-      bestD = d;
-    }
+  for (const end of jointsOf(net).ends) {
+    const d = dist(end.point, p);
+    if (d > bestD || (last && dist(end.point, last) <= SAME_M)) continue;
+    best = { point: end.point, kind: "end", way: end.way };
+    bestD = d;
   }
   return best;
 }
@@ -187,7 +237,7 @@ function nearestEnd(p: Metres, net: SnapNet, reach: number, last: Metres | null)
  * road within SURFACE half widths of it) */
 function onJoint(p: Metres, net: SnapNet, foot: Foot | null, reach: number, last: Metres | null): Snap | null {
   const ground = foot && foot.d <= foot.half ? Math.max(reach, foot.half * SURFACE) : reach;
-  const node = nearestNode(p, net.nodes, ground, last);
+  const node = nearestNode(p, jointsOf(net).nodes, ground, last);
   if (node) {
     // ... with the way of the road the mouse is on, when it runs through the junction
     const way = foot && onLine(net.lines[foot.line], node).d < SAME_M ? foot.way : null;
@@ -246,7 +296,8 @@ function guideline(p: Metres, net: SnapNet, spacing: number, reach: number): Sna
  * Where a later point of a line (B) lands with the mouse at p, close to the mouse: a junction or a road's end the mouse
  * is right on, else the nearest point of a road's middle line when the mouse is on the road or within
  * NEXT_PIXELS.road of its edge, else straight on from the last point (along, square to or at 15° steps from the road it
- * left, leaving; north, east, south, west or between) when that moves it NEXT_PIXELS.way and WAY_MAX_M at most, else
+ * left, leaving; north, east, south, west or between) when that moves it NEXT_PIXELS.way and WAY_MAX_M at most (half
+ * that onto a 15° step between those), else
  * null: where the mouse is. Never back onto the point the line is drawn from.
  */
 export function snapNext(p: Metres, metresPerPixel: number, net: SnapNet, last: Metres | null, leaving: Metres | null,
@@ -258,22 +309,32 @@ export function snapNext(p: Metres, metresPerPixel: number, net: SnapNet, last: 
   if (foot) return { point: foot.point, kind: "road", way: foot.way };
   if (last === null) return null;
   const straight = snapWay(last, p, leaving, degrees);
-  if (straight === null || dist(straight, p) > Math.min(NEXT_PIXELS.way * metresPerPixel, WAY_MAX_M)) return null;
+  if (straight === null) return null;
+  // ... the main ways (north, east, south, west and between; along and square to the road it left) as far as
+  // NEXT_PIXELS.way and WAY_MAX_M, the 15° steps between half that
+  const angle = Math.atan2(straight[1] - last[1], straight[0] - last[0]);
+  const main = onStep(angle, Math.PI / 4) || (leaving !== null && onStep(angle - Math.atan2(leaving[1], leaving[0]), Math.PI / 2));
+  const reach = Math.min(NEXT_PIXELS.way * metresPerPixel, WAY_MAX_M) * (main ? 1 : 0.5);
+  if (dist(straight, p) > reach) return null;
   return { point: straight, kind: leaving ? "way" : "angle", way: null };
 }
+
+/** Whether an angle (radians) is a whole number of steps */
+const onStep = (angle: number, step: number): boolean => {
+  const off = ((angle % step) + step) % step;
+  return Math.min(off, step - off) < 1e-6;
+};
 
 /** The places near p (within reach metres) where a click may land, for the dots the game shows: for the first point
  * the points along the roads (marksAlong) as well as their junctions and dead ends, for a later point only those */
 export function snapPoints(p: Metres, reach: number, net: SnapNet, first: boolean):
   Array<{ point: Metres; kind: "mark" | "end" | "node" }> {
-  const out: Array<{ point: Metres; kind: "mark" | "end" | "node" }> = [];
-  for (const node of net.nodes) if (dist(node, p) <= reach) out.push({ point: [node[0], node[1]], kind: "node" });
-  const taken = (q: Metres): boolean => out.some((o) => dist(o.point, q) < SAME_M);
+  const out: Array<{ point: Metres; kind: "mark" | "end" | "node" }> = [], joints = jointsOf(net);
+  for (const node of joints.nodes) if (dist(node, p) <= reach) out.push({ point: node, kind: "node" });
+  for (const end of joints.ends) if (dist(end.point, p) <= reach) out.push({ point: end.point, kind: "end" });
+  if (!first) return out;
   net.lines.forEach((line, n) => {
     if (line.length < 2) return;
-    for (const end of [line[0], line[line.length - 1]])
-      if (dist(end, p) <= reach && !taken(end)) out.push({ point: [end[0], end[1]], kind: "end" });
-    if (!first) return;
     const on = onLine(line, p);
     if (on.d > reach) return;
     for (const s of marksAlong(net, n, on.along - reach * 2, on.along + reach * 2)) {

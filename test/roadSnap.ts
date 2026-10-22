@@ -133,6 +133,21 @@ describe("where a click of the road tools lands", () => {
     expect(snapStart([100, 214], MPP, NET, 0)).toBeNull();
   });
 
+  test("junctions and dead ends are where the lines meet and stop, not where the map says a junction's tile is", () => {
+    // As a road the map brought in tiles comes: a T whose arm ends on the through road at (304.4, 100), its junction
+    // given at the tile's middle 16.8 m off it; and a road going on from the east end as a line of its own
+    const tiles: SnapNet = {
+      lines: [[[0, 100], [400, 100]], [[304.4, 100], [304.4, 300]], [[400, 100], [500, 160]]],
+      nodes: [[292, 111.3]],
+    };
+    expect(snapStart([292, 111.3], MPP, tiles)!.kind).not.toBe("node");
+    expect(snapStart([307, 101], MPP, tiles)).toMatchObject({ point: [304.4, 100], kind: "node", way: [1, 0] });
+    // ... where the two lines join end to end, no end: a click there lands on the road
+    expect(snapStart([401, 101], MPP, tiles)!.kind).not.toBe("end");
+    expect(snapStart([2, 101], MPP, tiles)).toMatchObject({ point: [0, 100], kind: "end" });
+    expect(snapPoints([300, 150], 400, tiles, false).map((d) => d.kind).sort()).toEqual(["end", "end", "end", "node"]);
+  });
+
   test("the dots shown are where a click lands: points along the roads for A, only junctions and ends for B", () => {
     const first = snapPoints([210, 102], 20, NET, true), later = snapPoints([210, 102], 20, NET, false);
     expect(first.filter((d) => d.kind === "node")).toEqual([{ point: [200, 100], kind: "node" }]);

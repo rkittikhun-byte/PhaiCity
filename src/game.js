@@ -63,7 +63,7 @@ import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
 import { canalGraphLines } from './roads/canalLines.ts';
 import { alongside, lineLength, lineOfPoints, lineOnGraph, linePrice } from './roads/roadDraw.ts';
-import { snapNext, snapPoints, snapStart } from './roads/roadSnap.ts';
+import { MARK_STEP_M, snapNext, snapPoints, snapStart } from './roads/roadSnap.ts';
 import { placesBuilding } from './gameTools.js';
 import { blockOf } from './buildings/placedBuildings.ts';
 import { isTurned } from './buildings/turnedFootprint.ts';
@@ -2928,10 +2928,11 @@ Game.prototype.snapDots = function(toolName, tile) {
 
 
 // ... for the road, railway and canal tools, which draw in metres (src/roads/roadSnap.ts snapPoints): round the mouse,
-// within DOT_PIXELS on the screen, where a click lands exactly: for the first point the points along the roads (about
-// every 8 m between their junctions), their junctions and their dead ends, for a later point, which lands close to the
+// within DOT_PIXELS on the screen (and the points either side however near the camera), where a click lands exactly:
+// for the first point the points along the roads (about every 8 m between their junctions, while they are at least
+// DOT_GAP_PIXELS apart on the screen), their junctions and their dead ends, for a later point, which lands close to the
 // mouse, only the junctions and the dead ends. In tiles: end a dead end, node a junction.
-var DOT_PIXELS = 40;
+var DOT_PIXELS = 40, DOT_GAP_PIXELS = 8;
 Game.prototype.metreDots = function(toolName) {
   var view = this.cityView;
   var here = typeof view.pointAt === 'function' ? view.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY) : null;
@@ -2945,8 +2946,9 @@ Game.prototype.metreDots = function(toolName) {
   if (this._snapDots && this._snapDots.key === key)
     return this._snapDots.dots;
   var lines = this.metreLines(toolName);
-  var dots = snapPoints([here.x * size, here.y * size], DOT_PIXELS * mpp,
-                        {lines: lines.metres, nodes: lines.nodes, half: lines.half}, first).map(function(at) {
+  var dots = snapPoints([here.x * size, here.y * size], Math.max(DOT_PIXELS * mpp, MARK_STEP_M * 1.5),
+                        {lines: lines.metres, nodes: lines.nodes, half: lines.half},
+                        first && MARK_STEP_M >= DOT_GAP_PIXELS * mpp).map(function(at) {
     return {x: at.point[0] / size, y: at.point[1] / size, end: at.kind === 'end', node: at.kind === 'node'};
   });
   this._snapDots = {key: key, dots: dots};
