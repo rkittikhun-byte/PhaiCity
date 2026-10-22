@@ -140,6 +140,8 @@ export class CityCore {
     // Every road and railway of the tiles in the road and rail graphs, a map's own and an older save's too, so what
     // works on the graphs sees them all (docs/NO_GRID_PLAN.md 0.1)
     this.coverRoads();
+    // ... along which the power and the water run (docs/NO_GRID_PLAN.md step 2): handed out from the city as it is now
+    this.simulation.primeUtilities();
     this.tools = setup.tools ?? new (GameTools as unknown as new (map: Legacy, rules: Legacy) => Legacy)(this.map,
       this.simulation.rules ?? null);
     this.commands = new CityCommands(commandTarget(this.map, this.simulation, this.tools,

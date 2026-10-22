@@ -27,7 +27,7 @@ import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { TripCars, type TripCarsMap } from './tripCars.js';
-import { TrafficLayer, type TrafficLayerMap } from './trafficLayer.js';
+import { roadLayerOf, TrafficLayer, type TrafficLayerMap } from './trafficLayer.js';
 import { RailTrains, type TrainMap } from './railTrains.js';
 import { CityBuses } from './buses.js';
 import { CityFoliage, CityPedestrians, CityRoadTraffic, MAX_PEDESTRIANS } from './pedestrians.js';
@@ -431,14 +431,16 @@ export class CityView3D implements CityView {
   zoneGrid(on:boolean):void {if(this.cells)this.cells.show(on);else this.zones.show(on);}
   pointAt(x:number,y:number):{x:number;y:number}|null{const p=groundAt(this.navigation.camera,x,y,this.width,this.height,this.terrain);
     return p&&p.x>=0&&p.z>=0&&p.x<this.setup.map.width*10&&p.z<this.setup.map.height*10?{x:p.x/10,y:p.z/10}:null;}
-  /** A layer of the city map over the ground, or none (layerOverlay.ts); the traffic layer also on the roads themselves,
-   * each in its traffic's colour (trafficLayer.ts), where the city has trips on its road graph */
+  /** A layer of the city map over the ground, or none (layerOverlay.ts); the traffic, power and water layers also on the
+   * roads themselves, each road in its traffic's colour or what runs along it (trafficLayer.ts), where the city has trips
+   * or its power and water along its road graph */
   showLayer(tiles:HTMLCanvasElement|null,layer?:string):void {
     if(!this.layer){if(!tiles)return;this.layer=new LayerOverlay(this.setup.map.width,this.setup.map.height,this.terrain);this.scene.add(this.layer.root);}
     this.layer.show(tiles);
     const trafficMap=this.setup.map as unknown as TrafficLayerMap;
-    if(!this.trafficLayer&&layer==='traffic'&&trafficMap.trips){this.trafficLayer=new TrafficLayer(trafficMap,this.terrain,this.snapshot.realUnits??1);this.scene.add(this.trafficLayer.root);}
-    this.trafficLayer?.show(Boolean(tiles)&&layer==='traffic');
+    const kind=roadLayerOf(trafficMap,layer);
+    if(!this.trafficLayer&&kind){this.trafficLayer=new TrafficLayer(trafficMap,this.terrain,this.snapshot.realUnits??1);this.scene.add(this.trafficLayer.root);}
+    this.trafficLayer?.show(Boolean(tiles)&&kind!==null,kind??'traffic');
   }
   /** The ground the object on a tile stands on, as drawn and turned (overlay.ts inspected): its lot (roadCurves.ts), else
    * the building, plot or shophouse terrace placed there; null for open land, woods, water, roads and an empty zone */

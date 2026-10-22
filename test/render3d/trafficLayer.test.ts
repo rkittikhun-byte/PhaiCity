@@ -7,9 +7,11 @@
 // the road and along it, no squares.
 
 import { type Mesh } from 'three';
-import { layerPixels, TRAFFIC_BUSY, TRAFFIC_FREE, TRAFFIC_JAM, trafficColour } from '../../src/cityMap.js';
+import { layerPixels, NO_SUPPLY, PIPE, POWERED, supplyColour, TRAFFIC_BUSY, TRAFFIC_FREE, TRAFFIC_JAM, trafficColour,
+  UNPOWERED } from '../../src/cityMap.js';
+import { ROAD_NONE, ROAD_SERVED, ROAD_SHORT } from '../../src/sim/roadSupply.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
-import { TrafficLayer } from '../../src/render3d/city/trafficLayer.js';
+import { roadLayerOf, TrafficLayer } from '../../src/render3d/city/trafficLayer.js';
 import { RoadGraph } from '../../src/roads/roadGraph.js';
 import { buildRoadNet } from '../../src/sim/roadNetwork.js';
 
@@ -72,5 +74,36 @@ describe('the traffic layer', () => {
     const pixels = layerPixels('traffic', map, overlays);
     expect(Array.from(pixels.slice(4, 7))).toEqual(trafficColour(1.2));
     expect(pixels[0]).toBe(pixels[1]);
+  });
+
+  test('the power and water layers show each road by what runs along it: served, short, or none', () => {
+    const { graph, quiet, busy } = city(), roads = buildRoadNet(graph), state = new Uint8Array(roads.segmentIds.length);
+    state[roads.segmentIndex.get(quiet)!] = ROAD_SERVED;
+    state[roads.segmentIndex.get(busy)!] = ROAD_SHORT;
+    const map = { roadGraph: graph, trips: null, roadPower: { roads, state }, roadWater: null };
+    expect(roadLayerOf(map, 'power')).toBe('power');
+    expect(roadLayerOf(map, 'water')).toBeNull();
+    expect(roadLayerOf(map, 'traffic')).toBeNull();
+    const layer = new TrafficLayer(map, flat, U);
+    expect(layer.show(true, 'power')).toBe(true);
+    const mesh = layer.root.children[0] as Mesh, p = mesh.geometry.getAttribute('position'), c = mesh.geometry.getAttribute('color');
+    for (let i = 0; i < p.count; i++) {
+      const want = Math.abs(p.getZ(i) / U - 100) < 5 ? POWERED : UNPOWERED;
+      expect(Math.round(c.getX(i) * 255)).toBe(want[0]);
+      expect(Math.round(c.getY(i) * 255)).toBe(want[1]);
+    }
+    expect(supplyColour('water', ROAD_SERVED)).toEqual(PIPE);
+    expect(supplyColour('power', ROAD_NONE)).toEqual(NO_SUPPLY);
+    // ... and the city map's power layer colours the road tiles the same
+    const tiles = { width: 3, height: 1, getTileValue: () => 66, getTileFlags: () => 0 } as any;
+    const grid = { worldGet: () => 0 };
+    const overlays: any = { trafficDensityMap: grid, pollutionDensityMap: grid, crimeRateMap: grid, landValueMap: grid,
+      populationDensityMap: grid, policeStationEffectMap: grid, fireStationEffectMap: grid, toxicMap: grid,
+      roadPower: (x: number) => (x === 0 ? ROAD_SERVED : x === 1 ? ROAD_SHORT : null) };
+    const pixels = layerPixels('power', tiles, overlays);
+    expect(Array.from(pixels.slice(0, 3))).toEqual(POWERED);
+    expect(Array.from(pixels.slice(4, 7))).toEqual(UNPOWERED);
+    expect(pixels[8]).toBe(pixels[9]);
+    layer.dispose();
   });
 });

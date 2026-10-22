@@ -22,6 +22,9 @@ import { ANIMBIT, BURNBIT, CONDBIT, POWERBIT } from "./tileFlags.ts";
 import { NUCLEAR, PLANT2, PLANT3, POWERPLANT } from "./tileValues.ts";
 import { isPlantCentre, NUCLEAR_KIND } from "./plantBlocks.ts";
 import { conductsPower } from "./roadTiles.ts";
+import { byRoads, powerAlongRoads, scanState, usersOnMap } from "./sim/cityUtilities.ts";
+import { centreSize } from "./sim/roadAccess.ts";
+import { ZONEBIT } from "./tileFlags.ts";
 
 // PhaiCity: the plants on the coal plant's tiles are of five kinds now, each with its own power (src/powerPlants.ts)
 var NUCLEAR_POWER_STRENGTH = 2000;
@@ -40,7 +43,28 @@ var PowerManager = EventEmitter(function(map) {
   this.load = 1;
   // ... and the plants' power at that scan, in tiles, which a player reads to see how many more the city can light
   this.capacity = 0;
+  // PhaiCity: on a real-scale city map the power runs along the road graph (docs/NO_GRID_PLAN.md 2.2,
+  // src/sim/cityUtilities.ts): the plants the map scan found this cycle with their power, and the plots and the zones'
+  // and buildings' centres it found, which take from it
+  this._plants = [];
+  this._users = {plots: [], zones: []};
 });
+
+
+// PhaiCity: whether the power runs along the road graph on this map rather than over the tiles
+PowerManager.prototype.usesRoads = function() {
+  return byRoads(this._map);
+};
+
+
+// PhaiCity: the map scan found a plot (src/plots.ts), or a zone's or building's centre, that takes power
+PowerManager.prototype.plotUser = function(x, y) {
+  this._users.plots.push(y * this._map.width + x);
+};
+
+PowerManager.prototype.zoneUser = function(x, y) {
+  this._users.zones.push(y * this._map.width + x);
+};
 
 
 PowerManager.prototype.setTilePower = function(x, y) {
@@ -60,6 +84,8 @@ PowerManager.prototype.setTilePower = function(x, y) {
 PowerManager.prototype.clearPowerStack = function() {
   this._powerStackPointer = 0;
   this._powerStack = [];
+  this._plants = [];
+  this._users = {plots: [], zones: []};
 };
 
 
@@ -89,6 +115,11 @@ PowerManager.prototype.testForConductive = function(pos, testDir) {
 // plants, the second will be regarded as drawing power from the first
 // rather than as a power source itself
 PowerManager.prototype.doPowerScan = function(census) {
+  if (this.usesRoads()) {
+    this._roadPowerScan(census);
+    return;
+  }
+
   // Clear power this._map.
   this.powerGridMap.clear();
 
@@ -139,10 +170,66 @@ PowerManager.prototype.doPowerScan = function(census) {
 };
 
 
+// PhaiCity: on a real-scale city map, the power along the roads (docs/NO_GRID_PLAN.md 2.2): each plant feeds the roads
+// it meets, each plot takes its level's power and each building its tiles' worth, the nearest to a plant by road first;
+// where it runs out the far ends go dark. Nothing flows from one plot or building to the next any more: what stands on
+// no road has no power. The tiles served get their power bit at the next scan, as before (setTilePower).
+PowerManager.prototype._roadPowerScan = function(census) {
+  this._applyRoadPower(this._plants, this._users);
+};
+
+
+PowerManager.prototype._applyRoadPower = function(plants, users) {
+  var factor = this.outputFactor;
+  // (the plants' power, as the census counts it, those on no road among them)
+  this.capacity = plants.reduce(function(sum, p) { return sum + p.amount; }, 0) * factor;
+  var result = powerAlongRoads(this._map, plants.map(function(p) {
+    return {centre: p.centre, size: p.size, amount: p.amount * factor};
+  }), users);
+  this.powerGridMap.clear();
+  var width = this._map.width;
+  for (var i = 0; i < result.powered.length; i++) {
+    var tile = result.powered[i];
+    this.powerGridMap.worldSet(tile % width, Math.floor(tile / width), 1);
+  }
+  // What the power layers draw along the roads (src/cityMap.ts, src/render3d/city/trafficLayer.ts); read only
+  this._map.roadPower = scanState(this._map.roadPower,
+                                  {roads: result.roads, state: result.state, supply: result.supply, used: result.used});
+  // (as on the tiles: a city short of power burns its plants' whole fuel)
+  this.load = result.short ? 1 : this.capacity > 0 ? result.used / this.capacity : 0;
+  if (result.short)
+    this._emitEvent(NOT_ENOUGH_POWER);
+};
+
+
+// PhaiCity: the power along the roads before a city's first map scan, from the plants and the buildings on its map now,
+// so the scan finds the power where it was when the city was saved (the tiles' walk had none on the first scan)
+PowerManager.prototype.primeRoads = function(month) {
+  if (!this.usesRoads())
+    return;
+  var map = this._map, plants = [], sites = map.sites || null;
+  for (var y = 0; y < map.height; y++) {
+    for (var x = 0; x < map.width; x++) {
+      var value = map.getTileValue(x, y), centre = y * map.width + x;
+      if (value !== POWERPLANT && value !== NUCLEAR && value !== PLANT3 && value !== PLANT2)
+        continue;
+      if (sites !== null && sites[centre] !== undefined)
+        continue;
+      var nuclear = value === NUCLEAR || (map.powerKinds || {})[centre] === NUCLEAR_KIND;
+      var power = nuclear ? NUCLEAR_POWER_STRENGTH :
+                  plantPower(powerKindAt(map.powerKinds, centre), this.resources, month, this.drySeason);
+      plants.push({centre: centre, size: centreSize(value), amount: power});
+    }
+  }
+  this._applyRoadPower(plants, usersOnMap(map, ZONEBIT));
+};
+
+
 // PhaiCity: another source of power the map scan found, such as a waste power plant (src/waste.ts); the census
 // counts its power
-PowerManager.prototype.addSource = function(x, y) {
+PowerManager.prototype.addSource = function(x, y, power) {
   this._powerStack.push(new Position(x, y));
+  this._plants.push({centre: y * this._map.width + x, size: 3, amount: power || 0});
 };
 
 
@@ -152,7 +239,9 @@ PowerManager.prototype.coalPowerFound = function(map, x, y, simData) {
   // PhaiCity: what kind of plant stands here, as built (src/powerPlants.ts): its power this month and its fuel
   var kind = powerKindAt(map.powerKinds, y * map.width + x);
   var month = Math.floor((simData.cityTime || 0) % 48) >> 2;
-  simData.census.plantPower += plantPower(kind, this.resources, month, this.drySeason);
+  var power = plantPower(kind, this.resources, month, this.drySeason);
+  simData.census.plantPower += power;
+  this._plants.push({centre: y * map.width + x, size: centreSize(map.getTileValue(x, y)), amount: power});
   // ... burning for the share of the power the city used (src/powerPlants.ts fuelShare)
   simData.census.plantFuel += plantFuel(kind, this.resources) * fuelShare(this.load);
 
@@ -186,6 +275,7 @@ PowerManager.prototype.nuclearPowerFound = function(map, x, y, simData) {
 
   simData.census.nuclearPowerPop += 1;
   this._powerStack.push(new Position(x, y));
+  this._plants.push({centre: y * map.width + x, size: centreSize(map.getTileValue(x, y)), amount: NUCLEAR_POWER_STRENGTH});
 
   // Ensure animation bits set
   for (var i = 0; i < 4; i++)

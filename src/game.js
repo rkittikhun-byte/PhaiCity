@@ -124,6 +124,7 @@ import { ScreenshotWindow } from './screenshotWindow.js';
 import { SettingsWindow } from './settingsWindow.js';
 import { Simulation } from './simulation.js';
 import { browserTripWorker, workerTripRunner } from './sim/tripWorker.ts';
+import { roadStateTiles } from './sim/cityUtilities.ts';
 import { Storage } from './storage.js';
 import { Text } from './text.js';
 import { TouchWarnWindow } from './touchWarnWindow.js';
@@ -813,6 +814,12 @@ Game.prototype.mapOverlays = function() {
       return value < 0 ? null : value;
     };
   }
+  // ... and what runs along each road at the last power and water scans (docs/NO_GRID_PLAN.md 2.4)
+  var power = roadStateTiles(map, map.roadPower), water = roadStateTiles(map, map.roadWater);
+  if (power)
+    overlays.roadPower = function(x, y) { var s = power[y * map.width + x]; return s < 0 ? null : s; };
+  if (water)
+    overlays.roadWater = function(x, y) { var s = water[y * map.width + x]; return s < 0 ? null : s; };
   return overlays;
 };
 

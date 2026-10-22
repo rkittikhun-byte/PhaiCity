@@ -18,6 +18,7 @@ import type { WaterView } from "./waterManager";
 import { ownsLand } from "./landBlocks";
 import { mineKindOfTool } from "./mining";
 import { groundShare, ZONE_DRY, ZONE_THIRSTY, ZONE_WATERED } from "./waterManager";
+import { ROAD_SERVED, ROAD_SHORT } from "./sim/roadSupply";
 
 export const MAP_LAYERS = ["city", "satisfaction", "power", "water", "groundwater", "toxic", "traffic", "pollution", "crime",
   "landValue", "population", "police", "fire"] as const;
@@ -150,6 +151,10 @@ export type Overlays = Record<HeatMap, BlockMapLike> & {
   /** On a real-scale city map, how full the fullest road on a tile is (its cars over what it takes), or null where no road
    * is: the month's trips on the road graph (src/sim/cityTrips.ts), which the traffic layer shows on the roads */
   roadFull?: (x: number, y: number) => number | null;
+  /** On a real-scale city map, what runs along the road on a tile at the last power or water scan (src/sim/roadSupply.ts
+   * ROAD_*), or null where no road is: the power and water layers show it on the roads (docs/NO_GRID_PLAN.md 2.4) */
+  roadPower?: (x: number, y: number) => number | null;
+  roadWater?: (x: number, y: number) => number | null;
   /** How content the building on a tile is, 0–100, or null where none stands (src/objects/satisfaction.ts) */
   satisfaction?: (x: number, y: number) => number | null;
 };
@@ -219,6 +224,16 @@ export function trafficColour(full: number): Rgb {
 /** A road flows freely to this full, is yellow at TRAFFIC_BUSY and red from TRAFFIC_JAM */
 export const TRAFFIC_FREE = 0.5, TRAFFIC_BUSY = 0.85, TRAFFIC_JAM = 1.1;
 
+/** A road's colour on the power or water layer by what runs along it (src/sim/roadSupply.ts ROAD_*): served, past where
+ * the supply ran out, or with no plant or works on its roads (docs/NO_GRID_PLAN.md 2.4) */
+export function supplyColour(layer: "power" | "water", state: number): Rgb {
+  if (state === ROAD_SERVED) return layer === "power" ? POWERED : PIPE;
+  if (state === ROAD_SHORT) return layer === "power" ? UNPOWERED : DRY;
+  return NO_SUPPLY;
+}
+/** A road no plant or works reaches */
+export const NO_SUPPLY: Rgb = [96, 96, 104];
+
 /** The colours at the bottom and the top of an overlay's scale, over empty land, for the legend. */
 export function heatRamp(layer: HeatLayer | "groundwater" | "satisfaction"): [Rgb, Rgb] {
   if (layer === "satisfaction") return [DISCONTENT, CONTENT];
@@ -229,12 +244,15 @@ export function heatRamp(layer: HeatLayer | "groundwater" | "satisfaction"): [Rg
 }
 
 /** A tile on the water layer: the works and towers, zones with and without water, and the roads with water. */
-function waterColour(value: number, city: Rgb, water: WaterView | undefined, x: number, y: number): Rgb {
+function waterColour(value: number, city: Rgb, water: WaterView | undefined, x: number, y: number,
+  road: number | null = null): Rgb {
   if (tileKind(value) === "waterSupply") return WATERED;
   if (!water) return dimmed(city);
   const zone = water.zoneWater(x, y);
   if (zone === ZONE_WATERED) return WATERED;
   if (zone === ZONE_DRY || zone === ZONE_THIRSTY) return DRY;
+  // (along the roads on a real-scale city map: its road's water, short where the supply ran out before it)
+  if (road !== null) return supplyColour("water", road);
   return water.hasWater(x, y) ? PIPE : dimmed(city);
 }
 
@@ -252,9 +270,12 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
     const kind = tileKind(value);
     if (kind === "powerPlant") return POWERED;
     if (flags & CONDBIT) return flags & POWERBIT ? POWERED : UNPOWERED;
+    // ... and on a real-scale city map the roads the power runs along (docs/NO_GRID_PLAN.md 2.4)
+    const road = overlays.roadPower?.(x, y) ?? null;
+    if (road !== null) return supplyColour("power", road);
     return dimmed(city);
   }
-  if (layer === "water") return waterColour(value, city, overlays.water, x, y);
+  if (layer === "water") return waterColour(value, city, overlays.water, x, y, overlays.roadWater?.(x, y) ?? null);
   if (layer === "groundwater") return groundwaterColour(city, overlays.water, x, y);
   if (layer === "satisfaction") return satisfactionColour(city, overlays.satisfaction?.(x, y));
   if (layer === "traffic" && overlays.roadFull) {

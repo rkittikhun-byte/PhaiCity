@@ -9,7 +9,8 @@
 import { CityCore } from "../src/core/cityCore";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { Random } from "../src/random";
-import { POWERBIT } from "../src/tileFlags";
+import { plotTile } from "../src/plots";
+import { BLBNCNBIT, POWERBIT } from "../src/tileFlags";
 import { PowerManager } from "../src/powerManager.js";
 
 function city() {
@@ -53,17 +54,21 @@ describe("power along the roads", () => {
     expect(power.powerGridMap.worldGet(29, 2)).toBe(1);
   });
 
-  test("power runs along a road drawn in metres at a slant, its tiles a chain side to side (metre plan 1.5)", () => {
-    // Along the tiles of a road drawn from (3, 2) to (100, 35) tiles, in metres on 16 m tiles, the power coming in at its start
+  test("power runs along a road drawn in metres at a slant to a home at its far end (metre plan 1.5, NO_GRID_PLAN 2.2)", () => {
+    // A road drawn from (3, 2) to (100, 35) tiles, in metres on 16 m tiles; on such a map the power runs along the road
+    // graph, from a plant whose block meets the road's start to a home beside its end
     const map = (MapGenerator as any).fromPresetCells(120, 40, new Uint8Array(120 * 40));
     map.tileSizeM = 16;
+    map.paintedZones = true;
     const core = new CityCore({ sandbox: true, map, seed: 11 });
     core.simulation.budget.setFunds(100000);
     expect(core.apply({ type: "road", tool: "road", from: [3.5 * 16, 2.5 * 16], to: [100.5 * 16, 35.5 * 16], stroke: 1 }).toolResult).toBe(0);
+    map.setTile(100, 37, plotTile("residential", 1), BLBNCNBIT);
     const power = new PowerManager(map);
-    power.addSource(3, 2);
+    power.addSource(3, 4, 1000);
+    power.plotUser(100, 37);
     power.doPowerScan({ plantPower: 1000, nuclearPowerPop: 0 });
-    expect(power.powerGridMap.worldGet(100, 35)).toBe(1);
+    expect(power.powerGridMap.worldGet(100, 37)).toBe(1);
   });
 
   test("without a plant the road carries nothing", () => {

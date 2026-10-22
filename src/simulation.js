@@ -479,7 +479,11 @@ Simulation.prototype.init = function() {
 
   // The zones' first scan needs the water already running, as it needs power already in the tiles
   var month = this.getDate().month;
+  // PhaiCity: on a real-scale city map the power and the water run along the roads (docs/NO_GRID_PLAN.md 2.2, 2.3),
+  // handed out from the plants and buildings on the map now, so the first scan finds them where they were
+  this._powerManager.primeRoads(month);
   this._waterManager.findSources();
+  this._waterManager.primeUsers();
   this._waterManager.doWaterScan(month, false);
   this._waterManager.clearCycle();
 
@@ -493,6 +497,21 @@ Simulation.prototype.init = function() {
   BlockMapUtils.fireAnalysis(this.blockMaps);
   // Who would visit as the city stands, shown before the first month passes (nothing is paid for it)
   this._setTourism(this._visitors(month));
+};
+
+
+// PhaiCity: on a real-scale city map, the power and the water along the roads handed out again from the map as it is
+// now (docs/NO_GRID_PLAN.md 2.2, 2.3): a city's core calls it once the map's own roads are in the road graph
+// (src/core/cityCore.ts coverRoads), which the city's first scan opened from an older save did not have yet
+Simulation.prototype.primeUtilities = function() {
+  if (!this._powerManager.usesRoads())
+    return;
+  var month = this.getDate().month;
+  this._powerManager.primeRoads(month);
+  this._waterManager.findSources();
+  this._waterManager.primeUsers();
+  this._waterManager.doWaterScan(month, false);
+  this._waterManager.clearCycle();
 };
 
 
@@ -786,7 +805,7 @@ Simulation.prototype._wasteFound = function(map, x, y, simData) {
   var power = this._waste.found(map, x, y, simData.census);
   if (power > 0) {
     simData.census.plantPower += power;
-    this._powerManager.addSource(x, y);
+    this._powerManager.addSource(x, y, power);
   }
 };
 

@@ -116,7 +116,7 @@ export function segmentSeconds(net: TripNet, k: number, cars: number, weather = 
 }
 
 /** A binary heap of nodes by cost, the lowest first, ties by the node's number, so it pops in one order everywhere */
-class Heap {
+export class Heap {
   private nodes = new Int32Array(64);
   private costs = new Float64Array(64);
   size = 0;

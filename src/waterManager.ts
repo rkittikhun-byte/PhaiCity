@@ -21,10 +21,15 @@ import {
   computeGroundwater, drawGroundwater, fullStores, GROUNDWATER_FULL, pumpFactor, rechargeGroundwater,
 } from "./groundwater";
 import { GROUNDWATER_LOW, NOT_ENOUGH_WATER } from "./messages";
-import { PLOT_SHARE } from "./plots";
-import { POWERBIT } from "./tileFlags";
+import { PLOT_SHARE, readPlotValue } from "./plots";
+import type { RoadGraph } from "./roads/roadGraph";
+import { byRoads, plotWater, scanState, usersOnMap, type UtilityMap, type WaterSource, type WaterUser, waterAlongRoads } from "./sim/cityUtilities";
+import type { RoadNet } from "./sim/roadNetwork";
+import { segmentShape } from "./sim/roadUpkeep";
+import { ROAD_SERVED } from "./sim/roadSupply";
+import { POWERBIT, ZONEBIT } from "./tileFlags";
 import {
-  WATER_TOWER, WATER_WORKS,
+  PORTBASE, RESBASE, WATER_TOWER, WATER_WORKS,
 } from "./tileValues";
 import { rainRecharge, type Weather } from "./weather";
 
@@ -55,6 +60,10 @@ interface MapLike {
   getTileFlags(x: number, y: number): number;
   /** Metres a tile, which sets how far from water the ground holds it (src/groundwater.ts) */
   readonly tileSizeM?: number | null;
+  /** On a real-scale city map the roads in metres, along which the pipes run (docs/NO_GRID_PLAN.md 2.3) */
+  readonly roadGraph?: RoadGraph | null;
+  /** What the water layers draw along the roads: written here, read only by the layers */
+  roadWater?: { roads: unknown; state: Uint8Array; supply: number; used: number } | null;
 }
 
 interface CensusLike {
@@ -123,8 +132,12 @@ export class WaterManager {
   private zonesNext: BlockMap;
   private zonesDone: BlockMap;
   private sources: Source[] = [];
-  private used = 0;
+  used = 0;
   private short = false;
+  /** On a real-scale city map (docs/NO_GRID_PLAN.md 2.3): the plots and zones this cycle's scan found that take water,
+   * and what the last handing-out gave each tile: 0 no pipe, 1 water, 2 a pipe but the supply ran out before it */
+  private users: WaterUser[] = [];
+  private answers: Uint8Array | null = null;
   private monthsSinceWarning = MONTHS_BETWEEN_WARNINGS;
   private readonly listeners = new Map<string, Listener[]>();
 
@@ -208,8 +221,10 @@ export class WaterManager {
   /** A new cycle: the scan finds the sources again and the zones take their shares afresh. */
   clearCycle(): void {
     this.sources = [];
-    this.used = 0;
+    // (along the roads, what the last handing-out used stands until the next)
+    if (!this.byRoads()) this.used = 0;
     this.short = false;
+    this.users = [];
     const done = this.zonesDone;
     this.zonesDone = this.zonesNext;
     this.zonesNext = done;
@@ -260,6 +275,10 @@ export class WaterManager {
    */
   doWaterScan(month: number, newMonth: boolean): void {
     if (newMonth) this.updateGround(month);
+    if (this.byRoads()) {
+      this.roadWaterScan(month);
+      return;
+    }
 
     const dry = this.isDryMonth(month);
     let works = 0;
@@ -378,6 +397,7 @@ export class WaterManager {
    * is as big as it can be without water, so going without holds it back.
    */
   supplyZone(x: number, y: number, census: CensusLike | null = null, needsWater = true): boolean {
+    if (this.byRoads()) return this.roadUser(x, y, true, needsWater ? 1 : 0, census, needsWater);
     let piped = false;
     for (let k = -1; k <= 1 && !piped; k++) {
       piped = this.view.hasWater(x + k, y - 2) || this.view.hasWater(x + k, y + 2) ||
@@ -410,6 +430,10 @@ export class WaterManager {
    */
   supplyPlot(x: number, y: number, roadX: number, roadY: number, census: CensusLike | null = null,
              needsWater = true): boolean {
+    if (this.byRoads()) {
+      const level = readPlotValue(this.map.getTileValue(x, y))?.level ?? 0;
+      return this.roadUser(x, y, false, needsWater ? plotWater(level) : 0, census, needsWater);
+    }
     const piped = roadX >= 0 && this.view.hasWater(roadX, roadY);
     const watered = piped && (!needsWater || this.used < this.supply);
     if (watered && needsWater) this.used += PLOT_SHARE;
@@ -423,6 +447,103 @@ export class WaterManager {
       else census.dryZoneCount += PLOT_SHARE;
     }
     return watered;
+  }
+
+  /** Whether the water runs along the road graph on this map rather than over the road tiles */
+  private byRoads(): boolean {
+    return byRoads(this.map);
+  }
+
+  /**
+   * Along the roads, a plot or zone the scan found: it is counted to take its share at this cycle's handing-out, and has
+   * water now as the last handing-out gave it (as a building has power from the last power scan).
+   */
+  private roadUser(x: number, y: number, zone: boolean, demand: number, census: CensusLike | null, needsWater: boolean): boolean {
+    const tile = y * this.map.width + x, answer = this.answers?.[tile] ?? 0;
+    this.users.push({ tile, zone, demand });
+    const watered = needsWater ? answer === 1 : answer !== 0;
+    const state = watered ? ZONE_WATERED : needsWater ? ZONE_THIRSTY : ZONE_DRY;
+    for (let dy = zone ? -1 : 0; dy <= (zone ? 1 : 0); dy++) {
+      for (let dx = zone ? -1 : 0; dx <= (zone ? 1 : 0); dx++) {
+        if (this.inBounds(x + dx, y + dy)) this.zonesNext.worldSet(x + dx, y + dy, state);
+      }
+    }
+    const share = zone ? 1 : PLOT_SHARE;
+    if (census && (zone || needsWater)) {
+      if (watered) census.wateredZoneCount += share;
+      else census.dryZoneCount += share;
+    }
+    return watered;
+  }
+
+  /**
+   * The water along the roads (docs/NO_GRID_PLAN.md 2.3, src/sim/cityUtilities.ts): each powered works feeds the roads
+   * it meets, the towers on its roads make up some of the dry season's loss, a tower no works' road reaches pumps its own
+   * well; each plot and zone found this cycle takes its share, the nearest to a source by road first, so where the water
+   * runs short the far ends go dry, not the east of the map. The roads that carry it are marked for the water layer.
+   */
+  private roadWaterScan(month: number): void {
+    const { width, height } = this.map, dry = this.isDryMonth(month), share = dry ? this.drought.share : 0;
+    const sources: WaterSource[] = [], towers = new Map<number, Source>();
+    for (const source of this.sources) {
+      const centre = source.y * width + source.x;
+      const clean = this.poison ? this.poison.cleanWater(source.x, source.y) : 1;
+      if (source.tower) {
+        const ground = this.stores ? pumpFactor(this.stores, width, height, source.x, source.y, 1) : 0.5;
+        towers.set(centre, source);
+        sources.push({ centre, size: 1, amount: 0, tower: true, lost: 0, well: TOWER_WELL * ground * clean * (1 - share) });
+      } else if (source.powered) {
+        const ground = this.stores ? pumpFactor(this.stores, width, height, source.x, source.y, 3) : 0.5;
+        const full = WORKS_SUPPLY * ground * clean;
+        sources.push({ centre, size: 3, amount: full * (1 - share), tower: false, lost: full * share, well: 0 });
+      }
+    }
+    const factor = (1 - this.festivalUse) * (1 + this.saving);
+    const result = waterAlongRoads(this.map as unknown as UtilityMap, sources, this.users, TOWER_STORE, factor);
+    this.supply = Math.floor(result.supply);
+    this.used = result.used;
+    const answers = this.answers && this.answers.length === width * height ? this.answers : new Uint8Array(width * height);
+    answers.fill(0);
+    for (let i = 0; i < this.users.length; i++) answers[this.users[i].tile] = result.answer[i];
+    this.answers = answers;
+    this.wells = result.wells.map((centre) => towers.get(centre)!).filter(Boolean);
+    // The roads that carry water, for the water layer and the towers (view.hasWater)
+    this.grid.clear();
+    const graph = this.map.roadGraph;
+    if (graph) {
+      const raster = { width, height, tileSizeM: this.map.tileSizeM ?? 16 };
+      for (let k = 0; k < result.state.length; k++) {
+        if (result.state[k] !== ROAD_SERVED) continue;
+        const segment = graph.segments.get(result.roads.segmentIds[k]);
+        if (!segment) continue;
+        for (const i of segmentShape(graph, segment, raster).tiles) this.grid.worldSet(i % width, Math.floor(i / width), 1);
+      }
+    }
+    this.map.roadWater = scanState(this.map.roadWater as { roads: RoadNet; state: Uint8Array; supply: number; used: number } | null,
+      { roads: result.roads, state: result.state, supply: result.supply, used: result.used });
+    if (result.short && !this.short) {
+      this.short = true;
+      this.emit(NOT_ENOUGH_WATER);
+    }
+  }
+
+  /**
+   * Along the roads, before a city's first map scan: the plots and zones on the map now take their shares, so the
+   * scan finds the water where it was when the city was saved. Call after findSources.
+   */
+  primeUsers(): void {
+    if (!this.byRoads()) return;
+    const map = this.map as unknown as UtilityMap & { sites?: Record<string, unknown> | null };
+    const found = usersOnMap(map, ZONEBIT);
+    this.users = [];
+    for (const tile of found.plots) {
+      const x = tile % map.width, level = readPlotValue(map.getTileValue(x, (tile - x) / map.width))?.level ?? 0;
+      this.users.push({ tile, zone: false, demand: plotWater(level) });
+    }
+    for (const tile of found.zones) {
+      const x = tile % map.width, value = map.getTileValue(x, (tile - x) / map.width);
+      if (value >= RESBASE && value < PORTBASE) this.users.push({ tile, zone: true, demand: 1 });
+    }
   }
 
   registerHandlers(mapScanner: { addAction(criterion: unknown,

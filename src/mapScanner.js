@@ -43,6 +43,10 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
   // upkeep (src/construction.ts)
   var sites = this._map.sites || null;
   var width = this._map.width;
+  // PhaiCity: on a real-scale city map the power runs along the roads (docs/NO_GRID_PLAN.md 2.2): the scan tells the
+  // power manager which plots and buildings take from it
+  var power = simData.powerManager;
+  var roads = power && typeof power.usesRoads === 'function' && power.usesRoads();
 
   for (var y = 0; y < this._map.height; y++) {
     for (var x = startX; x < maxX; x++) {
@@ -55,8 +59,11 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
       if (painted && tileValue >= RESBASE && tileValue < PORTBASE && !tile.isZone()) {
         if (tile.isConductive())
           simData.powerManager.setTilePower(x, y);
-        if (plotFound(this._map, x, y, simData))
+        if (plotFound(this._map, x, y, simData)) {
+          if (roads)
+            power.plotUser(x, y);
           continue;
+        }
       }
 
       if (tile.isConductive()) {
@@ -70,6 +77,8 @@ MapScanner.prototype.mapScan = function(startX, maxX, simData) {
         continue;
 
       if (tile.isZone()) {
+        if (roads)
+          power.zoneUser(x, y);
         simData.repairManager.checkTile(x, y, simData.cityTime);
         var powered = tile.isPowered();
         if (powered)
