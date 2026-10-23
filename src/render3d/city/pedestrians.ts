@@ -16,6 +16,7 @@ import type { RegionId } from '../regional/types.js';
 import type { BlockMapReader } from './types.js';
 import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
+import { animateObject, type VehicleEntry } from './eraVehicles.js';
 import { frustumOf } from './pools.js';
 import {
   LineIndex, MAX_TAKRAW, SPORTS_COLOURS, getStructureInfo, scanPeople, type EmployedCitizen, type Household, type PeopleScan,
@@ -36,6 +37,13 @@ function fastRng(): number { rngState = (Math.imul(rngState, 1664525) + 10139042
 export const HUMAN_HEIGHT_M = 1.68;
 /** The concept-sheet people are chibi, about 1.5 m: drawn a little larger so they stand as tall as the boxes did. */
 const PEOPLE_SCALE = 1.1;
+/** How fast people walk and jog (m/s), and how far a cycle of each clip goes at a person's own size (m): the walk clip
+ * is 0.85 m a cycle, the run 1.9 m (art/people/scripts/clips.py); their steps go by the distance walked, so nobody
+ * slides (owner, 23 Oct 2026: "คนก็เดินถอยหลัง") */
+export const WALK_MS = 1.1;
+export const JOG_MS = 2.4;
+export const WALK_STRIDE_M = 0.85;
+export const JOG_STRIDE_M = 1.9;
 const LIMB_PIVOT_Y = 0.84;
 
 const lineLengthCache = new WeakMap<object, number>();
@@ -467,7 +475,6 @@ export class CityPedestrians {
     this.people?.useSheets(sheetsFor(this.peopleEra(), this.peopleRegion));
 
     const viewSpan = Math.min(340, Math.max(130, distance * 0.95));
-    const walkSpeed = 0.85 * this.size;
 
     this.scanCityAgents(target, viewSpan + 60, lines);
 
@@ -498,16 +505,16 @@ export class CityPedestrians {
       const lineCommuters = this.commutersOn(line, lines) ?? NO_COMMUTERS;
       const commuterCount = Math.min(lineCommuters.length, 12);
 
-      // A. Real Commuters going between home and work
+      // A. Real Commuters going between home and work: along the street and back at a walking pace, facing the way
+      // they walk, a step cycle every stride walked
       for (let c = 0; c < commuterCount && count < MAX_PEDESTRIANS; c++) {
         const worker = lineCommuters[c];
-        // 60s commute shift cycle: heading to work vs returning home
-        const shiftPeriod = 60;
-        const shiftTime = (seconds * 0.5 + worker.id * 6.3) % shiftPeriod;
-        const toWork = shiftTime < (shiftPeriod * 0.5);
+        const speed = WALK_MS * this.size * worker.speedVar;
+        const walked = seconds * speed + worker.id * 37.1;
+        const travel = walked % (totalLen * 2);
+        const toWork = travel < totalLen;
         const dir = toWork ? 1 : -1;
-        const frac = (shiftTime % (shiftPeriod * 0.5)) / (shiftPeriod * 0.5);
-        const distAlong = (frac * totalLen) % totalLen;
+        const distAlong = toWork ? travel : totalLen * 2 - travel;
 
         const { x: px, z: pz, dx, dz } = pointAlong(line.points, distAlong);
 
@@ -519,7 +526,7 @@ export class CityPedestrians {
         const wx = px + nx * offset;
         const wz = pz + nz * offset;
         const heading = Math.atan2(dx * dir, dz * dir);
-        const phase = seconds * 6.2 * worker.speedVar + c * 2.1 + lineIdx;
+        const phase = 2 * Math.PI * walked / (WALK_STRIDE_M * this.size * 0.96 * PEOPLE_SCALE);
 
         this.placeWalker(count++, wx, wz, heading, phase, 0.96, worker.shirtColor, 'walk', undefined, worker.id);
         this.activeCommutersCount++;
@@ -532,7 +539,7 @@ export class CityPedestrians {
       for (let j = 0; j < joggerCount && count < MAX_PEDESTRIANS; j++) {
         const jogDir = (j % 2 === 0 ? 1 : -1);
         const jogStartFrac = fastRng();
-        const jogTravel = (jogStartFrac * totalLen + seconds * walkSpeed * 2.2 * jogDir) % totalLen;
+        const jogTravel = (jogStartFrac * totalLen + seconds * JOG_MS * this.size * jogDir) % totalLen;
         const distAlong = jogTravel < 0 ? jogTravel + totalLen : jogTravel;
 
         const { x: px, z: pz, dx, dz } = pointAlong(line.points, distAlong);
@@ -544,7 +551,7 @@ export class CityPedestrians {
         const wx = px + nx * sideSign * sidewalkOffset;
         const wz = pz + nz * sideSign * sidewalkOffset;
         const heading = Math.atan2(dx * jogDir, dz * jogDir);
-        const phase = seconds * 9.8 + j * 3.1 + lineIdx;
+        const phase = 2 * Math.PI * seconds * JOG_MS / (JOG_STRIDE_M * 0.98 * PEOPLE_SCALE) + j * 3.1 + lineIdx;
         const jogShirt = SPORTS_COLOURS[Math.floor(fastRng() * SPORTS_COLOURS.length)];
 
         this.placeWalker(count++, wx, wz, heading, phase, 0.98, jogShirt, 'jog', undefined, 50000 + lineIdx * 4 + j);
@@ -676,13 +683,15 @@ interface VehicleSlot {
   readonly speed: number;
   /** World units it flies above the road (an era 5 flying taxi), 0 on it */
   readonly fly?: number;
+  /** The era vehicle it is (its moving parts), if it is one */
+  readonly entry?: VehicleEntry;
 }
 
 /** The era vehicles the wandering cars are made of once they load (eraVehicles.ts, set by the city view): a key that
  * changes with the era and the models loaded, and each slot's vehicle (metres; speed against a car's) */
 export interface RoadTrafficEraSource {
   key(): string;
-  vehicle(slot: number): { model: Object3D; slow: number; fly: number } | null;
+  vehicle(slot: number): { model: Object3D; slow: number; fly: number; entry?: VehicleEntry } | null;
 }
 
 /**
@@ -728,7 +737,7 @@ export class CityRoadTraffic {
         model.scale.setScalar(this.size);
         model.visible = false;
         const speed = era ? 7.0 * era.slow : id === 'veh.etan' ? 3.2 : id === 'veh.truck' || id === 'veh.songthaew' ? 5.2 : id === 'veh.tuktuk' ? 5.8 : 7.0;
-        this.vehicles.push({ model, speed, fly: era ? era.fly : 0 });
+        this.vehicles.push({ model, speed, fly: era ? era.fly : 0, entry: era?.entry });
         this.root.add(model);
       }
       this.builtSize = this.size;
@@ -776,13 +785,21 @@ export class CityRoadTraffic {
       const spacing = Math.max(16, (54 - Math.min(32, density * 0.35)) / Math.sqrt(lanesPerDir));
       const countOnLine = Math.min(6 * lanesPerDir, Math.max(lanesPerDir, Math.floor(totalLen / spacing)));
 
+      // The cars of one lane of one way go at one pace, the slowest of them, evenly spaced along it, so none drives
+      // through the one ahead (owner, 23 Oct 2026: "รถไม่ควรจะซ้อนกันคันกัน"); a faster lane beside it passes
+      const groups = lanesPerDir * 2, groupSpeed = new Array<number>(groups).fill(Infinity);
+      const groupStart = Array.from({ length: groups }, () => fastRng());
+      for (let c = 0; c < countOnLine; c++) {
+        const s = this.vehicles[(used + c) % this.vehicles.length];
+        groupSpeed[c % groups] = Math.min(groupSpeed[c % groups], s.speed);
+      }
       for (let c = 0; c < countOnLine && used < MAX_VEHICLES; c++) {
         const slot = this.vehicles[used];
-        const startFrac = fastRng();
-        const dir = fastRng() < 0.5 ? 1 : -1;
-        const laneIdx = c % lanesPerDir;
-        const speed = slot.speed * this.size * (0.85 + fastRng() * 0.22 + laneIdx * 0.14);
-        const travel = (startFrac * totalLen + seconds * speed * dir) % totalLen;
+        const group = c % groups, inGroup = Math.floor(c / groups), groupCount = Math.ceil((countOnLine - group) / groups);
+        const dir = group % 2 === 0 ? 1 : -1;
+        const laneIdx = Math.floor(group / 2);
+        const speed = groupSpeed[group] * this.size * (0.9 + laneIdx * 0.1);
+        const travel = ((groupStart[group] + inGroup / groupCount) * totalLen + seconds * speed * dir) % totalLen;
         const distAlong = travel < 0 ? travel + totalLen : travel;
 
         let acc = 0;
@@ -807,12 +824,7 @@ export class CityRoadTraffic {
         const heading = Math.atan2(dx * dir, dz * dir);
         // Compute lateral offset across the carriageway's lanes (with smooth lane-change weave on multi-lane roads)
         const laneStep = hw / (lanesPerDir + 0.35);
-        let lateral = (laneIdx + 0.55) * laneStep;
-        if (lanesPerDir > 1 && (c + lineIdx) % 3 === 0) {
-          const weave = Math.sin(seconds * 0.75 + c * 2.1) * 0.5 + 0.5;
-          const altLane = (laneIdx + 1) % lanesPerDir;
-          lateral = ((1 - weave) * (laneIdx + 0.55) + weave * (altLane + 0.55)) * laneStep;
-        }
+        const lateral = (laneIdx + 0.55) * laneStep;
         // Left-hand traffic offset: (cos(heading), -sin(heading)) is to the left of the heading vector (sin(heading), cos(heading))
         const vx = px + Math.cos(heading) * lateral;
         const vz = pz - Math.sin(heading) * lateral;
@@ -820,6 +832,8 @@ export class CityRoadTraffic {
         slot.model.position.set(vx, this.terrain.sample(vx, vz) + (slot.fly ?? 0) * this.size, vz);
         slot.model.rotation.y = heading;
         slot.model.visible = true;
+        // ... its wheels rolling, its animals' legs walking and its riders pedalling by how far it has come
+        if (slot.entry) animateObject(slot.model, slot.entry, seconds * speed / this.size, seconds);
         used++;
       }
     }

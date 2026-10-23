@@ -3,7 +3,8 @@
  */
 
 import { Vector3 } from 'three';
-import { CityPedestrians } from '../../src/render3d/city/pedestrians.js';
+import { CityPedestrians, JOG_STRIDE_M, WALK_STRIDE_M } from '../../src/render3d/city/pedestrians.js';
+import type { PeopleDrawer } from '../../src/render3d/city/people3d.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
 import { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { BUS_STOP, HOUSE, IND1 } from '../../src/tileValues.js';
@@ -114,6 +115,53 @@ describe('CityPedestrians Purposeful Employment and Community Activities', () =>
       expect(peds.employmentStats.totalEmployed).toBe(0);
       expect(peds.employmentStats.activeCommuters).toBe(0);
       expect(peds.takrawMesh.count).toBe(0);
+    } finally {
+      peds.dispose();
+    }
+  });
+
+  it('everyone walking faces the way they go, home or out (owner, 23 Oct 2026: "คนก็เดินถอยหลัง"), and steps as far as they walk', () => {
+    const m = createTestMap(30, 30);
+    for (const x of [10, 11, 12]) m.values[10 * 30 + x] = HOUSE;
+    m.values[10 * 30 + 16] = IND1;
+    m.flags[10 * 30 + 16] = ZONEBIT;
+    const s = new TileSnapshot(30, 30);
+    s.realUnits = 10 / 16;
+    s.sync(m);
+    const peds = new CityPedestrians(s, new CityHeightField(s, m), 10 / 16);
+    // a drawer that writes down where each person is put
+    let placed = new Map<number, { x: number; z: number; heading: number; phase: number; activity: string; scale: number }>();
+    const drawer = {
+      place: (_slot: number, x: number, _y: number, z: number, heading: number, scale: number, who: number, activity: string, phase: number) => {
+        placed.set(who, { x, z, heading, phase, activity, scale });
+      },
+      finish: () => {}, useSheets: () => {}, dispose: () => {},
+    } as unknown as PeopleDrawer;
+    peds.usePeople(drawer, 'central', () => 1);
+    const lines = [{ points: [[100, 100], [160, 100], [160, 140]] as [number, number][], rail: false, level: 2 }];
+    try {
+      let walkers = 0, back = 0;
+      for (let t = 0; t < 120; t += 0.5) {
+        peds.update(lines, new Vector3(130, 0, 110), 100, t);
+        const before = placed;
+        placed = new Map();
+        peds.update(lines, new Vector3(130, 0, 110), 100, t + 0.05);
+        for (const [who, now] of placed) {
+          const was = before.get(who);
+          if (!was || (now.activity !== 'walk' && now.activity !== 'jog')) continue;
+          const mx = now.x - was.x, mz = now.z - was.z, moved = Math.hypot(mx, mz);
+          // (a walker who reached the end of the street and turned, or a jogger who came round again, moved too far)
+          if (moved < 1e-4 || moved > 1) continue;
+          walkers++;
+          if (mx * Math.sin(now.heading) + mz * Math.cos(now.heading) <= 0) back++;
+          // a step cycle (2π) for every stride of their clip at their size: no sliding
+          const stride = (now.activity === 'walk' ? WALK_STRIDE_M : JOG_STRIDE_M) * now.scale;
+          expect((now.phase - was.phase) / (2 * Math.PI) * stride).toBeCloseTo(moved, 2);
+        }
+        placed = new Map();
+      }
+      expect(walkers).toBeGreaterThan(50);
+      expect(back).toBe(0);
     } finally {
       peds.dispose();
     }

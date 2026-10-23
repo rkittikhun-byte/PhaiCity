@@ -17,7 +17,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene, TEMPLE_KINDS } from '../city/eraBuildings.js';
-import { EraVehicles, loadVehicleIndex, paintFor, transitVehicle, type VehicleIndex, vehicleMix } from '../city/eraVehicles.js';
+import { animateObject, EraVehicles, loadVehicleIndex, paintFor, transitVehicle, type VehicleIndex, vehicleMix } from '../city/eraVehicles.js';
 import type { RegionId } from '../regional/types.js';
 import { eraBuildingMaterial, setNightMode } from '../materials/library.js';
 import { SCENE } from '../../theme/tokens.js';
@@ -257,14 +257,13 @@ async function start(): Promise<void> {
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(stage); resize();
-  let last = performance.now();
+  const start = performance.now();
   renderer.setAnimationLoop(() => {
-    // the vehicles' wheels roll and their rotors spin
-    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
-    for (const v of wheels) for (const w of v.children) {
-      if (!w.name.startsWith('wheel')) continue;
-      const set = Number(w.name.slice(5, w.name.indexOf('.'))), spec = vehicleIndex?.vehicles[v.name.slice(8)]?.wheels[set];
-      if (spec?.axis === 'z') w.rotation.y += dt * 25; else w.rotation.x += dt * 2.5 / Math.max(0.2, spec?.radius ?? 0.3);
+    // the vehicles drive on the spot: wheels roll, legs walk and pedal, rotors spin, at a walking 1.5 m a second
+    const t = (performance.now() - start) / 1000;
+    for (const v of wheels) {
+      const entry = vehicleIndex?.vehicles[v.name.slice(8)];
+      if (entry) animateObject(v, entry, t * 1.5, t);
     }
     controls.update(); renderer.render(scene, camera);
   });

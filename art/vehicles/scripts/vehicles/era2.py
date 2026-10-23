@@ -11,9 +11,9 @@ from mathutils import Vector
 import vbodies
 import vlib
 from lib import kit
-from lib.mesh import R, S, T
+from lib.mesh import Part, R, S, T
 
-from . import registry
+from . import era1, registry
 
 VEHICLES, vehicle = registry(2)
 
@@ -86,12 +86,13 @@ def samlor(v):
                  (bb, Vector((0, ay - 0.15, 0.42))), (saddle + Vector((0, 0, -0.08)), Vector((0, ay - 0.25, 0.62)))):
         p.rod(a, b, 0.022, 'iron', seg=6)
     p.box((0.16, 0.26, 0.06), 'v_seat', T(saddle.x, saddle.y, saddle.z), bevel=0.02)
+    p.cyl(0.04, 0.04, 0.06, 'lamp', T(0, fy + 0.06, 0.92) @ R(90, 0, 0), seg=8)
     stem = head_t + Vector((0, 0, 0.08))
     for s in (-1, 1):
         p.polyline([stem, stem + Vector((s * 0.2, 0.0, 0.0)), stem + Vector((s * 0.28, 0.13, 0.0))], 0.012, 'v_chrome',
                    seg=4, joints=False)
-    p.cyl(0.1, 0.1, 0.02, 'v_chrome', T(0.06, bb.y, bb.z) @ R(0, 90, 0), seg=12)
     p.box((0.01, ay - bb.y, 0.015), 'v_trim', T(0.07, (bb.y + ay) / 2, (bb.z + wr) / 2))
+    v.wheel(era1.crank_part(), wr * era1.GEAR, [tuple(bb)])
     # the passenger's chassis: an axle frame, the seat box, back and sides, a footboard
     kit.block(p, -track - 0.05, ay - 0.2, 0.4, track + 0.05, ay + 0.15, 0.46, 'iron')
     kit.block(p, -0.42, ay - 0.6, 0.42, 0.42, ay - 0.2, 0.47, 'plank')
@@ -119,7 +120,7 @@ def samlor(v):
     # the rider and a passenger with a basket
     vlib.figure(p, (0, saddle.y + 0.02, saddle.z + 0.07), [(-0.27, fy + 0.27, 1.08), (0.27, fy + 0.27, 1.08)],
                 [(-0.14, bb.y - 0.14, 0.24), (0.14, bb.y + 0.1, 0.42)], shirt='v_shirt', pants='v_pants',
-                head='hat', lean=20)
+                head='hat', lean=20, pedal=(v, wr * era1.GEAR))
     vlib.figure(p, (0.1, ay + 0.02, 0.8), [(-0.1, ay - 0.3, 0.95), (0.35, ay - 0.15, 0.88)],
                 [(-0.05, ay - 0.5, 0.5), (0.22, ay - 0.5, 0.5)], shirt='v_pink', pants='v_sarong', head='bare',
                 lean=-4, sarong=True)
@@ -228,8 +229,12 @@ def etan(v):
     # the engine: block, cylinder, the big flywheel, the radiator and its tank, the exhaust
     kit.block(p, -0.3, fy - 0.25, 0.5, 0.3, fy + 0.35, 0.85, 'v_bus_green')
     p.cyl(0.14, 0.14, 0.36, 'v_bus_green', T(0, fy + 0.2, 1.0), seg=8)
-    p.cyl(0.32, 0.32, 0.08, 'paint_red', T(0.4, fy + 0.1, 0.78) @ R(0, 90, 0), seg=14)
-    p.cyl(0.08, 0.08, 0.1, 'v_hub', T(0.44, fy + 0.1, 0.78) @ R(0, 90, 0), seg=6)
+    fly = Part('flywheel')
+    fly.cyl(0.32, 0.32, 0.08, 'paint_red', R(0, 90, 0), seg=14)
+    fly.cyl(0.08, 0.08, 0.1, 'v_hub', T(0.04, 0, 0) @ R(0, 90, 0), seg=6)
+    for k in range(3):
+        fly.box((0.1, 0.5, 0.06), 'v_engine', R(k * 60, 0, 0) @ T(0.045, 0, 0))
+    v.wheel(fly, 0.08, [(0.4, fy + 0.1, 0.78)])
     kit.block(p, -0.28, fy - 0.42, 0.55, 0.28, fy - 0.27, 1.15, 'v_grille')
     p.cyl(0.12, 0.12, 0.5, 'v_bus_green', T(0, fy - 0.35, 1.25) @ R(0, 90, 0), seg=8)
     p.polyline([Vector((-0.2, fy + 0.25, 0.95)), Vector((-0.25, fy + 0.3, 1.45))], 0.04, 'iron', seg=5, joints=False)

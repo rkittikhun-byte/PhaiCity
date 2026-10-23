@@ -47,16 +47,52 @@ export interface VehicleEntry {
   readonly slow: number;
   /** The height it flies at (metres), 0 on the road */
   readonly fly: number;
-  /** Each set of wheels: its mesh, radius (m), axis (x a wheel, z a rotor, Blender's axes) and where each one is
+  /** Each set of moving parts: wheels, cranks and rotors that turn (`spin`: by the distance over the radius in metres,
+   * a rotor, axis z, by the time) and legs that swing (`swing`: either way by the amplitude, a cycle every `stride`
+   * metres, each at its own phase); its mesh, axis (x across, z upright, Blender's axes) and where each one's pivot is
    * (glTF metres: x, y up, z front) */
-  readonly wheels: ReadonlyArray<{ mesh: string; radius: number; axis: 'x' | 'z'; at: ReadonlyArray<readonly number[]>; triangles: number }>;
+  readonly wheels: ReadonlyArray<VehicleMover>;
+}
+
+export interface VehicleMover {
+  readonly mesh: string;
+  readonly radius: number;
+  readonly axis: 'x' | 'z';
+  readonly motion?: 'spin' | 'swing';
+  readonly amplitude?: number;
+  readonly phase?: readonly number[];
+  readonly stride?: number;
+  readonly at: ReadonlyArray<readonly number[]>;
+  readonly triangles: number;
+}
+
+/** A moving part's turn (radians, about its axis) after `metres` driven and `seconds` of the clock: a wheel rolls, a
+ * rotor spins, a leg swings at its own phase. Still when the vehicle stands (but a rotor, which flies). */
+export function moverAngle(mover: VehicleMover, n: number, metres: number, seconds: number): number {
+  if (mover.motion === 'swing') {
+    return (mover.amplitude ?? 0) * Math.sin(2 * Math.PI * metres / Math.max(0.1, mover.stride ?? 1) + (mover.phase?.[n] ?? 0));
+  }
+  if (mover.axis === 'z') return seconds * 30 + n;
+  return metres / Math.max(0.05, mover.radius);
+}
+
+/** Turns the moving parts of a vehicle made by EraVehicles.object (its children wheel<set>.<n>) */
+export function animateObject(group: Object3D, entry: VehicleEntry, metres: number, seconds: number): void {
+  for (const child of group.children) {
+    const m = /^wheel(\d+)\.(\d+)$/.exec(child.name);
+    if (!m) continue;
+    const mover = entry.wheels[Number(m[1])];
+    if (!mover) continue;
+    const angle = moverAngle(mover, Number(m[2]), metres, seconds);
+    if (mover.axis === 'z') child.rotation.set(0, angle, 0); else child.rotation.set(angle, 0, 0);
+  }
 }
 
 export interface VehicleIndex { readonly version: number; readonly vehicles: Readonly<Record<string, VehicleEntry>> }
 
 /** Triangles a vehicle's body may have in the game, by class (export_game.py GAME_BUDGET), and its wheels in all */
 export const VEHICLE_BUDGET: Readonly<Record<VehicleClass, number>> = { small: 2500, cart: 3200, car: 2000, heavy: 2600, flyer: 1600 };
-export const WHEELS_BUDGET = 1200;
+export const WHEELS_BUDGET = 1500;
 
 type Mix = Readonly<Record<string, number>>;
 
@@ -347,7 +383,7 @@ export class EraVehicles {
 
 interface LevelDraw {
   readonly parts: Array<{ mesh: InstancedMesh; paint: boolean }>;
-  readonly wheels: Array<{ mesh: InstancedMesh; at: readonly Vector3[]; axis: 'x' | 'z' }>;
+  readonly wheels: Array<{ mesh: InstancedMesh; at: readonly Vector3[]; mover: VehicleMover }>;
   count: number;
 }
 interface ModelDraw { model: VehicleModel; cap: number; levels: LevelDraw[] }
@@ -396,7 +432,7 @@ export class VehiclePool {
       const wheels: LevelDraw['wheels'] = [];
       level.wheels.forEach((g, set) => {
         const at = model.wheelAt[set];
-        if (g && at?.length) wheels.push({ mesh: make(g, this.materials.body, cap * at.length), at, axis: model.entry.wheels[set].axis });
+        if (g && at?.length) wheels.push({ mesh: make(g, this.materials.body, cap * at.length), at, mover: model.entry.wheels[set] });
       });
       return { parts, wheels, count: 0 };
     });
@@ -409,11 +445,13 @@ export class VehiclePool {
   }
 
   /**
-   * One vehicle: its pose (`matrix`, scaled to world units), its paint (sRGB hex) or null, its wheels' turn (radians;
-   * a rotor's spin), and its distance from the camera with the screen's pixels a world unit away (lod.ts) and the
-   * world units a metre, which choose its level. Whether there was room.
+   * One vehicle: its pose (`matrix`, scaled to world units), its paint (sRGB hex) or null, how far it has driven
+   * (metres: its wheels roll and its legs walk by it) and the clock (seconds: rotors), and its distance from the camera
+   * with the screen's pixels a world unit away (lod.ts) and the world units a metre, which choose its level. Whether
+   * there was room.
    */
-  add(id: string, matrix: Matrix4, paint: string | null, spin: number, distance: number, pixelsPerUnit: number, unitsPerMetre: number): boolean {
+  add(id: string, matrix: Matrix4, paint: string | null, metres: number, seconds: number, distance: number, pixelsPerUnit: number,
+    unitsPerMetre: number): boolean {
     const d = this.draws.get(id);
     if (!d) return false;
     let k = 0;
@@ -428,9 +466,9 @@ export class VehiclePool {
       if (painted) mesh.setColorAt(n, paint ? this.colour.set(paint) : this.colour.set(1, 1, 1));
       this.triangles += (mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count) / 3;
     }
-    for (const { mesh, at, axis } of level.wheels) {
-      this.spinTurn.setFromAxisAngle(axis === 'z' ? Y : X, spin);
+    for (const { mesh, at, mover } of level.wheels) {
       for (let w = 0; w < at.length; w++) {
+        this.spinTurn.setFromAxisAngle(mover.axis === 'z' ? Y : X, moverAngle(mover, w, metres, seconds));
         this.wheel.compose(at[w], this.spinTurn, this.one).premultiply(matrix);
         mesh.setMatrixAt(n * at.length + w, this.wheel);
       }

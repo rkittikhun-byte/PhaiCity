@@ -589,7 +589,7 @@ export class CityView3D implements CityView {
     // The city's buses driving their roads (buses.ts)
     const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
     if(busMap.buses?.length){if(!this.buses){this.buses=new CityBuses(busMap,this.terrain,this.sprites.size);this.scene.add(this.buses.root);}
-      this.buses.vehicles=this.vehicles??null;this.buses.region=this.setup.region;this.buses.vehicleId=()=>transitVehicle(this.cityEra(),this.setup.region);
+      this.buses.vehicles=this.vehicles??null;this.buses.traffic=this.tripCars?.active?this.tripCars.traffic:null;this.buses.region=this.setup.region;this.buses.vehicleId=()=>transitVehicle(this.cityEra(),this.setup.region);
       this.buses.update(this.curves.drawnLines,this.seconds);}
     this.pedestrians.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds);
     // The cars of the city's real trips on the road graph (tripCars.ts, docs/NO_GRID_PLAN.md 1.5), and where there are
@@ -752,7 +752,7 @@ export class CityView3D implements CityView {
     return {key:()=>{const era=this.cityEra(),ready=vehicleMix(era,region).filter(({id})=>vehicles.has(id)&&!vehicles.model(id)).length===0;const next=this.nextEraShare();
         return ready?`${era}:${Math.round(next*10)}:${vehicles.version}`:'';},
       vehicle:(slot:number)=>{const id=pickVehicle(this.cityEra(),region,this.nextEraShare(),hash(slot,1),hash(slot,2)),entry=vehicles.entry(id);
-        const model=entry?vehicles.object(id,paintFor(id,entry,region,hash(slot,3))):null;return model&&entry?{model,slow:entry.slow,fly:entry.fly}:null;}};}
+        const model=entry?vehicles.object(id,paintFor(id,entry,region,hash(slot,3))):null;return model&&entry?{model,slow:entry.slow,fly:entry.fly,entry}:null;}};}
 
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
