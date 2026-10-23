@@ -8,7 +8,7 @@ import { isWaterNeighbor, TileSnapshot, TILE_TABLE } from './tileModels.js';
 import { ZONEBIT } from '../../tileFlags.js';
 import { plotOf } from '../../plots.js';
 import { isCityTileSize, unitsPerMetre as metreUnits } from '../../units.js';
-import { GRADE_STEPS, GroundGrade, gradePads, sampleSamples, type GradeMap } from '../../terrain/groundGrade.js';
+import { GRADE_STEPS, GroundGrade, gradePads, isFine, sampleCorners, sampleSamples, type GradeMap, type PadCache } from '../../terrain/groundGrade.js';
 
 /** Shared scale for DEM, ground, models, camera and picking (RENDERER_SPEC 6B). */
 export const HILL_EXAGGERATION = 4;
@@ -42,7 +42,7 @@ export class CityHeightField {
   /** The ground levelled under the buildings and plots of a map whose zones are painted in cells (src/terrain/groundGrade.ts):
    * flat at each one's road, easing back to the hills round it; null where the old tile pads level the ground */
   grade:GroundGrade|null=null;
-  private gradeLevels=new Map<string,{sign:string;level:number}>();private gradeSign='';
+  private gradeCache:PadCache=new Map();private gradeSign='';
   constructor(readonly snapshot: TileSnapshot, readonly map: CityMapReader) {
     const n = snapshot.width * snapshot.height;
     this.enabled = !!map.heights && map.heights.length === n && !!map.tileSizeM && map.tileSizeM > 0;
@@ -67,10 +67,11 @@ export class CityHeightField {
   inside(x: number, y: number): boolean { return !this.mask || this.mask[y * this.snapshot.width + x] !== 0; }
   /** A copy of the numbers the ground is sampled from, for building the roads in a worker (roadBuild.ts GridHeights) */
   grid(): HeightGrid {
-    const tiles=this.grade?[...this.grade.tiles.keys()]:[],n=(GRADE_STEPS+1)**2,samples=new Float32Array(tiles.length*n);
-    tiles.forEach((i,k)=>samples.set(this.grade!.tiles.get(i)!,k*n));
+    const tiles=this.grade?[...this.grade.tiles.keys()]:[],offsets=new Int32Array(tiles.length+1);
+    tiles.forEach((i,k)=>{offsets[k+1]=offsets[k]+this.grade!.tiles.get(i)!.length;});
+    const samples=new Float32Array(offsets[tiles.length]);tiles.forEach((i,k)=>samples.set(this.grade!.tiles.get(i)!,offsets[k]));
     return { width: this.snapshot.width, height: this.snapshot.height, enabled: this.enabled, pads: this.pads.slice(),
-      corners: this.corners.slice(), mask: this.mask ? this.mask.slice() : null, graded: { tiles: Int32Array.from(tiles), samples } };
+      corners: this.corners.slice(), mask: this.mask ? this.mask.slice() : null, graded: { tiles: Int32Array.from(tiles), offsets, samples } };
   }
   /** A one-tile building, whose ground is levelled: a house, or a painted plot's building (src/plots.ts). */
   private isSingle(i:number):boolean {
@@ -102,7 +103,7 @@ export class CityHeightField {
     this.gradeSign=sign;
     const toUnits=10/map.tileSizeM,natural=(x:number,z:number):number=>this.natural(x*toUnits,z*toUnits);
     if(!this.grade)this.grade=new GroundGrade(this.snapshot.width,this.snapshot.height,map.tileSizeM,natural);
-    const changed=this.grade.setPads(gradePads(map,natural,{run:GRADE_RUN/toUnits},this.gradeLevels));
+    const changed=this.grade.setPads(gradePads(map,natural,{run:GRADE_RUN/toUnits},this.gradeCache));
     if(changed.length){
       for(const i of changed){const t=this.grade.tiles.get(i);if(t)for(const h of t){this.min=Math.min(this.min,h);this.max=Math.max(this.max,h);}}
       this.version++;
@@ -119,8 +120,9 @@ export class CityHeightField {
   gradedHeight(ix:number,iy:number,x:number,z:number):number {
     const t=this.grade?.tiles.get(iy*this.snapshot.width+ix);return t?sampleSamples(t,x/10-ix,z/10-iy):NaN;
   }
-  /** Whether a tile's ground is levelled under something, drawn from its samples (GRADE_STEPS a side) */
-  graded(index:number):boolean {return !!this.grade?.tiles.has(index);}
+  /** Whether a tile's ground is levelled under something and drawn from its finer samples (GRADE_STEPS a side), not its
+   * four corners */
+  graded(index:number):boolean {const t=this.grade?.tiles.get(index);return !!t&&isFine(t);}
   /** A levelled tile's samples, row by row from its top left, or undefined */
   gradeSamples(index:number):Float32Array|undefined {return this.grade?.tiles.get(index);}
   /** Connected water shares its lowest shoreline, preventing steps along a river. */
@@ -176,7 +178,7 @@ export class CityHeightField {
   flatHeight(index:number):number {return this.pads[index];}
   tileCorners(x:number,y:number):[number,number,number,number] {
     const t=this.grade?.tiles.get(y*this.snapshot.width+x);
-    if(t){const n=GRADE_STEPS+1;return [t[0],t[GRADE_STEPS],t[n*GRADE_STEPS],t[n*n-1]];}
+    if(t)return sampleCorners(t);
     const flat=this.pads[y*this.snapshot.width+x];
     return Number.isFinite(flat)?[flat,flat,flat,flat]:[this.corner(x,y),this.corner(x+1,y),this.corner(x,y+1),this.corner(x+1,y+1)];
   }
@@ -254,7 +256,7 @@ export class CityHeightField {
       let nearest:Vector3|null=null,best=Infinity;
       const triangle=(a:Vector3,b:Vector3,c:Vector3):void=>{if(ray.intersectTriangle(a,b,c,false,hit)){const distance=ray.origin.distanceToSquared(hit);if(distance<best){best=distance;nearest=hit.clone();}}};
       const t=this.grade?.tiles.get(y*w+x);
-      if(t){
+      if(t&&isFine(t)){
         // a levelled tile: the triangles of its samples' squares, as it is drawn
         const n=GRADE_STEPS+1,s=10/GRADE_STEPS;
         for(let r=0;r<GRADE_STEPS;r++)for(let q=0;q<GRADE_STEPS;q++){

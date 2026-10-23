@@ -119,26 +119,29 @@ function rim(o: Outline, grow: number): [number, number][] {
   return [...c, ...c.map(([x, z], k): [number, number] => [(x + c[(k + 1) % 4][0]) / 2, (z + c[(k + 1) % 4][1]) / 2])];
 }
 
+/** The pads worked out before, by id, with what each was worked out from (its outline and the roads' version) */
+export type PadCache = Map<string, { sign: string; pad: GradePad }>;
+
 /**
- * The pads of what stands on the map, in id order. `natural` is the ground's own height; `levels` keeps each one's level
- * between calls (a road's nearest point is the slow part), by what it was worked out from.
+ * The pads of what stands on the map, in id order. `natural` is the ground's own height (the same between calls with
+ * one cache); `cache` keeps each pad between calls, by what it was worked out from, so a town of thousands of plots forms
+ * its list again in a few milliseconds when one plot grows.
  */
-export function gradePads(map: GradeMap, natural: NaturalGround, options: GradeOptions,
-  levels: Map<string, { sign: string; level: number }> = new Map()): GradePad[] {
+export function gradePads(map: GradeMap, natural: NaturalGround, options: GradeOptions, cache: PadCache = new Map()): GradePad[] {
   const roads = map.roadGraph ?? null, roadsVersion = roads?.version ?? 0, out: GradePad[] = [];
   for (const { id, outline: o } of footings(map)) {
-    const sign = `${o.x},${o.z},${o.hu},${o.hv},${o.vx},${o.vz}|${roadsVersion}`;
-    let kept = levels.get(id);
+    const sign = `${o.x},${o.z},${o.hu},${o.hv},${o.vx},${o.vz}|${roadsVersion}|${options.run}`;
+    let kept = cache.get(id);
     if (!kept || kept.sign !== sign) {
-      kept = { sign, level: padLevel(o, natural, roads) };
-      levels.set(id, kept);
+      const level = padLevel(o, natural, roads);
+      let off = 0;
+      for (const [x, z] of rim(o, PAD_APRON_M + SKIRT_MIN_M)) off = Math.max(off, Math.abs(natural(x, z) - level));
+      const skirt = Math.max(SKIRT_MIN_M, Math.min(SKIRT_MAX_M, off * options.run));
+      const reach = o.half * Math.SQRT2 + PAD_APRON_M + skirt;
+      kept = { sign, pad: { id, outline: o, level, skirt, x0: o.x - reach, z0: o.z - reach, x1: o.x + reach, z1: o.z + reach } };
+      cache.set(id, kept);
     }
-    const level = kept.level;
-    let off = 0;
-    for (const [x, z] of rim(o, PAD_APRON_M + SKIRT_MIN_M)) off = Math.max(off, Math.abs(natural(x, z) - level));
-    const skirt = Math.max(SKIRT_MIN_M, Math.min(SKIRT_MAX_M, off * options.run));
-    const reach = o.half * Math.SQRT2 + PAD_APRON_M + skirt;
-    out.push({ id, outline: o, level, skirt, x0: o.x - reach, z0: o.z - reach, x1: o.x + reach, z1: o.z + reach });
+    out.push(kept.pad);
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
@@ -194,8 +197,10 @@ function bucketPads(pads: readonly GradePad[], width: number, height: number, si
 
 /**
  * The levelled ground of a map, tile by tile: for each tile a pad's slope reaches, its heights at (GRADE_STEPS + 1)^2
- * points, row by row from its top left (the tiles no pad reaches are the natural ground). setPads works out again only
- * the tiles of the pads that came, went or changed.
+ * points, row by row from its top left, or only its four corners (top left, top right, bottom left, bottom right) when
+ * those points lie on its two triangles anyway (the middle of a yard, all one level), so it is drawn and sampled as an
+ * ordinary tile; the tiles no pad reaches are the natural ground. setPads works out again only the tiles of the pads
+ * that came, went or changed.
  */
 export class GroundGrade {
   readonly tiles = new Map<number, Float32Array>();
@@ -267,7 +272,15 @@ export class GroundGrade {
       if (Number.isNaN(h)) out[r * n + c] = this.natural(x, z);
       else { out[r * n + c] = h; any = true; }
     }
-    return any ? out : null;
+    if (!any) return null;
+    // (on its two triangles within a millimetre or so: its corners are enough)
+    const a = out[0], b = out[GRADE_STEPS], c = out[n * GRADE_STEPS], d = out[n * n - 1];
+    for (let k = 0; k < out.length; k++) {
+      const u = (k % n) / GRADE_STEPS, v = Math.floor(k / n) / GRADE_STEPS;
+      const plane = u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - v) * (b - d) + (1 - u) * (c - d);
+      if (Math.abs(out[k] - plane) > PLANAR) return out;
+    }
+    return Float32Array.of(a, b, c, d);
   }
 
   /**
@@ -281,8 +294,38 @@ export class GroundGrade {
   }
 }
 
+/** How far off its two triangles a levelled tile's samples may lie and still be kept as its corners, or a quarter of it
+ * be drawn as two triangles (height units: a centimetre or less in the 3D view) */
+const PLANAR = 1e-2;
+
+/** Whether the samples of a square of a fine tile's (span squares a side, from row r0 and column c0) lie on its own two
+ * triangles, split as the samples' squares are, so it can be drawn as those two and look the same */
+export function planarSquare(t: ArrayLike<number>, r0: number, c0: number, span: number): boolean {
+  const n = GRADE_STEPS + 1, at = (r: number, c: number): number => t[(r0 + r) * n + c0 + c];
+  const a = at(0, 0), b = at(0, span), c = at(span, 0), d = at(span, span);
+  for (let r = 0; r <= span; r++) for (let q = 0; q <= span; q++) {
+    const u = q / span, v = r / span, plane = u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - v) * (b - d) + (1 - u) * (c - d);
+    if (Math.abs(at(r, q) - plane) > PLANAR) return false;
+  }
+  return true;
+}
+
+/** Whether a levelled tile keeps all its samples (else only its corners) */
+export const isFine = (t: ArrayLike<number>): boolean => t.length > 4;
+
+/** A levelled tile's corners: top left, top right, bottom left, bottom right */
+export function sampleCorners(t: ArrayLike<number>): [number, number, number, number] {
+  if (!isFine(t)) return [t[0], t[1], t[2], t[3]];
+  const n = GRADE_STEPS + 1;
+  return [t[0], t[GRADE_STEPS], t[n * GRADE_STEPS], t[n * n - 1]];
+}
+
 /** A tile's samples at (u, v), 0 to 1 each way */
 export function sampleSamples(t: ArrayLike<number>, u: number, v: number): number {
+  if (!isFine(t)) {
+    const uu = Math.max(0, Math.min(1, u)), vv = Math.max(0, Math.min(1, v));
+    return uu + vv <= 1 ? t[0] + uu * (t[1] - t[0]) + vv * (t[2] - t[0]) : t[3] + (1 - vv) * (t[1] - t[3]) + (1 - uu) * (t[2] - t[3]);
+  }
   const n = GRADE_STEPS + 1, gu = Math.max(0, Math.min(GRADE_STEPS, u * GRADE_STEPS)), gv = Math.max(0, Math.min(GRADE_STEPS, v * GRADE_STEPS));
   const c = Math.min(GRADE_STEPS - 1, Math.floor(gu)), r = Math.min(GRADE_STEPS - 1, Math.floor(gv)), fu = gu - c, fv = gv - r;
   const a = t[r * n + c], b = t[r * n + c + 1], cc = t[(r + 1) * n + c], d = t[(r + 1) * n + c + 1];

@@ -196,9 +196,12 @@ which the renderer only reads:
     included), at the height of its road where its front meets it (no road within 24 m: the mean of its ground), the
     ground round it easing back to the hills over 4-24 m (2.5 world units across per unit of height, smoothstep, pads side
     by side blended without a step). Derived each time from the buildings, plots and roads, never saved; only the pads
-    that came, went or changed are levelled again. A levelled tile is drawn from 5 × 5 samples (a 4 m step on 16 m tiles,
-    `GRADE_STEPS`), its squares split top-right to bottom-left as the ground's tiles are, so where no pad reaches it is the
-    natural ground exactly. `sample`, picking (`intersect`), the near ground (`terrain-detail.ts`), the roads and their
+    that came, went or changed are levelled again (pads kept by what they were worked out from: about 5 ms a change in
+    a town of 3,000 plots). A levelled tile is drawn from 5 × 5 samples (a 4 m step on 16 m tiles, `GRADE_STEPS`), its
+    squares split top-right to bottom-left as the ground's tiles are, so where no pad reaches it is the natural ground
+    exactly; a tile whose samples lie on its own two triangles (within 1 cm) keeps only its corners and is drawn as an
+    ordinary tile, and a quarter of a tile that does is drawn as two triangles (about 17 triangles a levelled tile
+    instead of 32). `sample`, picking (`intersect`), the near ground (`terrain-detail.ts`), the roads and their
     worker (`roadBuild.ts gradedHeight`) and the fences read the same surface; a model stands at its pad's level
     (`standOn`).
   - `tileAt` picks against the raised ground, and the camera's target follows it.

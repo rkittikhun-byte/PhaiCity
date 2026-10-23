@@ -19,7 +19,7 @@ import type { Placement } from './types.js';
 import { TerrainDetail } from './terrain-detail.js';
 import { besideCanal } from './canals.js';
 import { LOD_HYSTERESIS, lodDistance } from './lod.js';
-import { GRADE_STEPS } from '../../terrain/groundGrade.js';
+import { GRADE_STEPS, planarSquare } from '../../terrain/groundGrade.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 /** How much lighter or darker the open land of a real-scale city map is at (x, z) world units: a few overlapping waves
  * some 50 to 120 m long, so the ground varies as fields do and no tile's square shows (owner, 21 Oct 2026) */
@@ -247,9 +247,14 @@ export class ProvinceSurface {
       const vertex=(px:number,pz:number):void=>{const u=(px-x*10)/10,v=(pz-y*10)/10,w0=(1-u)*(1-v),w1=u*(1-v),w2=u*v,w3=(1-u)*v;
         shade.setRGB(c0.shade.r*w0+c1.shade.r*w1+c2.shade.r*w2+c3.shade.r*w3,c0.shade.g*w0+c1.shade.g*w1+c2.shade.g*w2+c3.shade.g*w3,c0.shade.b*w0+c1.shade.b*w1+c2.shade.b*w2+c3.shade.b*w3);
         c.positions.push(px,height(px,pz),pz);c.colors.push(shade.r,shade.g,shade.b);c.outside.push(c0.outside*w0+c1.outside*w1+c2.outside*w2+c3.outside*w3);c.fade.push(0);c.ground.push(1);};
-      for(let r=0;r<steps;r++)for(let q=0;q<steps;q++){const x0=x*10+q*size,z0=y*10+r*size,x1=x0+size,z1=z0+size;
-        // (counter-clockwise from above, as the four triangles below)
-        vertex(x0,z0);vertex(x0,z1);vertex(x1,z0);vertex(x1,z0);vertex(x0,z1);vertex(x1,z1);}
+      // (counter-clockwise from above, as the four triangles below)
+      const square=(x0:number,z0:number,x1:number,z1:number):void=>{vertex(x0,z0);vertex(x0,z1);vertex(x1,z0);vertex(x1,z0);vertex(x0,z1);vertex(x1,z1);};
+      // ... a quarter whose samples lie on its own two triangles (the middle of a yard, all one level) as those two
+      const samples=this.terrain.gradeSamples(y*this.snapshot.width+x)!,half=steps/2;
+      for(let qr=0;qr<steps;qr+=half)for(let qc=0;qc<steps;qc+=half){
+        if(planarSquare(samples,qr,qc,half)){square(x*10+qc*size,y*10+qr*size,x*10+(qc+half)*size,y*10+(qr+half)*size);continue;}
+        for(let r=qr;r<qr+half;r++)for(let q=qc;q<qc+half;q++){const x0=x*10+q*size,z0=y*10+r*size;square(x0,z0,x0+size,z0+size);}
+      }
       return;
     }
     for(let k=0;k<4;k++){const a=corners[k],b=corners[(k+1)%4];

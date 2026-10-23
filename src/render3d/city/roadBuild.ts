@@ -14,7 +14,7 @@ import { halfWidth, nearestOnLines, REAL_WIDTH_M, roadReach, shoulderOf, type Ju
 import { junctionLayout } from './roadJunctions.js';
 import { drawnRoads, type GraphLines } from '../../roads/graphLines.js';
 import type { CityMapReader } from './types.js';
-import { GRADE_STEPS, sampleSamples } from '../../terrain/groundGrade.js';
+import { sampleSamples } from '../../terrain/groundGrade.js';
 
 const LIFT = 0.15, OUTSIDE_SHADE = 0.62;
 /** A road's end under the road it meets, and the shoulders round a junction's corners. */
@@ -194,16 +194,16 @@ export interface HeightGrid {
   pads: Float32Array;
   corners: Float32Array;
   mask: Uint8Array | null;
-  /** The levelled tiles and their samples, (GRADE_STEPS + 1)^2 each in turn (heightfield.ts grade) */
-  graded?: { tiles: Int32Array; samples: Float32Array };
+  /** The levelled tiles and their samples, each tile's from its offset to the next (heightfield.ts grade) */
+  graded?: { tiles: Int32Array; offsets: Int32Array; samples: Float32Array };
 }
 
 /** The height field's own sampling (heightfield.ts sampleTile, inside) from its numbers */
 export class GridHeights implements HeightSource {
   private readonly graded = new Map<number, Float32Array>();
   constructor(readonly grid: HeightGrid) {
-    const g = grid.graded, n = (GRADE_STEPS + 1) ** 2;
-    if (g) g.tiles.forEach((i, k) => this.graded.set(i, g.samples.subarray(k * n, (k + 1) * n)));
+    const g = grid.graded;
+    if (g) g.tiles.forEach((i, k) => this.graded.set(i, g.samples.subarray(g.offsets[k], g.offsets[k + 1])));
   }
   gradedHeight(ix: number, iy: number, x: number, z: number): number {
     const t = this.graded.get(iy * this.grid.width + ix);

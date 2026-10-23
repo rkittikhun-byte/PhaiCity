@@ -5,7 +5,7 @@
 import { describe, expect, it } from "@jest/globals";
 import type { PlacedBuilding } from "../src/buildings/placedBuildings";
 import {
-  GRADE_STEPS, GroundGrade, gradedAt, gradedTileHeight, gradePads, PAD_APRON_M, SKIRT_MAX_M, SKIRT_MIN_M,
+  GRADE_STEPS, GroundGrade, gradedAt, isFine, gradedTileHeight, gradePads, PAD_APRON_M, SKIRT_MAX_M, SKIRT_MIN_M,
   tileHeightGround, type GradeMap, type NaturalGround,
 } from "../src/terrain/groundGrade";
 import { outsideBy } from "../src/buildings/turnedFootprint";
@@ -46,11 +46,17 @@ describe("ground levelled under what stands on it (src/terrain/groundGrade.ts)",
     grade.setPads([pad]);
     const step = T / GRADE_STEPS;
     let inside = 0;
-    for (const [i, samples] of grade.tiles) for (let r = 0; r <= GRADE_STEPS; r++) for (let c = 0; c <= GRADE_STEPS; c++) {
-      const x = (i % W) * T + c * step, z = Math.floor(i / W) * T + r * step;
-      if (outsideBy(pad.outline, x, z) <= PAD_APRON_M) { expect(samples[r * (GRADE_STEPS + 1) + c]).toBe(pad.level); inside++; }
+    let corners = 0;
+    for (const [i, samples] of grade.tiles) {
+      if (!isFine(samples)) corners++;
+      for (let r = 0; r <= GRADE_STEPS; r++) for (let c = 0; c <= GRADE_STEPS; c++) {
+        const x = (i % W) * T + c * step, z = Math.floor(i / W) * T + r * step;
+        if (outsideBy(pad.outline, x, z) <= PAD_APRON_M) { expect(grade.sampleTile(i, c / GRADE_STEPS, r / GRADE_STEPS)).toBeCloseTo(pad.level, 6); inside++; }
+      }
     }
     expect(inside).toBeGreaterThan(100);
+    // the yard's middle tiles, all one level, keep only their corners
+    expect(corners).toBeGreaterThanOrEqual(1);
   });
 
   it("eases back to the natural ground over a short slope, never a step", () => {
