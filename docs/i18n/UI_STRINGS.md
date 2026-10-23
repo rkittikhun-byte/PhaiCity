@@ -1387,6 +1387,12 @@
 | `status.commercial` | `index.html` | `-` | `Shops` | `พาณิชย์` | แถบสถานะ (แท่ง C เดิม) |
 | `status.industrial` | `index.html` | `-` | `Factories` | `อุตสาหกรรม` | แถบสถานะ (แท่ง I เดิม) |
 | `status.people` | `src/cityStatus.ts` | `-` | `{count} people` | `{count} คน` | คนที่อยู่ในบ้าน หรือทำงานในร้านและโรงงาน |
+| `status.why.jobs` | `src/cityStatus.ts` | — | `no jobs` | `ไม่มีงาน` | ต่อท้ายจำนวนคนในบ้าน เมื่อความต้องการบ้านติดลบ: เหตุที่คนย้ายออก (ไม้ไผ่46 23 ต.ค. 2026) |
+| `status.why.water` | `src/cityStatus.ts` | — | `no water` | `ขาดน้ำ` | เหมือนข้างบน |
+| `status.why.power` | `src/cityStatus.ts` | — | `no power` | `ไม่มีไฟ` | เหมือนข้างบน |
+| `status.why_title.jobs` | `src/cityStatus.ts` | — | `People are leaving: there are not enough jobs. Zone shops and factories.` | `คนย้ายออกเพราะงานไม่พอ วางเขตพาณิชย์และอุตสาหกรรม` | ชี้ที่ช่องบ้าน |
+| `status.why_title.water` | `src/cityStatus.ts` | — | `Homes are short of water: build a water tower beside their road and give it power.` | `บ้านขาดน้ำ สร้างหอถังสูงติดถนนเส้นที่ไปถึงบ้านแล้วต่อไฟฟ้าให้` | ชี้ที่ช่องบ้าน |
+| `status.why_title.power` | `src/cityStatus.ts` | — | `Homes have no power: build a power plant beside a road that reaches them.` | `บ้านไม่มีไฟฟ้า สร้างโรงไฟฟ้าติดถนนเส้นที่ไปถึงบ้าน` | ชี้ที่ช่องบ้าน |
 | `status.tourists` | `index.html` | — | `Visitors` | `นักท่องเที่ยว` | แถบสถานะ เฉพาะจังหวัดที่มีการท่องเที่ยว (Claude Code 13 ต.ค. 2026) |
 | `status.services` | `index.html` | — | `Schools · health` | `การศึกษา · สุขภาพ` | แถบสถานะ (Claude Code 13 ต.ค. 2026) |
 | `status.services_value` | `src/cityStatus.ts` | — | `{school}% · {health}%` | `{school}% · {health}%` |  |

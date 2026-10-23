@@ -36,6 +36,23 @@ export function formatPercent(percent: number): string {
 
 export interface ZoneCensus { resPop: number; comPop: number; indPop: number }
 
+/** What the census says of the homes that holds them back (src/waterManager.ts counts the dry ones) */
+export interface HomesCensus extends ZoneCensus { dryZoneCount?: number; unpoweredZoneCount?: number }
+
+/**
+ * Why people leave the homes, for the words beside their number while their demand is below nothing (playtest, 23 Oct
+ * 2026: a new village fell to −100% in two years with nothing to say why): too few jobs first, as the valve reads
+ * (src/valves.js: fewer workers' places in shops and factories than homes' people, resPop / 8, and the homes empty),
+ * then homes short of water, then of power; null when none of these, or no one lives there
+ */
+export function homesHeldBack(census: HomesCensus): "jobs" | "water" | "power" | null {
+  if (census.resPop <= 0) return null;
+  if (census.comPop + census.indPop < census.resPop / 8) return "jobs";
+  if ((census.dryZoneCount ?? 0) > 0) return "water";
+  if ((census.unpoweredZoneCount ?? 0) > 0) return "power";
+  return null;
+}
+
 /**
  * How many people live in the homes and work in the shops and factories: the parts of the game's own population
  * figure, (homes + (shops + factories) × 8) × 20 (src/evaluation.js), so the three add up to it.
@@ -66,7 +83,7 @@ export function installCityStatus(doc: Document = document): void {
 
 interface StatusSource {
   addEventListener(event: string, listener: (value: unknown) => void): void;
-  _census: ZoneCensus;
+  _census: HomesCensus;
   _valves: { resValve: number; comValve: number; indValve: number };
 }
 
@@ -80,6 +97,7 @@ export function showDemandAndPeople(simulation: StatusSource, doc: Document = do
   let demand = { residential: simulation._valves.resValve, commercial: simulation._valves.comValve,
     industrial: simulation._valves.indValve };
   let people = zonePeople(simulation._census);
+  let why = homesHeldBack(simulation._census);
   const render = (): void => {
     for (const zone of ZONES) {
       const block = doc.querySelector(`#cityStatus [data-zone="${zone}"]`);
@@ -92,7 +110,20 @@ export function showDemandAndPeople(simulation: StatusSource, doc: Document = do
         mark.classList.toggle("down", percent < 0);
       }
       const value = block.querySelector(".statValue");
-      if (value) value.textContent = t("status.people", { count: people[zone].toLocaleString("en-US") });
+      if (!value) continue;
+      value.textContent = t("status.people", { count: people[zone].toLocaleString("en-US") });
+      // ... and the homes', while they are wanted less and less, say why in a word (pointing at it says what to do)
+      const reason = zone === "residential" && percent < 0 ? why : null;
+      if (reason) {
+        const word = doc.createElement("span");
+        word.className = "statWhy";
+        word.textContent = ` · ${t(`status.why.${reason}`)}`;
+        value.append(word);
+      }
+      if (zone === "residential") {
+        if (reason) block.setAttribute("title", t(`status.why_title.${reason}`));
+        else block.removeAttribute("title");
+      }
     }
   };
   simulation.addEventListener(VALVES_UPDATED, (value) => {
@@ -101,6 +132,7 @@ export function showDemandAndPeople(simulation: StatusSource, doc: Document = do
   });
   simulation.addEventListener(POPULATION_UPDATED, () => {
     people = zonePeople(simulation._census);
+    why = homesHeldBack(simulation._census);
     render();
   });
   onLanguageChange(render);

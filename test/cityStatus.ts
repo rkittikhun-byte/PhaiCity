@@ -3,9 +3,23 @@
  */
 
 import { hasKey } from "../src/i18n/index";
-import { demandPercent, formatPercent, statusMoney, zonePeople } from "../src/cityStatus";
+import { demandPercent, formatPercent, homesHeldBack, statusMoney, zonePeople } from "../src/cityStatus";
 
 describe("the city's status", () => {
+  // Playtest, 23 Oct 2026: a new village of homes alone fell to −100% within two years, people left, nothing said why
+  test("says in a word why the homes lose people: jobs first, as the demand reads them, then water, then power", () => {
+    expect(homesHeldBack({ resPop: 0, comPop: 0, indPop: 0 })).toBeNull();
+    // 30 people (resPop 1.5) and no shop or factory: no jobs, whatever the water
+    expect(homesHeldBack({ resPop: 1.5, comPop: 0, indPop: 0, dryZoneCount: 2 })).toBe("jobs");
+    // places enough for resPop / 8 of workers: then the dry homes
+    expect(homesHeldBack({ resPop: 8, comPop: 0.5, indPop: 0.5, dryZoneCount: 0.5 })).toBe("water");
+    expect(homesHeldBack({ resPop: 8, comPop: 1, indPop: 0, unpoweredZoneCount: 1 })).toBe("power");
+    expect(homesHeldBack({ resPop: 8, comPop: 1, indPop: 1 })).toBeNull();
+    for (const why of ["jobs", "water", "power"]) {
+      expect(hasKey(`status.why.${why}`) && hasKey(`status.why_title.${why}`)).toBe(true);
+    }
+  });
+
   test("shows the demand as a percentage of the most it can want", () => {
     expect(demandPercent(2000)).toBe(100);
     expect(demandPercent(-2000)).toBe(-100);
