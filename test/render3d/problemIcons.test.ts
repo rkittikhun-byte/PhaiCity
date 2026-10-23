@@ -6,15 +6,20 @@
 
 import type { Points } from 'three';
 import { ProblemIcons } from '../../src/render3d/city/problemIcons.js';
-import { PLOT_WHY } from '../../src/plots.js';
+import { PLOT_WHY, plotTile } from '../../src/plots.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 
 describe('problem icons', () => {
-  it('stand over each plot without power, water or a road, and follow the scan', () => {
+  it('stand over each built plot without power, water or a road, and follow the scan', () => {
     const plotWhy = new Uint8Array(4 * 3);
     plotWhy[1] = PLOT_WHY.indexOf('power'); plotWhy[5] = PLOT_WHY.indexOf('power'); plotWhy[6] = PLOT_WHY.indexOf('water');
     plotWhy[11] = PLOT_WHY.indexOf('land'); // said in words by the inspector, not drawn
-    const map = { width: 4, height: 3, plotWhy };
+    plotWhy[2] = PLOT_WHY.indexOf('power'); // painted, no house yet: nothing drawn (owner, 23 Oct 2026)
+    const tiles = new Array<number>(4 * 3).fill(0);
+    for (const i of [1, 5, 6, 11]) tiles[i] = plotTile('residential', 1);
+    tiles[2] = plotTile('residential', 0);
+    const map = { width: 4, height: 3, plotWhy, paintedZones: true,
+      getTileValue: (x: number, y: number) => tiles[y * 4 + x], getTileFlags: () => 0 };
     const icons = new ProblemIcons(map, { sample: () => 2 } as unknown as CityHeightField);
     icons.update(10);
     const count = (n: number) => ((icons.root.children[n] as Points).geometry.getAttribute('position')?.count ?? 0);

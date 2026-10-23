@@ -6,9 +6,11 @@
 // 2026: "the player always knows why", as Cities: Skylines shows over its buildings). It only reads why each plot is
 // held back, as the simulation's last scan found it (gameMap.plotWhy, src/plots.ts PLOT_WHY); the inspector card says
 // the rest in words. One small round icon per plot, the same size on screen at any distance, drawn over the city.
+// Only over a plot whose building stands (owner, 23 Oct 2026: "ขาดน้ำ กับขาดไฟ ต้องมีขึ้นที่บ้านแต่ละหลัง ถ้ายังไม่มีบ้าน
+// ไม่ต้องขึ้น"): land painted but not yet built shows nothing; the inspector still says why it waits.
 
 import { BufferGeometry, CanvasTexture, Float32BufferAttribute, Group, Points, PointsMaterial, SRGBColorSpace } from 'three';
-import { PLOT_WHY } from '../../plots.js';
+import { PLOT_WHY, plotOf, type PlotMap } from '../../plots.js';
 import type { CityHeightField } from './heightfield.js';
 
 /** The reasons drawn, with the icon's colours */
@@ -22,7 +24,7 @@ const REFRESH = 2;
 const LIFT = 9;
 const SIZE = 22;
 
-interface IconMap { readonly width: number; readonly height: number; plotWhy?: Uint8Array | null }
+type IconMap = PlotMap & { plotWhy?: Uint8Array | null };
 
 /** A round icon on a canvas: a coloured ring on white and its glyph */
 function iconTexture(ring: string, glyph: 'bolt' | 'drop' | 'bar'): CanvasTexture | null {
@@ -74,6 +76,8 @@ export class ProblemIcons {
       if (why) {
         for (let i = 0; i < why.length; i++) {
           if (why[i] !== code) continue;
+          const tx = i % width, ty = Math.floor(i / width);
+          if ((plotOf(this.map, tx, ty)?.level ?? 0) < 1) continue;
           const x = (i % width + 0.5) * 10, z = (Math.floor(i / width) + 0.5) * 10;
           positions.push(x, this.terrain.sample(x, z) + LIFT, z);
         }

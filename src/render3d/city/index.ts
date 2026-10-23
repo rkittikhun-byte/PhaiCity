@@ -514,7 +514,7 @@ export class CityView3D implements CityView {
     if(hover?.reach&&!this.reachLayer){this.reachLayer=new ReachLayer(this.setup.map as unknown as TrafficLayerMap,this.terrain,this.snapshot.realUnits??1);this.scene.add(this.reachLayer.root);}
     this.reachLayer?.show(hover?.reach??null);
     // Icons over the plots held back for want of power, water or a road (problemIcons.ts)
-    const whyMap=this.setup.map as unknown as {width:number;height:number;plotWhy?:Uint8Array|null};
+    const whyMap=this.setup.map as unknown as ConstructorParameters<typeof ProblemIcons>[0];
     if(whyMap.plotWhy){if(!this.problems){this.problems=new ProblemIcons(whyMap,this.terrain);this.overlay.add(this.problems.root);}this.problems.update(this.seconds);}
     // The city's buses driving their roads (buses.ts)
     const busMap=this.setup.map as unknown as {width:number;buses?:number[]};
