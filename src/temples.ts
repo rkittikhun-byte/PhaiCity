@@ -24,7 +24,7 @@ import { Residential } from "./residential.js";
 import { roadReach } from "./roadGeometry.js";
 import { isRoadTile } from "./roadLevels.js";
 import type { RoadGraph } from "./roads/roadGraph.js";
-import { BURNBIT, CONDBIT, ZONEBIT } from "./tileFlags.js";
+import { BIT_MASK, BURNBIT, CONDBIT, ZONEBIT } from "./tileFlags.js";
 import { CIVIC, COMBASE, LASTRAIL, RAILBASE, RESBASE } from "./tileValues.js";
 import { TILE_UNITS, tileMetres, unitsPerMetre } from "./units.js";
 import { RASTER_M } from "./zoneCells.js";
@@ -215,10 +215,14 @@ export function homePeople(map: TempleMap, x: number, y: number): number {
 
 /** Every tile's people in homes */
 export function peopleGrid(map: TempleMap): Float32Array {
-  const grid = new Float32Array(map.width * map.height);
-  for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+  const width = map.width, height = map.height, grid = new Float32Array(width * height);
+  // (only a tile of the homes' values, RESBASE up to COMBASE, which every home plot's lies in, has people: the rest are
+  // passed by from the map's array, not asked one by one; the same people, docs/NO_GRID_PLAN.md 5.1)
+  const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null, mask = BIT_MASK, low = RESBASE, high = COMBASE;
+  for (let y = 0, i = 0; y < height; y++) for (let x = 0; x < width; x++, i++) {
+    if (raw !== null) { const v = raw[i] & mask; if (v < low || v >= high) continue; }
     const p = homePeople(map, x, y);
-    if (p) grid[y * map.width + x] = p;
+    if (p) grid[i] = p;
   }
   return grid;
 }
