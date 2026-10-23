@@ -120,6 +120,9 @@
               <button id="mapRequest" data-i18n="menu.map" class="miscButton">City map</button>
             </div>
             <div>
+              <button id="registerRequest" type="button" data-i18n="menu.register" class="miscButton">City register</button>
+            </div>
+            <div>
               <button id="disasterRequest" data-i18n="menu.disasters" data-i18n-title="menu.tip.disasters" class="miscButton">Disasters</button>
             </div>
             <div>
@@ -431,6 +434,20 @@
           <p class="mapHint" data-i18n="map.hint">Click the map to go there. The white frame is what is on screen now.</p>
           <form id="mapForm" class="alignCenter margin10">
             <input type="submit" id="mapOK" data-i18n-value="map.close" class="width140 dialogOK" value="Close">
+          </form>
+        </div>
+      </div>
+      <!-- The city's register (src/registerWindow.ts, src/register/): its counts and a search by name; the game writes it -->
+      <div class="hidden modal shadow" id="registerWindow" data-anchor="registerRequest">
+        <header data-i18n="register.window.title" class="padding10 chunk alignCenter">City register</header>
+        <div id="registerContainer" class="padding10 open">
+          <div id="registerSummary"></div>
+          <label class="registerFind"><span data-i18n="register.window.search">Find a person by name</span>
+            <input type="search" id="registerSearch" autocomplete="off" data-i18n-placeholder="register.window.search_hint" placeholder="Somchai, สมชาย …">
+          </label>
+          <ul id="registerResults"></ul>
+          <form id="registerForm" class="alignCenter margin10">
+            <input type="submit" id="registerOK" data-i18n-value="map.close" class="width140 dialogOK" value="Close">
           </form>
         </div>
       </div>

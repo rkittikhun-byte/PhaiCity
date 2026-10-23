@@ -1858,6 +1858,122 @@
 | `era.card.unlocks` | `src/eraCard.ts` | — | `A {next} can build` | `{next}สร้างได้` | การ์ดยุค: สิ่งที่ยุคถัดไปปลดล็อก |
 | `era.card.mode` | `src/eraCard.ts` | — | `Mode: {mode}` | `โหมด: {mode}` |  |
 
+## 15D. ทะเบียนเมือง คน งาน เงิน และยานพาหนะ (City register; ไม้ไผ่44, 23 ต.ค. 2026)
+
+ทะเบียนเมือง (`src/register/`, docs/GAME_DESIGN.md 20): หน้าต่างจากเมนูซ้าย การ์ดของบ้านและที่ทำงาน และการ์ดของคน
+ชื่อคนเป็นข้อมูลของคนเอง (`src/register/names.ts`) ไม่ใช่ข้อความในตารางนี้ อังกฤษแสดงชื่อแบบถอดเป็นอักษรโรมัน
+
+| Key | File | Current | English | Thai | Notes |
+|---|---|---|---|---|---|
+| `menu.register` | `index.html` | — | `City register` | `ทะเบียนเมือง` | ปุ่มเมนู เปิด `src/registerWindow.ts` (ไม้ไผ่44 23 ต.ค. 2026) |
+| `register.window.title` | `index.html` | — | `City register` | `ทะเบียนเมือง` |  |
+| `register.window.buildings` | `src/registerWindow.ts` | — | `Buildings` | `อาคาร` |  |
+| `register.window.people` | `src/registerWindow.ts` | — | `People` | `ประชากร` |  |
+| `register.window.doing` | `src/registerWindow.ts` | — | `What they do` | `ทำอะไรอยู่` |  |
+| `register.window.jobs` | `src/registerWindow.ts` | — | `Work` | `งาน` |  |
+| `register.window.vehicles` | `src/registerWindow.ts` | — | `Vehicles` | `ยานพาหนะ` | ของครัวเรือน |
+| `register.window.no_vehicles` | `src/registerWindow.ts` | — | `None yet` | `ยังไม่มี` |  |
+| `register.window.search` | `index.html` | — | `Find a person by name` | `ค้นหาคนจากชื่อ` |  |
+| `register.window.search_hint` | `index.html` | — | `Somchai, สมชาย …` | `สมชาย, Somchai …` | ช่องค้นหา |
+| `register.window.not_found` | `src/registerWindow.ts` | — | `Nobody of that name` | `ไม่พบชื่อนี้` |  |
+| `register.count.homes` | `src/registerWindow.ts` | — | `Homes` | `บ้าน` |  |
+| `register.count.shops` | `src/registerWindow.ts` | — | `Shops` | `ร้านค้า` |  |
+| `register.count.factories` | `src/registerWindow.ts` | — | `Factories` | `โรงงาน` |  |
+| `register.count.farms` | `src/registerWindow.ts` | — | `Farms and harbours` | `ไร่นาและท่าประมง` |  |
+| `register.count.fields` | `src/registerWindow.ts` | — | `Squares of farm fields` | `แปลงเกษตร (กลุ่ม)` |  |
+| `register.count.services` | `src/registerWindow.ts` | — | `The ruler's buildings` | `อาคารของเจ้าเมือง` |  |
+| `register.count.households` | `src/registerWindow.ts` | — | `Households` | `ครัวเรือน` |  |
+| `register.count.people` | `src/registerWindow.ts` | — | `People` | `คน` |  |
+| `register.count.jobs` | `src/registerWindow.ts` | — | `Jobs` | `ตำแหน่งงาน` |  |
+| `register.count.filled` | `src/registerWindow.ts` | — | `Worked by the city's people` | `คนในเมืองทำ` |  |
+| `register.count.outside` | `src/registerWindow.ts` | — | `Worked by people from outside` | `คนนอกเมืองมาทำ` |  |
+| `register.band.child` | `src/registerWindow.ts` | — | `Under 6` | `เด็กเล็ก (ต่ำกว่า 6 ปี)` |  |
+| `register.band.school` | `src/registerWindow.ts` | — | `School age (6–17)` | `วัยเรียน (6–17 ปี)` |  |
+| `register.band.young` | `src/registerWindow.ts` | — | `Young (18–22)` | `หนุ่มสาว (18–22 ปี)` |  |
+| `register.band.adult` | `src/registerWindow.ts` | — | `Working age (23–59)` | `วัยทำงาน (23–59 ปี)` |  |
+| `register.band.elder` | `src/registerWindow.ts` | — | `60 and over` | `ผู้สูงอายุ (60 ปีขึ้นไป)` |  |
+| `register.role.worker` | `src/register/registerCards.ts` | — | `Working` | `ทำงาน` |  |
+| `register.role.unemployed` | `src/register/registerCards.ts` | — | `Out of work` | `ว่างงาน` |  |
+| `register.role.homemaker` | `src/register/registerCards.ts` | — | `Keeping house` | `ดูแลบ้าน` |  |
+| `register.role.pupil` | `src/register/registerCards.ts` | — | `At school` | `นักเรียน` |  |
+| `register.role.student` | `src/register/registerCards.ts` | — | `At college` | `นักศึกษา` |  |
+| `register.role.infant` | `src/register/registerCards.ts` | — | `Small child` | `เด็กเล็ก` |  |
+| `register.role.no_school` | `src/register/registerCards.ts` | — | `No school place` | `ไม่ได้เรียน (โรงเรียนไม่พอ)` |  |
+| `register.role.retired` | `src/register/registerCards.ts` | — | `Retired` | `เกษียณ` |  |
+| `register.job.farmer` | `src/register/registerCards.ts` | — | `Farmer` | `ชาวนา` |  |
+| `register.job.rice_farmer` | `src/register/registerCards.ts` | — | `Rice farmer` | `ชาวนา` |  |
+| `register.job.orchard_farmer` | `src/register/registerCards.ts` | — | `Orchard farmer` | `ชาวสวน` |  |
+| `register.job.field_farmer` | `src/register/registerCards.ts` | — | `Crop farmer` | `ชาวไร่` |  |
+| `register.job.fish_farmer` | `src/register/registerCards.ts` | — | `Fish farmer` | `คนเลี้ยงปลา` |  |
+| `register.job.fisher` | `src/register/registerCards.ts` | — | `Fisher` | `ชาวประมง` |  |
+| `register.job.shop_owner` | `src/register/registerCards.ts` | — | `Shopkeeper` | `เจ้าของร้าน` |  |
+| `register.job.shop_staff` | `src/register/registerCards.ts` | — | `Shop assistant` | `พนักงานร้าน` |  |
+| `register.job.office_worker` | `src/register/registerCards.ts` | — | `Office worker` | `พนักงานบริษัท` |  |
+| `register.job.factory_worker` | `src/register/registerCards.ts` | — | `Factory worker` | `คนงานโรงงาน` |  |
+| `register.job.technician` | `src/register/registerCards.ts` | — | `Technician` | `ช่างเทคนิค` |  |
+| `register.job.supervisor` | `src/register/registerCards.ts` | — | `Supervisor` | `หัวหน้างาน` |  |
+| `register.job.engineer` | `src/register/registerCards.ts` | — | `Engineer` | `วิศวกร` |  |
+| `register.job.teacher` | `src/register/registerCards.ts` | — | `Teacher` | `ครู` |  |
+| `register.job.principal` | `src/register/registerCards.ts` | — | `Head teacher` | `ผู้อำนวยการโรงเรียน` |  |
+| `register.job.nurse` | `src/register/registerCards.ts` | — | `Nurse` | `พยาบาล` |  |
+| `register.job.doctor` | `src/register/registerCards.ts` | — | `Doctor` | `หมอ` |  |
+| `register.job.police` | `src/register/registerCards.ts` | — | `Police officer` | `ตำรวจ` |  |
+| `register.job.firefighter` | `src/register/registerCards.ts` | — | `Firefighter` | `พนักงานดับเพลิง` |  |
+| `register.job.power_worker` | `src/register/registerCards.ts` | — | `Power plant worker` | `ช่างไฟฟ้า` |  |
+| `register.job.water_worker` | `src/register/registerCards.ts` | — | `Waterworks worker` | `ช่างประปา` |  |
+| `register.job.clerk` | `src/register/registerCards.ts` | — | `Civil servant` | `ข้าราชการ` |  |
+| `register.job.waste_worker` | `src/register/registerCards.ts` | — | `Waste worker` | `พนักงานเก็บขยะ` |  |
+| `register.job.rail_worker` | `src/register/registerCards.ts` | — | `Railway worker` | `พนักงานรถไฟ` |  |
+| `register.job.miner` | `src/register/registerCards.ts` | — | `Miner` | `คนงานเหมือง` |  |
+| `register.job.port_worker` | `src/register/registerCards.ts` | — | `Dock worker` | `คนงานท่าเรือ` |  |
+| `register.job.airport_worker` | `src/register/registerCards.ts` | — | `Airport worker` | `พนักงานสนามบิน` |  |
+| `register.job.stadium_worker` | `src/register/registerCards.ts` | — | `Stadium worker` | `พนักงานสนามกีฬา` |  |
+| `register.vehicle.era1_bicycle` | `src/register/registerCards.ts` | — | `Bicycle` | `จักรยาน` | ชื่อตาม assets/models/vehicles/index.json |
+| `register.vehicle.era1_hand_cart` | `src/register/registerCards.ts` | — | `Hand cart` | `รถเข็นของ` |  |
+| `register.vehicle.era1_ox_cart` | `src/register/registerCards.ts` | — | `Ox cart` | `เกวียนวัว` |  |
+| `register.vehicle.era1_buffalo_cart` | `src/register/registerCards.ts` | — | `Buffalo cart` | `เกวียนควาย` |  |
+| `register.vehicle.era2_motorcycle` | `src/register/registerCards.ts` | — | `Step-through motorcycle` | `รถเครื่องรุ่นแรก` |  |
+| `register.vehicle.era2_samlor` | `src/register/registerCards.ts` | — | `Samlor` | `สามล้อถีบ` |  |
+| `register.vehicle.era2_songthaew` | `src/register/registerCards.ts` | — | `Songthaew` | `รถสองแถว` |  |
+| `register.vehicle.era2_truck` | `src/register/registerCards.ts` | — | `Early truck` | `รถบรรทุกหัวยาว` |  |
+| `register.vehicle.era3_motorcycle_helmet` | `src/register/registerCards.ts` | — | `Motorcycle` | `รถจักรยานยนต์` |  |
+| `register.vehicle.era3_motorcycle_taxi` | `src/register/registerCards.ts` | — | `Motorcycle taxi` | `วินมอเตอร์ไซค์` |  |
+| `register.vehicle.era3_tuktuk` | `src/register/registerCards.ts` | — | `Tuk-tuk` | `ตุ๊กตุ๊ก` |  |
+| `register.vehicle.era3_pickup` | `src/register/registerCards.ts` | — | `Pickup` | `รถกระบะ` |  |
+| `register.vehicle.era3_pickup_cage` | `src/register/registerCards.ts` | — | `Pickup with a cage` | `กระบะคอกเหล็ก` |  |
+| `register.vehicle.era4_scooter` | `src/register/registerCards.ts` | — | `Scooter` | `รถสกู๊ตเตอร์` |  |
+| `register.vehicle.era4_hatchback` | `src/register/registerCards.ts` | — | `Hatchback` | `รถเก๋งเล็ก` |  |
+| `register.vehicle.era4_pickup` | `src/register/registerCards.ts` | — | `Double-cab pickup` | `กระบะสี่ประตู` |  |
+| `register.vehicle.era4_sedan` | `src/register/registerCards.ts` | — | `Sedan` | `รถเก๋ง` |  |
+| `register.vehicle.era4_van` | `src/register/registerCards.ts` | — | `Passenger van` | `รถตู้` |  |
+| `register.vehicle.era4_taxi` | `src/register/registerCards.ts` | — | `Taxi` | `แท็กซี่` |  |
+| `register.vehicle.era5_ev_scooter` | `src/register/registerCards.ts` | — | `Electric scooter` | `สกู๊ตเตอร์ไฟฟ้า` |  |
+| `register.vehicle.era5_ev_pod` | `src/register/registerCards.ts` | — | `Bubble car` | `รถไฟฟ้าแคปซูล` |  |
+| `register.vehicle.era5_ev_car` | `src/register/registerCards.ts` | — | `Electric car` | `รถยนต์ไฟฟ้า` |  |
+| `register.vehicle.era5_flying_taxi` | `src/register/registerCards.ts` | — | `Flying taxi` | `แท็กซี่บินได้` |  |
+| `register.row` | `src/register/registerCards.ts` | — | `{age} · {role}` | `{age} ปี · {role}` | ใต้ชื่อคนในการ์ด |
+| `register.row.paid` | `src/register/registerCards.ts` | — | `{age} · {role} · {income} a month` | `{age} ปี · {role} · {income}/เดือน` |  |
+| `register.household` | `src/register/registerCards.ts` | — | `The {surname} household · {people}` | `ครัวเรือน{surname} · {people} คน` | {surname} นามสกุล ตามภาษาที่เลือก |
+| `register.staff` | `src/register/registerCards.ts` | — | `{workers} of its {jobs} jobs worked by the city's people` | `คนในเมืองทำงานที่นี่ {workers} จาก {jobs} ตำแหน่ง` |  |
+| `register.outside` | `src/register/registerCards.ts` | — | `{people} jobs worked by people from outside the city` | `อีก {people} ตำแหน่ง คนจากนอกเมืองมาทำ` |  |
+| `register.family` | `src/register/registerCards.ts` | — | `Household ({people} more)` | `คนในครัวเรือน (อีก {people} คน)` |  |
+| `register.more` | `src/register/registerCards.ts` | — | `and {people} more` | `และอีก {people} คน` |  |
+| `register.person.title` | `src/register/registerCards.ts` | — | `Person` | `บุคคล` | การ์ดของคนแสดงชื่อคนแทน |
+| `register.fact.age_male` | `src/register/registerCards.ts` | — | `Male, {age} years old` | `ชาย อายุ {age} ปี` |  |
+| `register.fact.age_female` | `src/register/registerCards.ts` | — | `Female, {age} years old` | `หญิง อายุ {age} ปี` |  |
+| `register.fact.role` | `src/register/registerCards.ts` | — | `{role}` | `{role}` | อาชีพหรือสถานะ |
+| `register.fact.workplace` | `src/register/registerCards.ts` | — | `Works at: {place}` | `ทำงานที่: {place}` |  |
+| `register.fact.commute` | `src/register/registerCards.ts` | — | `About {minutes} minutes to work ({km} km)` | `ไปทำงานราว {minutes} นาที ({km} กม.)` |  |
+| `register.fact.income` | `src/register/registerCards.ts` | — | `Earns {income} a month` | `รายได้ {income} ต่อเดือน` | เงินบาทจริง ไม่ใช่หน่วยของคลังเมือง |
+| `register.fact.household_income` | `src/register/registerCards.ts` | — | `Household: {income} in, {living} living costs a month` | `ครัวเรือน: รายได้ {income} ค่าครองชีพ {living} ต่อเดือน` |  |
+| `register.fact.savings` | `src/register/registerCards.ts` | — | `Household savings {savings}` | `เงินออมของครัวเรือน {savings}` |  |
+| `register.fact.debt` | `src/register/registerCards.ts` | — | `Household debt {debt}` | `หนี้ของครัวเรือน {debt}` |  |
+| `register.fact.no_debt` | `src/register/registerCards.ts` | — | `The household owes nothing` | `ครัวเรือนไม่มีหนี้` |  |
+| `register.fact.vehicle` | `src/register/registerCards.ts` | — | `Has a {vehicle}` | `มี{vehicle}` |  |
+| `register.fact.no_vehicle` | `src/register/registerCards.ts` | — | `No vehicle` | `ไม่มียานพาหนะ` |  |
+| `register.go_home` | `src/register/registerCards.ts` | — | `Home` | `ดูบ้าน` | ปุ่มในการ์ดของคน |
+| `register.go_work` | `src/register/registerCards.ts` | — | `Workplace` | `ดูที่ทำงาน` |  |
+
 ## 16. รายการข้อความที่ต้องตรวจสอบเป็นพิเศษ (Flagged Strings)
 
 ส่วนนี้รวบรวมข้อความที่มีความคลุมเครือ อ้างอิงวัฒนธรรมภายนอก หรือมีข้อจำกัดทางเทคนิคที่ควรได้รับการตัดสินใจเชิงนโยบาย:

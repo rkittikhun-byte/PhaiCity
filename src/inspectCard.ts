@@ -7,14 +7,19 @@
 // factory plot shows its level and what its next level needs first, ticked and crossed (src/plotChecklist.ts). Escape
 // or its ✕ closes it; another click shows the next thing. It changes nothing in the city.
 
-import { formatYear, hasKey, t } from "./i18n/index.js";
+import { formatMoney, formatYear, getLanguage, hasKey, t } from "./i18n/index.js";
 import type { Inspection } from "./inspect.js";
 import type { PlotChecklist } from "./plotChecklist.js";
 import { hide, show } from "./motion.js";
+import type { RosterSection } from "./register/registerCards.js";
+
+/** The params that are a person's money (baht a month, src/register/), shown as ฿12,340 */
+const MONEY = new Set(["income", "living", "savings", "debt"]);
 
 /** A param that names a string (object.grade.2, tool.gas …) is shown translated; a year in the player's calendar */
 function word(name: string, value: string | number): string {
   if (name === "year" && typeof value === "number") return formatYear(value);
+  if (MONEY.has(name) && typeof value === "number") return formatMoney(value).replace(/\d+/, (d) => Number(d).toLocaleString("en-US"));
   if (typeof value === "string" && hasKey(value)) return t(value, { price: "" }).trim();
   return String(value);
 }
@@ -27,10 +32,19 @@ function line(key: string, params: Record<string, string | number> = {}): string
 
 export class InspectCard {
   private shown: Inspection | null = null;
+  /** A person's name clicked in a list: the game opens their card (src/register/) */
+  onPerson: (id: string) => void = () => {};
+  /** A person's home or workplace asked for: the game shows what is at that tile */
+  onPlace: (x: number, y: number) => void = () => {};
   constructor(private readonly element: HTMLElement, private readonly onClose: () => void = () => {}) {
     element.setAttribute("aria-label", t("object.card.label"));
     element.addEventListener("click", event => {
-      if ((event.target as HTMLElement).closest(".inspectClose")) this.close();
+      const target = event.target as HTMLElement;
+      if (target.closest(".inspectClose")) this.close();
+      const person = target.closest<HTMLElement>("[data-person]");
+      if (person?.dataset.person) this.onPerson(person.dataset.person);
+      const place = target.closest<HTMLElement>("[data-place-x]");
+      if (place) this.onPlace(Number(place.dataset.placeX), Number(place.dataset.placeY));
     });
   }
   get isOpen(): boolean { return this.shown !== null; }
@@ -55,7 +69,8 @@ export class InspectCard {
     const header = doc.createElement("header");
     const title = doc.createElement("div");
     title.className = "inspectTitle";
-    title.textContent = line(inspection.title.key, inspection.title.params);
+    // (a person's card is titled with their name, in the player's language)
+    title.textContent = inspection.person ? inspection.person.name[getLanguage()] : line(inspection.title.key, inspection.title.params);
     const close = doc.createElement("button");
     close.type = "button"; close.className = "inspectClose"; close.textContent = "✕";
     close.setAttribute("aria-label", t("object.card.close"));
@@ -101,6 +116,57 @@ export class InspectCard {
       list.append(item);
     }
     element.append(list);
+    // A person's home and workplace, to go to
+    const person = inspection.person;
+    if (person) {
+      const places = doc.createElement("div");
+      places.className = "inspectPlaces";
+      const go = (key: string, at: { x: number; y: number }): HTMLButtonElement => {
+        const button = doc.createElement("button");
+        button.type = "button";
+        button.textContent = t(key);
+        button.dataset.placeX = String(at.x);
+        button.dataset.placeY = String(at.y);
+        return button;
+      };
+      places.append(go("register.go_home", person.home));
+      if (person.work) places.append(go("register.go_work", person.work));
+      element.append(places);
+    }
+    for (const section of inspection.people ?? []) this.renderPeople(section);
+  }
+
+  /** A list of people (a household, a workplace's staff): each name opens that person's card */
+  private renderPeople(section: RosterSection): void {
+    const doc = this.element.ownerDocument, language = getLanguage();
+    const box = doc.createElement("section");
+    box.className = "inspectPeople";
+    const heading = doc.createElement("div");
+    heading.className = "inspectPeopleTitle";
+    heading.textContent = line(section.heading.key, { ...section.heading.params,
+      ...(section.surname ? { surname: section.surname[language] } : {}) });
+    const rows = doc.createElement("ul");
+    for (const row of section.rows) {
+      const item = doc.createElement("li");
+      const name = doc.createElement("button");
+      name.type = "button";
+      name.className = "personName";
+      name.dataset.person = row.id;
+      name.textContent = row.name[language];
+      const about = doc.createElement("span");
+      about.className = "personLine";
+      about.textContent = line(row.line.key, row.line.params);
+      item.append(name, about);
+      rows.append(item);
+    }
+    box.append(heading, rows);
+    if (section.more > 0) {
+      const more = doc.createElement("div");
+      more.className = "inspectPeopleMore";
+      more.textContent = t("register.more", { people: section.more });
+      box.append(more);
+    }
+    this.element.append(box);
   }
 
   /** A plot's level as pips, what holds it, its next level's needs ticked and crossed, and what later levels add */

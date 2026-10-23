@@ -64,7 +64,7 @@ describe("the inspector", () => {
     expect(zone.sector).toBe("community");
     expect(zone.facts.find(f => f.key === "object.fact.people")?.params).toEqual({ people: homePeople(3, 3, false) });
     expect(house.facts.find(f => f.key === "object.fact.people")?.params).toEqual({ people: 20 });
-    expect(homePeople(5, 1, true)).toBe(Math.round(48 * 20 / 8));
+    expect(homePeople(5, 1, true)).toBe(5 * 20);
     for (const key of [...keysOf(zone), ...keysOf(house)]) expect(hasKey(key)).toBe(true);
   });
 

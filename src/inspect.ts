@@ -25,6 +25,9 @@ import type { RoadGraph } from "./roads/roadGraph.js";
 import { isCityTileSize } from "./units.js";
 import { type PlotChecklist, plotChecklist } from "./plotChecklist.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
+import { type CityRegister, homePeopleOf } from "./register/cityRegister.js";
+import { outsideFact, type PersonCard, personCard, type RosterSection, homeRoster, workplaceRoster } from "./register/registerCards.js";
+import type { Building } from "./objects/cityObject.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
 export interface Inspection {
@@ -43,6 +46,10 @@ export interface Inspection {
   rect: { x: number; y: number; width: number; height: number };
   /** A stretch of road: its tiles in order, outlined along it rather than as a square */
   path?: Array<{ x: number; y: number }>;
+  /** The people of a home, a workplace or a person's household (src/register/registerCards.ts) */
+  people?: RosterSection[];
+  /** A person's card: whose it is, and where they live and work */
+  person?: PersonCard;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +66,8 @@ export interface InspectCity {
   language: "th" | "en";
   /** What the satisfaction scores read besides the map (budget, demand, services) */
   satisfaction?: SatisfactionContext;
+  /** The city's register (src/register/cityRegister.ts), for who lives and works in a building */
+  register?: CityRegister | null;
 }
 
 /** The lines a plot's checklist shows instead (its level, power and water) */
@@ -103,11 +112,34 @@ function areaFacts(blockMaps: Legacy, x: number, y: number): Fact[] {
   ];
 }
 
-/** About how many people live in a home, by the game's own count (src/residential.js, src/evaluation.js) */
+/** About how many people live in a home, by the game's own count (src/residential.js, src/evaluation.js): a painted
+ * plot 20 a level, as the census counts it (src/plots.ts plotFound) */
 export function homePeople(level: number, size: number, painted: boolean): number {
+  if (size === 1 && painted) return 20 * Math.max(1, level);
   if (level <= 1) return 20;
-  const zone = ((level - 1) * 8 + 16) * 20;
-  return size === 1 && painted ? Math.round(zone / 8) : zone;
+  return ((level - 1) * 8 + 16) * 20;
+}
+
+/** The i18n key of a building's title: its tool's name, a police or fire station by its level, a farm by what it is to
+ * the fields round it */
+export function objectTitle(map: Legacy, building: Building): string {
+  const group = groupOfCentre(map.getTileValue(building.x, building.y));
+  return group ? `tool.${levelSpec(group, buildingLevelAt(map, building.x, building.y, group)).tool}`
+    : building.kind === "farm" ? `farm.hub.${hubKind(map, building.x, building.y)}` : titleOf(building.kind, building.sort(map));
+}
+
+/** A person's card from the register (docs/GAME_DESIGN.md 20.4), or null when there is no such person */
+export function inspectPerson(city: InspectCity, id: string): Inspection | null {
+  if (!city.register) return null;
+  const card = personCard(city.register, id, (w) => {
+    if (w.kind === "fields") return `farm.kind.${w.sort}`;
+    const building = city.objects.get(w.id);
+    return building ? objectTitle(city.map, building) : `object.kind.${w.kind}`;
+  });
+  if (!card) return null;
+  const { x, y } = card.person.home;
+  return { title: { key: "register.person.title" }, facts: card.facts, people: card.people, person: card.person,
+    rect: { x, y, width: 1, height: 1 } };
 }
 
 let streetsCache: { map: StreetMap; signature: number; streets: Street[]; byTile: Map<number, Street> } | null = null;
@@ -151,9 +183,14 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
     // A building still going up works only after its months (src/construction.ts)
     if (isSite(map, building.id)) facts.unshift({ key: "site.months_left", params: { months: monthsLeft(map, building.id, city.cityTime) } });
-    if (building.kind === "home") {
-      const level = Number(all.find(f => f.key === "object.fact.level")?.params?.level ?? 1);
-      facts.push({ key: "object.fact.people", params: { people: homePeople(level, building.size, !!map.paintedZones) } });
+    if (building.kind === "home") facts.push({ key: "object.fact.people", params: { people: homePeopleOf(building, map) } });
+    // Who lives or works there (src/register/registerCards.ts)
+    let people: RosterSection[] | undefined;
+    if (city.register) {
+      people = building.kind === "home" ? homeRoster(city.register, building.id) : workplaceRoster(city.register, building.id);
+      const outside = building.kind === "home" ? null : outsideFact(city.register, building.id);
+      if (outside) facts.push(outside);
+      if (!people.length) people = undefined;
     }
     facts.push(building.built > 0
       ? { key: "object.fact.built", params: { year: city.startingYear + Math.floor(building.built / 48) } }
@@ -161,13 +198,11 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     facts.push(...withoutChecked(areaFacts(city.blockMaps, building.x, building.y), checklist));
     const street = streetBeside(map, rect);
     const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
-    // A police or fire station is named by its level (src/buildingLevels.ts)
-    const group = groupOfCentre(map.getTileValue(building.x, building.y));
-    const title = group ? `tool.${levelSpec(group, buildingLevelAt(map, building.x, building.y, group)).tool}`
-      // ... and a farm by what it is to the fields round it: a cooperative, a rice mill or a cold store (src/farmZone.ts)
-      : building.kind === "farm" ? `farm.hub.${hubKind(map, building.x, building.y)}` : titleOf(building.kind, building.sort(map));
+    // A police or fire station is named by its level (src/buildingLevels.ts), a farm by what it is to the fields round
+    // it: a cooperative, a rice mill or a cold store (src/farmZone.ts)
+    const title = objectTitle(map, building);
     return { title: { key: title, params: { price: "" } }, sector: building.sector,
-      street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect };
+      street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect, people };
   }
   const rect = { x, y, width: 1, height: 1 };
   const outside = map.insideProvince && map.insideProvince[i] !== 1 ? [{ key: "object.fact.outside" }] : [];

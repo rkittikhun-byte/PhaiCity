@@ -2146,6 +2146,34 @@ body :is(#houseWings, #policyList) .houseWing.owned .name::after { content: " âœ
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }
 
+/* The city's register window (src/registerWindow.ts): blocks of names and numbers in two columns, a search by name and
+   the people found, each a name to click; small type like the rest of the HUD */
+body #registerWindow { width: 440px; max-width: 96vw; }
+body #registerSummary { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; max-height: 46vh; overflow: auto; text-align: left; }
+body #registerSummary .registerHeading { margin: 2px 0 2px; opacity: 0.75; }
+body #registerSummary dl { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; margin: 0; }
+body #registerSummary dt, body #registerSummary dd { margin: 0; padding: 1px 0; border-top: 1px solid rgba(var(--ph-sand-800-rgb), 0.1); }
+body #registerSummary dd { text-align: right; font-variant-numeric: tabular-nums; }
+body #registerWindow .registerFind { display: block; margin: 8px 0 4px; text-align: left; }
+body #registerWindow .registerFind input { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; font: inherit; }
+body #registerResults { list-style: none; margin: 0; padding: 0; max-height: 22vh; overflow: auto; text-align: left; }
+body #registerResults li { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; }
+body #registerResults li span { opacity: 0.75; }
+body :is(#registerResults, #inspectCard) button[data-person] {
+  padding: 0; min-height: 0; border: none; background: none; box-shadow: none; font: inherit; color: var(--ph-accent);
+  cursor: pointer; text-align: left;
+}
+body :is(#registerResults, #inspectCard) button[data-person]:hover { text-decoration: underline; }
+/* ... and the people in a card: a household's members, a workplace's staff, a person's family */
+body #inspectCard .inspectPeople { margin-top: 8px; }
+body #inspectCard .inspectPeopleTitle { opacity: 0.75; margin-bottom: 1px; }
+body #inspectCard .inspectPeople ul { list-style: none; padding-left: 0; }
+body #inspectCard .inspectPeople li { display: flex; flex-wrap: wrap; column-gap: 6px; }
+body #inspectCard .inspectPeople .personLine { opacity: 0.75; }
+body #inspectCard .inspectPeopleMore { opacity: 0.6; }
+body #inspectCard .inspectPlaces { display: flex; gap: 6px; margin-top: 6px; }
+body #inspectCard .inspectPlaces button { font: inherit; padding: 1px 8px; min-height: 0; }
+
 /* The tool in hand and the places for its levels, above the dock; it moves up out of the way when the dock rises
    (src/toolLevels.ts, owner 12 Oct 2026) */
 body #toolLevels {
