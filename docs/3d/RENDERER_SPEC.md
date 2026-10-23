@@ -482,7 +482,10 @@ graphics card, or, without a card timer, frames more than 24 ms apart), Auto giv
 shadows, then glow, then tilt-shift; only then does the old ladder lower the resolution (1.25 → 1) and then the draw
 budget. When frames are fast again the budget and the resolution come back first, then tilt-shift, glow and contact
 shadows, each only after 10 s with room for what it was measured to cost (the card's time before and after it went),
-and an effect that made the frames slow again waits twice as long the next time (up to 5 min). A frame held up by
+and an effect that made the frames slow again stays off until the player chooses a level again, as the resolution
+does once it had to come down again after coming back (23 Oct 2026, the owner saw the picture flicker: Auto settles
+instead of turning things on and off for good; it once retried, waiting twice as long each time). Each effect fades in
+or out over a second (`EFFECT_FADE_MS`, postFx.ts) rather than jumping. A frame held up by
 the processor while the card idles keeps its effects. A level the player chose keeps its effects; only the resolution
 and the budget adapt, as before. Headless views and the 2D fallback have no lens (`view.effects` all off).
 
