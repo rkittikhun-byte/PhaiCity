@@ -18,6 +18,7 @@ import type { RegionId } from '../regional/types.js';
 import { animateObject, type EraVehicles, paintFor } from './eraVehicles.js';
 import type { LaneCar, LanePath, LaneTraffic } from './laneTraffic.js';
 import { lanePathOf } from './tripCars.js';
+import { type HeightSource, roadSurfaceHeight } from './roadBuild.js';
 import type { Point } from '../../roadGeometry.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityHeightField } from './heightfield.js';
@@ -33,6 +34,7 @@ const LANE = 1;
 
 interface BusMap {
   readonly width: number;
+  readonly height?: number;
   buses?: number[];
   readonly roadGraph?: RoadGraph | null;
   readonly tileSizeM?: number | null;
@@ -141,8 +143,13 @@ export class CityBuses {
     const car = run.car;
     if (car) {
       run.s = car.s;
-      const at = traffic.pose(car, { x: 0, z: 0, dx: 0, dz: 1 });
-      model.position.set(at.x, this.terrain.sample(at.x, at.z), at.z);
+      const at = traffic.pose(car, { x: 0, z: 0, dx: 0, dz: 1, side: 0 }), level = car.path.pieces[car.piece].level ?? 2;
+      // on the road's own surface (roadBuild.ts roadSurfaceHeight), not the ground under it
+      const heights = this.terrain as unknown as HeightSource, units = 10 / (this.map.tileSizeM ?? 16);
+      const y = typeof heights.sampleTile === 'function'
+        ? roadSurfaceHeight(heights, this.map.width, this.map.height ?? this.map.width, units, at.x, at.z, level, at.side ?? 0)
+        : this.terrain.sample(at.x, at.z);
+      model.position.set(at.x, y, at.z);
       model.rotation.y = Math.atan2(at.dx, at.dz);
     }
     model.visible = Boolean(car) || model.position.lengthSq() > 0;

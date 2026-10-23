@@ -11,7 +11,7 @@
 // reads the city; pedestrians.ts draws them with the concept-sheet people.
 
 import { wayBetween } from './graphPaths.js';
-import { type LanePath, walkPose } from './laneTraffic.js';
+import { type LanePath, pieceAt, walkPose } from './laneTraffic.js';
 import { hourShare, lanePathOf, outShare } from './tripCars.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityTrips } from '../../sim/cityTrips.js';
@@ -144,13 +144,15 @@ export class TripWalkers {
   }
 
   /** Each walker in sight: its place on the pavement (world units), the way it faces and how far it has walked */
-  each(x0: number, x1: number, z0: number, z1: number, draw: (w: Walker, x: number, z: number, heading: number) => void): void {
+  each(x0: number, x1: number, z0: number, z1: number,
+    draw: (w: Walker, x: number, z: number, heading: number, level: number, offset: number) => void): void {
     for (const w of this.walkers) {
-      const p = w.path.pieces[0];
+      const d = w.rev ? w.path.total - w.s : w.s, p = w.path.pieces[pieceAt(w.path, d)] ?? w.path.pieces[0];
       const offset = w.side * ((p?.laneWidth ?? 3 * this.units) + PAVEMENT_M * this.units);
-      walkPose(w.path, w.rev ? w.path.total - w.s : w.s, w.rev, offset, this.at);
+      walkPose(w.path, d, w.rev, offset, this.at);
       if (this.at.x < x0 || this.at.x > x1 || this.at.z < z0 || this.at.z > z1) continue;
-      draw(w, this.at.x, this.at.z, Math.atan2(this.at.dx, this.at.dz));
+      // (its road's level and how far from its middle it walks: the pavement's height, roadBuild.ts roadSurfaceLift)
+      draw(w, this.at.x, this.at.z, Math.atan2(this.at.dx, this.at.dz), p?.level ?? 2, offset);
     }
   }
 

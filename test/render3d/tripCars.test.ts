@@ -10,6 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { BoxGeometry, BufferAttribute, Group, Matrix4, Mesh, Vector3 } from 'three';
 import { CityBuses } from '../../src/render3d/city/buses.js';
+import { roadSurfaceHeight, roadSurfaceLift } from '../../src/render3d/city/roadBuild.js';
 import { EraVehicles } from '../../src/render3d/city/eraVehicles.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { hourShare, MAX_TRIP_CARS, outShare, TripCars } from '../../src/render3d/city/tripCars.js';
@@ -225,6 +226,48 @@ describe('jams where the city\'s roads are full, and every car on a trip', () =>
     const pose = { x: 0, z: 0, dx: 0, dz: 0 }, some = traffic.traffic.cars[0];
     traffic.traffic.pose(some, pose);
     expect(traffic.tripAt(pose.x, pose.z, 2)?.trip).toBe(some.trip);
+  });
+});
+
+describe('on the road\'s own surface', () => {
+  test('every car stands on the road\'s surface, front and back wheels on it, and tilts with the slope', () => {
+    // a town on a hillside rising eastward, 4 cm a world unit
+    const slope = { sample: (x: number) => 0.04 * x, sampleTile: (_ix: number, _iy: number, x: number) => 0.04 * x, inside: () => true };
+    const { map } = town(600), cars = new TripCars(map, slope as unknown as CityHeightField, 'northeast', U, U);
+    for (let t = 0; t < 20; t += 0.1) cars.update(new Vector3(500, 0, 250), 300, 100 + t, 7.5);
+    const m = new Matrix4(), base = new Vector3(), ahead = new Vector3();
+    const kinds = (cars as any).kinds as Array<{ parts: Array<{ mesh: any; local: Matrix4 }>; count: number }>;
+    let checked = 0, tilted = 0;
+    for (const kind of new Set(kinds)) {
+      const { mesh, local } = kind.parts[0], inverse = local.clone().invert();
+      for (let i = 0; i < kind.count; i++) {
+        mesh.getMatrixAt(i, m); m.multiply(inverse);
+        // the car's own wheel points, 1.6 m ahead and behind its middle on the ground it stands on
+        for (const along of [-1.6, 1.6]) {
+          ahead.set(0, 0, along).applyMatrix4(m);
+          const road = roadSurfaceHeight(slope as never, map.width, map.height, U, ahead.x, ahead.z, 2, 0);
+          expect(ahead.y).toBeCloseTo(road, 1);
+        }
+        base.setFromMatrixPosition(m);
+        expect(base.y).toBeGreaterThan(0.04 * base.x + 0.1);
+        const nose = new Vector3(0, 0, 1).transformDirection(m);
+        if (Math.abs(nose.y) > 0.01) tilted++;
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(5);
+    // (going east or west up and down the hill, they lean with it)
+    expect(tilted).toBeGreaterThan(checked / 3);
+  });
+
+  test('a laterite road\'s crown and wheel tracks, a paved road\'s flat top, the junction\'s patch, and nothing past the road', () => {
+    const crown = roadSurfaceLift(1, 0, U), rut = roadSurfaceLift(1, 1.275 * 2.5 / 3.5 * U * 1.6, U);
+    expect(crown).toBeGreaterThan(0.15);
+    expect(rut).toBeLessThan(crown);
+    expect(roadSurfaceLift(1, 20, U)).toBe(0);
+    expect(roadSurfaceLift(3, 0, U)).toBeCloseTo(0.15, 6);
+    expect(roadSurfaceLift(3, 0, U, 1)).toBeGreaterThan(0.15);
+    expect(roadSurfaceLift(3, 30, U)).toBe(0);
   });
 });
 

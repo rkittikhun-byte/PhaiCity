@@ -72,6 +72,11 @@ Owner (23 Oct 2026): "คนและรถที่มาวิ่งในโ�
   the place of the to-and-fro commuters and joggers, and the wandering cars are gone. Province maps (no road graph)
   keep the old wandering cars and walkers.
 
+- **On the road's surface** (owner: "รถวิ่งหรือเกวียน มันจมลงไปในถนนครึ่งล้อ ... มันควรจะเป็นไปตามถนน"): roads are laid
+  0.15 world units over the ground they lie on, with a laterite road's crown and tracks and a higher junction patch
+  (roadBuild.ts). `roadSurfaceLift` / `roadSurfaceHeight` give the same height; trip cars sit on it under their front
+  and back axles and both sides and tilt with slope and crown (`TripCars.onRoad`), and walkers and buses stand on it.
+
 ## Next
 
 - The rail vehicles of the sheets (steam engine, elevated train, maglev) for `railTrains.ts`, and the boats for the

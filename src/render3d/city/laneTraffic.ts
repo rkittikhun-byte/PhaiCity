@@ -41,7 +41,13 @@ export interface LanePiece {
   readonly first?: number;
   /** Its road's index in the month's trips (the load it carries), when it has one */
   readonly k?: number;
+  /** Its road's level (src/roadLevels.ts), for the height of its surface (roadBuild.ts roadSurfaceLift) */
+  readonly level?: number;
 }
+
+/** Where a car is drawn (LaneTraffic.pose): its place, the way it faces, how far left of its road's middle it is (world
+ * units, the road's own left as drawn: negative on its right), and how far it is from a junction along its way */
+export interface LanePose { x: number; z: number; dx: number; dz: number; side?: number; toJunction?: number }
 
 /** A car's way: its line (world units) with the distance to each point, and its pieces */
 export interface LanePath {
@@ -360,7 +366,7 @@ export class LaneTraffic {
   }
 
   /** Where a car is drawn: its place (world units, keeping left in its lane) and the way it faces (x, z of a unit vector) */
-  pose(car: LaneCar, out: { x: number; z: number; dx: number; dz: number }): typeof out {
+  pose<T extends LanePose>(car: LaneCar, out: T): T {
     const p = car.path.pieces[car.piece], d = along(car);
     // keeping left (Thailand): the lane's middle, left of the way it faces, along a side line mitred at every bend so
     // the car never hops at a corner; it faces the way that line takes it
@@ -380,6 +386,8 @@ export class LaneTraffic {
       l = Math.hypot(dx, dz) || 1;
     }
     out.x = x; out.z = z; out.dx = dx / l; out.dz = dz / l;
+    out.side = side;
+    out.toJunction = Math.min(p.nodeStart >= 0 ? d - p.start : Infinity, p.nodeEnd >= 0 ? p.end - d : Infinity);
     return out;
   }
 }

@@ -240,6 +240,30 @@ export function groundHeight(heights: HeightSource, width: number, height: numbe
   return blendTile(tileSamples(heights, tx, tz), Math.max(0, Math.min(1, x / 10 - tx)), Math.max(0, Math.min(1, z / 10 - tz)));
 }
 
+/**
+ * How far a road's surface lies over the ground under it (world units), `offset` from its middle (either side): the
+ * road's lift, a laterite road's crown, wheel tracks and edge falling to its dusty shoulder (LATERITE_RELIEF), a paved
+ * road's carriageway, curb and shoulder; nothing past them. `junction` (0-1) is how far into a junction's patch it is,
+ * which lies a little higher (NODE_LIFT). The same numbers the road's mesh is laid with, so what drives or walks on it
+ * stands on it (owner, 23 Oct 2026: "รถวิ่งหรือเกวียน มันจมลงไปในถนนครึ่งล้อ ... มันควรจะเป็นไปตามถนน").
+ */
+export function roadSurfaceLift(level: number, offset: number, units: number | null, junction = 0): number {
+  const d = Math.abs(offset);
+  let lift = 0;
+  if (level <= 1) {
+    const k = units ? REAL_WIDTH_M[1] / 2 * units / LATERITE_EDGE : 1, e = LATERITE_EDGE * k, outside = e * (1 + LATERITE_SHOULDER);
+    if (d <= e) lift = LIFT + reliefAt(d / k);
+    else if (d < outside) lift = LIFT + reliefAt(LATERITE_EDGE) + (SHOULDER_LIFT - LIFT - reliefAt(LATERITE_EDGE)) * (d - e) / (outside - e);
+  } else if (d <= halfWidth(level, units) + shoulderOf(units)) lift = LIFT;
+  return junction > 0 && lift > 0 ? lift + (Math.max(lift, NODE_LIFT) - lift) * Math.min(1, junction) : lift;
+}
+
+/** The top of a road's surface at (x, z) (world units): the ground it is laid on (groundHeight) and its lift there */
+export function roadSurfaceHeight(heights: HeightSource, width: number, height: number, units: number | null, x: number, z: number,
+  level: number, offset: number, junction = 0): number {
+  return groundHeight(heights, width, height, x, z) + roadSurfaceLift(level, offset, units, junction);
+}
+
 /** A tile's ground at its middle and its four corners (north-west, north-east, south-east, south-west) */
 function tileSamples(heights: HeightSource, tx: number, tz: number): readonly number[] {
   const x0 = tx * 10, z0 = tz * 10;

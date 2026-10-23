@@ -18,6 +18,7 @@ import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
 import { animateObject, type VehicleEntry } from './eraVehicles.js';
 import type { TripWalkers } from './tripWalkers.js';
+import { type HeightSource, roadSurfaceHeight } from './roadBuild.js';
 import { frustumOf } from './pools.js';
 import {
   LineIndex, MAX_TAKRAW, SPORTS_COLOURS, getStructureInfo, scanPeople, type EmployedCitizen, type Household, type PeopleScan,
@@ -318,11 +319,12 @@ export class CityPedestrians {
     customSwing?: number,
     who = slot,
     role?: 'walk' | 'jog' | 'stand' | 'kick',
+    ground?: number,
   ): void {
     const s = this.size * scaleMultiplier;
     if (this.people) {
       const activity: Activity = poseType;
-      this.people.place(slot, x, this.terrain.sample(x, z), z, heading, s * PEOPLE_SCALE, who, activity, phase,
+      this.people.place(slot, x, ground ?? this.terrain.sample(x, z), z, heading, s * PEOPLE_SCALE, who, activity, phase,
         poseType === 'kick', role ?? activity);
       return;
     }
@@ -495,10 +497,14 @@ export class CityPedestrians {
     const walks = this.tripWalkers?.active ? this.tripWalkers : null;
     if (walks) {
       walks.update(target.x, target.z, viewSpan + 60, seconds);
-      walks.each(target.x - viewSpan, target.x + viewSpan, target.z - viewSpan, target.z + viewSpan, (w, x, z, heading) => {
+      walks.each(target.x - viewSpan, target.x + viewSpan, target.z - viewSpan, target.z + viewSpan, (w, x, z, heading, level, offset) => {
         if (count >= MAX_PEDESTRIANS) return;
         const phase = 2 * Math.PI * w.s / (WALK_STRIDE_M * this.size * 0.96 * PEOPLE_SCALE);
-        this.placeWalker(count++, x, z, heading, phase, 0.96, SPORTS_COLOURS[w.who % SPORTS_COLOURS.length], 'walk', undefined, w.who);
+        // on the pavement's own surface (the road's shoulder, or the ground past it), as the road's mesh is laid
+        const y = roadSurfaceHeight(this.terrain as unknown as HeightSource, this.snapshot.width, this.snapshot.height,
+          this.snapshot.realUnits, x, z, level, offset);
+        this.placeWalker(count++, x, z, heading, phase, 0.96, SPORTS_COLOURS[w.who % SPORTS_COLOURS.length], 'walk', undefined, w.who,
+          undefined, y);
         this.activeCommutersCount++;
       });
     }

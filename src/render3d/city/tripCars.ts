@@ -27,13 +27,17 @@
 // shop of its destination's (or back home in the evening), out of the driveway it starts at and into the one it ends
 // at; it carries its trip (CarTrip) for the inspector and a camera following it (tripAt).
 
-import { Group, InstancedMesh, Matrix4, type Mesh, type Object3D, Quaternion, Vector3 } from 'three';
+import { Group, InstancedMesh, Matrix4, type Mesh, type Object3D, Vector3 } from 'three';
+
+/** A car's width for its tilt across the road (m), when its model does not say */
+const CAR_WIDTH_M = 1.8;
 import { registry } from '../models/registry.js';
 import { type EraVehicles, paintFor, pickFrom, type VehicleModel, VehiclePool, vehicleMix } from './eraVehicles.js';
 import type { CityHeightField } from './heightfield.js';
-import { type LaneCar, type LanePath, type LanePiece, LaneTraffic } from './laneTraffic.js';
+import { type LaneCar, type LanePath, type LanePiece, type LanePose, LaneTraffic } from './laneTraffic.js';
+import { type HeightSource, roadSurfaceHeight } from './roadBuild.js';
 import type { RegionId } from '../regional/types.js';
-import { halfWidth } from '../../roadGeometry.js';
+import { halfWidth, roadReach } from '../../roadGeometry.js';
 import { roadSpec } from '../../roadLevels.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityTrips } from '../../sim/cityTrips.js';
@@ -142,7 +146,7 @@ export function lanePathOf(graph: RoadGraph, segments: readonly number[], fromT:
     // as fast as the month's trips go on it, within a walking pace and a highway's
     const speed = Math.max(0.6 * u, Math.min(33 * u, pieceSeconds > 0 ? run / pieceSeconds : 14 * u));
     pieces.push({ segment: id, up, start, end: walked, entry: (up ? t0 : 1 - t0) * length, length,
-      lanes: Math.max(1, Math.floor(spec.lanes / 2)), laneWidth: halfWidth(level, u), speed,
+      lanes: Math.max(1, Math.floor(spec.lanes / 2)), laneWidth: halfWidth(level, u), speed, level,
       nodeEnd: t1 === 1 ? junction(s.b) : t1 === 0 ? junction(s.a) : -1,
       nodeStart: t0 === 0 ? junction(s.a) : t0 === 1 ? junction(s.b) : -1, t0, t1, first, ...(keys ? { k: keys[n] } : {}) });
     clock += pieceSeconds;
@@ -179,10 +183,11 @@ export class TripCars {
   private readonly matrix = new Matrix4();
   private readonly part = new Matrix4();
   private readonly position = new Vector3();
-  private readonly turn = new Quaternion();
   private readonly scale = new Vector3();
-  private readonly up = new Vector3(0, 1, 0);
-  private readonly pose = { x: 0, z: 0, dx: 0, dz: 1 };
+  private readonly pose: LanePose = { x: 0, z: 0, dx: 0, dz: 1 };
+  private readonly axisX = new Vector3();
+  private readonly axisY = new Vector3();
+  private readonly axisZ = new Vector3();
   /** Cars drawn in the last frame */
   drawn = 0;
   /** The era vehicles (eraVehicles.ts), the city's era and the share of its buildings in the next one, the camera and
@@ -347,16 +352,11 @@ export class TripCars {
 
   /** One car where the traffic has it; whether it was drawn */
   private draw(car: LaneCar, eraMode: boolean, seconds: number): boolean {
-    const { x, z, dx, dz } = this.pose;
     const model = this.modelFor(car.tag);
     if (eraMode && typeof model !== 'number') {
       // An era vehicle: a flyer over its route, its wheels turned and its legs walked by how far it has come
       const entry = model.entry, fly = entry.fly * this.size;
-      const y = this.terrain.sample(x, z) + (fly ? fly + Math.sin(seconds * 1.3 + car.id) * 0.4 * this.size : 0);
-      this.position.set(x, y, z);
-      this.turn.setFromAxisAngle(this.up, Math.atan2(dx, dz));
-      this.scale.setScalar(this.size);
-      this.matrix.compose(this.position, this.turn, this.scale);
+      this.onRoad(car, entry.length, entry.width, fly ? fly + Math.sin(seconds * 1.3 + car.id) * 0.4 * this.size : 0);
       const paint = paintFor(model.id, entry, this.region, hash01(car.tag, 7, 7));
       const away = this.camera ? this.eye.distanceTo(this.position) : 0;
       return this.pool!.add(model.id, this.matrix, paint, car.odometer / this.size, seconds, away, this.pixelsPerUnit, this.size);
@@ -364,13 +364,47 @@ export class TripCars {
     if (eraMode) return false;
     const kinds = this.kinds, kind = kinds[(typeof model === 'number' ? model : 0) % Math.max(1, kinds.length)];
     if (!kind || kind.count >= kind.parts[0]?.mesh.instanceMatrix.count) return false;
-    this.position.set(x, this.terrain.sample(x, z), z);
-    this.turn.setFromAxisAngle(this.up, Math.atan2(dx, dz));
-    this.scale.setScalar(this.size);
-    this.matrix.compose(this.position, this.turn, this.scale);
+    this.onRoad(car, CAR_M, CAR_WIDTH_M, 0);
     for (const { mesh, local } of kind.parts) mesh.setMatrixAt(kind.count, this.part.multiplyMatrices(this.matrix, local));
     kind.count++;
     return true;
+  }
+
+  /** The road's surface under (x, z), `side` left of its middle (roadBuild.ts roadSurfaceHeight: the ground the roads are
+   * laid on, their lift, a laterite road's crown and tracks, a junction's patch); the bare ground without the heights the
+   * roads are built from */
+  surfaceAt(x: number, z: number, level: number, side: number, junction: number): number {
+    const heights = this.terrain as unknown as HeightSource;
+    if (typeof heights.sampleTile !== 'function') return this.terrain.sample(x, z);
+    return roadSurfaceHeight(heights, this.map.width, this.map.height, this.units, x, z, level, side, junction);
+  }
+
+  /**
+   * The car's matrix (this.matrix) where the traffic has it (this.pose): its wheels on the road's surface under its front
+   * and back axles and its two sides, so it rides the road's crown, slopes and levelled ground and tilts with them,
+   * never sunk into the road nor floating over it; `lift` raises a flyer
+   */
+  private onRoad(car: LaneCar, lengthM: number, widthM: number, lift: number): Matrix4 {
+    const { x, z, dx, dz } = this.pose, side = this.pose.side ?? 0, p = car.path.pieces[car.piece], level = p.level ?? 2;
+    // how far into a junction's patch it is
+    const reach = roadReach(level, this.units), near = this.pose.toJunction ?? Infinity;
+    const junction = near < reach ? 1 : near < reach + 1.5 * this.units ? 1 - (near - reach) / (1.5 * this.units) : 0;
+    const half = Math.max(0.5, lengthM * 0.35) * this.size, wide = Math.max(0.3, widthM * 0.4) * this.size;
+    // the road's own left across the car (the way it faces turned), and the side it keeps of the road's middle
+    const lx = dz, lz = -dx, across = car.rev ? -1 : 1;
+    const front = this.surfaceAt(x + dx * half, z + dz * half, level, side, junction);
+    const back = this.surfaceAt(x - dx * half, z - dz * half, level, side, junction);
+    const left = this.surfaceAt(x + lx * wide, z + lz * wide, level, side + wide * across, junction);
+    const right = this.surfaceAt(x - lx * wide, z - lz * wide, level, side - wide * across, junction);
+    // forward along the slope, left across it, up from both
+    this.axisZ.set(dx * half * 2, front - back, dz * half * 2).normalize();
+    this.axisX.set(lx * wide * 2, left - right, lz * wide * 2).normalize();
+    this.axisY.crossVectors(this.axisZ, this.axisX).normalize();
+    this.axisX.crossVectors(this.axisY, this.axisZ).normalize();
+    this.matrix.makeBasis(this.axisX, this.axisY, this.axisZ).scale(this.scale.setScalar(this.size));
+    this.matrix.setPosition(x, Math.max((front + back) / 2, (left + right) / 2) + lift, z);
+    this.position.set(x, (front + back) / 2 + lift, z);
+    return this.matrix;
   }
 
   /** Whether the era vehicles draw this frame: every model of the era's mix has loaded (the next era's join as they
