@@ -706,6 +706,11 @@ Owner, 23 Oct 2026: "กลางวันมันจะมีเงาพร�
 - **The disc** (`sky.ts setMoon`): in the dome's shader, lit on its side toward the sun as far as the phase says, faint
   earthshine on the rest, added to the sky so a pale day moon never darkens it, hidden by the same clouds as the sun.
   Colour `SCENE.post.moonDisc`.
+- **Full-moon festivals** (owner, 23 Oct 2026: "ก็เต็มดวงวันไหน ก็เอาเป็นวันนั้น ลอยกระทงสิ"): Loy Krathong's and Yi Peng's
+  look (krathong, lanterns, sky lanterns) no longer follows their calendar month in `gameMap.festivals.held`; the game
+  owes it to the clock's first full-moon night after the month (`src/moonFestivals.ts`) and hands the view what that night
+  shows, from just before sunset to midnight, with `setMoonFestivals(shows)` (optional on `CityView`), which
+  `festivals3d.ts` reads as `moonShows`. The other festivals still show in their month.
 
 ## 9. What stays 2D for now
 

@@ -110,6 +110,8 @@ export interface CityView {
   /** The moon from the game's clock (src/moon.ts): its phase (0 new, 0.5 full) and where it stands, as the sun's angle;
    * by night its light casts the shadows (3D only) */
   setMoon?(phase: number, angle: number): void;
+  /** The full-moon festivals the night shows (src/moonFestivals.ts): Loy Krathong and Yi Peng from dusk to midnight */
+  setMoonFestivals?(shows: ReadonlyArray<{ id: string; scale: string }>): void;
   /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, in place of the map's (3D only) */
   setSky?(sky: Weather | null): void;
   /** The map tile under a point of the view (CSS pixels from its top-left), or null when it is not on the map. */

@@ -19,6 +19,8 @@
 #timeBar .timeClock .timeSun { fill: none; stroke: var(--ph-gold-600); stroke-width: 2; stroke-linecap: round; }
 #timeBar .timeClock circle.timeSun { fill: var(--ph-gold-300); }
 #timeBar .timeClock .timeMoon { fill: var(--ph-sand-300); stroke: var(--ph-sand-600); stroke-width: 1.5; }
+/* Loy Krathong's or Yi Peng's full-moon night (src/moonFestivals.ts): the moon glows gold, nothing else pops up */
+#timeBar .timeClock.festivalNight .timeMoon { fill: var(--ph-gold-200); stroke: var(--ph-gold-600); filter: drop-shadow(0 0 3px var(--ph-gold-400)); }
 /* The sky's icons (src/timeControls.ts SkyIcon): one at a time, by the clock's data-sky */
 #timeBar .timeClock .sky { display: none; }
 #timeBar .timeClock[data-sky="sun"] .sky-sun, #timeBar .timeClock[data-sky="moon"] .sky-moon,

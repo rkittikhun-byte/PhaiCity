@@ -108,6 +108,7 @@ import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
 import { moonDayAt } from './moon.ts';
+import { MoonFestivals } from './moonFestivals.ts';
 import { bindDayLengthSetting } from './dayLength.ts';
 import { bindGamePaceSetting, gamePaceFactor, onGamePace } from './gamePace.ts';
 import { skyAt } from './rainSpells.ts';
@@ -262,6 +263,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // ... and the moon's days (src/moon.ts): a new city's first night has the real moon of its starting month
   var startDate = this.simulation.getDate();
   this.dayClock.days = Math.floor(moonDayAt(startDate.year, startDate.month));
+  // ... and Loy Krathong and Yi Peng waiting for their full-moon night (src/moonFestivals.ts)
+  this.moonFestivals = new MoonFestivals();
   // ... and the sky now: the month's weather (src/weather.ts) with a rain spell now and then (src/rainSpells.ts), which
   // the 3D view, the time bar and the sounds show; the simulation keeps to the month's
   this.skyNow = null;
@@ -1013,7 +1016,8 @@ Game.prototype.saveData = function() {
     provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
     rulerRank: this.rulerRank,
     goals: this.rulerGoals.state(), news: this.newsLog.items(),
-    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000, moonDay: this.dayClock.days
+    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000, moonDay: this.dayClock.days,
+    moonFestivals: this.moonFestivals.toJSON()
   });
 };
 
@@ -1087,6 +1091,7 @@ Game.prototype.load = function(saveData) {
   var savedDate = this.simulation.getDate();
   this.dayClock = new DayClock(typeof saveData.timeOfDay === 'number' ? saveData.timeOfDay : this.dayClock.hour,
                                typeof saveData.moonDay === 'number' ? saveData.moonDay : moonDayAt(savedDate.year, savedDate.month));
+  this.moonFestivals = MoonFestivals.fromJSON(saveData.moonFestivals);
 };
 
 
@@ -4132,6 +4137,11 @@ var commonAnimate = function() {
   // ... and the moon where it stands, in its phase (src/moon.ts)
   if (this.cityView && typeof this.cityView.setMoon === 'function')
     this.cityView.setMoon(this.dayClock.moonPhase(), this.dayClock.moonAngle());
+  // ... and Loy Krathong and Yi Peng, held in their month, shown on the clock's next full-moon night (src/moonFestivals.ts)
+  var calendar = this.simulation.getDate(), held = this.gameMap.festivals ? this.gameMap.festivals.held : null;
+  var moonShows = this.moonFestivals.update(held, calendar.year * 12 + calendar.month, this.dayClock.days, this.dayClock.hour, month);
+  if (this.cityView && typeof this.cityView.setMoonFestivals === 'function')
+    this.cityView.setMoonFestivals(moonShows);
   var sim = this.simulation;
   this.skyNow = skyAt(this.gameMap.weather || null, sim._climate(), sim._cityTime + sim._phaseCycle / 16,
                       this.dayClock.hour, month);

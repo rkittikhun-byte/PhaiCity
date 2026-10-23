@@ -12,6 +12,9 @@
 // - at Loy Krathong, krathong with their candles drifting along the canals and rivers near the town;
 // - at Yi Peng, sky lanterns rising into the night sky and drifting with the wind;
 // - at Bun Bang Fai, rockets going up from beside the town on trails of smoke.
+// Loy Krathong's and Yi Peng's look waits for the full moon (owner, 23 Oct 2026: "ก็เต็มดวงวันไหน ก็เอาเป็นวันนั้น
+// ลอยกระทงสิ"; src/moonFestivals.ts): the game hands the view what the full-moon night shows (moonShows), from dusk to
+// midnight, and their calendar month shows nothing of them.
 // A grand festival has more of each. Each festival's look shows only while it is held, its month, and fades in a few
 // seconds after (owner, 21 Oct 2026, of Bun Bang Fai's smoke still hanging over a town in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร";
 // docs/design/LOOK_BOOK.md); the bunting along the roads is the newest festival's. No temple or palace ornaments, no
@@ -27,6 +30,7 @@ import { SCENE } from '../../theme/tokens.js';
 import { isWaterTile } from '../../canals.js';
 import { halfWidth, type Point } from '../../roadGeometry.js';
 import { FIELD_BASE, FIELD_LAST } from '../../tileValues.js';
+import { MOON_FESTIVALS, type MoonShow } from '../../moonFestivals.js';
 
 /** What the view reads of the map */
 export interface FestivalViewMap {
@@ -157,6 +161,8 @@ export class CityFestivals {
   private venue: { x: number; z: number } | null = null;
   private strengthShown = -1;
   private lastSeconds = 0;
+  /** The full-moon festivals the game's night shows now (src/moonFestivals.ts), set by the view each frame */
+  moonShows: readonly MoonShow[] = [];
 
   /** size: the scale of the view's small things (sprites.size: 1, or a real-scale city map's units a metre); units:
    * world units a metre on a real-scale city map, else null (roadGeometry.ts realUnits) */
@@ -218,7 +224,8 @@ export class CityFestivals {
 
   /** Which festivals are shown: those held, and for FADE_OUT seconds those that were */
   private follow(seconds: number): void {
-    const held = (this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.quiet && FESTIVAL_TOUCHES[h.id]);
+    const held = [...(this.map.festivals?.held ?? []).filter((h) => h.scale !== 'none' && !h.quiet && FESTIVAL_TOUCHES[h.id]
+      && !MOON_FESTIVALS.includes(h.id)), ...this.moonShows.filter((h) => FESTIVAL_TOUCHES[h.id])];
     for (const h of held) {
       const show = this.shows.get(h.id);
       if (!show) this.shows.set(h.id, { id: h.id, scale: h.scale, since: seconds, leaving: null });

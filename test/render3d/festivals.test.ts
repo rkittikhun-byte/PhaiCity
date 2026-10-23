@@ -12,6 +12,18 @@ import { CityFestivals, FESTIVAL_TOUCHES, MAX_KRATHONG, MAX_POLES, MAX_SKY_LANTE
   POLE_SPACING, VENUE_TILES, type FestivalLine, type FestivalViewMap } from '../../src/render3d/city/festivals3d';
 import { FESTIVAL_IDS } from '../../src/festivals';
 import { RIVER } from '../../src/tileValues';
+import { MOON_FESTIVALS } from '../../src/moonFestivals';
+
+/** The festivals' view with the game's part played: Loy Krathong and Yi Peng held this month are shown as on their
+ * full-moon night (src/moonFestivals.ts hands them over as moonShows), the rest from the month as before */
+function festive(map: FestivalViewMap, ground: ConstructorParameters<typeof CityFestivals>[1]): CityFestivals {
+  const view = new CityFestivals(map, ground), update = view.update.bind(view);
+  view.update = (...args: Parameters<CityFestivals['update']>) => {
+    view.moonShows = (map.festivals?.held ?? []).filter((h) => MOON_FESTIVALS.includes(h.id) && !h.quiet && h.scale !== 'none');
+    update(...args);
+  };
+  return view;
+}
 
 /** Roads every 10 tiles both ways, from 0 to 36 tiles (world units: 10 a tile), and a railway at the bottom */
 const ROWS = [105, 205, 305], LINES: FestivalLine[] = [
@@ -45,7 +57,7 @@ describe('the festivals in the 3D view', () => {
 
   test('nothing is drawn while no festival is held', () => {
     const { map, ground, lines } = town([]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     view.update(lines, 1, 10);
     expect(view.root.visible).toBe(false);
     expect(Object.values(view.counts()).every((n) => n === 0)).toBe(true);
@@ -54,7 +66,7 @@ describe('the festivals in the 3D view', () => {
 
   test("a village's own festival dresses nothing", () => {
     const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest', quiet: true }]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     for (let t = 0; t <= 5; t += 0.5) view.update(lines, 1, t);
     expect(view.root.visible).toBe(false);
     expect(Object.values(view.counts()).every((n) => n === 0)).toBe(true);
@@ -64,7 +76,7 @@ describe('the festivals in the 3D view', () => {
   test('Loy Krathong strings lanterns between poles on the streets by the house and the homes, and floats krathong', () => {
     const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'modest' }]);
     const before = JSON.stringify(map);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     for (let t = 0; t <= 5; t += 0.05) view.update(lines, 1, t);
     const counts = view.counts();
     expect(counts.poles).toBeGreaterThan(4);
@@ -111,7 +123,7 @@ describe('the festivals in the 3D view', () => {
 
   test('a grand festival has more; Yi Peng lets sky lanterns go only after dark; Bun Bang Fai sends up rockets', () => {
     const { map, ground, lines } = town([{ id: 'yi_peng', scale: 'grand' }, { id: 'bun_bang_fai', scale: 'grand' }]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     view.update(lines, 0, 3);
     expect(view.counts().skyLanterns).toBe(0);
     view.update(lines, 1, 4);
@@ -119,7 +131,7 @@ describe('the festivals in the 3D view', () => {
     expect(counts.poles).toBeLessThanOrEqual(MAX_POLES);
     // In a town built up all over, a grand festival dresses more of its streets than a modest one
     const dressed = (scale: string) => {
-      const big = town([{ id: 'yi_peng', scale }]), all = new CityFestivals({ ...big.map, getTileValue: () => 250 }, ground);
+      const big = town([{ id: 'yi_peng', scale }]), all = festive({ ...big.map, getTileValue: () => 250 }, ground);
       all.update(lines, 1, 4);
       const n = all.counts();
       all.dispose();
@@ -138,7 +150,7 @@ describe('the festivals in the 3D view', () => {
   test('the town is dressed only while the festival is held, and the look fades within seconds after', () => {
     // Owner, 21 Oct 2026, of Bun Bang Fai's smoke still in the sky in March: "ไอ้ขาวๆ ลอยขึ้นมาคืออะไร"
     const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest' }]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     view.update(lines, 0, 1);
     view.update(lines, 1, 30);
     expect(view.counts().flags).toBeGreaterThan(0);
@@ -156,7 +168,7 @@ describe('the festivals in the 3D view', () => {
 
   test('roads drawn after the festival began (a city just opened builds its lines in a worker) are dressed too', () => {
     const { map, ground, lines } = town([{ id: 'songkran', scale: 'modest' }]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     view.update([], 0, 1);
     expect(view.counts().flags).toBe(0);
     view.update(lines, 0, 2.5);
@@ -166,7 +178,7 @@ describe('the festivals in the 3D view', () => {
 
   test("a new festival's bunting takes the road, and the last one's look fades with its month", () => {
     const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'modest' }]);
-    const view = new CityFestivals(map, ground);
+    const view = festive(map, ground);
     view.update(lines, 1, 1);
     expect(view.counts().krathong).toBeGreaterThan(0);
     // Khon Kaen's silk festival comes the month after Loy Krathong
@@ -176,6 +188,23 @@ describe('the festivals in the 3D view', () => {
     expect(view.shown).toEqual(['silk']);
     expect(view.counts().flags).toBeGreaterThan(0);
     expect(view.counts().lanterns).toBe(0);
+    expect(view.counts().krathong).toBe(0);
+    view.dispose();
+  });
+
+  test("Loy Krathong's and Yi Peng's month alone shows nothing: their look waits for the full-moon night", () => {
+    const { map, ground, lines } = town([{ id: 'loy_krathong', scale: 'grand' }, { id: 'yi_peng', scale: 'grand' }]);
+    const view = new CityFestivals(map, ground);
+    for (let t = 0; t <= 5; t += 0.5) view.update(lines, 1, t);
+    expect(view.root.visible).toBe(false);
+    // ... and the night the game hands over shows them
+    view.moonShows = [{ id: 'loy_krathong', scale: 'grand' }];
+    for (let t = 5; t <= 9; t += 0.5) view.update(lines, 1, t);
+    expect(view.shown).toEqual(['loy_krathong']);
+    expect(view.counts().krathong).toBe(MAX_KRATHONG);
+    // ... until midnight, when it fades
+    view.moonShows = [];
+    for (let t = 9; t <= 14; t += 0.5) view.update(lines, 1, t);
     expect(view.counts().krathong).toBe(0);
     view.dispose();
   });

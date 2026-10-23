@@ -167,6 +167,8 @@ export class CityView3D implements CityView {
   /** The moon from the game's clock (src/moon.ts setMoon): its phase, 0 new to 0.5 full, and its angle as the sun's; null
    * until the game sends one, when a full moon stands opposite the sun */
   private moonPhase:number|null=null;private moonAngle=0;
+  /** Loy Krathong and Yi Peng on the full-moon night (src/moonFestivals.ts setMoonFestivals) */
+  private moonShows:ReadonlyArray<{id:string;scale:string}>=[];
   /** Where the shadow-casting light comes from now (skyLight.ts): the sun, the moon or between them at twilight */
   private lightAngle=Math.PI*0.35;
   /** The night's sky light on everything before the moon brightens it (applyDayNight), and the night's share */
@@ -359,6 +361,8 @@ export class CityView3D implements CityView {
   setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
   /** The moon from the game's clock (src/moon.ts): its phase (0 new, 0.5 full) and where it stands, as setSunAngle */
   setMoon(phase:number,angle:number):void{if(Number.isFinite(phase)&&Number.isFinite(angle)){this.moonPhase=phase;this.moonAngle=angle;}}
+  /** The full-moon festivals shown tonight (src/moonFestivals.ts): Loy Krathong's krathong, Yi Peng's lanterns */
+  setMoonFestivals(shows:ReadonlyArray<{id:string;scale:string}>):void{this.moonShows=shows;}
   /**
    * The one shadow-casting light (skyLight.ts): the sun by day, the moon by night in its phase, handed over at twilight;
    * its shadows fade out under cloud, rain and fog. Every frame, as the moon moves while the night stays dark.
@@ -613,8 +617,9 @@ export class CityView3D implements CityView {
     this.updateDayNight();this.updateLight();this.updateSun();
     // The month's festivals, read from the map (src/festivals.ts): lanterns along the roads, krathong on the water, sky
     // lanterns and rockets, lit by the hour, moving in real seconds as the weather does, so a paused festival still shows
-    {const festive=this.setup.map as unknown as FestivalViewMap;if(this.festivals||festive.festivals?.held?.length){
+    {const festive=this.setup.map as unknown as FestivalViewMap;if(this.festivals||festive.festivals?.held?.length||this.moonShows.length){
       if(!this.festivals){this.festivals=new CityFestivals(festive,this.terrain,this.sprites.size,this.snapshot.realUnits);this.scene.add(this.festivals.root);}
+      this.festivals.moonShows=this.moonShows;
       this.festivals.update(this.curves.drawnLines,Math.max(0,this.lastNightFactor),(start-this.created)/1000,{x:this.wind.x,y:this.wind.y});}}
     this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
     // ... wet ground, roofs and roads after rain

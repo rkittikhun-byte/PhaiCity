@@ -26,6 +26,8 @@ export interface TimeGame {
   applyCommand(command: { type: "speed"; speed: number }): unknown;
   /** The time of day (src/dayClock.ts), and the calendar's month for its sunrise and sunset */
   dayClock?: { text(): string; night(month: number): boolean };
+  /** Loy Krathong's or Yi Peng's full-moon night shown now (src/moonFestivals.ts): the moon glows */
+  moonFestivals?: { readonly showing: boolean };
   simulation?: { getDate(): { month: number }; rules?: { weather?: Climate } | null };
   /** The map, with the month's weather (src/weather.ts) */
   gameMap?: { weather?: Weather | null };
@@ -162,6 +164,7 @@ export function installTimeControls(game: TimeGame, doc: Document = document): H
       const now = game.dayClock.text();
       if (hour.textContent !== now) hour.textContent = now;
       clock.classList.toggle("night", night);
+      clock.classList.toggle("festivalNight", night && (game.moonFestivals?.showing ?? false));
       if (month !== shownMonth) {
         shownMonth = month;
         const sun = sunHours(month);
