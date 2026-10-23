@@ -38,6 +38,12 @@ export class Bounds {
         return this.xInBounds(x) && this.yInBounds(y);
     }
 
+    // PhaiCity: the same test of a coordinate given as two numbers, with no Position made for it (GameMap asks it of
+    // every tile it reads, millions of times a month, docs/NO_GRID_PLAN.md 5.1)
+    containsXY(x: number, y: number): boolean {
+        return this.xInBounds(x) && this.yInBounds(y);
+    }
+
     toString(): string {
         const upperCorner = new Position(this.inclusiveStartX, this.inclusiveStartY);
         const lowerCorner = new Position(this.exclusiveEndX - 1, this.exclusiveEndY - 1);

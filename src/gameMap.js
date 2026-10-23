@@ -109,7 +109,8 @@ GameMap.prototype.isPositionInBounds = function(pos) {
 
 
 GameMap.prototype.testBounds = function(x, y) {
-  return this.isPositionInBounds(new Position(x, y));
+  // PhaiCity: no Position made for the test (docs/NO_GRID_PLAN.md 5.1)
+  return this.bounds.containsXY(x, y);
 };
 
 
