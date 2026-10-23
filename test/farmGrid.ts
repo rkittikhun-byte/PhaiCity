@@ -240,6 +240,6 @@ describe("the farm grid along every road", () => {
   test("a square's place and the simulation's version", () => {
     expect(squareAt({ width: W, height: H }, 10 + 1.3, 20 + 8.9)).toEqual({ tile: 2 * W + 1, row: 7, column: 1 });
     expect(SQUARES * SQUARES).toBe(ALL_SQUARES);
-    expect(SIM_VERSION).toBeGreaterThanOrEqual(17);
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(18);
   });
 });
