@@ -117,10 +117,12 @@ export function farmCellsOnTiles(map: FarmGridMap, x0: number, y0: number, x1: n
 
 /** The farm cells whose middles lie on the given tiles */
 export function farmCellsOfTiles(map: FarmGridMap, tiles: Iterable<number>, reach: number = FARM_ZONE.reach): Cell[] {
-  const out: Cell[] = [];
+  const out: Cell[] = [], layouts = new Map<number, CellLayout>();
   for (const tile of tiles) {
-    const x = tile % map.width, y = (tile - x) / map.width;
-    const layout = farmChunk(map, Math.floor(x / FARM_CHUNK), Math.floor(y / FARM_CHUNK), reach);
+    const x = tile % map.width, y = (tile - x) / map.width, cx = Math.floor(x / FARM_CHUNK), cy = Math.floor(y / FARM_CHUNK);
+    // (each chunk asked once: its stamp reads the tiles round it)
+    let layout = layouts.get(cy * 65536 + cx);
+    if (!layout) layouts.set(cy * 65536 + cx, layout = farmChunk(map, cx, cy, reach));
     for (const index of layout.byTile.get(tile) ?? []) out.push(layout.cells[index]);
   }
   return out;

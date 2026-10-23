@@ -21,6 +21,7 @@ import { mapEra } from '../../era.js';
 import { FARM_ERA_LOOKS, farmSide, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode,
   type FarmKind } from '../../farmZone.js';
 import { paintedCells, type FarmGridMap } from '../../farmGrid.js';
+import { isOpenLand, plotKindOfValue } from '../../plots.js';
 import { tileMetres } from '../../units.js';
 import { CELL_M } from '../../zoneCells.js';
 import { FARM, FIELD_BASE } from '../../tileValues.js';
@@ -55,6 +56,13 @@ const LIFT = 0.05, INNER_LIFT = 0.09;
 const UNITS = 10;
 /** World units a bucket of the cells drawn, for finding each one's neighbours */
 const BUCKET = 5;
+/** Tiles round a field whose roads may lay its cells (33 rows of 4 m and the road's half width) */
+const NEAR_FIELDS = 10;
+
+/** What a tile is to the farm cells (src/farmGrid.ts farmGround): a road or railway (by its tile), land they may lie on,
+ * or neither; never 0 */
+const groundClass = (value: number): number =>
+  value >= 64 && value <= 238 ? 3 + value : isOpenLand(value) || plotKindOfValue(value) !== null || (value >= FIELD_BASE && value <= FIELD_BASE + 5) ? 1 : 2;
 
 const colour = (hex: number): Color => new Color().setHex(hex);
 const F = SCENE.farm;
@@ -108,6 +116,8 @@ export class CityFarmFields {
   private fields: Field[] = [];
   /** The tiles drawn as fields last time, to hear when one stops being one */
   private drawn = new Uint8Array(0);
+  /** On a city map, what each tile near the fields was to their cells when drawn (groundClass; 0 not near any) */
+  private near = new Uint8Array(0);
   private dirtyAt: number | null = 0;
   private shownMonth = -1;
   private shownEra = 0;
@@ -144,8 +154,10 @@ export class CityFarmFields {
     const size = this.map.width * this.map.height;
     if (this.drawn.length !== size) this.drawn = new Uint8Array(size);
     for (const i of changed) {
-      // (a road or a building beside the fields may lay their cells along it: src/farmGrid.ts)
-      if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0 || this.fields.length && this.cellMap()) { this.dirtyAt ??= seconds; break; }
+      // (and on a city map a road, a building or water near the fields, which may lay their cells otherwise:
+      // src/farmGrid.ts)
+      if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0 ||
+          this.near.length === size && this.near[i] && this.near[i] !== groundClass(this.valueAt(i))) { this.dirtyAt ??= seconds; break; }
     }
     // ... and when the brush painted or rubbed out cells of a field (no tile need change)
     if ((this.map.farmCellsVersion ?? 0) !== this.shownCells) { this.shownCells = this.map.farmCellsVersion ?? 0; this.dirtyAt ??= seconds; }
@@ -227,6 +239,21 @@ export class CityFarmFields {
   /** World units a side of a field's cell: a farm cell's on a city map, a whole tile elsewhere */
   private cellUnits(): number { return this.cellMap() ? UNITS * CELL_M / tileMetres(this.map) : UNITS; }
 
+  /** What each tile as far from the fields as a road their cells lie along may be (NEAR_FIELDS) is to the cells */
+  private nearFields(fields: readonly Field[]): Uint8Array {
+    const { width, height } = this.map, out = new Uint8Array(width * height);
+    for (const f of fields) {
+      const x = f.index % width, y = Math.floor(f.index / width);
+      for (let ty = Math.max(0, y - NEAR_FIELDS); ty <= Math.min(height - 1, y + NEAR_FIELDS); ty++) {
+        for (let tx = Math.max(0, x - NEAR_FIELDS); tx <= Math.min(width - 1, x + NEAR_FIELDS); tx++) {
+          const i = ty * width + tx;
+          if (!out[i]) out[i] = groundClass(this.valueAt(i));
+        }
+      }
+    }
+    return out;
+  }
+
   /** The fields found again, their ground built, and their props; the farm buildings near any that changed */
   private rebuild(month: number, era: number): number[] {
     const { width, height } = this.map, kinds = this.map.farmKinds;
@@ -258,6 +285,7 @@ export class CityFarmFields {
     }
     this.drawn = now;
     this.fields = fields;
+    this.near = this.cellMap() && fields.length ? this.nearFields(fields) : new Uint8Array(0);
     this.buildGround(month);
     this.props(era, month);
     this.shownMonth = month;
