@@ -11,6 +11,9 @@ import { type CityMapSource, powerCounts } from "./cityMap";
 import { onLanguageChange, t } from "./i18n/index";
 import { hide, show } from "./motion";
 import { setPanelCollapsed } from "./panelCollapse";
+import { plotKindOfValue } from "./plots";
+import { CONDBIT, POWERBIT, ZONEBIT } from "./tileFlags";
+import { HOSPITALBASE, RESBASE } from "./tileValues";
 
 /** What the tasks look at, read from the simulation's census and evaluation. */
 export interface CityStats {
@@ -28,10 +31,14 @@ export interface CityStats {
   airports: number;
   /** Water works, and zones a road with water reaches (src/waterManager.ts) */
   waterWorks: number;
+  /** Water towers: a village's own wells, before the water works come with the second era (src/unlocks.ts) */
+  waterTowers?: number;
   wateredZones: number;
   /** Zones and buildings with and without power, read from the map's tiles rather than the census. */
   litZones: number;
   darkZones: number;
+  /** Homes with power: home zones and plots whose tiles have it, read from the map (left out: any zone but a plant) */
+  litHomes?: number;
   pollution: number;
   crime: number;
   /** The ruler's house standing (src/rulerHouse.ts): 1 or 0 */
@@ -62,15 +69,18 @@ export const CHAPTERS: Chapter[] = [
       // The first road, as the house stands beside one (src/rulerHouse.ts); a city with its house has done it
       { id: "street", tool: "road", done: (s) => s.roads >= 1 || s.rulerHouse >= 1 },
       { id: "house", tool: "ruler_house", done: (s) => s.rulerHouse >= 1 },
-      { id: "homes", tool: "residential", done: (s) => s.resZones >= 1 },
+      // (on a real-scale city map a painted plot counts as an eighth of a zone, a share of that by its size: any home
+      // counts; playtest, 23 Oct 2026: 68 cells of homes along a road were 0.3 of a zone and never ticked it)
+      { id: "homes", tool: "residential", done: (s) => s.resZones > 0 },
       { id: "power", tool: "coal", done: (s) => s.powerPlants >= 1 },
-      // Power plants are zones with power themselves, so at least one other zone must have it; it runs along the
-      // roads (src/powerManager.js)
-      { id: "wires", tool: "road", done: (s) => s.poweredZones - s.powerPlants >= 1 },
+      // A home with power, read from the map's tiles (the census counts every zone with power, the plant and the
+      // ruler's house too); it runs along the roads (src/powerManager.js)
+      { id: "wires", tool: "road", done: (s) => (s.litHomes ?? s.poweredZones - s.powerPlants) >= 1 },
       { id: "roads", tool: "road", done: (s) => s.roads >= 10 },
-      { id: "jobs", tool: "commercial", done: (s) => s.comZones >= 1 && s.indZones >= 1 },
-      // Houses grow without water, but nothing bigger does
-      { id: "water", tool: "waterworks", done: (s) => s.waterWorks >= 1 && s.wateredZones >= 1 },
+      { id: "jobs", tool: "commercial", done: (s) => s.comZones > 0 && s.indZones > 0 },
+      // Houses grow without water, but nothing bigger does; a village's water tower pumps its own well (src/unlocks.ts
+      // TOWER_WELL), the water works come with the second era
+      { id: "water", tool: "waterworks", done: (s) => s.waterWorks + (s.waterTowers ?? 0) >= 1 && s.wateredZones > 0 },
       // A town (over 2,000 people) earns the rank ขุน
       { id: "town", tool: null, done: (s) => s.population > 2000 },
     ],
@@ -144,13 +154,29 @@ interface SimulationLike {
     stadiumPop: number;
     airportPop: number;
     waterWorksPop?: number;
+    waterTowerPop?: number;
     wateredZoneCount?: number;
     pollutionAverage: number;
     crimeAverage: number;
     rulerHouseCount?: number;
   };
   evaluation: { cityPop: number };
-  _map?: CityMapSource;
+  _map?: (CityMapSource & { paintedZones?: boolean }) | null;
+}
+
+/** The homes with power, and the painted plots with and without it, from the map's tiles: a home zone's or plot's tile
+ * (240-404) with power, and on a map painted a tile or cell at a time every plot tile, which is no zone's centre */
+export function plotPower(map: CityMapSource & { paintedZones?: boolean }): { litHomes: number; lit: number; dark: number } {
+  let litHomes = 0, lit = 0, dark = 0;
+  const painted = Boolean(map.paintedZones);
+  for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+    const value = map.getTileValue(x, y), flags = map.getTileFlags(x, y);
+    if (value >= RESBASE && value < HOSPITALBASE && flags & POWERBIT) litHomes++;
+    if (!painted || flags & ZONEBIT || !(flags & CONDBIT) || plotKindOfValue(value) === null) continue;
+    if (flags & POWERBIT) lit++;
+    else dark++;
+  }
+  return { litHomes, lit, dark };
 }
 
 export function readStats(simulation: SimulationLike): CityStats {
@@ -158,6 +184,7 @@ export function readStats(simulation: SimulationLike): CityStats {
   // The census is rebuilt during every scan of the map, so zones without power counted halfway through could miss
   // some; the tiles' own power flags are always whole
   const power = simulation._map ? powerCounts(simulation._map) : { powered: 0, unpowered: 0 };
+  const plots = simulation._map ? plotPower(simulation._map) : null;
   return {
     resZones: census.resZonePop,
     comZones: census.comZonePop,
@@ -172,9 +199,11 @@ export function readStats(simulation: SimulationLike): CityStats {
     stadiums: census.stadiumPop,
     airports: census.airportPop,
     waterWorks: census.waterWorksPop ?? 0,
+    waterTowers: census.waterTowerPop ?? 0,
     wateredZones: census.wateredZoneCount ?? 0,
-    litZones: power.powered,
-    darkZones: power.unpowered,
+    litZones: power.powered + (plots?.lit ?? 0),
+    darkZones: power.unpowered + (plots?.dark ?? 0),
+    ...(plots ? { litHomes: plots.litHomes } : {}),
     pollution: census.pollutionAverage,
     crime: census.crimeAverage,
     rulerHouse: census.rulerHouseCount ?? 0,

@@ -7,7 +7,10 @@ import * as path from "path";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { hasKey } from "../src/i18n/index";
-import { CHAPTERS, CityStats, currentChapter, currentGoal, GOALS, readStats, tickGoals } from "../src/rulerGoals";
+import { CHAPTERS, CityStats, currentChapter, currentGoal, GOALS, plotPower, readStats, tickGoals } from "../src/rulerGoals";
+import { plotTile } from "../src/plots";
+import { BLBNCNBIT, POWERBIT, ZONEBIT } from "../src/tileFlags";
+import { CHURCH } from "../src/tileValues";
 import { Simulation } from "../src/simulation.js";
 
 const empty: CityStats = {
@@ -91,8 +94,8 @@ describe("ruler's tasks", () => {
     };
     expect(readStats({ _census: census, evaluation: { cityPop: 840 } })).toEqual({
       resZones: 3, comZones: 1, indZones: 0, powerPlants: 2, poweredZones: 5, roads: 12, population: 840, rails: 4,
-      policeStations: 1, fireStations: 2, stadiums: 0, airports: 1, waterWorks: 0, wateredZones: 0, litZones: 0, darkZones: 0,
-      pollution: 44, crime: 17, rulerHouse: 0,
+      policeStations: 1, fireStations: 2, stadiums: 0, airports: 1, waterWorks: 0, waterTowers: 0, wateredZones: 0, litZones: 0,
+      darkZones: 0, pollution: 44, crime: 17, rulerHouse: 0,
     });
 
     // A zone by a coal plant has power, one far away does not
@@ -105,6 +108,33 @@ describe("ruler's tasks", () => {
     }
     for (let step = 0; step < 16 * 12; step++) sim._simulate(sim._constructSimData());
     expect(readStats(sim)).toEqual(expect.objectContaining({ litZones: 1, darkZones: 1, powerPlants: 1 }));
+    expect(readStats(sim).litHomes).toBeGreaterThanOrEqual(1);
+  });
+
+  // Playtest, 23 Oct 2026: on Mueang Khon Kaen a stroke of 68 home cells along a road never ticked "homes"
+  test("on a real-scale city map a painted plot, an eighth of a zone or less, counts: homes, jobs and water", () => {
+    const homes = tickGoals(new Set(), { ...empty, resZones: 0.3125 });
+    expect(homes.has("homes")).toBe(true);
+    const jobs = tickGoals(homes, { ...empty, comZones: 0.1, indZones: 0.05 });
+    expect(jobs.has("jobs")).toBe(true);
+    expect(tickGoals(homes, { ...empty, comZones: 0.1 }).has("jobs")).toBe(false);
+    // a village's water tower is its water before the water works come (src/unlocks.ts)
+    expect(tickGoals(homes, { ...empty, waterTowers: 1, wateredZones: 0.125 }).has("water")).toBe(true);
+    expect(tickGoals(homes, { ...empty, waterTowers: 1 }).has("water")).toBe(false);
+  });
+
+  test("power reaches a home, not just the ruler's house: read from the homes' tiles", () => {
+    // the plant and the house have power, no home does
+    const house = tickGoals(new Set(), { ...empty, resZones: 0.3, powerPlants: 1, poweredZones: 2, litHomes: 0 });
+    expect(house.has("wires")).toBe(false);
+    expect(tickGoals(house, { ...empty, powerPlants: 1, poweredZones: 2.1, litHomes: 1 }).has("wires")).toBe(true);
+    // ... read from a painted map: a home plot's tile with power, a shop plot's without; a ruler's civic centre is no home
+    const map = new (GameMap as unknown as new (w: number, h: number) => any)(40, 40);
+    map.paintedZones = true;
+    map.setTile(5, 5, plotTile("residential", 0), BLBNCNBIT | POWERBIT);
+    map.setTile(9, 5, plotTile("commercial", 1), BLBNCNBIT);
+    map.setTile(20, 20, CHURCH, BLBNCNBIT | ZONEBIT | POWERBIT);
+    expect(plotPower(map)).toEqual({ litHomes: 1, lit: 1, dark: 1 });
   });
 
   test("have a title, names and hints in both languages, and point at tool buttons that exist", () => {

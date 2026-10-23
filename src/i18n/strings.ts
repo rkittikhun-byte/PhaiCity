@@ -1413,7 +1413,7 @@ export const STRINGS: Record<string, Translation> = {
   "goals.jobs": { en: "Create jobs: commerce and industry", th: "สร้างงาน: เขตพาณิชย์และอุตสาหกรรม" },
   "goals.jobs.hint": { en: "Shops and factories give people work. The bars on the left show what the city wants next.", th: "ร้านค้าและโรงงานให้งานกับราษฎร แถบความต้องการทางซ้ายบอกว่าเมืองอยากได้อะไรเพิ่ม" },
   "goals.water": { en: "Bring running water", th: "ทำน้ำประปา" },
-  "goals.water.hint": { en: "Build a Water Works beside a road and give it power: water runs along every road joined to it. Near a river it gives the most; see Groundwater on the City map (M).", th: "สร้าง “โรงผลิตน้ำประปา” ติดถนนแล้วต่อไฟฟ้าให้ น้ำจะไหลไปตามถนนทุกสายที่ต่อถึง ตั้งใกล้แม่น้ำได้น้ำมากที่สุด ดูชั้น “น้ำใต้ดิน” ในแผนที่เมือง (M)" },
+  "goals.water.hint": { en: "Build a Water Tower beside the homes' road and give it power (a village's own well; the Water Works come with the next era): water runs along every road joined to it. Near a river it gives the most; see Groundwater on the City map (M).", th: "สร้าง “หอถังสูง” ติดถนนเส้นที่ไปถึงบ้านแล้วต่อไฟฟ้าให้ (บ่อของหมู่บ้านเอง “โรงผลิตน้ำประปา” มากับยุคถัดไป) น้ำจะไหลไปตามถนนทุกสายที่ต่อถึง ตั้งใกล้แม่น้ำได้น้ำมากที่สุด ดูชั้น “น้ำใต้ดิน” ในแผนที่เมือง (M)" },
   "goals.street": { en: "Lay the first road", th: "วาดถนนสายแรก" },
   "goals.street.hint": { en: "Pick Road, click where it starts, then where it ends. The {office} will stand beside it.", th: "เลือก “ถนน” คลิกจุดเริ่ม แล้วคลิกจุดปลาย {office}จะตั้งติดถนนสายนี้" },
   "goals.house": { en: "Build the {office}", th: "สร้าง{office}" },
