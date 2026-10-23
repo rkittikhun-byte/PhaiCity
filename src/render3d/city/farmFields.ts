@@ -56,6 +56,8 @@ const LIFT = 0.05, INNER_LIFT = 0.09;
 const UNITS = 10;
 /** World units a bucket of the cells drawn, for finding each one's neighbours */
 const BUCKET = 5;
+/** How much larger than its side a farm cell's patch is drawn */
+const CELL_GROW = 1.06;
 /** Tiles round a field whose roads may lay its cells (33 rows of 4 m and the road's half width) */
 const NEAR_FIELDS = 10;
 
@@ -109,8 +111,10 @@ export class CityFarmFields {
   readonly root = new Group();
   private readonly details = new Group();
   private ground: Mesh | null = null;
+  // (drawn over the land's detail, terrain-detail.ts at -2, -2, which hid the fields of a city map's woods and fields
+  // of open land; under the roads and their gravel, which no field cell reaches)
   private readonly groundMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
-    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -5 });
   private readonly materials = new Map<number, MeshStandardMaterial>();
   private readonly meshes = new Map<string, InstancedMesh[]>();
   private fields: Field[] = [];
@@ -361,6 +365,9 @@ export class CityFarmFields {
       p(u1, v0); p(u0, v1); p(u1, v1);
       return 6;
     };
+    // (a road-aligned cell a little larger than its 4 m, so the cells of a bend, laid square, leave no slivers of grass
+    // between them; a whole tile as it is)
+    const grow = (c: DrawnCell): number => (c.size < UNITS ? CELL_GROW : 1);
     for (const field of this.fields) {
       const insideToo = this.tones(field, month, outer, inner);
       // Each cell's dike on each side where the field ends: [across left, right, along back, front]
@@ -375,11 +382,11 @@ export class CityFarmFields {
       // The earth or the bank under each cell, unless the water covers it whole, then the water or the pond inside
       let outerVerts = 0, innerVerts = 0;
       field.cells.forEach((c, n) => {
-        const half = c.size / 2, halfV = half * c.span, [l, r, b, f] = insets[n];
+        const half = c.size / 2 * grow(c), halfV = half * c.span, [l, r, b, f] = insets[n];
         if (!insideToo || l || r || b || f) outerVerts += patch(c, -half, -halfV, half, halfV, LIFT, outer);
       });
       if (insideToo) field.cells.forEach((c, n) => {
-        const half = c.size / 2, halfV = half * c.span, [l, r, b, f] = insets[n];
+        const half = c.size / 2 * grow(c), halfV = half * c.span, [l, r, b, f] = insets[n];
         innerVerts += patch(c, -half + l, -halfV + b, half - r, halfV - f, INNER_LIFT, inner);
       });
       this.verts.push([outerVerts, innerVerts]);
