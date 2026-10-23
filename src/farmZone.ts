@@ -120,6 +120,13 @@ const ROAD_VALUES: Uint8Array = (() => {
 /** Land a cart track crosses on its way to a road: open land and fields */
 const passable = (value: number): boolean => isOpenLand(value) || isFieldValue(value);
 
+/** Which tile values a cart track crosses (passable), as a table */
+const PASSABLE_VALUES: Uint8Array = (() => {
+  const out = new Uint8Array(BIT_MASK + 1);
+  for (let v = 0; v <= BIT_MASK; v++) if (passable(v)) out[v] = 1;
+  return out;
+})();
+
 const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
 
 // --- The cart tracks (ทางเกวียน) a field needs to a road ---------------------------------------------------------------
@@ -132,8 +139,6 @@ const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
 /** Whether a map measures its fields' ways in metres */
 const waysInMetres = (map: PlotMap & { cellZones?: boolean }): boolean => map.cellZones === true;
 
-const DIAGONALS = [[1, -1], [1, 1], [-1, 1], [-1, -1]] as const;
-
 /**
  * The way to a road over open land and fields in metres from every tile whose way the search starts at, as far as
  * `limit` metres: a search out from `starts` (their map indices and metres), each step a tile across (tileSizeM) or a
@@ -143,17 +148,26 @@ const DIAGONALS = [[1, -1], [1, 1], [-1, 1], [-1, -1]] as const;
  */
 function metreWays(map: PlotMap, starts: ReadonlyArray<[number, number]>, limit: number, startsLead = false,
                    x0 = 0, y0 = 0, w = map.width, h = map.height, drive: Uint8Array | null = null): Float64Array {
-  const width = map.width, tile = map.tileSizeM || 16, diagonal = tile * Math.SQRT2;
-  const dist = new Float64Array(w * h).fill(Infinity), open = new Uint8Array(w * h);
-  const local = (x: number, y: number): number => (x < x0 || y < y0 || x >= x0 + w || y >= y0 + h ? -1 : (y - y0) * w + (x - x0));
-  const isOpen = (x: number, y: number): boolean => {
-    const k = local(x, y);
-    if (k < 0) return false;
-    if (!open[k]) open[k] = passable(map.getTileValue(x, y)) ? 2 : 1;
-    return open[k] === 2;
+  const width = map.width, tile = map.tileSizeM || 16, diagonal = tile * Math.SQRT2, none = Infinity;
+  const dist = new Float64Array(w * h).fill(none), open = new Uint8Array(w * h);
+  // (plain loops, every step and look-up written out, with the map's cells and the tables in locals: the month's fields
+  // search the whole map, a few hundred thousand tiles, and closures, tuples and globals were most of it under Jest;
+  // the same steps in the same order as before, so the same metres, docs/NO_GRID_PLAN.md 5.1)
+  const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null, lead = PASSABLE_VALUES, mask = BIT_MASK;
+  const x1 = x0 + w, y1 = y0 + h, most = limit + 1e-6;
+  // Whether window tile k at (x, y) leads on (open[k] 2) or not (1), worked out once
+  const isOpen = (k: number, x: number, y: number): boolean => {
+    let o = open[k];
+    if (!o) open[k] = o = (raw !== null ? lead[raw[y * width + x] & mask] === 1 : passable(map.getTileValue(x, y))) ? 2 : 1;
+    return o === 2;
   };
   // (startsLead: the starts lead on whatever stands there, as the tile a field is asked for does)
-  if (startsLead) for (const [i] of starts) { const k = local(i % width, Math.floor(i / width)); if (k >= 0) open[k] = 2; }
+  if (startsLead) {
+    for (let s = 0; s < starts.length; s++) {
+      const i = starts[s][0], sx = i % width, sy = Math.floor(i / width);
+      if (sx >= x0 && sy >= y0 && sx < x1 && sy < y1) open[(sy - y0) * w + (sx - x0)] = 2;
+    }
+  }
   // A binary heap of [metres, window index]
   const heapD: number[] = [], heapK: number[] = [];
   const push = (d: number, k: number): void => {
@@ -166,39 +180,52 @@ function metreWays(map: PlotMap, starts: ReadonlyArray<[number, number]>, limit:
     }
     heapD[n] = d; heapK[n] = k;
   };
-  const pop = (): [number, number] => {
-    const top: [number, number] = [heapD[0], heapK[0]], d = heapD.pop()!, k = heapK.pop()!;
-    if (heapD.length) {
-      let n = 0;
-      for (;;) {
-        const a = 2 * n + 1, b = a + 1;
-        let m = n, md = d;
-        if (a < heapD.length && heapD[a] < md) { m = a; md = heapD[a]; }
-        if (b < heapD.length && heapD[b] < md) { m = b; md = heapD[b]; }
-        if (m === n) break;
-        heapD[n] = heapD[m]; heapK[n] = heapK[m]; n = m;
-      }
-      heapD[n] = d; heapK[n] = k;
-    }
-    return top;
-  };
-  for (const [i, d] of starts) {
-    const k = local(i % width, Math.floor(i / width));
-    if (k >= 0 && d < dist[k]) { dist[k] = d; push(d, k); }
+  for (let s = 0; s < starts.length; s++) {
+    const i = starts[s][0], d = starts[s][1], sx = i % width, sy = Math.floor(i / width);
+    if (sx < x0 || sy < y0 || sx >= x1 || sy >= y1) continue;
+    const k = (sy - y0) * w + (sx - x0);
+    if (d < dist[k]) { dist[k] = d; push(d, k); }
   }
+  // A step to (nx, ny), nd metres from the starts
   const step = (nx: number, ny: number, nd: number): void => {
-    const j = local(nx, ny);
-    if (j < 0 || nd > limit + 1e-6 || nd >= dist[j] || (drive !== null ? drive[ny * width + nx] === 1 : drivewayAt(map, nx, ny))) return;
+    if (nx < x0 || ny < y0 || nx >= x1 || ny >= y1) return;
+    const j = (ny - y0) * w + (nx - x0);
+    if (nd > most || nd >= dist[j] || (drive !== null ? drive[ny * width + nx] === 1 : drivewayAt(map, nx, ny))) return;
     dist[j] = nd;
     push(nd, j);
   };
   while (heapD.length) {
-    const [d, k] = pop();
-    const x = x0 + (k % w), y = y0 + Math.floor(k / w);
-    if (d > dist[k] || !isOpen(x, y)) continue;
-    for (const [dx, dy] of SIDES) step(x + dx, y + dy, d + tile);
-    // (between two open tiles only, never through a corner of something in the way)
-    for (const [dx, dy] of DIAGONALS) if (isOpen(x + dx, y) && isOpen(x, y + dy)) step(x + dx, y + dy, d + diagonal);
+    // (the heap's top taken off as before)
+    const d = heapD[0], k = heapK[0], lastD = heapD.pop()!, lastK = heapK.pop()!;
+    const size = heapD.length;
+    if (size) {
+      let n = 0;
+      for (;;) {
+        const a = 2 * n + 1, b = a + 1;
+        let m = n, md = lastD;
+        if (a < size && heapD[a] < md) { m = a; md = heapD[a]; }
+        if (b < size && heapD[b] < md) { m = b; md = heapD[b]; }
+        if (m === n) break;
+        heapD[n] = heapD[m]; heapK[n] = heapK[m]; n = m;
+      }
+      heapD[n] = lastD; heapK[n] = lastK;
+    }
+    const kx = k % w, x = x0 + kx, y = y0 + (k - kx) / w;
+    if (d > dist[k] || !isOpen(k, x, y)) continue;
+    // North, east, south and west, a tile across
+    const across = d + tile;
+    step(x, y - 1, across);
+    step(x + 1, y, across);
+    step(x, y + 1, across);
+    step(x - 1, y, across);
+    // ... and the diagonals north-east, south-east, south-west and north-west, between two open tiles only, never
+    // through a corner of something in the way
+    const slant = d + diagonal;
+    const east = x + 1 < x1 && isOpen(k + 1, x + 1, y), west = x - 1 >= x0 && isOpen(k - 1, x - 1, y);
+    if (east && y - 1 >= y0 && isOpen(k - w, x, y - 1)) step(x + 1, y - 1, slant);
+    if (east && y + 1 < y1 && isOpen(k + w, x, y + 1)) step(x + 1, y + 1, slant);
+    if (west && y + 1 < y1 && isOpen(k + w, x, y + 1)) step(x - 1, y + 1, slant);
+    if (west && y - 1 >= y0 && isOpen(k - w, x, y - 1)) step(x - 1, y - 1, slant);
   }
   return dist;
 }
