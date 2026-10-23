@@ -3944,8 +3944,13 @@ var commonAnimate = function() {
   if (!this._curtainFaded) {
     this._curtainFaded = true;
     fadeCurtain(false, 900);
-    // The loading screen fades too, once the surfaces still on their way have come (src/loadingScreen.ts)
-    loadingFirstFrame();
+    // The loading screen fades too, once the surfaces still on their way have come and the buildings in sight are drawn
+    // (src/loadingScreen.ts); until then the view builds them with a bigger share of each frame
+    var view = this.cityView;
+    if (typeof view.setLoading === 'function')
+      view.setLoading(true);
+    loadingFirstFrame(typeof view.dressing === 'function' ? function() { return view.dressing(); } : null,
+                      function() { if (typeof view.setLoading === 'function') view.setLoading(false); });
   }
 
   if (this.monsterTV !== null) {

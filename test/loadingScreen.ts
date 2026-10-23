@@ -56,7 +56,7 @@ describe("the loading screen", () => {
     steps.mark("view", "done");
     expect(steps.current()).toBe("heights");
     for (const step of steps.steps) steps.mark(step, "done");
-    expect(steps.current()).toBe("textures");
+    expect(steps.current()).toBe("buildings");
   });
 
   test("loads are counted until they settle, whether they arrive or fail", async () => {

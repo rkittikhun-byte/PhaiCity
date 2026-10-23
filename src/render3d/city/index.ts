@@ -74,6 +74,8 @@ const DEFAULT_QUALITY:GraphicsQuality='auto';
  * shadows and fills the building pools again): 120 a radian, half a degree, so a house's shadow moves a few centimetres
  * a step; at 30 it jumped two degrees about once a second in the day, a flicker (owner, 23 Oct 2026) */
 const SUN_STEPS=120;
+/** Milliseconds of each frame the city's chunks build in while the loading screen stands (setLoading) */
+const LOADING_SLICE_MS=40;
 const tDrawSize=new Vector2();
 const tSunWay=new Vector3();
 const cSunHigh=new Color(SCENE.post.sunHigh),cSunLow=new Color(SCENE.post.sunLow);
@@ -477,6 +479,9 @@ export class CityView3D implements CityView {
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   /** What each tile is to the trees (foliage, pedestrians.ts): 1 bare ground, 2 woods, 0 anything else */
   private treeGround:Uint8Array|null=null;
+  /** While the loading screen stands the chunks build and decode in a bigger share of each frame (cityView.ts) */
+  setLoading(on:boolean):void{this.chunks.sliceMs=on?LOADING_SLICE_MS:3;}
+  dressing():{done:number;total:number;missing:string[]}{return this.chunks.dressing(this.visibleTiles());}
   /** Auto raised the resolution again, and then had to lower it once more: it holds there (the adaptive block in paint) */
   private ratioRaised=false;private ratioHeld=false;
   /** Whether a changed tile became, or stopped being, ground the trees stand on: only then are the trees round the camera

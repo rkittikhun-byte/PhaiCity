@@ -135,6 +135,13 @@ export interface CityView {
   /** 3D only, optional: brings the camera back to the view a city opens with (the ⌂ corner button). */
   resetView?(): void;
   /**
+   * 3D only, optional: while the loading screen stands (on), the view builds its city and decodes its models with a
+   * bigger share of each frame; and how far it has drawn the buildings in sight (parts done of all, and what is still
+   * missing), which the loading screen waits for (src/loadingScreen.ts, owner 23 Oct 2026)
+   */
+  setLoading?(on: boolean): void;
+  dressing?(): { done: number; total: number; missing: string[] };
+  /**
    * 3D only, optional: lays a layer of the city map over the ground (owner, 15 Oct 2026), its picture a pixel a tile
    * (src/cityMap.ts layerPixels), or takes it away (null). The city map window calls it as its layer changes.
    */

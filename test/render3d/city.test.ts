@@ -115,7 +115,7 @@ describe('3D CityView lifecycle',()=>{
     const provider={request(r:PrototypeRequest){requests.push(r);ready.push({key:r.key,height:1,parts:[{index:new Uint32Array(geometry.index!.array),
       attributes:Object.fromEntries(Object.entries(geometry.attributes).map(([key,a])=>[key,{array:new Float32Array(a.array),size:a.itemSize}])),
       material:{key:'plaster_white',name:'plaster_white',color:0xffffff,data:{materialKey:'plaster_white'}}}]});},take(){return ready.splice(0);},dispose:jest.fn()};
-    const c=new CityChunks(s,'central',provider,()=>0),target=new Vector3(160,0,80);
+    let clock=0;const c=new CityChunks(s,'central',provider,()=>clock),target=new Vector3(160,0,80);
     try{
       c.update({x0:0,y0:0,x1:32,y1:16},target,400);expect(requests.length).toBeGreaterThan(0);
       c.update({x0:0,y0:0,x1:32,y1:16},target,400);expect(c.detailCalls).toBeGreaterThan(0);expect(c.detailCalls).toBeLessThanOrEqual(180);
@@ -123,7 +123,8 @@ describe('3D CityView lifecycle',()=>{
       expect(c.pendingChunks).toBe(0);expect(c.pendingModels).toBe(0);c.mapLOD(true);c.mapLOD(false);
       m.values[8*33+15]=0;c.dirty(s.sync(m));expect(c.pendingChunks).toBeGreaterThanOrEqual(2);
       c.update({x0:0,y0:0,x1:32,y1:16},target,400);expect(s.placement(8*33+16,'central')?.id).toBe('road.single');
-      c.update({x0:0,y0:0,x1:32,y1:16},target,3000);expect(c.detailCalls).toBe(0);
+      // (what was drawn fades out over a third of a second, the chunk's rebuilt buildings with it)
+      for(let k=0;k<6;k++){clock+=100;c.update({x0:0,y0:0,x1:32,y1:16},target,3000);}expect(c.detailCalls).toBe(0);
     }finally{c.dispose();geometry.dispose();}expect(provider.dispose).toHaveBeenCalledTimes(1);
   });
   it('keeps world UV projection in the instancing shader but preserves sign and leaf atlas coordinates',()=>{

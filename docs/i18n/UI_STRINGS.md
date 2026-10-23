@@ -1806,6 +1806,7 @@
 | `loading.step.city` | `src/loadingScreen.ts` | — | `Building the city and its simulation` | `สร้างเมืองและระบบจำลอง` |  |
 | `loading.step.world` | `src/loadingScreen.ts` | — | `Roads, trees and buildings in 3D` | `ถนน ต้นไม้ และอาคารสามมิติ` |  |
 | `loading.step.textures` | `src/loadingScreen.ts` | — | `Surfaces and materials` | `พื้นผิวและวัสดุ` | นับจำนวนที่โหลดแล้ว |
+| `loading.step.buildings` | `src/loadingScreen.ts` | — | `Buildings in view` | `อาคารในภาพ` | นับส่วนของเมืองที่สร้างเสร็จ |
 | `loading.music` | `src/loadingScreen.ts` | — | `Music of the {region}` | `เพลงภาค{region}` | {region} คือชื่อสั้นของภาค |
 | `loading.music_theme` | `src/loadingScreen.ts` | — | `PhaiCity theme` | `เพลงประจำเกม PhaiCity` | แผนที่ฝึกเล่น |
 

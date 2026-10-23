@@ -1631,6 +1631,7 @@ export const STRINGS: Record<string, Translation> = {
   "loading.step.city": { en: "Building the city and its simulation", th: "สร้างเมืองและระบบจำลอง" },
   "loading.step.world": { en: "Roads, trees and buildings in 3D", th: "ถนน ต้นไม้ และอาคารสามมิติ" },
   "loading.step.textures": { en: "Surfaces and materials", th: "พื้นผิวและวัสดุ" },
+  "loading.step.buildings": { en: "Buildings in view", th: "อาคารในภาพ" },
   "loading.music": { en: "Music of the {region}", th: "เพลงภาค{region}" },
   "loading.music_theme": { en: "PhaiCity theme", th: "เพลงประจำเกม PhaiCity" },
   "unlock.era": { en: "Needs the {era} era", th: "ต้องเข้ายุค{era}" },

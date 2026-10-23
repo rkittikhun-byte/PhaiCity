@@ -327,7 +327,10 @@ export class TileSnapshot implements CityMapReader {
     const paint = (map as { zoneCellsVersion?: number }).zoneCellsVersion ?? 0;
     if (paint === this.paintSeen) return [];
     this.paintSeen = paint;
-    const before = this.planStale ? null : this.plan;
+    // (the plan last worked out, even when tiles have changed since: a plot growing makes it stale, and a brush stroke
+    // changes plots, so taking none then called every painted plot of the city moved, some 400 tiles a step of a drag,
+    // and every chunk with a plot in it was built again; owner, 23 Oct 2026)
+    const before = this.plan;
     this.planStale = true;
     if (!this.frontageOn()) return [];
     const now = this.frontagePlan();

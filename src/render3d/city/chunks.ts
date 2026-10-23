@@ -17,14 +17,25 @@ interface Batch { group:Group; placements:Placement[]; key:string; calls:number;
   pool?:ModelPool; pooled?:PoolPlacements;
   /** A building that went (or became another) when its chunk was built again, fading out where it stood (ghost) */
   ghost?:boolean }
-interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
+interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number;
+  /** While the chunk is built again: the tiles its drawn buildings stand on, whose coarse boxes stay hidden under them
+   * until the new batches take their place (finish) */
+  keep?:Set<number>}
 const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),color=new Color();
+/** How long after a model failed it is asked for again, and how many times it is asked in all */
+const MODEL_RETRY_MS=5000,MODEL_TRIES=3;
 /** The fewest tiles a frame scans for their models, however slow the frame (CityChunks.update) */
 export const MIN_CELLS=64;
 export class CityChunks {
   readonly root=new Group();readonly solid:InstancedMesh;readonly water:InstancedMesh;readonly ground:InstancedMesh;
   readonly chunks:Chunk[]=[];readonly prototypes=new Map<string,Prototype>();
   private requested=new Set<string>();private failed=new Set<string>();
+  /** A model that failed: when, and how many times; it is asked for again after MODEL_RETRY_MS, MODEL_TRIES times in all */
+  private failures=new Map<string,{at:number;tries:number}>();
+  private fail(key:string,error:unknown):void {
+    this.failed.add(key);const f=this.failures.get(key)??{at:0,tries:0};f.at=this.now();f.tries++;this.failures.set(key,f);
+    console.warn(`City model skipped (try ${f.tries} of ${MODEL_TRIES}${f.tries<MODEL_TRIES?', asked again soon':', drawn as a box'}):`,key,String(error));
+  }
   private readonly geometry=new BoxGeometry(1,1,1);private coarseDirty=false;private fadeDirty=false;
   private readonly groundGeometry=new PlaneGeometry(1,1).rotateX(-Math.PI/2);
   private coarse=new Map<number,Placement>();private hidden=new Set<number>();
@@ -33,6 +44,9 @@ export class CityChunks {
   private lastUpdate:number;
   readonly columns:number;unknownTiles=0;rebuildMs=0;detailCalls=0;
   drawBudget=180;detailSwaps=0;dirtSwaps=0;
+  /** Milliseconds of a frame the chunks build and decode in (update): 3 as the city plays, more behind the loading
+   * screen (the view's setLoading) */
+  sliceMs=3;
   /** The batches drawn or fading (selected, or fade above 0): the only ones each frame goes over after choosing, of the
    * tens of thousands a real-scale city map has */
   private readonly active=new Set<Batch>();
@@ -85,19 +99,12 @@ export class CityChunks {
     const eager=indices.length<=64&&(this.snapshot.realUnits??1)<1;
     for(const id of ids){
       const chunk=this.chunks[id];
-      const shown=eager?chunk.batches.filter(b=>b.selected||b.fade>0):[];
-      const wasVisible=eager?new Set(shown.map(b=>b.key)):undefined;
-      chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);
-      if(eager&&wasVisible&&wasVisible.size>0){
-        while(chunk.cursor<256)this.cell(chunk,chunk.cursor++);
-        this.finish(chunk,wasVisible);
-        // What was drawn and is no more (a house that went, or rose a level into another model) fades out where it
-        // stood, over what took its place, rather than going in one frame: a town's plots change every few seconds
-        // (owner, 23 Oct 2026: "การ render กระพริบๆ")
-        const now=new Set<string>();
-        for(const b of chunk.batches)if(b.selected||b.fade>0)for(const q of b.placements)now.add(`${q.index}|${b.key}`);
-        for(const b of shown){const gone=b.placements.filter(q=>!now.has(`${q.index}|${b.key}`));if(gone.length)this.ghost(b.key,gone,b.fade);}
-      }
+      // The chunk's buildings stay drawn while it is built again, and swap for the new ones in one frame (finish): a
+      // brush stroke once cleared every chunk it touched to coarse boxes until each was built again (owner, 23 Oct
+      // 2026: "ตอนฉันวาดสีที่อยู่อาศัย ... ฉันเห็นกล่องสี่เหลี่ยมแว็บนึง เต็มไปหมดเลยทุกอาคาร")
+      this.rebuild(chunk);
+      // ... at once for a few tiles on a city map; else a slice of tiles a frame (update)
+      if(eager&&chunk.keep!.size>0){while(chunk.cursor<256)this.cell(chunk,chunk.cursor++);this.finish(chunk);}
     }
     // Only a change sorts the batches by distance again: the view calls this every frame, mostly with nothing, and over
     // a town of thousands of plots the sort took some 20 ms a frame
@@ -106,7 +113,7 @@ export class CityChunks {
   /** Every chunk built again, for a change that reaches every building at once: the era models arriving or the city
    * moving to a new era (eraBuildings.ts) */
   refreshAll():void {
-    for(const chunk of this.chunks){chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);}
+    for(const chunk of this.chunks)this.rebuild(chunk);
     this.surfaces?.dirty(Array.from({length:this.snapshot.width*this.snapshot.height},(_,i)=>i));
     this.batchesDirty=true;
   }
@@ -141,6 +148,16 @@ export class CityChunks {
     const b:Batch={key,placements,group:new Group(),calls:0,selected:false,fade,pool:undefined,pooled:undefined,ghost:true};
     this.instantiate(b,proto);b.group.visible=true;if(!b.pool&&b.group.parent!==this.root)this.root.add(b.group);this.active.add(b);
   }
+  /** Starts building a chunk again, its drawn batches kept on screen until the new ones are ready (finish) */
+  private rebuild(chunk:Chunk):void {
+    const keep=chunk.keep??new Set<number>();
+    if(!chunk.dirty||!chunk.keep)for(const b of chunk.batches)if(b.selected||b.fade>0)for(const p of b.placements)keep.add(p.index);
+    chunk.keep=keep;chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;
+  }
+  /** Takes batches off the screen and frees them, leaving the coarse boxes to whatever stands there now */
+  private drop(batches:readonly Batch[]):void {
+    for(const batch of batches){this.leavePool(batch);this.active.delete(batch);batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
+  }
   private clear(chunk:Chunk):void {
     for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}this.leavePool(batch);this.active.delete(batch);batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
     chunk.batches=[];
@@ -157,13 +174,31 @@ export class CityChunks {
     const slot=(p.water?this.waterSlots:this.solidSlots)[p.index];
     if(slot>=0){(p.water?this.waterDetail:this.solidDetail).setX(slot,fade);this.fadeDirty=true;}
   }
-  private finish(chunk:Chunk,wasVisible?:Set<string>):void {
+  private finish(chunk:Chunk):void {
     const groups=new Map<string,Placement[]>();
     for(const p of chunk.placements)if(p.id){const key=prototypeKey(p),g=groups.get(key)??[];g.push(p);groups.set(key,g);}
+    // What was drawn when the chunk began to be built again, and is drawn again at once in its new batches
+    const old=chunk.batches,shown=old.filter(b=>b.selected||b.fade>0),wasVisible=new Set(shown.map(b=>b.key));
+    const restored=(key:string,p:Placement):boolean=>wasVisible.size>0&&(wasVisible.has(key)||['residential','commercial','industrial','services','transport'].includes(p.kind));
+    // A building drawn before whose new model has not come yet keeps the old one a while longer: its model is asked
+    // for, and the chunk is finished on a later frame (update), unless the model failed
+    if(shown.length){
+      let waiting=false;
+      for(const [key,placements] of groups){
+        if(!restored(key,placements[0])||this.prototypes.has(key)||this.failed.has(key))continue;
+        waiting=true;
+        if(!this.requested.has(key)){const p=placements[0];this.requested.add(key);this.provider.request({key,id:p.id!,options:p.options});}
+      }
+      if(waiting)return;
+    }
+    this.drop(old);
     // (every batch with the same fields from the start, so the loops over them stay quick)
     chunk.batches=Array.from(groups,([key,placements])=>({key,placements,group:new Group(),calls:0,selected:false,fade:0,pool:undefined,pooled:undefined}));
+    // Every tile's coarse box as the tile now is (cell kept those under drawn buildings hidden), then the batches drawn
+    // at once take their tiles back
+    for(const p of chunk.placements){this.showCoarse(p,true);this.coarseFade(p,0);}
     for(const b of chunk.batches){
-      const proto=wasVisible&&(wasVisible.has(b.key)||['residential','commercial','industrial','services','transport'].includes(b.placements[0].kind))?this.prototypes.get(b.key):undefined;
+      const proto=restored(b.key,b.placements[0])?this.prototypes.get(b.key):undefined;
       if(proto){
         b.selected=true;b.fade=1;this.instantiate(b,proto);b.group.visible=true;this.active.add(b);
         for(const p of b.placements){this.showCoarse(p,false);this.coarseFade(p,1);}
@@ -174,12 +209,22 @@ export class CityChunks {
         b.group.visible=false;
       }
     }
-    chunk.dirty=false;
+    // What was drawn and is no more (a house that went, or rose a level into another model) fades out where it stood,
+    // over what took its place, rather than going in one frame: a town's plots change every few seconds (owner, 23 Oct
+    // 2026: "การ render กระพริบๆ")
+    if(shown.length){
+      const now=new Set<string>();
+      for(const b of chunk.batches)if(b.selected)for(const q of b.placements)now.add(`${q.index}|${b.key}`);
+      for(const b of shown){const gone=b.placements.filter(q=>!now.has(`${q.index}|${b.key}`));if(gone.length)this.ghost(b.key,gone,b.fade);}
+    }
+    chunk.keep=undefined;chunk.dirty=false;
     this.batchesDirty=true;
   }
   private cell(chunk:Chunk,n:number):void {
     const x=chunk.x+n%16,y=chunk.y+Math.floor(n/16);if(x>=this.snapshot.width||y>=this.snapshot.height)return;
     const i=y*this.snapshot.width+x,p=this.snapshot.placement(i,this.region);this.setCoarse(i,p);if(p)chunk.placements.push(p);
+    // (under a building still drawn while its chunk is built again no box shows: finish sets it)
+    if(p&&chunk.keep?.has(i)){this.showCoarse(p,false);this.coarseFade(p,1);}
     // ... and the other buildings of its tile (a terrace of shophouse bays, frontage.ts), on its ground
     if(p?.parts)for(const part of p.parts){part.baseY=p.baseY;part.outside=p.outside;chunk.placements.push(part);}
     const v=this.snapshot.values[i],wet=v>=2&&v<=20||v===64||v===65||v===224||v===225||v===208||v===209||v>=828&&v<=832||v>=948&&v<=951;
@@ -245,32 +290,34 @@ export class CityChunks {
   }
   update(visible:TileRect|null,target:Vector3,distance:number):void {
     // Reserve one millisecond of the four-millisecond slice for batch selection / GPU buffer handoff.
-    const start=this.now(),deadline=start+3;
+    const start=this.now(),deadline=start+this.sliceMs;
+    // A model that failed (a file that did not come, a worker's error) is asked for again a few times
+    for(const [key,f] of this.failures)if(this.failed.has(key)&&f.tries<MODEL_TRIES&&start-f.at>=MODEL_RETRY_MS){this.failed.delete(key);this.requested.delete(key);this.batchesDirty=true;}
     const priority=(c:Chunk):number=>{const inView=visible&&c.x<=visible.x1&&c.x+16>visible.x0&&c.y<=visible.y1&&c.y+16>visible.y0;
       return Math.hypot(c.x*10+80-target.x,c.y*10+80-target.z)+(inView?0:100000);};
     const work=this.chunks.filter(c=>c.dirty).map(c=>({c,rank:priority(c)})).sort((a,b)=>a.rank-b.rank);
     // The scan's slice starts once the work is sorted, and scans a few tiles whatever the clock says: on a real-scale
     // city map's 900 chunks the sort alone took the whole millisecond, so no chunk was ever scanned and no model shown
     // (owner, 18 Oct 2026: the level crossing on the Khon Kaen map never appeared)
-    const coarseDeadline=this.surfaces?this.now()+1:deadline;let scanned=0;
+    const coarseDeadline=this.surfaces?this.now()+Math.max(1,(this.sliceMs-2)/2):deadline;let scanned=0;
     for(const{c:chunk}of work){while(chunk.cursor<256&&(scanned<MIN_CELLS||this.now()<coarseDeadline)){this.cell(chunk,chunk.cursor++);scanned++;}
       if(chunk.cursor===256)this.finish(chunk);if(scanned>=MIN_CELLS&&this.now()>=coarseDeadline)break;}
     // Province terrain and worker handoff each get a slice while distant chunks are still being built.
     // ... the far ground's trees light where the camera is far enough (province-surface.ts, lod.ts)
     if(this.surfaces&&this.camera){this.surfaces.eye.setFromMatrixPosition(this.camera.matrixWorld);this.surfaces.pixelsPerUnit=this.lodOn?this.pixelsPerUnit:0;}
-    this.surfaces?.update(target,distance,this.now,Math.max(start+2,this.now()+.5));
+    this.surfaces?.update(target,distance,this.now,Math.max(start+Math.max(2,this.sliceMs*.8),this.now()+.5));
     // Decode small transferred buffers incrementally; heavy factories never run on the UI thread.
     this.pendingResults.push(...this.provider.take());
     // ... at least one a frame, as the slices before it can use up the whole budget on a slow frame
     let decoded=0;
     while(this.pendingResults.length&&(decoded++<1||this.now()<deadline)){const result=this.pendingResults.shift()!;
-      if(result.error){this.failed.add(result.key);console.warn('City model skipped:',result.key,result.error);}
+      if(result.error)this.fail(result.key,result.error);
       else try {
         this.prototypes.set(result.key,decodePrototype(result));
         for(const chunk of this.chunks)for(const batch of chunk.batches)if(batch.key===result.key&&batch.fade===0)
           for(const p of batch.placements){const slot=(p.water?this.waterSlots:this.solidSlots)[p.index];if(slot>=0)(p.water?this.water:this.solid).setMatrixAt(slot,this.coarseMatrix(p));}
         this.coarseDirty=true;
-      } catch(error){this.failed.add(result.key);console.warn('City model skipped:',result.key,String(error));}
+      } catch(error){this.fail(result.key,error);}
     }
     const wideCity=Boolean(this.surfaces&&(this.snapshot.realUnits??1)<1);
     const radius=wideCity?Math.min(950,Math.max(520,distance*1.55)):Math.min(280,Math.max(85,distance*.55)),margin=wideCity?35:25;
@@ -291,6 +338,11 @@ export class CityChunks {
       this.cachedCandidates=candidates;
     }
     const candidates=this.cachedCandidates;
+    // A pooled batch costs its pool's draw calls once, whatever number of its batches are drawn: the pool draws them all
+    // together (pools.ts). Counting the pool's calls for every batch of it once filled the budget with a few dozen
+    // buildings, and the rest stayed coarse boxes (owner, 23 Oct 2026: "object กลับมาเป็นช่องสี่เหลี่ยม")
+    const preferredPools=new Set<ModelPool>();
+    const cost=(b:Batch,pools:Set<ModelPool>):number=>{if(!b.pool)return b.calls;if(pools.has(b.pool))return 0;pools.add(b.pool);return b.calls;};
     const preferred=new Set<Batch>();let preferredCalls=0,instantiated=0;
     for(const{b,range}of candidates){
       if(this.surfaces&&(b.placements[0].id==='terrain.woods'||b.placements[0].id==='terrain.dirt'||b.placements[0].kind==='shore'||b.placements[0].water||b.placements[0].outside&&b.placements[0].kind==='terrain'))continue;
@@ -299,16 +351,18 @@ export class CityChunks {
         const proto=this.prototypes.get(b.key);
         if(!proto&&!this.failed.has(b.key)&&!this.requested.has(b.key)){const p=b.placements[0];this.requested.add(b.key);this.provider.request({key:b.key,id:p.id!,options:p.options});}
         if(proto&&!b.calls&&(instantiated<6||this.now()<deadline)){this.instantiate(b,proto);instantiated++;}
-        if(b.calls&&preferredCalls+b.calls<=this.drawBudget){preferred.add(b);preferredCalls+=b.calls;}
+        if(b.calls){const pooled=b.pool!==undefined&&preferredPools.has(b.pool),c=pooled?0:b.calls;
+          if(preferredCalls+c<=this.drawBudget){preferred.add(b);preferredCalls+=c;if(b.pool)preferredPools.add(b.pool);}}
       }
     }
     const active=this.active,dt=Math.max(0,Math.min(100,start-this.lastUpdate));this.lastUpdate=start;
     const select=(b:Batch,show:boolean):void=>{if(b.selected!==show){this.detailSwaps++;if(b.placements[0].id==='terrain.dirt')this.dirtSwaps++;b.selected=show;if(show)active.add(b);}};
     for(const b of active)if(b.selected&&!preferred.has(b))select(b,false);
     // Outgoing batches finish fading before their draw calls are lent to incoming detail.
-    let reserved=0;
-    for(const b of active)reserved+=b.selected||b.fade>0?b.calls:0;
-    for(const{b}of candidates)if(preferred.has(b)&&!b.selected&&reserved+(b.fade>0?0:b.calls)<=this.drawBudget){reserved+=b.fade>0?0:b.calls;select(b,true);}
+    let reserved=0;const reservedPools=new Set<ModelPool>();
+    for(const b of active)reserved+=b.selected||b.fade>0?cost(b,reservedPools):0;
+    for(const{b}of candidates)if(preferred.has(b)&&!b.selected){const c=b.fade>0||(b.pool!==undefined&&reservedPools.has(b.pool))?0:b.calls;
+      if(reserved+c<=this.drawBudget){reserved+=c;if(b.pool)reservedPools.add(b.pool);select(b,true);}}
     let calls=0;
     for(const b of active){
       const fade=Math.max(0,Math.min(1,b.fade+(b.selected?dt:-dt)/350));
@@ -348,6 +402,28 @@ export class CityChunks {
   }
   get pendingChunks():number{return this.chunks.filter(c=>c.dirty).length+(this.surfaces?.pending??0);}
   get maxDrawBudget():number{return this.surfaces?((this.snapshot.realUnits??1)<1?380:300):180;}
+  /**
+   * How far the city in `visible` is drawn: its chunks built, every model one of their batches asked for come (or
+   * failed), nothing still fading in, the ground under them laid; parts done of all, and what is still missing
+   */
+  dressing(visible:TileRect|null):{done:number;total:number;missing:string[]}{
+    let done=0,total=0;const missing:string[]=[];
+    const inView=(x:number,y:number,size:number):boolean=>!visible||x<=visible.x1&&x+size>visible.x0&&y<=visible.y1&&y+size>visible.y0;
+    for(const c of this.chunks){
+      if(!inView(c.x,c.y,16))continue;
+      // (a chunk built again as the city plays keeps its buildings drawn meanwhile: drawn all the same)
+      total++;let ok=!c.dirty||Boolean(c.keep?.size);
+      if(!ok&&missing.length<8)missing.push(`chunk ${c.x},${c.y}`);
+      if(ok)for(const b of c.batches){
+        if(this.requested.has(b.key)&&!this.prototypes.has(b.key)&&!this.failed.has(b.key)){ok=false;if(missing.length<8&&!missing.includes(b.key))missing.push(b.key);break;}
+        if(b.selected&&b.fade<1){ok=false;break;}
+      }
+      if(ok)done++;
+    }
+    // ... and the ground, laid once (laid again, it keeps the last until the new is ready)
+    if(this.surfaces)for(const c of this.surfaces.chunks){if(!inView(c.x,c.y,32))continue;total++;if(!c.dirty||c.publishedRanges.size>0)done++;else if(missing.length<8)missing.push(`ground ${c.x},${c.y}`);}
+    return {done,total,missing};
+  }
   get pendingModels():number{return this.requested.size-this.prototypes.size-this.failed.size;}
   roadsNear(target:Vector3):Placement[] {
     const roads:Placement[]=[];

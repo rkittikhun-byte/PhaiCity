@@ -329,14 +329,20 @@ describe('the chunks with levels of detail (chunks.ts)', () => {
     } finally { t.chunks.dispose(); }
   });
 
-  it('takes a chunk\'s batches out of their pool when the chunk is built again', () => {
+  it("takes a chunk's batches out of their pool when the chunk is built again, keeping them drawn until then", () => {
     const t = town();
     try {
       t.run();
-      const before = [...t.chunks.pools.values()].reduce((n, p) => n + p.members.size, 0);
-      expect(before).toBeGreaterThan(0);
+      const members = (): unknown[] => [...t.chunks.pools.values()].flatMap(p => [...p.members]);
+      const before = members();
+      expect(before.length).toBeGreaterThan(0);
+      // (owner, 23 Oct 2026: no frame of coarse boxes while a chunk is built again)
       t.chunks.refreshAll();
-      expect([...t.chunks.pools.values()].reduce((n, p) => n + p.members.size, 0)).toBe(0);
+      expect(members()).toEqual(before);
+      t.run();
+      const after = members();
+      expect(after.length).toBeGreaterThan(0);
+      expect(after.some(m => before.includes(m))).toBe(false);
     } finally { t.chunks.dispose(); }
   });
 

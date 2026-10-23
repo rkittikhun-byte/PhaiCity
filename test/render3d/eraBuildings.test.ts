@@ -86,6 +86,27 @@ describe('era buildings (art/buildings exported for the game)', () => {
     expect(eraKindFor('road.straight', undefined, 3)).toBeNull();
   });
 
+  it('has a model for every kind and level a plot or building can reach, in every era and region (no box left standing)', () => {
+    const missing: string[] = [];
+    const kinds = new Set<string>();
+    for (const plot of ['residential', 'commercial', 'industrial'] as const) {
+      for (let level = 1; level <= 5; level++) for (const lot of [false, true]) kinds.add(plotEraKind(plot, level, lot));
+    }
+    for (const id of ['civic.ruler_house', 'civic.kindergarten', 'civic.primary_school', 'civic.secondary_school', 'civic.vocational_college',
+      'civic.university', 'civic.health_centre', 'civic.community_hospital', 'civic.provincial_hospital', 'civic.regional_hospital',
+      'svc.police', 'svc.fire', 'svc.hospital', 'water.works', 'waste.landfill', 'waste.incinerator', 'waste.recycling']) {
+      for (let era = 1; era <= 5; era++) { const kind = eraKindFor(id, undefined, era); if (kind) kinds.add(kind); }
+    }
+    for (const kind of ['temple_1', 'temple_2', 'temple_3', 'market', 'station', 'power_plant', ...FRONTAGE_KINDS]) kinds.add(kind);
+    for (let era = 1; era <= 5; era++) for (const region of Object.keys(index.buildings[`era${era}`])) for (const kind of kinds) {
+      if (!index.buildings[`era${era}`][region][kind]) missing.push(`era${era}/${region}/${kind}`);
+      else if (!existsSync(resolve(`assets/models/buildings/era${era}/${region}/${kind}.glb`))) missing.push(`era${era}/${region}/${kind}.glb`);
+    }
+    expect(Object.keys(index.buildings).sort()).toEqual(['era1', 'era2', 'era3', 'era4', 'era5']);
+    for (let era = 1; era <= 5; era++) expect(Object.keys(index.buildings[`era${era}`]).sort()).toEqual(['central', 'east', 'north', 'northeast', 'south', 'west']);
+    expect(missing).toEqual([]);
+  });
+
   it('draws a painted plot with its era model once the index is in, in the city era, at its real size', () => {
     const width = 4, height = 4, values = new Uint16Array(width * height), flags = new Uint16Array(width * height);
     // A road along the top and a level-2 home below it

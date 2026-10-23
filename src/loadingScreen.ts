@@ -14,7 +14,7 @@ import { onLanguageChange, t } from "./i18n/index.js";
 import { loadCount, onLoadCount } from "./loadingProgress.js";
 
 /** What a city loads, in the order the screen lists it */
-export const LOAD_STEPS = ["map", "heights", "view", "rules", "resources", "ground", "city", "world", "textures"] as const;
+export const LOAD_STEPS = ["map", "heights", "view", "rules", "resources", "ground", "city", "world", "textures", "buildings"] as const;
 export type LoadStep = typeof LOAD_STEPS[number];
 export type StepState = "waiting" | "loading" | "done" | "failed";
 /** Where the city comes from: a province's real map, a saved city or a random practice map */
@@ -22,6 +22,14 @@ export type CitySource = "province" | "saved" | "practice";
 
 /** After the city's first picture, how long the screen waits at most for the surfaces still on their way (ms) */
 const SURFACES_WAIT_MS = 8000;
+/** ... and for the buildings in view to be drawn (their models fetched and decoded, their parts of the city built): a
+ * file that never comes must not hold the player for ever */
+const BUILDINGS_WAIT_MS = 45000;
+/** How long the buildings in view must stay all drawn before the screen goes */
+const BUILDINGS_QUIET_MS = 400;
+
+/** How far the view has drawn the buildings in sight (CityView.dressing): parts done of all, and what is still missing */
+export interface Dressing { done: number; total: number; missing?: string[] }
 /** ... and how long no new surface must be asked for before they count as all there */
 const SURFACES_QUIET_MS = 500;
 const FADE_MS = 600, FULL_MS = 350;
@@ -64,12 +72,13 @@ export class LoadingSteps {
     return open ?? this.steps[this.steps.length - 1];
   }
 
-  /** 0 to 1: each step finished counts one, the surfaces their share arrived so far */
-  progress(surfaces: { requested: number; finished: number }): number {
+  /** 0 to 1: each step finished counts one, the surfaces their share arrived so far, the buildings their share drawn */
+  progress(surfaces: { requested: number; finished: number }, buildings: Dressing | null = null): number {
     let done = 0;
     for (const [step, state] of this.states) {
       if (state === "done" || state === "failed") done++;
       else if (step === "textures" && surfaces.requested > 0) done += surfaces.finished / surfaces.requested;
+      else if (step === "buildings" && buildings && buildings.total > 0) done += Math.min(1, buildings.done / buildings.total);
     }
     return this.steps.length ? done / this.steps.length : 1;
   }
@@ -92,6 +101,8 @@ interface Screen {
   stopCount: () => void;
   stopLanguage: () => void;
   closing: boolean;
+  /** How far the buildings in view are drawn, once the city's first picture is there */
+  buildings: Dressing | null;
 }
 
 let screen: Screen | null = null;
@@ -116,7 +127,7 @@ export function showLoadingScreen(options: { city: string | null; provinceId: st
     root, parts: build(root), shown: 0, named: null, timer: 0,
     steps: new LoadingSteps(stepsFor(options.source)), source: options.source, city: options.city,
     music: options.provinceId ? "" : t("loading.music_theme"), stopCount: () => undefined, stopLanguage: () => undefined,
-    closing: false,
+    closing: false, buildings: null,
   };
   screen.stopCount = onLoadCount(render);
   screen.stopLanguage = onLanguageChange(render);
@@ -149,21 +160,36 @@ export function loadingStep<T>(step: LoadStep, work: Promise<T>): Promise<T> {
  * The city has drawn its first picture (game.js animate): the world is there. The screen stays while the 3D view's
  * surfaces are still arriving, so the city opens dressed, then fades away.
  */
-export function loadingFirstFrame(): void {
-  if (!screen || screen.closing) return;
+export function loadingFirstFrame(dressing: (() => Dressing | null) | null = null, closed: (() => void) | null = null): void {
+  if (!screen || screen.closing) { closed?.(); return; }
   const shown = screen;
   shown.closing = true;
   markLoadingStep("world", "done");
   const started = Date.now();
-  let quietSince = Date.now(), last = loadCount("textures").requested;
+  let quietSince = Date.now(), last = loadCount("textures").requested, surfacesDone = false;
+  let drawnSince: number | null = null;
   const check = (): void => {
-    const surfaces = loadCount("textures");
-    if (surfaces.requested !== last) { last = surfaces.requested; quietSince = Date.now(); }
-    const settled = surfaces.finished >= surfaces.requested && Date.now() - quietSince >= SURFACES_QUIET_MS;
-    if (settled || Date.now() - started >= SURFACES_WAIT_MS) {
+    if (!surfacesDone) {
+      const surfaces = loadCount("textures");
+      if (surfaces.requested !== last) { last = surfaces.requested; quietSince = Date.now(); }
+      const settled = surfaces.finished >= surfaces.requested && Date.now() - quietSince >= SURFACES_QUIET_MS;
+      if (settled || Date.now() - started >= SURFACES_WAIT_MS) { surfacesDone = true; markLoadingStep("textures", "done"); }
+    }
+    // The buildings in view drawn, so the city opens dressed (owner, 23 Oct 2026: "พอเข้าเมืองมา ทำไมยังไม่มีอะไรเลย
+    // พอผ่านไปสักพัก มีบ้านค่อยๆ ขึ้นมา ... เรา load ไว้แล้วไม่ใช่เหรอ")
+    const now = dressing?.() ?? null;
+    shown.buildings = now;
+    if (now && shown.steps.state("buildings") === "waiting") markLoadingStep("buildings", "loading");
+    const drawn = !now || now.done >= now.total;
+    drawnSince = drawn ? drawnSince ?? Date.now() : null;
+    const ready = surfacesDone && drawnSince !== null && Date.now() - drawnSince >= BUILDINGS_QUIET_MS;
+    if (ready || Date.now() - started >= BUILDINGS_WAIT_MS) {
+      if (!ready && now?.missing?.length) console.warn("PhaiCity: the city opened before these were drawn:", now.missing.join(", "));
       markLoadingStep("textures", "done");
+      markLoadingStep("buildings", ready ? "done" : "failed");
       close(shown);
-    } else window.setTimeout(check, 120);
+      closed?.();
+    } else { render(); window.setTimeout(check, 120); }
   };
   check();
 }
@@ -223,7 +249,7 @@ function build(root: HTMLElement): Screen["parts"] {
 
 /** The share the bar and the number show moves a fifth of the way to the real one each tick, and never back */
 function glide(live: Screen): void {
-  const target = live.steps.progress(loadCount("textures"));
+  const target = live.steps.progress(loadCount("textures"), live.buildings);
   if (target <= live.shown + 0.0005) return;
   live.shown = Math.min(target, live.shown + Math.max(0.004, (target - live.shown) * 0.2));
   live.parts.fill.style.width = `${(live.shown * 100).toFixed(1)}%`;
@@ -240,7 +266,9 @@ function render(): void {
   // One line: what is loading now, sliding in when it changes
   const step = steps.current();
   parts.name.textContent = t(stepKey(step, source));
-  parts.detail.textContent = step === "textures" && surfaces.requested > 0 ? `${surfaces.finished}/${surfaces.requested}` : "";
+  const buildings = screen.buildings;
+  parts.detail.textContent = step === "textures" && surfaces.requested > 0 ? `${surfaces.finished}/${surfaces.requested}` :
+    step === "buildings" && buildings && buildings.total > 0 ? `${Math.min(buildings.done, buildings.total)}/${buildings.total}` : "";
   if (step !== screen.named) {
     screen.named = step;
     parts.line.classList.remove("lsIn");
