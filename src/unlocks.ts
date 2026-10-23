@@ -50,8 +50,9 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   // schools and health posts, police boxes and fire posts, a landfill, a water tower, and one small lignite plant
   road: { era: 1 }, canal: { era: 1 }, wire: { era: 1 },
   residential: { era: 1 }, commercial: { era: 1 }, zone_residential: { era: 1 }, zone_commercial: { era: 1 },
-  // ... factories only once there is power for them (a village's factories mill its crops)
-  industrial: { era: 1, first: ["power_plant"] }, zone_industrial: { era: 1, first: ["power_plant"] },
+  // ... factories only once there is power for them (a village's factories mill its crops); their land may be painted
+  // before, as homes' may (owner, 24 Oct 2026: "เขตอุตสาหกรรม วาดไม่ติด"): nothing grows on it without power anyway
+  industrial: { era: 1, first: ["power_plant"] }, zone_industrial: { era: 1 },
   farm: { era: 1 }, fishing: { era: 1 },
   // ... and the farm zone's paddies, fields, orchards and ponds (src/farmZone.ts), whose look moves on by era
   // (FARM_ERA_LOOKS, the era card)
