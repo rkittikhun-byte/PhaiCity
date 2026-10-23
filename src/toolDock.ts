@@ -2,7 +2,7 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 import { onLanguageChange, t } from "./i18n/index.js";
-import { TOOL_CHOICES_CHANGED, activateToolChoice, toolChoicesFor } from "./toolLevels.js";
+import { TOOL_CHOICES_CHANGED, activateToolChoice, toolChoicesFor, type ToolChoice } from "./toolLevels.js";
 import { TOOL_LABELS_CHANGED, toolIconUrl, toolLabel } from "./toolShortcuts.js";
 import { hide, show } from "./motion.js";
 import { modesFor, renderModes } from "./drawModes.js";
@@ -49,6 +49,16 @@ function tip(element: HTMLElement, name: string, price = ""): void {
  * 2. Secondary tray appears with compact cards
  * 3. Clicking tool arms it and dismisses the tray immediately for uncluttered building.
  */
+/** The families that work before the ruler's house stands (src/rulerHouse.ts, body.houseFirst) */
+const HOUSE_FIRST_GROUPS = ["ruler_house", "bulldozer", "query", "road"];
+
+/** The kind a family's card puts in hand as it opens its levels: the one its button uses, else the first the city can
+ * build; none where every place is locked, unavailable or opens a window instead */
+export function choiceToArm(choices: readonly ToolChoice[], activeTool: string | undefined): ToolChoice | null {
+  const usable = (choice: ToolChoice): boolean => choice.available && !choice.locked && !choice.action;
+  return choices.find(choice => choice.tool === activeTool && usable(choice)) ?? choices.find(usable) ?? null;
+}
+
 /** What puts the tool card away, once the dock is installed */
 let trayCloser: (() => void) | null = null;
 
@@ -241,11 +251,11 @@ export function installToolDock(doc: Document = document): void {
 
       const choices = toolChoicesFor(currentGroup) ?? [];
       const orig = source(currentGroup);
-      const activeTool = orig?.dataset.activeTool ?? orig?.dataset.tool;
+      // (only the kind in hand is marked, not the one the button last used)
+      const activeTool = orig?.classList.contains("selected") ? orig.dataset.activeTool ?? orig.dataset.tool : undefined;
 
       for (const choice of choices) {
-        const houseLocked = doc.body.classList.contains("houseFirst") &&
-          !["ruler_house", "bulldozer", "query", "road"].includes(currentGroup);
+        const houseLocked = doc.body.classList.contains("houseFirst") && !HOUSE_FIRST_GROUPS.includes(currentGroup);
         const available = choice.available && !houseLocked;
 
         const card = doc.createElement("button");
@@ -427,8 +437,13 @@ export function installToolDock(doc: Document = document): void {
         card.addEventListener("click", () => {
           if (orig.disabled || locked && !hasChoices) return;
           if (hasChoices) {
-            // STEP 2: Transition sub-menu in the tray
+            // STEP 2: Transition sub-menu in the tray, with the family's tool in hand at once (owner, 23 Oct 2026: a
+            // tool took two clicks, the first only opened its levels): the kind its button uses, else the first the
+            // city can build
             currentGroup = toolId;
+            const houseLocked = doc.body.classList.contains("houseFirst") && !HOUSE_FIRST_GROUPS.includes(toolId);
+            const pick = houseLocked ? null : choiceToArm(family ?? [], orig.dataset.activeTool);
+            if (pick) activateToolChoice(orig, pick, doc);
             renderTray();
           } else {
             // Direct tool: arm it and CLOSE TRAY IMMEDIATELY!
