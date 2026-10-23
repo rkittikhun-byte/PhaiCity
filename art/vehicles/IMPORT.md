@@ -58,6 +58,19 @@ Owner (23 Oct 2026): "คนและรถที่มาวิ่งในโ�
   The wandering cars of a map with no trips keep one pace a lane, evenly spaced (`pedestrians.ts CityRoadTraffic`).
 - **People** (`pedestrians.ts`): commuters walk out and back at 1.1 m/s facing the way they go (they walked home
   backwards before), joggers at 2.4 m/s, every step cycle from the distance walked (`WALK_STRIDE_M`, `JOG_STRIDE_M`).
+- **Jams** (owner: "แล้วรถติด ก็ต้องมี"): each road's speed is the month's trips' load on it at this hour (busiest-hour
+  cars x `hourShare`, through `segmentSeconds`, the trips' own slowing curve), and so is how many cars a route has out
+  (its cars an hour x its time now); a junction where one of its roads is over `SIGNAL_LOAD` (0.6) full gets signals
+  (`LaneTraffic.setSignal`: roads straight across from each other share a turn of green, 11 s each, 2.5 s all-red),
+  where the queues stand. In the live city at 07:30: 116 cars, 48 standing in queues, the 221%-full road crawling at
+  1.4 m/s, 22 junctions signalled; at 02:00: 18 cars, none standing, the same road at 7.9 m/s, no signals.
+- **Every mover on a trip** (owner: "ทุก object ที่เกิดขึ้น ต้องมีที่มาและที่ไป"): a trip car carries a `CarTrip` (a home of
+  its route's group, a workplace or shop of its destination's, purpose, homeward), comes out at its home's place on
+  the road and turns in at its destination's (`LaneCar.stop`); `TripCars.tripAt(x, z, reach)` finds one for a click.
+  Walkers (`tripWalkers.ts`) walk a city home to a workplace or shop within 450 m (or back), along the pavement of the
+  road graph's way, and go in when they arrive (`WalkTrip`, `TripWalkers.tripAt`); on a real-scale city map they take
+  the place of the to-and-fro commuters and joggers, and the wandering cars are gone. Province maps (no road graph)
+  keep the old wandering cars and walkers.
 
 ## Next
 

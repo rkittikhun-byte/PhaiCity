@@ -16,6 +16,16 @@
 // behind the one ahead in its lane, slows to its speed, passes it in a free lane where the road has two a way, and
 // waits its turn at a junction; a slow ox cart holds the cars behind it on a one-lane road. A car always faces the way
 // it drives, and stands still, wheels and legs too, while it waits.
+//
+// Jams follow the city's roads ("แล้วรถติด ก็ต้องมี"): how fast each road lets a car go is the month's trips' load on it
+// at this hour of the game's day (its busiest-hour cars times hourShare, through the trips' own slowing curve,
+// segmentSeconds), and so are how many cars a route has on the road; a junction where a road is more than
+// SIGNAL_LOAD full has signals, turns of green by its roads, where the queues stand. The traffic layer's red roads are
+// those jammed in the rush hours.
+//
+// Every car is on a trip ("ทุก object ... ต้องมีที่มาและที่ไป"): from a home of its route's group to a workplace or a
+// shop of its destination's (or back home in the evening), out of the driveway it starts at and into the one it ends
+// at; it carries its trip (CarTrip) for the inspector and a camera following it (tripAt).
 
 import { Group, InstancedMesh, Matrix4, type Mesh, type Object3D, Quaternion, Vector3 } from 'three';
 import { registry } from '../models/registry.js';
@@ -27,7 +37,7 @@ import { halfWidth } from '../../roadGeometry.js';
 import { roadSpec } from '../../roadLevels.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityTrips } from '../../sim/cityTrips.js';
-import type { TripRoute } from '../../sim/trips.js';
+import { segmentSeconds, type TripRoute } from '../../sim/trips.js';
 
 /** The most cars drawn at once round the camera (docs/NO_GRID_PLAN.md 8.3) */
 export const MAX_TRIP_CARS = 400;
@@ -36,6 +46,20 @@ const VIEW_SPAN = 420;
 const FAR = 900;
 /** A procedural car's length (m) */
 const CAR_M = 4.6;
+/** A junction gets signals where one of its roads is this full at this hour (cars over what it takes) */
+export const SIGNAL_LOAD = 0.6;
+
+/** A car's trip: where it comes from and goes to (tile indices of the buildings, and what they are), why, and its route */
+export interface CarTrip {
+  readonly from: { readonly tile: number; readonly kind: 'home' | 'work' | 'shop' };
+  readonly to: { readonly tile: number; readonly kind: 'home' | 'work' | 'shop' };
+  /** Work (0) or shopping (1), as the month's trips (src/sim/trips.ts) */
+  readonly purpose: number;
+  /** Going home along its route (the evening's way back) */
+  readonly homeward: boolean;
+  /** The route's index in the month's trips */
+  readonly route: number;
+}
 
 /** Each region's cars, as the old traffic's (pedestrians.ts VEHICLE_POOL_IDS) */
 const CAR_IDS: Readonly<Record<RegionId, readonly string[]>> = {
@@ -72,6 +96,8 @@ interface Path extends LanePath {
   route: TripRoute;
   index: number;
   seconds: number;
+  /** How long it takes at this hour, with its roads as busy as they are now */
+  secondsNow: number;
   box: [number, number, number, number];
 }
 
@@ -82,7 +108,8 @@ interface Path extends LanePath {
  * segment is gone. Also its seconds in all and its bounds.
  */
 export function lanePathOf(graph: RoadGraph, segments: readonly number[], fromT: number, toT: number, units: number,
-  secondsOf: (n: number, share: number) => number = () => 0): { path: LanePath; seconds: number; box: [number, number, number, number] } | null {
+  secondsOf: (n: number, share: number) => number = () => 0, keys?: ArrayLike<number>):
+  { path: LanePath; seconds: number; box: [number, number, number, number] } | null {
   const u = units, xs: number[] = [], zs: number[] = [], ts: number[] = [], pieces: LanePiece[] = [];
   // a junction is a node where three roads or more meet: where two meet a road just goes on
   const junction = (node: number): number => (graph.degree(node) >= 3 ? node : -1);
@@ -117,7 +144,7 @@ export function lanePathOf(graph: RoadGraph, segments: readonly number[], fromT:
     pieces.push({ segment: id, up, start, end: walked, entry: (up ? t0 : 1 - t0) * length, length,
       lanes: Math.max(1, Math.floor(spec.lanes / 2)), laneWidth: halfWidth(level, u), speed,
       nodeEnd: t1 === 1 ? junction(s.b) : t1 === 0 ? junction(s.a) : -1,
-      nodeStart: t0 === 0 ? junction(s.a) : t0 === 1 ? junction(s.b) : -1, t0, t1, first });
+      nodeStart: t0 === 0 ? junction(s.a) : t0 === 1 ? junction(s.b) : -1, t0, t1, first, ...(keys ? { k: keys[n] } : {}) });
     clock += pieceSeconds;
   }
   if (xs.length < 2 || walked <= 0 || !pieces.length) return null;
@@ -176,6 +203,11 @@ export class TripCars {
    * the new month's routes send their cars from their starts only, not spread along them, so none appears mid-road */
   private orphans: LaneCar[] = [];
   private quietUntil = -Infinity;
+  /** Each road's speed now (world units a second, by its index in the month's trips), the hour it was worked out for */
+  private speeds: Float32Array | null = null;
+  private speedsFor = -1;
+  /** The places of the month's trips by the road they reach: homes, workplaces and shops (their indices) */
+  private placesBy: { home: Map<number, number[]>; work: Map<number, number[]>; shop: Map<number, number[]> } | null = null;
   private readonly models = new Map<number, VehicleModel | number>();
   private lastSeconds: number | null = null;
   private eraModeWas = false;
@@ -215,6 +247,7 @@ export class TripCars {
     this.lastSeconds = seconds;
 
     const busy = hourShare(hour), out = outShare(hour), span = Math.min(VIEW_SPAN, Math.max(160, distance * 1.1));
+    this.loadAt(trips, graph, busy);
     const x0 = target.x - span, x1 = target.x + span, z0 = target.z - span, z1 = target.z + span;
     // The routes in sight, and how many cars each has on it now
     const near: Array<{ path: Path; cars: number }> = [];
@@ -222,7 +255,8 @@ export class TripCars {
     for (const path of this.paths) {
       const [bx0, bz0, bx1, bz1] = path.box;
       if (bx1 < x0 || bx0 > x1 || bz1 < z0 || bz0 > z1) continue;
-      const cars = path.route.cars * path.seconds / 3600 * busy;
+      // (as many as come in an hour times the time each takes now: a jammed road holds more)
+      const cars = path.route.cars * path.secondsNow / 3600 * busy;
       if (cars <= 0) continue;
       near.push({ path, cars });
       wanted += cars;
@@ -247,7 +281,7 @@ export class TripCars {
         continue;
       }
       if (rc.cars.length < n && seconds >= rc.next && this.traffic.cars.length < MAX_TRIP_CARS) {
-        if (this.spawn(path, rc, 0, out)) rc.next = seconds + Math.max(1, path.seconds / Math.max(1, n) * 0.5);
+        if (this.spawn(path, rc, -1, out)) rc.next = seconds + Math.max(1, path.secondsNow / Math.max(1, n) * 0.5);
         else rc.next = seconds + 0.5;
       }
     }
@@ -275,9 +309,13 @@ export class TripCars {
     this.drawn = drawn;
   }
 
-  /** Puts one of a route's cars on the road `s` along its way (from where it starts); whether there was room */
+  /** Puts one of a route's cars on the road `s` along its way (from where it starts; -1: out of its driveway); whether
+   * there was room */
   private spawn(path: Path, rc: RouteCars, s: number, out: number): boolean {
     const serial = rc.made, rev = hash01(path.index, serial, 1) >= out;
+    const { trip, start, stop } = this.tripFor(path, serial, rev);
+    if (s < 0) s = start;
+    else if (s >= stop) return false;
     const tag = path.index * 4096 + (serial % 4096);
     const model = this.modelFor(tag);
     const metres = typeof model !== 'number' ? model.entry.length : CAR_M;
@@ -285,6 +323,8 @@ export class TripCars {
     const lane = Math.floor(hash01(path.index, serial, 4) * 4);
     const car = this.traffic.add(path, rev, s, lane, metres * this.size, slow, tag);
     if (!car) return false;
+    car.stop = stop;
+    car.trip = trip;
     rc.made++;
     rc.cars.push(car);
     return true;
@@ -382,10 +422,110 @@ export class TripCars {
     const ids = trips.roads.segmentIds, seconds = trips.result.seconds, u = this.units;
     trips.result.routes.forEach((route, index) => {
       const way = lanePathOf(graph, Array.from(route.segments, k => ids[k]), route.fromT, route.toT, u,
-        (n, share) => (seconds[route.segments[n]] ?? 0) * share);
+        (n, share) => (seconds[route.segments[n]] ?? 0) * share, route.segments);
       if (!way) return;
-      this.paths.push({ ...way.path, route, index, seconds: way.seconds, box: way.box });
+      this.paths.push({ ...way.path, route, index, seconds: way.seconds, secondsNow: way.seconds, box: way.box });
     });
+    const by = (segs: Int32Array, weight: Float32Array): Map<number, number[]> => {
+      const m = new Map<number, number[]>();
+      for (let i = 0; i < segs.length; i++) if (weight[i] > 0 && segs[i] >= 0) { let l = m.get(segs[i]); if (!l) m.set(segs[i], l = []); l.push(i); }
+      return m;
+    };
+    const pl = trips.places;
+    this.placesBy = { home: by(pl.homeSegment, pl.homeCars), work: by(pl.jobSegment, pl.jobs), shop: by(pl.jobSegment, pl.shops) };
+    this.speedsFor = -1;
+  }
+
+  /** Each road's speed at this hour (its busiest-hour cars times the hour's share, through the trips' slowing curve),
+   * each route's time with them, and the junctions with signals: worked out again as the hour moves on */
+  private loadAt(trips: CityTrips, graph: RoadGraph, busy: number): void {
+    if (this.speeds && Math.abs(busy - this.speedsFor) < 0.03) return;
+    this.speedsFor = busy;
+    const net = trips.net, n = net.length.length, u = this.units, speeds = this.speeds = new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const seconds = segmentSeconds(net, k, trips.result.cars[k] * busy);
+      speeds[k] = Math.max(0.6 * u, Math.min(33 * u, seconds > 0 ? net.length[k] * u / seconds : 14 * u));
+    }
+    for (const p of this.paths) {
+      let t = 0;
+      for (const piece of p.pieces) t += (piece.end - piece.start) / (piece.k !== undefined ? speeds[piece.k] : piece.speed);
+      p.secondsNow = t;
+    }
+    this.traffic.speedOf = (piece) => (piece.k !== undefined ? speeds[piece.k] : piece.speed);
+    // Signals where a road into a junction is busy: its roads paired by the way they come in (straight across from
+    // each other share a green), each pair a turn
+    const index = trips.roads.segmentIndex, full = (id: number): number => {
+      const k = index.get(id);
+      return k === undefined ? 0 : trips.result.cars[k] * busy / Math.max(1, net.capacity[k]);
+    };
+    const want = new Set<number>();
+    for (const [node] of graph.nodes) {
+      const roads = graph.segmentsAt(node);
+      if (roads.length < 3 || !roads.some(id => full(id) >= SIGNAL_LOAD)) continue;
+      want.add(node);
+      const at = graph.node(node), angles = roads.map(id => {
+        const s = graph.segment(id), [x, z] = graph.pointAt(id, s.a === node ? 0.1 : 0.9);
+        return Math.atan2(z - at.z, x - at.x);
+      });
+      const turns = new Map<number, number>();
+      let next = 0;
+      roads.forEach((id, i) => {
+        if (turns.has(id)) return;
+        turns.set(id, next);
+        // the road most nearly straight across from it, if it is
+        let best = -1, bestOff = 0.6;
+        roads.forEach((other, j) => {
+          if (turns.has(other)) return;
+          const d = Math.abs(Math.abs(((angles[j] - angles[i] + 3 * Math.PI) % (2 * Math.PI)) - Math.PI));
+          if (d < bestOff) { bestOff = d; best = j; }
+        });
+        if (best >= 0) turns.set(roads[best], next);
+        next++;
+      });
+      this.traffic.setSignal(node, next > 1 ? turns : null, hash01(node, 1, 9) * 60);
+    }
+    for (const node of this.traffic.signalled) if (!want.has(node)) this.traffic.setSignal(node, null);
+  }
+
+  /** A car's trip: a home of its route's group and a workplace or shop of its destination's, chosen by its number; how
+   * far along its way it comes out of its driveway, and where it turns into the other */
+  private tripFor(path: Path, serial: number, rev: boolean): { trip: CarTrip; start: number; stop: number } {
+    const trips = this.map.trips!, pl = trips.places, by = this.placesBy!, route = path.route;
+    const pick = (list: number[] | undefined, weight: Float32Array, salt: number): number => {
+      if (!list?.length) return -1;
+      let total = 0;
+      for (const i of list) total += weight[i];
+      let at = hash01(path.index, serial, salt) * total;
+      for (const i of list) { at -= weight[i]; if (at < 0) return i; }
+      return list[list.length - 1];
+    };
+    const home = pick(by.home.get(route.fromSegment), pl.homeCars, 11);
+    const there = route.purpose === 1 ? pick(by.shop.get(route.toSegment), pl.shops, 12) : pick(by.work.get(route.toSegment), pl.jobs, 12);
+    const homePlace = { tile: home >= 0 ? pl.homeTile[home] : -1, kind: 'home' as const };
+    const otherPlace = { tile: there >= 0 ? pl.jobTile[there] : -1, kind: (route.purpose === 1 ? 'shop' : 'work') as 'shop' | 'work' };
+    // how far into the way's first piece its home is, and before the end of its last its destination
+    const first = path.pieces[0], last = path.pieces[path.pieces.length - 1];
+    const intoFirst = home >= 0 && first.t0 !== undefined ? Math.max(0, (pl.homeT[home] - first.t0) * (first.up ? 1 : -1) * first.length) : 0;
+    const beforeLast = there >= 0 && last.t1 !== undefined ? Math.max(0, (last.t1 - pl.jobT[there]) * (last.up ? 1 : -1) * last.length) : 0;
+    const total = path.total;
+    const start = Math.min(total * 0.45, rev ? beforeLast : intoFirst), stop = Math.max(total * 0.55, total - (rev ? intoFirst : beforeLast));
+    const trip: CarTrip = { from: rev ? otherPlace : homePlace, to: rev ? homePlace : otherPlace, purpose: route.purpose, homeward: rev,
+      route: path.index };
+    return { trip, start, stop };
+  }
+
+  /** The car nearest (x, z) within reach (world units) and its trip, for the inspector (a click) and the camera */
+  tripAt(x: number, z: number, reach: number): { car: LaneCar; trip: CarTrip; vehicle: string | null } | null {
+    let best: LaneCar | null = null, bestD = reach;
+    for (const car of this.traffic.cars) {
+      if (car.tag < 0 || !car.trip) continue;
+      this.traffic.pose(car, this.pose);
+      const d = Math.hypot(this.pose.x - x, this.pose.z - z);
+      if (d < bestD) { bestD = d; best = car; }
+    }
+    if (!best) return null;
+    const model = this.models.get(best.tag);
+    return { car: best, trip: best.trip as CarTrip, vehicle: model && typeof model !== 'number' ? model.id : null };
   }
 
   /** The region's cars as instanced meshes, made once */

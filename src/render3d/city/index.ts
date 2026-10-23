@@ -30,6 +30,7 @@ import { CityCanals, canalLand } from './canals.js';
 import { ZoneCellsView } from './zoneCellsView.js';
 import { LayerOverlay } from './layerOverlay.js';
 import { TripCars, type TripCarsMap } from './tripCars.js';
+import { TripWalkers } from './tripWalkers.js';
 import { roadLayerOf, TrafficLayer, type TrafficLayerMap } from './trafficLayer.js';
 import { ReachLayer } from './reachLayer.js';
 import { RailTrains, type TrainMap } from './railTrains.js';
@@ -600,13 +601,17 @@ export class CityView3D implements CityView {
     const tripsDrive=this.tripCars?.active??false;
     if(this.tripCars)this.tripCars.root.visible=tripsDrive;
     if(tripsDrive)this.tripCars!.update(this.navigation.target,this.navigation.distance,this.seconds,this.hourOfDay());
-    this.roadTraffic.root.visible=!tripsDrive;
+    // ... and the people's walks of the city's own (tripWalkers.ts); a real-scale city map has no car or person wandering
+    // with nowhere to go (owner, 23 Oct 2026: "ทุก object ... ต้องมีที่มาและที่ไป")
+    if(!this.pedestrians.tripWalkers&&tripMap.trips&&this.snapshot.realUnits){const w=new TripWalkers(tripMap,this.snapshot.realUnits);w.hour=()=>this.hourOfDay();this.pedestrians.tripWalkers=w;}
+    const wander=!tripsDrive&&!this.snapshot.realUnits;
+    this.roadTraffic.root.visible=wander;
     this.trafficLayer?.update();
     // A real train along the railway as drawn, where the city map's railways are in the rail graph (railTrains.ts)
     const trainMap=this.setup.map as unknown as TrainMap;
     if(!this.trains&&this.snapshot.realUnits&&trainMap.railGraph?.segments.size){this.trains=new RailTrains(trainMap,this.terrain,this.sprites.size);this.scene.add(this.trains.root);}
     if(this.trains){this.trains.update(this.seconds);this.sprites.hideTrains=this.trains.active;}
-    if(!tripsDrive)this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
+    if(wander)this.roadTraffic.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance,this.seconds,this.setup.overlays.trafficDensityMap);
     this.foliage.update(this.curves.drawnLines,this.navigation.target,this.navigation.distance);
     this.sprites.update(sprites,dt,isPaused,[],this.setup.overlays.trafficDensityMap,this.seconds,(x,z)=>this.terrain.sample(x,z));
     if(!isPaused){this.seconds+=dt;updateRoadSignals(this.seconds);updateCommercialDisplays(this.seconds);updateTransportClock(this.seconds);

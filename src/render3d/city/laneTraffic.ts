@@ -10,6 +10,10 @@
 //
 // Cars are kept in buckets by road piece, way and lane and sorted along it each step, so finding the car ahead is
 // cheap (no pair of cars is ever compared across the town). It is the view's own: nothing here is the city's state.
+//
+// Jams (owner, 23 Oct 2026: "แล้วรถติด ก็ต้องมี"): how fast a piece of road lets a car go is asked of `speedOf` each step
+// (tripCars.ts: from the road's load at this hour), and a busy junction has signals (setSignal): its roads in by turns
+// of green, with a short all-red between, which is where the queues form.
 
 /** One piece of a car's way: a stretch of one road segment, as the car drives it */
 export interface LanePiece {
@@ -35,6 +39,8 @@ export interface LanePiece {
   readonly t1?: number;
   /** The index of the way's point the piece starts at (shared with the piece before it) */
   readonly first?: number;
+  /** Its road's index in the month's trips (the load it carries), when it has one */
+  readonly k?: number;
 }
 
 /** A car's way: its line (world units) with the distance to each point, and its pieces */
@@ -76,6 +82,10 @@ export interface LaneCar {
   /** Its piece now (an index into its way's pieces), kept as it goes */
   piece: number;
   done: boolean;
+  /** How far along its way it arrives (its destination's driveway), the way's end when not set */
+  stop?: number;
+  /** Who it is and where it is going (tripCars.ts CarTrip), for the inspector and a camera following it */
+  trip?: unknown;
 }
 
 /** The car-following numbers in metres and seconds (scaled to world units by the view's metre) */
@@ -92,6 +102,9 @@ const JUNCTION_CLEAR_M = 3;
 const STOP_LINE_M = 4.5;
 /** A car that has waited this long at a junction goes (s): no knot of cars stands for ever */
 const JUNCTION_PATIENCE = 8;
+/** A signal's green for each of its turns (s), and the all-red between them, when no car may come in */
+export const SIGNAL_GREEN = 11;
+export const SIGNAL_CLEAR = 2.5;
 /** A lane change takes about this long (s), and a car changes again only after this long */
 const SHIFT_SECONDS = 1.6;
 const CHANGE_COOLDOWN = 4;
@@ -119,7 +132,11 @@ export class LaneTraffic {
   private readonly junctions = new Map<number, Map<LaneCar, [number, number]>>();
   private readonly buckets = new Map<number, Placed[]>();
   private readonly placed = new Map<LaneCar, Placed>();
-  private clock = 0;
+  clock = 0;
+  /** How fast a piece of road lets a car go now (world units a second); its own speed when not set */
+  speedOf: (piece: LanePiece) => number = (piece) => piece.speed;
+  /** The junctions with signals: each road in, by its turn of green; the number of turns; where in its cycle it starts */
+  private readonly signals = new Map<number, { turn: Map<number, number>; turns: number; offset: number }>();
 
   /** metre: world units a metre */
   constructor(private readonly metre: number) {}
@@ -162,6 +179,25 @@ export class LaneTraffic {
   }
 
   clear(): void { this.cars.length = 0; this.junctions.clear(); this.buckets.clear(); this.placed.clear(); }
+
+  /** Signals at a junction: each road in (segment id) and its turn (0, 1 ...); null takes them away */
+  setSignal(node: number, turns: Map<number, number> | null, offset = 0): void {
+    if (!turns || !turns.size) { this.signals.delete(node); return; }
+    this.signals.set(node, { turn: turns, turns: Math.max(...turns.values()) + 1, offset });
+  }
+
+  get signalled(): number[] { return [...this.signals.keys()]; }
+
+  /** Whether a car coming in by `segment` may go into a junction with signals now (null: the junction has none) */
+  green(node: number, segment: number, at = this.clock): boolean | null {
+    const s = this.signals.get(node);
+    if (!s) return null;
+    const turn = s.turn.get(segment);
+    if (turn === undefined) return true;
+    const cycle = s.turns * (SIGNAL_GREEN + SIGNAL_CLEAR), t = ((at + s.offset) % cycle + cycle) % cycle;
+    const now = Math.floor(t / (SIGNAL_GREEN + SIGNAL_CLEAR)), into = t - now * (SIGNAL_GREEN + SIGNAL_CLEAR);
+    return now === turn && into < SIGNAL_GREEN;
+  }
 
   /** A bucket: the road segment, the way along it and the lane */
   private key(p: LanePiece, rev: boolean, lane: number): number {
@@ -256,7 +292,7 @@ export class LaneTraffic {
       const car = me.car, p = me.piece;
       car.shift += Math.sign(car.lane - car.shift) * Math.min(Math.abs(car.lane - car.shift), dt / SHIFT_SECONDS);
       if (p.lanes < 2 || !me.ahead || this.clock - car.changed < CHANGE_COOLDOWN) continue;
-      const want = p.speed * car.slow;
+      const want = this.speedOf(p) * car.slow;
       if (me.gap > 18 * m || me.leadV > want * 0.85) continue;
       for (const lane of [car.lane + 1, car.lane - 1]) {
         if (lane < 0 || lane >= p.lanes) continue;
@@ -277,11 +313,15 @@ export class LaneTraffic {
         if (passed > JUNCTION_CLEAR_M * m + car.length / 2 || !before) this.release(car);
       }
       if (node < 0 || distance > JUNCTION_REACH_M * m || car.holding === node) continue;
+      // coming up to the next junction, it has left the one behind it, however short the road between them
+      if (car.holding >= 0) this.release(car);
       // it may cross with cars coming in by its own road, or coming the other way along the road it goes on by and
       // leaving by the road it comes in by (two ways of one road, side by side); any other movement crosses its own
       const into = me.piece.segment, onto = this.nextPiece(car)?.segment ?? -1, j = this.junctions.get(node);
-      let free = car.waiting >= 0 && this.clock - car.waiting > JUNCTION_PATIENCE;
-      if (!free) {
+      const light = this.green(node, into);
+      let free = light === null && car.waiting >= 0 && this.clock - car.waiting > JUNCTION_PATIENCE;
+      if (light !== null) free = light;
+      else if (!free) {
         free = true;
         if (j) for (const [, [a, b]] of j) if (!(a === into || (a === onto && b === into))) { free = false; break; }
       }
@@ -298,7 +338,7 @@ export class LaneTraffic {
     // Follow (the intelligent driver model) and move
     const s0 = IDM.gap * m, a = IDM.accel * m, b = IDM.brake * m, hard = IDM.hard * m;
     for (const me of active) {
-      const car = me.car, want = Math.max(0.5 * m, me.piece.speed * car.slow);
+      const car = me.car, want = Math.max(0.5 * m, this.speedOf(me.piece) * car.slow);
       const gap = me.gap;
       let accel: number;
       if (gap === Infinity) accel = a * (1 - (car.v / want) ** 4);
@@ -311,9 +351,11 @@ export class LaneTraffic {
       // never into the car ahead
       if (gap !== Infinity) move = Math.min(move, Math.max(0, gap - hard));
       if (move < car.v * dt) car.v = move / dt;
-      car.s = Math.min(car.path.total, car.s + move);
+      const end = Math.min(car.path.total, car.stop ?? car.path.total);
+      if (car.s + move > end) move = Math.max(0, end - car.s);
+      car.s += move;
       car.odometer += move;
-      if (car.s >= car.path.total - 1e-6) { car.done = true; this.release(car); }
+      if (car.s >= end - 1e-6) { car.done = true; this.release(car); }
     }
   }
 
@@ -372,7 +414,26 @@ function sideAt(path: LanePath, d: number, side: number, out: { x: number; z: nu
   let lo = 0, hi = dist.length - 1;
   while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (dist[mid] <= d) lo = mid; else hi = mid; }
   const span = dist[hi] - dist[lo], f = span > 0 ? Math.max(0, Math.min(1, (d - dist[lo]) / span)) : 0;
-  const nx = m[lo * 2] + (m[hi * 2] - m[lo * 2]) * f, nz = m[lo * 2 + 1] + (m[hi * 2 + 1] - m[lo * 2 + 1]) * f;
+  // straight out to the side along the stretch, mitred only within a few units of each bend (so two cars on one road
+  // stand alike whichever way each turns at the next junction)
+  const ex = xs[hi] - xs[lo], ez = zs[hi] - zs[lo], el = Math.hypot(ex, ez) || 1, px = ez / el, pz = -ex / el;
+  const reach = Math.min(span / 2, 4) || 1;
+  const wLo = Math.max(0, 1 - (d - dist[lo]) / reach), wHi = Math.max(0, 1 - (dist[hi] - d) / reach);
+  const nx = px + (m[lo * 2] - px) * wLo + (m[hi * 2] - px) * wHi, nz = pz + (m[lo * 2 + 1] - pz) * wLo + (m[hi * 2 + 1] - pz) * wHi;
   out.x = xs[lo] + (xs[hi] - xs[lo]) * f + nx * side;
   out.z = zs[lo] + (zs[hi] - zs[lo]) * f + nz * side;
+}
+
+/**
+ * Where something walking (or driving) a way stands `d` along it (from the way's start) and the way it faces: `side`
+ * world units to the left of the way it goes (negative: to its right), going the way backwards when rev
+ */
+export function walkPose(path: LanePath, d: number, rev: boolean, side: number, out: { x: number; z: number; dx: number; dz: number }): typeof out {
+  const s = rev ? -side : side, step = rev ? -0.5 : 0.5;
+  sideAt(path, d, s, out);
+  const x = out.x, z = out.z, fore = d + step >= 0 && d + step <= path.total;
+  sideAt(path, fore ? d + step : d - step, s, out);
+  const dx = fore ? out.x - x : x - out.x, dz = fore ? out.z - z : z - out.z, l = Math.hypot(dx, dz) || 1;
+  out.x = x; out.z = z; out.dx = dx / l; out.dz = dz / l;
+  return out;
 }

@@ -130,7 +130,8 @@ describe('the cars of the real trips', () => {
       for (const list of lanes.values()) {
         list.sort((a, b) => a.u - b.u);
         for (let i = 1; i < list.length; i++) {
-          expect(Math.hypot(list[i].x - list[i - 1].x, list[i].z - list[i - 1].z)).toBeGreaterThan((list[i].half + list[i - 1].half) * 0.97);
+          const dd = Math.hypot(list[i].x - list[i - 1].x, list[i].z - list[i - 1].z);
+          expect(dd).toBeGreaterThan((list[i].half + list[i - 1].half) * 0.97);
         }
       }
     }
@@ -160,6 +161,70 @@ describe('the cars of the real trips', () => {
     for (const id of [...busy.graph.segments.keys()]) busy.graph.remove(id);
     far.update(new Vector3(500, 0, 250), 300, 100, 7.5);
     expect(far.drawn).toBe(0);
+  });
+});
+
+describe('jams where the city\'s roads are full, and every car on a trip', () => {
+  /** The cars on the main road after a while of traffic, their mean speed and how many */
+  function mainRoad(cars: number, hour: number) {
+    const { map, main, graph } = town(cars), traffic = new TripCars(map, flat, 'northeast', U, U);
+    for (let t = 0; t < 90; t += 0.1) traffic.update(new Vector3(500, 0, 250), 300, 100 + t, hour);
+    const on = traffic.traffic.cars.filter(c => main.includes(c.path.pieces[c.piece].segment));
+    const v = on.reduce((sum, c) => sum + c.v, 0) / Math.max(1, on.length);
+    return { traffic, on, v, map, graph };
+  }
+
+  test('a road over its capacity in the rush hour fills with slow cars and gets signals; a quiet road flows free', () => {
+    const jam = mainRoad(4000, 7.5), quiet = mainRoad(60, 7.5);
+    const k = (jam.map.trips as any).roads.segmentIndex.get(jam.on[0]?.path.pieces[jam.on[0].piece].segment);
+    // (the simulation's own load: the main road takes more cars than it can)
+    expect(jam.map.trips!.result.cars[k] / jam.map.trips!.net.capacity[k]).toBeGreaterThan(1);
+    expect(jam.on.length).toBeGreaterThan(quiet.on.length * 3);
+    expect(jam.v).toBeLessThan(quiet.v * 0.6);
+    expect(jam.traffic.traffic.signalled.length).toBeGreaterThan(0);
+    expect(quiet.traffic.traffic.signalled.length).toBe(0);
+  });
+
+  test('the same road is thick and slow in the rush hour and thin and quick at night', () => {
+    const rush = mainRoad(4000, 7.5), night = mainRoad(4000, 2);
+    expect(night.on.length).toBeLessThan(rush.on.length / 2);
+    expect(night.v).toBeGreaterThan(rush.v * 1.5);
+  });
+
+  test('a junction with signals lets its roads in by turns, never two crossing roads at once', () => {
+    const lanes = mainRoad(4000, 7.5).traffic.traffic;
+    const node = lanes.signalled[0];
+    const greens = new Set<string>();
+    for (let t = 0; t < 120; t += 0.5) {
+      const open = [...((lanes as any).signals.get(node).turn.keys() as Iterable<number>)].filter(seg => lanes.green(node, seg, t));
+      greens.add(open.join(','));
+      // the roads open at once are one turn's: straight across from each other, or one alone
+      expect(new Set(open.map(seg => (lanes as any).signals.get(node).turn.get(seg))).size).toBeLessThanOrEqual(1);
+    }
+    // ... each turn in its time, and an all-red between
+    expect(greens.has('')).toBe(true);
+    expect(greens.size).toBeGreaterThanOrEqual(3);
+  });
+
+  test('every car comes from a home of its route and goes to a workplace or shop of its destination, or home again', () => {
+    const { traffic, map } = mainRoad(600, 7.5), pl = map.trips!.places;
+    const homes = new Set(pl.homeTile), jobs = new Set(pl.jobTile);
+    expect(traffic.traffic.cars.length).toBeGreaterThan(5);
+    for (const car of traffic.traffic.cars) {
+      const trip = car.trip as import('../../src/render3d/city/tripCars.js').CarTrip;
+      expect(trip).toBeDefined();
+      const home = trip.homeward ? trip.to : trip.from, there = trip.homeward ? trip.from : trip.to;
+      expect(home.kind).toBe('home');
+      expect(homes.has(home.tile)).toBe(true);
+      expect(jobs.has(there.tile)).toBe(true);
+      expect(there.kind).toBe(trip.purpose === 1 ? 'shop' : 'work');
+      // it turns into its destination's driveway before the end of the route's way, at most
+      expect(car.stop).toBeLessThanOrEqual(car.path.total + 1e-6);
+    }
+    // ... and a click finds one with its trip
+    const pose = { x: 0, z: 0, dx: 0, dz: 0 }, some = traffic.traffic.cars[0];
+    traffic.traffic.pose(some, pose);
+    expect(traffic.tripAt(pose.x, pose.z, 2)?.trip).toBe(some.trip);
   });
 });
 

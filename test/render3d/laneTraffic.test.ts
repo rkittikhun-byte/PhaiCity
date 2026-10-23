@@ -76,6 +76,18 @@ describe('the traffic of the 3D view', () => {
     expect(crossedA && crossedB).toBe(true);
   });
 
+  test('a car crosses two junctions close together, and the cars behind it follow (no knot of its own making)', () => {
+    const n = 40, xs = new Float32Array(n + 1), zs = new Float32Array(n + 1), dist = new Float32Array(n + 1);
+    for (let i = 0; i <= n; i++) { xs[i] = i * 5; zs[i] = 0; dist[i] = i * 5; }
+    // junction 7 at 100 m and junction 8 two metres on, a short road between them
+    const piece = (segment: number, start: number, end: number, nodeStart: number, nodeEnd: number): LanePiece =>
+      ({ segment, up: true, start, end, entry: 0, length: end - start, lanes: 1, laneWidth: 3.5, speed: 12, nodeStart, nodeEnd });
+    const road: LanePath = { xs, zs, dist, total: 200, pieces: [piece(1, 0, 100, -1, 7), piece(2, 100, 102, 7, 8), piece(3, 102, 200, 8, -1)] };
+    const traffic = new LaneTraffic(1), cars = [0, 15, 30].map((s, i) => traffic.add(road, false, s, 0, length, 1, i)!);
+    run(traffic, 40, () => {});
+    for (const car of cars) expect(car.s).toBeGreaterThan(190);
+  });
+
   test('two cars coming the two ways of one road through a junction cross together, neither waiting', () => {
     const traffic = new LaneTraffic(1), road = way(-150, 0, 150, 0, 1, 12, [1, 2], 7);
     const east = traffic.add(road, false, 100, 0, length, 1, 1)!, west = traffic.add(road, true, 100, 0, length, 1, 2)!;

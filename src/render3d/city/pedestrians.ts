@@ -17,6 +17,7 @@ import type { BlockMapReader } from './types.js';
 import { type Activity, type PeopleDrawer, sheetsFor } from './people3d.js';
 import { besideCanal } from './canals.js';
 import { animateObject, type VehicleEntry } from './eraVehicles.js';
+import type { TripWalkers } from './tripWalkers.js';
 import { frustumOf } from './pools.js';
 import {
   LineIndex, MAX_TAKRAW, SPORTS_COLOURS, getStructureInfo, scanPeople, type EmployedCitizen, type Household, type PeopleScan,
@@ -285,6 +286,10 @@ export class CityPedestrians {
   }
 
   /** Draw the concept-sheet people from now on, for this region and the city's era as it is read each frame. */
+  /** The walks of the city's own (tripWalkers.ts), set by the city view where the city has trips: they take the place
+   * of the commuters going to and fro and the joggers, so nobody walks with nowhere to go */
+  tripWalkers: TripWalkers | null = null;
+
   usePeople(drawer: PeopleDrawer, region: RegionId, era: () => number): void {
     this.people?.dispose();
     this.people = drawer;
@@ -486,8 +491,19 @@ export class CityPedestrians {
     const transitStops = this.shown?.transitStops ?? [];
     const shopSpots = this.shown?.shopSpots ?? [];
 
-    // 1. Purposeful commuters & joggers along road sidewalks
-    for (let lineIdx = 0; lineIdx < lines.length && count < MAX_PEDESTRIANS; lineIdx++) {
+    // 1. The city's walks, from a home to work or the shops and back, along the pavements (tripWalkers.ts) ...
+    const walks = this.tripWalkers?.active ? this.tripWalkers : null;
+    if (walks) {
+      walks.update(target.x, target.z, viewSpan + 60, seconds);
+      walks.each(target.x - viewSpan, target.x + viewSpan, target.z - viewSpan, target.z + viewSpan, (w, x, z, heading) => {
+        if (count >= MAX_PEDESTRIANS) return;
+        const phase = 2 * Math.PI * w.s / (WALK_STRIDE_M * this.size * 0.96 * PEOPLE_SCALE);
+        this.placeWalker(count++, x, z, heading, phase, 0.96, SPORTS_COLOURS[w.who % SPORTS_COLOURS.length], 'walk', undefined, w.who);
+        this.activeCommutersCount++;
+      });
+    }
+    // ... or, where the city has none (a province map), commuters & joggers along road sidewalks
+    for (let lineIdx = 0; !walks && lineIdx < lines.length && count < MAX_PEDESTRIANS; lineIdx++) {
       const line = lines[lineIdx];
       if (line.rail || line.points.length < 2) continue;
 
