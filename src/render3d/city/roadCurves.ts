@@ -109,9 +109,10 @@ interface Decor {
   lot: { rect: Point[]; size: number; triangles: number[]; yard: boolean } | null;
   drive: { positions: number[]; colors: number[] } | null;
 }
-/** How far from a changed tile (tiles) a building's lot or driveway may have changed with it: the biggest building's
- * reach from its centre tile, with room */
-const DECOR_REACH = 6;
+/** How far from a changed tile (tiles) a building's lot or driveway may have changed with it: a building's tiles change
+ * with its centre tile, which lies at most two tiles from any of them (a 4 x 4 block's centre is its tile (1, 1)), and a
+ * plot's joined lot is one tile further at most */
+const DECOR_REACH = 3;
 
 export class RoadCurves {
   readonly root = new Group();
@@ -208,6 +209,13 @@ export class RoadCurves {
     const roads = this.noteRoads(changed), under = raised.filter((i) => this.roadNear[i]);
     if (roads.length || under.length || this.drawn?.key !== this.drawnKey()) this.rebuild(under, roads);
     else this.rebuildDecor([...changed, ...raised]);
+  }
+
+  /** Buildings drawn again without their tiles changing (a building taking its era's look, a farm's hub, a canal dug,
+   * the city's new era: null for every one): their lots and driveways laid again */
+  redecorate(near: readonly number[] | null): void {
+    if (near === null) this.rebuildDecor();
+    else if (near.length) this.rebuildDecor(near);
   }
 
   /** What a tile's road is, for telling when one changes: 0 for a tile with none */
@@ -574,7 +582,7 @@ export class RoadCurves {
    * The buildings' lots, in their own lawn or yard, and the driveways from their roads, laid again whenever a building
    * changes, which never draws the roads again: those of the tiles within DECOR_REACH of the tiles in `near` worked out
    * again, the rest kept (every tile without it: the roads were drawn again). A building's change worked out every tile of
-   * the map again, some 20-50 ms on a 480 x 480 city map's every growing plot; the same triangles in the same order
+   * the map again, some 40-200 ms on a 480 x 480 city map's every growing plot; the same triangles in the same order
    */
   private rebuildDecor(near?: readonly number[]): void {
     this.drop(this.decorMeshes);

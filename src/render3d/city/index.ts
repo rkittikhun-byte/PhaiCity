@@ -492,12 +492,12 @@ export class CityView3D implements CityView {
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     // A city that reaches a new era draws its buildings in that era's look (eraBuildings.ts)
-    if(this.snapshot.eraModels){const era=mapEra(this.land as {era?:unknown});if(era!==this.shownEra){this.shownEra=era;this.chunks.refreshAll();}
+    if(this.snapshot.eraModels){const era=mapEra(this.land as {era?:unknown});if(era!==this.shownEra){this.shownEra=era;this.chunks.refreshAll();this.curves.redecorate(null);}
       // ... and a building that took another era's look in the transition (src/eraScore.ts) is drawn again, alone
       const eraMap=this.land as {buildingEras?:Uint8Array|null;buildingErasVersion?:number};
       if((eraMap.buildingErasVersion??0)!==this.shownEras.version&&eraMap.buildingEras){const now=eraMap.buildingEras,seen=this.shownEras.eras,changed:number[]=[];
         if(seen&&seen.length===now.length){for(let i=0;i<now.length;i++)if(now[i]!==seen[i])changed.push(i);}
-        this.shownEras={version:eraMap.buildingErasVersion??0,eras:now.slice()};if(changed.length)this.chunks.dirty(changed);}}
+        this.shownEras={version:eraMap.buildingErasVersion??0,eras:now.slice()};if(changed.length){this.chunks.dirty(changed);this.curves.redecorate(changed);}}}
     this.resize();const synced=this.snapshot.sync(this.land),built=this.snapshot.stepConstruction(this.seconds);
     const changed=built.length?[...new Set([...synced,...built])]:synced;
     // The ruler's house rises a level or takes a wing without its tiles changing: rebuild it when it does
@@ -506,12 +506,12 @@ export class CityView3D implements CityView {
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
     if(changed.length||raised.length){this.curves.update(changed,raised);if(raised.length||this.treesMoved(changed))this.foliage.invalidate();}
     if(raised.length)this.canals.invalidate();
-    {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.foliage.invalidate();}}
+    {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.curves.redecorate(dug);this.foliage.invalidate();}}
     // The farm zone's paddies, fields, orchards and ponds (farmFields.ts), by the month and the era; a farm building whose
     // fields changed is drawn again as their cooperative, rice mill or cold store
     if((this.setup.map as {paintedZones?:boolean}).paintedZones){if(!this.farms){this.farms=new CityFarmFields(this.setup.map as unknown as FarmViewMap,this.terrain,this.setup.region,this.snapshot.realUnits??1);this.farms.wash(this.washOn,true);this.scene.add(this.farms.root);}
       if(raised.length)this.farms.invalidate(this.seconds);
-      const hubs=this.farms.update(changed,this.setup.date().month,this.navigation.distance,this.seconds);if(hubs.length)this.chunks.dirty(hubs);}
+      const hubs=this.farms.update(changed,this.setup.date().month,this.navigation.distance,this.seconds);if(hubs.length){this.chunks.dirty(hubs);this.curves.redecorate(hubs);}}
     // The ground each building of the ruler's reserves, fenced in its era's look (compounds.ts)
     if(this.snapshot.realUnits){if(!this.compounds){this.compounds=new CityCompounds(this.setup.map as unknown as CompoundMap,this.snapshot.realUnits,(x,z)=>this.terrain.sample(x,z));this.scene.add(this.compounds.root);}
       this.compounds.update(changed);}
