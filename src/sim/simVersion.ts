@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 19;
+export const SIM_VERSION = 20;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -59,6 +59,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "paints the road-aligned cells whose middles lie on the tile (NO_GRID_PLAN 3C, GAME_DESIGN 7.5)",
   19: "where a grown plot reaches under a corner of a building of the ruler's, a flood reads the building's level, not " +
     "the plot's (src/terrain/groundGrade.ts, GAME_DESIGN 17)",
+  20: "on a real-scale city map the shops wait for department stores, not the airport: from 40 units with none, each " +
+    "store lifting that by 60; a store adds land value round it, visitors, and draws shoppers and workers on the month's " +
+    "trips (src/departmentStores.ts, GAME_DESIGN 22)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

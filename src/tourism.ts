@@ -66,6 +66,8 @@ export interface TourismCensus {
   comPop: number;
   stadiumPop: number;
   airportPop: number;
+  /** What the department stores add (src/departmentStores.ts) */
+  storeAppeal?: number;
   seaportPop: number;
   landValueAverage: number;
   pollutionAverage: number;
@@ -128,7 +130,8 @@ export function tourismMonth(level: number, census: TourismCensus, month: number
   const pollutionPenalty = Math.max(0, census.pollutionAverage - 40) / 60;
   const crimePenalty = Math.max(0, census.crimeAverage - 40) / 80;
   const appeal = clamp(0.6 + Math.min(census.landValueAverage, 200) / 200 * 0.4 +
-    (census.airportPop > 0 ? 0.25 : 0) + (census.stadiumPop > 0 ? 0.1 : 0) + (census.seaportPop > 0 ? 0.1 : 0) -
+    (census.airportPop > 0 ? 0.25 : 0) + (census.stadiumPop > 0 ? 0.1 : 0) + (census.seaportPop > 0 ? 0.1 : 0) +
+    (census.storeAppeal ?? 0) -
     pollutionPenalty - crimePenalty, 0, 1.5);
   const known = clamp(census.totalPop / KNOWN_AT_POP, LEAST_KNOWN, 1);
   const season = TOURISM_SEASON[((month % 12) + 12) % 12];

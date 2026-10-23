@@ -28,6 +28,7 @@ import { WaterTowerTool } from './waterTowerTool.ts';
 import { RoadUpgradeTool } from './roadLevels.ts';
 import { RulerHouseUpgradeTool } from './rulerHouse.ts';
 import { SERVICE_KINDS, SERVICE_SPECS } from './services.ts';
+import { STORE_KIND, STORE_RULES } from './departmentStores.ts';
 import { WASTE_KINDS, WASTE_SPECS } from './waste.ts';
 import { STATION_KINDS, TRANSIT_SPECS } from './transit.ts';
 import { BusStopTool } from './busStopTool.ts';
@@ -107,6 +108,9 @@ function GameTools(map, rules) {
     tools[kind] = new BuildingTool(SERVICE_SPECS[kind].price, TileValues.CIVIC, map, 3, false);
     tools[kind].civicKind = kind;
   });
+  // ... and the department store (src/departmentStores.ts) on the same civic tiles
+  tools[STORE_KIND] = new BuildingTool(STORE_RULES.price, TileValues.CIVIC, map, 3, false);
+  tools[STORE_KIND].civicKind = STORE_KIND;
   // ... and the rubbish and wastewater buildings (src/waste.ts), all on one 3x3 of tiles; the map records which
   WASTE_KINDS.forEach(function(kind) {
     tools[kind] = new BuildingTool(WASTE_SPECS[kind].price, TileValues.WASTE, map, 3, false);

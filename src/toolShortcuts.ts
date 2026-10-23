@@ -70,6 +70,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   stadium: "about.building.stadium",
   port: "about.building.port",
   airport: "about.building.airport",
+  department_store: "about.building.department_store",
   waterworks: "about.building.waterworks",
   watertower: "about.building.watertower",
   gas: "about.building.gas",

@@ -16,7 +16,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene, TEMPLE_KINDS } from '../city/eraBuildings.js';
+import { DRACO_DECODER_PATH, ERA_BUILDINGS_BASE, ERA_KINDS, FRONTAGE_KINDS, loadEraIndex, serializeEraScene, STORE_KIND, TEMPLE_KINDS } from '../city/eraBuildings.js';
 import { animateObject, EraVehicles, loadVehicleIndex, paintFor, transitVehicle, type VehicleIndex, vehicleMix } from '../city/eraVehicles.js';
 import type { RegionId } from '../regional/types.js';
 import { eraBuildingMaterial, setNightMode } from '../materials/library.js';
@@ -38,6 +38,7 @@ const NAMES: Record<string, [string, string]> = {
   house12_2: ['บ้านหน้ากว้าง 12 ม. ระดับสูง', '12 m house, higher levels'],
   temple_1: ['วัด ระดับ 1 (วัดหมู่บ้าน)', 'Temple, level 1 (village)'], temple_2: ['วัด ระดับ 2', 'Temple, level 2'],
   temple_3: ['วัด ระดับ 3 (เต็มรูป)', 'Temple, level 3 (full)'],
+  store: ['ห้างสรรพสินค้า (ยุค 2-5)', 'Department store (eras 2-5)'],
 };
 const PLACE_NAMES: Record<string, [string, string]> = {
   one: ['คูหาเดียว', 'alone'], left: ['ห้องหัว ซ้าย', 'left end'], mid: ['ห้องกลาง', 'middle'],
@@ -53,6 +54,7 @@ const terraceOf = (row: string): string[] => [...TERRACE.map(p => `bay${row}_${p
 const GROUPS: [string, string, string][] = [['home', 'บ้าน', 'Homes'], ['shop', 'ร้านค้า', 'Shops'],
   ['frontage', 'ตามหน้ากว้างที่ทา (ช่อง 4 ม.)', 'By painted frontage (4 m cells)'],
   ['factory', 'โรงงาน', 'Factories'], ['service', 'บริการเมือง', 'Services'], ['temple', 'วัด (ชุมชนสร้างเอง)', 'Temples (the community’s)'],
+  ['store', 'ห้างสรรพสินค้า', 'Department store'],
   ['vehicle', 'ยานพาหนะ', 'Vehicles']];
 NAMES.vehicles_mix = ['ที่วิ่งบนถนนของยุคและภาคนี้', 'On the roads of this era and region'];
 NAMES.vehicles_all = ['ยานพาหนะทุกแบบของยุคนี้', 'Every vehicle of this era'];
@@ -163,7 +165,7 @@ async function start(): Promise<void> {
     const frontage = Boolean(have.bay1_one);
     const terrace = /^terrace(\d)$/.exec(kind);
     const kinds = kind === 'all' ? [...ERA_KINDS, ...(frontage ? [...terraceOf('1'), ...terraceOf('2'), 'house12_1', 'house12_2'] : []),
-      ...TEMPLE_KINDS.filter(k => have[k])]
+      ...TEMPLE_KINDS.filter(k => have[k]), ...(have[STORE_KIND] ? [STORE_KIND] : [])]
       : terrace ? terraceOf(terrace[1]) : [kind];
     readout.textContent = thai ? 'กำลังโหลด…' : 'Loading…';
     const groups = await Promise.all(kinds.map(k => have[k] ? model(era, region, k) : Promise.resolve(new Group())));
@@ -183,6 +185,8 @@ async function start(): Promise<void> {
         // (the temples a row behind the services)
         const t = (TEMPLE_KINDS as readonly string[]).indexOf(k);
         if (t >= 0) g.position.set(260 + t * 54, 0, 2 * 54 + 6);
+        // (the department store beside them)
+        if (k === STORE_KIND) g.position.set(260 + 3 * 54, 0, 2 * 54 + 6);
         if (row === 6) g.position.x = (cursor[6] ?? 0) + size / 2;
         cursor[row] = x + gap + size + (front && !alone ? 0 : 5);
       }
@@ -211,8 +215,8 @@ async function start(): Promise<void> {
       }
       continue;
     }
-    if (prefix === 'temple') {
-      for (const kind of TEMPLE_KINDS) {
+    if (prefix === 'temple' || prefix === 'store') {
+      for (const kind of prefix === 'store' ? [STORE_KIND] : TEMPLE_KINDS) {
         const b = document.createElement('button');
         b.dataset.kind = kind; b.dataset.th = NAMES[kind][0]; b.dataset.en = NAMES[kind][1];
         b.addEventListener('click', () => show(kind));

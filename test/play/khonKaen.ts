@@ -107,6 +107,10 @@ const row = (y: PlayerYear) => {
   ${sides}; missing ${era.symbols.filter(x => !x.has).map(x => x.key).join(", ") || "none"}
 `);
     }
+    // The shops' units against the cap that holds them back (docs/GAME_DESIGN.md 22)
+    const census = core.simulation._census, valves = core.simulation._valves;
+    process.stdout.write(`  shops: ${census.comPop} units${valves.comCap ? " (held back)" : ""}, homes ${census.resPop}, factories ${census.indPop}
+`);
     if (process.env.PHAICITY_PLOTS) {
       const pct = (label: string, v: number) => (v ? `, ${label} ${Math.round(v * 100)}%` : "");
       for (const g of plotReport(core)) {

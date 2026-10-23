@@ -29,6 +29,10 @@ export type EraKind = typeof ERA_KINDS[number];
 /** A temple's era models by its level (src/temples.ts; art/buildings/scripts/buildings/temples.py), a set of their own */
 export const TEMPLE_KINDS = ['temple_1', 'temple_2', 'temple_3'] as const;
 export type TempleKind = typeof TEMPLE_KINDS[number];
+/** A department store's era model (src/departmentStores.ts; art/buildings/scripts/buildings/stores.py), a set of its own
+ * for eras 2-5: a market-hall store, a mid-century store, a mall, a future mall */
+export const STORE_KIND = 'store' as const;
+export type StoreKind = typeof STORE_KIND;
 
 /** The era models by frontage (frontage.ts; art/buildings/scripts/lib/builder.py FRONTAGE): a shophouse bay one 4 m
  * cell wide in its place in a terrace, in the era's lower row (bay1) and its taller one (bay2), and a 12 m house */
@@ -75,7 +79,7 @@ const HOSPITALS = new Set(['health_centre', 'community_hospital', 'provincial_ho
  * water mill, a steam house, a lignite plant, a gas plant, a clean future plant; its station a landing, a halt, a
  * railway station, then elevated rail), so a solar farm or a dam keeps its own.
  */
-export function eraKindFor(id: string | null, hint: string | undefined, era: number): EraKind | TempleKind | null {
+export function eraKindFor(id: string | null, hint: string | undefined, era: number): EraKind | TempleKind | StoreKind | null {
   if (hint) {
     if (hint.startsWith('station.')) {
       const sk = hint.slice(8);
@@ -87,6 +91,7 @@ export function eraKindFor(id: string | null, hint: string | undefined, era: num
   }
   if (!id) return null;
   if (id === 'civic.ruler_house') return 'ruler_house';
+  if (id === 'civic.department_store') return era >= 2 ? STORE_KIND : null;
   if (id.startsWith('civic.')) {
     const kind = id.slice(6);
     if (SCHOOLS.has(kind)) return 'school';

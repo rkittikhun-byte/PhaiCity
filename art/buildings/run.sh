@@ -2,7 +2,7 @@
 # PhaiCity. A modified version of micropolisJS by Graeme McCutcheon, itself adapted from Micropolis.
 # Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
 #
-# ./run.sh <building|era1..era5|eraN_sheet|all> [--force] [--no-sheet]
+# ./run.sh <building|era1..era5|eraN_sheet|all> [region] [--force] [--no-sheet] [--frontage|--temple|--store]
 # Runs scripts/build.py in Blender in the background. Blender's EEVEE sometimes crashes in a background render
 # (EXCEPTION_ACCESS_VIOLATION); then it runs again without --force, so what was already built is kept.
 cd "$(dirname "$0")"

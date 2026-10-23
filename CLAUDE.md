@@ -390,6 +390,12 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   and Yi Peng, keeps its centre out of fire; the ruler can neither build, bulldoze nor move one (`TEMPLE_IN_THE_WAY`).
   The 3D view draws `era<n>/<region>/temple_<level>.glb` (art/buildings, `--temple`), whose wall is its กำแพงแก้ว; its
   bell rings softly at dawn and dusk (`src/audio/templeBells.ts`).
+- **Department stores (ห้างสรรพสินค้า, owner 23 Oct 2026: "ห้างก็ได้"):** `docs/GAME_DESIGN.md` section 22,
+  `src/departmentStores.ts`. On a real-scale city map the shops wait for a department store past a cap each store lifts
+  (numbers in `STORE_RULES`), in the place of the original game's airport, which province and practice maps keep. A
+  ruler's building on the civic 3 x 3 (`civicKinds` "department_store", era 2, the services tray), with upkeep (a budget
+  line), land value round it, visitors, and shoppers and workers on the month's trips; its card says how far the shops may
+  grow. The 3D view draws `era<n>/<region>/store.glb` from era 2 (art/buildings, `--store`), the program's own model before.
 - **What can be built yet, and modes (owner, 21 Oct 2026):** `docs/GAME_DESIGN.md` section 6. Every tool has a row of
   data in `src/unlocks.ts` (the era that brings it, the trained people it needs, what must stand first, its months as a
   construction site); `CityCommands` refuses a locked tool with that reason (`commands.lock(tool)`), and the dock greys

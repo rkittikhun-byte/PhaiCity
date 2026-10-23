@@ -34,6 +34,7 @@ import { isPlantCentre, NUCLEAR_KIND, plantCentreOf } from './plantBlocks.ts';
 import { turnedOwnerAt } from './buildings/turnedFootprint.ts';
 import { BUS_STOP, CIVIC, COALBASE, FARM, HARBOUR, MINE, STATION, WASTE } from './tileValues.ts';
 import { Transit } from './transit.ts';
+import { DepartmentStores, shopCapView, shopsHeld, storesCapShops } from './departmentStores.ts';
 import {
   CULTURE_VISITORS, cultureNoise, GRANARY_DROUGHT_FACTOR, hasWing, HOUSE_KIND, houseLandValue, houseStanding,
   houseUpkeep, TREASURY_TAX_BONUS, WARNING_RISK_FACTOR
@@ -177,6 +178,8 @@ var Simulation = EventEmitter(function (gameMap, gameLevel, speed, savedGame, ru
   // ... and public transport (src/transit.ts), whose reach the zones' trips read (src/traffic.js)
   this._transit = new Transit(this._map.width, this._map.height);
   this._traffic.transit = this._transit;
+  // ... and the department stores (src/departmentStores.ts), which lift the shops' cap on a real-scale city map
+  this._stores = new DepartmentStores();
 
   // PhaiCity: on a real-scale city map the police's and the fire brigade's cover runs along the roads from each station
   // (src/sim/serviceReach.ts, docs/NO_GRID_PLAN.md 4.3): kept in blocks of 2 tiles, as the land's values are, not 8
@@ -385,7 +388,10 @@ Simulation.prototype._simFrame = function() {
 Simulation.prototype._clearCensus = function() {
   // The cycle's stops and stations reach the next cycle's trips (src/transit.ts)
   this._transit.endCycle();
+  // ... and the department stores it found are those the month reads (src/departmentStores.ts)
+  this._stores.endCycle();
   this._census.clearCensus();
+  this._census.storeAppeal = this._stores.appeal();
   // PhaiCity: on a real-scale city map the roads' upkeep is by their lengths, not their tiles (docs/NO_GRID_PLAN.md 1.1)
   var byLength = roadUpkeepByLength(this._map);
   if (byLength !== null) {
@@ -405,6 +411,7 @@ Simulation.prototype._clearCensus = function() {
   this._mining.clearCycle();
   this._farming.clearCycle();
   this._services.clearCycle();
+  this._stores.clearCycle();
   this._waste.clearCycle();
   this.blockMaps.fireStationMap.clear();
   this.blockMaps.policeStationMap.clear();
@@ -778,6 +785,8 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
   var farmFields = this._farming.fields;
   // ... and the festivals held round the ruler's house, for a few months after (src/festivals.ts)
   var map = this._map;
+  // ... and the department stores (src/departmentStores.ts)
+  var stores = this._stores;
   // ... and the month's wind, which carries the smoke on a real-scale city map (src/wind.ts, src/sim/pollutionField.ts)
   var wind = seasonWind(this.getDate().month, typeof this.resources.wind === 'number' ? this.resources.wind : 2);
   BlockMapUtils.pollutionTerrainLandValueScan(this._map, this._census, this.blockMaps, smoke,
@@ -787,7 +796,8 @@ Simulation.prototype._pollutionTerrainLandValueScan = function() {
                                                        transit.landValueAt(x, y) +
                                                        (canals ? canals[y * width + x] : 0) +
                                                        farmFields.landValueAt(x, y) +
-                                                       festivalLandValue(map, x, y, step);
+                                                       festivalLandValue(map, x, y, step) +
+                                                       stores.landValueAt(x, y, step);
                                               }, wind);
 };
 
@@ -851,10 +861,12 @@ Simulation.prototype._weatherMonth = function() {
 };
 
 
-// A civic building's centre (tile 418): a school or hospital (src/services.ts), or the ruler's house, which is counted
-// and pays its upkeep with its wings'
+// A civic building's centre (tile 418): a school or hospital (src/services.ts), a department store
+// (src/departmentStores.ts), or the ruler's house, which is counted and pays its upkeep with its wings'
 Simulation.prototype._civicFound = function(map, x, y, simData) {
   if (this._services.found(map, x, y, simData.census))
+    return;
+  if (this._stores.found(map, x, y, simData.census))
     return;
   var house = map.rulerHouse;
   if (!house || house.x !== x || house.y !== y || !map.civicKinds || map.civicKinds[y * map.width + x] !== HOUSE_KIND)
@@ -1211,12 +1223,18 @@ Simulation.prototype._sendMessages = function() {
       break;
 
     case 30:
-      if (this._census.comPop > 100 && this._census.airportPop === 0) {
-          this._emitEvent(Messages.FRONT_END_MESSAGE, {subject: Messages.NEED_AIRPORT});
+      // PhaiCity: on a real-scale city map the shops wait for a department store, each lifting their cap, in place of
+      // the airport (src/departmentStores.ts, docs/GAME_DESIGN.md 22)
+      var shopsWait = shopsHeld(this._map, this._census, this._stores.count);
+      if (shopsWait) {
+        this._emitEvent(Messages.FRONT_END_MESSAGE,
+                        {subject: storesCapShops(this._map) ? Messages.NEED_DEPARTMENT_STORE : Messages.NEED_AIRPORT});
         this._valves.comCap = true;
       } else {
         this._valves.comCap = false;
       }
+      // ... which a store's card shows (src/objects/buildings.ts)
+      this._map.shopCap = storesCapShops(this._map) ? shopCapView(this._census.comPop, this._stores.count, shopsWait) : null;
       break;
 
     case 32:
