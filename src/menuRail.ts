@@ -23,6 +23,8 @@ export const RAIL_ICONS: Record<string, string> = {
     '<path d="M5 11.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5"/>'),
   evalRequest: svg('<path d="M4 20h16"/><path d="M5 16l4.5-4.5 3 3L19 8"/><path d="M15 8h4v4"/>'),
   mapRequest: svg('<path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>'),
+  registerRequest: svg('<path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><circle cx="12" cy="10" r="2.3"/>' +
+    '<path d="M8.5 16.5c.6-1.9 2-2.9 3.5-2.9s2.9 1 3.5 2.9"/>'),
   disasterRequest: svg('<path d="M12 3.5l9 16.5H3z"/><path d="M12 10v4.5M12 17.2v.3"/>'),
   saveRequest: svg('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>'),
   settingsRequest: svg('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'),
@@ -38,6 +40,7 @@ export const RAIL_WINDOWS: Record<string, string[]> = {
   budgetRequest: ["budget"],
   evalRequest: ["evalWindow", "graphWindow"],
   mapRequest: ["mapWindow"],
+  registerRequest: ["registerWindow"],
   disasterRequest: ["disasterWindow"],
   saveRequest: ["saveWindow"],
   settingsRequest: ["settingsWindow"],

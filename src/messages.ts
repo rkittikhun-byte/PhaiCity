@@ -88,6 +88,7 @@ export const REACHED_METROPOLIS = "Now a metropolis";
 export const REACHED_MEGALOPOLIS = "Now a megalopolis";
 export const REACHED_TOWN = "Now a town";
 export const REACHED_VILLAGE = "Now a village";
+export const REGISTER_WINDOW_CLOSED = "City register window closed";
 export const HOUSE_WINDOW_CLOSED = "Ruler's house window closed";
 export const ROAD_NEEDS_FUNDING = "Roads need funding";
 export const RUBBISH_OVERFLOW = "Rubbish in the streets";

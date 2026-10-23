@@ -111,7 +111,9 @@ import { moonDayAt } from './moon.ts';
 import { bindDayLengthSetting } from './dayLength.ts';
 import { bindGamePaceSetting, gamePaceFactor, onGamePace } from './gamePace.ts';
 import { skyAt } from './rainSpells.ts';
-import { inspectAt } from './inspect.ts';
+import { inspectAt, inspectBuilding, inspectLorry, inspectPerson, inspectTraveller } from './inspect.ts';
+import { registerOf } from './register/cityRegister.ts';
+import { RegisterWindow } from './registerWindow.ts';
 import { InspectCard } from './inspectCard.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
@@ -196,6 +198,15 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // Which province and online world this city belongs to (both null for offline random maps)
   var source = savedGame || gameMap;
   this.provinceId = source.provinceId || null;
+  // ... and its name in Thai, for the plates of the register's vehicles (src/register/names.ts plate)
+  this.provinceTh = null;
+  if (this.provinceId !== null) {
+    var game = this;
+    fetch('data/thailand-provinces.json').then(function(response) { return response.json(); }).then(function(data) {
+      var province = data.provinces.find(function(p) { return p.id === game.provinceId; });
+      game.provinceTh = province ? province.nameTh : null;
+    }).catch(function() {});
+  }
   // ... and which district, when the city stands in one district's town (data/maps/district/)
   this.districtId = source.districtId || null;
   // Its first building is the district's ที่ว่าการอำเภอ, or a province city's ศาลากลางจังหวัด (owner 13 Oct 2026); every
@@ -678,6 +689,19 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     }
   };
   this.policyWindow.addEventListener(Messages.POLICY_WINDOW_CLOSED, this.genericDialogClosure);
+  // ... and the city's register (src/registerWindow.ts, src/register/), opened from the menu rail
+  this.registerWindow = new RegisterWindow(opacityLayerID, 'registerWindow');
+  this.registerWindow.source = {
+    register: function() { return self.cityRegister(); },
+    openPerson: function(id) { self.inspectPerson(id); },
+    openObject: function(id) {
+      var building = self.core.objects.get(id);
+      if (building)
+        self.inspectObject(building);
+    }
+  };
+  this.registerWindow.addEventListener(Messages.REGISTER_WINDOW_CLOSED, this.genericDialogClosure);
+  $('#registerRequest').click(makeWindowOpenHandler('register').bind(this));
 
   // Listen for touches, so we can warn tablet users
   this.touchListener = touchListener.bind(this);
@@ -714,6 +738,17 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // ... and a click with no tool in hand shows what is there (src/inspect.ts, src/inspectCard.ts)
   var inspectElement = document.getElementById('inspectCard');
   this.inspectCard = inspectElement ? new InspectCard(inspectElement) : null;
+  // ... where a person's name opens their card, and their home or workplace what is there (src/register/)
+  if (this.inspectCard) {
+    this.inspectCard.onPerson = function(id) { self.inspectPerson(id); };
+    this.inspectCard.onPlace = function(x, y, id) {
+      var building = id !== null ? self.core.objects.get(id) : null;
+      if (building)
+        self.inspectObject(building);
+      else
+        self.inspectTile(x, y);
+    };
+  }
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
                   function(x, y) { self.inspectAtPixel(x, y); });
   // The camera's buttons down the right edge (src/cameraModes.ts), for the 3D view
@@ -783,9 +818,7 @@ Game.prototype.inspectTile = function(x, y, point) {
   }
   // A building put up since the month's look over the map is found now
   this.core.objects.scan(this.gameMap, this.simulation._cityTime);
-  var found = inspectAt({map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
-                         cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
-                         language: getLanguage(), satisfaction: this.satisfactionContext()}, x, y);
+  var found = inspectAt(this.inspectCity(), x, y);
   // Clicking empty land/woods/water while an object/road card is already open closes the card cleanly (an empty
   // painted plot is not plain ground: it has its checklist)
   var isPlainGround = found && ['object.kind.land', 'object.kind.woods', 'object.kind.water'].indexOf(found.title.key) !== -1 &&
@@ -797,6 +830,73 @@ Game.prototype.inspectTile = function(x, y, point) {
       this.smartCamera.frame(found.rect);
   } else
     this.inspectCard.close();
+};
+
+
+// What the inspector reads of the city (src/inspect.ts), the register among it
+Game.prototype.inspectCity = function() {
+  return {map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
+          cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear,
+          language: getLanguage(), satisfaction: this.satisfactionContext(), register: this.cityRegister()};
+};
+
+
+// The city's register as it stands (src/register/cityRegister.ts): made when first asked and again when the month or
+// the city has changed; it only reads the city
+Game.prototype.cityRegister = function() {
+  var sim = this.simulation;
+  this.core.objects.scan(this.gameMap, sim._cityTime);
+  return registerOf({map: this.gameMap, objects: this.core.objects, blockMaps: sim.blockMaps,
+                     services: sim._serviceLevels || null, fields: sim._farming ? sim._farming.fields : null,
+                     cityTime: sim._cityTime, satisfaction: this.satisfactionContext(), province: this.provinceTh || null});
+};
+
+
+// A building's card by its object (a person's home or workplace, whose tiles another plot may share)
+Game.prototype.inspectObject = function(building) {
+  var found = inspectBuilding(this.inspectCity(), building);
+  this._inspectPoint = {x: building.x + 0.5, y: building.y + 0.5};
+  this.inspectCard.open(found);
+  if (this.smartCamera)
+    this.smartCamera.frame(found.rect);
+};
+
+
+// A car or a walker of the month's trips clicked in the view (route: its index in map.trips.result.routes, k: which of
+// the route's it is, onFoot: a walker): the card of the car with its owner, or of the walker, the person of the city it
+// is with the trip they are on (src/register/cityRegister.ts traveller). True when there was someone to show.
+Game.prototype.inspectTraveller = function(route, k, onFoot) {
+  if (!this.inspectCard)
+    return false;
+  var trip = this.cityRegister().traveller(route, k);
+  var found = trip ? inspectTraveller(this.inspectCity(), trip, !!onFoot) : null;
+  if (!found)
+    return false;
+  this.inspectCard.open(found);
+  return true;
+};
+
+
+// A factory's lorry clicked in the view (workplace: the factory's object id, k: which of its lorries)
+Game.prototype.inspectLorry = function(workplace, k) {
+  var found = this.inspectCard ? inspectLorry(this.inspectCity(), workplace, k) : null;
+  if (found)
+    this.inspectCard.open(found);
+  return found !== null;
+};
+
+
+// A person's card (src/register/registerCards.ts), with the camera on their home
+Game.prototype.inspectPerson = function(id) {
+  if (!this.inspectCard)
+    return;
+  var found = inspectPerson(this.inspectCity(), id);
+  if (!found)
+    return;
+  this._inspectPoint = {x: found.rect.x + 0.5, y: found.rect.y + 0.5};
+  this.inspectCard.open(found);
+  if (this.smartCamera)
+    this.smartCamera.frame(found.rect);
 };
 
 

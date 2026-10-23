@@ -414,6 +414,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   simulation; the game reads it when it opens, plays with the game's own numbers where it is missing or wrong, and a game
   open in the same browser takes a save at once; the player's settings window makes the day short, normal or long
   (`src/dayLength.ts`, `phaicity.dayLength`).
+- **City register (ทะเบียนเมือง, owner 23 Oct 2026):** `docs/GAME_DESIGN.md` section 21, `src/register/`. Who lives in each home
+  (households from the census's people and the home's own number: names, ages, school), where they work (the nearest jobs
+  by road, each workplace a fair share first, the rest worked by outsiders), pay, savings, debt and vehicles, worked out
+  when the register window (menu rail) or a card asks (`registerOf`) and never saved; the inspector lists a home's households,
+  a workplace's people and a person's card (`src/register/registerCards.ts`). The simulation does not read it.
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
   of the simulation's overlays (power, the water supply, groundwater, traffic, pollution, crime, land value,
   population, police and fire cover);
