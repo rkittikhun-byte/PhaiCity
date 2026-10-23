@@ -72,10 +72,10 @@ var totalCost = function() {
 };
 
 
-// PhaiCity: whether a tile is paint with nothing grown on it yet, which gives way to a building (src/paintUnder.ts,
+// PhaiCity: whether a tile is paint or what grew from it, which gives way to a building or a road (src/paintUnder.ts,
 // put on the map by src/core/cityLayers.ts so the tools need not import the plots)
-var mapEmptyPaintAt = function(map, x, y, value) {
-  return !!(map && map.emptyPaintAt && map.emptyPaintAt(x, y, value));
+var mapPaintAt = function(map, x, y, value) {
+  return !!(map && map.paintAt && map.paintAt(x, y, value));
 };
 
 
@@ -91,9 +91,9 @@ var doAutoBulldoze = function(x, y) {
       this._worldEffects.setTile(x, y, DIRT);
     }
   }
-  // PhaiCity: paint with nothing grown on it yet gives way, free (src/paintUnder.ts)
+  // PhaiCity: paint, or what grew from it, gives way, free (src/paintUnder.ts)
   var value = this._worldEffects.getTileValue(x, y);
-  if (value !== DIRT && mapEmptyPaintAt(this._map, x, y, value))
+  if (value !== DIRT && mapPaintAt(this._map, x, y, value))
     this._worldEffects.setTile(x, y, DIRT);
 };
 

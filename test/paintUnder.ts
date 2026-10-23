@@ -2,9 +2,9 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// Painted land that has grown nothing yet gives way to a building put down on it (src/paintUnder.ts; owner, 23 Oct 2026:
-// a water tower tried again and again on painted homes' land, "วางไม่ติดสักที"); a plot with a house still needs the
-// bulldozer first.
+// Paint and what grew from it give way to the ruler's buildings and roads (src/paintUnder.ts; owner, 23 Oct 2026: a
+// water tower tried again and again on painted homes' land, "วางไม่ติดสักที", then "บริการของประชาชน จะวางได้ทุกที่ ถ้าไปชน
+// กับ object ที่วาดสี" and "ถนนก็ด้วยเหมือนกัน วาดได้หมด").
 
 import * as fs from "fs";
 import { CityCore } from "../src/core/cityCore";
@@ -45,14 +45,20 @@ describe("a building on painted land", () => {
     for (const key of tileRasterKeys(map, x, y)) expect(map.zoneCells?.has(key) ?? false).toBe(false);
   });
 
-  test("a plot with a house on it still needs the bulldozer", () => {
-    for (let y = 1; y < map.height - 1; y++) for (let x = 1; x < map.width - 1; x++) {
+  test("a house grown from paint gives way too (owner: services go anywhere a painted thing stands)", () => {
+    const at = besideRoad(1);
+    expect(at).not.toBeNull();
+    expect(map.getTileValue(at![0], at![1]) & 1023).toBe(WATER_TOWER);
+  });
+
+  test("a road drawn over a grown house lays its road there", () => {
+    for (let y = 2; y < map.height - 2; y++) for (let x = 2; x < map.width - 2; x++) {
       if ((plotOf(map, x, y)?.level ?? 0) < 1) continue;
-      const before = map.getTileValue(x, y);
-      const out: any = core.apply({ type: "tool", tool: "watertower", x, y } as any);
+      const out: any = core.apply({ type: "tool", tool: "road", x, y } as any);
       if (!out.accepted) continue;
-      expect(out.toolResult).toBe(3);
-      expect(map.getTileValue(x, y)).toBe(before);
+      expect(out.toolResult).toBe(0);
+      expect(isRoadTile(map.getTileValue(x, y) & 1023)).toBe(true);
+      for (const key of tileRasterKeys(map, x, y)) expect(map.zoneCells?.has(key) ?? false).toBe(false);
       return;
     }
     throw new Error("no house found");

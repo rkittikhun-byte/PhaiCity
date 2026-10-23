@@ -127,3 +127,13 @@
 - ความชันในป้ายข้างเมาส์ (ป้ายบอกความสูงพื้นแล้ว) โหมดขนาน
 - ถนนกว้างหลายช่องสำหรับถนนใหญ่
 - เส้นชั้นความสูง (topography) และชั้นข้อมูลน้ำใต้ดิน ลม บนภาพ 3D
+
+## Paint gives way (owner, 23 Oct 2026)
+
+"บริการของประชาชน จะวางได้ทุกที่ ถ้าไปชนกับ object ที่วาดสีนะ ยกเว้น object ที่ตั้งขึ้นเอง" and "ถนนก็ด้วยเหมือนกัน วาดได้หมด":
+what grows from paint (a home, shop or factory plot at any level, a farm field at any level) is the ruler's own and gives
+way to whatever the ruler builds or draws over it: a building of any kind, a road, a railway or a canal clears it, free,
+and the painted cells on those tiles go (`src/paintUnder.ts`, `paintAt` on the map from `src/core/cityLayers.ts`, the
+tools' auto-bulldoze in `src/baseTool.js` and `src/buildingTool.js`, the cells in `src/cityCommands.ts`). Temples, the
+ruler's other buildings and old 3 × 3 zones still stand in the way. When the bulldozer is still needed, the reason now
+shows beside the tool, not only in the hidden panel title.

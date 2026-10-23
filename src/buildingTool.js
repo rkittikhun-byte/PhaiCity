@@ -52,10 +52,10 @@ BuildingTool.prototype.putBuilding = function(leftX, topY) {
 };
 
 
-// PhaiCity: whether a tile is paint with nothing grown on it yet, which gives way to a building (src/paintUnder.ts,
+// PhaiCity: whether a tile is paint or what grew from it, which gives way to a building or a road (src/paintUnder.ts,
 // put on the map by src/core/cityLayers.ts so the tools need not import the plots)
-var mapEmptyPaintAt = function(map, x, y, value) {
-  return !!(map && map.emptyPaintAt && map.emptyPaintAt(x, y, value));
+var mapPaintAt = function(map, x, y, value) {
+  return !!(map && map.paintAt && map.paintAt(x, y, value));
 };
 
 
@@ -86,8 +86,8 @@ BuildingTool.prototype.prepareBuildingSite = function(leftX, topY) {
         return this.TOOLRESULT_NEEDS_BULLDOZE;
       }
 
-      // PhaiCity: paint with nothing grown on it yet gives way too, free (src/paintUnder.ts)
-      var paint = mapEmptyPaintAt(this._map, posX, posY, tileValue);
+      // PhaiCity: paint, or what grew from it, gives way too, free (src/paintUnder.ts)
+      var paint = mapPaintAt(this._map, posX, posY, tileValue);
       if (!paint && !TileUtils.canBulldoze(tileValue)) {
         // tilevalue cannot be auto-bulldozed
         return this.TOOLRESULT_NEEDS_BULLDOZE;
@@ -139,7 +139,7 @@ BuildingTool.prototype.buildTurned = function(x, y, offsets) {
     tileValue = this._worldEffects.getTileValue(tx, ty);
     if (tileValue === DIRT)
       continue;
-    if (!this.autoBulldoze || !(TileUtils.canBulldoze(tileValue) || mapEmptyPaintAt(this._map, tx, ty, tileValue)))
+    if (!this.autoBulldoze || !(TileUtils.canBulldoze(tileValue) || mapPaintAt(this._map, tx, ty, tileValue)))
       return this.TOOLRESULT_NEEDS_BULLDOZE;
   }
   for (i = 0; i < offsets.length; i++) {
@@ -147,7 +147,7 @@ BuildingTool.prototype.buildTurned = function(x, y, offsets) {
     ty = y + offsets[i][1];
     tileValue = this._worldEffects.getTileValue(tx, ty);
     if (tileValue !== DIRT) {
-      var paint = mapEmptyPaintAt(this._map, tx, ty, tileValue);
+      var paint = mapPaintAt(this._map, tx, ty, tileValue);
       this._worldEffects.setTile(tx, ty, DIRT);
       if (!paint)
         this.addBulldozeCost(tileValue);

@@ -1267,8 +1267,9 @@ export class CityCommands {
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
         // ... a field the brush painted whole is every cell of its tile (src/farmZone.ts fieldCells)
         const fieldMap = map as unknown as FieldMap | undefined;
-        // ... and a building put down on an empty field takes its cells off (src/paintUnder.ts)
-        if (applied && placesBuilding(command.tool, tool) && fieldMap?.farmCells) {
+        // ... and a building, road, railway or canal laid over a field takes its cells off (src/paintUnder.ts)
+        if (applied && (placesBuilding(command.tool, tool) || tool.roadLevel || command.tool === "rail" || command.tool === CANAL_TOOL) &&
+          fieldMap?.farmCells) {
           for (const c of before) {
             if (isFieldValue(c.before & BIT_MASK) && !isFieldValue(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK)) fieldMap.farmCells[c.y * city.width + c.x] = 0;
           }
@@ -1300,7 +1301,7 @@ export class CityCommands {
         }
         // When a road or railway cuts through painted zoneCells / plots, clear painted cells on the road tiles and re-sync plots
         const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;
-        // ... and so does a building put down on paint that had grown nothing yet (src/paintUnder.ts)
+        // ... and so does a building put down on paint or what grew from it (src/paintUnder.ts)
         const builds = placesBuilding(command.tool, tool);
         if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === CANAL_TOOL ||
           command.tool === "bulldozer" || builds) && before.length) {
