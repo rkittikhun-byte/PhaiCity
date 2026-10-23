@@ -217,6 +217,8 @@ export class CityRegister {
   private readonly byWorkplace = new Map<number, Workplace>();
   private readonly money = new Map<string, Money>();
   private readonly homeObjects = new Map<number, Building>();
+  /** The homes on each road of the month's trips (segment index), made the first time a traveller is asked for */
+  private homesByRoad: Map<number, HomeEntry[]> | null = null;
 
   constructor(private readonly input: RegisterInput) {
     const { map } = input;
@@ -521,6 +523,32 @@ export class CityRegister {
   }
 
   person(id: string): Person | null { return this.byPerson.get(id) ?? null; }
+
+  /**
+   * Who a car or a walker of the month's trips is (src/sim/trips.ts routes, drawn by the 3D view): the k-th, taken round,
+   * of the people living on the route's first road who make that trip (to work: its workers going to work; shopping: its
+   * grown-ups), in the order of their homes and households; the same person every time it is asked. Null for a route
+   * that is not this month's, or a road with nobody of the city on it.
+   */
+  traveller(routeIndex: number, k: number): Person | null {
+    const trips: CityTrips | null = this.input.map.trips ?? null;
+    const route = trips?.result.routes[routeIndex];
+    if (!trips || !route) return null;
+    if (!this.homesByRoad) {
+      this.homesByRoad = new Map();
+      for (const home of this.homes) {
+        const a = plotAccess(this.input.map, home.x, home.y);
+        const segment = a ? trips.roads.segmentIndex.get(a.segment) : undefined;
+        if (segment === undefined) continue;
+        const list = this.homesByRoad.get(segment) ?? [];
+        list.push(home);
+        this.homesByRoad.set(segment, list);
+      }
+    }
+    const going = (this.homesByRoad.get(route.fromSegment) ?? []).flatMap((home) => this.residents(home.id))
+      .filter((p) => route.purpose === 0 ? p.role === "worker" : p.band === "adult" || p.band === "young" || p.band === "elder");
+    return going.length ? going[((k % going.length) + going.length) % going.length] : null;
+  }
   home(id: number): HomeEntry | null { return this.byHome.get(id) ?? null; }
   workplace(id: number): Workplace | null { return this.byWorkplace.get(id) ?? null; }
   /** The people of a home, household by household */

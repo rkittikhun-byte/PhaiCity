@@ -90,7 +90,8 @@ export function workplaceRoster(register: CityRegister, id: number): RosterSecti
 export type PlaceTitle = (w: Workplace) => string;
 
 /** A person's card: their lines, their household, and where they live and work */
-export function personCard(register: CityRegister, id: string, placeTitle: PlaceTitle): {
+export function personCard(register: CityRegister, id: string, placeTitle: PlaceTitle,
+  trip: { purpose: number; minutes: number } | null = null): {
   person: PersonCard; facts: Fact[]; people: RosterSection[];
 } | null {
   const person = register.person(id);
@@ -100,6 +101,9 @@ export function personCard(register: CityRegister, id: string, placeTitle: Place
     { key: member.male ? "register.fact.age_male" : "register.fact.age_female", params: { age: member.age } },
     { key: "register.fact.role", params: { role: roleKey(person) } },
   ];
+  // On the road now, when the card came from a car or a walker clicked in the view
+  if (trip) facts.push({ key: trip.purpose === 0 ? "register.fact.trip_work" : "register.fact.trip_shop",
+    params: { minutes: Math.max(1, Math.round(trip.minutes)) } });
   if (person.workplace) {
     facts.push({ key: "register.fact.workplace", params: { place: placeTitle(person.workplace) } });
     facts.push(person.commuteM < 1000

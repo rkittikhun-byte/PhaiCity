@@ -1775,6 +1775,8 @@ export const STRINGS: Record<string, Translation> = {
   "register.fact.commute": { en: "About {minutes} min to work ({km} km)", th: "ไปทำงานราว {minutes} นาที ({km} กม.)" },
   "register.fact.commute_m": { en: "About {minutes} min to work ({metres} m)", th: "ไปทำงานราว {minutes} นาที ({metres} ม.)" },
   "register.more_households": { en: "{households} more households ({people} people)", th: "และอีก {households} ครัวเรือน ({people} คน)" },
+  "register.fact.trip_work": { en: "On the way to work, about {minutes} min", th: "กำลังเดินทางไปทำงาน ราว {minutes} นาที" },
+  "register.fact.trip_shop": { en: "Out shopping, about {minutes} min each way", th: "กำลังไปซื้อของ ราว {minutes} นาที" },
   "register.fact.income": { en: "Earns {income} a month", th: "รายได้ {income} ต่อเดือน" },
   "register.fact.household_income": { en: "Household: {income} in, {living} living costs a month", th: "ครัวเรือน: รายได้ {income} ค่าครองชีพ {living} ต่อเดือน" },
   "register.fact.savings": { en: "Household savings {savings}", th: "เงินออมของครัวเรือน {savings}" },

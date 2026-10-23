@@ -147,6 +147,29 @@ describe("the register in the cards", () => {
   });
 });
 
+describe("travellers on the road", () => {
+  test("a car or walker of a trip is always the same person of a home on its first road, a worker going to work", () => {
+    const core = open();
+    core.run(16 * 4);
+    const register = registerOf(core), map = core.map as any;
+    const routes = map.trips?.result.routes ?? [];
+    expect(routes.length).toBeGreaterThan(0);
+    let found = 0;
+    routes.slice(0, 40).forEach((route: any, r: number) => {
+      for (let k = 0; k < 5; k++) {
+        const person = register.traveller(r, k);
+        if (!person) continue;
+        found++;
+        expect(register.traveller(r, k)).toBe(person);
+        if (route.purpose === 0) expect(person.role).toBe("worker");
+        else expect(["young", "adult", "elder"]).toContain(person.band);
+      }
+    });
+    expect(found).toBeGreaterThan(0);
+    expect(register.traveller(routes.length + 5, 0)).toBeNull();
+  });
+});
+
 describe("households", () => {
   test("a home that grows adds people at the end and never renames those there", () => {
     const key = 123456789;

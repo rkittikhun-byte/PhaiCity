@@ -844,11 +844,22 @@ Game.prototype.inspectObject = function(building) {
 };
 
 
-// A person's card (src/register/registerCards.ts), with the camera on their home
-Game.prototype.inspectPerson = function(id) {
+// A car or a walker of the month's trips clicked in the view (route: its index in map.trips.result.routes, k: which of
+// the route's it is): the card of the person of the city it is (src/register/cityRegister.ts traveller)
+Game.prototype.inspectTraveller = function(route, k) {
+  var person = this.cityRegister().traveller(route, k);
+  var trip = this.gameMap.trips && this.gameMap.trips.result.routes[route];
+  if (person)
+    this.inspectPerson(person.id, trip ? {purpose: trip.purpose, minutes: trip.minutes} : null);
+  return person !== null;
+};
+
+
+// A person's card (src/register/registerCards.ts), with the camera on their home; trip: the trip they are on
+Game.prototype.inspectPerson = function(id, trip) {
   if (!this.inspectCard)
     return;
-  var found = inspectPerson(this.inspectCity(), id);
+  var found = inspectPerson(this.inspectCity(), id, trip || null);
   if (!found)
     return;
   this._inspectPoint = {x: found.rect.x + 0.5, y: found.rect.y + 0.5};

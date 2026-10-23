@@ -128,14 +128,15 @@ export function objectTitle(map: Legacy, building: Building): string {
     : building.kind === "farm" ? `farm.hub.${hubKind(map, building.x, building.y)}` : titleOf(building.kind, building.sort(map));
 }
 
-/** A person's card from the register (docs/GAME_DESIGN.md 20.4), or null when there is no such person */
-export function inspectPerson(city: InspectCity, id: string): Inspection | null {
+/** A person's card from the register (docs/GAME_DESIGN.md 21.4), or null when there is no such person; trip: the trip
+ * they are on, when they were clicked on the road */
+export function inspectPerson(city: InspectCity, id: string, trip: { purpose: number; minutes: number } | null = null): Inspection | null {
   if (!city.register) return null;
   const card = personCard(city.register, id, (w) => {
     if (w.kind === "fields") return `farm.kind.${w.sort}`;
     const building = city.objects.get(w.id);
     return building ? objectTitle(city.map, building) : `object.kind.${w.kind}`;
-  });
+  }, trip);
   if (!card) return null;
   const { x, y } = card.person.home;
   return { title: { key: "register.person.title" }, facts: card.facts, people: card.people, person: card.person,
