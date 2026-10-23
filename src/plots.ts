@@ -417,6 +417,8 @@ export type PlotWhy = typeof PLOT_WHY[number];
 export const WHY = (why: PlotWhy): number => PLOT_WHY.indexOf(why);
 
 export interface PlotSimData {
+  /** The city's time (src/simulation.js _cityTime), when a plot's building begins to go up */
+  cityTime?: number;
   blockMaps: {
     landValueMap: BlockMapLike;
     pollutionDensityMap: BlockMapLike;

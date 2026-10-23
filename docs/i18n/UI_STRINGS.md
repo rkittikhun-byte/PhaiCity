@@ -1669,6 +1669,8 @@
 | `object.fact.people` | `src/inspect.ts` | — | `About {people} people live here` | `มีคนอยู่ราว {people} คน` | ตัวเลขประมาณจากสูตรเดิมของเกม จนกว่าจะมีครัวเรือน (เฟส 7) |
 | `object.fact.built` | `src/inspect.ts` | — | `Built in {year}` | `สร้างเมื่อ {year}` | ปี พ.ศ. ในภาษาไทย (formatYear) |
 | `object.fact.built_before` | `src/inspect.ts` | — | `Here before records began` | `มีมาก่อนเริ่มบันทึก` |  |
+| `object.fact.vacant` | `src/inspect.ts` | — | `Vacant: its people have left; it stands until you bulldoze it or people move back` | `ว่าง: คนย้ายออกหมดแล้ว อาคารยังตั้งอยู่จนกว่าจะรื้อถอน หรือมีคนย้ายกลับมา` | ไม้ไผ่46 24 ต.ค. 2026 |
+| `object.fact.going_up` | `src/inspect.ts` | — | `Being built: {percent}%` | `กำลังก่อสร้าง {percent}%` |  |
 | `object.fact.land_value` | `src/inspect.ts` | — | `Land value: {grade}` | `ราคาที่ดิน: {grade}` |  |
 | `object.fact.pollution` | `src/inspect.ts` | — | `Pollution: {grade}` | `มลพิษ: {grade}` |  |
 | `object.fact.crime` | `src/inspect.ts` | — | `Crime: {grade}` | `อาชญากรรม: {grade}` |  |

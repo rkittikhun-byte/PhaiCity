@@ -8,6 +8,7 @@
 // the city. Plain code: no DOM.
 
 import { isSite, monthsLeft } from "./construction.js";
+import { constructionShare, isVacant, type PlotBuilding } from "./plotBuildings";
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { CANAL_NEEDS, isCanalAt } from "./canals.js";
 import { fieldKindAt, fieldLevelOf, hubKind, isFieldValue } from "./farmZone.js";
@@ -208,6 +209,12 @@ export function inspectBuilding(city: InspectCity, building: Building): Inspecti
   const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
   // A building still going up works only after its months (src/construction.ts)
   if (isSite(map, building.id)) facts.unshift({ key: "site.months_left", params: { months: monthsLeft(map, building.id, city.cityTime) } });
+  // ... and a home, shop or factory of the list going up, or standing empty since its people left (src/plotBuildings.ts)
+  const plotId = (building as { plot?: number | null }).plot;
+  const plot = plotId != null ? (map as { plotBuildings?: { get(id: number): PlotBuilding | undefined } | null }).plotBuildings?.get(plotId) : undefined;
+  if (plot && isVacant(plot)) facts.unshift({ key: "object.fact.vacant" });
+  else if (plot && constructionShare(plot, city.cityTime) < 1)
+    facts.unshift({ key: "object.fact.going_up", params: { percent: Math.floor(constructionShare(plot, city.cityTime) * 100) } });
   if (building.kind === "home") facts.push({ key: "object.fact.people", params: { people: homePeopleOf(building, map) } });
   // Who lives or works there (src/register/registerCards.ts)
   let people: RosterSection[] | undefined;

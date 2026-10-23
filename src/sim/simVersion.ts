@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 21;
+export const SIM_VERSION = 22;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -64,6 +64,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "trips (src/departmentStores.ts, GAME_DESIGN 22)",
   21: "the ruler's house and the civic buildings on the hospital's and church's old tiles are no one's home, so they found " +
     "no temple; a temple stands 6 m or more clear of every other building's outline (GAME_DESIGN 9.1)",
+  22: "on a map painted a cell at a time a plot whose people leave keeps its building standing, vacant at none, until it " +
+    "is bulldozed or people move back; a vacant building is never joined into its neighbour nor its land taken by an " +
+    "empty plot beside it; a new level's building is a construction site for its months (GAME_DESIGN 23)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

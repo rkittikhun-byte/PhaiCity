@@ -171,9 +171,10 @@ const BY_CENTRE = new Map(CENTRES.map(([value, size, make]) => [value, { size, m
  * tiles its columns lie on, as much of a tile as its columns are (plotShare); null for an empty plot, which has no
  * building yet (as a painted tile with none)
  */
-export function plotObject(plot: { id: number; kind: string; level: number; born: number; columns: readonly number[] },
+export function plotObject(plot: { id: number; kind: string; level: number; built?: number; born: number; columns: readonly number[] },
   place: { anchor: number; tiles: readonly number[] }, width: number, share: number): ZoneBuilding | null {
-  if (plot.level <= 0 || place.anchor < 0) return null;
+  // (a building its people left stands, empty: src/plotBuildings.ts builtLevel)
+  if (Math.max(plot.level, plot.built ?? 0) <= 0 || place.anchor < 0) return null;
   const make = plot.kind === "residential" ? Home : plot.kind === "commercial" ? Shop : Factory;
   const object = new make(PLOT_OBJECT_BASE + plot.id, place.anchor % width, Math.floor(place.anchor / width), 1);
   object.plot = plot.id;
