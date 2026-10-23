@@ -52,6 +52,13 @@ BuildingTool.prototype.putBuilding = function(leftX, topY) {
 };
 
 
+// PhaiCity: whether a tile is paint with nothing grown on it yet, which gives way to a building (src/paintUnder.ts,
+// put on the map by src/core/cityLayers.ts so the tools need not import the plots)
+var mapEmptyPaintAt = function(map, x, y, value) {
+  return !!(map && map.emptyPaintAt && map.emptyPaintAt(x, y, value));
+};
+
+
 BuildingTool.prototype.prepareBuildingSite = function(leftX, topY) {
   // Check that the entire site is on the map
   if (leftX < 0 || leftX + this.size > this._map.width)
@@ -79,13 +86,16 @@ BuildingTool.prototype.prepareBuildingSite = function(leftX, topY) {
         return this.TOOLRESULT_NEEDS_BULLDOZE;
       }
 
-      if (!TileUtils.canBulldoze(tileValue)) {
+      // PhaiCity: paint with nothing grown on it yet gives way too, free (src/paintUnder.ts)
+      var paint = mapEmptyPaintAt(this._map, posX, posY, tileValue);
+      if (!paint && !TileUtils.canBulldoze(tileValue)) {
         // tilevalue cannot be auto-bulldozed
         return this.TOOLRESULT_NEEDS_BULLDOZE;
       }
 
       this._worldEffects.setTile(posX, posY, DIRT);
-      this.addBulldozeCost(tileValue);
+      if (!paint)
+        this.addBulldozeCost(tileValue);
     }
   }
 
@@ -129,7 +139,7 @@ BuildingTool.prototype.buildTurned = function(x, y, offsets) {
     tileValue = this._worldEffects.getTileValue(tx, ty);
     if (tileValue === DIRT)
       continue;
-    if (!this.autoBulldoze || !TileUtils.canBulldoze(tileValue))
+    if (!this.autoBulldoze || !(TileUtils.canBulldoze(tileValue) || mapEmptyPaintAt(this._map, tx, ty, tileValue)))
       return this.TOOLRESULT_NEEDS_BULLDOZE;
   }
   for (i = 0; i < offsets.length; i++) {
@@ -137,8 +147,10 @@ BuildingTool.prototype.buildTurned = function(x, y, offsets) {
     ty = y + offsets[i][1];
     tileValue = this._worldEffects.getTileValue(tx, ty);
     if (tileValue !== DIRT) {
+      var paint = mapEmptyPaintAt(this._map, tx, ty, tileValue);
       this._worldEffects.setTile(tx, ty, DIRT);
-      this.addBulldozeCost(tileValue);
+      if (!paint)
+        this.addBulldozeCost(tileValue);
     }
   }
   this.addCost(this.toolCost);

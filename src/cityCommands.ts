@@ -1267,6 +1267,12 @@ export class CityCommands {
         if (applied && tool.busTool) city.addBus?.(command.x, command.y);
         // ... a field the brush painted whole is every cell of its tile (src/farmZone.ts fieldCells)
         const fieldMap = map as unknown as FieldMap | undefined;
+        // ... and a building put down on an empty field takes its cells off (src/paintUnder.ts)
+        if (applied && placesBuilding(command.tool, tool) && fieldMap?.farmCells) {
+          for (const c of before) {
+            if (isFieldValue(c.before & BIT_MASK) && !isFieldValue(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK)) fieldMap.farmCells[c.y * city.width + c.x] = 0;
+          }
+        }
         if (applied && command.tool === FARM_PAINT_TOOL && fieldMap?.farmCells) {
           for (const c of before) {
             if (!isFieldValue(c.before & BIT_MASK) && isFieldValue(map!.getTile(c.x, c.y).getRawValue() & BIT_MASK)) fieldMap.farmCells[c.y * city.width + c.x] = 0;
@@ -1294,8 +1300,10 @@ export class CityCommands {
         }
         // When a road or railway cuts through painted zoneCells / plots, clear painted cells on the road tiles and re-sync plots
         const cellMap = map as unknown as (CellMap & CellPlotMap) | undefined;
+        // ... and so does a building put down on paint that had grown nothing yet (src/paintUnder.ts)
+        const builds = placesBuilding(command.tool, tool);
         if (applied && cellMap?.cellZones && (tool.roadLevel || command.tool === "rail" || command.tool === CANAL_TOOL ||
-          command.tool === "bulldozer") && before.length) {
+          command.tool === "bulldozer" || builds) && before.length) {
           const stroke = command.stroke === undefined ? "" : String(command.stroke);
           if (this.cellsPending?.stroke !== stroke) { this.settle(); this.cellsPending = { stroke, tiles: new Set() }; }
           const touched = this.cellsPending!.tiles;
@@ -1305,7 +1313,7 @@ export class CityCommands {
             const now = map!.getTile(c.x, c.y).getRawValue() & BIT_MASK;
             // The cells whose middles lie on the tile, by their keys on the 1 m raster (zoneCells.ts rasterKey); four a
             // side, as here before 20 Oct 2026, missed every key on a 16 m tile (docs/METRE_DRAWING_PLAN.md 0.1)
-            if ((isRoadTile(now) || isWaterTile(now)) && cellMap.zoneCells) {
+            if ((isRoadTile(now) || isWaterTile(now) || (builds && now !== DIRT)) && cellMap.zoneCells) {
               for (const key of tileRasterKeys(cellMap, c.x, c.y)) cellMap.zoneCells.delete(key);
             }
           }

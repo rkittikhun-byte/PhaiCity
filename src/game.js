@@ -3735,8 +3735,12 @@ Game.prototype.handleToolArea = function(data) {
 
 // What the tool panel's title says after a tool was used
 Game.prototype.showToolResult = function(tool, result) {
-  if (result === tool.TOOLRESULT_NEEDS_BULLDOZE)
+  if (result === tool.TOOLRESULT_NEEDS_BULLDOZE) {
     $('#toolOutput').text(Text.toolMessages.needsDoze);
+    // The tool panel's title is hidden in the game's HUD: say it where the player looks (owner, 23 Oct 2026: a water
+    // tower refused again and again with no word)
+    showCornerNote(Text.toolMessages.needsDoze, OUTSIDE_NOTE_MS);
+  }
   else if (result === tool.TOOLRESULT_NO_MONEY)
     $('#toolOutput').text(Text.toolMessages.noMoney);
   else

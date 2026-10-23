@@ -7,6 +7,8 @@
 // headless city (src/core/cityCore.ts), tests and later the server all build a city the same way from here, so a
 // command does the same thing everywhere. Plain code: no DOM.
 
+import { emptyPaintAt } from "../paintUnder";
+import type { PlotMap } from "../plots";
 import type { CommandTarget } from "../cityCommands.js";
 import { decodePresetLayer, decodePresetLayerWide, encodePresetLayer } from "../geo/presetMap.js";
 import { blockColumns, blockRows, buildableTest, isCityMap, ownsLand, startingBlocks } from "../landBlocks.js";
@@ -201,6 +203,8 @@ function savedLand(map: Legacy, land: string): Uint8Array {
 export function ensureCityLayers(map: Legacy): void {
   // Why each painted plot does not grow, which the scan fills (src/plots.ts PLOT_WHY); never saved
   if (map.paintedZones && map.plotWhy === undefined) map.plotWhy = null;
+  // Whether a tile is paint that has grown nothing yet, which a building tool clears (src/paintUnder.ts)
+  map.emptyPaintAt = (x: number, y: number, value: number): boolean => emptyPaintAt(map as unknown as PlotMap, x, y, value);
   map.powerKinds = map.powerKinds || {};
   map.mineKinds = map.mineKinds || {};
   map.roadLevels = map.roadLevels || newRoadLevels(map.width, map.height);
