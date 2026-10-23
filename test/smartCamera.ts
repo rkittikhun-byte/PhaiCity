@@ -6,7 +6,7 @@
 // round a point (src/render3d/city/camera.ts): owner, 23 Oct 2026.
 
 import { BAND_PX, edgeBand } from "../src/edgeScroll";
-import { distanceForWidth, GLIDE_MS, headingAlong, nearPose, PRESETS, presetKind, setSmartCamera, SmartCamera,
+import { distanceForWidth, FRAME_MIN_M, frameWidth, framesOnClick, GLIDE_MS, headingAlong, nearPose, PRESETS, presetKind, setSmartCamera, SmartCamera,
   type CameraPose, type GlidingCamera } from "../src/smartCamera";
 import { CityCamera } from "../src/render3d/city/camera";
 
@@ -122,6 +122,22 @@ describe("the smart camera", () => {
     expect(frame.z).toBeCloseTo(215, 6);
     smart.layerShown();
     expect(camera.glides[1].pitch).toBeCloseTo(deg(80), 6);
+  });
+
+  // Playtest, 23 Oct 2026: a road clicked by mistake flew the camera to a few metres above it
+  test("a road's card opens where the camera is; a building is framed no closer than 160 m of ground across", () => {
+    expect(framesOnClick({ sector: "central", title: { key: "object.kind.road" } })).toBe(false);
+    expect(framesOnClick({ title: { key: "object.kind.land" } })).toBe(false);
+    expect(framesOnClick({ sector: "central", title: { key: "object.kind.ruler_house" } })).toBe(true);
+    expect(framesOnClick(null)).toBe(false);
+    // a real-scale city map: 16 m tiles of 10 units, 0.625 units a metre
+    const units = 10 / 16;
+    expect(frameWidth({ width: 1, height: 1 }, units)).toBeCloseTo(FRAME_MIN_M * units, 6);
+    expect(frameWidth({ width: 6, height: 6 }, units)).toBe(240);
+    const camera = fakeCamera({ heading: 0, pitch: deg(60), distance: 800, x: 0, z: 0 });
+    const smart = new SmartCamera({ navigation: camera, width: 1440, height: 765, unitsPerMetre: () => units }, () => false, now);
+    smart.frame({ x: 10, y: 20, width: 1, height: 1 });
+    expect(camera.glides[0].distance).toBeCloseTo(distanceForWidth(FRAME_MIN_M * units, 1440 / 765), 6);
   });
 });
 

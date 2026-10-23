@@ -104,7 +104,7 @@ import { canalMarkStands, isBridgeTile, isWaterTile } from './canals.ts';
 import { homeFlying, installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
 import { cameraMode, installCameraBar } from './cameraModes.ts';
-import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
+import { bindSmartCameraSetting, framesOnClick, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
 import { moonDayAt } from './moon.ts';
@@ -830,8 +830,8 @@ Game.prototype.inspectTile = function(x, y, point) {
                       !found.checklist;
   if (found && !(this.inspectCard.isOpen && isPlainGround)) {
     this.inspectCard.open(found);
-    // ... a building framed beside its card (src/smartCamera.ts)
-    if (found.sector && this.smartCamera)
+    // ... a building framed beside its card; a road opens its card where the camera is (src/smartCamera.ts)
+    if (framesOnClick(found) && this.smartCamera)
       this.smartCamera.frame(found.rect);
   } else
     this.inspectCard.close();

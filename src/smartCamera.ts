@@ -58,6 +58,22 @@ export function distanceForWidth(width: number, aspect: number): number {
   return width / (2 * Math.tan(FOV_DEGREES / 2 * Math.PI / 180) * Math.max(0.1, aspect));
 }
 
+/** The least ground a framed building is shown with across the screen (metres): a home plot of a tile with its
+ * neighbours and the street (playtest, 23 Oct 2026: a click flew to a few metres over a road, trees filling the screen) */
+export const FRAME_MIN_M = 160;
+
+/** The ground across the screen a building of `rect` tiles (10 world units each) is framed with (world units): four
+ * times its size, at least FRAME_MIN_M */
+export function frameWidth(rect: { width: number; height: number }, unitsPerMetre: number): number {
+  return Math.max(Math.max(rect.width, rect.height) * 10 * 4, FRAME_MIN_M * unitsPerMetre);
+}
+
+/** Whether a click of the inspector flies to what it found: a building does, a road, railway, canal or plain ground
+ * opens its card where the camera is (playtest, 23 Oct 2026: a road clicked by mistake flew the camera down onto it) */
+export function framesOnClick(found: { sector?: string; title: { key: string } } | null | undefined): boolean {
+  return Boolean(found?.sector) && !/^object\.kind\.(road|rail|canal|bridge|land|woods|water)$/.test(found!.title.key);
+}
+
 /** The pose a camera is in: heading and pitch (radians), distance and the point it looks at (world units) */
 export interface CameraPose { heading: number; pitch: number; distance: number; x: number; z: number }
 
@@ -216,14 +232,14 @@ export class SmartCamera {
 
   /**
    * A building clicked: fly to frame it, tilted low, a little left of the middle so its card (on the right, `cardPx`
-   * wide) leaves it in sight. `rect` in tiles.
+   * wide) leaves it in sight, its outline and yard with ground round them (frameWidth). `rect` in tiles.
    */
   frame(rect: { x: number; y: number; width: number; height: number }, cardPx = 250): void {
     const c = this.camera;
     if (!c) return;
-    const size = Math.max(rect.width, rect.height) * 10, aspect = this.view.width / Math.max(1, this.view.height);
+    const aspect = this.view.width / Math.max(1, this.view.height), units = this.view.unitsPerMetre?.() ?? 1;
     const pitch = 35 * Math.PI / 180;
-    const distance = Math.max(c.minDistance, distanceForWidth(Math.max(size * 4, 60), aspect));
+    const distance = Math.max(c.minDistance, distanceForWidth(frameWidth(rect, units > 0 ? units : 1), aspect));
     // (the screen's right in the world, at that heading; a pixel's worth of ground at that distance)
     const scale = distance * 2 * Math.tan(FOV_DEGREES / 2 * Math.PI / 180) / Math.max(1, this.view.height);
     const shift = Math.min(cardPx, this.view.width / 3) / 2 * scale;
