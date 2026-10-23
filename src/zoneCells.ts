@@ -261,20 +261,32 @@ export interface LayoutOptions {
 /** The roads and railways a layout lays its cells along, as lines (world units), with what each cell needs of them */
 interface RoadLine { rail: boolean; level: number; line: readonly Point[]; first: number;
   stroke: { points: Point[]; along: number[] } | undefined; box: [number, number, number, number] }
-interface RoadFrame { tiles: Uint16Array; lines: RoadLine[]; cornersOf: Map<number, Point[]>; stretchAt: Map<number, number> }
+interface RoadFrame { lines: RoadLine[]; cornersOf: Map<number, Point[]>; stretchAt: Map<number, number> }
 
-/** The road frame last read from each map, kept while its tiles, road levels and pieces and drawn roads stay the same:
- * a layout of a part of the map (the farm zone's, a chunk at a time) would read every road of the map again */
-const frames = new WeakMap<object, { stamp: string; frame: RoadFrame }>();
+/** The road frame last read from each map, kept while its road and railway tiles, road levels and pieces and drawn
+ * roads stay the same (the land round them may change: a field painted, a house grown): a layout of a part of the map
+ * (the farm zone's, a chunk at a time) would read every road of the map again */
+const frames = new WeakMap<object, { changes: number; roads: number; stamp: string; frame: RoadFrame }>();
+
+/** A quick sum of the map's road and railway tiles (values 64-238, as layoutSignature's class 1) and where they lie */
+function roadTileStamp(map: CellMap): number {
+  const raw = map.rawCells?.() ?? null, width = map.width, imul = Math.imul;
+  let hash = width * 31 + map.height;
+  for (let y = 0, i = 0; y < map.height; y++) for (let x = 0; x < width; x++, i++) {
+    const v = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(x, y);
+    if (v >= 64 && v <= 238) hash = (imul(hash, 16777619) ^ (i * 1024 + v)) | 0;
+  }
+  return hash;
+}
 
 /** The roads as the cells lie along them: every road and railway as a line, its corners at junctions, its stretches */
 function roadFrame(map: CellMap): RoadFrame {
-  const changes = map.changeCount?.();
-  const stamp = changes === undefined ? "" : [changes, map.width, map.height, tileMetres(map), arrayStamp(map.roadLevels),
+  const changes = map.changeCount?.(), kept = changes === undefined ? undefined : frames.get(map);
+  const roadTiles = changes === undefined ? 0 : kept && kept.changes === changes ? kept.roads : roadTileStamp(map);
+  const stamp = changes === undefined ? "" : [roadTiles, map.width, map.height, tileMetres(map), arrayStamp(map.roadLevels),
     arrayStamp(map.roadPieces), map.roadGraph?.version ?? -1, map.roadGraph?.segments.size ?? -1, map.railGraph?.version ?? -1,
     map.railGraph?.segments.size ?? -1, map.roadPaths ? Object.keys(map.roadPaths).length : -1].join();
-  const kept = stamp ? frames.get(map) : undefined;
-  if (kept && kept.stamp === stamp) return kept.frame;
+  if (kept && kept.stamp === stamp) { kept.changes = changes!; return kept.frame; }
   const units = unitsPerMetre(map);
   // The tiles read once: the roads' lines below read each tile a few times, through the map about 1.5 million calls on
   // a city map (19 Oct 2026: most of the 0.3-0.6 s the cells took after each road drawn)
@@ -336,8 +348,8 @@ function roadFrame(map: CellMap): RoadFrame {
     if (!cornersOf.has(main)) cornersOf.set(main, []);
     cornersOf.get(main)!.push(junction.at);
   }
-  const frame = { tiles, lines, cornersOf, stretchAt };
-  if (stamp) frames.set(map, { stamp, frame });
+  const frame = { lines, cornersOf, stretchAt };
+  if (stamp) frames.set(map, { changes: changes!, roads: roadTiles, stamp, frame });
   return frame;
 }
 
@@ -379,9 +391,15 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     return rx < 0 || rz < 0 || rx >= localWidth || rz >= localHeight ? -1 : rz * localWidth + rx;
   };
   const taken = { get: (k: number): boolean => k >= 0 && (bits[k >> 3] & (1 << (k & 7))) !== 0, set: (k: number): void => { bits[k >> 3] |= 1 << (k & 7); } };
-  const { tiles, lines, cornersOf, stretchAt } = roadFrame(map);
-  // Whether the city may build on each tile, when first asked
-  const mayBuild = new Uint8Array(map.width * map.height);
+  const { lines, cornersOf, stretchAt } = roadFrame(map);
+  // The tiles read once, and whether the city may build on each when first asked
+  const tiles = new Uint16Array(map.width * map.height), mayBuild = new Uint8Array(map.width * map.height);
+  const raw = map.rawCells?.() ?? null;
+  // (of a part of the map, only its tiles and those beside them: the only ones its cells stand on)
+  const tx0 = window ? Math.max(0, tileOfUnits(Math.max(0, outer.x0)) - 1) : 0, ty0 = window ? Math.max(0, tileOfUnits(Math.max(0, outer.z0)) - 1) : 0;
+  const tx1 = window ? Math.min(map.width, tileOfUnits(Math.min(unitsOfTile(map.width), outer.x1)) + 2) : map.width;
+  const ty1 = window ? Math.min(map.height, tileOfUnits(Math.min(unitsOfTile(map.height), outer.z1)) + 2) : map.height;
+  for (let y = ty0; y < ty1; y++) for (let x = tx0, i = y * map.width + tx0; x < tx1; x++, i++) tiles[i] = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(x, y);
   const ownsAt = (x: number, y: number): boolean => {
     const i = y * map.width + x;
     if (!mayBuild[i]) mayBuild[i] = owns(x, y) ? 2 : 1;
@@ -662,6 +680,26 @@ export function cellsInStrip(layout: CellLayout, width: number, from: Point | nu
     }
   }
   return [...keys].sort((p, q) => p - q);
+}
+
+/**
+ * A rectangle dragged from a to b (world units) in the frame of a road (owner, 23 Oct 2026: "ช่องสี่เหลี่ยม หรือตาราง ที่วาด
+ * มันจะต้องขนานกับถนนทุกเส้น"): its sides along and across the road that runs at `angle` (radians, 0 along +z, as a cell's),
+ * each grown by pad, so a cell the drag starts or ends on is inside it. Its four corners, and whether a point is inside.
+ */
+export function roadRect(a: Point, b: Point, angle: number, pad: number): { corners: Point[]; inside(x: number, z: number): boolean } {
+  const sin = Math.sin(angle), cos = Math.cos(angle);
+  // (across the road: (cos, -sin); along it: (sin, cos))
+  const du = (b[0] - a[0]) * cos - (b[1] - a[1]) * sin, dv = (b[0] - a[0]) * sin + (b[1] - a[1]) * cos;
+  const u0 = Math.min(0, du) - pad, u1 = Math.max(0, du) + pad, v0 = Math.min(0, dv) - pad, v1 = Math.max(0, dv) + pad;
+  const corners = ([[u0, v0], [u1, v0], [u1, v1], [u0, v1]] as const).map(([u, v]): Point => [a[0] + cos * u + sin * v, a[1] - sin * u + cos * v]);
+  return {
+    corners,
+    inside: (x: number, z: number): boolean => {
+      const ox = x - a[0], oz = z - a[1], u = ox * cos - oz * sin, v = ox * sin + oz * cos;
+      return u >= u0 && u <= u1 && v >= v0 && v <= v1;
+    },
+  };
 }
 
 /** The cells a stroke from one point to another (world units) passes over, in order, each once */

@@ -15,11 +15,14 @@
 
 import { BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
   IcosahedronGeometry, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D,
-  PlaneGeometry } from 'three';
+  PlaneGeometry, Quaternion, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mapEra } from '../../era.js';
-import { FARM_ERA_LOOKS, farmSide, type FarmLook, FIELD_BURNING_MONTHS, fieldCells, fieldLevelOf, fullCells, kindOfCode,
-  type FarmKind, type FieldMap } from '../../farmZone.js';
+import { FARM_ERA_LOOKS, farmSide, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode,
+  type FarmKind } from '../../farmZone.js';
+import { paintedCells, type FarmGridMap } from '../../farmGrid.js';
+import { tileMetres } from '../../units.js';
+import { CELL_M } from '../../zoneCells.js';
 import { FARM, FIELD_BASE } from '../../tileValues.js';
 import { SCENE } from '../../theme/tokens.js';
 import { getRegionKit } from '../regional/index.js';
@@ -31,12 +34,15 @@ export interface FarmViewMap {
   readonly height: number;
   readonly farmKinds?: Uint8Array | null;
   readonly era?: unknown;
-  /** The cells of each field painted on part of its tile, its tiles' size, whether its zones go a cell at a time, and a
-   * count of changes to the cells (src/farmZone.ts fieldCells; docs/NO_GRID_PLAN.md 3C) */
-  readonly farmCells?: Uint16Array | null;
+  /** The squares of each field painted on part of its tile, its tiles' size, whether its zones go a cell at a time, and a
+   * count of changes to the paint (src/farmGrid.ts; docs/NO_GRID_PLAN.md 3C): on such a map the fields are drawn on the
+   * road-aligned farm cells, which it lays from its roads (src/farmGrid.ts FarmGridMap) */
+  readonly farmSquares?: Uint8Array | null;
   readonly tileSizeM?: number | null;
   readonly cellZones?: boolean;
   readonly farmCellsVersion?: number;
+  /** How far a field may lie from a road (tiles, the province's rules' farmZone.reach), when not the game's default */
+  readonly farmReach?: number | null;
   getTileValue(x: number, y: number): number;
 }
 
@@ -47,6 +53,8 @@ const REBUILD_AFTER = 0.6;
 /** Above the land: the dikes and bare earth, and what lies inside them */
 const LIFT = 0.05, INNER_LIFT = 0.09;
 const UNITS = 10;
+/** World units a bucket of the cells drawn, for finding each one's neighbours */
+const BUCKET = 5;
 
 const colour = (hex: number): Color => new Color().setHex(hex);
 const F = SCENE.farm;
@@ -83,8 +91,11 @@ type Prop = FarmLook | 'row' | 'tree' | 'trunk' | 'aerator';
 /** A stable number for a tile, for which fields get which prop */
 const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>> 15; return Math.imul(h, 2246822519) >>> 0; };
 
-/** A field as drawn: its tile, level and kind, and its painted cells (bits row by row; every one of a whole tile) */
-interface Field { index: number; level: number; kind: FarmKind | null; cells: number }
+/** A field as drawn: its tile, level and kind, and its painted cells (src/farmGrid.ts), or the whole tile as one cell */
+interface Field { index: number; level: number; kind: FarmKind | null; cells: DrawnCell[] }
+/** A cell drawn: its middle (world units), the way its road runs (radians, 0 along +z), its side and its length along
+ * its row as a share of its side (a cell a road cut short) */
+interface DrawnCell { x: number; z: number; angle: number; size: number; span: number; field: Field }
 
 export class CityFarmFields {
   readonly root = new Group();
@@ -133,7 +144,8 @@ export class CityFarmFields {
     const size = this.map.width * this.map.height;
     if (this.drawn.length !== size) this.drawn = new Uint8Array(size);
     for (const i of changed) {
-      if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0) { this.dirtyAt ??= seconds; break; }
+      // (a road or a building beside the fields may lay their cells along it: src/farmGrid.ts)
+      if (this.drawn[i] || fieldLevelOf(this.valueAt(i)) >= 0 || this.fields.length && this.cellMap()) { this.dirtyAt ??= seconds; break; }
     }
     // ... and when the brush painted or rubbed out cells of a field (no tile need change)
     if ((this.map.farmCellsVersion ?? 0) !== this.shownCells) { this.shownCells = this.map.farmCellsVersion ?? 0; this.dirtyAt ??= seconds; }
@@ -159,22 +171,24 @@ export class CityFarmFields {
   }
 
   /**
-   * The farm cells the brush in hand would paint (their keys, src/farmZone.ts farmCellKey), each a flat square on the
-   * land in the brush's colour; none when null (docs/NO_GRID_PLAN.md 3C: the brush shows the shape it paints, not a tile)
+   * The farm cells the brush in hand would paint (src/farmGrid.ts: their middles and the way their road runs), each a
+   * flat square on the land in the brush's colour, turned with its road; none when null (docs/NO_GRID_PLAN.md 3C: the
+   * brush shows the shape it paints, in the grid it paints, not a tile)
    */
-  showBrush(keys: readonly number[] | null, colour: string | null): void {
-    const key = keys && keys.length ? `${keys.length}:${keys[0]}:${keys[keys.length - 1]}:${colour}` : '';
+  showBrush(cells: ReadonlyArray<{ x: number; z: number; angle: number; span?: number }> | null, colour: string | null): void {
+    const key = cells && cells.length ? `${cells.length}:${cells[0].x}:${cells[0].z}:${cells[cells.length - 1].x}:${cells[cells.length - 1].z}:${colour}` : '';
     if (key === this.brushKey) return;
     this.brushKey = key;
     if (this.brush) { this.root.remove(this.brush); this.brush.dispose(); this.brush = null; }
-    if (!keys || !keys.length) return;
-    const side = this.side(), cell = UNITS / side, width = this.map.width;
+    if (!cells || !cells.length) return;
+    const side = this.cellUnits();
     if (colour) this.brushMaterial.color.set(colour);
-    const mesh = new InstancedMesh(this.brushPlane, this.brushMaterial, keys.length), m = new Matrix4();
-    keys.forEach((k, n) => {
-      const tile = Math.floor(k / 16), bit = k % 16, tx = tile % width, tz = Math.floor(tile / width);
-      const x = tx * UNITS + (bit % side + 0.5) * cell, z = tz * UNITS + (Math.floor(bit / side) + 0.5) * cell;
-      mesh.setMatrixAt(n, m.makeScale(cell * 0.92, 1, cell * 0.92).setPosition(x, this.terrain.sample(x, z) + INNER_LIFT + 0.1, z));
+    const mesh = new InstancedMesh(this.brushPlane, this.brushMaterial, cells.length), m = new Matrix4();
+    const turn = new Quaternion(), place = new Vector3(), scale = new Vector3(), up = new Vector3(0, 1, 0);
+    cells.forEach((c, n) => {
+      place.set(c.x, this.terrain.sample(c.x, c.z) + INNER_LIFT + 0.1, c.z);
+      turn.setFromAxisAngle(up, c.angle);
+      mesh.setMatrixAt(n, m.compose(place, turn, scale.set(side * 0.92, 1, side * 0.92 * (c.span ?? 1))));
     });
     mesh.instanceMatrix.needsUpdate = true;
     mesh.frustumCulled = false;
@@ -207,6 +221,12 @@ export class CityFarmFields {
     return this.map.getTileValue(i % this.map.width, Math.floor(i / this.map.width)) & 1023;
   }
 
+  /** Whether the fields are painted in road-aligned cells (src/farmGrid.ts): a real-scale city map's */
+  private cellMap(): boolean { return farmSide(this.map) > 1; }
+
+  /** World units a side of a field's cell: a farm cell's on a city map, a whole tile elsewhere */
+  private cellUnits(): number { return this.cellMap() ? UNITS * CELL_M / tileMetres(this.map) : UNITS; }
+
   /** The fields found again, their ground built, and their props; the farm buildings near any that changed */
   private rebuild(month: number, era: number): number[] {
     const { width, height } = this.map, kinds = this.map.farmKinds;
@@ -216,10 +236,26 @@ export class CityFarmFields {
       const v = this.valueAt(i);
       if (v < FIELD_BASE || v > FIELD_BASE + 5) continue;
       const level = v - FIELD_BASE, kind = level > 0 ? kindOfCode(kinds?.[i] ?? 0) : null;
-      fields.push({ index: i, level, kind, cells: fieldCells(this.map as unknown as FieldMap, i) });
+      fields.push({ index: i, level, kind, cells: [] });
       now[i] = 1 + level * 5 + (kind ? 1 + ['paddy', 'field', 'orchard', 'pond'].indexOf(kind) : 0);
     }
     for (let i = 0; i < now.length && !changedHub; i++) if (now[i] !== before[i]) changedHub = true;
+    // Each field's cells: on a city map the road-aligned cells painted whose middles lie on it, elsewhere its tile
+    const size = this.cellUnits();
+    if (this.cellMap()) {
+      const byTile = new Map<number, Field>();
+      for (const f of fields) byTile.set(f.index, f);
+      const grid = this.map as unknown as FarmGridMap;
+      for (const { cell, tile } of paintedCells(grid, byTile.keys(), this.map.farmReach ?? undefined)) {
+        const f = byTile.get(tile);
+        if (f) f.cells.push({ x: cell.x, z: cell.z, angle: cell.angle, size, span: cell.span ?? 1, field: f });
+      }
+    } else {
+      for (const f of fields) {
+        const x = f.index % width, y = Math.floor(f.index / width);
+        f.cells.push({ x: (x + 0.5) * UNITS, z: (y + 0.5) * UNITS, angle: 0, size, span: 1, field: f });
+      }
+    }
     this.drawn = now;
     this.fields = fields;
     this.buildGround(month);
@@ -246,15 +282,12 @@ export class CityFarmFields {
     }
   }
 
-  /** Cells a side of a tile (src/farmZone.ts farmSide): 4 on a real-scale city map, 1 (whole tiles) elsewhere */
-  private side(): number { return farmSide(this.map); }
-
   /**
-   * The fields' ground, on the cells painted (docs/NO_GRID_PLAN.md 3C: the shape the brush went, not 16 m tiles): a
-   * whole tile as one patch, a tile painted in part as a patch for each run of painted cells along its rows. A paddy's
-   * or a pond's dike only where the field ends, along the edge of what was painted, not round every tile (owner, 21 Oct
-   * 2026: "นาเป็นสี่เหลี่ยม 16 ม. พร้อมคันนาทุกช่อง" was the grid he saw): fields of one kind grown side by side are one
-   * sheet of water inside one bank.
+   * The fields' ground, on the cells painted (docs/NO_GRID_PLAN.md 3C: the shape the brush went, in rows along its road,
+   * never an axis staircase): each cell a patch turned with its road. A paddy's or a pond's dike only where the field
+   * ends, along the edge of what was painted, not round every cell (owner, 21 Oct 2026: "นาเป็นสี่เหลี่ยม 16 ม. พร้อมคันนา
+   * ทุกช่อง" was the grid he saw): cells of one kind grown side by side in one road's grid are one sheet of water inside
+   * one bank, and where two roads' grids meet a bank runs along the seam.
    */
   private buildGround(month: number): void {
     this.ground?.geometry.dispose();
@@ -263,83 +296,64 @@ export class CityFarmFields {
     this.verts = [];
     if (!this.fields.length) return;
     const positions: number[] = [], colours: number[] = [], outer = new Color(), inner = new Color();
-    const quad = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color, n: number): number => {
-      // n quads a side, so the patch follows the land within the tile
-      for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
-        const xa = x0 + (x1 - x0) * a / n, xb = x0 + (x1 - x0) * (a + 1) / n;
-        const za = z0 + (z1 - z0) * b / n, zb = z0 + (z1 - z0) * (b + 1) / n;
-        const p = (x: number, z: number) => { positions.push(x, this.terrain.sample(x, z) + lift, z); colours.push(c.r, c.g, c.b); };
-        p(xa, za); p(xa, zb); p(xb, za);
-        p(xb, za); p(xa, zb); p(xb, zb);
+    // The cells drawn, by where their middles lie, to find each one's neighbours in its grid
+    const bucket = new Map<number, DrawnCell[]>(), bucketOf = (x: number, z: number): number => Math.floor(z / BUCKET) * 65536 + Math.floor(x / BUCKET);
+    for (const f of this.fields) for (const c of f.cells) {
+      const b = bucketOf(c.x, c.z);
+      let list = bucket.get(b);
+      if (!list) bucket.set(b, list = []);
+      list.push(c);
+    }
+    // Whether the cell a side's width from c towards (dx, dz) is a grown field of c's kind in c's grid
+    const joins = (c: DrawnCell, dx: number, dz: number): boolean => {
+      const f = c.field;
+      if (!f.kind || f.level <= 0) return false;
+      const px = c.x + dx, pz = c.z + dz, reach = 0.35 * c.size;
+      for (let bz = Math.floor((pz - reach) / BUCKET); bz <= Math.floor((pz + reach) / BUCKET); bz++) {
+        for (let bx = Math.floor((px - reach) / BUCKET); bx <= Math.floor((px + reach) / BUCKET); bx++) {
+          for (const o of bucket.get(bz * 65536 + bx) ?? []) {
+            if (o === c || Math.abs(o.x - px) > reach || Math.abs(o.z - pz) > reach) continue;
+            const turn = Math.abs(((o.angle - c.angle) % Math.PI + Math.PI * 1.5) % Math.PI - Math.PI / 2);
+            if (turn > 0.3 || o.field.kind !== f.kind || o.field.level <= 0) continue;
+            return true;
+          }
+        }
       }
-      return 6 * n * n;
+      return false;
     };
-    // A run along a row, a quad a cell
-    const quadRow = (x0: number, z0: number, x1: number, z1: number, lift: number, c: Color, cells: number): number => {
-      let verts = 0;
-      for (let k = 0; k < cells; k++) verts += quad(x0 + (x1 - x0) * k / cells, z0, x0 + (x1 - x0) * (k + 1) / cells, z1, lift, c, 1);
-      return verts;
-    };
-    const side = this.side(), full = fullCells(side), cell = UNITS / side, { width, height } = this.map;
-    const byIndex = new Map<number, Field>();
-    for (const field of this.fields) byIndex.set(field.index, field);
-    // Whether the cell (cx, cz) of the whole map, cells counted from its top left, is painted with a field like this one
-    const joins = (field: Field, cx: number, cz: number): boolean => {
-      if (cx < 0 || cz < 0 || cx >= width * side || cz >= height * side) return false;
-      const tx = Math.floor(cx / side), tz = Math.floor(cz / side), other = byIndex.get(tz * width + tx);
-      return Boolean(other && other.kind === field.kind && other.level > 0 && (other.cells >> ((cz - tz * side) * side + (cx - tx * side))) & 1);
+    // A patch of a cell from (u0, v0) to (u1, v1) across and along its road, on the land
+    const patch = (c: DrawnCell, u0: number, v0: number, u1: number, v1: number, lift: number, tone: Color): number => {
+      const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+      const p = (u: number, v: number): void => {
+        const x = c.x + cos * u + sin * v, z = c.z - sin * u + cos * v;
+        positions.push(x, this.terrain.sample(x, z) + lift, z);
+        colours.push(tone.r, tone.g, tone.b);
+      };
+      p(u0, v0); p(u0, v1); p(u1, v0);
+      p(u1, v0); p(u0, v1); p(u1, v1);
+      return 6;
     };
     for (const field of this.fields) {
-      const x = field.index % width, y = Math.floor(field.index / width), cx0 = x * side, cz0 = y * side;
       const insideToo = this.tones(field, month, outer, inner);
-      const inset = field.kind === 'pond' ? 1.4 : 0.7;
-      // A whole tile as one run, else each run of painted cells along a row: [first column, last column, row, last row]
-      const runs: Array<[number, number, number, number]> = [];
-      if (field.cells === full) runs.push([0, side - 1, 0, side - 1]);
-      else {
-        for (let r = 0; r < side; r++) {
-          for (let c = 0; c < side; c++) {
-            if (!((field.cells >> (r * side + c)) & 1)) continue;
-            let e = c;
-            while (e + 1 < side && (field.cells >> (r * side + e + 1)) & 1) e++;
-            runs.push([c, e, r, r]);
-            c = e;
-          }
-        }
-      }
+      // Each cell's dike on each side where the field ends: [across left, right, along back, front]
+      const insets = field.cells.map((c): [number, number, number, number] => {
+        if (!insideToo) return [0, 0, 0, 0];
+        const sin = Math.sin(c.angle), cos = Math.cos(c.angle), along = c.size * c.span;
+        const inset = Math.min(field.kind === 'pond' ? 1.4 : 0.7, 0.3 * c.size);
+        // (across the road: (cos, -sin); along it: (sin, cos))
+        return [joins(c, -cos * c.size, sin * c.size) ? 0 : inset, joins(c, cos * c.size, -sin * c.size) ? 0 : inset,
+          joins(c, -sin * along, -cos * along) ? 0 : inset, joins(c, sin * along, cos * along) ? 0 : inset];
+      });
+      // The earth or the bank under each cell, unless the water covers it whole, then the water or the pond inside
       let outerVerts = 0, innerVerts = 0;
-      for (const [c0, c1, r0, r1] of runs) {
-        const x0 = x * UNITS + c0 * cell, x1 = x * UNITS + (c1 + 1) * cell, z0 = y * UNITS + r0 * cell, z1 = y * UNITS + (r1 + 1) * cell;
-        // (a whole tile in 2 x 2, a run a quad a cell along it, so either lies on the land)
-        outerVerts += field.cells === full ? quad(x0, z0, x1, z1, LIFT, outer, 2) : quadRow(x0, z0, x1, z1, LIFT, outer, c1 - c0 + 1);
-      }
-      if (insideToo) {
-        // The water or the pond inside: a dike on a side only where the cell across it is not this field's kind. A whole
-        // tile whose every side is the same all along is one patch; else a patch a painted cell, each with its own dike,
-        // so a run's side half against the field beside it has no dike along that half
-        let top = -1, bottom = -1, left = -1, right = -1, even = field.cells === full;
-        const side4 = (along: (k: number) => boolean): number => {
-          let some = false, all = true;
-          for (let k = 0; k < side; k++) { const j = along(k); some ||= j; all &&= j; }
-          if (some && !all) even = false;
-          return all ? 0 : inset;
-        };
-        if (even) {
-          top = side4((k) => joins(field, cx0 + k, cz0 - 1));
-          bottom = side4((k) => joins(field, cx0 + k, cz0 + side));
-          left = side4((k) => joins(field, cx0 - 1, cz0 + k));
-          right = side4((k) => joins(field, cx0 + side, cz0 + k));
-        }
-        if (even) innerVerts += quad(x * UNITS + left, y * UNITS + top, (x + 1) * UNITS - right, (y + 1) * UNITS - bottom, INNER_LIFT, inner, 2);
-        else {
-          for (let r = 0; r < side; r++) for (let c = 0; c < side; c++) {
-            if (!((field.cells >> (r * side + c)) & 1)) continue;
-            const gx = cx0 + c, gz = cz0 + r, x0 = x * UNITS + c * cell, z0 = y * UNITS + r * cell;
-            innerVerts += quad(x0 + (joins(field, gx - 1, gz) ? 0 : inset), z0 + (joins(field, gx, gz - 1) ? 0 : inset),
-              x0 + cell - (joins(field, gx + 1, gz) ? 0 : inset), z0 + cell - (joins(field, gx, gz + 1) ? 0 : inset), INNER_LIFT, inner, 1);
-          }
-        }
-      }
+      field.cells.forEach((c, n) => {
+        const half = c.size / 2, halfV = half * c.span, [l, r, b, f] = insets[n];
+        if (!insideToo || l || r || b || f) outerVerts += patch(c, -half, -halfV, half, halfV, LIFT, outer);
+      });
+      if (insideToo) field.cells.forEach((c, n) => {
+        const half = c.size / 2, halfV = half * c.span, [l, r, b, f] = insets[n];
+        innerVerts += patch(c, -half + l, -halfV + b, half - r, halfV - f, INNER_LIFT, inner);
+      });
       this.verts.push([outerVerts, innerVerts]);
     }
     const geometry = new BufferGeometry();
@@ -352,7 +366,6 @@ export class CityFarmFields {
     this.ground.receiveShadow = true;
     this.root.add(this.ground);
   }
-
   /** The month turned: the paddies' colours again, and the crop rows' height */
   private recolour(month: number): void {
     if (!this.ground) return;
@@ -395,32 +408,32 @@ export class CityFarmFields {
       o.updateMatrix();
       return o.matrix.clone();
     };
-    const grown = this.fields.filter((f) => f.level > 0 && f.kind);
+    const grown = this.fields.filter((f) => f.level > 0 && f.kind && f.cells.length);
     const rows = cropHeight(month);
     for (const f of grown) {
-      const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), [cx, cz] = this.paintedMiddle(f);
-      const along = (hashOf(Math.floor(x / 4) + Math.floor(y / 4) * 977) & 1) ? 0 : Math.PI / 2;
-      // (each quarter of the tile the field mostly covers: rows and trees only on what was painted)
-      const quarters = this.quarters(f);
       if (f.kind === 'field') {
+        // Two rows of the crop along each cell, as its road runs (a whole tile's eight, across it)
         const tall = (0.3 + 0.5 * rows) * (0.7 + 0.1 * f.level);
-        // (rows across the way they run: they once all lay on the tile's middle line, one over another)
-        for (const [qx, qz] of quarters) {
-          const crossQ = along ? qx : qz, lengthQ = along ? qz : qx;
-          for (const off of crossQ < 0 ? [-3.4, -1.13] : [1.13, 3.4]) {
-            const mx = (x + 0.5) * UNITS + (along ? off : lengthQ), mz = (y + 0.5) * UNITS + (along ? lengthQ : off);
-            add('row', at(mx, mz, tall / 2, 4.3, tall, 0.9, along));
+        for (const c of f.cells) {
+          const sin = Math.sin(c.angle), cos = Math.cos(c.angle), lines = c.size >= UNITS ? [-3.4, -1.13, 1.13, 3.4] : [-c.size / 4, c.size / 4];
+          const pieces = c.size >= UNITS ? [-2.5, 2.5] : [0];
+          for (const u of lines) for (const v of pieces) {
+            add('row', at(c.x + cos * u + sin * v, c.z - sin * u + cos * v, tall / 2, c.size >= UNITS ? 4.3 : c.size * 0.92 * c.span,
+              tall, c.size >= UNITS ? 0.9 : c.size * 0.22, c.angle - Math.PI / 2));
           }
         }
       } else if (f.kind === 'orchard') {
+        // Trees in rows along the road, 8 m apart (every other cell of every other row; four a whole tile)
         const grownUp = 0.6 + 0.12 * f.level;
-        for (const [dx, dz] of quarters) {
-          const tx = (x + 0.5) * UNITS + dx, tz = (y + 0.5) * UNITS + dz;
-          add('trunk', at(tx, tz, 0.9 * grownUp, grownUp, grownUp, grownUp));
-          add('tree', at(tx, tz, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
+        for (const c of f.cells) {
+          for (const [x, z] of this.treeSpots(c)) {
+            add('trunk', at(x, z, 0.9 * grownUp, grownUp, grownUp, grownUp));
+            add('tree', at(x, z, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
+          }
         }
-      } else if (f.kind === 'pond' && f.level >= 2 && quarters.length >= 2) {
-        add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, hashOf(f.index) % 6));
+      } else if (f.kind === 'pond' && f.level >= 2 && this.painted(f) >= 0.5) {
+        const [cx, cz] = this.paintedMiddle(f);
+        add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, f.cells[0].angle + hashOf(f.index) % 6));
       }
     }
     // The era's things, one among so many grown fields, at a field's edge by its dike
@@ -434,9 +447,11 @@ export class CityFarmFields {
         if (prop === 'greenhouse' && f.kind !== 'field' && f.kind !== 'orchard') continue;
         if (f.kind === 'pond' && prop !== 'solar' && prop !== 'drone') continue;
         // (on what was painted of its tile: a field painted on less than half of it has none)
-        if (this.quarters(f).length < 2) continue;
+        if (this.painted(f) < 0.5) continue;
         const [mx, mz] = this.paintedMiddle(f);
-        const cx = mx + ((h >> 8) % 5 - 2), cz = mz + ((h >> 12) % 5 - 2), turn = (h >> 16) % 628 / 100;
+        const cx = mx + ((h >> 8) % 5 - 2), cz = mz + ((h >> 12) % 5 - 2);
+        // (turned with the field's road, a quarter turn at a time: a machine works along the rows)
+        const turn = this.cellMap() ? f.cells[0].angle + ((h >> 16) % 4) * Math.PI / 2 : (h >> 16) % 628 / 100;
         if (prop === 'drone') drones.push([cx, this.terrain.sample(cx, cz) + 5, cz]);
         else add(prop, at(cx, cz, prop === 'buffalo' ? INNER_LIFT : LIFT, 1, 1, 1, turn));
       }
@@ -448,30 +463,30 @@ export class CityFarmFields {
     }
   }
 
-  /** The middle of what was painted of a field's tile (world units): its tile's middle when painted whole */
-  private paintedMiddle(f: Field): [number, number] {
-    const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width), side = this.side();
-    if (f.cells === fullCells(side)) return [(x + 0.5) * UNITS, (y + 0.5) * UNITS];
-    let sx = 0, sz = 0, n = 0;
-    for (let bit = 0; bit < side * side; bit++) {
-      if (!((f.cells >> bit) & 1)) continue;
-      sx += (bit % side + 0.5) / side; sz += (Math.floor(bit / side) + 0.5) / side; n++;
-    }
-    return n ? [(x + sx / n) * UNITS, (y + sz / n) * UNITS] : [(x + 0.5) * UNITS, (y + 0.5) * UNITS];
+  /** Where a cell's orchard trees stand (world units): a whole tile's four in its quarters; a city cell's one on every
+   * other cell of every other row, counted from its road, so the trees stand in rows 8 m apart along it */
+  private treeSpots(c: DrawnCell): Array<[number, number]> {
+    if (c.size >= UNITS) return [[c.x - 2.5, c.z - 2.5], [c.x + 2.5, c.z - 2.5], [c.x - 2.5, c.z + 2.5], [c.x + 2.5, c.z + 2.5]];
+    const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+    const along = Math.round((c.x * sin + c.z * cos) / c.size), across = Math.round((c.x * cos - c.z * sin) / c.size);
+    return along % 2 === 0 && across % 2 === 0 ? [[c.x, c.z]] : [];
   }
 
-  /** The quarters of a field's tile it covers at least half of, as their middles from the tile's middle (world units):
-   * all four of a whole tile */
-  private quarters(f: Field): Array<[number, number]> {
-    const side = this.side(), all: Array<[number, number]> = [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]];
-    if (side < 2 || f.cells === fullCells(side)) return all;
-    const half = side / 2;
-    return all.filter(([qx, qz]) => {
-      const c0 = qx < 0 ? 0 : Math.floor(half), r0 = qz < 0 ? 0 : Math.floor(half), c1 = qx < 0 ? Math.ceil(half) : side, r1 = qz < 0 ? Math.ceil(half) : side;
-      let painted = 0, cells = 0;
-      for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) { cells++; if ((f.cells >> (r * side + c)) & 1) painted++; }
-      return painted * 2 >= cells;
-    });
+  /** How much of its tile a field's drawn cells cover, 0-1 */
+  private painted(f: Field): number {
+    const side = this.cellUnits();
+    return Math.min(1, f.cells.reduce((sum, c) => sum + c.span, 0) * side * side / (UNITS * UNITS));
+  }
+
+  /** The middle of a field's drawn cells (world units): its tile's middle when it has none */
+  private paintedMiddle(f: Field): [number, number] {
+    if (!f.cells.length) {
+      const x = f.index % this.map.width, y = Math.floor(f.index / this.map.width);
+      return [(x + 0.5) * UNITS, (y + 0.5) * UNITS];
+    }
+    let sx = 0, sz = 0;
+    for (const c of f.cells) { sx += c.x; sz += c.z; }
+    return [sx / f.cells.length, sz / f.cells.length];
   }
 
   /** The shapes of a prop, each with its material: plain boxes and cones, or the region's own (granaries, hut roofs) */

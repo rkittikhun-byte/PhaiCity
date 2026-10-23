@@ -2,18 +2,21 @@
  * Released under the GNU GPL v3 with additional terms. See LICENSE and COPYING.
  */
 
-// The farm zone painted in cells on a real-scale city map (docs/NO_GRID_PLAN.md 3C; src/farmZone.ts): the brush paints
-// the cells it goes over, about 4 m a side, not whole 16 m tiles; a field is the shape its cells make and counts as
-// much as it covers; undo, saves and the tile brush keep its cells; and the way a field needs to a road is measured in
-// metres, round about the road, not in the diamond of tile steps it once was.
+// The farm zone painted in cells on a real-scale city map (docs/NO_GRID_PLAN.md 3C; src/farmZone.ts, src/farmGrid.ts):
+// the brush paints the cells it goes over, about 4 m a side and laid in rows along the road, not whole 16 m tiles; a
+// field is the shape its cells make and counts as much as it covers; undo, saves and the tile brush keep its squares;
+// and the way a field needs to a road is measured in metres, round about the road, not in the diamond of tile steps it
+// once was.
 
 import { BaseTool } from "../src/baseTool.js";
 import { CityCommands, NOTHING_TO_PAINT } from "../src/cityCommands";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
 import {
-  cellCount, FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, farmCellKey, farmCellsInRect, farmCellsNear, farmSide,
-  fieldCells, fieldLevelOf, fieldShare, fieldTile, FIELD_FLAGS, fullCells, isFieldValue, kindCode, wayField, wayToRoad,
+  FARM_ERASE_TOOL, FARM_PAINT_TOOL, FarmFields, farmSide, fieldLevelOf, fieldShare, fieldTile, FIELD_FLAGS, isFieldValue,
+  kindCode, wayField, wayToRoad,
 } from "../src/farmZone";
+import { ALL_SQUARES, cellPainted, cellSquares, farmCellAt, farmCellsInRect, farmCellsNear, farmCellsOfTiles, farmCellsOnTiles,
+  farmRows, paintedSquares } from "../src/farmGrid";
 import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { newRoadLevels } from "../src/roadLevels";
@@ -44,125 +47,147 @@ function city() {
 }
 
 const tile = (x: number, y: number) => y * W + x;
-/** The keys of the cells of tile (x, y) in the given rows and columns (0-3) */
-const cellsOf = (x: number, y: number, rows: number[], columns: number[]) =>
-  rows.flatMap((r) => columns.map((c) => farmCellKey(tile(x, y), r * 4 + c)));
+/** The road-aligned farm cells whose middles lie on tile (x, y) (src/farmGrid.ts), in rows from the road */
+const cellsOn = (map: any, x: number, y: number) => farmCellsOfTiles(map, [tile(x, y)]).sort((p, q) => p.row - q.row || p.key - q.key);
+const keysOf = (cells: Array<{ key: number }>) => cells.map((c) => c.key);
+const squares = (map: any, x: number, y: number) => paintedSquares(map, tile(x, y));
 
-describe("the farm zone painted in cells", () => {
-  test("a city map's tile has 4 x 4 cells; elsewhere a field is its whole tile", () => {
+describe("the farm zone painted in cells along the road", () => {
+  test("a city map's fields are painted a cell at a time; elsewhere a field is its whole tile", () => {
     expect(farmSide({ cellZones: true, tileSizeM: 16 })).toBe(4);
     expect(farmSide({ cellZones: false, tileSizeM: 16 })).toBe(1);
-    expect(fullCells(4)).toBe(0xffff);
-    expect(cellCount(0b1011)).toBe(3);
+    expect(farmRows({ tileSizeM: 16 }, 8)).toBe(33);
   });
 
   test("paints the cells it is given: a tile with any painted is a field, as much of one as is painted", () => {
     const { map, sim, commands } = city();
-    const funds = sim.budget.totalFunds;
-    // the top two rows of a tile beside the road, then two more rows
-    expect(commands.apply({ type: "farmCells", erase: false, cells: cellsOf(10, 9, [0, 1], [0, 1, 2, 3]), stroke: 5 })).toMatchObject({ accepted: true });
-    expect(isFieldValue(map.getTileValue(10, 9))).toBe(true);
-    expect(map.getTileValue(10, 9)).toBe(fieldTile(0));
-    expect(fieldCells(map, tile(10, 9))).toBe(0x00ff);
-    expect(fieldShare(map, tile(10, 9))).toBe(0.5);
-    const half = funds - sim.budget.totalFunds;
-    // ... priced by the share of a tile: half a tile, half the brush's price (FARM_ZONE.price 3, rounded)
-    expect(half).toBe(Math.round(3 * 0.5));
-    expect(commands.apply({ type: "farmCells", erase: false, cells: cellsOf(10, 9, [2, 3], [0, 1, 2, 3]), stroke: 5 })).toMatchObject({ accepted: true });
-    // whole now: kept as none, every cell
-    expect(map.farmCells[tile(10, 9)]).toBe(0);
-    expect(fieldShare(map, tile(10, 9))).toBe(1);
+    const funds = sim.budget.totalFunds, cells = cellsOn(map, 10, 10);
+    expect(cells.length).toBeGreaterThanOrEqual(12);
+    // every cell runs along the road (east-west here), in rows parallel to it
+    for (const c of cells) expect(Math.abs(Math.sin(c.angle))).toBeCloseTo(1, 6);
+    const half = cells.slice(0, Math.floor(cells.length / 2));
+    expect(commands.apply({ type: "farmCells", erase: false, cells: keysOf(half), stroke: 5 })).toMatchObject({ accepted: true });
+    expect(map.getTileValue(10, 10)).toBe(fieldTile(0));
+    const share = fieldShare(map, tile(10, 10));
+    expect(share).toBeGreaterThan(0.3);
+    expect(share).toBeLessThan(0.7);
+    expect(share).toBe(squares(map, 10, 10) / ALL_SQUARES);
+    // ... priced by the share of the tiles painted (FARM_ZONE.price 3, rounded; a cell may reach over the next tile)
+    expect(funds - sim.budget.totalFunds).toBeGreaterThanOrEqual(Math.round(3 * share));
+    expect(funds - sim.budget.totalFunds).toBeLessThanOrEqual(Math.round(3 * share) + 1);
+    for (const c of half) expect(cellPainted(map, c)).toBe(true);
+    for (const c of cells.slice(half.length)) expect(cellPainted(map, c)).toBe(false);
     // the same cells again: nothing to paint
-    expect(commands.apply({ type: "farmCells", erase: false, cells: cellsOf(10, 9, [0], [0]), stroke: 6 })).toMatchObject({ accepted: false, reason: NOTHING_TO_PAINT });
+    expect(commands.apply({ type: "farmCells", erase: false, cells: keysOf(half.slice(0, 1)), stroke: 6 })).toMatchObject({ accepted: false, reason: NOTHING_TO_PAINT });
   });
 
-  test("rubs cells out, the last of a field leaving bare ground; undo puts tiles and cells back", () => {
+  test("rubs cells out, the last of a field leaving bare ground; undo puts tiles and squares back", () => {
     const { map, commands } = city();
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(12, 9, [0, 1, 2, 3], [0, 1, 2, 3]), stroke: 5 });
-    expect(commands.apply({ type: "farmCells", erase: true, cells: cellsOf(12, 9, [0, 1, 2, 3], [0, 1]), stroke: 6 })).toMatchObject({ accepted: true });
-    expect(fieldCells(map, tile(12, 9))).toBe(0xcccc);
-    expect(commands.apply({ type: "farmCells", erase: true, cells: cellsOf(12, 9, [0, 1, 2, 3], [2, 3]), stroke: 7 })).toMatchObject({ accepted: true });
-    expect(map.getTileValue(12, 9)).toBe(DIRT);
+    const cells = cellsOn(map, 12, 11);
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cells), stroke: 5 });
+    const whole = squares(map, 12, 11);
+    expect(commands.apply({ type: "farmCells", erase: true, cells: keysOf(cells.slice(0, 4)), stroke: 6 })).toMatchObject({ accepted: true });
+    const some = squares(map, 12, 11);
+    expect(some).toBeLessThan(whole);
+    for (const c of cells.slice(0, 4)) expect(cellPainted(map, c)).toBe(false);
+    // (every square of the tile rubbed out, those of the cells beside it reaching over too)
+    const round = farmCellsOnTiles(map, 11, 10, 13, 12).filter((c) => cellSquares(map, c, 2.5).has(tile(12, 11)));
+    expect(commands.apply({ type: "farmCells", erase: true, cells: keysOf(round), stroke: 7 })).toMatchObject({ accepted: true });
+    expect(map.getTileValue(12, 11)).toBe(DIRT);
     // undo, a stroke at a time
     commands.apply({ type: "undo" });
-    expect(isFieldValue(map.getTileValue(12, 9))).toBe(true);
-    expect(fieldCells(map, tile(12, 9))).toBe(0xcccc);
+    expect(isFieldValue(map.getTileValue(12, 11))).toBe(true);
+    expect(squares(map, 12, 11)).toBe(some);
     commands.apply({ type: "undo" });
-    expect(fieldCells(map, tile(12, 9))).toBe(0xffff);
+    expect(squares(map, 12, 11)).toBe(whole);
     commands.apply({ type: "undo" });
-    expect(map.getTileValue(12, 9)).toBe(DIRT);
+    expect(map.getTileValue(12, 11)).toBe(DIRT);
   });
 
-  test("the tile brush over a field painted in part paints the rest of it; a whole new one is every cell", () => {
+  test("the tile brush paints the road-aligned cells on its tile; a stale part of a cleared field does not come back", () => {
     const { map, commands } = city();
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(14, 9, [0], [0, 1]), stroke: 5 });
-    expect(commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 14, y: 9, stroke: 6 })).toMatchObject({ accepted: true, toolResult: 0 });
-    expect(fieldCells(map, tile(14, 9))).toBe(0xffff);
-    // a stale part kept for a tile the bulldozer cleared does not come back with a new field painted whole there
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(16, 9, [3], [3]), stroke: 7 });
-    commands.apply({ type: "tool", tool: FARM_ERASE_TOOL as never, x: 16, y: 9, stroke: 8 });
-    expect(map.getTileValue(16, 9)).toBe(DIRT);
-    commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 16, y: 9, stroke: 9 });
-    expect(fieldCells(map, tile(16, 9))).toBe(0xffff);
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cellsOn(map, 14, 10).slice(0, 2)), stroke: 5 });
+    expect(commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 14, y: 10, stroke: 6 })).toMatchObject({ accepted: true, toolResult: 0 });
+    for (const c of cellsOn(map, 14, 10)) expect(cellPainted(map, c)).toBe(true);
+    // painted again: nothing more to do
+    expect(commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 14, y: 10, stroke: 7 })).toMatchObject({ accepted: true, toolResult: 0 });
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cellsOn(map, 16, 12).slice(-1)), stroke: 8 });
+    commands.apply({ type: "tool", tool: FARM_ERASE_TOOL as never, x: 16, y: 12, stroke: 9 });
+    expect(map.getTileValue(16, 12)).toBe(DIRT);
+    const first = cellsOn(map, 16, 12)[0];
+    commands.apply({ type: "farmCells", erase: false, cells: [first.key], stroke: 10 });
+    expect(cellPainted(map, cellsOn(map, 16, 12).slice(-1)[0])).toBe(false);
   });
 
   test("woods take the province's clearing price, and land with no way to a road takes no paint", () => {
     const { map, sim, commands } = city();
-    map.setTile(18, 9, WOODS, 0);
+    map.setTile(18, 10, WOODS, 0);
     const before = sim.budget.totalFunds;
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(18, 9, [0], [0]), stroke: 5 });
-    expect(isFieldValue(map.getTileValue(18, 9))).toBe(true);
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cellsOn(map, 18, 10).slice(0, 1)), stroke: 5 });
+    expect(isFieldValue(map.getTileValue(18, 10))).toBe(true);
     expect(before - sim.budget.totalFunds).toBeGreaterThanOrEqual(1);
-    // 30 tiles (480 m) from the road
-    expect(commands.apply({ type: "farmCells", erase: false, cells: cellsOf(20, 38, [0], [0]), stroke: 6 })).toMatchObject({ accepted: false });
+    // 30 tiles (480 m) from the road there are no farm cells at all
+    expect(cellsOn(map, 20, 38)).toHaveLength(0);
     expect(map.getTileValue(20, 38)).toBe(DIRT);
   });
 
   test("a field in part works and sells as much as it covers", () => {
     const { map, commands } = city();
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(10, 9, [0, 1, 2, 3], [0, 1, 2, 3]), stroke: 5 });
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(11, 9, [0], [0, 1, 2, 3]), stroke: 6 });
-    map.setTile(10, 9, fieldTile(2), FIELD_FLAGS);
-    map.setTile(11, 9, fieldTile(2), FIELD_FLAGS);
+    commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 10, y: 11, stroke: 5 });
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cellsOn(map, 12, 11).slice(0, 4)), stroke: 6 });
+    map.setTile(10, 11, fieldTile(2), FIELD_FLAGS);
+    map.setTile(12, 11, fieldTile(2), FIELD_FLAGS);
     map.farmKinds = new Uint8Array(W * H);
-    map.farmKinds[tile(10, 9)] = kindCode("paddy");
-    map.farmKinds[tile(11, 9)] = kindCode("paddy");
+    map.farmKinds[tile(10, 11)] = kindCode("paddy");
+    map.farmKinds[tile(12, 11)] = kindCode("paddy");
     const fields = new FarmFields(W, H), census: any = {};
-    fields.fieldFound(map, 10, 9, census);
-    const whole = census.farmPop;
-    fields.fieldFound(map, 11, 9, census);
-    expect(census.farmPop - whole).toBeCloseTo(whole / 4, 6);
+    fields.fieldFound(map, 10, 11, census);
+    const one = census.farmPop;
+    fields.fieldFound(map, 12, 11, census);
+    const shareA = fieldShare(map, tile(10, 11)), shareB = fieldShare(map, tile(12, 11));
+    expect(shareB).toBeLessThan(shareA);
+    expect((census.farmPop - one) / one).toBeCloseTo(shareB / shareA, 6);
     const month = fields.month(map, 6, false, 0, [], null);
-    expect(month.levels).toBeCloseTo(2 + 2 / 4, 6);
+    expect(month.levels).toBeCloseTo(2 * shareA + 2 * shareB, 6);
   });
 
-  test("its cells are saved with the city, only where a field covers part of its tile", () => {
+  test("its squares are saved with the city, only where a field covers part of its tile", () => {
     const { map, commands } = city();
-    commands.apply({ type: "farmCells", erase: false, cells: cellsOf(10, 9, [1, 2], [1, 2]), stroke: 5 });
-    commands.apply({ type: "tool", tool: FARM_PAINT_TOOL as never, x: 11, y: 9, stroke: 6 });
+    commands.apply({ type: "farmCells", erase: false, cells: keysOf(cellsOn(map, 10, 12).slice(0, 3)), stroke: 5 });
     const saved = JSON.parse(JSON.stringify(writeCityLayers(map)));
-    expect(saved.farmCells).toEqual({ [tile(10, 9)]: 0x0660 });
+    expect(saved.farmCells).toBeUndefined();
+    expect(Object.keys(saved.farmSquares).length).toBeGreaterThanOrEqual(1);
     const again: any = new (GameMap as unknown as new (w: number, h: number) => any)(W, H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) again.setTile(x, y, map.getTileValue(x, y), map.getTileFlags(x, y));
     readCityLayers(again, saved);
-    expect(fieldCells(again, tile(10, 9))).toBe(0x0660);
-    expect(fieldCells(again, tile(11, 9))).toBe(0xffff);
+    expect([...again.farmSquares]).toEqual([...map.farmSquares]);
   });
 
-  test("the brush paints the cells round where the mouse went, a rectangle the cells inside it", () => {
-    const map = { width: W, height: H, cellZones: true, tileSizeM: M } as any;
-    // a round brush 7 m about the middle of tile (10, 9): the cells whose middles lie within it, a round of 12
-    const round = farmCellsNear(map, null, [168, 152], 7);
-    expect(round).toHaveLength(12);
-    for (const key of round) {
-      const t = Math.floor(key / 16), bit = key % 16;
-      const x = (t % W) * M + (bit % 4 + 0.5) * 4, z = Math.floor(t / W) * M + (Math.floor(bit / 4) + 0.5) * 4;
-      expect(Math.hypot(x - 168, z - 152)).toBeLessThanOrEqual(7);
-    }
-    // a stroke is the round brush dragged: more cells, across two tiles
-    expect(farmCellsNear(map, [160, 152], [200, 152], 7).length).toBeGreaterThan(round.length);
-    // a rectangle 8 x 12 m: two columns and three rows of cells
-    expect(farmCellsInRect(map, [160, 144], [168, 156])).toHaveLength(2 * 3);
+  test("an older save's 4 m cells of 4 x 4 become squares of the same share", () => {
+    const { map } = city();
+    map.setTile(10, 12, fieldTile(1), FIELD_FLAGS);
+    const again: any = new (GameMap as unknown as new (w: number, h: number) => any)(W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) again.setTile(x, y, map.getTileValue(x, y), map.getTileFlags(x, y));
+    readCityLayers(again, { farmCells: { [tile(10, 12)]: 0x0660 } } as any);
+    expect(paintedSquares(again, tile(10, 12))).toBe(16);
+    again.cellZones = true;
+    again.tileSizeM = 16;
+    expect(fieldShare(again, tile(10, 12))).toBe(0.25);
+    expect(again.farmSquaresOld).toEqual([tile(10, 12)]);
+  });
+
+  test("the brush paints the cells round where the mouse went, a rectangle the cells inside it along the road", () => {
+    const { map } = city();
+    const at: [number, number] = [105, 105];
+    const round = farmCellsNear(map, null, at, 7 * 10 / 16);
+    expect(round.length).toBeGreaterThan(4);
+    for (const c of round) expect(Math.hypot(c.x - at[0], c.z - at[1])).toBeLessThanOrEqual(7 * 10 / 16 + 1e-9);
+    expect(farmCellsNear(map, [100, 105], [125, 105], 7 * 10 / 16).length).toBeGreaterThan(round.length);
+    // a rectangle 5 cells along the road and 3 rows deep, started on a cell
+    const first = farmCellAt(map, 102, 100)!;
+    const rect = farmCellsInRect(map, [first.x, first.z], [first.x + 4 * 2.5, first.z + 2 * 2.5]);
+    expect(rect.cells).toHaveLength(15);
+    for (const c of rect.cells) expect(c.angle).toBeCloseTo(first.angle, 6);
   });
 });
 

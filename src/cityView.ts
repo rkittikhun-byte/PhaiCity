@@ -47,8 +47,9 @@ export interface ToolHover {
   cellPoint?: { x: number; y: number } | null;
   /** ... and while it drags a rectangle, the cells it will paint (their keys, src/zoneCells.ts), shown as they will be */
   cellKeys?: readonly number[] | null;
-  /** The farm brush on such a map: the farm cells it would paint there (their keys, src/farmZone.ts farmCellKey) */
-  farmCellKeys?: readonly number[] | null;
+  /** The farm brush on such a map: the farm cells it would paint there, their middles (world units) and the way their
+   * road runs (src/farmGrid.ts) */
+  farmCells?: ReadonlyArray<{ x: number; z: number; angle: number; span?: number }> | null;
   /** A road or railway tool: where it would start or end, on an existing road's middle line when near one (in tiles),
    * shown as a small marker rather than a tile; and where the line being drawn started */
   linePoint?: { x: number; y: number } | null;

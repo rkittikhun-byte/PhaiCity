@@ -15,6 +15,7 @@
 // and muddy the water (FarmFields.month). Every number is the province's rules' (src/provinceRules.ts FarmZoneSpec).
 // Plain code, no DOM, nothing random but the simulation's Random.
 
+import { ALL_SQUARES, paintedSquares } from "./farmGrid";
 import { drivewayAt, isOpenLand, type PlotMap } from "./plots";
 import { NO_BURNING_YIELD } from "./policies";
 import { isRoadTile } from "./roadLevels";
@@ -78,117 +79,32 @@ export interface FieldMap extends PlotMap {
   /** Whether its zones are painted a cell at a time (a real-scale city map, src/zoneCells.ts), and its tiles' size */
   cellZones?: boolean;
   tileSizeM?: number | null;
-  /** The cells of each field painted (fieldCells), kept beside the tiles and saved; 0 where every cell is */
-  farmCells?: Uint16Array | null;
+  /** The painted squares of each field (src/farmGrid.ts), kept beside the tiles and saved; none where it is whole */
+  farmSquares?: Uint8Array | null;
 }
 
 // --- The painted shape of the fields (docs/NO_GRID_PLAN.md 3C) ---------------------------------------------------------
-// On a real-scale city map the farm brush paints cells about 4 m a side, as the zones' cells are (src/zoneCells.ts
-// CELL_M), not whole 16 m tiles (owner, 21 Oct 2026: "นาเป็นสี่เหลี่ยม 16 ม." was the grid he saw): the fields are the
-// shape the brush went, and their dikes run along it (src/render3d/city/farmFields.ts). A field's level and kind stay
-// the tile's, so the simulation, saves, undo, fire and the bulldozer keep their tiles; a tile is a field while any of
-// its cells is painted, and it counts as much as is painted of it (fieldShare). Elsewhere, and where a tool paints a
-// whole tile (the fill, the auto player), every cell of the tile is the field.
+// On a real-scale city map the farm brush paints cells about 4 m a side laid in rows along the nearest road, as the
+// zones' cells are (src/farmGrid.ts; owner, 23 Oct 2026: "ทำตารางโซนเกษตรให้ขนานกับถนนทุกเส้นเลย"), not whole 16 m tiles:
+// the fields are the shape the brush went, and their dikes run along it (src/render3d/city/farmFields.ts). What is painted
+// is kept as 2 m squares, 8 × 8 a tile (map.farmSquares). A field's level and kind stay the tile's, so the simulation,
+// saves, undo, fire and the bulldozer keep their tiles; a tile is a field while any of its squares is painted, and it
+// counts as much as is painted of it (fieldShare). Elsewhere, and where a field keeps no squares, the whole tile is the
+// field.
 
-/** About how many metres a side a field's cell is */
+/** About how many metres a side a field's cell is (src/zoneCells.ts CELL_M) */
 export const FARM_CELL_M = 4;
 
-/** How many cells a side a tile of this map has: 4 on a 16 m city map; 1, a whole tile, where the zones are not
- * painted a cell at a time */
+/** Whether a map's fields are painted a cell at a time (a real-scale city map whose zones are, src/zoneCells.ts): 4 cells
+ * a side of a 16 m tile; 1, a whole tile, elsewhere */
 export function farmSide(map: { cellZones?: boolean; tileSizeM?: number | null }): number {
   if (!map.cellZones) return 1;
   return Math.max(1, Math.min(4, Math.round((map.tileSizeM || 16) / FARM_CELL_M)));
 }
 
-/** Every cell of a tile `side` cells a side, as bits row by row from its top left */
-export const fullCells = (side: number): number => (side >= 4 ? 0xffff : (1 << (side * side)) - 1);
-
-/** How many cells a mask holds */
-export function cellCount(mask: number): number {
-  let n = 0;
-  for (let m = mask; m; m &= m - 1) n++;
-  return n;
-}
-
-/** The painted cells of the field on tile i: its kept mask, or every cell where it keeps none (a whole tile painted) */
-export function fieldCells(map: FieldMap, i: number): number {
-  const full = fullCells(farmSide(map)), mask = (map.farmCells?.[i] ?? 0) & full;
-  return mask || full;
-}
-
 /** How much of tile i its field covers, 0-1: what it counts as (its crop, its work, the food it gives) */
 export function fieldShare(map: FieldMap, i: number): number {
-  const side = farmSide(map);
-  return side <= 1 ? 1 : cellCount(fieldCells(map, i)) / (side * side);
-}
-
-/** A farm cell's key, its tile and its bit (row * side + column): as the farmCells command names them */
-export const farmCellKey = (tile: number, bit: number): number => tile * 16 + bit;
-export const farmCellTile = (key: number): number => Math.floor(key / 16);
-export const farmCellBit = (key: number): number => key % 16;
-
-/**
- * The cells whose middles lie within `radius` metres of the stretch from `from` to `to` (metres; a point when from is
- * null), on the map: their keys. What the farm brush paints where the mouse went.
- */
-export function farmCellsNear(map: FieldMap, from: readonly [number, number] | null, to: readonly [number, number],
-                              radius: number): number[] {
-  const side = farmSide(map), metres = map.tileSizeM || 16, cell = metres / side, a = from ?? to, out: number[] = [];
-  const x0 = Math.min(a[0], to[0]) - radius, x1 = Math.max(a[0], to[0]) + radius;
-  const z0 = Math.min(a[1], to[1]) - radius, z1 = Math.max(a[1], to[1]) + radius;
-  const dx = to[0] - a[0], dz = to[1] - a[1], length2 = dx * dx + dz * dz;
-  for (let cz = Math.max(0, Math.floor(z0 / cell)); cz <= Math.min(map.height * side - 1, Math.floor(z1 / cell)); cz++) {
-    for (let cx = Math.max(0, Math.floor(x0 / cell)); cx <= Math.min(map.width * side - 1, Math.floor(x1 / cell)); cx++) {
-      const px = (cx + 0.5) * cell, pz = (cz + 0.5) * cell;
-      const t = length2 > 0 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / length2)) : 0;
-      if (Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t) > radius) continue;
-      const tx = Math.floor(cx / side), ty = Math.floor(cz / side);
-      out.push(farmCellKey(ty * map.width + tx, (cz - ty * side) * side + (cx - tx * side)));
-    }
-  }
-  return out;
-}
-
-/** The cells whose middles lie inside the rectangle between two corners (metres): what a dragged rectangle paints */
-export function farmCellsInRect(map: FieldMap, a: readonly [number, number], b: readonly [number, number]): number[] {
-  const side = farmSide(map), metres = map.tileSizeM || 16, cell = metres / side, out: number[] = [];
-  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
-  for (let cz = Math.max(0, Math.ceil(z0 / cell - 0.5)); cz <= Math.min(map.height * side - 1, Math.floor(z1 / cell - 0.5)); cz++) {
-    for (let cx = Math.max(0, Math.ceil(x0 / cell - 0.5)); cx <= Math.min(map.width * side - 1, Math.floor(x1 / cell - 0.5)); cx++) {
-      const tx = Math.floor(cx / side), ty = Math.floor(cz / side);
-      out.push(farmCellKey(ty * map.width + tx, (cz - ty * side) * side + (cx - tx * side)));
-    }
-  }
-  return out;
-}
-
-/** The fields' painted cells as a save keeps them: by tile, only where a field covers part of its tile, or null */
-export function farmCellsKept(map: FieldMap): Record<string, number> | null {
-  const cells = map.farmCells;
-  if (!cells || cells.length !== map.width * map.height) return null;
-  const full = fullCells(farmSide(map)), kept: Record<string, number> = {};
-  let any = false;
-  for (let i = 0; i < cells.length; i++) {
-    const mask = cells[i] & full;
-    if (!mask || mask === full || !isFieldValue(map.getTileValue(i % map.width, Math.floor(i / map.width)))) continue;
-    kept[i] = mask;
-    any = true;
-  }
-  return any ? kept : null;
-}
-
-/** The fields' painted cells from a save (farmCellsKept), on a map width x height; null when it keeps none */
-export function readFarmCells(saved: unknown, width: number, height: number): Uint16Array | null {
-  if (!saved || typeof saved !== "object") return null;
-  const cells = new Uint16Array(width * height);
-  let any = false;
-  for (const [key, value] of Object.entries(saved as Record<string, unknown>)) {
-    const i = Number(key);
-    if (!Number.isInteger(i) || i < 0 || i >= cells.length || !Number.isInteger(value)) continue;
-    cells[i] = (value as number) & 0xffff;
-    any = true;
-  }
-  return any ? cells : null;
+  return farmSide(map) <= 1 ? 1 : paintedSquares(map, i) / ALL_SQUARES;
 }
 
 const inside = (map: { width: number; height: number }, x: number, y: number): boolean =>

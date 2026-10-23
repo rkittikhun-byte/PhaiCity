@@ -509,7 +509,7 @@ export class CityView3D implements CityView {
     this.outline.update(hover&&hover.cellPoint!==undefined?null:hover);this.zones.update(changed.length>0);
     this.cells?.update(hover?.cellPoint??null,hover?.colour??null,hover?.cellKeys??null);
     // ... and the farm brush's cells (farmFields.ts)
-    this.farms?.showBrush(hover?.farmCellKeys??null,hover?.colour??null);
+    this.farms?.showBrush(hover?.farmCells??null,hover?.colour??null);
     // ... and the roads a police or fire station, school or hospital in hand would reach (reachLayer.ts)
     if(hover?.reach&&!this.reachLayer){this.reachLayer=new ReachLayer(this.setup.map as unknown as TrafficLayerMap,this.terrain,this.snapshot.realUnits??1);this.scene.add(this.reachLayer.root);}
     this.reachLayer?.show(hover?.reach??null);

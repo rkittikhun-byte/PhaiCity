@@ -5,7 +5,7 @@
 // The farm zone's fields in 3D (src/render3d/city/farmFields.ts): their ground by kind and month, the era's props, the
 // cooperative, rice mill or cold store a farm building becomes, and nothing written to the map.
 
-import { InstancedMesh, Mesh, type BufferAttribute } from 'three';
+import { Euler, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type BufferAttribute } from 'three';
 import { CityFarmFields, cropHeight, FARM_DETAIL_DISTANCE, paddyColour } from '../../src/render3d/city/farmFields';
 import { fieldTile, kindCode } from '../../src/farmZone';
 import { FARM, FIELD_BASE } from '../../src/tileValues';
@@ -119,58 +119,19 @@ describe('the farm zone in 3D', () => {
 });
 
 describe('the farm zone painted in cells (docs/NO_GRID_PLAN.md 3C)', () => {
-  /** A city map's fields: a whole paddy at (4, 4) and, east of it, one painted only on its left half */
-  function cellMap() {
-    const values = new Uint16Array(W * H), farmKinds = new Uint8Array(W * H), farmCells = new Uint16Array(W * H);
-    for (const x of [4, 5]) { values[4 * W + x] = fieldTile(2); farmKinds[4 * W + x] = kindCode('paddy'); }
-    farmCells[4 * W + 5] = 0x3333;
-    return { width: W, height: H, values, farmKinds, farmCells, cellZones: true, tileSizeM: 16, era: 1, farmCellsVersion: 0,
-      getTileValue: (x: number, y: number) => values[y * W + x] };
-  }
-  const groundOf = (view: CityFarmFields) => {
-    const ground = view.root.children.find((c) => c.name === 'farm_fields/ground') as Mesh;
-    return ground.geometry.getAttribute('position') as BufferAttribute;
-  };
-
-  test('a field is drawn on the cells painted, its water inside a dike along what was painted', () => {
-    const map = cellMap(), view = new CityFarmFields(map, flat);
-    view.update([], MAY, 300, 0);
-    const position = groundOf(view);
-    let maxX = -Infinity, maxWater = -Infinity, waterAtJoin = false;
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i), y = position.getY(i);
-      maxX = Math.max(maxX, x);
-      if (y > 0.08) { maxWater = Math.max(maxWater, x); if (Math.abs(x - 50) < 1e-6) waterAtJoin = true; }
-    }
-    // the half-painted tile reaches 5 units (8 m) into its tile, not its whole 10
-    expect(maxX).toBeCloseTo(55);
-    // ... its water stands back by the dike there, and runs on across the join with the whole paddy beside it
-    expect(maxWater).toBeCloseTo(55 - 0.7);
-    expect(waterAtJoin).toBe(true);
-    view.dispose();
-  });
-
-  test('is drawn again when cells are painted, and recoloured with the month whatever its shape', () => {
-    const map = cellMap(), view = new CityFarmFields(map, flat);
-    view.update([], MAY, 300, 0);
-    const before = groundOf(view).count;
-    map.farmCells[4 * W + 5] = 0x0001;
-    map.farmCellsVersion = 1;
-    view.update([], MAY, 300, 0.1);
-    view.update([], MAY, 300, 1);
-    expect(groundOf(view).count).not.toBe(before);
-    const ground = view.root.children.find((c) => c.name === 'farm_fields/ground') as Mesh;
-    const colours = (ground.geometry.getAttribute('color') as BufferAttribute).array.slice();
-    view.update([], OCTOBER, 300, 2);
-    expect((ground.geometry.getAttribute('color') as BufferAttribute).array).not.toEqual(colours);
-    view.dispose();
-  });
-
-  test('the brush shows the cells it would paint, and nothing when put away', () => {
-    const map = cellMap(), view = new CityFarmFields(map, flat);
-    view.showBrush([(6 * W + 6) * 16 + 0, (6 * W + 6) * 16 + 5], '#4fbf5a');
+  // (the fields drawn on the road-aligned cells painted beside a slanted road: test/farmGrid.ts)
+  test('the brush shows the cells it would paint, turned with their road, and nothing when put away', () => {
+    const map = { ...newMap(1), cellZones: true, tileSizeM: 16 };
+    const view = new CityFarmFields(map, flat);
+    view.showBrush([{ x: 60, z: 60, angle: 0.5 }, { x: 62.5, z: 60, angle: 0.5 }], '#4fbf5a');
     const brush = view.root.children.find((c) => c.name === 'farm_fields/brush') as InstancedMesh;
     expect(brush.count).toBe(2);
+    const m = new Matrix4(), q = new Quaternion(), p = new Vector3(), s = new Vector3();
+    brush.getMatrixAt(0, m);
+    m.decompose(p, q, s);
+    expect(new Euler().setFromQuaternion(q, 'YXZ').y).toBeCloseTo(0.5, 6);
+    // a farm cell 4 m a side, a little smaller so the cells show
+    expect(s.x).toBeCloseTo(2.5 * 0.92, 6);
     view.showBrush(null, null);
     expect(view.root.children.find((c) => c.name === 'farm_fields/brush')).toBeUndefined();
     view.dispose();

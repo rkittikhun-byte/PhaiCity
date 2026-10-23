@@ -28,6 +28,7 @@ import { trainingCity, trainMonth, type TrainedYear } from "../trainedPeople.js"
 import { type SiteDone, sitesMonth } from "../construction.js";
 import { templeMonth, type TempleNews } from "../temples.js";
 import { coverCityRoads } from "../roads/roadCover.js";
+import { showOldFarmCells } from "../farmGrid.js";
 import { TripSystem, type TripRunner } from "../sim/cityTrips.js";
 import { isCityTileSize } from "../units.js";
 
@@ -145,6 +146,13 @@ export class CityCore {
     if (listed) {
       plotListOf(this.map);
       this.formPlots();
+    }
+    // How far a field may lie from a road here, which the farm cells along the roads reach (src/farmGrid.ts)
+    this.map.farmReach = this.simulation.rules?.farmZone?.reach ?? null;
+    // An older save's fields painted on part of their tile, seen through the road-aligned farm cells
+    if (this.map.farmSquaresOld) {
+      showOldFarmCells(this.map, this.map.farmSquaresOld, this.simulation.rules?.farmZone?.reach);
+      this.map.farmSquaresOld = null;
     }
     // ... along which the power and the water run (docs/NO_GRID_PLAN.md step 2): handed out from the city as it is now
     this.simulation.primeUtilities();

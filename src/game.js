@@ -56,10 +56,11 @@ import { clearToolChoices, pageChoice, setToolChoices, toolChoicesFor } from './
 import { buildingAt, MOVE_NO_MONEY, MOVE_TOOL } from './moveTool.ts';
 import { buildingAtPoint } from './buildings/outlineOverlap.ts';
 import { drawModeOf, isAreaMode, isFarmTool, isPaintTool, isStraightMode, modeGroupOf, POINTS_NEEDED, showsZoneGrid, snapOn } from './drawModes.ts';
-import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, farmCellsInRect, farmCellsNear, fieldFillRegion, fieldOutcome } from './farmZone.ts';
+import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, fieldFillRegion, fieldOutcome } from './farmZone.ts';
 import { FARM_ZONE } from './provinceRules.ts';
 import { SCENE } from './theme/tokens.ts';
-import { BRUSH_RADIUS_M, cellsAlong, cellsInStrip, cellsNear, cellsOf } from './zoneCells.ts';
+import { BRUSH_RADIUS_M, cellAt, cellsAlong, cellsInStrip, cellsNear, cellsOf, roadRect } from './zoneCells.ts';
+import { cellPainted, farmCellOnLand, farmCellsInRect, farmCellsNear, farmCellsOfTiles } from './farmGrid.ts';
 import { nearestOnLines, networkOf, realUnits, roadLines, roadReach, smoothLine } from './roadGeometry.ts';
 import { wholeRoadTiles } from './roads/wholeRoad.ts';
 import { drawnRoads, graphLines } from './roads/graphLines.ts';
@@ -1100,45 +1101,34 @@ var poseTile = function(pose, size) {
 
 
 // The cells a rectangle dragged from one point to another (canvas pixels) paints: those inside it or along the stroke
-// that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"), expanded to its plots' depth
+// that the drag reaches without crossing a road (owner, 15 Oct 2026: "จุดวาด ห้ามข้ามถนน สิ"). The rectangle is turned
+// with the road nearest where it started, its sides along and across that road (owner, 23 Oct 2026: "ช่องสี่เหลี่ยม หรือ
+// ตาราง ที่วาด มันจะต้องขนานกับถนนทุกเส้น"; src/zoneCells.ts roadRect)
 Game.prototype.cellsInArea = function(from, to) {
   var a = this.cityView.pointAt(from.x, from.y);
   var b = this.cityView.pointAt(to.x, to.y) || a;
   if (a === null)
     return [];
-  var layout = this.cellLayout();
-  var u = layout.cellUnits, pad = u * 0.65;
+  var layout = this.cellLayout(), width = this.gameMap.width;
+  var u = layout.cellUnits;
   var sx = a.x * 10, sz = a.y * 10, ex = b.x * 10, ez = b.y * 10;
-  var x0 = Math.min(sx, ex) - pad, x1 = Math.max(sx, ex) + pad, z0 = Math.min(sz, ez) - pad, z1 = Math.max(sz, ez) + pad;
-  // The roads' pieces within the rectangle, which a cell's way from the reference point must not cross
-  var pieces = [];
-  var lines = this.networkLines(false);
-  lines.forEach(function(line) {
-    for (var i = 1; i < line.length; i++) {
-      var p = line[i - 1], q = line[i];
-      if (Math.max(p[0], q[0]) >= x0 - 2 && Math.min(p[0], q[0]) <= x1 + 2 &&
-          Math.max(p[1], q[1]) >= z0 - 2 && Math.min(p[1], q[1]) <= z1 + 2)
-        pieces.push([p[0], p[1], q[0], q[1]]);
+  // The road it is drawn along: the cell under where it started, else the nearest within two tiles
+  var frame = cellAt(layout, width, sx, sz);
+  if (frame === null) {
+    var bestD = 20, tx = Math.floor(sx / 10), tz = Math.floor(sz / 10);
+    for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) {
+      (layout.byTile.get((tz + dz) * width + tx + dx) || []).forEach(function(index) {
+        var cell = layout.cells[index], d = Math.hypot(cell.x - sx, cell.z - sz);
+        if (d < bestD) { bestD = d; frame = cell; }
+      });
     }
-  });
-  // If the drag started right on the road centerline and pulled outward into a lot, measure road-crossing from the end point
-  var startOnRoad = nearestOnLines(lines, sx, sz, 4.5) !== null;
-  var endOnRoad = nearestOnLines(lines, ex, ez, 4.5) !== null;
-  var rx = startOnRoad && !endOnRoad ? ex : sx, rz = startOnRoad && !endOnRoad ? ez : sz;
-  var side = function(ax, az, bx, bz, cx, cz) { return (bx - ax) * (cz - az) - (bz - az) * (cx - ax); };
-  var crosses = function(cx, cz) {
-    if (startOnRoad && endOnRoad) return false;
-    for (var k = 0; k < pieces.length; k++) {
-      var r = pieces[k];
-      var d1 = side(rx, rz, cx, cz, r[0], r[1]), d2 = side(rx, rz, cx, cz, r[2], r[3]);
-      var d3 = side(r[0], r[1], r[2], r[3], rx, rz), d4 = side(r[0], r[1], r[2], r[3], cx, cz);
-      if ((d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0) && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0)
-        return true;
-    }
-    return false;
-  };
+  }
+  var rect = roadRect([sx, sz], [ex, ez], frame ? frame.angle : 0, u * 0.65);
+  var crosses = this.roadCrosser([sx, sz], [ex, ez], rect.corners);
+  var xs = rect.corners.map(function(p) { return p[0]; }), zs = rect.corners.map(function(p) { return p[1]; });
+  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), z0 = Math.min.apply(null, zs), z1 = Math.max.apply(null, zs);
   var seedCells = layout.cells.filter(function(cell) {
-    return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1 && !crosses(cell.x, cell.z);
+    return cell.x >= x0 && cell.x <= x1 && cell.z >= z0 && cell.z <= z1 && rect.inside(cell.x, cell.z) && !crosses(cell.x, cell.z);
   });
   // Also include cells along the direct stroke between from and to (so a single click or a drag parallel to a road works)
   var strokeKeys = cellsAlong(layout, this.gameMap.width, [sx, sz], [ex, ez]);
@@ -1185,12 +1175,11 @@ Game.prototype.isCellBrush = function(toolName) {
 };
 
 
-// On a map whose zones go a cell at a time the farm zone's brush and eraser paint its cells, about 4 m a side, the shape
-// the brush went (src/farmZone.ts, docs/NO_GRID_PLAN.md 3C; owner, 21 Oct 2026: the fields were 16 m squares); the
-// fill still takes whole tiles of open land
+// On a map whose zones go a cell at a time the farm zone's brush and eraser paint its cells, 4 m cells laid in rows along
+// the nearest road (src/farmGrid.ts, docs/NO_GRID_PLAN.md 3C; owner, 23 Oct 2026: "ทำตารางโซนเกษตรให้ขนานกับถนนทุกเส้นเลย"),
+// in every mode: the brush and the round brush where the mouse goes, a rectangle turned with its road, and a fill
 Game.prototype.isFarmCellBrush = function(toolName) {
-  return this.gameMap.cellZones === true && isFarmTool(toolName) && drawModeOf(toolName) !== 'fill' &&
-         typeof this.cityView.pointAt === 'function';
+  return this.gameMap.cellZones === true && isFarmTool(toolName) && typeof this.cityView.pointAt === 'function';
 };
 
 
@@ -1199,28 +1188,61 @@ Game.prototype.isFarmCellBrush = function(toolName) {
 var FARM_BRUSH_M = {brush: 7, circle: 14};
 
 
-// The farm cells the brush in hand paints from one point to the next (metres; from null, at one point)
+// The farm cells the brush in hand paints from one point to the next (world units; from null, at one point)
 Game.prototype.farmCellsAt = function(from, to) {
-  return farmCellsNear(this.gameMap, from, to, FARM_BRUSH_M[drawModeOf(this.inputStatus.toolName)] || FARM_BRUSH_M.brush);
+  var radius = (FARM_BRUSH_M[drawModeOf(this.inputStatus.toolName)] || FARM_BRUSH_M.brush) * unitsPerMetre(tileMetres(this.gameMap));
+  return this.farmBrushCells(farmCellsNear(this.gameMap, from, to, radius, this.farmZoneRules().reach));
 };
 
 
-// The farm cells inside a rectangle dragged between two points on the view
+// The farm cells the brush in hand may take of these: the eraser's those painted, the brush's those on open land or
+// fields of the city's own (a road's, a plot's or a building's lie there only so painting never moves the rest)
+Game.prototype.farmBrushCells = function(cells) {
+  var map = this.gameMap, erase = this.inputStatus.toolName === FARM_ERASE_TOOL;
+  return cells.filter(function(cell) {
+    if (erase)
+      return cellPainted(map, cell);
+    return farmCellOnLand(map, cell) && ownsLand(map, Math.floor(cell.x / 10), Math.floor(cell.z / 10));
+  });
+};
+
+
+// The farm cells inside a rectangle dragged between two points on the view, turned with the road nearest where it
+// started (src/farmGrid.ts farmCellsInRect), on its side of the roads as a zone's rectangle is (roadCrosser)
 Game.prototype.farmCellsInArea = function(from, to) {
-  var a = this.cityView.pointAt(from.x, from.y), b = this.cityView.pointAt(to.x, to.y) || a, size = tileMetres(this.gameMap);
-  return a === null ? [] : farmCellsInRect(this.gameMap, [a.x * size, a.y * size], [b.x * size, b.y * size]);
+  var a = this.cityView.pointAt(from.x, from.y), b = this.cityView.pointAt(to.x, to.y) || a;
+  if (a === null)
+    return [];
+  var start = [a.x * 10, a.y * 10], end = [b.x * 10, b.y * 10];
+  var found = farmCellsInRect(this.gameMap, start, end, this.farmZoneRules().reach);
+  var crosses = this.roadCrosser(start, end, found.corners);
+  return this.farmBrushCells(found.cells.filter(function(cell) { return !crosses(cell.x, cell.z); }));
 };
 
 
-// Paints the farm cells (their keys) with the brush in hand, or rubs them out with the eraser, a command at a time
+// The farm cells a fill paints from a tile: those whose middles lie on the land it reaches (paintFill), kept until the
+// city or the tile changes
+Game.prototype.farmFillCells = function(tile) {
+  var map = this.gameMap, toolName = this.inputStatus.toolName, key = [tile.x, tile.y, this._edits, toolName].join();
+  if (this._farmFill && this._farmFill.key === key)
+    return this._farmFill.cells;
+  var tiles = this.paintFill(tile, toolName).map(function(t) { return t.y * map.width + t.x; });
+  var cells = this.farmBrushCells(farmCellsOfTiles(map, tiles, this.farmZoneRules().reach));
+  this._farmFill = {key: key, cells: cells};
+  return cells;
+};
+
+
+// Paints the farm cells with the brush in hand, or rubs them out with the eraser, a command at a time
 Game.prototype.paintFarmCells = function(cells, screenX, stroke) {
   var toolName = this.inputStatus.toolName;
   var tool = this.inputStatus.currentTool;
   if (tool === null || cells.length === 0)
     return;
+  var keys = cells.map(function(cell) { return cell.key; });
   var painted = false, reason = null;
-  for (var i = 0; i < cells.length; i += MAX_CELLS) {
-    var outcome = this.applyCommand({type: 'farmCells', erase: toolName === FARM_ERASE_TOOL, cells: cells.slice(i, i + MAX_CELLS),
+  for (var i = 0; i < keys.length; i += MAX_CELLS) {
+    var outcome = this.applyCommand({type: 'farmCells', erase: toolName === FARM_ERASE_TOOL, cells: keys.slice(i, i + MAX_CELLS),
                                      stroke: stroke});
     painted = painted || outcome.accepted;
     reason = outcome.accepted ? reason : outcome.reason;
@@ -1237,9 +1259,8 @@ Game.prototype.paintFarmCells = function(cells, screenX, stroke) {
 // Whether the farm cells lie on open land with no way to a road within the farm zone's reach
 Game.prototype.farmNoWay = function(cells) {
   var map = this.gameMap, reach = this.farmZoneRules().reach;
-  return cells.some(function(key) {
-    var tile = Math.floor(key / 16);
-    return fieldOutcome(map, tile % map.width, Math.floor(tile / map.width), reach) === 'no_way';
+  return cells.some(function(cell) {
+    return fieldOutcome(map, Math.floor(cell.x / 10), Math.floor(cell.z / 10), reach) === 'no_way';
   });
 };
 
@@ -1251,10 +1272,48 @@ Game.prototype.farmCellStroke = function(data) {
   var point = this.cityView.pointAt(data.x, data.y);
   if (point === null)
     return;
-  var size = tileMetres(this.gameMap), at = [point.x * size, point.y * size];
+  var at = [point.x * 10, point.y * 10];
   var last = this._farmStroke && this._farmStroke.stroke === data.stroke ? this._farmStroke.point : null;
   this._farmStroke = {stroke: data.stroke, point: at};
   this.paintFarmCells(this.farmCellsAt(last, at), data.x, data.stroke);
+};
+
+
+// Whether a cell's middle (world units) lies across a road from a rectangle dragged from start to end (world units, its
+// corners as drawn): the cells a dragged rectangle paints stay on the side of the roads it was dragged on (owner, 15 Oct
+// 2026: "จุดวาด ห้ามข้ามถนน สิ"), measured from its end when it started on a road and ended off one
+Game.prototype.roadCrosser = function(start, end, corners) {
+  var xs = corners.map(function(p) { return p[0]; }), zs = corners.map(function(p) { return p[1]; });
+  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), z0 = Math.min.apply(null, zs), z1 = Math.max.apply(null, zs);
+  // The roads' pieces within the rectangle, which a cell's way from the reference point must not cross
+  var pieces = [];
+  var lines = this.networkLines(false);
+  lines.forEach(function(line) {
+    for (var i = 1; i < line.length; i++) {
+      var p = line[i - 1], q = line[i];
+      if (Math.max(p[0], q[0]) >= x0 - 2 && Math.min(p[0], q[0]) <= x1 + 2 &&
+          Math.max(p[1], q[1]) >= z0 - 2 && Math.min(p[1], q[1]) <= z1 + 2)
+        pieces.push([p[0], p[1], q[0], q[1]]);
+    }
+  });
+  var sx = start[0], sz = start[1], ex = end[0], ez = end[1];
+  // If the drag started right on the road centerline and pulled outward into a lot, measure road-crossing from the end point
+  var startOnRoad = nearestOnLines(lines, sx, sz, 4.5) !== null;
+  var endOnRoad = nearestOnLines(lines, ex, ez, 4.5) !== null;
+  var rx = startOnRoad && !endOnRoad ? ex : sx, rz = startOnRoad && !endOnRoad ? ez : sz;
+  var side = function(ax, az, bx, bz, cx, cz) { return (bx - ax) * (cz - az) - (bz - az) * (cx - ax); };
+  return function(cx, cz) {
+    if (startOnRoad && endOnRoad)
+      return false;
+    for (var k = 0; k < pieces.length; k++) {
+      var r = pieces[k];
+      var d1 = side(rx, rz, cx, cz, r[0], r[1]), d2 = side(rx, rz, cx, cz, r[2], r[3]);
+      var d3 = side(r[0], r[1], r[2], r[3], rx, rz), d4 = side(r[0], r[1], r[2], r[3], cx, cz);
+      if ((d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0) && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0)
+        return true;
+    }
+    return false;
+  };
 };
 
 
@@ -1829,9 +1888,11 @@ Game.prototype.handleTool = function(data) {
     this.paintCellStroke(data);
     return;
   }
-  // ... and the farm brush the farm zone's cells (src/farmZone.ts), a rectangle being dragged (handleToolArea)
+  // ... and the farm brush the farm zone's cells (src/farmGrid.ts), a rectangle being dragged (handleToolArea) and a
+  // fill clicked (handleToolPoint)
   if (this.isFarmCellBrush(this.inputStatus.toolName)) {
-    if (drawModeOf(this.inputStatus.toolName) !== 'rectangle')
+    var farmMode = drawModeOf(this.inputStatus.toolName);
+    if (farmMode !== 'rectangle' && farmMode !== 'fill')
       this.farmCellStroke(data);
     return;
   }
@@ -2205,19 +2266,27 @@ Game.prototype.calculateMouseForPaint = function() {
     hover.reach = reach;
 
   // The farm brush on a map painted a cell at a time shows the cells it would paint there, or that a dragged rectangle
-  // will, not a tile (src/farmZone.ts; docs/NO_GRID_PLAN.md 3C)
+  // or a fill will, in the grid along the road they lie by, not a tile (src/farmGrid.ts; docs/NO_GRID_PLAN.md 3C)
   if (this.isFarmCellBrush(this.inputStatus.toolName)) {
     hover.cellPoint = this.cityView.pointAt(this.inputStatus.mouseX, this.inputStatus.mouseY);
-    var farmDrag = this.inputStatus.areaDrag, farmMetres = tileMetres(cityMap);
-    if (farmDrag && drawModeOf(this.inputStatus.toolName) === 'rectangle') {
-      var farmKey = [farmDrag.from.x, farmDrag.from.y, farmDrag.to.x, farmDrag.to.y].join();
-      if (this._farmDragKey !== farmKey) {
-        this._farmDragKey = farmKey;
-        this._farmDragCells = this.farmCellsInArea(farmDrag.from, farmDrag.to);
+    var farmDrag = this.inputStatus.areaDrag, farmMode = drawModeOf(this.inputStatus.toolName);
+    if (farmMode === 'rectangle') {
+      if (farmDrag) {
+        var farmKey = [farmDrag.from.x, farmDrag.from.y, farmDrag.to.x, farmDrag.to.y, this._edits].join();
+        if (this._farmDragKey !== farmKey) {
+          this._farmDragKey = farmKey;
+          this._farmDragCells = this.farmCellsInArea(farmDrag.from, farmDrag.to);
+        }
+        hover.farmCells = this._farmDragCells;
+      } else if (hover.cellPoint) {
+        // ... before the drag, the cell it would start from
+        hover.farmCells = this.farmCellsInArea({x: this.inputStatus.mouseX, y: this.inputStatus.mouseY},
+                                               {x: this.inputStatus.mouseX, y: this.inputStatus.mouseY});
       }
-      hover.farmCellKeys = this._farmDragCells;
+    } else if (farmMode === 'fill') {
+      hover.farmCells = this.farmFillCells(tile);
     } else if (hover.cellPoint) {
-      hover.farmCellKeys = this.farmCellsAt(null, [hover.cellPoint.x * farmMetres, hover.cellPoint.y * farmMetres]);
+      hover.farmCells = this.farmCellsAt(null, [hover.cellPoint.x * 10, hover.cellPoint.y * 10]);
     }
     return hover;
   }
@@ -2371,6 +2440,12 @@ Game.prototype.handleToolPoint = function(data) {
     return;
   }
   var mode = drawModeOf(toolName);
+  // A fill of the farm brush paints the farm cells on the land it reaches, in their grids along the roads
+  if (mode === 'fill' && this.isFarmCellBrush(toolName)) {
+    this.paintFarmCells(this.farmFillCells(tile), data.x, data.stroke);
+    this.resetDraft();
+    return;
+  }
   if (mode === 'fill') {
     this.applyTiles(toolName === UPGRADE_TOOL ? this.upgradeLineTiles(tile, data.x, data.y) :
                     this.paintFill(tile, toolName), data.stroke, data.x);

@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 17;
+export const SIM_VERSION = 18;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -54,6 +54,9 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "the nearest of them first; the roads go short from the nearest building that went without (GAME_DESIGN 16)",
   17: "on a real-scale city map whose zones are painted in cells a flood reads the ground levelled under each building " +
     "and grown plot, at its road's height where its front meets it (src/terrain/groundGrade.ts, GAME_DESIGN 17)",
+  18: "on a map painted a cell at a time the farm zone is painted in 4 m cells laid in rows along the nearest road, " +
+    "kept as 2 m squares, a field counting as much of its tile as its squares cover; the farm brush's tile command " +
+    "paints the road-aligned cells whose middles lie on the tile (NO_GRID_PLAN 3C, GAME_DESIGN 7.5)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

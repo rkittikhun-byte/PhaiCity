@@ -24,7 +24,8 @@ import { tileMetres } from "../units.js";
 import { canalMarkStands, canalsKept, isBridgeTile, isWaterTile, newCanals } from "../canals.js";
 import { readZoneCells, writeZoneCells } from "../zoneCells.js";
 import { PlotBuildings, usesPlotList } from "../plotBuildings.js";
-import { farmCellsKept, farmKindsKept, readFarmCells } from "../farmZone.js";
+import { farmKindsKept } from "../farmZone.js";
+import { farmSquaresKept, readFarmSquares, squaresOfCells } from "../farmGrid.js";
 import { readRoadWear, writeRoadWear } from "../sim/disasterLand.js";
 import { HOUSE_KIND, houseStanding, readHouse } from "../rulerHouse.js";
 import { isEra } from "../era.js";
@@ -116,8 +117,22 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.plotBuildings = saved.plots ? PlotBuildings.fromJSON(saved.plots) : null;
     // ... and the kind of each farm zone field (src/farmZone.ts)
     map.farmKinds = saved.farmKinds ? decodePresetLayer(saved.farmKinds, map.width, map.height) : null;
-    // ... and the cells each painted on part of its tile (docs/NO_GRID_PLAN.md 3C); a field with none is its whole tile
-    map.farmCells = readFarmCells(saved.farmCells, map.width, map.height);
+    // ... and the squares each painted on part of its tile (src/farmGrid.ts); a field with none is its whole tile. A save
+    // from before the road-aligned cells (23 Oct 2026) kept 4 m cells of 4 x 4 a tile: their squares, the same share,
+    // shown through the road-aligned cells once the roads are read (CityCore, showOldFarmCells)
+    map.farmSquares = readFarmSquares(saved.farmSquares, map.width, map.height);
+    map.farmSquaresOld = null;
+    if (!map.farmSquares && saved.farmCells && typeof saved.farmCells === "object") {
+      const old = new Uint16Array(map.width * map.height), tiles: number[] = [];
+      for (const [key, mask] of Object.entries(saved.farmCells as Record<string, unknown>)) {
+        const i = Number(key);
+        if (!Number.isInteger(i) || i < 0 || i >= old.length || !Number.isInteger(mask)) continue;
+        old[i] = (mask as number) & 0xffff;
+        tiles.push(i);
+      }
+      map.farmSquares = squaresOfCells(old, map.width, map.height);
+      map.farmSquaresOld = tiles.length ? tiles : null;
+    }
     // ... and how worn each road is (src/sim/disasterLand.ts)
     map.roadWear = readRoadWear(saved.roadWear);
     // ... and the land the city owns; a city saved before the blocks owns all of it (src/landBlocks.ts)
@@ -266,8 +281,8 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     plots: map.plotBuildings && usesPlotList(map) && map.plotBuildings.size ? map.plotBuildings.toJSON() : undefined,
     // ... and the kinds of its farm zone's fields (src/farmZone.ts)
     farmKinds: encodeFarmKinds(map),
-    // ... and the cells of those painted on part of their tile, by tile (src/farmZone.ts farmCellsKept)
-    farmCells: farmCellsKept(map) ?? undefined,
+    // ... and the squares of those painted on part of their tile, by tile (src/farmGrid.ts farmSquaresKept)
+    farmSquares: farmSquaresKept(map) ?? undefined,
     // ... and how worn its roads are, by segment (src/sim/disasterLand.ts)
     roadWear: writeRoadWear(map.roadWear),
     // ... and the land the city owns (src/landBlocks.ts)

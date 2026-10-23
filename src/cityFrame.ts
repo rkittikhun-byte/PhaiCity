@@ -178,7 +178,7 @@ export function reframeSave(save: Save, from: Frame, to: Frame, fresh: FreshFram
     encodePresetLayer(layer(decoded(save.mining.ground), null, 0)) : save.mining.ground };
   if (save.waste) out.waste = { ...save.waste, fill: movedKeys(save.waste.fill) };
   // Records kept by tile
-  for (const field of ["powerKinds", "mineKinds", "civicKinds", "wasteKinds", "stationKinds", "buildingLevels", "farmCells"]) {
+  for (const field of ["powerKinds", "mineKinds", "civicKinds", "wasteKinds", "stationKinds", "buildingLevels", "farmCells", "farmSquares"]) {
     if (save[field]) out[field] = movedKeys(save[field]);
   }
   // ... the construction sites (src/construction.ts) and the months each school has trained (src/trainedPeople.ts)
