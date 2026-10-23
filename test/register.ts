@@ -69,6 +69,9 @@ describe("the city's register", () => {
     const counted = register.workplaces.filter((w) => ["shop", "factory", "farm", "harbour", "mine", "waste"].includes(w.kind))
       .reduce((n, w) => n + w.jobs, 0);
     expect(Math.abs(counted - (census.comPop + census.indPop) * 160)).toBeLessThanOrEqual(40);
+    // ... and the farm zone's fields' work, a square of fields one workplace (each rounded)
+    const fields = register.workplaces.filter((w) => w.kind === "fields");
+    expect(Math.abs(fields.reduce((n, w) => n + w.jobs, 0) - (census.farmPop ?? 0) * 160)).toBeLessThanOrEqual(fields.length + 40);
   });
 
   test("no household has two people of one name", () => {

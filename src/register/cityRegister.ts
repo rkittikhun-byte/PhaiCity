@@ -26,6 +26,7 @@ import { mapEra } from "../era";
 import { Industrial } from "../industrial.js";
 import { MINE_SPECS, mineKindAt } from "../mining";
 import { FARM_JOBS, HARBOUR_JOBS } from "../farming";
+import { fieldLevelOf, fieldShare, isFieldValue, kindOfCode } from "../farmZone";
 import type { Building } from "../objects/cityObject";
 import { gradeAt, LAND_GRADES, type SatisfactionContext } from "../objects/satisfaction";
 import { plotAccess } from "../plots";
@@ -59,9 +60,8 @@ export interface RegisterInput {
   blockMaps?: Legacy;
   /** The month's schooling (src/services.ts): who is at school */
   services?: ServiceLevels | null;
-  /** The farm zone's fields as the last scan found them (src/farmZone.ts Fields) */
-  fields?: { found: ReadonlyArray<{ index: number; level: number; kind: string; share: number }>;
-    spec: { kinds: Readonly<Record<string, { jobs: number }>> } } | null;
+  /** The farm zone's rules (src/farmZone.ts Fields, its spec): each kind's jobs a level */
+  fields?: { spec: { kinds: Readonly<Record<string, { jobs: number }>> } } | null;
   /** The city's time (48 a year), for how long a home has stood */
   cityTime: number;
   /** What the satisfaction scores read, for how content a household is */
@@ -264,14 +264,18 @@ export class CityRegister {
       if (other) this.addWorkplace({ id: b.id, kind: b.kind, sort: other.sort, x: b.x, y: b.y, level: 1, jobs: other.jobs,
         job: other.job, workers: [] });
     }
-    // ... and the farm zone's fields, a square of them one workplace
-    if (input.fields) {
+    // ... and the farm zone's fields, a square of them one workplace, each field's work as the map scan counts it
+    // (src/farmZone.ts fieldFound), read from the tiles rather than the scan's list, which a cycle under way has only part of
+    if (input.fields && map.farmKinds) {
       const blocks = new Map<number, { jobs: number; kinds: Record<string, number>; x: number; y: number; level: number }>();
       const across = Math.ceil(map.width / FIELD_BLOCK);
-      for (const field of input.fields.found) {
-        const x = field.index % map.width, y = Math.floor(field.index / map.width);
+      for (let i = 0; i < map.width * map.height; i++) {
+        const x = i % map.width, y = (i - x) / map.width, value = map.getTileValue(x, y);
+        if (!isFieldValue(value)) continue;
+        const field = { level: fieldLevelOf(value), kind: kindOfCode(map.farmKinds[i]) };
+        if (field.level <= 0 || !field.kind) continue;
         const b = Math.floor(y / FIELD_BLOCK) * across + Math.floor(x / FIELD_BLOCK);
-        const jobs = field.level * (input.fields.spec.kinds[field.kind]?.jobs ?? 0) * field.share * JOBS_A_UNIT;
+        const jobs = field.level * (input.fields.spec.kinds[field.kind]?.jobs ?? 0) * fieldShare(map, i) * JOBS_A_UNIT;
         const block = blocks.get(b) ?? { jobs: 0, kinds: {}, x, y, level: 0 };
         block.jobs += jobs;
         block.kinds[field.kind] = (block.kinds[field.kind] ?? 0) + jobs;
