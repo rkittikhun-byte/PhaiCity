@@ -16,8 +16,9 @@ export const SUN_HOURS: ReadonlyArray<readonly [number, number]> = [
   [6 + 9 / 60, 18 + 17 / 60], [6 + 13 / 60, 17 + 56 / 60], [6 + 22 / 60, 17 + 42 / 60], [6 + 36 / 60, 17 + 46 / 60],
 ];
 
-/** Real seconds a whole day takes at each speed (1 slow, 2 normal, 3 fast): 4, 3 and 2 minutes */
-export const DAY_SECONDS: Readonly<Record<number, number>> = { 1: 240, 2: 180, 3: 120 };
+/** Real seconds a whole day takes at each speed (1 slow, 2 normal, 3 fast): 8, 6 and 4 minutes (owner, 23 Oct 2026:
+ * "ช่วงสลับ กลางวัน กลางคืน ... มันเร็วไป"; it was 4, 3 and 2) */
+export const DAY_SECONDS: Readonly<Record<number, number>> = { 1: 480, 2: 360, 3: 240 };
 /** The night goes this many times as fast as the day */
 export const NIGHT_PACE = 2;
 /** A new city's first morning */

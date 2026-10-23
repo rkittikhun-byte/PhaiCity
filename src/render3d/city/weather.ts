@@ -30,12 +30,13 @@ export interface WeatherLook {
 /** A clear day: how a city looks before its weather is read */
 export const CLEAR_LOOK: Readonly<WeatherLook> = { cloud: 0.15, storm: 0, rain: 0, fog: 0, smoke: 0, wet: 0, flash: 0 };
 
-/** How fast each part follows the month's weather, a share a second */
-const EASE = { cloud: 0.9, rain: 1.2, fog: 0.5, smoke: 0.4, storm: 0.8 };
+/** How fast each part follows the month's weather, a share a second: about 20 s for the clouds to gather and the rain to
+ * set in or stop, about half a minute for fog (owner, 23 Oct 2026: "ฝนตก มีหมอก มันเร็วไป"; it was 3 to 6 s) */
+const EASE = { cloud: 0.15, rain: 0.2, fog: 0.1, smoke: 0.08, storm: 0.15 };
 /** The rain falls once the clouds have gathered to this share of the month's cover */
 const RAIN_WAITS_FOR = 0.85;
 /** How fast the ground gets wet in a downpour, and dries after it, a share a second */
-const WETTING = 0.35, DRYING = 0.05;
+const WETTING = 0.35, DRYING = 0.02;
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 

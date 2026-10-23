@@ -23,15 +23,15 @@ describe('3D weather', () => {
     run(look, storm, 0.5);
     expect(look.cloud).toBeGreaterThan(CLEAR_LOOK.cloud);
     expect(look.rain).toBe(0);
-    run(look, storm, 5);
+    run(look, storm, 30);
     expect(look.cloud).toBeGreaterThan(0.95);
     expect(look.rain).toBeGreaterThan(0.7);
     expect(look.storm).toBeGreaterThan(0.9);
     expect(look.wet).toBeGreaterThan(0.5);
-    run(look, sunny, 4);
+    run(look, sunny, 24);
     expect(look.rain).toBeLessThan(0.05);
     expect(look.wet).toBeGreaterThan(0.3);
-    run(look, sunny, 30);
+    run(look, sunny, 90);
     expect(look.wet).toBe(0);
   });
 
