@@ -57,6 +57,7 @@ export const TOOL_ICONS = [
   ['ruler_house_policies', 'นโยบาย', 'Policies', '#c9a227'],
   ['waterworks', 'โรงผลิตน้ำประปา', 'Water works', 'deepskyblue'],
   ['watertower', 'หอถังสูง', 'Water tower', 'lightskyblue'],
+  ['department_store', 'ห้างสรรพสินค้า', 'Department store', 'orchid'],
   ['kindergarten', 'โรงเรียนอนุบาล', 'Kindergarten', '#e07b39'],
   ['primary_school', 'โรงเรียนประถม', 'Primary school', '#e07b39'],
   ['secondary_school', 'โรงเรียนมัธยม', 'Secondary school', '#e07b39'],
