@@ -9,6 +9,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { BoxGeometry, BufferAttribute, Group, Matrix4, Mesh, Vector3 } from 'three';
+import { CityBuses } from '../../src/render3d/city/buses.js';
 import { EraVehicles } from '../../src/render3d/city/eraVehicles.js';
 import type { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { hourShare, MAX_TRIP_CARS, outShare, TripCars } from '../../src/render3d/city/tripCars.js';
@@ -90,8 +91,62 @@ describe('the cars of the real trips', () => {
     const { map } = town(300), cars = new TripCars(map, flat, 'northeast', U, U);
     cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
     const rush = cars.drawn;
-    cars.update(new Vector3(500, 0, 250), 300, 100, 3);
+    const night = new TripCars(town(300).map, flat, 'northeast', U, U);
+    night.update(new Vector3(500, 0, 250), 300, 100, 3);
+    expect(night.drawn).toBeLessThan(rush / 2);
+    // ... and the cars of the rush hour go home and are not sent again in the night
+    for (let t = 0; t < 600; t += 0.25) cars.update(new Vector3(500, 0, 250), 300, 100 + t, 3);
     expect(cars.drawn).toBeLessThan(rush / 2);
+  });
+
+  test('the cars drive as traffic: each faces the way it moves, only forward, and none drives into the one ahead', () => {
+    const { map } = town(600), cars = new TripCars(map, flat, 'northeast', U, U);
+    const traffic = cars.traffic, pose = { x: 0, z: 0, dx: 0, dz: 0 };
+    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
+    const seen = new Map<number, { x: number; z: number; s: number }>();
+    let moved = 0;
+    for (let t = 0.1; t < 60; t += 0.1) {
+      cars.update(new Vector3(500, 0, 250), 300, 100 + t, 7.5);
+      // in each lane of each road, the cars in order along it, none overlapping the next
+      const lanes = new Map<string, Array<{ u: number; half: number; x: number; z: number }>>();
+      for (const car of traffic.cars) {
+        traffic.pose(car, pose);
+        const last = seen.get(car.id);
+        if (last) {
+          expect(car.s).toBeGreaterThanOrEqual(last.s - 1e-9);
+          const mx = pose.x - last.x, mz = pose.z - last.z;
+          if (Math.hypot(mx, mz) > 1e-3) { expect(mx * pose.dx + mz * pose.dz).toBeGreaterThan(0); moved++; }
+        }
+        seen.set(car.id, { x: pose.x, z: pose.z, s: car.s });
+        const p = car.path.pieces[car.piece];
+        if (Math.abs(car.shift - car.lane) > 1e-3) continue;
+        const key = `${p.segment}:${p.up !== car.rev}:${car.lane}`;
+        const u = (traffic as unknown as { u(c: unknown, p: unknown): number }).u(car, p);
+        let list = lanes.get(key);
+        if (!list) lanes.set(key, list = []);
+        list.push({ u, half: car.length / 2, x: pose.x, z: pose.z });
+      }
+      // the cars next to each other in a lane, measured where they are drawn: never closer than their half lengths
+      for (const list of lanes.values()) {
+        list.sort((a, b) => a.u - b.u);
+        for (let i = 1; i < list.length; i++) {
+          expect(Math.hypot(list[i].x - list[i - 1].x, list[i].z - list[i - 1].z)).toBeGreaterThan((list[i].half + list[i - 1].half) * 0.97);
+        }
+      }
+    }
+    expect(moved).toBeGreaterThan(100);
+  });
+
+  test('a new month\'s trips leave the cars on the road where they are: they drive on to the ends of their trips', () => {
+    const { map } = town(300), cars = new TripCars(map, flat, 'northeast', U, U);
+    for (let t = 0; t < 5; t += 0.1) cars.update(new Vector3(500, 0, 250), 300, 100 + t, 7.5);
+    const before = new Map(cars.traffic.cars.map(c => [c.id, c.s]));
+    expect(before.size).toBeGreaterThan(3);
+    (map as { trips: unknown }).trips = { ...map.trips };
+    cars.update(new Vector3(500, 0, 250), 300, 105.1, 7.5);
+    const still = cars.traffic.cars.filter(c => before.has(c.id));
+    expect(still.length).toBeGreaterThanOrEqual(before.size - 1);
+    for (const c of still) expect(c.s).toBeGreaterThanOrEqual(before.get(c.id)!);
   });
 
   test('a road no trip takes, a town with no trips, or a camera far away: no cars', () => {
@@ -105,6 +160,31 @@ describe('the cars of the real trips', () => {
     for (const id of [...busy.graph.segments.keys()]) busy.graph.remove(id);
     far.update(new Vector3(500, 0, 250), 300, 100, 7.5);
     expect(far.drawn).toBe(0);
+  });
+});
+
+describe('the buses in the traffic', () => {
+  test('a bus is a car of the traffic: it drives its way to the town\'s middle facing forward, and the cars queue behind it', () => {
+    const { map } = town(600);
+    const busMap = { ...map, buses: [25 * 200 + 6], rulerHouse: { x: 93, y: 25 } };
+    const cars = new TripCars(busMap, flat, 'northeast', U, U), buses = new CityBuses(busMap, flat, U);
+    let last: Vector3 | null = null, moved = 0, back = 0, inTraffic = 0;
+    for (let t = 0; t < 90; t += 0.1) {
+      buses.traffic = cars.traffic;
+      buses.update([], 100 + t);
+      cars.update(new Vector3(500, 0, 250), 300, 100 + t, 7.5);
+      const bus = buses.root.children[0];
+      if (cars.traffic.cars.some(c => c.tag < 0)) inTraffic++;
+      if (last && bus.visible) {
+        const mx = bus.position.x - last.x, mz = bus.position.z - last.z;
+        if (Math.hypot(mx, mz) > 1e-3) { moved++; if (mx * Math.sin(bus.rotation.y) + mz * Math.cos(bus.rotation.y) <= 0) back++; }
+      }
+      last = bus.position.clone();
+    }
+    expect(inTraffic).toBeGreaterThan(500);
+    expect(moved).toBeGreaterThan(100);
+    expect(back).toBe(0);
+    buses.dispose();
   });
 });
 
@@ -144,9 +224,12 @@ describe('the trip cars of the city\'s era', () => {
     for (const id of ids) expect(id.startsWith('era1/')).toBe(true);
     // the procedural cars are put away
     expect(carsOf(cars).length).toBe(0);
-    cars.nextShare = () => 1;
-    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
-    expect(drawnIds(cars).some(id => id.startsWith('era2/'))).toBe(true);
+    const next = new TripCars(town(300).map, flat, 'northeast', U, U);
+    next.vehicles = vehicles;
+    next.era = () => 1;
+    next.nextShare = () => 1;
+    next.update(new Vector3(500, 0, 250), 300, 100, 7.5);
+    expect(drawnIds(next).some(id => id.startsWith('era2/'))).toBe(true);
   });
 
   test('the future\'s flying taxis fly over their routes', async () => {
@@ -154,11 +237,12 @@ describe('the trip cars of the city\'s era', () => {
     const { map } = town(600), cars = new TripCars(map, flat, 'central', U, U);
     cars.vehicles = vehicles;
     cars.era = () => 5;
-    cars.update(new Vector3(500, 0, 250), 300, 100, 7.5);
-    const pool = (cars as any).pool, draw = pool.draws.get('era5/flying_taxi');
-    expect(draw.levels[0].count).toBeGreaterThan(0);
+    const pool = () => (cars as any).pool, draw = () => pool()?.draws.get('era5/flying_taxi');
+    // (a minute of traffic, enough for a few of them to be sent)
+    for (let t = 0; t < 60 && !(draw()?.levels[0].count > 0); t += 0.1) cars.update(new Vector3(500, 0, 250), 300, 100 + t, 7.5);
+    expect(draw().levels[0].count).toBeGreaterThan(0);
     const m = new Matrix4(), p = new Vector3();
-    draw.levels[0].parts[0].mesh.getMatrixAt(0, m); p.setFromMatrixPosition(m);
+    draw().levels[0].parts[0].mesh.getMatrixAt(0, m); p.setFromMatrixPosition(m);
     expect(p.y).toBeGreaterThan(index.vehicles['era5/flying_taxi'].fly * U * 0.8);
   });
 });

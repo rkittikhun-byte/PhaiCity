@@ -222,7 +222,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
 - **Era vehicles (owner, 22 Oct 2026):** everything that drives the roads in the look of the city's era and region, from
   ox carts to flying taxis, built in Blender in `art/vehicles/` (31 vehicles, real metres; `README.md`, `IMPORT.md`),
   exported to `assets/models/vehicles/` and drawn instanced by `src/render3d/city/eraVehicles.ts` for the trip cars,
-  the wandering cars and the transit buses (the era's mix by shares, the next era's few while buildings turn).
+  the wandering cars and the transit buses (the era's mix by shares, the next era's few while buildings turn). Since
+  23 Oct 2026 the trip cars and buses drive as traffic (`src/render3d/city/laneTraffic.ts`: a gap behind the car ahead,
+  passing in a free lane, a turn at junctions), every vehicle and person faces the way it goes, and wheels, cranks,
+  draught animals' and riders' legs move by the distance travelled (art/vehicles/IMPORT.md).
 - **Province maps:** `index.html?province=TH-xx` starts a city from `data/maps/TH-xx.json`
   through `MapGenerator.fromPresetCells` (`src/mapGenerator.js`) and `src/geo/presetMap.ts`.
   **The whole province, scaled down (owner, 12 Oct 2026):** about 30,000 tiles in the province, at most 304 a side

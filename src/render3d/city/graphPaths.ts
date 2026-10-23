@@ -11,8 +11,9 @@ import { roadNet } from '../../sim/roadNetwork.js';
 
 export type WayPoint = [number, number];
 
-/** A way: its points (world units) and the distance from its start to each */
-export interface Way { points: WayPoint[]; along: Float64Array; length: number }
+/** A way: its points (world units) and the distance from its start to each; the segments it goes through in order
+ * (graph ids) and where on the first it starts and on the last it ends (t), for the traffic (tripCars.ts lanePathOf) */
+export interface Way { points: WayPoint[]; along: Float64Array; length: number; segments?: number[]; fromT?: number; toT?: number }
 
 /** A way through the segments given in order, from a point on the first (t) to a point on the last (t), in world units */
 function wayOf(graph: RoadGraph, segments: number[], fromT: number, toT: number, units: number): Way | null {
@@ -37,7 +38,7 @@ function wayOf(graph: RoadGraph, segments: number[], fromT: number, toT: number,
   if (points.length < 2) return null;
   const along = new Float64Array(points.length);
   for (let i = 1; i < points.length; i++) along[i] = along[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
-  return along[points.length - 1] > 0 ? { points, along, length: along[points.length - 1] } : null;
+  return along[points.length - 1] > 0 ? { points, along, length: along[points.length - 1], segments, fromT, toT } : null;
 }
 
 /** The quickest way by length from each node of a graph's arrays out of some starts, and the segment each was reached by */

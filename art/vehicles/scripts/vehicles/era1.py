@@ -11,7 +11,7 @@ from mathutils import Vector
 
 import vlib
 from lib import kit
-from lib.mesh import R, S, T
+from lib.mesh import Part, R, S, T
 
 from . import registry
 
@@ -61,7 +61,7 @@ def draught_cart(v, kind):
     neck_z = (1.38 if big else 1.3) - 0.2
     p.rod((0, yy(y0) + 0.8, z - 0.12), (0, yy(shoulder) - 0.12, neck_z), 0.06, 'teak_dark', seg=6)
     vlib.yoke(p, yy(shoulder) - 0.1, neck_z + 0.08, w=1.0 if big else 0.9)
-    vlib.animal(p, yy(shoulder), 'buffalo' if big else 'ox')
+    vlib.animal(v, yy(shoulder), 'buffalo' if big else 'ox')
     # the rope from the animal's nose to the driver's hands
     p.polyline([Vector((0, yy(shoulder) - 0.9, neck_z - 0.15)), Vector((0.05, yy(y0) - 0.6, z + 0.25)),
                 Vector((0.1, yy(y0) + 0.05, z + 0.55))], 0.01, 'rope', seg=3, joints=False)
@@ -124,12 +124,8 @@ def bicycle_frame(p, paint, wb=1.1, wr=0.34, basket=True, rack=True):
     p.box((0.16, 0.26, 0.06), 'v_seat', T(0, 0.31, 0.92), bevel=0.02)
     for s in (-1, 1):
         p.cyl(0.02, 0.02, 0.06, 'v_chrome', T(s * 0.05, 0.38, 0.87), seg=5)
-    p.cyl(0.1, 0.1, 0.02, 'v_chrome', T(0.06, bb.y, bb.z) @ R(0, 90, 0), seg=12)
     for s in (-1, 1):
         p.box((0.01, wb / 2 - 0.05, 0.015), 'v_trim', T(0.07, (bb.y + ry) / 2, wr + s * 0.05 - 0.02))
-        crank = Vector((s * 0.1, bb.y + s * 0.12, bb.z - s * 0.08))
-        p.rod(Vector((s * 0.08, bb.y, bb.z)), crank, 0.012, 'v_chrome', seg=4)
-        p.box((0.1, 0.06, 0.025), 'v_rubber', T(crank.x + s * 0.05, crank.y, crank.z))
     if basket:
         c = Vector((0, fy - 0.06, 0.98))
         p.box((0.34, 0.26, 0.02), 'v_chrome', T(c.x, c.y, c.z - 0.12))
@@ -151,13 +147,30 @@ def bicycle_frame(p, paint, wb=1.1, wr=0.34, basket=True, rack=True):
     return p
 
 
+def crank_part(p_name='crank'):
+    """A bicycle's chain ring, cranks and pedals, round the bottom bracket (the origin), axle along X."""
+    c = Part(p_name)
+    c.cyl(0.1, 0.1, 0.02, 'v_chrome', T(0.06, 0, 0) @ R(0, 90, 0), seg=12)
+    for s in (-1, 1):
+        crank = Vector((s * 0.1, s * 0.12, -s * 0.08))
+        c.rod(Vector((s * 0.08, 0, 0)), crank, 0.012, 'v_chrome', seg=4)
+        c.box((0.1, 0.06, 0.025), 'v_rubber', T(crank.x + s * 0.05, crank.y, crank.z))
+    return c
+
+
+# A crank turns once for 2.4 turns of the wheel (a roadster's gear): its radius for the turning is the wheel's x 2.4
+GEAR = 2.4
+
+
 @vehicle('bicycle', 'จักรยาน', 'Bicycle', cls='small', paints=('v_navy', 'v_maroon', 'v_green_dark', 'iron'), slow=0.45)
 def bicycle(v):
     p = v.body
     bicycle_frame(p, 'v_navy')
-    # a villager riding, a straw hat, a bunch of bananas in the basket
+    # a villager riding and pedalling, a straw hat, a bunch of bananas in the basket
     vlib.figure(p, (0, 0.31, 0.99), [(-0.27, -0.27, 1.07), (0.27, -0.27, 1.07)],
-                [(-0.14, 0.18, 0.24), (0.14, -0.06, 0.4)], shirt='v_mohom', pants='v_pants', head='hat', lean=22)
+                [(-0.14, 0.18, 0.24), (0.14, -0.06, 0.4)], shirt='v_mohom', pants='v_pants', head='hat', lean=22,
+                pedal=(v, 0.34 * GEAR))
+    v.wheel(crank_part(), 0.34 * GEAR, [(0, 0.06, 0.3)])
     for k in range(3):
         p.cyl(0.03, 0.025, 0.2, 'banana_fruit', T(-0.06 + k * 0.06, -0.61, 1.0) @ R(15, 0, k * 10), seg=5)
     v.wheel(vlib.spoke_wheel(0.34, 0.04, 12), 0.34, [(0, -0.55, 0.34), (0, 0.55, 0.34)])
@@ -189,6 +202,6 @@ def hand_cart(v):
         p.sphere(0.07, 'rambutan' if k % 2 else 'banana_fruit', T(0.1 + (k % 3) * 0.09, 0.2 + (k // 3) * 0.12, z + 0.3),
                  seg=6, rings=4)
     vlib.sacks(p, 0.2, 0.85, z + 0.02, n=2, size=0.36)
-    # the man between the shafts, pulling
-    vlib.walker(p, (0, -1.35, 0), 0.0, hands_z=0.9, shirt='v_shirt', pants='v_mohom', head='hat')
+    # the man between the shafts, pulling, walking
+    vlib.walker(p, (0, -1.35, 0), 0.0, hands_z=0.9, shirt='v_shirt', pants='v_mohom', head='hat', v=v)
     v.wheel(vlib.cart_wheel(wr, 0.08, 10), wr, [(s * (w / 2 + 0.12), 0.75, wr) for s in (-1, 1)])

@@ -71,8 +71,17 @@ class V:
         self.wheels = []
 
     def wheel(self, part, radius, at, axis='x'):
-        """A set of wheels (or rotors, axis 'z') of one kind: the part made at the origin, and where each one is."""
-        self.wheels.append({'part': part, 'radius': radius, 'axis': axis, 'at': [tuple(a) for a in at]})
+        """A set of wheels (or rotors, axis 'z') of one kind: the part made at the origin, and where each one is. A
+        wheel turns by the distance driven over its radius (a crank's radius is the wheel's times its gear)."""
+        self.wheels.append({'part': part, 'radius': radius, 'axis': axis, 'motion': 'spin',
+                            'at': [tuple(a) for a in at]})
+        return self
+
+    def swing(self, part, at, amplitude, phases, stride, axis='x'):
+        """A set of parts that swing to and fro about their pivot (legs): the part made with its pivot at the origin,
+        each one's pivot, the swing either way (radians), each one's phase (radians) and the distance (m) a cycle."""
+        self.wheels.append({'part': part, 'radius': 0.0, 'axis': axis, 'motion': 'swing', 'amplitude': amplitude,
+                            'phase': list(phases), 'stride': stride, 'at': [tuple(a) for a in at]})
         return self
 
 
@@ -247,9 +256,11 @@ def _limb(p, a, b, r, mat, r_end=None):
 
 
 def figure(p, hip, hands, feet, shirt='v_shirt', pants='v_pants', head='hat', lean=12.0, skin='v_skin',
-           torso_h=0.55, vest=None, hat_mat=None, sarong=False):
+           torso_h=0.55, vest=None, hat_mat=None, sarong=False, pedal=None):
     """A seated person (a rider, a driver): hips at hip (x, y, z), hands at hands [(x, y, z) x2], feet at feet
-    [(x, y, z) x2]. head: 'hat' a straw hat (งอบ), 'helmet', 'cap', 'bare' or 'scarf'. Low poly, real size (1.6 m)."""
+    [(x, y, z) x2]. head: 'hat' a straw hat (งอบ), 'helmet', 'cap', 'bare' or 'scarf'. Low poly, real size (1.6 m).
+    pedal=(v, crank_radius): the legs pedal, a part of their own swinging at the hips in turn, a cycle a turn of the
+    crank (the distance 2π x crank_radius), the feet's rest the middle of the two given."""
     hx, hy, hz = hip
     tilt = math.radians(lean)
     top = Vector((hx, hy - math.sin(tilt) * torso_h, hz + math.cos(tilt) * torso_h))
@@ -286,6 +297,19 @@ def figure(p, hip, hands, feet, shirt='v_shirt', pants='v_pants', head='hat', le
         el = sh.lerp(hand, 0.5) + Vector((s * 0.06, 0.04, -0.1))
         _limb(p, sh, el, 0.055, shirt)
         _limb(p, el, hand, 0.045, skin)
+    if pedal:
+        v, crank = pedal
+        foot = (Vector(feet[0]) + Vector(feet[1])) / 2
+        legs = Part('legs')
+        h0 = Vector((0, 0, 0))
+        f = foot - Vector((hx, hy, hz))
+        f.x = 0
+        knee = Vector((0, min(0.0, f.y) - 0.2, max(0.0, f.z) + 0.1))
+        _limb(legs, h0, knee, 0.075, 'v_sarong' if sarong else pants)
+        _limb(legs, knee, f + Vector((0, 0, 0.05)), 0.06, 'v_sarong' if sarong else pants, r_end=0.05)
+        legs.box((0.09, 0.22, 0.07), 'v_rubber', T(f.x, f.y - 0.05, f.z + 0.02))
+        v.swing(legs, [(hx - 0.1, hy, hz), (hx + 0.1, hy, hz)], 0.32, (0.0, math.pi), 2 * math.pi * crank)
+        return p
     # legs from the hips to the feet, the knees forward and up
     for s, foot in zip((-1, 1), feet):
         h0 = Vector((hx + s * 0.1, hy, hz))
@@ -299,8 +323,9 @@ def figure(p, hip, hands, feet, shirt='v_shirt', pants='v_pants', head='hat', le
     return p
 
 
-def walker(p, at, facing=0.0, hands_z=0.85, shirt='v_mohom', pants='v_pants', head='hat', stride=0.35):
-    """A standing person mid-stride (pulling a hand cart, leading a buffalo), facing -Y turned by facing degrees."""
+def walker(p, at, facing=0.0, hands_z=0.85, shirt='v_mohom', pants='v_pants', head='hat', stride=0.35, v=None):
+    """A standing person mid-stride (pulling a hand cart, leading a buffalo), facing -Y turned by facing degrees.
+    With v, the legs walk: a part of their own swinging at the hips in turn, a cycle every 1.1 m."""
     m = T(*at) @ R(0, 0, facing)
     hip = m @ Vector((0, 0, 0.88))
     top = m @ Vector((0, -0.04, 1.42))
@@ -319,20 +344,31 @@ def walker(p, at, facing=0.0, hands_z=0.85, shirt='v_mohom', pants='v_pants', he
         el = sh.lerp(hand, 0.5) + Vector((0, 0, -0.05))
         _limb(p, sh, el, 0.055, shirt)
         _limb(p, el, hand, 0.045, 'v_skin')
+        if v is not None:
+            continue
         h0 = m @ Vector((s * 0.1, 0, 0.86))
         foot = m @ Vector((s * 0.12, -s * stride, 0.0))
         knee = h0.lerp(foot, 0.5) + (m.to_3x3() @ Vector((0, -0.06, 0.02)))
         _limb(p, h0, knee, 0.075, pants)
         _limb(p, knee, foot + Vector((0, 0, 0.06)), 0.06, pants, r_end=0.05)
         p.box((0.09, 0.22, 0.07), 'v_rubber', T(*(foot + Vector((0, 0, 0.03)))) @ R(0, 0, facing))
+    if v is not None:
+        legs = Part('legs')
+        knee = Vector((0, -0.04, -0.44))
+        _limb(legs, Vector((0, 0, 0)), knee, 0.075, pants)
+        _limb(legs, knee, Vector((0, 0, -0.8)), 0.06, pants, r_end=0.05)
+        legs.box((0.09, 0.22, 0.07), 'v_rubber', T(0, -0.05, -0.83))
+        v.swing(legs, [tuple(m @ Vector((s * 0.1, 0, 0.86))) for s in (-1, 1)], 0.42, (0.0, math.pi), 1.1)
     return p
 
 
 # draught animals ------------------------------------------------------------------------------------------------------
 
-def animal(p, y, kind='buffalo', x=0.0, stride=1):
+def animal(v, y, kind='buffalo', x=0.0):
     """A buffalo (ควาย, dark, swept-back horns) or a zebu ox (วัว, tan, a hump and short upward horns), walking toward
-    -Y, its shoulders at y. Real size: a buffalo 2.5 m long and 1.4 m at the shoulder, an ox 2.2 m and 1.3 m."""
+    -Y, its shoulders at y. Real size: a buffalo 2.5 m long and 1.4 m at the shoulder, an ox 2.2 m and 1.3 m. Its legs
+    are a part of their own that walks, swinging at the shoulders and hips, the diagonal pairs together."""
+    p = v.body
     big = kind == 'buffalo'
     hide, dark = ('v_buffalo', 'v_buffalo_dark') if big else ('v_ox', 'v_ox_dark')
     L, H = (2.5, 1.38) if big else (2.2, 1.3)
@@ -360,15 +396,16 @@ def animal(p, y, kind='buffalo', x=0.0, stride=1):
             p.polyline([base, base + Vector((s * 0.26, -0.02, 0.05)), tip], 0.05, 'v_horn', seg=5)
         else:
             p.rod(base, base + Vector((s * 0.12, -0.02, 0.22)), 0.04, 'v_horn', seg=5, r_end=0.015)
-    # legs mid-stride
-    for i, (ly, s) in enumerate(((y + 0.05, -1), (y + 0.05, 1), (yc + L * 0.32, -1), (yc + L * 0.32, 1))):
-        swing = 0.16 * (1 if (i in (0, 3)) == (stride > 0) else -1)
-        top = Vector((x + s * 0.2, ly, zb - 0.15))
-        knee = Vector((x + s * 0.2, ly - swing * 0.6, zb * 0.45))
-        foot = Vector((x + s * 0.2, ly - swing, 0.06))
-        p.rod(top, knee, 0.11 if big else 0.09, hide, seg=6, r_end=0.07)
-        p.rod(knee, foot, 0.07, hide, seg=6, r_end=0.055)
-        p.cyl(0.07, 0.065, 0.1, 'v_hoof', T(*foot) @ T(0, 0, -0.01), seg=6)
+    # one leg, its pivot at the top, set at each shoulder and hip; it walks a cycle every 1.4 m (a buffalo's pace)
+    legs = Part('legs')
+    top_z = zb - 0.15
+    knee = Vector((0, 0.04, -(top_z - zb * 0.45)))
+    foot = Vector((0, 0, -(top_z - 0.06)))
+    legs.rod((0, 0, 0.05), knee, 0.11 if big else 0.09, hide, seg=6, r_end=0.07)
+    legs.rod(knee, foot, 0.07, hide, seg=6, r_end=0.055)
+    legs.cyl(0.07, 0.065, 0.1, 'v_hoof', T(*foot) @ T(0, 0, -0.01), seg=6)
+    at = [(x + s * 0.2, ly, top_z) for ly, s in ((y + 0.05, -1), (y + 0.05, 1), (yc + L * 0.32, -1), (yc + L * 0.32, 1))]
+    v.swing(legs, at, 0.38, (0.0, math.pi, math.pi, 0.0), 1.4)
     # tail
     tail0 = Vector((x, yc + L * 0.42, zb + 0.15))
     p.polyline([tail0, tail0 + Vector((0, 0.12, -0.35)), tail0 + Vector((0.03, 0.1, -0.75))], 0.025, dark, seg=4)

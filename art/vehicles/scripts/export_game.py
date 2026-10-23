@@ -48,8 +48,14 @@ def base_name(mat):
     return mat.name[3:].split('.')[0] if mat and mat.name.startswith('pb_') else (mat.name if mat else '')
 
 
-def bake(objs, root, paint, ratio=1.0, origin=False):
-    """New mesh objects body / paint / lights from objs, in the root's space (or each object's own, origin=True)."""
+# Colours whose place tells which way a vehicle faces (the game's front is +Z): headlamps ahead of tail lights, the
+# draught animal, the straw hat of the man pulling a hand cart (test/render3d/eraVehicles.test.ts)
+MARKERS = ('lamp', 'red_light', 'v_buffalo', 'v_ox', 'v_hat', 'v_neon')
+
+
+def bake(objs, root, paint, ratio=1.0, origin=False, markers=None):
+    """New mesh objects body / paint / lights from objs, in the root's space (or each object's own, origin=True);
+    markers, a dict, gathers the mean glTF z of the MARKERS colours."""
     groups = {'body': bmesh.new(), 'paint': bmesh.new(), 'lights': bmesh.new()}
     layers = {k: bm.loops.layers.float_color.new('Col') for k, bm in groups.items()}
     inv = root.matrix_world.inverted()
@@ -73,6 +79,11 @@ def bake(objs, root, paint, ratio=1.0, origin=False):
             if mat is not None and mat.name == palette.OUTLINE:
                 continue
             name = base_name(mat)
+            if markers is not None and name in MARKERS:
+                c = face.calc_center_median()
+                m = markers.setdefault(name, [0.0, 0])
+                m[0] += -c.y
+                m[1] += 1
             group = 'lights' if name in vlib.LIGHT_COLOURS else ('paint' if name == paint else 'body')
             col = (1.0, 1.0, 1.0, 1.0) if group == 'paint' else colour_of(mat)
             bm = groups[group]
@@ -131,7 +142,8 @@ def export_era(era, index):
         body = [o for o in root.children if o.type == 'MESH' and o.name.startswith('body.')]
         count = sum(tris(o) for o in body)
         ratio = min(1.0, max(0.4, GAME_BUDGET[cls] / count)) if count else 1.0
-        made = bake(body, root, paint, ratio)
+        found = {}
+        made = bake(body, root, paint, ratio, markers=found)
         wheels = json.loads(root['phaicity_wheels'])
         for i, w in enumerate(wheels):
             first = next(o for o in root.children if o.name.startswith('wheel%d.' % i) and o.name.endswith('.0'))
@@ -164,7 +176,7 @@ def export_era(era, index):
             'era': int(era[3:]), 'kind': kind, 'th': root['phaicity_label_th'], 'en': root['phaicity_label_en'],
             'class': cls, 'length': size[1], 'width': size[0], 'height': size[2], 'triangles': body_tris,
             'paints': [srgb_hex(p) for p in paints], 'slow': root['phaicity_slow'], 'fly': root['phaicity_fly'],
-            'wheels': wheels,
+            'wheels': wheels, 'markers': {k: round(v[0] / v[1], 2) for k, v in found.items() if v[1]},
         }
         for o in made.values():
             bpy.data.objects.remove(o)

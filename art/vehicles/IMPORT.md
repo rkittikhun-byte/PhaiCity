@@ -37,8 +37,29 @@ Owner (22 Oct 2026): "รถที่มาวิ่ง ... ให้วิ่�
 - **Tests:** `test/render3d/eraVehicles.test.ts` (mixes, regions, transition, budgets, sizes, the pool) and the era
   cases in `test/render3d/tripCars.test.ts`.
 
+## Moving parts and traffic (23 Oct 2026, ไม้ไผ่38)
+
+Owner (23 Oct 2026): "คนและรถที่มาวิ่งในโปรแกรม มันควรจะมี direction เดินไปข้างหน้าเท่านั้น และรถไม่ควรจะซ้อนกันคันกัน ...
+เกวียน วัวเทียมเกวียน ขาไม่ขยับ ล้อก็ไม่หมุน ไปได้ยังไง".
+
+- **Moving parts** (`vlib.V.wheel` turns, `vlib.V.swing` swings): wheels, the bicycle's and samlor's cranks (radius =
+  wheel x gear 2.4, so the crank turns slower than the wheel), the etan's flywheel, drone rotors (axis z, by time); the
+  buffalo's and ox's legs (pivot at the shoulder or hip, the diagonal pairs together, 1.4 m a cycle), the hand-cart
+  puller's legs (1.1 m a cycle) and the cyclists' pedalling legs (a cycle a crank turn). Each set is one mesh at its
+  pivot; the index gives `motion` (`spin` or `swing`), `radius`, or `amplitude`, `phase` (one a position) and `stride`.
+  The game turns them by the distance driven (`eraVehicles.ts moverAngle`), so a standing vehicle stands still.
+- **Front markers:** the index's `markers` give the mean glTF z of the headlamps, tail lights, the animal, the puller's
+  hat and the flying taxi's light strip; `test/render3d/eraVehicles.test.ts` checks every vehicle's front is +Z.
+- **Traffic** (`src/render3d/city/laneTraffic.ts`): the trip cars and the transit buses drive as cars of one traffic:
+  each keeps a gap behind the car ahead in its lane and slows to its speed (the intelligent driver model), changes to a
+  free lane to pass where the road has two a way, and waits its turn at a junction of three roads or more (one road at
+  a time; a car waiting more than 8 s goes). Cars are bucketed by segment, way and lane: no pair is compared across the
+  town. The month's trips still set how many cars and how fast each road goes; `tripCars.ts lanePathOf` makes a way.
+  The wandering cars of a map with no trips keep one pace a lane, evenly spaced (`pedestrians.ts CityRoadTraffic`).
+- **People** (`pedestrians.ts`): commuters walk out and back at 1.1 m/s facing the way they go (they walked home
+  backwards before), joggers at 2.4 m/s, every step cycle from the distance walked (`WALK_STRIDE_M`, `JOG_STRIDE_M`).
+
 ## Next
 
-- Animals walk with still legs; the buffalo and the riders could take a walk or pedal cycle.
 - The rail vehicles of the sheets (steam engine, elevated train, maglev) for `railTrains.ts`, and the boats for the
   canals and rivers.

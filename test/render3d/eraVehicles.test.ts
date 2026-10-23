@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { BoxGeometry, BufferAttribute, Group, Matrix4, Mesh, Vector3 } from 'three';
 import {
-  ERA_MIX, EraVehicles, nextEraShare, paintFor, pickVehicle, REGION_MIX, transitVehicle, VEHICLE_BUDGET, type VehicleEntry,
+  animateObject, ERA_MIX, EraVehicles, moverAngle, nextEraShare, paintFor, pickVehicle, REGION_MIX, transitVehicle, VEHICLE_BUDGET, type VehicleEntry,
   type VehicleIndex, vehicleMix, vehicleModel, VehiclePool, WHEELS_BUDGET,
 } from '../../src/render3d/city/eraVehicles.js';
 import { REGIONS } from '../../src/render3d/regional/types.js';
@@ -130,6 +130,69 @@ describe('the exported vehicles', () => {
   });
 });
 
+describe('every vehicle faces the way it drives and moves what should move', () => {
+  type Markers = Partial<Record<'lamp' | 'red_light' | 'v_buffalo' | 'v_ox' | 'v_hat' | 'v_neon', number>>;
+  test('its front is +Z, the way the game drives it: headlamps ahead of tail lights, the animal or the puller in front', () => {
+    for (const [id, v] of Object.entries(index.vehicles)) {
+      const m = (v as VehicleEntry & { markers: Markers }).markers;
+      let checked = 0;
+      if (m.lamp !== undefined && m.red_light !== undefined) { expect(m.lamp).toBeGreaterThan(m.red_light); checked++; }
+      else if (m.lamp !== undefined) { expect(m.lamp).toBeGreaterThan(0); checked++; }
+      else if (m.red_light !== undefined) { expect(m.red_light).toBeLessThan(0); checked++; }
+      for (const animal of [m.v_buffalo, m.v_ox]) if (animal !== undefined) { expect(animal).toBeGreaterThan(1); checked++; }
+      if (id === 'era1/hand_cart') { expect(m.v_hat).toBeGreaterThan(1); checked++; }
+      if (id === 'era5/flying_taxi') { expect(m.v_neon).toBeGreaterThan(1); checked++; }
+      // (the cargo drone is the same both ways)
+      if (id !== 'era5/cargo_drone') expect([id, checked > 0]).toEqual([id, true]);
+    }
+  });
+
+  test('the animals walk, the puller walks, the cyclists pedal, the engine\'s flywheel and the rotors turn', () => {
+    const swings = (id: string) => index.vehicles[id].wheels.filter(w => w.motion === 'swing');
+    const spins = (id: string) => index.vehicles[id].wheels.filter(w => w.motion !== 'swing');
+    for (const id of ['era1/buffalo_cart', 'era1/ox_cart']) {
+      const legs = swings(id);
+      expect(legs.length).toBe(1);
+      expect(legs[0].at.length).toBe(4);
+      // the diagonal pairs together, the other pair against them
+      expect(legs[0].phase).toEqual([0, expect.closeTo(Math.PI, 2), expect.closeTo(Math.PI, 2), 0]);
+    }
+    expect(swings('era1/hand_cart')[0].at.length).toBe(2);
+    for (const id of ['era1/bicycle', 'era2/samlor']) {
+      expect(swings(id)[0].at.length).toBe(2);
+      // a crank, turning slower than the wheels (its radius the wheel's times the gear)
+      const wheel = Math.min(...spins(id).map(w => w.radius)), crank = Math.max(...spins(id).map(w => w.radius));
+      expect(crank).toBeGreaterThan(wheel * 2);
+    }
+    expect(spins('era2/etan').some(w => w.radius < 0.1)).toBe(true);
+    for (const id of ['era5/flying_taxi', 'era5/cargo_drone']) expect(spins(id).every(w => w.axis === 'z')).toBe(true);
+    // every road vehicle has wheels that roll
+    for (const [id, v] of Object.entries(index.vehicles)) {
+      if (v.fly) continue;
+      expect([id, v.wheels.some(w => w.motion === 'spin' && w.axis === 'x' && w.radius > 0.2)]).toEqual([id, true]);
+    }
+  });
+
+  test('wheels roll and legs walk by the distance driven: standing still, nothing moves but a rotor', () => {
+    const cart = index.vehicles['era1/buffalo_cart'], legs = cart.wheels.find(w => w.motion === 'swing')!;
+    const wheel = cart.wheels.find(w => w.motion === 'spin')!;
+    expect(moverAngle(wheel, 0, 10, 0)).toBeCloseTo(moverAngle(wheel, 0, 10, 99), 9);
+    expect(moverAngle(wheel, 0, wheel.radius, 0)).toBeCloseTo(1, 6);
+    expect(moverAngle(legs, 0, 0.35, 0)).toBeCloseTo(legs.amplitude!, 6);
+    expect(moverAngle(legs, 1, 0.35, 0)).toBeCloseTo(-legs.amplitude!, 6);
+    expect(moverAngle(legs, 0, 0.35, 0)).toBe(moverAngle(legs, 0, 0.35, 50));
+    const rotor = index.vehicles['era5/flying_taxi'].wheels[0];
+    expect(moverAngle(rotor, 0, 0, 1)).not.toBe(moverAngle(rotor, 0, 0, 2));
+    // ... and the same on a plain object (a transit bus, a wandering car)
+    const group = new Group(), w = new Group(), l = new Group();
+    w.name = 'wheel1.0'; l.name = 'wheel0.0';
+    group.add(w, l);
+    animateObject(group, cart, 0.35, 0);
+    expect(l.rotation.x).toBeCloseTo(legs.amplitude!, 6);
+    expect(w.rotation.x).toBeCloseTo(0.35 / wheel.radius, 6);
+  });
+});
+
 describe('the pool that draws them', () => {
   const entry = index.vehicles['era3/pickup'];
   const model = vehicleModel('era3/pickup', entry, fakeScene());
@@ -139,8 +202,8 @@ describe('the pool that draws them', () => {
     pool.ensure(model, 10);
     pool.begin();
     const m = new Matrix4().makeTranslation(100, 0, 50);
-    expect(pool.add('era3/pickup', m, '#ff0000', 0, 10, 1000, 1)).toBe(true);
-    expect(pool.add('era3/pickup', m, null, Math.PI / 2, 10, 1000, 1)).toBe(true);
+    expect(pool.add('era3/pickup', m, '#ff0000', 0, 0, 10, 1000, 1)).toBe(true);
+    expect(pool.add('era3/pickup', m, null, 0.5, 0, 10, 1000, 1)).toBe(true);
     pool.end();
     const meshes = pool.root.children as any[];
     const wheel = meshes[meshes.length - 1];
@@ -164,9 +227,9 @@ describe('the pool that draws them', () => {
     pool.ensure(model, 3);
     pool.begin();
     let added = 0;
-    for (let i = 0; i < 10; i++) if (pool.add('era3/pickup', new Matrix4(), null, 0, 1, 1000, 1)) added++;
+    for (let i = 0; i < 10; i++) if (pool.add('era3/pickup', new Matrix4(), null, 0, 0, 1, 1000, 1)) added++;
     expect(added).toBe(3);
-    expect(pool.add('era1/bicycle', new Matrix4(), null, 0, 1, 1000, 1)).toBe(false);
+    expect(pool.add('era1/bicycle', new Matrix4(), null, 0, 0, 1, 1000, 1)).toBe(false);
   });
 
   test('far off, the lighter copy', () => {
@@ -174,8 +237,8 @@ describe('the pool that draws them', () => {
     const pool = new VehiclePool();
     pool.ensure(light, 4);
     pool.begin();
-    pool.add('era3/pickup', new Matrix4(), null, 0, 10, 1000, 0.625);
-    pool.add('era3/pickup', new Matrix4(), null, 0, 500, 1000, 0.625);
+    pool.add('era3/pickup', new Matrix4(), null, 0, 0, 10, 1000, 0.625);
+    pool.add('era3/pickup', new Matrix4(), null, 0, 0, 500, 1000, 0.625);
     pool.end();
     const draws = (pool as any).draws.get('era3/pickup').levels;
     expect(draws[0].count).toBe(1);

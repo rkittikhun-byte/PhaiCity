@@ -7,13 +7,17 @@
 // roads as drawn, turning where its way turns (docs/NO_GRID_PLAN.md 1.5, src/render3d/city/graphPaths.ts), picking people
 // up, as the simulation counts it (src/transit.ts); without the road graph or the house, up and down its road there. Once
 // the era vehicles have loaded it is the era's bus (eraVehicles.ts transitVehicle: the red bus, the north's red
-// songthaew, the air-conditioned bus, the low-floor bus, the driverless shuttle). It only reads the map and the roads'
-// lines.
+// songthaew, the air-conditioned bus, the low-floor bus, the driverless shuttle). While the trip cars drive
+// (tripCars.ts) each bus is a car in their traffic (laneTraffic.ts), so it keeps its gap, waits at junctions and the cars
+// queue behind it instead of driving through it; its wheels turn by the distance it has come. It only reads the map
+// and the roads' lines.
 
 import { Group, type Object3D } from 'three';
 import { registry } from '../models/registry.js';
 import type { RegionId } from '../regional/types.js';
-import { type EraVehicles, paintFor } from './eraVehicles.js';
+import { animateObject, type EraVehicles, paintFor } from './eraVehicles.js';
+import type { LaneCar, LanePath, LaneTraffic } from './laneTraffic.js';
+import { lanePathOf } from './tripCars.js';
 import type { Point } from '../../roadGeometry.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import type { CityHeightField } from './heightfield.js';
@@ -46,6 +50,10 @@ export class CityBuses {
   vehicleId: () => string | null = () => null;
   region: RegionId = 'central';
   private madeAs = '';
+  /** The trip cars' traffic while it drives (set by the city view), and each bus's run in it: its way on the lanes, its
+   * car, which way it is going, how far it had come, and when its halt at an end is over */
+  traffic: LaneTraffic | null = null;
+  private runs: Array<{ path: LanePath | null; way: Way | null; car: LaneCar | null; rev: boolean; s: number; halt: number; odometer: number }> = [];
 
   constructor(private readonly map: BusMap, private readonly terrain: CityHeightField, private readonly size: number) {
     this.root.name = 'buses';
@@ -64,6 +72,7 @@ export class CityBuses {
     this.planWays(buses);
     buses.forEach((index, n) => {
       const way = this.ways[n], model = this.models[n];
+      if (way && this.traffic && this.inTraffic(n, way, model, seconds)) return;
       if (way) {
         // Out to the town's middle and back, a halt of a few seconds at each end
         const lap = way.length * 2 / SPEED + HALT * 2, time = (seconds + n * 7) % lap;
@@ -74,6 +83,7 @@ export class CityBuses {
         model.position.set(x0, this.terrain.sample(x0, z0), z0);
         model.rotation.y = turn;
         model.visible = true;
+        this.turnWheels(model, (Math.floor((seconds + n * 7) / lap) * way.length * 2 + (out ? run : way.length * 2 - run)) / this.size, seconds);
         return;
       }
       const x = (index % this.map.width + 0.5) * 10, z = (Math.floor(index / this.map.width) + 0.5) * 10;
@@ -103,6 +113,47 @@ export class CityBuses {
     this.madeAs = ready;
     for (const model of this.models) this.root.remove(model);
     this.models.length = 0;
+  }
+
+  /** A bus as a car of the traffic: out to the town's middle and back along its way, a halt at each end; whether it was
+   * placed (its way has no lanes, or the traffic was made again and it waits to come back on) */
+  private inTraffic(n: number, way: Way, model: Object3D, seconds: number): boolean {
+    const traffic = this.traffic!, graph = this.map.roadGraph;
+    let run = this.runs[n];
+    if (!run || run.way !== way) {
+      if (run?.car) traffic.remove(run.car);
+      const units = 10 / (this.map.tileSizeM ?? 16);
+      const lanes = graph && way.segments ? lanePathOf(graph, way.segments, way.fromT ?? 0, way.toT ?? 1, units,
+        (k, share) => graph.length(way.segments![k]) * units * share / SPEED) : null;
+      run = this.runs[n] = { path: lanes?.path ?? null, way, car: null, rev: false, s: 0, halt: seconds + (n * 3) % 7, odometer: 0 };
+    }
+    if (!run.path) return false;
+    // (the traffic made again, as it is each month: back on where it was)
+    if (run.car && !traffic.cars.includes(run.car)) run.car = null;
+    if (run.car?.done) {
+      traffic.remove(run.car);
+      run.odometer += run.car.odometer; run.car = null; run.rev = !run.rev; run.s = 0; run.halt = seconds + HALT;
+    }
+    if (!run.car && seconds >= run.halt) {
+      const entry = this.madeAs ? this.vehicles?.entry(this.madeAs) : null;
+      run.car = traffic.add(run.path, run.rev, run.s, 0, (entry?.length ?? 10.5) * this.size, 0.85, -1 - n);
+    }
+    const car = run.car;
+    if (car) {
+      run.s = car.s;
+      const at = traffic.pose(car, { x: 0, z: 0, dx: 0, dz: 1 });
+      model.position.set(at.x, this.terrain.sample(at.x, at.z), at.z);
+      model.rotation.y = Math.atan2(at.dx, at.dz);
+    }
+    model.visible = Boolean(car) || model.position.lengthSq() > 0;
+    this.turnWheels(model, (run.odometer + (car?.odometer ?? 0)) / this.size, seconds);
+    return true;
+  }
+
+  /** The era bus's wheels by the metres it has driven */
+  private turnWheels(model: Object3D, metres: number, seconds: number): void {
+    const entry = this.madeAs ? this.vehicles?.entry(this.madeAs) : null;
+    if (entry) animateObject(model, entry, metres, seconds);
   }
 
   /** Each bus's way along the road graph from where it was put down to the ruler's house, when both are there */
@@ -149,5 +200,9 @@ export class CityBuses {
     return { x: px, z: pz, turn };
   }
 
-  dispose(): void { this.root.clear(); }
+  dispose(): void {
+    for (const run of this.runs) if (run?.car) this.traffic?.remove(run.car);
+    this.runs = [];
+    this.root.clear();
+  }
 }

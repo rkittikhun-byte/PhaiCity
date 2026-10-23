@@ -15,6 +15,7 @@ scripts/export_game.py then writes the game's glbs from the .blend files.
 """
 
 import json
+import math
 import os
 import sys
 
@@ -63,12 +64,19 @@ def make_vehicle(spec, parent_coll):
             coll.objects.link(copy)
             copy.parent = root
             objs.append(copy)
-        for o, at in zip(objs, w['at']):
+        for k, (o, at) in enumerate(zip(objs, w['at'])):
             o.location = at
+            if w['motion'] == 'swing':
+                # the preview shows each leg at its own point of the stride
+                o.rotation_euler = (w['amplitude'] * math.sin(w['phase'][k] + 0.8), 0, 0)
         tris = triangles(obj)
         wheel_tris += tris * len(w['at'])
-        wheels.append({'mesh': 'wheel%d' % i, 'radius': round(w['radius'], 3), 'axis': w['axis'],
-                       'at': [[round(c, 3) for c in a] for a in w['at']], 'triangles': tris})
+        entry = {'mesh': 'wheel%d' % i, 'radius': round(w['radius'], 3), 'axis': w['axis'], 'motion': w['motion'],
+                 'at': [[round(c, 3) for c in a] for a in w['at']], 'triangles': tris}
+        if w['motion'] == 'swing':
+            entry.update(amplitude=round(w['amplitude'], 3), phase=[round(f, 3) for f in w['phase']],
+                         stride=round(w['stride'], 3))
+        wheels.append(entry)
     bpy.context.view_layer.update()
     parts = [o for o in objects_of(root) if o.type == 'MESH']
     xs = [(o.matrix_world @ vv.co) for o in parts for vv in o.data.vertices]
