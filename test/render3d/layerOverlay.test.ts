@@ -30,9 +30,30 @@ describe('city map layer on the ground', () => {
   it('keeps a big map light: a vertex every few tiles', () => {
     const overlay = new LayerOverlay(1024, 1024, hills);
     overlay.show({ width: 1024, height: 1024 } as unknown as HTMLCanvasElement);
-    expect((overlay.root.children[0] as Mesh).geometry.getAttribute('position').count).toBe(257 * 257);
+    expect((overlay.root.children[0] as Mesh).geometry.getAttribute('position').count).toBe(513 * 513);
     overlay.dispose();
   });
+  // Playtest, 23 Oct 2026: on a big map the pad under a building and its bank poked through the layer between its points
+  it('follows ground levelled under a building finely, where the coarse points would pass under it', () => {
+    const pad = (x: number, z: number) => x >= 100 && x < 110 && z >= 100 && z < 110 ? 3 : 0;
+    const ground = { sample: pad, levelled: (i: number) => i === 10*1024+10 } as unknown as CityHeightField;
+    const overlay = new LayerOverlay(1024, 1024, ground);
+    overlay.show({ width: 1024, height: 1024 } as unknown as HTMLCanvasElement);
+    const p = (overlay.root.children[0] as Mesh).geometry.getAttribute('position');
+    expect(p.count).toBeGreaterThan(513 * 513);
+    let over = 0;
+    for (let k = 513 * 513; k < p.count; k++) if (pad(p.getX(k), p.getZ(k)) > 0) { over++; expect(p.getY(k)).toBeCloseTo(3.35); }
+    expect(over).toBeGreaterThan(0);
+    overlay.dispose();
+  });
+
+  it("lies on the ground's own tile corners on a city map 480 tiles a side, so no bulge between its points pokes through", () => {
+    const overlay = new LayerOverlay(480, 480, hills);
+    overlay.show({ width: 480, height: 480 } as unknown as HTMLCanvasElement);
+    expect((overlay.root.children[0] as Mesh).geometry.getAttribute('position').count).toBe(481 * 481);
+    overlay.dispose();
+  });
+
   it('is drawn smoothly between the tiles, with no tile squares in it (docs/NO_GRID_PLAN.md 0.6)', () => {
     const overlay = new LayerOverlay(40, 30, hills);
     overlay.show({ width: 40, height: 30 } as unknown as HTMLCanvasElement);

@@ -69,6 +69,12 @@ describe("city map", () => {
     const pollution = layerPixels("pollution", map, sim.blockMaps);
     expect(pixelAt(pollution, map, 11, 11)).not.toEqual(pixelAt(power, map, 11, 11));
     expect(pixelAt(pollution, map, 100, 90)).toEqual([...dimmed(KIND_COLOURS.dirt)]);
+    // ... and the picture laid over the 3D ground shows only the data: the far homes as bare ground, not as their tiles
+    // (playtest, 23 Oct 2026: a curved road's tiles showed as a pale polygon beside it while a plant was in hand)
+    const draped = layerPixels("pollution", map, sim.blockMaps, true);
+    expect(pixelAt(pollution, map, 60, 60)).toEqual([...dimmed(KIND_COLOURS.residential)]);
+    expect(pixelAt(draped, map, 60, 60)).toEqual([...dimmed(KIND_COLOURS.dirt)]);
+    expect(pixelAt(draped, map, 11, 11)).not.toEqual([...dimmed(KIND_COLOURS.dirt)]);
   });
 
   test("shade overlays from nothing to the top of their range", () => {

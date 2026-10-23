@@ -122,6 +122,15 @@ export class CityHeightField {
     const u=tx-ix,v=ty-iy,a=this.corner(ix,iy),b=this.corner(ix+1,iy),c=this.corner(ix,iy+1),d=this.corner(ix+1,iy+1);
     return u+v<=1?a+u*(b-a)+v*(c-a):d+(1-v)*(b-d)+(1-u)*(c-d);
   }
+  /** Whether a tile's ground is levelled at all (under a pad or on its slope round it, src/terrain/groundGrade.ts) */
+  levelled(index:number):boolean {return !!this.grade?.tiles.has(index);}
+  /** The natural ground's normal at (x, z) world units, over `reach` either way: what levelled ground is lit and coloured
+   * by, so a pad and its bank read as the ground round them, only flat (playtest, 23 Oct 2026: lit by their own flat or
+   * steep shape they stood out as pale patches beyond the buildings and across the roads) */
+  naturalNormal(x:number,z:number,reach=5):[number,number,number] {
+    const nx=this.natural(x-reach,z)-this.natural(x+reach,z),ny=2*reach,nz=this.natural(x,z-reach)-this.natural(x,z+reach),length=Math.hypot(nx,ny,nz);
+    return[nx/length,ny/length,nz/length];
+  }
   /** The levelled ground at (x, z) world units on tile (ix, iy), or NaN where it is the natural ground (roadBuild.ts) */
   gradedHeight(ix:number,iy:number,x:number,z:number):number {
     const t=this.grade?.tiles.get(iy*this.snapshot.width+ix);return t?sampleSamples(t,x/10-ix,z/10-iy):NaN;

@@ -5,6 +5,7 @@ import { Ray, Vector3 } from 'three';
 import { CityHeightField } from '../../src/render3d/city/heightfield.js';
 import { GridHeights, groundHeight } from '../../src/render3d/city/roadBuild.js';
 import { TileSnapshot } from '../../src/render3d/city/tileModels.js';
+import { TerrainDetail } from '../../src/render3d/city/terrain-detail.js';
 import type { PlacedBuilding } from '../../src/buildings/placedBuildings.js';
 
 /** A real-scale city map on a slope rising east and south, a road along z = 12 tiles, and a building facing it */
@@ -36,6 +37,22 @@ describe('the 3D ground levelled under a building (src/terrain/groundGrade.ts)',
     // the picked ground is the drawn one
     const hit = terrain.intersect(new Ray(new Vector3(85,500,105),new Vector3(0,-1,0)));
     expect(hit!.y).toBeCloseTo(level,4);
+  });
+  // Playtest, 23 Oct 2026: lit by their own flat pad and steep bank, levelled tiles stood out as pale patches
+  it('lights and colours levelled ground as the natural ground there, so it reads as the same land, only flat', () => {
+    const { terrain } = fixture(), yard = 10*24+8;
+    expect(terrain.levelled(yard)).toBe(true);
+    expect(terrain.levelled(2*24+2)).toBe(false);
+    // the natural slope: heights 0.8 a tile east and 0.5 a tile south (in the map's own units, as the terrain reads them)
+    const [nx,ny,nz] = terrain.naturalNormal(85,105), far = terrain.naturalNormal(25,25);
+    expect(nx).toBeLessThan(0); expect(nz).toBeLessThan(0); expect(ny).toBeGreaterThan(0.5);
+    expect([nx,ny,nz].map(v => +v.toFixed(5))).toEqual(far.map(v => +v.toFixed(5)));
+    // the near ground's vertices on the yard take that normal, not straight up
+    const detail = new TerrainDetail(terrain, () => 0);
+    detail.update(new Vector3(85,0,105), 100, () => 0, 1);
+    const patch = [...detail.patches.values()].find(p => p.x <= 8 && p.x+p.width > 8 && p.y <= 10 && p.y+p.height > 10)!;
+    const per = (patch.divisions+1)**2, slot = (10-patch.y)*patch.width+(8-patch.x), v = slot*per+Math.floor(per/2);
+    expect([...patch.normals.subarray(v*3,v*3+3)].map(n => +n.toFixed(4))).toEqual([nx,ny,nz].map(n => +n.toFixed(4)));
   });
   it("sends the roads' worker the same levelled ground", () => {
     const { terrain } = fixture(), grid = new GridHeights(terrain.grid());

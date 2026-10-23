@@ -6,7 +6,6 @@ import { cityTerrainDetailMaterial } from '../materials/library.js';
 import { terrainDetailUniforms } from '../materials/terrain-detail.js';
 import type { CityHeightField } from './heightfield.js';
 import { isWaterNeighbor } from './tileModels.js';
-import { GRADE_STEPS } from '../../terrain/groundGrade.js';
 
 export const DETAIL_PATCH_TILES = 8;
 export const MAX_DETAIL_PATCHES = 9;
@@ -72,16 +71,18 @@ export class TerrainDetail {
     const index = y*this.terrain.snapshot.width+x, wet = isWaterNeighbor(this.terrain.snapshot.values[index]);
     const coordinates = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
     const outside = coordinates.map(([cx,cy],i) => this.cornerShade(cx,cy,wet,this.corners[i]));
-    const flat = Number.isFinite(this.terrain.flatHeight(index)) || wet, reach = this.terrain.graded(index) ? 10/GRADE_STEPS/2 : 5;
+    const flat = Number.isFinite(this.terrain.flatHeight(index)) || wet, levelled = this.terrain.levelled(index);
     for (let row = 0; row <= d; row++) for (let column = 0; column <= d; column++) {
       const u = column/d, v = row/d, wx = (x+u)*10, wz = (y+v)*10;
       const vertex = slot*stride*stride+row*stride+column, offset = vertex*3;
       p.positions.set([wx,this.terrain.sampleTile(x,y,wx,wz)+DETAIL_LIFT,wz],offset);
       // A common world-space derivative makes neighbouring patches light identically at their shared edge.
-      // (on ground levelled under a building or plot, over a shorter reach, so its flat pad is lit flat to its edge)
+      // (ground levelled under a building or plot, and its bank, is lit and coloured as the natural ground there, so it
+      // reads as the same land, only flat: heightfield.ts naturalNormal)
       if (flat) this.normal.set(0,1,0);
-      else this.normal.set(this.terrain.sample(wx-reach,wz)-this.terrain.sample(wx+reach,wz),2*reach,
-        this.terrain.sample(wx,wz-reach)-this.terrain.sample(wx,wz+reach)).normalize();
+      else if (levelled) this.normal.fromArray(this.terrain.naturalNormal(wx,wz));
+      else this.normal.set(this.terrain.sample(wx-5,wz)-this.terrain.sample(wx+5,wz),10,
+        this.terrain.sample(wx,wz-5)-this.terrain.sample(wx,wz+5)).normalize();
       this.normal.toArray(p.normals,offset);
       const weights = [(1-u)*(1-v),u*(1-v),(1-u)*v,u*v];
       this.shade.setRGB(0,0,0); let beyond = 0;

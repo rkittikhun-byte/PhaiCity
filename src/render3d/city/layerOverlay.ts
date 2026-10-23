@@ -19,8 +19,10 @@ import type { CityHeightField } from './heightfield.js';
 /** Over the ground and the roads, under the buildings' tops */
 const LIFT = 0.35;
 const OPACITY = 0.62;
-/** Vertices at most this many a side, so a big map stays light */
-const MOST = 256;
+/** Vertices at most this many a side, so a big map stays light: up to 512 tiles a side a vertex a tile corner, where the
+ * layer lies on the ground's own triangles and follows them exactly (playtest, 23 Oct 2026: with a vertex every 2 tiles
+ * on a 480-tile city map the ground's bulges between them poked through in pale polygons and lines) */
+const MOST = 512;
 /** Times the picture is box-blurred a pixel either side: three make a bell about a tile and a half wide */
 const SOFTEN = 3;
 
@@ -92,7 +94,30 @@ export class LayerOverlay {
       positions.push(x, this.terrain.sample(x, z) + LIFT, z);
       uvs.push(x / (this.width * 10), 1 - z / (this.height * 10));
     }
+    // A cell holding ground levelled under a building (src/terrain/groundGrade.ts) is laid finer, 2.5 units a step over
+    // its tiles, so the pad and its bank between the coarse points never poke through the layer (playtest, 23 Oct 2026)
+    const fine = (x0: number, z0: number, x1: number, z1: number): void => {
+      const n = Math.max(1, Math.round((x1 - x0) / 2.5)), m = Math.max(1, Math.round((z1 - z0) / 2.5)), base = positions.length / 3;
+      for (let r = 0; r <= m; r++) for (let q = 0; q <= n; q++) {
+        const x = x0 + (x1 - x0) * q / n, z = z0 + (z1 - z0) * r / m;
+        positions.push(x, this.terrain.sample(x, z) + LIFT, z);
+        uvs.push(x / (this.width * 10), 1 - z / (this.height * 10));
+      }
+      for (let r = 0; r < m; r++) for (let q = 0; q < n; q++) {
+        const a = base + r * (n + 1) + q, b = a + 1, c = a + n + 1, d = c + 1;
+        index.push(a, c, b, b, c, d);
+      }
+    };
+    const levelled = (i: number, j: number): boolean => {
+      for (let y = j * step; y < Math.min(this.height, (j + 1) * step); y++)
+        for (let x = i * step; x < Math.min(this.width, (i + 1) * step); x++) if (this.terrain.levelled?.(y * this.width + x)) return true;
+      return false;
+    };
     for (let j = 0; j < rows; j++) for (let i = 0; i < columns; i++) {
+      if (levelled(i, j)) {
+        fine(i * step * 10, j * step * 10, Math.min(this.width, (i + 1) * step) * 10, Math.min(this.height, (j + 1) * step) * 10);
+        continue;
+      }
       const a = j * (columns + 1) + i, b = a + 1, c = a + columns + 1, d = c + 1;
       index.push(a, c, b, b, c, d);
     }

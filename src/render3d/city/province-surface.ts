@@ -38,7 +38,9 @@ interface SurfaceChunk { x:number;y:number;group:Group;land:Mesh;trees:Instanced
   /** Its trees' geometry, whole and light (treeGeometry), the light one drawn while the chunk is far enough for it to
    * change no tree by more than a pixel; the largest a tree of it is scaled, building and as published */
   fullTrees:BufferGeometry;lightTrees:BufferGeometry;light:boolean;treeScale:number;publishedTreeScale:number;
-  positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;treeSlots:Map<number,[number,number]>;buildingSlots:Map<number,number>;
+  positions:number[];colors:number[];outside:number[];fade:number[];ground:number[];ranges:Map<number,[number,number]>;
+  /** The vertices of its levelled tiles' ground (first, past the last), lit as the natural ground there (publish) */
+  levelled:[number,number][];treeSlots:Map<number,[number,number]>;buildingSlots:Map<number,number>;
   publishedRanges:Map<number,[number,number]>;publishedTrees:Map<number,[number,number]>;publishedBuildings:Map<number,number>;
   foliageFade:number;
   treeCount:number;buildingCount:number;treeMatrices:Float32Array;buildingMatrices:Float32Array;treeOutside:Float32Array;buildingOutside:Float32Array;buildingColors:Float32Array }
@@ -128,7 +130,7 @@ export class ProvinceSurface {
       for(const name of['instanceDetail','cityOutside','cityGround','cityTerrain','cityBridgeDepth'])lightTrees.setAttribute(name,fullTrees.getAttribute(name));
       attributes(buildings.geometry,SIZE*SIZE,true);buildings.count=0;buildings.receiveShadow=true;buildings.castShadow=false;
       group.add(land,trees,buildings);this.root.add(group);
-      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,fullTrees,lightTrees,light:false,treeScale:0,publishedTreeScale:0,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),treeSlots:new Map(),buildingSlots:new Map(),
+      const chunk:SurfaceChunk={x,y,group,land,trees,buildings,cursor:0,dirty:true,fullTrees,lightTrees,light:false,treeScale:0,publishedTreeScale:0,positions:[],colors:[],outside:[],fade:[],ground:[],ranges:new Map(),levelled:[],treeSlots:new Map(),buildingSlots:new Map(),
         publishedRanges:new Map(),publishedTrees:new Map(),publishedBuildings:new Map(),foliageFade:0,treeCount:0,buildingCount:0,treeMatrices:new Float32Array(MAX_TREES*16),buildingMatrices:new Float32Array(SIZE*SIZE*16),treeOutside:new Float32Array(MAX_TREES),buildingOutside:new Float32Array(SIZE*SIZE),buildingColors:new Float32Array(SIZE*SIZE*3)};
       this.chunks.push(chunk);
       for(let yy=y;yy<Math.min(y+SIZE,snapshot.height);yy+=4)for(let xx=x;xx<Math.min(x+SIZE,snapshot.width);xx+=4)
@@ -167,7 +169,7 @@ export class ProvinceSurface {
       if(unowned&&!ownsLand(land,x,y))unowned[i]=255;}
     setProvinceMask(outside,snapshot.width,snapshot.height,water,unowned);
   }
-  private resetBuffers(c:SurfaceChunk):void {c.treeScale=0;c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
+  private resetBuffers(c:SurfaceChunk):void {c.treeScale=0;c.positions=[];c.colors=[];c.outside=[];c.fade=[];c.ground=[];c.ranges=new Map();c.levelled=[];c.treeSlots=new Map();c.buildingSlots=new Map();c.treeCount=0;c.buildingCount=0;}
   private quad(c:SurfaceChunk,x0:number,z0:number,x1:number,z1:number,shade:(x:number,z:number)=>Color,height:(x:number,z:number)=>number,index:number,overlay:boolean):void {
     for(const[x,z]of[[x0,z0],[x0,z1],[x1,z0],[x1,z0],[x0,z1],[x1,z1]]){
       c.positions.push(x,height(x,z)+(overlay?.025:0),z);c.colors.push(...shade(x,z).toArray());
@@ -242,6 +244,8 @@ export class ProvinceSurface {
     if(this.snapshot.paintedZones&&!wet)own.setRGB(0,0,0).add(corners[0].shade).add(corners[1].shade).add(corners[2].shade).add(corners[3].shade).multiplyScalar(.25);
     // ... levelled under a building or plot (src/terrain/groundGrade.ts): the squares of its finer samples, each split as
     // the samples are, its colour blended from its corners'
+    const first=c.positions.length/3;
+    if(!wet&&this.terrain.levelled(y*this.snapshot.width+x))c.levelled.push([first,first]);
     if(!wet&&this.terrain.graded(y*this.snapshot.width+x)){
       const steps=GRADE_STEPS,size=10/steps,shade=new Color(),c0=corners[0],c1=corners[1],c2=corners[2],c3=corners[3];
       const vertex=(px:number,pz:number):void=>{const u=(px-x*10)/10,v=(pz-y*10)/10,w0=(1-u)*(1-v),w1=u*(1-v),w2=u*v,w3=(1-u)*v;
@@ -255,11 +259,18 @@ export class ProvinceSurface {
         if(planarSquare(samples,qr,qc,half)){square(x*10+qc*size,y*10+qr*size,x*10+(qc+half)*size,y*10+(qr+half)*size);continue;}
         for(let r=qr;r<qr+half;r++)for(let q=qc;q<qc+half;q++){const x0=x*10+q*size,z0=y*10+r*size;square(x0,z0,x0+size,z0+size);}
       }
+      this.endLevelled(c,first);
       return;
     }
     for(let k=0;k<4;k++){const a=corners[k],b=corners[(k+1)%4];
       for(const p of[{x:cx,z:cz,shade:own,outside:ownOutside},b,a]){
         c.positions.push(p.x,height(p.x,p.z),p.z);c.colors.push(p.shade.r,p.shade.g,p.shade.b);c.outside.push(p.outside);c.fade.push(0);c.ground.push(1);}}
+    this.endLevelled(c,first);
+  }
+  /** Closes the levelled tile's range of vertices begun at `first`, if one was begun there */
+  private endLevelled(c:SurfaceChunk,first:number):void {
+    const last=c.levelled[c.levelled.length-1];
+    if(last&&last[0]===first)last[1]=c.positions.length/3;
   }
   /**
    * A road tile's paint over the ground: 2.5 m squares coloured by the distance to the tile's centre lines and cut
@@ -393,7 +404,14 @@ export class ProvinceSurface {
     for(const[i,[start,end]]of c.ranges)for(let n=start;n<end;n++)c.fade[n]=this.detail.get(i)??0;
     const geometry=new BufferGeometry().setAttribute('position',new Float32BufferAttribute(c.positions,3)).setAttribute('color',new Float32BufferAttribute(c.colors,3));
     attributes(geometry,c.outside.length);geometry.setAttribute('cityOutside',new Float32BufferAttribute(c.outside,1));geometry.setAttribute('instanceDetail',new Float32BufferAttribute(c.fade,1));geometry.setAttribute('cityGround',new Float32BufferAttribute(c.ground,1));
-    geometry.computeVertexNormals();geometry.computeBoundingSphere();c.land.geometry.dispose();c.land.geometry=geometry;
+    geometry.computeVertexNormals();
+    // ... levelled ground lit as the natural ground there, each triangle by the natural normal at its middle
+    const normals=geometry.getAttribute('normal');
+    for(const[from,to]of c.levelled)for(let v=from;v+2<to;v+=3){
+      const mx=(c.positions[v*3]+c.positions[v*3+3]+c.positions[v*3+6])/3,mz=(c.positions[v*3+2]+c.positions[v*3+5]+c.positions[v*3+8])/3;
+      const[nx,ny,nz]=this.terrain.naturalNormal(mx,mz);for(let k=0;k<3;k++)normals.setXYZ(v+k,nx,ny,nz);}
+    normals.needsUpdate=true;
+    geometry.computeBoundingSphere();c.land.geometry.dispose();c.land.geometry=geometry;
     c.trees.count=c.treeCount;c.buildings.count=c.buildingCount;c.publishedTreeScale=c.treeScale;
     (c.trees.instanceMatrix.array as Float32Array).set(c.treeMatrices);(c.buildings.instanceMatrix.array as Float32Array).set(c.buildingMatrices);
     c.buildings.instanceColor=new InstancedBufferAttribute(c.buildingColors.slice(),3);

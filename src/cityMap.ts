@@ -296,8 +296,8 @@ function groundwaterColour(city: Rgb, water: WaterView | undefined, x: number, y
 
 /** The colour of one tile on a layer. */
 export function tileColour(layer: MapLayer, value: number, flags: number, overlays: Overlays, x: number, y: number,
-  smooth = false): Rgb {
-  const city = KIND_COLOURS[tileKind(value)];
+  smooth = false, plain = false): Rgb {
+  const kind = tileKind(value), city = plain && kind !== "water" ? KIND_COLOURS.dirt : KIND_COLOURS[kind];
   if (layer === "city") return city;
   if (layer === "power") {
     const kind = tileKind(value);
@@ -319,8 +319,11 @@ export function tileColour(layer: MapLayer, value: number, flags: number, overla
   return mix(dimmed(city), heat.colour, 0.9 * heatLevel(smooth ? smoothGet(source, x, y) : source.worldGet(x, y), heat.max));
 }
 
-/** The whole map as RGBA pixels, one per tile, row by row (ready for an ImageData). */
-export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overlays): Uint8ClampedArray {
+/** The whole map as RGBA pixels, one per tile, row by row (ready for an ImageData). `plain`: for the picture laid over the
+ * 3D ground (src/render3d/city/layerOverlay.ts), every tile but water in the bare ground's colour under the layer's
+ * data, so the roads, zones and buildings, drawn in 3D as they stand, do not show again as squares of their tiles
+ * (playtest, 23 Oct 2026: a curved road's tiles showed as a pale polygon beside it while a power plant was in hand) */
+export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overlays, plain = false): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(map.width * map.height * 4);
   const inside = map.insideProvince ?? null;
   // (on a real-scale city map between the blocks' middles, with no steps: docs/NO_GRID_PLAN.md 4.5)
@@ -328,7 +331,7 @@ export function layerPixels(layer: MapLayer, map: CityMapSource, overlays: Overl
   let i = 0;
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
-      const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y, smooth);
+      const [r, g, b] = tileColour(layer, map.getTileValue(x, y), map.getTileFlags(x, y), overlays, x, y, smooth, plain);
       const shade = inside && !inside[y * map.width + x] ? OUTSIDE_SHADE : ownsLand(map, x, y) ? 1 : UNOWNED_SHADE;
       pixels[i++] = r * shade;
       pixels[i++] = g * shade;

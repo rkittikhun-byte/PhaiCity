@@ -980,7 +980,7 @@ Game.prototype.updateContextualOverlay = function(activeTool) {
     canvas.height = height;
     var ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.putImageData(new ImageData(layerPixels(targetLayer, this.gameMap, this.mapOverlays()), width, height), 0, 0);
+      ctx.putImageData(new ImageData(layerPixels(targetLayer, this.gameMap, this.mapOverlays(), true), width, height), 0, 0);
       this.cityView.showLayer(canvas);
     }
 

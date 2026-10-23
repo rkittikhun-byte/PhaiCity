@@ -98,8 +98,14 @@ MapWindow.prototype._draw = function() {
       new ImageData(layerPixels(this._layer, this._map, this._overlays), width, height), 0, 0);
     // A layer other than the whole city is laid over the city's ground too, as Cities: Skylines' info views (owner,
     // 15 Oct 2026: "คลิกปุ่มใน แผนที่เมือง แล้วให้เห็นใน map ของ ที่กำลังเล่นอยู่ได้ไหม")
-    if (this._layer !== 'city')
-      ground = tiles;
+    // (in the bare ground's colour under the layer's data: the 3D view draws the roads and buildings themselves)
+    if (this._layer !== 'city') {
+      ground = document.createElement('canvas');
+      ground.width = width;
+      ground.height = height;
+      ground.getContext('2d').putImageData(
+        new ImageData(layerPixels(this._layer, this._map, this._overlays, true), width, height), 0, 0);
+    }
 
     var canvas = document.getElementById('mapCanvas');
     canvas.width = width * scale;
