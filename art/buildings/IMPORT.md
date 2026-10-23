@@ -61,6 +61,23 @@ The era buildings are in the game (owner: "นำเข้าเกมส์ ใ
   tile's edge as on the other buildings.
 - The level is the community's: temple_1 a village's, temple_2 a town's, temple_3 the full compound.
 
+## Department store models (23 Oct 2026; PLAN.md "Department stores")
+
+- The store sets (`blend/era<n>/era<n>_<region>_store.blend`, built with `./run.sh <era> --store`, eras 2-5) are
+  exported with `export_game.py -- era2 era3 era4 era5 --store`, which writes only `store.glb` into the same
+  `assets/models/buildings/era<n>/<region>/` folders and adds it to `index.json` (`kinds`: `store`, `tiles: 3`); every
+  other entry is kept. There is no era 1 store.
+- Each is a 3x3 like the services: origin at the footprint centre on the ground, front +Z in the glTF (-Y in Blender),
+  metres (the game scales 16 m to a tile). Nothing reaches past 23.5 m from the centre; the square's edge (a wall,
+  kerb or planted wall) is part of the model, the yard's ground cover runs to the tile's edge.
+- Budget 16,000 triangles (15,600-15,900 after the export). The Blender sets have a fourth part, `signs` (boards with
+  real Thai lettering), which the export keeps whole and merges into `body` and `windows` like the rest; the lit sign
+  boxes and letters (`st_*_lit`) go to `windows` and glow at night.
+- The game's department store (`src/departmentStores.ts`, a ruler's building on the civic 3x3 from era 2) takes this
+  kind through `src/render3d/city/eraBuildings.ts` (`eraKindFor('civic.department_store')`, `STORE_KIND`); before the
+  index loads, and in era 1, it keeps the program's own model (`models/civic/department-store.ts`). `era-buildings.html`
+  has a "Department store" group.
+
 ## What is here
 
 | Path | What |

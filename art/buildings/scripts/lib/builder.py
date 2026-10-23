@@ -50,6 +50,11 @@ FRONTAGE_WIDTH = {k: (12.0 if k.startswith('house12') else BAY_M) for k in FRONT
 TEMPLE = ('temple_1', 'temple_2', 'temple_3')
 TILES.update({k: 3 for k in TEMPLE})
 
+# The department store set (PLAN.md "Department stores"): a 3x3 department store (ห้างสรรพสินค้า) with its forecourt,
+# parking and loading yard, eras 2-5; built from buildings/stores.py as era<n>_<region>_store.
+STORE = ('store',)
+TILES.update({k: 3 for k in STORE})
+
 
 def bay_ends(kind):
     """(left, right): whether a bay kind has its end wall on its left (-X, seen from the street) and right side."""
@@ -72,6 +77,10 @@ class Build:
         self.main = Part('building')
         self.props = Part('props')
         self.yard = Part('yard')
+        # Sign boards with real (made-up) Thai lettering: never thinned by the export, no ink outline, and their faces
+        # keep the side they were drawn facing (lettering is one-sided)
+        self.signs = Part('signs')
+        self.signs.keep_normals = True
 
     @property
     def rect(self):
@@ -101,8 +110,8 @@ def registry(era):
     items = []
 
     def building(kind, level, th, en):
-        if kind not in KINDS and kind not in FRONTAGE and kind not in TEMPLE:
-            raise ValueError('Unknown kind %s (builder.KINDS, builder.FRONTAGE, builder.TEMPLE)' % kind)
+        if kind not in KINDS and kind not in FRONTAGE and kind not in TEMPLE and kind not in STORE:
+            raise ValueError('Unknown kind %s (builder.KINDS, builder.FRONTAGE, builder.TEMPLE, builder.STORE)' % kind)
 
         def deco(fn):
             spec = {'kind_id': 'era%d_%s' % (era, kind), 'era': era, 'kind': kind, 'level': level,

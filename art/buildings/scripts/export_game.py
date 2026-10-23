@@ -9,7 +9,8 @@ Reads the sets' .blend files (blend/era<n>/era<n>_<region>.blend, made by build.
 assets/models/buildings/era<n>/<region>/<kind>.glb and assets/models/buildings/index.json. With --frontage it reads the
 frontage sets instead (era<n>_<region>_frontage.blend: shophouse bays and the 12 m house, PLAN.md "Frontage") and
 writes only their kinds, so the era's other glbs stay as they are; the index keeps every entry it had. --temple does the
-same for the temple sets (era<n>_<region>_temple.blend: temple_1 ... temple_3, 3x3 compounds, PLAN.md "Temples").
+same for the temple sets (era<n>_<region>_temple.blend: temple_1 ... temple_3, 3x3 compounds, PLAN.md "Temples"), and
+--store for the department store sets (era<n>_<region>_store.blend, eras 2-5: store, a 3x3, PLAN.md "Department stores").
 Each building becomes two meshes with its palette colours baked into vertex colours and no materials of its own:
 `body` (everything) and `windows` (window glass, lamps and lit screens, which the game lights at night). The ink outline
 is dropped and loose parts are merged. Units stay metres; the game scales a 16 m tile to its 10 units.
@@ -29,7 +30,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 
 from lib import palette  # noqa: E402
-from lib.builder import BAY_M, FRONTAGE, FRONTAGE_DEPTH_M, FRONTAGE_WIDTH, KINDS, TEMPLE, TILES  # noqa: E402
+from lib.builder import BAY_M, FRONTAGE, FRONTAGE_DEPTH_M, FRONTAGE_WIDTH, KINDS, STORE, TEMPLE, TILES  # noqa: E402
 from lib.regions import REGIONS  # noqa: E402
 
 ERAS = ('era1', 'era2', 'era3', 'era4', 'era5')
@@ -69,7 +70,8 @@ def tris_of(obj):
 
 
 def thinning(root, meshes):
-    """Decimate ratios per object so the building fits GAME_BUDGET: props first, then the building; the yard never."""
+    """Decimate ratios per object so the building fits GAME_BUDGET: props first, then the building; the yard and the
+    signs (a store's Thai lettering, which thinning would tear) never."""
     width = root.get('phaicity_width')
     budget = FRONTAGE_GAME_BUDGET[float(width)] if width else GAME_BUDGET[int(root.get('phaicity_tiles', 1))]
     count = {o.name: tris_of(o) for o in meshes}
@@ -154,14 +156,14 @@ def baked(root):
     return out
 
 
-def export_set(era, region, index, frontage=False, temple=False):
-    suffix = '_frontage' if frontage else ('_temple' if temple else '')
+def export_set(era, region, index, frontage=False, temple=False, store=False):
+    suffix = '_frontage' if frontage else ('_temple' if temple else ('_store' if store else ''))
     path = os.path.join(ART, 'blend', era, '%s_%s%s.blend' % (era, region, suffix))
     if not os.path.exists(path):
         print('MISSING %s' % path)
         return
     bpy.ops.wm.open_mainfile(filepath=path)
-    for kind in (FRONTAGE if frontage else (TEMPLE if temple else KINDS)):
+    for kind in (FRONTAGE if frontage else (TEMPLE if temple else (STORE if store else KINDS))):
         bid = '%s_%s_%s' % (era, region, kind)
         root = bpy.data.objects.get(bid)
         if root is None:
@@ -192,6 +194,7 @@ def main():
     eras = [a for a in args if a in ERAS] or list(ERAS)
     frontage = '--frontage' in args
     temple = '--temple' in args
+    store = '--store' in args
     regions = list(REGIONS)
     if '--region' in args:
         regions = [args[args.index('--region') + 1]]
@@ -202,13 +205,15 @@ def main():
             index = json.load(f).get('buildings', {})
     for era in eras:
         for region in regions:
-            export_set(era, region, index, frontage, temple)
+            export_set(era, region, index, frontage, temple, store)
     os.makedirs(OUT, exist_ok=True)
     kinds = {k: {'tiles': TILES[k]} for k in KINDS}
     # a frontage kind's frontage and depth in metres (the renderer stands one per run of painted cells)
     kinds.update({k: {'tiles': 1, 'width': FRONTAGE_WIDTH[k], 'depth': FRONTAGE_DEPTH_M} for k in FRONTAGE})
     # a temple compound is a 3x3 (its wall on the compound's edge)
     kinds.update({k: {'tiles': TILES[k]} for k in TEMPLE})
+    # a department store is a 3x3 (its forecourt, parking and loading yard inside the square)
+    kinds.update({k: {'tiles': TILES[k]} for k in STORE})
     with open(index_path, 'w', encoding='utf-8') as f:
         json.dump({'version': 1, 'tileMetres': 16, 'kinds': kinds,
                    'buildings': index}, f, ensure_ascii=False, indent=1, sort_keys=True)

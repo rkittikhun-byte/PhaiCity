@@ -22,6 +22,8 @@ alone, do not show previews to the owner, and pace the plan's usage (see "Resumi
   exported and drawn by the game along painted streets.
 - 22 Oct 2026: the temple sets (see "Temples"): three levels of temple compound for every era and region, built and
   exported (90 glbs, `temple_1` ... `temple_3` in the index).
+- 23 Oct 2026: the department store sets (see "Department stores"): one store for eras 2-5 in every region, built and
+  exported (24 glbs, `store` in the index).
 
 ## Detail level (owner, 20 Oct 2026: 6-8 out of 10; aim at 7)
 
@@ -177,6 +179,51 @@ with their roofs set back inside.
   tiers turned side-on with its stair toward the path; trees keep 4.7 m from the edge so their crowns stay inside;
   every era keeps the region's chedi form (white or plastered before era 3), the east's prang only on temple_3 from
   era 3; the north's temple_1-2 halls have two front tiers and a back one.
+
+## Department stores (built 23 Oct 2026)
+
+A fourth kind of set, `era<n>_<region>_store` (`scripts/buildings/stores.py`, every era in one file; signs, lettering
+and vehicles in `lib/store_parts.py`): a department store (ห้างสรรพสินค้า) for eras 2-5, one kind, `store`, a 3x3 (48 m
+square, everything within 47 x 47 m), origin at the centre on the ground, front -Y. The store fills its square: the
+building toward the back, the forecourt, parking and loading yard in front and beside it, and the square's edge marked
+all round (a plastered wall, a lot wall with gates, a low wall with a hedge, a planted wall) so the ground it takes
+reads as the store's. The ground cover runs to the tile's edge as on the other buildings.
+
+| Era | th / en | What it is |
+|---|---|---|
+| 2 | ห้างสรรพสินค้าตึกไม้ / Market-hall department store | a 36 m two-storey hall, plastered brick below and timber above (plaster with arched windows in the south) over an arcade of folding plank shop fronts, a three-storey plastered tower in the middle with a balcony, the big sign board and a clock in its gable, the region's tiled roofs (zinc in Isan), a brick godown under ribbed zinc behind, striped awnings, a loading yard (ox cart, sacks, crates, well, jars), bicycles in racks, samlors, a vendor cart, a stall, wooden poles and wires, a plastered wall with lamp pillars at the gate |
+| 3 | ห้างสรรพสินค้า / Department store | five storeys of concrete (5.0 m ground floor, 4.2 m above): shop windows with goods, ribbon windows under deep horizontal sun-shade fins and vertical fins, a breeze-block (ช่องลม) screen, a canopy over the glass doors with a lit fascia, a tall lit sign reading downward that rises over the parapet, the region's gable on the roof edge (a Sino-Portuguese parapet in the south) and the lift room under the region's small roof, tanks, condensers and wall AC units, a car park with saloons, a motorbike shelter, food carts, a loading dock with a lorry, concrete poles and tangled wires, the lot wall with sliding gates |
+| 4 | ศูนย์การค้า / Shopping mall | three 5 m floors of panels with glass bands, a lit screen and fins, a glass atrium under the region's roof (glass in its gable), a drop-off canopy, a glass bridge to a four-deck car park with cars and a solar carport on its roof, solar and chillers on the mall, a taxi lane, a bus shelter, a kiosk, bicycles, motorbike bays, planted islands, trees, a low wall with a hedge |
+| 5 | ศูนย์การค้าสีเขียว / Green mall | three rounded floors stepping back into planted terraces (benches, umbrellas, small trees), timber louvres, living walls, a curved glass entrance under a louvred timber canopy, a vaulted skylight with timber ribs, the region's roof pavilion (`era5_parts.thai_crown`), a solar pergola, a drone pad, a roof garden on the lower roof; charging bays with electric pods under solar canopies, rain gardens, solar trees, e-bikes, lockers, delivery robots, a planted wall round the square |
+
+- Regions: the region's roofs and their gable dress (turned-up bargeboard ends in central, east and west, a plain
+  กาแล in the north, plain in Isan, hipped in the south), its walls and colours (`regions.plaster`, `e3.band_mat`,
+  `e4.dress`, `e5.dress`), awning stripes, ground and plants, and its yard thing (`regions.craft`).
+- Signs: real Thai lettering, made-up names only (`store_parts.NAMES`: ไผ่คำ in the north, ไผ่ทอง in the northeast,
+  ไผ่งาม in central, ไผ่บูรพา in the east, ไผ่ตะวัน in the west, ไผ่สมุทร in the south), with the era's word: era 2
+  "ห้าง<name>" over "ห้างสรรพสินค้า", era 3 "ห้าง<name>" down the tall sign and "ห้างสรรพสินค้า" on the canopy, era 4
+  "<name>พลาซ่า" over "ศูนย์การค้า" and "ทางเข้า ..." on the canopy, era 5 "<name>" and "ศูนย์การค้าสีเขียว". The text is
+  Sarabun Bold (`assets/fonts`, OFL) turned into a flat mesh by Blender (`store_parts.lettering`); it goes into a fourth
+  part, `signs`, with its boards: never thinned by the export, no ink outline, one-sided (the faces keep the side
+  they were drawn facing; `Part.keep_normals`). Lit boxes and letters are `st_*_lit`, so they glow at night.
+- Rules (CLAUDE.md licence rule 8): no brand or logo, no royal symbol, no Garuda, no Buddha image, no flag, no ช่อฟ้า,
+  ใบระกา or หางหงส์ (the roofs are the region's plain house roofs).
+- Build: `./run.sh <era2..era5|all> [region] --store [--force]` writes `blend/era<n>/era<n>_<region>_store.blend`, the
+  glb beside the era's, and `previews/era<n>_<region>_store.png`. Export:
+  `blender -b --factory-startup --python-exit-code 1 -P scripts/export_game.py -- era2 era3 era4 era5 --store` writes
+  only `store.glb` and adds `store` (`tiles: 3`) to the index.
+- Budgets: 24,900-33,500 triangles in Blender (era 2 29-33k, era 3 27-28k, era 4 25-26k, era 5 26-28k); the export
+  thins them to 15,600-15,900 (about 35 KB a glb, 870 KB for the 24). The lettering (1,200-2,700) and the yard are
+  kept whole, the props go to a fifth (era 2) or about a third (eras 3-5), the building stays nearly whole.
+- Choices made without the owner (23 Oct 2026, ไม้ไผ่45):
+  - The square's edge, the awnings and the roof solar are drawn into the building part, not the props, so the export's
+    thinning keeps them whole (the era libraries' wall helpers draw into `b.props`; `stores.InMain` hands them the
+    building part instead).
+  - Era 3's tall sign reads downward, its letters' tops to the right, as a book's spine and most tall Thai shop signs.
+  - Era 2's market-town store is a hall with an arcade rather than a shophouse row, so it reads as one store; its
+    tower has a clock (no flag: the Thai flag stays on government buildings).
+  - Cars, a lorry, motorbikes, bicycles and a samlor are simple props of the store's own (`store_parts`), not the
+    game's vehicles (`art/vehicles/`), which drive the roads.
 
 ## Checklist
 

@@ -189,7 +189,8 @@ class Part:
         pivot = Vector(pivot)
         bmesh.ops.translate(self.bm, vec=-pivot, verts=self.bm.verts)
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-5)
-        bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        if not getattr(self, 'keep_normals', False):
+            bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
         me = bpy.data.meshes.new(self.name)
         self.bm.to_mesh(me)
         self.bm.free()
