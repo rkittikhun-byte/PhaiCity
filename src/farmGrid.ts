@@ -197,12 +197,12 @@ export function farmCellsInRect(map: FarmGridMap, a: Point, b: Point, reach: num
   return { cells, corners: rect.corners };
 }
 
-/** Whether the brush may paint a farm cell: its square's tile (homeSquare) open land or a field (not a plot or a
- * building, whose cells lie there only so painting never moves the rest) */
+/** Whether the brush may paint a farm cell: its tile (homeSquare) open land or a field (not a plot or a building, whose
+ * cells lie there only so painting never moves the rest) */
 export function farmCellOnLand(map: FarmGridMap, cell: Cell): boolean {
   const home = homeSquare(map, cell);
   if (!home) return false;
-  const v = map.getTileValue(home.tile % map.width, Math.floor(home.tile / map.width)) & BIT_MASK;
+  const v = map.getTileValue(home.owner % map.width, Math.floor(home.owner / map.width)) & BIT_MASK;
   return isOpenLand(v) || isField(v);
 }
 
@@ -276,35 +276,51 @@ export function squarePainted(map: FarmGridMap, square: Square): boolean {
   return !any || ((squares[at + square.row] >> square.column) & 1) === 1;
 }
 
+/** Where a farm cell's paint is kept: the square that says whether it is painted (tile, row, column), and the tile it
+ * belongs to (owner): the field it is drawn with, whose checks the brush asks */
+export interface Home extends Square { owner: number }
+
 /**
- * The square a farm cell is kept by: the one under its middle, or, where its middle lies on a road's tile (a road's tile
- * is wider than the road drawn on it, so the first row beside a slanted road often reaches over one, as the zones' cells
- * do), the square of it nearest its middle on a tile that is not a road. A cell is painted when its square is, and the
- * brush may paint it when its square's tile may be a field.
+ * Where a farm cell's paint is kept: the square under its middle and its tile. A road's tile is wider than the road drawn
+ * on it, so the first rows beside a slanted road often lie over one, as the zones' cells do: a cell whose middle lies on a
+ * road's tile belongs to the land tile its squares reach nearest its middle, by that square; one lying wholly on road
+ * tiles belongs to the first land tile out from the road along it, and is kept by the square under its middle (squares
+ * on a road's tile count for nothing in the simulation, src/farmZone.ts fieldShare).
  */
-export function homeSquare(map: FarmGridMap, cell: Cell): Square | null {
+export function homeSquare(map: FarmGridMap, cell: Cell): Home | null {
   const middle = squareAt(map, cell.x, cell.z);
-  if (!middle || !isLineRoad(map.getTileValue(middle.tile % map.width, Math.floor(middle.tile / map.width)) & BIT_MASK)) return middle;
+  if (!middle) return null;
+  const road = (tile: number): boolean => isLineRoad(map.getTileValue(tile % map.width, Math.floor(tile / map.width)) & BIT_MASK);
+  if (!road(middle.tile)) return { ...middle, owner: middle.tile };
   const size = TILE_UNITS / SQUARES, units = TILE_UNITS * CELL_M / tileMetres(map);
-  let best: Square | null = null, bestD = Infinity;
+  let best: Home | null = null, bestD = Infinity;
   for (const [tile, bits] of cellSquares(map, cell, units)) {
+    if (road(tile)) continue;
     const tx = tile % map.width, ty = (tile - tx) / map.width;
-    if (isLineRoad(map.getTileValue(tx, ty) & BIT_MASK)) continue;
     for (let row = 0; row < SQUARES; row++) for (let column = 0; column < SQUARES; column++) {
       if (!((bits[row] >> column) & 1)) continue;
       const d = Math.hypot(tx * TILE_UNITS + (column + 0.5) * size - cell.x, ty * TILE_UNITS + (row + 0.5) * size - cell.z);
-      if (d < bestD - 1e-9) { bestD = d; best = { tile, row, column }; }
+      if (d < bestD - 1e-9) { bestD = d; best = { tile, row, column, owner: tile }; }
     }
   }
-  return best;
+  if (best) return best;
+  // (wholly on road tiles: the land tile out from the road along the cell's side of it)
+  for (let step = 1; step <= 4; step++) {
+    const at = squareAt(map, cell.x + cell.nx * units * step, cell.z + cell.nz * units * step);
+    if (at && !road(at.tile)) return { ...middle, owner: at.tile };
+  }
+  return null;
 }
 
-/** Whether a farm cell is painted: its square's tile a field, and its square painted (homeSquare) */
+/** Whether a farm cell is painted: its tile a field, and the square it is kept by painted (homeSquare) */
 export function cellPainted(map: FarmGridMap, cell: Cell): boolean {
   const home = homeSquare(map, cell);
   if (!home) return false;
-  const x = home.tile % map.width, y = (home.tile - x) / map.width;
-  return isField(map.getTileValue(x, y) & BIT_MASK) && squarePainted(map, home);
+  const x = home.owner % map.width, y = (home.owner - x) / map.width;
+  if (!isField(map.getTileValue(x, y) & BIT_MASK)) return false;
+  if (home.tile === home.owner) return squarePainted(map, home);
+  const squares = map.farmSquares;
+  return !!squares && ((squares[home.tile * SQUARES + home.row] >> home.column) & 1) === 1;
 }
 
 /** The painted farm cells kept by the given tiles (fields; homeSquare), each with its tile: those whose middles lie on
@@ -321,20 +337,22 @@ export function paintedCells(map: FarmGridMap, tiles: Iterable<number>, reach: n
   const out: Array<{ cell: Cell; tile: number }> = [];
   for (const cell of farmCellsOfTiles(map, look, reach)) {
     const home = homeSquare(map, cell);
-    if (home && wanted.has(home.tile) && cellPainted(map, cell)) out.push({ cell, tile: home.tile });
+    if (home && wanted.has(home.owner) && cellPainted(map, cell)) out.push({ cell, tile: home.owner });
   }
   return out;
 }
 
-/** The painted squares as a save keeps them: by tile, as 16 hex digits, only where a field covers part of its tile */
+/** The painted squares as a save keeps them: by tile, as 16 hex digits, only where a field covers part of its tile or
+ * a cell beside a road reaches over the road's tile */
 export function farmSquaresKept(map: FarmGridMap): Record<string, string> | null {
   const squares = map.farmSquares;
   if (!squares || squares.length !== map.width * map.height * SQUARES) return null;
   const kept: Record<string, string> = {};
   let any = false;
   for (let i = 0; i < map.width * map.height; i++) {
-    const n = squareCount(squares, i * SQUARES);
-    if (!n || n === ALL_SQUARES || !isField(map.getTileValue(i % map.width, Math.floor(i / map.width)) & BIT_MASK)) continue;
+    // (and those over a road tile's margin, which keep the cells beside the road painted)
+    const n = squareCount(squares, i * SQUARES), v = map.getTileValue(i % map.width, Math.floor(i / map.width)) & BIT_MASK;
+    if (!n || !(isField(v) && n < ALL_SQUARES || isLineRoad(v))) continue;
     let hex = "";
     for (let r = 0; r < SQUARES; r++) hex += squares[i * SQUARES + r].toString(16).padStart(2, "0");
     kept[i] = hex;
@@ -394,7 +412,7 @@ export function showOldFarmCells(map: FarmGridMap, tiles: Iterable<number>, reac
     const shown = new Set<number>();
     // (the cells kept by this tile, painted or not)
     const mine = farmCellsOfTiles(map, [tile, tile - 1, tile + 1, tile - map.width, tile + map.width].filter((t) => t >= 0 && t < map.width * map.height), reach)
-      .map((cell) => ({ cell, home: homeSquare(map, cell) })).filter((one) => one.home?.tile === tile);
+      .map((cell) => ({ cell, home: homeSquare(map, cell) })).filter((one) => one.home?.tile === tile && one.home.owner === tile);
     for (const { home } of mine) {
       if ((squares[at + home!.row] >> home!.column) & 1) shown.add((home!.row >> 1) * 4 + (home!.column >> 1));
     }

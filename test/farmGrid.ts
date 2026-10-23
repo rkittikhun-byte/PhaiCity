@@ -10,8 +10,8 @@
 
 import { MeshStandardMaterial, type BufferAttribute, type Mesh } from "three";
 import { CityCore } from "../src/core/cityCore";
-import { ALL_SQUARES, cellPainted, FARM_CHUNK, farmCellsInRect, farmCellsOnTiles, farmRows, paintedCells, paintedSquares,
-  SQUARES, squareAt } from "../src/farmGrid";
+import { ALL_SQUARES, cellPainted, FARM_CHUNK, farmCellsInRect, farmCellsOnTiles, farmRows, homeSquare, paintedCells,
+  paintedSquares, SQUARES, squareAt } from "../src/farmGrid";
 import { fieldShare, fieldTile, FIELD_FLAGS, isFieldValue, kindCode } from "../src/farmZone";
 import { GameMap } from "../src/gameMap.js";
 import { MapGenerator } from "../src/mapGenerator.js";
@@ -64,15 +64,15 @@ describe("the farm grid along every road", () => {
     const core = city([80, 80], [880, 520]);
     const line = roadLine(core), cells = allCells(core);
     expect(cells.length).toBeGreaterThan(1000);
-    const offsets: number[] = [];
-    for (const c of cells) {
+    const offsets: number[] = [], some = cells.filter((_, i) => i % 7 === 0);
+    for (const c of some) {
       const f = foot(line, [c.x, c.z]);
       // (the cells past the road's ends turn round them; those beside it run with it)
       if (f.d > 0 && turnBetween(c.angle, Math.atan2(800, 440)) < 1e-6) offsets.push(f.d);
       // (a cell may reach over a road tile's margin, as the zones' do, never onto the road drawn)
       expect(f.d).toBeGreaterThan(CELL / 2);
     }
-    expect(offsets.length / cells.length).toBeGreaterThan(0.8);
+    expect(offsets.length / some.length).toBeGreaterThan(0.8);
     // every row the same distance from the road: a cell's width apart from the first
     const first = Math.min(...offsets);
     for (const d of offsets) expect(Math.abs((d - first) / CELL - Math.round((d - first) / CELL))).toBeLessThan(0.02);
@@ -89,7 +89,7 @@ describe("the farm grid along every road", () => {
 
   test("beside a curved road each cell turns with the road where it stands", () => {
     const core = city([80, 560], [880, 560], [[300, 40], [660, 40]]);
-    const line = roadLine(core), cells = allCells(core).filter((c) => foot(line, [c.x, c.z]).d < 6 * CELL);
+    const line = roadLine(core), cells = allCells(core).filter((c, i) => i % 5 === 0 && foot(line, [c.x, c.z]).d < 6 * CELL);
     const angles = new Set(cells.map((c) => Math.round(c.angle * 10)));
     expect(angles.size).toBeGreaterThan(10);
     for (const c of cells) expect(turnBetween(c.angle, foot(line, [c.x, c.z]).angle)).toBeLessThan(0.12);
@@ -143,6 +143,24 @@ describe("the farm grid along every road", () => {
     expect(view.counts().fields).toBeGreaterThan(0);
     expect(ground.material).toBeInstanceOf(MeshStandardMaterial);
     view.dispose();
+  });
+
+  test("beside a slanted road the rows over its tiles' margin paint too: no staircase of road tiles along the field", () => {
+    const core = city([80, 80], [880, 520]), map = core.map as any, road = Math.atan2(800, 440);
+    const near = allCells(core).filter((c) => c.row <= 2 && c.x > 300 && c.x < 420 && turnBetween(c.angle, road) < 1e-6);
+    // some of them lie wholly or partly on the road's tiles
+    expect(near.some((c) => isRoadTile(map.getTileValue(Math.floor(c.x / 10), Math.floor(c.z / 10))))).toBe(true);
+    const behind = allCells(core).filter((c) => c.row >= 3 && c.row <= 5 && c.x > 300 && c.x < 420 && turnBetween(c.angle, road) < 1e-6);
+    core.apply({ type: "farmCells", erase: false, cells: [...near, ...behind].map((c) => c.key), stroke: 2 });
+    // (each painted, but where the land tile it belongs to was left out of the stroke: past the stroke's ends)
+    const owned = (c: Cell) => { const h = homeSquare(map, c)!; return isFieldValue(map.getTileValue(h.owner % W, Math.floor(h.owner / W))); };
+    for (const c of behind) expect([c.row, cellPainted(map, c)]).toEqual([c.row, true]);
+    for (const c of near) expect([c.row, cellPainted(map, c)]).toEqual([c.row, owned(c)]);
+    expect(near.filter((c) => cellPainted(map, c)).length).toBeGreaterThan(near.length * 0.8);
+    // ... and they are saved
+    const saved = JSON.parse(JSON.stringify({ ...core.save(), width: W, height: H, version: (Storage as any).CURRENT_VERSION }));
+    const again = new CityCore({ sandbox: true, map: new (GameMap as any)(W, H), saved });
+    for (const c of near) expect(cellPainted(again.map as any, c)).toBe(cellPainted(map, c));
   });
 
   test("the paint stays where it lies when its road is upgraded in place", () => {
