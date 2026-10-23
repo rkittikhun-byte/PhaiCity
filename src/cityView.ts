@@ -89,6 +89,8 @@ export interface ToolHover {
   inspect?: { x: number; y: number } | null;
   /** ... and the tiles of the road stretch the card shows (src/inspect.ts path) */
   inspectPath?: readonly TilePoint[] | null;
+  /** ... and whether the card shows a road: false, a road drawn across the point is not marked (the card is the land's) */
+  inspectRoad?: boolean;
   /** A police or fire station, school or hospital in hand on a real-scale city map: the roads it would reach from there
    * and how far along them (src/sim/reachPreview.ts), shown on the roads fading with the distance (docs/NO_GRID_PLAN.md
    * 4.3) */

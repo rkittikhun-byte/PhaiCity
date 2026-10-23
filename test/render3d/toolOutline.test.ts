@@ -8,7 +8,7 @@
 // meets, or a one-tile tool points at, shows as the building's own turned outline.
 
 import { BufferGeometry, Mesh, Vector3 } from 'three';
-import { ToolOutline } from '../../src/render3d/city/overlay.js';
+import { longRuns, roadEdges, stretchSteps, ToolOutline } from '../../src/render3d/city/overlay.js';
 import type { ToolHover } from '../../src/cityView.js';
 
 type Point = [number, number];
@@ -176,6 +176,30 @@ describe('the tools\' outlines on a city map', () => {
       expect(asked).toEqual([[804, 805, 806]]);
       const points = meshes(tool).flatMap((m) => m.points);
       for (const [, z] of points) expect(Math.abs(z - 205)).toBeLessThanOrEqual(2 + 1e-6);
+      // edged in white along both sides, no pale patch over the road's middle (playtest, 23 Oct 2026)
+      expect(points.some(([, z]) => Math.abs(z - 205) < 1.5)).toBe(false);
+      expect(points.some(([, z]) => z < 204) && points.some(([, z]) => z > 206)).toBe(true);
+    });
+
+    test('a card of the land a drawn road passes marks the point, not the road', () => {
+      const tool = outline();
+      let asked = 0;
+      tool.roadStrips = () => { asked++; return { quads: [[[0, 0], [10, 0], [10, 4], [0, 4]]], covered: new Set([0]) }; };
+      tool.update({ tile: { x: 5, y: 20 }, size: 1, colour: '#8fdcff', inspect: { x: 5.5, y: 20.5 }, inspectRoad: false } as ToolHover);
+      expect(asked).toBe(0);
+      for (const [x, z] of meshes(tool).flatMap((m) => m.points)) expect(Math.hypot(x - 55, z - 205)).toBeLessThan(4);
+    });
+
+    test("a slanted road's stretch is one band: gaps of a tile and a half between steps on its tiles are taken", () => {
+      expect(stretchSteps([true, false, false, true, false], 2)).toEqual([true, true, true, true, false]);
+      expect(stretchSteps([true, false, false, false, true], 2)).toEqual([true, false, false, false, true]);
+      expect(stretchSteps([false, true, false], 5)).toEqual([false, true, false]);
+      // a crossing road's few steps on the junction's tile are left out when the stretch has a long run; a short stretch stays
+      expect(longRuns([[true, true, true, true], [false, true, false]], 3)).toEqual([[true, true, true, true], [false, false, false]]);
+      expect(longRuns([[true, false], [false, true]], 3)).toEqual([[true, false], [false, true]]);
+      const edges = roadEdges([[[0, -2], [10, -2], [10, 2], [0, 2]]], 0.35);
+      expect(edges).toHaveLength(2);
+      for (const strip of edges) for (const [, z] of strip) expect(Math.abs(z)).toBeGreaterThanOrEqual(2 - 0.35 - 1e-9);
     });
   });
 });

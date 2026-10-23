@@ -21,7 +21,7 @@ import { CityChunks } from './chunks.js';
 import { TileSnapshot } from './tileModels.js';
 import { CityHeightField } from './heightfield.js';
 import { CitySprites } from './sprites.js';
-import { ToolOutline, ZoneGrid } from './overlay.js';
+import { longRuns, stretchSteps, ToolOutline, ZoneGrid } from './overlay.js';
 import { SkyDome } from './sky.js';
 import { StreetLabels } from './streetLabels.js';
 import { ProvinceBackdropView } from './provinceBackdrop.js';
@@ -253,14 +253,22 @@ export class CityView3D implements CityView {
     this.outline.objectOf=(index)=>this.objectGround(index);
     // The bulldozer's red as the stretch of road on the tiles it takes (overlay.ts roadStrips): each drawn line cut into steps
     // of about a metre, a step kept where its middle lies on one of those tiles, as wide as the road
-    this.outline.roadStrips=(tiles)=>{const quads:[number,number][][]=[],covered=new Set<number>(),w=this.snapshot.width;
-      for(const line of this.curves.drawnLines){const hw=(line.rail?3.2*(this.snapshot.realUnits??1):halfWidth(line.level,this.snapshot.realUnits))*1.15;
+    // (`whole`, the inspector's stretch: as wide as the road itself, and the steps between two on its tiles within a tile
+    // and a half taken too, so a slanted road's stretch is one band, overlay.ts stretchSteps)
+    this.outline.roadStrips=(tiles,whole=false)=>{const quads:[number,number][][]=[],covered=new Set<number>(),w=this.snapshot.width;
+      const lines:{quad:[number,number][];on:boolean}[][]=[];
+      for(const line of this.curves.drawnLines){const hw=(line.rail?3.2*(this.snapshot.realUnits??1):halfWidth(line.level,this.snapshot.realUnits))*(whole?1:1.15);
+        const steps:{quad:[number,number][];on:boolean}[]=[];
         for(let i=1;i<line.points.length;i++){const[ax,az]=line.points[i-1],[bx,bz]=line.points[i],len=Math.hypot(bx-ax,bz-az);if(len<1e-6)continue;
-          const nx=-(bz-az)/len*hw,nz=(bx-ax)/len*hw,steps=Math.max(1,Math.ceil(len/1.5));
-          for(let k=0;k<steps;k++){const t0=k/steps,t1=(k+1)/steps,mx=ax+(bx-ax)*(t0+t1)/2,mz=az+(bz-az)*(t0+t1)/2,key=Math.floor(mz/10)*w+Math.floor(mx/10);
-            if(!tiles.has(key))continue;covered.add(key);
+          const nx=-(bz-az)/len*hw,nz=(bx-ax)/len*hw,n=Math.max(1,Math.ceil(len/1.5));
+          for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n,mx=ax+(bx-ax)*(t0+t1)/2,mz=az+(bz-az)*(t0+t1)/2,key=Math.floor(mz/10)*w+Math.floor(mx/10);
+            const on=tiles.has(key);if(on)covered.add(key);
             const px=ax+(bx-ax)*t0,pz=az+(bz-az)*t0,qx=ax+(bx-ax)*t1,qz=az+(bz-az)*t1;
-            quads.push([[px-nx,pz-nz],[qx-nx,qz-nz],[qx+nx,qz+nz],[px+nx,pz+nz]]);}}}
+            steps.push({quad:[[px-nx,pz-nz],[qx-nx,qz-nz],[qx+nx,qz+nz],[px+nx,pz+nz]],on});}}
+        lines.push(steps);}
+      // (a crossing road's few steps on the junction's tile are not the stretch: runs of 12 steps, about 30 m, when any)
+      const taken=whole?longRuns(lines.map(steps=>stretchSteps(steps.map(s=>s.on),10)),12):lines.map(steps=>steps.map(s=>s.on));
+      lines.forEach((steps,i)=>steps.forEach((s,k)=>{if(taken[i][k])quads.push(s.quad);}));
       // ... and a road tile of a slanted road's staircase that the smooth line only passes beside is part of that stretch too
       for(const key of tiles)if(isLineTile(this.snapshot.values[key]&1023))covered.add(key);
       return{quads,covered};};this.outline.scaledBuildings=Boolean((setup.map as unknown as CellMap).cellZones);

@@ -167,6 +167,71 @@ function edgeStrips(quad: readonly Point[], w: number): Point[][] {
   });
 }
 
+/** The two sides of a road's stretch, w wide inside its edges: each step [a - n, b - n, b + n, a + n] of a drawn line
+ * (index.ts roadStrips) gives a thin strip along each of its long sides */
+export function roadEdges(quads: ReadonlyArray<readonly Point[]>, w: number): Point[][] {
+  const out: Point[][] = [];
+  const toward = (p: Point, q: Point, f: number): Point => [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  for (const [p0, q0, q1, p1] of quads) {
+    const f = Math.min(0.5, w / Math.max(1e-6, Math.hypot(p1[0] - p0[0], p1[1] - p0[1])));
+    out.push([p0, q0, toward(q0, q1, f), toward(p0, p1, f)], [toward(p1, p0, f), toward(q1, q0, f), q1, p1]);
+  }
+  return out;
+}
+
+/** Of the steps the lines' stretches take, the runs at least `minRun` long, when any run is: a crossing road's steps on
+ * the junction's tile at the stretch's end are left out, a stretch of one short piece is kept */
+export function longRuns(lines: readonly (readonly boolean[])[], minRun: number): boolean[][] {
+  const runs = lines.map((on) => {
+    const out: { from: number; to: number }[] = [];
+    for (let i = 0; i < on.length; i++) if (on[i] && (i === 0 || !on[i - 1])) {
+      let j = i;
+      while (j + 1 < on.length && on[j + 1]) j++;
+      out.push({ from: i, to: j });
+    }
+    return out;
+  });
+  const long = runs.some((r) => r.some((run) => run.to - run.from + 1 >= minRun));
+  return lines.map((on, k) => {
+    const out = on.map(() => false);
+    for (const run of runs[k]) if (!long || run.to - run.from + 1 >= minRun) for (let i = run.from; i <= run.to; i++) out[i] = true;
+    return out;
+  });
+}
+
+/** roadEdges as a mesh on the road: each corner at the higher of its own ground and the road's middle across from it
+ * (a road lies level across where the ground slopes, and an edge on the ground there would hide under it), lifted */
+function roadEdgeGeometry(quads: ReadonlyArray<readonly Point[]>, w: number, lift: number, terrain?: CityHeightField): BufferGeometry {
+  const positions: number[] = [];
+  const ground = (x: number, z: number): number => terrain?.enabled ? terrain.sample(x, z) : 0;
+  for (const [p0, q0, q1, p1] of quads) {
+    const a = ground((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2), b = ground((q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2);
+    for (const strip of roadEdges([[p0, q0, q1, p1]], w)) {
+      // (the strip's corners: two at the step's start, two at its end)
+      const [s0, s1, s2, s3] = strip.map(([x, z], k) => [x, Math.max(ground(x, z), k === 1 || k === 2 ? b : a) + lift, z]);
+      const up = (s1[2] - s0[2]) * (s2[0] - s0[0]) - (s1[0] - s0[0]) * (s2[2] - s0[2]);
+      positions.push(...(up >= 0 ? [s0, s1, s2, s0, s2, s3] : [s0, s2, s1, s0, s3, s2]).flat());
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** Which steps of a drawn line a stretch takes: those on its tiles (`on`), and the gaps of at most `gap` steps between
+ * two of them too, which a slanted road's smooth line leaves where it passes beside its staircase's tiles */
+export function stretchSteps(on: readonly boolean[], gap: number): boolean[] {
+  const out = [...on];
+  let last = -1;
+  for (let i = 0; i < on.length; i++) {
+    if (!on[i]) continue;
+    if (last >= 0 && i - last - 1 <= gap) for (let k = last + 1; k < i; k++) out[k] = true;
+    last = i;
+  }
+  return out;
+}
+
 /** Whether a point (x, z) lies inside a four-cornered patch on the ground (its corners in order round it) */
 function insideQuad(quad: readonly Point[], x: number, z: number): boolean {
   let sign = 0;
@@ -223,14 +288,14 @@ export class ToolOutline {
   lotOf:((index:number)=>readonly Point[]|null)|null=null;
   /** The stretches of drawn road and railway lying on these tiles (index y × width + x), as patches on the ground, and the
    * tiles they cover: what the bulldozer's red shows instead of whole tiles (index.ts) */
-  roadStrips:((tiles:ReadonlySet<number>)=>{quads:Point[][];covered:ReadonlySet<number>})|null=null;
+  roadStrips:((tiles:ReadonlySet<number>,whole?:boolean)=>{quads:Point[][];covered:ReadonlySet<number>})|null=null;
   constructor(private width:number,private height:number,private terrain?:CityHeightField) {this.root.renderOrder=25;}
   update(hover:ToolHover|null):void {
     const r=hover?clipToMap(toolFootprint(hover),this.width,this.height):null;
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,hover?.snapKind??null,hover?.snapWay??null,hover?.snapGuide??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false,hover?.inspect?[Math.round(hover.inspect.x*20),Math.round(hover.inspect.y*20)]:null,hover?.inspectPath?.length??0]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,hover?.snapKind??null,hover?.snapWay??null,hover?.snapGuide??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false,hover?.inspect?[Math.round(hover.inspect.x*20),Math.round(hover.inspect.y*20)]:null,hover?.inspectPath?.length??0,hover?.inspectRoad??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     if(hover.inspect){this.inspected(hover);return;}
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
@@ -436,9 +501,12 @@ export class ToolOutline {
       const edge=new Mesh(groundQuads(edgeStrips(shape,.35),.72,this.terrain),cityToolMaterial('#ffffff'));edge.renderOrder=26;
       this.root.add(fill,edge);return;
     }
+    // A road: its stretch edged in white along both sides at its own width, the whole stretch without gaps, never a pale
+    // patch over its surface (playtest, 23 Oct 2026: a fill wider than the road, broken into slabs along a slanted road,
+    // lay across it while its card was open); a card of the land a drawn road passes marks the point instead
     const tiles=new Set((hover.inspectPath??[{x:tx,y:ty}]).map(t=>t.y*this.width+t.x));
-    const strips=this.roadStrips?.(tiles);
-    if(strips?.quads.length){const road=new Mesh(groundQuads(strips.quads,.7,this.terrain),cityToolMaterial(hover.colour,true));road.renderOrder=25;this.root.add(road);return;}
+    const strips=hover.inspectRoad===false?null:this.roadStrips?.(tiles,true);
+    if(strips?.quads.length){const edge=new Mesh(roadEdgeGeometry(strips.quads,.35,.72,this.terrain),cityToolMaterial('#ffffff'));edge.renderOrder=26;this.root.add(edge);return;}
     const x=point.x*10,z=point.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
     const disc=new Mesh(new CircleGeometry(3.2,32).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));disc.position.set(x,y,z);disc.renderOrder=25;
     const ring=new Mesh(new RingGeometry(3.2,3.75,40).rotateX(-Math.PI/2),cityToolMaterial('#ffffff',true));ring.position.set(x,y+.01,z);ring.renderOrder=26;

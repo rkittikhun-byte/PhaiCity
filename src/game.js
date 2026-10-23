@@ -915,7 +915,8 @@ Game.prototype.selectionOutline = function() {
   var rect = shown.rect;
   return {tile: {x: rect.x, y: rect.y}, size: 1, colour: '#8fdcff',
           inspect: this._inspectPoint || {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2},
-          inspectPath: shown.path && shown.path.length > 1 ? shown.path : null};
+          inspectPath: shown.path && shown.path.length > 1 ? shown.path : null,
+          inspectRoad: Boolean(shown.title && shown.title.key === 'object.kind.road')};
 };
 
 
