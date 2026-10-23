@@ -6,7 +6,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import type { Scene, WebGLRenderer } from 'three';
-import { PLOT_WHY } from '../../src/plots.js';
+import { PLOT_WHY, plotTile } from '../../src/plots.js';
 import { CityView3D } from '../../src/render3d/city/index.js';
 import type { CityPostLike, PostLook } from '../../src/render3d/city/postFx.js';
 import { EFFECT_COST_GUESS, EffectLadder, LADDER, LEVEL_RUNG, RAISE_WAIT_MS, effectsAt, isGraphicsQuality, middleInterval,
@@ -211,7 +211,10 @@ describe('the 3D view through the lens', () => {
   it('draws the problem icons over its picture, after the lens, so their white never glows with the lamps at night', () => {
     const plotWhy = new Uint8Array(200 * 16); plotWhy[5] = PLOT_WHY.indexOf('water'); plotWhy[40] = PLOT_WHY.indexOf('power');
     for (const lens of [true, false]) {
-      const post = lens ? fakePost() : null, f = viewFixture({ post, map: { ...mapReader(), plotWhy } as ReturnType<typeof mapReader> });
+      // (two homes standing there: icons stand only over a plot whose building stands, src/render3d/city/problemIcons.ts)
+      const house = plotTile('residential', 1), homes = { ...mapReader(), plotWhy, paintedZones: true,
+        getTileValue: (x: number, y: number) => (y * 200 + x === 5 || y * 200 + x === 40 ? house : 0) };
+      const post = lens ? fakePost() : null, f = viewFixture({ post, map: homes as unknown as ReturnType<typeof mapReader> });
       try {
         f.view.setDarkMode(true); f.view.setQuality('high');
         const renderer = f.renderer as unknown as { autoClear: boolean; render: jest.Mock }, order: string[] = [], clears: boolean[] = [];
