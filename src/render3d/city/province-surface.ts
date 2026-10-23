@@ -19,6 +19,7 @@ import type { Placement } from './types.js';
 import { TerrainDetail } from './terrain-detail.js';
 import { besideCanal } from './canals.js';
 import { LOD_HYSTERESIS, lodDistance } from './lod.js';
+import { GRADE_STEPS } from '../../terrain/groundGrade.js';
 const SIZE=32, matrix=new Matrix4(), color=new Color(), scratch=new Color();
 /** How much lighter or darker the open land of a real-scale city map is at (x, z) world units: a few overlapping waves
  * some 50 to 120 m long, so the ground varies as fields do and no tile's square shows (owner, 21 Oct 2026) */
@@ -146,7 +147,7 @@ export class ProvinceSurface {
     if(!terrain.enabled)return(x,z)=>terrain.sample(x,z);
     const columns=Math.ceil(snapshot.width/4),rows=Math.ceil(snapshot.height/4),lowest=new Float32Array(columns*rows).fill(Infinity);
     for(let y=0;y<snapshot.height;y++)for(let x=0;x<snapshot.width;x++){const n=Math.floor(y/4)*columns+Math.floor(x/4);
-      lowest[n]=Math.min(lowest[n],...terrain.tileCorners(x,y));}
+      lowest[n]=Math.min(lowest[n],terrain.tileLowest(x,y));}
     const corners=new Float32Array((columns+1)*(rows+1));
     for(let y=0;y<=rows;y++)for(let x=0;x<=columns;x++){let low=Infinity;
       for(const[px,py]of[[x-1,y-1],[x,y-1],[x-1,y],[x,y]])if(px>=0&&py>=0&&px<columns&&py<rows)low=Math.min(low,lowest[py*columns+px]);
@@ -239,6 +240,18 @@ export class ProvinceSurface {
       const shade=own.clone(),outside=this.corner(px,py,wet,shade);return{x:px*10,z:py*10,shade,outside};});
     // ... on a city map its middle the corners' blend too, as the near ground's (terrain-detail.ts) is, so no tile shows
     if(this.snapshot.paintedZones&&!wet)own.setRGB(0,0,0).add(corners[0].shade).add(corners[1].shade).add(corners[2].shade).add(corners[3].shade).multiplyScalar(.25);
+    // ... levelled under a building or plot (src/terrain/groundGrade.ts): the squares of its finer samples, each split as
+    // the samples are, its colour blended from its corners'
+    if(!wet&&this.terrain.graded(y*this.snapshot.width+x)){
+      const steps=GRADE_STEPS,size=10/steps,shade=new Color(),c0=corners[0],c1=corners[1],c2=corners[2],c3=corners[3];
+      const vertex=(px:number,pz:number):void=>{const u=(px-x*10)/10,v=(pz-y*10)/10,w0=(1-u)*(1-v),w1=u*(1-v),w2=u*v,w3=(1-u)*v;
+        shade.setRGB(c0.shade.r*w0+c1.shade.r*w1+c2.shade.r*w2+c3.shade.r*w3,c0.shade.g*w0+c1.shade.g*w1+c2.shade.g*w2+c3.shade.g*w3,c0.shade.b*w0+c1.shade.b*w1+c2.shade.b*w2+c3.shade.b*w3);
+        c.positions.push(px,height(px,pz),pz);c.colors.push(shade.r,shade.g,shade.b);c.outside.push(c0.outside*w0+c1.outside*w1+c2.outside*w2+c3.outside*w3);c.fade.push(0);c.ground.push(1);};
+      for(let r=0;r<steps;r++)for(let q=0;q<steps;q++){const x0=x*10+q*size,z0=y*10+r*size,x1=x0+size,z1=z0+size;
+        // (counter-clockwise from above, as the four triangles below)
+        vertex(x0,z0);vertex(x0,z1);vertex(x1,z0);vertex(x1,z0);vertex(x0,z1);vertex(x1,z1);}
+      return;
+    }
     for(let k=0;k<4;k++){const a=corners[k],b=corners[(k+1)%4];
       for(const p of[{x:cx,z:cz,shade:own,outside:ownOutside},b,a]){
         c.positions.push(p.x,height(p.x,p.z),p.z);c.colors.push(p.shade.r,p.shade.g,p.shade.b);c.outside.push(p.outside);c.fade.push(0);c.ground.push(1);}}
@@ -286,7 +299,7 @@ export class ProvinceSurface {
       for(const n of[0,2,1,0,3,2]){c.positions.push(...vertices[n]);c.colors.push(...new Color(0x9c927e).toArray());c.outside.push(outside?1:0);c.fade.push(0);c.ground.push(0);}
     }
     const p=this.placements.get(i)??this.snapshot.placement(i,'central');
-    if(p){p.baseY=this.terrain.base(i);p.outside=outside;}
+    if(p){p.baseY=this.terrain.standOn(i,p.x,p.z);p.outside=outside;}
     // Plain roads and railways are smooth curves of their own (roadCurves.ts)
     if((isRoad(v)||isRail(v))&&!(this.snapshot.curves&&isCurved(v))){
       const start=c.fade.length,mask=this.snapshot.mask(x,y,isRoad(v)?isRoad:isRail),bridge=wet;
@@ -390,7 +403,7 @@ export class ProvinceSurface {
     for(const m of[c.trees,c.buildings]){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;
       m.geometry.getAttribute('cityOutside').needsUpdate=true;m.computeBoundingSphere();}
   }
-  set(index:number,p:Placement|null):void {if(p){p.baseY=this.terrain.base(index);p.outside=!this.terrain.inside(index%this.snapshot.width,Math.floor(index/this.snapshot.width));this.placements.set(index,p);}else this.placements.delete(index);}
+  set(index:number,p:Placement|null):void {if(p){p.baseY=this.terrain.standOn(index,p.x,p.z);p.outside=!this.terrain.inside(index%this.snapshot.width,Math.floor(index/this.snapshot.width));this.placements.set(index,p);}else this.placements.delete(index);}
   dirty(indices:readonly number[]):void {
     if(!indices.length)return;
     this.terrainDetail.dirty(indices);

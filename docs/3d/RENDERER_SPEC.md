@@ -189,6 +189,18 @@ which the renderer only reads:
     shores slope down to it.
   - A zone or building's footprint is flattened to its mean height, so buildings stand level; roads and
     railways follow the ground, and bridges stay level between their banks.
+  - **Levelled ground on a map painted in cells (owner, 23 Oct 2026: "การวาง object ต่างๆ พอวางแล้ว ต้องลบ gis ของช่วงนั้นให้
+    ได้ระดับถนน"; `src/terrain/groundGrade.ts`, `docs/GAME_DESIGN.md` 17).** There the tile pads above are off (buildings
+    are turned to their roads). Instead every building of the ruler's (its turned outline or square block) and every grown
+    plot of the list (its columns, a plot deep) stands on a pad: flat over its outline and 1 m round it (fence and yard
+    included), at the height of its road where its front meets it (no road within 24 m: the mean of its ground), the
+    ground round it easing back to the hills over 4-24 m (2.5 world units across per unit of height, smoothstep, pads side
+    by side blended without a step). Derived each time from the buildings, plots and roads, never saved; only the pads
+    that came, went or changed are levelled again. A levelled tile is drawn from 5 × 5 samples (a 4 m step on 16 m tiles,
+    `GRADE_STEPS`), its squares split top-right to bottom-left as the ground's tiles are, so where no pad reaches it is the
+    natural ground exactly. `sample`, picking (`intersect`), the near ground (`terrain-detail.ts`), the roads and their
+    worker (`roadBuild.ts gradedHeight`) and the fences read the same surface; a model stands at its pad's level
+    (`standOn`).
   - `tileAt` picks against the raised ground, and the camera's target follows it.
 - `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
   `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.

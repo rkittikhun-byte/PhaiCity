@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 16;
+export const SIM_VERSION = 17;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -52,6 +52,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   16: "on a real-scale city map, short of power, the ruler's services (police and fire stations, the water works, the " +
     "ruler's house, schools and hospitals, not temples) take theirs before every home, shop and factory on their roads, " +
     "the nearest of them first; the roads go short from the nearest building that went without (GAME_DESIGN 16)",
+  17: "on a real-scale city map whose zones are painted in cells a flood reads the ground levelled under each building " +
+    "and grown plot, at its road's height where its front meets it (src/terrain/groundGrade.ts, GAME_DESIGN 17)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

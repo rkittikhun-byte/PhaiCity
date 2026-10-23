@@ -14,6 +14,7 @@
 // Plain code, + - x / and the city's Random only. No DOM.
 
 import type { RoadGraph } from "../roads/roadGraph";
+import { gradedTileHeight, type GradedHeightsMap } from "../terrain/groundGrade";
 
 /** The eight tiles round a tile: the four beside it, then the corners */
 export const ROUND: ReadonlyArray<readonly [number, number]> = [[-1, 0], [0, -1], [1, 0], [0, 1], [-1, -1], [1, -1], [1, 1], [-1, 1]];
@@ -41,6 +42,13 @@ export const FLOOD_RISE_M = 0.5;
 export function floodsOnto(heights: ArrayLike<number> | null | undefined, from: number, to: number): boolean {
   if (!heights) return true;
   return heights[to] - heights[from] <= FLOOD_RISE_M;
+}
+
+/** The same on a map, by its ground as levelled under what stands on it (src/terrain/groundGrade.ts): a yard levelled to
+ * its road floods as its road does */
+export function floodsOntoMap(map: GradedHeightsMap, from: number, to: number): boolean {
+  if (!map.heights || map.heights.length !== map.width * map.height) return true;
+  return gradedTileHeight(map, to) - gradedTileHeight(map, from) <= FLOOD_RISE_M;
 }
 
 /** How fast a road wears a month the city pays nothing for its upkeep (a share of its life), and is mended a month it

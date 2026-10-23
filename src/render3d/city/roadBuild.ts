@@ -14,6 +14,7 @@ import { halfWidth, nearestOnLines, REAL_WIDTH_M, roadReach, shoulderOf, type Ju
 import { junctionLayout } from './roadJunctions.js';
 import { drawnRoads, type GraphLines } from '../../roads/graphLines.js';
 import type { CityMapReader } from './types.js';
+import { GRADE_STEPS, sampleSamples } from '../../terrain/groundGrade.js';
 
 const LIFT = 0.15, OUTSIDE_SHADE = 0.62;
 /** A road's end under the road it meets, and the shoulders round a junction's corners. */
@@ -180,6 +181,9 @@ const flatten = (points: readonly Point[]): number[] => {
 export interface HeightSource {
   sampleTile(ix: number, iy: number, x: number, z: number): number;
   inside(x: number, y: number): boolean;
+  /** The ground levelled under buildings and plots at (x, z) on tile (ix, iy), drawn from its finer samples, or NaN where
+   * the tile is the natural ground (src/terrain/groundGrade.ts) */
+  gradedHeight?(ix: number, iy: number, x: number, z: number): number;
 }
 
 /** The height field's numbers (heightfield.ts grid), sent to a worker */
@@ -190,11 +194,21 @@ export interface HeightGrid {
   pads: Float32Array;
   corners: Float32Array;
   mask: Uint8Array | null;
+  /** The levelled tiles and their samples, (GRADE_STEPS + 1)^2 each in turn (heightfield.ts grade) */
+  graded?: { tiles: Int32Array; samples: Float32Array };
 }
 
 /** The height field's own sampling (heightfield.ts sampleTile, inside) from its numbers */
 export class GridHeights implements HeightSource {
-  constructor(readonly grid: HeightGrid) {}
+  private readonly graded = new Map<number, Float32Array>();
+  constructor(readonly grid: HeightGrid) {
+    const g = grid.graded, n = (GRADE_STEPS + 1) ** 2;
+    if (g) g.tiles.forEach((i, k) => this.graded.set(i, g.samples.subarray(k * n, (k + 1) * n)));
+  }
+  gradedHeight(ix: number, iy: number, x: number, z: number): number {
+    const t = this.graded.get(iy * this.grid.width + ix);
+    return t ? sampleSamples(t, x / 10 - ix, z / 10 - iy) : NaN;
+  }
   private corner(x: number, y: number): number {
     const { width, height, corners } = this.grid;
     return corners[Math.max(0, Math.min(height, y)) * (width + 1) + Math.max(0, Math.min(width, x))];
@@ -204,6 +218,8 @@ export class GridHeights implements HeightSource {
     const u = Math.max(0, Math.min(1, x / 10 - ix)), v = Math.max(0, Math.min(1, z / 10 - iy));
     const flat = this.grid.pads[iy * this.grid.width + ix];
     if (Number.isFinite(flat)) return flat;
+    const graded = this.graded.get(iy * this.grid.width + ix);
+    if (graded) return sampleSamples(graded, u, v);
     const a = this.corner(ix, iy), b = this.corner(ix + 1, iy), c = this.corner(ix, iy + 1), d = this.corner(ix + 1, iy + 1);
     return u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - v) * (b - d) + (1 - u) * (c - d);
   }
@@ -218,6 +234,9 @@ export class GridHeights implements HeightSource {
  */
 export function groundHeight(heights: HeightSource, width: number, height: number, x: number, z: number): number {
   const tx = Math.max(0, Math.min(width - 1, Math.floor(x / 10))), tz = Math.max(0, Math.min(height - 1, Math.floor(z / 10)));
+  // ... and on a levelled tile its finer samples, as it is drawn there
+  const graded = heights.gradedHeight?.(tx, tz, x, z) ?? NaN;
+  if (!Number.isNaN(graded)) return graded;
   return blendTile(tileSamples(heights, tx, tz), Math.max(0, Math.min(1, x / 10 - tx)), Math.max(0, Math.min(1, z / 10 - tz)));
 }
 
@@ -635,6 +654,8 @@ export class RoadBuilder {
   private height(x: number, z: number): number {
     const { width, height } = this.map;
     const tx = Math.max(0, Math.min(width - 1, Math.floor(x / 10))), tz = Math.max(0, Math.min(height - 1, Math.floor(z / 10)));
+    const graded = this.heights.gradedHeight?.(tx, tz, x, z) ?? NaN;
+    if (!Number.isNaN(graded)) return graded;
     let h = this.samples.get(tz * width + tx);
     if (!h) { h = tileSamples(this.heights, tx, tz); this.samples.set(tz * width + tx, h); }
     return blendTile(h, Math.max(0, Math.min(1, x / 10 - tx)), Math.max(0, Math.min(1, z / 10 - tz)));
