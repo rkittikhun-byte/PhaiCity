@@ -3891,16 +3891,41 @@ var tick = function() {
 // button or window over it), in this window, and moved at least once since the city opened
 Game.prototype.watchPointer = function() {
   var self = this, canvas = document.querySelector(this.inputStatus.canvasID);
-  this._pointer = {onCanvas: false, moved: false};
+  this._pointer = {onCanvas: false, moved: false, x: -1, y: -1};
   document.addEventListener('pointermove', function(event) {
-    self._pointer.onCanvas = event.target === canvas;
+    // Over the city or over a part of the HUD one sees through (the full-width rows that hold the top bar's cards and the
+    // dock, owner, 23 Oct 2026: "บนล่าง ไม่เลื่อน"), not over a card, button or window
+    self._pointer.onCanvas = event.target === canvas || !overSolidHud(event.target);
     self._pointer.moved = true;
+    if (canvas) {
+      var box = canvas.getBoundingClientRect();
+      self._pointer.x = event.clientX - box.left;
+      self._pointer.y = event.clientY - box.top;
+    }
   }, true);
   document.addEventListener('mouseout', function(event) {
     if (!event.relatedTarget)
       self._pointer.onCanvas = false;
   });
   window.addEventListener('blur', function() { self._pointer.onCanvas = false; });
+};
+
+
+// Whether the element under the pointer is a part of the HUD one cannot see through: a control, a window, or anything
+// with a background or a frosted glass of its own (or inside one); the transparent rows that only hold cards are not
+var overSolidHud = function(element) {
+  for (var node = element; node && node !== document.body && node.nodeType === 1; node = node.parentElement) {
+    if (/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/.test(node.tagName) || node.getAttribute('role') === 'dialog')
+      return true;
+    var style = window.getComputedStyle(node);
+    if (style.pointerEvents === 'none')
+      continue;
+    var background = style.backgroundColor;
+    if ((background && background !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(background)) ||
+        (style.backdropFilter && style.backdropFilter !== 'none') || style.backgroundImage !== 'none')
+      return true;
+  }
+  return false;
 };
 
 
@@ -3926,7 +3951,9 @@ Game.prototype.edgeScrollView = function() {
   this._edgeTime = now;
   var input = this.inputStatus, pan = panOf(this.cityView), pointer = this._pointer;
   var canvas = document.querySelector(input.canvasID);
-  if (pan === null || !canvas || !pointer || !pointer.onCanvas || !pointer.moved || input.mouseX < 0 ||
+  // (the pointer's own place, as the city's input hears nothing while the pointer is over the HUD's see-through rows)
+  var mx = pointer && pointer.x >= 0 ? pointer.x : input.mouseX, my = pointer && pointer.y >= 0 ? pointer.y : input.mouseY;
+  if (pan === null || !canvas || !pointer || !pointer.onCanvas || !pointer.moved || mx < 0 ||
       (typeof document.hasFocus === 'function' && !document.hasFocus()) || typingNow() || homeFlying() ||
       cameraMode() !== 'free') {
     this._bandSince = null;
@@ -3938,7 +3965,7 @@ Game.prototype.edgeScrollView = function() {
     this._bandSince = null;
     if (input.pathDrag !== null || input.areaDrag !== null)
       return;
-    move = edgeScroll(input.mouseX, input.mouseY, box.width, box.height, seconds);
+    move = edgeScroll(mx, my, box.width, box.height, seconds);
     if (move.dx === 0 && move.dy === 0)
       return;
     pan(move.dx, move.dy);
@@ -3953,7 +3980,7 @@ Game.prototype.edgeScrollView = function() {
     this._bandSince = null;
     return;
   }
-  var x = input.mouseX, y = input.mouseY;
+  var x = mx, y = my;
   if (x >= BAND_PX && y >= BAND_PX && box.width - x >= BAND_PX && box.height - y >= BAND_PX) {
     this._bandSince = null;
     return;

@@ -68,7 +68,7 @@ describe("the smart camera", () => {
     smart.toolChanged("road");
     expect(camera.glides).toHaveLength(1);
     expect(camera.glides[0].pitch).toBeCloseTo(deg(PRESETS.line.pitchDeg), 6);
-    expect(camera.glides[0].distance).toBeCloseTo(distanceForWidth(600 * 0.625, 16 / 9), 6);
+    expect(camera.glides[0].distance).toBeCloseTo(distanceForWidth(PRESETS.line.widthM * 0.625, 16 / 9), 6);
     expect(camera.glides[0].x).toBeUndefined();
     // A choice of the same kind (another road level) moves nothing; nor does a second road pick
     smart.toolChanged("road_asphalt");
