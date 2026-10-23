@@ -26,7 +26,7 @@ import { isCityTileSize } from "./units.js";
 import { type PlotChecklist, plotChecklist } from "./plotChecklist.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { type CityRegister, homePeopleOf } from "./register/cityRegister.js";
-import { outsideFact, type PersonCard, personCard, type RosterSection, homeRoster, workplaceRoster } from "./register/registerCards.js";
+import { type PersonCard, personCard, type RosterSection, homeRoster, workplaceRoster } from "./register/registerCards.js";
 import type { Building } from "./objects/cityObject.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
@@ -167,43 +167,45 @@ function streetBeside(map: StreetMap & Legacy, rect: Inspection["rect"]): Street
   return null;
 }
 
+/** The card of a building of the city's objects (a home, a shop, a power plant …) */
+export function inspectBuilding(city: InspectCity, building: Building): Inspection {
+  const { map } = city;
+  const rect = { x: building.left, y: building.top, width: building.size, height: building.size };
+  // A painted plot shows its level and what its next level needs, ticked and crossed (src/plotChecklist.ts;
+  // docs/MUEANG_CS_PLAN.md M1.1), in place of the lines about its level, power and water
+  const checklist = ["home", "shop", "factory"].includes(building.kind)
+    ? plotChecklist(checklistCity(city), building.x, building.y) ?? undefined : undefined;
+  const all = building.facts(map);
+  const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
+  // A building still going up works only after its months (src/construction.ts)
+  if (isSite(map, building.id)) facts.unshift({ key: "site.months_left", params: { months: monthsLeft(map, building.id, city.cityTime) } });
+  if (building.kind === "home") facts.push({ key: "object.fact.people", params: { people: homePeopleOf(building, map) } });
+  // Who lives or works there (src/register/registerCards.ts)
+  let people: RosterSection[] | undefined;
+  if (city.register) {
+    people = building.kind === "home" ? homeRoster(city.register, building.id) : workplaceRoster(city.register, building.id);
+    if (!people.length) people = undefined;
+  }
+  facts.push(building.built > 0
+    ? { key: "object.fact.built", params: { year: city.startingYear + Math.floor(building.built / 48) } }
+    : { key: "object.fact.built_before" });
+  facts.push(...withoutChecked(areaFacts(city.blockMaps, building.x, building.y), checklist));
+  const street = streetBeside(map, rect);
+  const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
+  // A police or fire station is named by its level (src/buildingLevels.ts), a farm by what it is to the fields round
+  // it: a cooperative, a rice mill or a cold store (src/farmZone.ts)
+  const title = objectTitle(map, building);
+  return { title: { key: title, params: { price: "" } }, sector: building.sector,
+    street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect, people };
+}
+
 /** What a click on tile (x, y) shows, or null off the map */
 export function inspectAt(city: InspectCity, x: number, y: number): Inspection | null {
   const { map } = city;
   if (x < 0 || y < 0 || x >= map.width || y >= map.height) return null;
   const i = y * map.width + x, value = map.getTileValue(x, y);
   const building = city.objects.at(x, y);
-  if (building) {
-    const rect = { x: building.left, y: building.top, width: building.size, height: building.size };
-    // A painted plot shows its level and what its next level needs, ticked and crossed (src/plotChecklist.ts;
-    // docs/MUEANG_CS_PLAN.md M1.1), in place of the lines about its level, power and water
-    const checklist = ["home", "shop", "factory"].includes(building.kind)
-      ? plotChecklist(checklistCity(city), building.x, building.y) ?? undefined : undefined;
-    const all = building.facts(map);
-    const facts = all.filter(fact => fact.key !== "object.fact.sort" && !(checklist && CHECKLIST_FACTS.includes(fact.key)));
-    // A building still going up works only after its months (src/construction.ts)
-    if (isSite(map, building.id)) facts.unshift({ key: "site.months_left", params: { months: monthsLeft(map, building.id, city.cityTime) } });
-    if (building.kind === "home") facts.push({ key: "object.fact.people", params: { people: homePeopleOf(building, map) } });
-    // Who lives or works there (src/register/registerCards.ts)
-    let people: RosterSection[] | undefined;
-    if (city.register) {
-      people = building.kind === "home" ? homeRoster(city.register, building.id) : workplaceRoster(city.register, building.id);
-      const outside = building.kind === "home" ? null : outsideFact(city.register, building.id);
-      if (outside) facts.push(outside);
-      if (!people.length) people = undefined;
-    }
-    facts.push(building.built > 0
-      ? { key: "object.fact.built", params: { year: city.startingYear + Math.floor(building.built / 48) } }
-      : { key: "object.fact.built_before" });
-    facts.push(...withoutChecked(areaFacts(city.blockMaps, building.x, building.y), checklist));
-    const street = streetBeside(map, rect);
-    const satisfaction = city.satisfaction ? building.satisfaction(map, city.satisfaction) ?? undefined : undefined;
-    // A police or fire station is named by its level (src/buildingLevels.ts), a farm by what it is to the fields round
-    // it: a cooperative, a rice mill or a cold store (src/farmZone.ts)
-    const title = objectTitle(map, building);
-    return { title: { key: title, params: { price: "" } }, sector: building.sector,
-      street: street ? streetLabel(street, city.language) : undefined, satisfaction, checklist, facts, rect, people };
-  }
+  if (building) return inspectBuilding(city, building);
   const rect = { x, y, width: 1, height: 1 };
   const outside = map.insideProvince && map.insideProvince[i] !== 1 ? [{ key: "object.fact.outside" }] : [];
   if (isRoadTile(value)) {

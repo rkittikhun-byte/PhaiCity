@@ -110,7 +110,7 @@ import { DayClock } from './dayClock.ts';
 import { bindDayLengthSetting } from './dayLength.ts';
 import { bindGamePaceSetting, gamePaceFactor, onGamePace } from './gamePace.ts';
 import { skyAt } from './rainSpells.ts';
-import { inspectAt, inspectPerson } from './inspect.ts';
+import { inspectAt, inspectBuilding, inspectPerson } from './inspect.ts';
 import { registerOf } from './register/cityRegister.ts';
 import { RegisterWindow } from './registerWindow.ts';
 import { InspectCard } from './inspectCard.ts';
@@ -723,7 +723,13 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // ... where a person's name opens their card, and their home or workplace what is there (src/register/)
   if (this.inspectCard) {
     this.inspectCard.onPerson = function(id) { self.inspectPerson(id); };
-    this.inspectCard.onPlace = function(x, y) { self.inspectTile(x, y); };
+    this.inspectCard.onPlace = function(x, y, id) {
+      var building = id !== null ? self.core.objects.get(id) : null;
+      if (building)
+        self.inspectObject(building);
+      else
+        self.inspectTile(x, y);
+    };
   }
   installMousePan(this.cityView, function() { return self.inputStatus.currentTool !== null; }, document,
                   function(x, y) { self.inspectAtPixel(x, y); });
@@ -825,6 +831,16 @@ Game.prototype.cityRegister = function() {
   return registerOf({map: this.gameMap, objects: this.core.objects, blockMaps: sim.blockMaps,
                      services: sim._serviceLevels || null, fields: sim._farming ? sim._farming.fields : null,
                      cityTime: sim._cityTime, satisfaction: this.satisfactionContext()});
+};
+
+
+// A building's card by its object (a person's home or workplace, whose tiles another plot may share)
+Game.prototype.inspectObject = function(building) {
+  var found = inspectBuilding(this.inspectCity(), building);
+  this._inspectPoint = {x: building.x + 0.5, y: building.y + 0.5};
+  this.inspectCard.open(found);
+  if (this.smartCamera)
+    this.smartCamera.frame(found.rect);
 };
 
 

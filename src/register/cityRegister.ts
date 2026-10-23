@@ -11,8 +11,9 @@
 //   households whose members come from the home's own number, the same every time.
 // - **Work**: the jobs are the census's (shops, factories, farms, harbours, mines, the rubbish buildings, the farm
 //   zone's fields) and the staff of the ruler's buildings (registerRules.ts STAFF). The working people go to the nearest
-//   jobs by road, the nearest pairs of homes and jobs in the whole city first, within about 30 minutes; whoever finds
-//   none is out of work, and jobs nobody of the city takes are worked by people from outside it.
+//   jobs by road, the nearest pairs of homes and jobs in the whole city first, within about 30 minutes, each workplace
+//   first taking the same share of its jobs; whoever finds none is out of work, and jobs nobody of the city takes are
+//   worked by people from outside it.
 // - **Money and vehicles** by the job, its place's level and the city's era; savings and debt from what is left over
 //   after living, the months the home has stood and how content it is.
 //
@@ -285,7 +286,8 @@ export class CityRegister {
       }
     }
     // Everyone, with what they do before work is found
-    const services = input.services;
+    // (a city just opened has no month's schooling yet, people 0: its children are taken to be at school)
+    const services = input.services && input.services.people > 0 ? input.services : null;
     const basic = services ? services.basic / 100 : 1, higher = services ? services.higher / 100 : 0;
     const labour = new Map<number, Person[]>();
     for (const home of this.homes) {
@@ -331,7 +333,7 @@ export class CityRegister {
     this.byWorkplace.set(w.id, w);
   }
 
-  /** Where each working person works: the nearest pairs of homes and jobs in the whole city first */
+  /** Where each working person works: the nearest pairs of homes and jobs in the whole city first, a fair share each */
   private findWork(labour: Map<number, Person[]>): void {
     const { map } = this.input;
     const trips: CityTrips | null = isCityTileSize(map.tileSizeM) ? map.trips ?? null : null;
@@ -393,14 +395,29 @@ export class CityRegister {
     pairs.sort((a, b) => a.d - b.d || a.g - b.g || a.p - b.p);
     const given: Array<Array<{ p: number; count: number; d: number }>> = groupList.map(() => []);
     const supply = groupList.map((group) => group.supply);
-    for (const pair of pairs) {
-      const place = places[pair.p];
-      if (!supply[pair.g] || !place.left) continue;
-      const count = Math.min(supply[pair.g], place.left);
-      supply[pair.g] -= count;
-      place.left -= count;
-      given[pair.g].push({ p: pair.p, count, d: pair.d });
-    }
+    // Where the city has more jobs than people to work them, each workplace first takes the same share of its jobs (the
+    // nearest people first), so the works out of town are not left to outsiders while every shop in town is full; then
+    // whoever is left takes what jobs are left, nearest first
+    const jobs = places.reduce((n, place) => n + place.left, 0), people = supply.reduce((n, k) => n + k, 0);
+    const share = jobs > 0 ? Math.min(1, people / jobs) : 0;
+    const quota = places.map((place) => Math.floor(place.left * share));
+    let spare = Math.min(people, jobs) - quota.reduce((n, q) => n + q, 0);
+    const byRemainder = places.map((_, p) => p)
+      .sort((a, b) => (places[b].left * share - quota[b]) - (places[a].left * share - quota[a]) || a - b);
+    for (const p of byRemainder) { if (spare <= 0) break; if (quota[p] < places[p].left) { quota[p]++; spare--; } }
+    const take = (room: number[]): void => {
+      for (const pair of pairs) {
+        if (!supply[pair.g] || !room[pair.p]) continue;
+        const count = Math.min(supply[pair.g], room[pair.p]);
+        supply[pair.g] -= count;
+        room[pair.p] -= count;
+        places[pair.p].left -= count;
+        given[pair.g].push({ p: pair.p, count, d: pair.d });
+      }
+    };
+    take(quota);
+    take(places.map((place) => place.left));
+    for (const list of given) list.sort((a, b) => a.d - b.d || a.p - b.p);
     // Each group's people, home by home, take its jobs nearest first
     groupList.forEach((group, g) => {
       const slots = given[g];

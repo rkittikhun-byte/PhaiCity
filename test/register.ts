@@ -15,6 +15,8 @@ import { CityRegister } from "../src/register/cityRegister";
 import { fullHousehold, householdsOf } from "../src/register/households";
 import { surname, SURNAMES } from "../src/register/names";
 import { VEHICLE_TIERS, FARM_CARTS } from "../src/register/registerRules";
+import { homeRoster, personCard, roleKey, vehicleKey, workplaceRoster } from "../src/register/registerCards";
+import { hasKey } from "../src/i18n/index";
 
 function open() {
   const save = JSON.parse(fs.readFileSync("test/fixtures/khonKaen-v5.json", "utf8"));
@@ -104,6 +106,44 @@ describe("the city's register", () => {
     expect(register.moneyOf(someone.home, someone.household)).toBe(money);
     const vehicles = Object.values(register.counts.vehicles).reduce((a, b) => a + b, 0);
     expect(vehicles).toBeGreaterThan(0);
+  });
+});
+
+describe("the register in the cards", () => {
+  const core = open();
+  core.run(16 * 4);
+  const register = registerOf(core);
+
+  test("every workplace takes its share of the city's people before any takes more", () => {
+    const share = register.counts.filled / register.counts.jobs;
+    expect(share).toBeLessThan(1);
+    // (all but a few: a workplace out of everyone's reach, about 30 minutes, gets nobody)
+    const short = register.workplaces.filter((w) => w.workers.length < Math.floor(w.jobs * share) - 1);
+    expect(short.length).toBeLessThanOrEqual(register.workplaces.length * 0.05);
+  });
+
+  test("a home lists its households, a workplace its people, a person their own lines, all translated", () => {
+    const home = register.homes.find((h) => h.households.length > 1)!;
+    const sections = homeRoster(register, home.id);
+    expect(sections.length).toBe(Math.min(home.households.length, 6) + (home.households.length > 6 ? 1 : 0));
+    const keys: string[] = [];
+    for (const section of sections) {
+      keys.push(section.heading.key);
+      for (const row of section.rows) { keys.push(row.line.key, String(row.line.params.role)); expect(row.name.th).toMatch(/^(นาย|นาง|เด็ก)/); }
+    }
+    const busy = register.workplaces.find((w) => w.workers.length > 0)!;
+    for (const section of workplaceRoster(register, busy.id)) keys.push(section.heading.key, ...(section.note ? [section.note.key] : []));
+    const worker = busy.workers[0];
+    const card = personCard(register, worker.id, () => "object.kind.shop")!;
+    expect(card.person.name.en).toMatch(/^(Mr|Mrs|Miss) /);
+    expect(card.person.work).not.toBeNull();
+    for (const fact of card.facts) {
+      keys.push(fact.key);
+      for (const value of Object.values(fact.params ?? {})) if (typeof value === "string") keys.push(value);
+    }
+    for (const p of register.people) keys.push(roleKey(p));
+    for (const id of Object.keys(register.counts.vehicles)) keys.push(vehicleKey(id));
+    for (const key of new Set(keys)) expect([key, hasKey(key)]).toEqual([key, true]);
   });
 });
 
