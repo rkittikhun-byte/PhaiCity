@@ -2144,7 +2144,9 @@ body :is(#houseWings, #policyList) .houseWing .name { font-weight: 400; }
 body :is(#houseWings, #policyList) .houseWing .wingGain { color: var(--ph-rice-600); }
 body :is(#houseWings, #policyList) .houseWing .wingCost { color: var(--ph-chili-600); }
 body :is(#houseWings, #policyList) .houseWing .wingMoney { opacity: 0.75; }
-body :is(#houseWings, #policyList) .houseWing button { grid-column: 2; grid-row: 1 / span 4; align-self: center; font: inherit; }
+body #houseWings .houseWing .wingWhy:empty { display: none; }
+body #houseWings .houseWing .wingWhy { color: var(--ph-gold-600); }
+body :is(#houseWings, #policyList) .houseWing button { grid-column: 2; grid-row: 1 / span 5; align-self: center; font: inherit; }
 body :is(#houseWings, #policyList) .houseWing.owned .name::after { content: " ✓"; }
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }

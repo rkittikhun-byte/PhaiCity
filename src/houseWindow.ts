@@ -10,7 +10,7 @@
 import { formatMoney, onLanguageChange, t } from "./i18n/index";
 import { HOUSE_WINDOW_CLOSED } from "./messages";
 import { ModalWindow } from "./modalWindow.js";
-import { houseSpec, houseUpkeep, type RulerHouse, type Wing, WING_SPECS, wingRows } from "./rulerHouse";
+import { houseSpec, houseUpgradeCost, houseUpkeep, type RulerHouse, type Wing, WING_SPECS, wingRows } from "./rulerHouse";
 
 export interface HouseWindowSource {
   /** The standing house, or null */
@@ -76,6 +76,11 @@ HouseWindow.prototype.render = function(this: HouseWindowThis): void {
     const money = document.createElement("span");
     money.className = "wingMoney";
     money.textContent = t("house.wing.money", { price: formatMoney(spec.price), upkeep: formatMoney(spec.upkeep) });
+    const why = document.createElement("span");
+    why.className = "wingWhy";
+    if (row.state === "needs_level") {
+      why.textContent = t("house.wing.needs_level", { level: String(house.level + 1), price: formatMoney(houseUpgradeCost(house.level)) });
+    }
     const button = document.createElement("button");
     button.type = "button";
     const confirming = row.owned && this._confirming === row.wing;
@@ -92,7 +97,7 @@ HouseWindow.prototype.render = function(this: HouseWindowThis): void {
       this.source.changeWing(row.wing, !row.owned);
       this.render();
     });
-    item.append(name, gain, cost, money, button);
+    item.append(name, gain, cost, money, why, button);
     return item;
   });
   list.replaceChildren(...rows);

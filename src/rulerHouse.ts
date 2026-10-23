@@ -9,8 +9,7 @@
 // - Six levels, one for each rank (src/rulerRank.ts): the upgrade choice raises it one level for the difference in
 //   price, once the ruler holds that level's rank.
 // - Gains: the city's centre is the house, so land value and the shops' pull fall away from it
-//   (src/blockMapUtils.js); land near it is worth more at each level; ⌂ returns to it; each level from the second
-//   opens a wing (docs/RULER_HOUSE.md), and higher schools and hospitals will want a higher house.
+//   (src/blockMapUtils.js); land near it is worth more at each level; ⌂ returns to it; each level opens another wing (docs/RULER_HOUSE.md), and higher schools and hospitals will want a higher house.
 // - Costs: its price and its upkeep each year grow with its level; there is only one, and if it burns or is
 //   bulldozed its gains are gone until it is built again.
 // No DOM, nothing random.
@@ -37,12 +36,12 @@ export interface HouseSpec {
 
 /** By level, 1 to 6 (index 0 is level 1) */
 export const HOUSE_SPECS: readonly HouseSpec[] = [
-  { price: 500, upkeep: 20, rank: 0, wings: 0 },
-  { price: 1500, upkeep: 50, rank: 1, wings: 1 },
-  { price: 4000, upkeep: 120, rank: 2, wings: 2 },
-  { price: 10000, upkeep: 300, rank: 3, wings: 3 },
-  { price: 20000, upkeep: 600, rank: 4, wings: 4 },
-  { price: 40000, upkeep: 1000, rank: 5, wings: 5 },
+  { price: 500, upkeep: 20, rank: 0, wings: 1 },
+  { price: 1500, upkeep: 50, rank: 1, wings: 2 },
+  { price: 4000, upkeep: 120, rank: 2, wings: 3 },
+  { price: 10000, upkeep: 300, rank: 3, wings: 4 },
+  { price: 20000, upkeep: 600, rank: 4, wings: 5 },
+  { price: 40000, upkeep: 1000, rank: 5, wings: 6 },
 ];
 
 export const MAX_HOUSE_LEVEL = HOUSE_SPECS.length;
@@ -79,7 +78,7 @@ export function houseRoadProblem(map: { width: number; height: number; getTileVa
 }
 
 /**
- * The wings (ส่วนต่อเติม, owner 13 Oct 2026): a house of level n may have n − 1 of them, chosen in its window. Each costs
+ * The wings (ส่วนต่อเติม, owner 13 Oct 2026): a house of level n may have n of them (owner 24 Oct 2026: level 1 had none and the yard looked empty), chosen in its window. Each costs
  * a price and an upkeep a year, and is lost without a refund when taken off or when the house falls. The council hall
  * gives room for one more of the ruler's policies (src/policies.ts); the trade office waits for the online network mode.
  */
@@ -194,7 +193,7 @@ export interface WingRow {
   wing: Wing;
   owned: boolean;
   /** "build", "remove", or why it cannot be built */
-  state: "build" | "remove" | "waits_network" | "no_room" | "no_money";
+  state: "build" | "remove" | "waits_network" | "needs_level" | "no_room" | "no_money";
 }
 
 /** The rows of the house's window for a house and the money in the treasury. */
@@ -206,7 +205,7 @@ export function wingRows(house: RulerHouse, funds: number): WingRow[] {
     const owned = wings.includes(wing);
     const state: WingRow["state"] = owned ? "remove"
       : spec.waitsFor === "network" ? "waits_network"
-      : !room ? "no_room"
+      : !room ? (house.level < MAX_HOUSE_LEVEL ? "needs_level" : "no_room")
       : funds < spec.price ? "no_money"
       : "build";
     return { wing, owned, state };
