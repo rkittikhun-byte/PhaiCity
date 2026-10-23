@@ -70,6 +70,10 @@ export interface CityViewDependencies {
 }
 /** The view's graphics setting (src/graphicsQuality.ts saves the player's) */
 const DEFAULT_QUALITY:GraphicsQuality='auto';
+/** The sun moves the light and its shadows in steps of 1/SUN_STEPS of a radian, not every frame (each step moves the
+ * shadows and fills the building pools again): 120 a radian, half a degree, so a house's shadow moves a few centimetres
+ * a step; at 30 it jumped two degrees about once a second in the day, a flicker (owner, 23 Oct 2026) */
+const SUN_STEPS=120;
 const tDrawSize=new Vector2();
 const tSunWay=new Vector3();
 const cSunHigh=new Color(SCENE.post.sunHigh),cSunLow=new Color(SCENE.post.sunLow);
@@ -368,7 +372,7 @@ export class CityView3D implements CityView {
    * whether the frame times may change them (quality.ts). Applies at once, also while the game is paused. */
   setQuality(quality:GraphicsQuality):void {
     if(this.disposed||!isGraphicsQuality(quality))return;
-    this.ladder.set(quality);this.post?.setEffects(this.ladder.effects);
+    this.ladder.set(quality);this.post?.setEffects(this.ladder.effects);this.ratioRaised=false;this.ratioHeld=false;
     // The resolution goes to what the setting allows; the adaptive quality may lower it again from there
     const limit=this.ratioLimit();if(this.renderer.getPixelRatio()!==limit){this.renderer.setPixelRatio(limit);this.metrics.pixelRatioChanges++;}
     this.lastQualityChange=this.now();this.fastSince=null;this.frameTimes=[];this.intervals=[];this.qualityFrames=0;this.gpuTimer?.reset();
@@ -471,6 +475,20 @@ export class CityView3D implements CityView {
   relabelStreets():void {this.streets?.relabel();}
   /** The city bought land (src/landBlocks.ts): shade what it still has not. */
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
+  /** What each tile is to the trees (foliage, pedestrians.ts): 1 bare ground, 2 woods, 0 anything else */
+  private treeGround:Uint8Array|null=null;
+  /** Auto raised the resolution again, and then had to lower it once more: it holds there (the adaptive block in paint) */
+  private ratioRaised=false;private ratioHeld=false;
+  /** Whether a changed tile became, or stopped being, ground the trees stand on: only then are the trees round the camera
+   * planted again (a growing plot planted them all again, 10-70 ms, about once a second in a growing town); the roads'
+   * changes reach them by their lines (CityFoliage.update) */
+  private treesMoved(changed:readonly number[]):boolean{
+    const values=this.snapshot.values,kind=(v:number):number=>v===0?1:v>=21&&v<=39?2:0;
+    if(!this.treeGround||this.treeGround.length!==values.length){this.treeGround=new Uint8Array(values.length);for(let i=0;i<values.length;i++)this.treeGround[i]=kind(values[i]);return true;}
+    let moved=false;
+    for(const i of changed){const k=kind(values[i]);if(k!==this.treeGround[i]){this.treeGround[i]=k;moved=true;}}
+    return moved;
+  }
   paint(hover:ToolHover|null,sprites:unknown[]|null,isPaused:boolean):void {
     if(this.disposed)return;const start=this.now(),dt=Math.max(0,Math.min(.1,(start-this.last)/1000)),interval=start-this.last;this.last=start;
     // A city that reaches a new era draws its buildings in that era's look (eraBuildings.ts)
@@ -486,7 +504,7 @@ export class CityView3D implements CityView {
     {const house=this.setup.map.rulerHouse,sign=house?`${house.x},${house.y},${house.level},${(house.wings??[]).join(',')}`:'';
       if(sign!==this.houseSign){this.houseSign=sign;if(house)changed.push(house.y*this.setup.map.width+house.x);}}
     const raised=this.terrain.update(changed);this.chunks.dirty(raised.length?[...new Set([...changed,...raised])]:changed);
-    if(changed.length||raised.length){this.curves.update(changed,raised);this.foliage.invalidate();}
+    if(changed.length||raised.length){this.curves.update(changed,raised);if(raised.length||this.treesMoved(changed))this.foliage.invalidate();}
     if(raised.length)this.canals.invalidate();
     {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.foliage.invalidate();}}
     // The farm zone's paddies, fields, orchards and ponds (farmFields.ts), by the month and the era; a farm building whose
@@ -594,9 +612,11 @@ export class CityView3D implements CityView {
       const slowEffects=ladder?.slow(sample)??false,full=nextBudget>=this.chunks.maxDrawBudget&&ratio>=limit;
       const room=ladder&&full&&!slowEffects?ladder.room(sample):false;
       if(slowEffects)effect='drop';
-      else if(cost>22){if(ratio>minRatio)nextRatio=Math.max(minRatio,ratio-.25);else nextBudget=Math.max(minBudget,nextBudget-12);}
+      else if(cost>22){if(ratio>minRatio){nextRatio=Math.max(minRatio,ratio-.25);if(this.ratioRaised)this.ratioHeld=true;}else nextBudget=Math.max(minBudget,nextBudget-12);}
       else if(this.fastSince!==null&&start-this.fastSince>=10000&&start-this.lastQualityChange>=10000&&!full){
-        if(nextBudget<this.chunks.maxDrawBudget)nextBudget=Math.min(this.chunks.maxDrawBudget,nextBudget+6);else if(ratio<limit)nextRatio=Math.min(limit,ratio+.25);
+        if(nextBudget<this.chunks.maxDrawBudget)nextBudget=Math.min(this.chunks.maxDrawBudget,nextBudget+6);
+        // (the resolution comes back once: raised and lowered again, it stays, as a jump in sharpness shows)
+        else if(ratio<limit&&!this.ratioHeld){nextRatio=Math.min(limit,ratio+.25);this.ratioRaised=true;}
       }
       else if(room)effect='raise';
       if(!slowEffects)ladder?.settled();
@@ -613,7 +633,7 @@ export class CityView3D implements CityView {
   }
   private render():void {
     const t=this.navigation.target,span=Math.min(340,Math.max(85,this.navigation.distance*.58));
-    const steppedAngle=Math.round(this.sunAngle*30)/30;
+    const steppedAngle=Math.round(this.sunAngle*SUN_STEPS)/SUN_STEPS;
     const sunHeight=Math.max(120,Math.sin(steppedAngle)*400),sunX=Math.cos(steppedAngle)*260;
     const sx=t.x+sunX,sy=t.y+sunHeight,sz=t.z+160;
     if(Math.abs(sx-this.sun.position.x)>1.5||Math.abs(sy-this.sun.position.y)>1.5||Math.abs(sz-this.sun.position.z)>1.5){

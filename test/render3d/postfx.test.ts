@@ -75,20 +75,27 @@ describe('the effect ladder', () => {
     expect(ladder.room(sample(RAISE_WAIT_MS, 4, roomFor - 0.5))).toBe(true);
     expect(new EffectLadder('auto').room(sample(RAISE_WAIT_MS, 4, roomFor + 0.5))).toBe(false);
   });
-  it('waits twice as long each time an effect it took back made the frames slow again', () => {
+  it('keeps an effect off for good once taking it back made the frames slow again, so Auto settles', () => {
     const ladder = new EffectLadder('auto');
     let t = 0;
-    const slowAfterRaise = (): number => {
-      // Room without a timer: frames close together
-      let since = -1;
-      for (; t < 10 * 60000; t += 1000) if (ladder.room(sample(t, 4, null, 16.7))) { if (since < 0) since = t; break; }
-      ladder.raise(sample(t, 4, null)); const raisedAt = t;
-      t += 3000; ladder.measure(sample(t, 4, null, 30)); expect(ladder.slow(sample(t, 4, null, 30))).toBe(true); ladder.drop(sample(t, 4, null, 30));
-      return raisedAt;
+    // Room without a timer: frames close together
+    const roomWithin = (ms: number): boolean => {
+      for (const end = t + ms; t < end; t += 1000) if (ladder.room(sample(t, 4, null, 16.7))) return true;
+      return false;
     };
-    const first = slowAfterRaise(), second = slowAfterRaise(), third = slowAfterRaise();
-    expect(second - first).toBeGreaterThanOrEqual(2 * RAISE_WAIT_MS);
-    expect(third - second).toBeGreaterThan(second - first);
+    expect(roomWithin(10 * 60000)).toBe(true);
+    expect(ladder.raise(sample(t, 4, null))).toBe('ao');
+    t += 3000; ladder.measure(sample(t, 4, null, 30)); expect(ladder.slow(sample(t, 4, null, 30))).toBe(true);
+    expect(ladder.drop(sample(t, 4, null, 30))).toBe('ao');
+    // ... and however long the frames have room after that, it never comes back on its own
+    expect(roomWithin(60 * 60000)).toBe(false);
+    expect(ladder.rung).toBe(2);
+    // An effect given up for slow frames before it was ever taken back may still come back
+    const other = new EffectLadder('auto');
+    expect(other.drop(sample(0, 30, null, 30))).toBe('bloom');
+    let back = false;
+    for (let s = 1000; s < 10 * 60000 && !back; s += 1000) if (other.room(sample(s, 4, null, 16.7))) back = true;
+    expect(back).toBe(true);
   });
   it('starts afresh when the player chooses again', () => {
     const ladder = new EffectLadder('auto'); ladder.drop(sample(0, 5, 25));

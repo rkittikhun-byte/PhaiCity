@@ -860,6 +860,8 @@ export class CityFoliage {
   readonly root = new Group();
   private readonly batches: SpeciesBatch[] = [];
   private lastCellKey = '';
+  /** The roads the trees were last planted beside */
+  private lastLines: ReadonlyArray<RoadLine> | null = null;
   /** The view's camera (index.ts): only the trees in its sight are drawn, sorted again as it moves */
   camera: Camera | null = null;
   private readonly sight = new Frustum();
@@ -967,6 +969,8 @@ export class CityFoliage {
     const cellX = Math.round(target.x / 90);
     const cellZ = Math.round(target.z / 90);
     const cellKey = `${cellX},${cellZ},${lines.length},${this.size}`;
+    // (roads drawn again keep no tree on them: the view no longer plants every tree again for each tile that changes)
+    if (lines !== this.lastLines) { this.lastLines = lines; this.lastCellKey = ''; }
     if (cellKey === this.lastCellKey) { this.cull(false); return; }
     this.lastCellKey = cellKey;
 

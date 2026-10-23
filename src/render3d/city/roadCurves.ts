@@ -104,6 +104,15 @@ function pieceOn(piece: Piece, tiles: ReadonlySet<number>, width: number): boole
   });
 }
 
+/** A building tile's lot (its corners, its size in tiles, its triangles, in a works' yard or a lawn) and driveway */
+interface Decor {
+  lot: { rect: Point[]; size: number; triangles: number[]; yard: boolean } | null;
+  drive: { positions: number[]; colors: number[] } | null;
+}
+/** How far from a changed tile (tiles) a building's lot or driveway may have changed with it: the biggest building's
+ * reach from its centre tile, with room */
+const DECOR_REACH = 6;
+
 export class RoadCurves {
   readonly root = new Group();
   private lines: DrawnCurveLine[] = [];
@@ -198,7 +207,7 @@ export class RoadCurves {
     if (!changed.length && !raised.length) return;
     const roads = this.noteRoads(changed), under = raised.filter((i) => this.roadNear[i]);
     if (roads.length || under.length || this.drawn?.key !== this.drawnKey()) this.rebuild(under, roads);
-    else this.rebuildDecor();
+    else this.rebuildDecor([...changed, ...raised]);
   }
 
   /** What a tile's road is, for telling when one changes: 0 for a tile with none */
@@ -558,12 +567,48 @@ export class RoadCurves {
     }
   }
 
-  /** The buildings' lots, in their own lawn or yard, and the driveways from their roads: quick, so laid again whenever a
-   * building changes, which never draws the roads again */
-  private rebuildDecor(): void {
+  /** Each building tile's lot and driveway, as rebuildDecor last worked them out (only tiles with either) */
+  private decor = new Map<number, Decor>();
+
+  /**
+   * The buildings' lots, in their own lawn or yard, and the driveways from their roads, laid again whenever a building
+   * changes, which never draws the roads again: those of the tiles within DECOR_REACH of the tiles in `near` worked out
+   * again, the rest kept (every tile without it: the roads were drawn again). A building's change worked out every tile of
+   * the map again, some 20-50 ms on a 480 x 480 city map's every growing plot; the same triangles in the same order
+   */
+  private rebuildDecor(near?: readonly number[]): void {
     this.drop(this.decorMeshes);
-    const lawn: number[] = [], yard: number[] = [], none: number[] = [];
-    this.lots(lawn, yard, none);
+    const { width, height } = this.snapshot;
+    if (!near) {
+      this.decor.clear();
+      for (let i = 0; i < width * height; i++) this.decorAt(i);
+    } else {
+      const seen = new Set<number>();
+      for (const c of near) {
+        const cx = c % width, cy = Math.floor(c / width);
+        for (let y = Math.max(0, cy - DECOR_REACH); y <= Math.min(height - 1, cy + DECOR_REACH); y++)
+          for (let x = Math.max(0, cx - DECOR_REACH); x <= Math.min(width - 1, cx + DECOR_REACH); x++) {
+            const i = y * width + x;
+            if (!seen.has(i)) { seen.add(i); this.decorAt(i); }
+          }
+      }
+    }
+    // The tiles in order, as the whole map was gone over before
+    const tiles = [...this.decor.keys()].sort((a, b) => a - b);
+    const lawn: number[] = [], yard: number[] = [], positions: number[] = [], colors: number[] = [];
+    this.lotRects.clear();
+    for (const i of tiles) {
+      const d = this.decor.get(i)!;
+      if (d.lot) {
+        const { rect, size, triangles, yard: works } = d.lot, x0 = i % width - 1, y0 = Math.floor(i / width) - 1;
+        for (let ty = 0; ty < size; ty++) for (let tx = 0; tx < size; tx++) this.lotRects.set((y0 + ty) * width + x0 + tx, rect);
+        (works ? yard : lawn).push(...triangles);
+      }
+    }
+    for (const i of tiles) {
+      const d = this.decor.get(i)!;
+      if (d.drive) { positions.push(...d.drive.positions); colors.push(...d.drive.colors); }
+    }
     for (const [lot, key, colour] of [[lawn, 'grass', LOT_GRASS], [yard, 'concrete_raw', LOT_YARD]] as const) {
       if (!lot.length) continue;
       const geometry = new BufferGeometry();
@@ -575,8 +620,6 @@ export class RoadCurves {
       mesh.name = 'lots'; mesh.receiveShadow = true;
       this.keep(mesh);
     }
-    const positions: number[] = [], colors: number[] = [];
-    this.driveways(positions, colors);
     if (positions.length) {
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -586,6 +629,16 @@ export class RoadCurves {
       mesh.name = 'driveways'; mesh.receiveShadow = true;
       this.keep(mesh);
     }
+  }
+
+  /** Works out tile i's lot and driveway again (decor) */
+  private decorAt(i: number): void {
+    this.decor.delete(i);
+    if (this.snapshot.values[i] < 240) return;
+    const p = this.snapshot.placement(i, 'central');
+    if (!p) return;
+    const lot = this.lotOf(p), drive = this.drivewayOf(p);
+    if (lot || drive) this.decor.set(i, { lot, drive });
   }
 
   /**
@@ -598,26 +651,23 @@ export class RoadCurves {
   /** The lot a building's tile lies on, or null: for whatever shows that tile is taken (overlay.ts blocked) */
   lotAt(index: number): readonly Point[] | null { return this.lotRects.get(index) ?? null; }
 
-  private lots(lawn: number[], yard: number[], colors: number[]): void {
-    const { width, height, values } = this.snapshot;
-    this.lotRects.clear();
-    for (let i = 0; i < width * height; i++) {
-      if (values[i] < 240) continue;
-      const p = this.snapshot.placement(i, 'central');
-      if (!p || !p.posed || ['residential', 'commercial', 'industrial'].includes(p.kind)) continue;
+  /** The lot of a building (its placement p): its corners, its size in tiles, and its triangles, in a yard or a
+   * lawn; null for none */
+  private lotOf(p: Placement): Decor['lot'] {
+    const { width, height } = this.snapshot;
+    {
+      if (!p.posed || ['residential', 'commercial', 'industrial'].includes(p.kind)) return null;
       const size = Math.max(p.footprint[0], p.footprint[1]);
       // (from a 2 × 2 up: the 2 × 2 power plant, src/plantBlocks.ts)
-      if (size < 2) continue;
-      const out = ['power', 'waste', 'industry', 'transport'].includes(p.kind) ? yard : lawn, white = new Color(0xffffff);
+      if (size < 2) return null;
+      const works = ['power', 'waste', 'industry', 'transport'].includes(p.kind), out: number[] = [], colors: number[] = [], white = new Color(0xffffff);
       // As big as what is built on it and no more (owner, 21 Oct 2026: "พื้นที่รอบข้าง object มันเกินที่ๆ กำหนดหรือป่าว ต้องย่อให้
       // เท่าๆ กับที่สร้างได้พอดี"; it once reached over every tile the building takes, squared to the map, and from there to
       // the road): its drawn front, sides and back (tileModels.ts toRoadEdge, Placement.front), turned with it
       const ground = p.ground(), sin = Math.sin(ground.rotation), cos = Math.cos(ground.rotation);
       const front = p.front ?? ground.depth / 2, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
-      const x0 = i % width - 1, y0 = Math.floor(i / width) - 1;
       const uMin = -(p.side ?? front), uMax = p.side ?? front, vMin = -(p.back ?? front), vMax = front;
       const rect = [at(uMin, vMin), at(uMax, vMin), at(uMax, vMax), at(uMin, vMax)];
-      for (let ty = 0; ty < size; ty++) for (let tx = 0; tx < size; tx++) this.lotRects.set((y0 + ty) * width + x0 + tx, rect);
       // A quad about every half tile, so the lot lies on hills
       const columns = Math.ceil((uMax - uMin) / 5), rows = Math.ceil((vMax - vMin) / 5);
       for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
@@ -628,6 +678,7 @@ export class RoadCurves {
         this.flat([corners[0], corners[1], corners[2]], white, LOT_LIFT, out, colors);
         this.flat([corners[0], corners[2], corners[3]], white, LOT_LIFT, out, colors);
       }
+      return { rect, size, triangles: out, yard: works };
     }
   }
 
@@ -635,17 +686,14 @@ export class RoadCurves {
    * Trafficity-style Driveway Aprons (ทางเชื่อมหน้าตึกเข้าสู่ถนน): every building standing beside a road gets a paved
    * flared driveway and curb cut connecting its front entrance directly to the road edge.
    */
-  private driveways(positions: number[], colors: number[]): void {
-    const { width, height, values } = this.snapshot;
-    if (!this.lines.length) return;
-    const m = this.metre;
+  /** The driveway of a building (its placement p): its triangles and their colours, or null for none */
+  private drivewayOf(p: Placement): Decor['drive'] {
+    if (!this.lines.length) return null;
+    const m = this.metre, positions: number[] = [], colors: number[] = [];
     const apronColour = new Color(0xb5afa1), paveColour = new Color(0x6e7174);
-    for (let i = 0; i < width * height; i++) {
-      const v = values[i];
-      if (v < 240) continue;
-      const p = this.snapshot.placement(i, 'central');
-      if (!p || ['terrain', 'road', 'rail', 'shore', 'debug', 'veg', 'park', 'power'].includes(p.kind)) continue;
-      if (p.id?.endsWith('zone_empty')) continue;
+    {
+      if (['terrain', 'road', 'rail', 'shore', 'debug', 'veg', 'park', 'power'].includes(p.kind)) return null;
+      if (p.id?.endsWith('zone_empty')) return null;
       const size = Math.max(p.footprint[0], p.footprint[1]);
       // A building turned to its road keeps its driveway to that road, out of its front, whatever road is drawn nearer
       // to it later (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"): the road is looked for in front of it
@@ -655,18 +703,18 @@ export class RoadCurves {
       const lookX = posed ? p.x + fx * (halfDepth + 2) : p.x;
       const lookZ = posed ? p.z + fz * (halfDepth + 2) : p.z;
       const near = this.nearest(lookX, lookZ, size * 5 + 28);
-      if (!near) continue;
+      if (!near) return null;
 
       let nx = -near.tz, nz = near.tx;
       if (nx * (p.x - near.x) + nz * (p.z - near.z) < 0) { nx = -nx; nz = -nz; }
       // ... and only a road its front faces: none to a road at its side
-      if (posed && nx * -fx + nz * -fz < 0.7) continue;
+      if (posed && nx * -fx + nz * -fz < 0.7) return null;
       if (posed) { nx = -fx; nz = -fz; }
       const tx = near.tx, tz = near.tz;
       const dist = Math.hypot(p.x - near.x, p.z - near.z);
       const d0 = near.reach * 0.72;
       const d1 = Math.max(d0 + 0.9, dist - halfDepth);
-      if (d1 <= d0 + 0.2 || d1 > d0 + 18) continue;
+      if (d1 <= d0 + 0.2 || d1 > d0 + 18) return null;
 
       const wRoad = (size >= 3 ? 3.1 : 1.75) * m;
       const wBldg = (size >= 3 ? 2.3 : 1.25) * m;
@@ -689,6 +737,7 @@ export class RoadCurves {
       const b3: Point = [rx1 - tx * wBldg, rz1 - tz * wBldg];
       this.flat([b0, b1, b2], paveColour, UNDER_LIFT + 0.012, positions, colors);
       this.flat([b0, b2, b3], paveColour, UNDER_LIFT + 0.012, positions, colors);
+      return { positions, colors };
     }
   }
 

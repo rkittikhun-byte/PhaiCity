@@ -52,9 +52,8 @@ export const EFFECT_ROOM_MS = 13.5;
 export const INTERVAL_SLOW_MS = 24;
 /** ... and frames this close together have room */
 export const INTERVAL_FAST_MS = 18;
-/** How long frames must stay fast before an effect comes back, and how much longer each time it had to go again */
+/** How long frames must stay fast before an effect comes back (once: one that came back and had to go again stays off) */
 export const RAISE_WAIT_MS = 10000;
-export const RAISE_WAIT_MAX_MS = 320000;
 
 /** One look at how the frames are going, taken when the view has settled (index.ts paint) */
 export interface FrameSample {
@@ -114,9 +113,11 @@ export class EffectLadder {
   /** Gives up the top effect, remembering when, so its cost can be measured and it does not come straight back */
   drop(sample: FrameSample): Effect | null {
     const effect = this.top; if (!effect) return null;
-    // An effect that had just come back and made the frames slow waits twice as long the next time
-    if (this.pending?.raised && this.pending.effect === effect) this.wait[effect] = Math.min(RAISE_WAIT_MAX_MS, this.wait[effect] * 2);
-    this.rung--; this.retryAt[effect] = sample.now + this.wait[effect]; this.roomSince = null;
+    // An effect that had just come back and made the frames slow stays off until the player chooses again: Auto settles
+    // rather than turning it on and off for good (owner, 23 Oct 2026: "การ render กระพริบๆ"; it once waited twice as long
+    // each time, up to five minutes)
+    const failed = this.pending?.raised === true && this.pending.effect === effect;
+    this.rung--; this.retryAt[effect] = failed ? Infinity : sample.now + this.wait[effect]; this.roomSince = null;
     this.pending = { effect, gpuBefore: sample.gpuMs, raised: false, at: sample.now };
     return effect;
   }

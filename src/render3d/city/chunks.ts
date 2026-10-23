@@ -14,7 +14,9 @@ import { frustumOf, ModelPool, poolPlacements, type PoolPlacements } from './poo
 interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number;
   /** The pool that draws it with the other batches of its model when the model has levels of detail (pools.ts, lod.ts),
    * and what the pool keeps of its placements */
-  pool?:ModelPool; pooled?:PoolPlacements }
+  pool?:ModelPool; pooled?:PoolPlacements;
+  /** A building that went (or became another) when its chunk was built again, fading out where it stood (ghost) */
+  ghost?:boolean }
 interface Chunk {id:number;x:number;y:number;cursor:number;dirty:boolean;placements:Placement[];batches:Batch[];version:number}
 const zero=new Matrix4().makeScale(0,0,0),matrix=new Matrix4(),color=new Color();
 /** The fewest tiles a frame scans for their models, however slow the frame (CityChunks.update) */
@@ -83,11 +85,18 @@ export class CityChunks {
     const eager=indices.length<=64&&(this.snapshot.realUnits??1)<1;
     for(const id of ids){
       const chunk=this.chunks[id];
-      const wasVisible=eager?new Set(chunk.batches.filter(b=>b.selected||b.fade>0).map(b=>b.key)):undefined;
+      const shown=eager?chunk.batches.filter(b=>b.selected||b.fade>0):[];
+      const wasVisible=eager?new Set(shown.map(b=>b.key)):undefined;
       chunk.dirty=true;chunk.cursor=0;chunk.placements=[];chunk.version++;this.clear(chunk);
       if(eager&&wasVisible&&wasVisible.size>0){
         while(chunk.cursor<256)this.cell(chunk,chunk.cursor++);
         this.finish(chunk,wasVisible);
+        // What was drawn and is no more (a house that went, or rose a level into another model) fades out where it
+        // stood, over what took its place, rather than going in one frame: a town's plots change every few seconds
+        // (owner, 23 Oct 2026: "การ render กระพริบๆ")
+        const now=new Set<string>();
+        for(const b of chunk.batches)if(b.selected||b.fade>0)for(const q of b.placements)now.add(`${q.index}|${b.key}`);
+        for(const b of shown){const gone=b.placements.filter(q=>!now.has(`${q.index}|${b.key}`));if(gone.length)this.ghost(b.key,gone,b.fade);}
       }
     }
     // Only a change sorts the batches by distance again: the view calls this every frame, mostly with nothing, and over
@@ -125,6 +134,12 @@ export class CityChunks {
     if(p&&bridge){if(this.waterSlots[index]<0)this.waterSlots[index]=this.freeWater.pop()??this.water.count++;
       matrix.makeScale(10,.06,10).setPosition(p.x,-.63,p.z);this.water.setMatrixAt(this.waterSlots[index],matrix);this.waterDetail.setX(this.waterSlots[index],0);}
     this.coarseDirty=true;
+  }
+  /** A batch of the placements that went, drawn as they were and fading out (update), then thrown away */
+  private ghost(key:string,placements:Placement[],fade:number):void {
+    const proto=this.prototypes.get(key);if(!proto||fade<=0)return;
+    const b:Batch={key,placements,group:new Group(),calls:0,selected:false,fade,pool:undefined,pooled:undefined,ghost:true};
+    this.instantiate(b,proto);b.group.visible=true;if(!b.pool&&b.group.parent!==this.root)this.root.add(b.group);this.active.add(b);
   }
   private clear(chunk:Chunk):void {
     for(const batch of chunk.batches){for(const p of batch.placements){this.showCoarse(p,true);this.coarseFade(p,0);}this.leavePool(batch);this.active.delete(batch);batch.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});this.root.remove(batch.group);}
@@ -298,11 +313,12 @@ export class CityChunks {
     for(const b of active){
       const fade=Math.max(0,Math.min(1,b.fade+(b.selected?dt:-dt)/350));
       if(fade!==b.fade){b.fade=fade;for(const child of b.group.children){const mesh=child as InstancedMesh;for(let i=0;i<mesh.count;i++)mesh.instanceColor!.setX(i,fade);mesh.instanceColor!.needsUpdate=true;}
-        for(const p of b.placements){this.showCoarse(p,fade<1);this.coarseFade(p,fade);}
+        if(!b.ghost)for(const p of b.placements){this.showCoarse(p,fade<1);this.coarseFade(p,fade);}
         if(b.pool)b.pool.dirty=true;}
       const shown=b.selected||b.fade>0;
       if(shown!==b.group.visible){if(b.pool)b.pool.dirty=true;else if(shown)this.root.add(b.group);else this.root.remove(b.group);}
       b.group.visible=shown;if(b.group.visible)calls+=b.calls;else active.delete(b);
+      if(!shown&&b.ghost){this.leavePool(b);b.group.traverse(n=>{if(n instanceof InstancedMesh){n.geometry.dispose();n.dispose();}});}
     }
     // The pools fill again when a batch of theirs came, went or faded, or the camera or the sun's shadow moved: each
     // building at its level of detail, and only those in sight (pools.ts)

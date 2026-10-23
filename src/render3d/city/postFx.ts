@@ -47,6 +47,8 @@ export interface CityPostLike {
 
 /** Contact-shadow samples round each point, and the most pixels (of the half-size picture) they reach */
 const AO_SAMPLES = 10;
+/** How long an effect Auto turns on or off takes to fade in or out (milliseconds) */
+export const EFFECT_FADE_MS = 1000;
 const AO_MAX_PX = 36;
 /** The glow's pictures: half size, a quarter, ... down to a thirty-second */
 const BLOOM_LEVELS = 5;
@@ -349,6 +351,24 @@ export class CityPost implements CityPostLike {
 
   setEffects(effects: Readonly<PostEffects>): void {
     this.effects = { ao: effects.ao, bloom: effects.bloom, tiltShift: effects.tiltShift };
+    // (the first effects are on at once; a change later fades over EFFECT_FADE_MS)
+    if (this.shown === null) this.shown = { ao: effects.ao ? 1 : 0, bloom: effects.bloom ? 1 : 0, tiltShift: effects.tiltShift ? 1 : 0 };
+  }
+
+  /** How far each effect is faded in, 0-1: Auto turning one on or off (quality.ts) shows as a fade, not a jump in the
+   * picture (owner, 23 Oct 2026: "การ render กระพริบๆ") */
+  private shown: Record<keyof PostEffects, number> | null = null;
+  private fadedAt: number | null = null;
+  private fade(): Record<keyof PostEffects, number> {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const step = this.fadedAt === null ? 1 : Math.min(1, Math.max(0, now - this.fadedAt) / EFFECT_FADE_MS);
+    this.fadedAt = now;
+    const shown = this.shown ??= { ao: 0, bloom: 0, tiltShift: 0 }, fx = this.effects;
+    for (const k of ['ao', 'bloom', 'tiltShift'] as const) {
+      const want = fx[k] ? 1 : 0;
+      shown[k] = shown[k] < want ? Math.min(want, shown[k] + step) : Math.max(want, shown[k] - step);
+    }
+    return shown;
   }
 
   setSize(width: number, height: number): void {
@@ -369,7 +389,7 @@ export class CityPost implements CityPostLike {
    * integrated graphics in a city of trees and houses, more than every effect together (docs/3d/RENDERER_SPEC.md 8A)
    */
   private sceneTarget(): WebGLRenderTarget {
-    const depth = this.effects.ao;
+    const depth = this.effects.ao || (this.shown?.ao ?? 0) > 0;
     if (this.scene && this.sceneHasDepth === depth) return this.scene;
     this.scene?.dispose();
     const t = new WebGLRenderTarget(this.width, this.height, { ...format(this.pixels),
@@ -390,14 +410,14 @@ export class CityPost implements CityPostLike {
   }
 
   render(scene: Scene, camera: PerspectiveCamera, look: PostLook): void {
-    const renderer = this.renderer, fx = this.effects, previous = renderer.getRenderTarget();
+    const renderer = this.renderer, fx = this.fade(), previous = renderer.getRenderTarget();
     const sceneTarget = this.sceneTarget(), w = this.width, h = this.height, hw = this.half.width, hh = this.half.height;
     renderer.setRenderTarget(sceneTarget); renderer.render(scene, camera);
     const c = this.composite.uniforms;
     c.tScene.value = sceneTarget.texture; c.aspect.value = w / h;
     (c.sceneTexel.value as Vector2).set(1 / w, 1 / h);
     // Contact shadows, half size, then blurred across and down
-    c.aoOn.value = fx.ao && look.ao.strength > 0.01 ? 1 : 0;
+    c.aoOn.value = fx.ao > 0 && look.ao.strength * fx.ao > 0.01 ? 1 : 0;
     if (c.aoOn.value) {
       const u = this.ao.uniforms, projection = camera.projectionMatrix.elements;
       u.tDepth.value = sceneTarget.depthTexture; (u.depthTexel.value as Vector2).set(1 / w, 1 / h);
@@ -408,21 +428,21 @@ export class CityPost implements CityPostLike {
       const b = this.aoBlurMaterial.uniforms;
       b.tInput.value = this.aoRaw.texture; (b.blurStep.value as Vector2).set(1 / hw, 0); this.draw(this.aoBlurMaterial, this.aoBlur);
       b.tInput.value = this.aoBlur.texture; (b.blurStep.value as Vector2).set(0, 1 / hh); this.draw(this.aoBlurMaterial, this.aoRaw);
-      c.tAo.value = this.aoRaw.texture; c.aoStrength.value = look.ao.strength; (c.aoTint.value as Color).copy(look.ao.tint);
+      c.tAo.value = this.aoRaw.texture; c.aoStrength.value = look.ao.strength * fx.ao; (c.aoTint.value as Color).copy(look.ao.tint);
       c.fogNear.value = look.fog ? look.fog.near : 1e9; c.fogFar.value = look.fog ? look.fog.far : 2e9;
     }
     // The tilt-shift's blurred copies: half size, a quarter, and the quarter brought back up to half
-    c.tiltOn.value = fx.tiltShift && look.tilt.strength > 0.01 ? 1 : 0;
+    c.tiltOn.value = fx.tiltShift > 0 && look.tilt.strength * fx.tiltShift > 0.01 ? 1 : 0;
     if (c.tiltOn.value) {
       this.step(this.box, sceneTarget.texture, w, h, this.half);
       this.step(this.dualDown, this.half.texture, hw, hh, this.quarter);
       this.step(this.dualUp, this.quarter.texture, this.quarter.width, this.quarter.height, this.blur);
       c.tBlur.value = this.blur.texture; c.tBlurMore.value = this.quarter.texture;
-      c.tiltStrength.value = look.tilt.strength; c.tiltFocus.value = look.tilt.focus; c.tiltBand.value = look.tilt.band;
-      c.vignette.value = look.vignette.strength; (c.vignetteTint.value as Color).copy(look.vignette.tint);
+      c.tiltStrength.value = look.tilt.strength * fx.tiltShift; c.tiltFocus.value = look.tilt.focus; c.tiltBand.value = look.tilt.band;
+      c.vignette.value = look.vignette.strength * fx.tiltShift; (c.vignetteTint.value as Color).copy(look.vignette.tint);
     } else c.vignette.value = 0;
     // The glow: what shines, half size, down to a thirty-second and back up, each size added in
-    c.bloomOn.value = fx.bloom && look.bloom.strength > 0.005 ? 1 : 0;
+    c.bloomOn.value = fx.bloom > 0 && look.bloom.strength * fx.bloom > 0.005 ? 1 : 0;
     if (c.bloomOn.value) {
       const bright = this.bright.uniforms; bright.threshold.value = look.bloom.threshold; bright.knee.value = Math.max(0.01, look.bloom.knee);
       this.step(this.bright, sceneTarget.texture, w, h, this.down[0]);
@@ -436,7 +456,7 @@ export class CityPost implements CityPostLike {
       // Each size was added in once: share the strength out over them
       let total = 0; for (let i = 0, weight = 1; i < BLOOM_LEVELS; i++, weight *= spread) total += weight;
       c.tBloom.value = this.up[0].texture;
-      (c.bloomColour.value as Color).copy(this.bloomColour.copy(look.bloom.tint).multiplyScalar(look.bloom.strength / total));
+      (c.bloomColour.value as Color).copy(this.bloomColour.copy(look.bloom.tint).multiplyScalar(look.bloom.strength * fx.bloom / total));
     }
     this.draw(this.composite, null);
     renderer.setRenderTarget(previous);
