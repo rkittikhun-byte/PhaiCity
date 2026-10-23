@@ -15,6 +15,10 @@ import { roadReach, smoothLine, type Point } from '../../roadGeometry.js';
 import { graphLines, type GraphLines } from '../../roads/graphLines.js';
 import type { RoadGraph } from '../../roads/roadGraph.js';
 import { CITY_TILE_M } from '../../units.js';
+import { mapEra } from '../../era.js';
+import { laidOutline, type FootprintMap } from '../../buildings/turnedFootprint.js';
+import { compoundSides, fencedBuildings, type CompoundMap } from './compounds.js';
+import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { isRail, isRoad, type TileSnapshot } from './tileModels.js';
 import { Placement } from './placement.js';
 import { tint } from '../materials/library.js';
@@ -108,8 +112,23 @@ function pieceOn(piece: Piece, tiles: ReadonlySet<number>, width: number): boole
 /** A building tile's lot (its corners, its size in tiles, its triangles, in a works' yard or a lawn) and driveway */
 interface Decor {
   lot: { rect: Point[]; size: number; triangles: number[]; yard: boolean } | null;
-  drive: { positions: number[]; colors: number[] } | null;
+  drive: Driveway | null;
 }
+/** A building's driveway: its triangles and their colours, and its line (world units) from the road's edge to the
+ * entrance it serves, which it ends at */
+export interface Driveway { positions: number[]; colors: number[]; from: Point; to: Point; entrance: Point; halfWidth: number }
+/** How wide a driveway is either side of its middle (metres), by what it serves and the city's era: a footpath to a
+ * village or market-town home, a lane to a shop, a temple or the ruler's buildings, wider from the factory town on;
+ * it flares by DRIVE_FLARE_M each side where it meets the road (owner, 23 Oct 2026: "ทางเข้าวัด หรือเข้าบ้าน ควรจะตรง
+ * ประตูบ้าน") */
+export function driveHalfWidth(kind: string, era: number): number {
+  if (kind === 'residential') return era <= 2 ? 0.6 : 1.2;
+  if (kind === 'commercial') return 1.5;
+  return era <= 2 ? 1.5 : 2.2;
+}
+export const DRIVE_FLARE_M = 0.8;
+/** A driveway is laid only to a road in front of its entrance: the road's way at most this far off square to it (sine) */
+const DRIVE_SQUARE = 0.6;
 /** How far from a changed tile (tiles) a building's lot or driveway may have changed with it: a building's tiles change
  * with its centre tile, which lies at most two tiles from any of them (a 4 x 4 block's centre is its tile (1, 1)), and a
  * plot's joined lot is one tile further at most */
@@ -691,61 +710,80 @@ export class RoadCurves {
     }
   }
 
+  /** The driveways laid, by the tile of the building each serves, for whoever checks where they lead (tests) */
+  driveways(): Driveway[] {
+    return [...this.decor.values()].map((d) => d.drive).filter((d): d is Driveway => d !== null);
+  }
+
   /**
-   * Trafficity-style Driveway Aprons (ทางเชื่อมหน้าตึกเข้าสู่ถนน): every building standing beside a road gets a paved
-   * flared driveway and curb cut connecting its front entrance directly to the road edge.
+   * Where a building is entered and the way it faces (world units): the gate in its fence for a building of the ruler's
+   * that is fenced (compounds.ts compoundSides, the middle of the gap), else the middle of its front as drawn (a temple's
+   * main gate is in the middle of its wall's front, art/buildings temples.py; a home's or shop's door faces its road).
    */
-  /** The driveway of a building (its placement p): its triangles and their colours, or null for none */
+  private entranceOf(p: Placement): { at: Point; facing: Point } | null {
+    const source = this.snapshot.source, units = this.snapshot.realUnits;
+    const b = source?.buildings?.atTile(p.index) as PlacedBuilding | undefined;
+    if (b && units && b.rot !== null && fencedBuildings(source as unknown as CompoundMap).some((f) => f.id === b.id)) {
+      const tileSizeM = source!.tileSizeM || CITY_TILE_M;
+      const sides = compoundSides(b, this.snapshot.width, tileSizeM, laidOutline(source as unknown as FootprintMap, b));
+      const gate = sides.find((side) => side.gate);
+      if (gate) {
+        const mx = (gate.ax + gate.bx) / 2, mz = (gate.az + gate.bz) / 2;
+        const cx = sides.reduce((sum, side) => sum + side.ax, 0) / 4, cz = sides.reduce((sum, side) => sum + side.az, 0) / 4;
+        const length = Math.hypot(mx - cx, mz - cz) || 1;
+        return { at: [mx * units, mz * units], facing: [(mx - cx) / length, (mz - cz) / length] };
+      }
+    }
+    const size = Math.max(p.footprint[0], p.footprint[1]);
+    const front = p.front !== undefined ? p.front : size * 5 * (p.fill ?? 0.625) * 0.45;
+    if (p.posed) {
+      const fx = Math.sin(p.rotation), fz = Math.cos(p.rotation);
+      return { at: [p.x + fx * front, p.z + fz * front], facing: [fx, fz] };
+    }
+    // a building standing square to its tiles faces the road nearest it
+    const near = this.nearest(p.x, p.z, size * 5 + 28);
+    if (!near) return null;
+    const dx = near.x - p.x, dz = near.z - p.z, length = Math.hypot(dx, dz);
+    if (length < 1e-6) return null;
+    return { at: [p.x + dx / length * front, p.z + dz / length * front], facing: [dx / length, dz / length] };
+  }
+
+  /**
+   * The driveway of a building (its placement p), or null for none: from the edge of the road in front of its entrance,
+   * cut along that edge, straight to the entrance, square to the building there, as wide as what it serves needs. None
+   * where the building already meets its road, where no road lies in front of its entrance, or where the road runs past
+   * at its side.
+   */
   private drivewayOf(p: Placement): Decor['drive'] {
     if (!this.lines.length) return null;
-    const m = this.metre, positions: number[] = [], colors: number[] = [];
-    const apronColour = new Color(0xb5afa1), paveColour = new Color(0x6e7174);
-    {
-      if (['terrain', 'road', 'rail', 'shore', 'debug', 'veg', 'park', 'power'].includes(p.kind)) return null;
-      if (p.id?.endsWith('zone_empty')) return null;
-      const size = Math.max(p.footprint[0], p.footprint[1]);
-      // A building turned to its road keeps its driveway to that road, out of its front, whatever road is drawn nearer
-      // to it later (owner, 20 Oct 2026: "สิ่งก่อสร้างที่วาดแล้วห้ามขยับอีก"): the road is looked for in front of it
-      const posed = p.posed, fx = Math.sin(p.rotation), fz = Math.cos(p.rotation);
-      // ... (from its front where it is known, tileModels.ts toRoadEdge, which reaches under it a little)
-      const halfDepth = p.front !== undefined ? Math.max(0, p.front - 0.5) : size * 5 * (p.fill ?? 0.625) * 0.45;
-      const lookX = posed ? p.x + fx * (halfDepth + 2) : p.x;
-      const lookZ = posed ? p.z + fz * (halfDepth + 2) : p.z;
-      const near = this.nearest(lookX, lookZ, size * 5 + 28);
-      if (!near) return null;
-
-      let nx = -near.tz, nz = near.tx;
-      if (nx * (p.x - near.x) + nz * (p.z - near.z) < 0) { nx = -nx; nz = -nz; }
-      // ... and only a road its front faces: none to a road at its side
-      if (posed && nx * -fx + nz * -fz < 0.7) return null;
-      if (posed) { nx = -fx; nz = -fz; }
-      const tx = near.tx, tz = near.tz;
-      const dist = Math.hypot(p.x - near.x, p.z - near.z);
-      const d0 = near.reach * 0.72;
-      const d1 = Math.max(d0 + 0.9, dist - halfDepth);
-      if (d1 <= d0 + 0.2 || d1 > d0 + 18) return null;
-
-      const wRoad = (size >= 3 ? 3.1 : 1.75) * m;
-      const wBldg = (size >= 3 ? 2.3 : 1.25) * m;
-      const border = 0.24 * m;
-      const rx0 = near.x + nx * d0, rz0 = near.z + nz * d0;
-      const rx1 = near.x + nx * d1, rz1 = near.z + nz * d1;
-
-      // Outer concrete curb-cut apron
-      const a0: Point = [rx0 - tx * (wRoad + border), rz0 - tz * (wRoad + border)];
-      const a1: Point = [rx0 + tx * (wRoad + border), rz0 + tz * (wRoad + border)];
-      const a2: Point = [rx1 + tx * (wBldg + border), rz1 + tz * (wBldg + border)];
-      const a3: Point = [rx1 - tx * (wBldg + border), rz1 - tz * (wBldg + border)];
-      this.quad([a0, a1, a2, a3], apronColour, UNDER_LIFT + 0.006, positions, colors);
-
-      // Inner paved driveway surface
-      const b0: Point = [rx0 - tx * wRoad, rz0 - tz * wRoad];
-      const b1: Point = [rx0 + tx * wRoad, rz0 + tz * wRoad];
-      const b2: Point = [rx1 + tx * wBldg, rz1 + tz * wBldg];
-      const b3: Point = [rx1 - tx * wBldg, rz1 - tz * wBldg];
-      this.quad([b0, b1, b2, b3], paveColour, UNDER_LIFT + 0.012, positions, colors);
-      return { positions, colors };
-    }
+    if (['terrain', 'road', 'rail', 'shore', 'debug', 'veg', 'park', 'power'].includes(p.kind)) return null;
+    if (p.id?.endsWith('zone_empty')) return null;
+    const entrance = this.entranceOf(p);
+    if (!entrance) return null;
+    const m = this.metre, [ex, ez] = entrance.at, [fx, fz] = entrance.facing;
+    // The road in front: the nearest to a point a little ahead of the entrance, and where the entrance's way meets it
+    const near = this.nearest(ex + fx * 2 * m, ez + fz * 2 * m, 30);
+    if (!near) return null;
+    const cross = fx * near.tz - fz * near.tx;
+    if (Math.abs(cross) < DRIVE_SQUARE) return null;
+    const ahead = ((near.x - ex) * near.tz - (near.z - ez) * near.tx) / cross;
+    // ... from its edge (the road's surface, as the old aprons met it)
+    const length = ahead - near.reach * 0.72 / Math.abs(cross);
+    if (ahead <= 0 || length < 0.3 * m || length > 18) return null;
+    const half = driveHalfWidth(p.kind, mapEra(this.snapshot.source as { era?: unknown } | null ?? {})) * m;
+    const flare = half + DRIVE_FLARE_M * m, border = 0.24 * m;
+    const sx = ex + fx * length, sz = ez + fz * length;
+    // across the building's way (u), and along the road, turned to the same side (t), so the road end lies on its edge
+    const ux = -fz, uz = fx, along = near.tx * ux + near.tz * uz >= 0 ? 1 : -1, tx = near.tx * along, tz = near.tz * along;
+    const k = 1 / Math.abs(tx * ux + tz * uz);
+    const corners = (atRoad: number, atDoor: number): [Point, Point, Point, Point] => [
+      [sx - tx * atRoad * k, sz - tz * atRoad * k], [sx + tx * atRoad * k, sz + tz * atRoad * k],
+      [ex + ux * atDoor, ez + uz * atDoor], [ex - ux * atDoor, ez - uz * atDoor]];
+    const positions: number[] = [], colors: number[] = [];
+    // an apron of concrete round it, and its paving
+    this.quad(corners(flare + border, half + border), new Color(0xb5afa1), UNDER_LIFT + 0.006, positions, colors);
+    this.quad(corners(flare, half), new Color(0x6e7174), UNDER_LIFT + 0.012, positions, colors);
+    return { positions, colors, from: [sx, sz], to: [ex, ez], entrance: [ex, ez], halfWidth: half };
   }
 
   /**
