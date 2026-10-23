@@ -32,6 +32,8 @@ export interface Household {
   index: number;
   kind: HouseholdKind;
   surname: Name;
+  /** Its surname's number (src/register/names.ts surname), for the names its businesses take */
+  family: number;
   /** The members it would have when full; members is a prefix of them */
   size: number;
   members: Member[];
@@ -47,7 +49,7 @@ export function fullHousehold(key: number, h: number): Household {
   const total = HOUSEHOLD_KINDS.reduce((sum, k) => sum + k.weight, 0);
   let pick = r() * total, spec: typeof HOUSEHOLD_KINDS[number] = HOUSEHOLD_KINDS[0];
   for (const k of HOUSEHOLD_KINDS) { pick -= k.weight; if (pick < 0) { spec = k; break; } }
-  const family = surname(Math.floor(r() * SURNAMES));
+  const familyNumber = Math.floor(r() * SURNAMES), family = surname(familyNumber);
   const adults = between(r, spec.adults[0], spec.adults[1]), children = between(r, spec.children[0], spec.children[1]);
   const elders = between(r, spec.elders[0], spec.elders[1]);
   const members: Member[] = [];
@@ -85,7 +87,7 @@ export function fullHousehold(key: number, h: number): Household {
     const male = elders === 2 ? e === 0 : r() < 0.4;
     add(adults > 0 ? "elder" : e === 0 ? "head" : "spouse", male, elderAge, elders === 2 || !male);
   }
-  return { index: h, kind: spec.kind, surname: family, size: members.length, members, u: r() };
+  return { index: h, kind: spec.kind, surname: family, family: familyNumber, size: members.length, members, u: r() };
 }
 
 /** The home's number: its own id and when it was formed, mixed with the city's */

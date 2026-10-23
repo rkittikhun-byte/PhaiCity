@@ -26,7 +26,10 @@ import { isCityTileSize } from "./units.js";
 import { type PlotChecklist, plotChecklist } from "./plotChecklist.js";
 import { findStreets, type Street, type StreetMap, streetLabel } from "./streetNames.js";
 import { type CityRegister, homePeopleOf } from "./register/cityRegister.js";
-import { type PersonCard, personCard, type RosterSection, homeRoster, workplaceRoster } from "./register/registerCards.js";
+import { lorryCard, type PersonCard, personCard, type RegisterCard, type RosterSection, homeRoster, vehicleCard,
+  workplaceRoster } from "./register/registerCards.js";
+import type { Traveller } from "./register/cityRegister.js";
+import type { Name } from "./register/names.js";
 import type { Building } from "./objects/cityObject.js";
 import { LASTRAIL, LASTRIVEDGE, LASTTREE, RAILBASE, RIVER, TREEBASE, WOODS, WOODS2 } from "./tileValues.js";
 
@@ -50,6 +53,8 @@ export interface Inspection {
   people?: RosterSection[];
   /** A person's card: whose it is, and where they live and work */
   person?: PersonCard;
+  /** The names a line's "@key" params stand for (a business's, a vehicle's owner's), in both scripts */
+  names?: Record<string, Name>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,17 +135,40 @@ export function objectTitle(map: Legacy, building: Building): string {
 
 /** A person's card from the register (docs/GAME_DESIGN.md 21.4), or null when there is no such person; trip: the trip
  * they are on, when they were clicked on the road */
-export function inspectPerson(city: InspectCity, id: string, trip: { purpose: number; minutes: number } | null = null): Inspection | null {
+export function inspectPerson(city: InspectCity, id: string, trip: Traveller | null = null): Inspection | null {
   if (!city.register) return null;
-  const card = personCard(city.register, id, (w) => {
+  return fromCard(personCard(city.register, id, placeTitle(city), trip), city.register.person(id)?.home ?? null);
+}
+
+/** A car on the road's card: the vehicle of the person a drawn car is (src/register/cityRegister.ts traveller), with its
+ * owner, plate and trip; a walker's own card */
+export function inspectTraveller(city: InspectCity, trip: Traveller, onFoot: boolean): Inspection | null {
+  if (!city.register) return null;
+  const card = onFoot ? personCard(city.register, trip.person.id, placeTitle(city), trip) : vehicleCard(city.register, trip, placeTitle(city));
+  return fromCard(card, trip.person.home);
+}
+
+/** A factory's lorry's card, the k-th of its lorries */
+export function inspectLorry(city: InspectCity, workplaceId: number, k: number): Inspection | null {
+  if (!city.register) return null;
+  const w = city.register.workplace(workplaceId);
+  return w ? fromCard(lorryCard(city.register, workplaceId, k), w) : null;
+}
+
+/** What a workplace is called: a building's title, a field's kind */
+function placeTitle(city: InspectCity) {
+  return (w: { kind: string; sort: string; id: number }): string => {
     if (w.kind === "fields") return `farm.kind.${w.sort}`;
     const building = city.objects.get(w.id);
     return building ? objectTitle(city.map, building) : `object.kind.${w.kind}`;
-  }, trip);
-  if (!card) return null;
-  const { x, y } = card.person.home;
-  return { title: { key: "register.person.title" }, facts: card.facts, people: card.people, person: card.person,
-    rect: { x, y, width: 1, height: 1 } };
+  };
+}
+
+/** An inspection from a card of the register, outlined at the place it belongs to */
+function fromCard(card: RegisterCard | null, at: { x: number; y: number } | null): Inspection | null {
+  if (!card || !at) return null;
+  return { title: card.title ?? { key: "register.person.title" }, facts: card.facts, people: card.people,
+    person: card.person, names: card.names, rect: { x: at.x, y: at.y, width: 1, height: 1 } };
 }
 
 let streetsCache: { map: StreetMap; signature: number; streets: Street[]; byTile: Map<number, Street> } | null = null;

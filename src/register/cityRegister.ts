@@ -26,7 +26,7 @@ import { mapEra } from "../era";
 import { Industrial } from "../industrial.js";
 import { MINE_SPECS, mineKindAt } from "../mining";
 import { FARM_JOBS, HARBOUR_JOBS } from "../farming";
-import { fieldLevelOf, fieldShare, isFieldValue, kindOfCode } from "../farmZone";
+import { fieldLevelOf, fieldShare, hubKind, isFieldValue, kindOfCode } from "../farmZone";
 import type { Building } from "../objects/cityObject";
 import { gradeAt, LAND_GRADES, type SatisfactionContext } from "../objects/satisfaction";
 import { plotAccess } from "../plots";
@@ -37,9 +37,9 @@ import { isCityTileSize } from "../units";
 import { WASTE_SPECS, wasteKindAt } from "../waste";
 import { HHTHR, LHTHR } from "../tileValues";
 import { type Household, householdsOf, homeKey, type Member } from "./households";
-import { fullName, type Name } from "./names";
+import { businessName, familyStem, fullName, givenName, type Name, plate, SURNAMES } from "./names";
 import {
-  type AgeBand, ageBand, CHILD_LIVING, COMMUTE_KMH, COUNTED_JOB, ELDER_ALLOWANCE, ERA_PAY, FACTORY_RANKS, FARM_CARTS,
+  type AgeBand, ageBand, CHILD_LIVING, COMMUTE_KMH, COUNTED_JOB, ELDER_ALLOWANCE, ERA_PAY, FACTORY_LORRY, FACTORY_RANKS, FARM_CARTS, NO_PLATE,
   FARM_DEBT, FIELD_BLOCK, FIELD_JOB, HOMEMAKER_SHARE, HOSPITAL_RANKS, type Job, JOB_PAY, landLiving, levelPay, LIVING,
   LOAN_MONTHS, PAY_SPREAD, type Role, SCHOOL_RANKS, SHOP_OFFICE_FROM, STAFF, STUDENT_SHARE, VEHICLE_INCOME, VEHICLE_PRICE,
   VEHICLE_TIERS, WORK_REACH_M,
@@ -66,6 +66,8 @@ export interface RegisterInput {
   cityTime: number;
   /** What the satisfaction scores read, for how content a household is */
   satisfaction?: SatisfactionContext | null;
+  /** The province's name in Thai, for the plates (กข 1234 ขอนแก่น); none on a practice map */
+  province?: string | null;
 }
 
 /** A place people work, with its jobs and the people of the city who work there */
@@ -82,7 +84,24 @@ export interface Workplace {
   jobs: number;
   job: Job;
   workers: Person[];
+  /** The road it is reached from (a segment index of the month's trips), -1 none */
+  segment: number;
+  /** A business's owner (the one of its people of the city who lives nearest), and its name; null for the ruler's */
+  owner: Person | null;
+  business: Name | null;
 }
+
+/** Who a car or a walker of the month's trips is, and where they are going */
+export interface Traveller {
+  person: Person;
+  purpose: number;
+  /** The place at the trip's end: their own workplace, a shop on its road; null when not known */
+  destination: Workplace | null;
+  minutes: number;
+}
+
+/** The kinds of workplace that are a business, with an owner and a name */
+export const BUSINESS_KINDS: ReadonlySet<string> = new Set(["shop", "factory", "farm", "harbour"]);
 
 export interface HomeEntry {
   /** The home object's id */
@@ -254,7 +273,7 @@ export class CityRegister {
         if (b.kind === "shop") counts.shops++; else counts.factories++;
         const jobs = zoneJobsOf(any, map);
         if (jobs > 0) this.addWorkplace({ id: b.id, kind: b.kind, sort: "", x: b.x, y: b.y, level: any.level(map),
-          jobs, job: b.kind === "shop" ? "shop_staff" : "factory_worker", workers: [] });
+          jobs, job: b.kind === "shop" ? "shop_staff" : "factory_worker", workers: [], segment: -1, owner: null, business: null });
         continue;
       }
       if (b.kind === "farm" || b.kind === "harbour") counts.farms++;
@@ -262,7 +281,7 @@ export class CityRegister {
       if (isSite(map, b.id)) continue;
       const other = otherJobs(b, map);
       if (other) this.addWorkplace({ id: b.id, kind: b.kind, sort: other.sort, x: b.x, y: b.y, level: 1, jobs: other.jobs,
-        job: other.job, workers: [] });
+        job: other.job, workers: [], segment: -1, owner: null, business: null });
     }
     // ... and the farm zone's fields, a square of them one workplace, each field's work as the map scan counts it
     // (src/farmZone.ts fieldFound), read from the tiles rather than the scan's list, which a cycle under way has only part of
@@ -288,7 +307,7 @@ export class CityRegister {
         counts.fields++;
         const kind = Object.entries(block.kinds).sort((p, q) => q[1] - p[1] || (p[0] < q[0] ? -1 : 1))[0][0];
         this.addWorkplace({ id: -1 - b, kind: "fields", sort: kind, x: block.x, y: block.y, level: block.level, jobs,
-          job: FIELD_JOB[kind] ?? "farmer", workers: [] });
+          job: FIELD_JOB[kind] ?? "farmer", workers: [], segment: -1, owner: null, business: null });
       }
     }
     // Everyone, with what they do before work is found
@@ -364,6 +383,7 @@ export class CityRegister {
       groups.set(key, group);
     }
     const places = this.workplaces.map((w) => ({ w, access: access(w.x, w.y), left: w.jobs }));
+    for (const place of places) place.w.segment = place.access?.k ?? -1;
     const straight = (ax: number, ay: number, bx: number, by: number): number => Math.hypot(ax - bx, ay - by) * size * 1.3;
     const net = trips?.net;
     const nodes = net ? net.offsets.length - 1 : 0;
@@ -439,7 +459,11 @@ export class CityRegister {
         w.workers.push(person);
       }
     });
-    // ... and what each does there and earns
+    // ... and what each does there and earns: a business's owner is the one of its people who lives nearest, first
+    for (const w of this.workplaces) {
+      if (BUSINESS_KINDS.has(w.kind)) w.workers.sort((a, b) => a.commuteM - b.commuteM || (a.id < b.id ? -1 : 1));
+      this.nameBusiness(w);
+    }
     for (const w of this.workplaces) w.workers.forEach((person, i) => {
       person.job = this.jobAt(w, i);
       const pay = JOB_PAY[person.job] * (ERA_PAY[this.era] ?? 1) * levelPay(w.level);
@@ -447,13 +471,26 @@ export class CityRegister {
     });
   }
 
+  /** A business's owner and name: its nearest-living person of the city, or when none of its people is of the city, an
+   * owner from outside whose names come from its own number */
+  private nameBusiness(w: Workplace): void {
+    if (!BUSINESS_KINDS.has(w.kind)) return;
+    w.owner = w.workers[0] ?? null;
+    const u = mix(citySalt(this.input.map), w.id >>> 0) / 4294967296;
+    const given = w.owner ? w.owner.member.given : givenName(unit(u, 30) < 0.6, 50, Math.floor(unit(u, 31) * 1000));
+    const stem = familyStem(w.owner ? w.owner.household.family : Math.floor(unit(u, 32) * SURNAMES));
+    const sort = w.kind === "farm" ? hubKind(this.input.map, w.x, w.y) : w.sort;
+    w.business = businessName(w.kind, sort, w.level, this.era, given, stem, unit(u, 33));
+  }
+
   /** What the i-th of a workplace's people does there */
   private jobAt(w: Workplace, i: number): Job {
     const era = this.era;
     if (w.kind === "shop") {
-      if (era >= SHOP_OFFICE_FROM.era && w.level >= SHOP_OFFICE_FROM.level) return "office_worker";
+      if (era >= SHOP_OFFICE_FROM.era && w.level >= SHOP_OFFICE_FROM.level) return i === 0 ? "business_owner" : "office_worker";
       return i === 0 ? "shop_owner" : "shop_staff";
     }
+    if ((w.kind === "factory" || w.kind === "farm" || w.kind === "harbour") && i === 0) return "business_owner";
     if (w.kind === "factory") {
       const n = i + 1;
       if (era >= FACTORY_RANKS.engineerFrom.era && w.level >= FACTORY_RANKS.engineerFrom.level && n % FACTORY_RANKS.engineer === 0) return "engineer";
@@ -480,6 +517,17 @@ export class CityRegister {
       out.push(cart ?? list[Math.floor(unit(household.u, 10 + n) * list.length)]);
     }
     return out;
+  }
+
+  /** The plate of a household's n-th vehicle (กข 1234 ขอนแก่น), or null for one with none (a bicycle, a cart) */
+  plateOf(household: Household, n: number, vehicle: string): string | null {
+    return NO_PLATE.has(vehicle) ? null : plate(unit(household.u, 40 + n), unit(household.u, 50 + n), this.input.province ?? null);
+  }
+
+  /** A factory's lorry, the k-th of them: its vehicle and plate */
+  lorryOf(w: Workplace, k: number): { vehicle: string; plate: string | null } {
+    const vehicle = FACTORY_LORRY[this.era] ?? FACTORY_LORRY[1], u = mix(citySalt(this.input.map), w.id >>> 0) / 4294967296;
+    return { vehicle, plate: NO_PLATE.has(vehicle) ? null : plate(unit(u, 60 + k), unit(u, 70 + k), this.input.province ?? null) };
   }
 
   private membersOf(home: HomeEntry, household: Household): Person[] {
@@ -529,12 +577,14 @@ export class CityRegister {
   person(id: string): Person | null { return this.byPerson.get(id) ?? null; }
 
   /**
-   * Who a car or a walker of the month's trips is (src/sim/trips.ts routes, drawn by the 3D view): the k-th, taken round,
-   * of the people living on the route's first road who make that trip (to work: its workers going to work; shopping: its
-   * grown-ups), in the order of their homes and households; the same person every time it is asked. Null for a route
-   * that is not this month's, or a road with nobody of the city on it.
+   * Who a car or a walker of the month's trips is (src/sim/trips.ts routes, drawn by the 3D view), and where they are
+   * going (docs/GAME_DESIGN.md 21.6; owner: "ทุก object ที่เกิดขึ้น ต้องมีที่มาและที่ไป"): the k-th, taken round, of the
+   * people living on the route's first road who make that trip, those whose own place is at the route's end first: to
+   * work (purpose 0) its workers, to their own workplace; shopping (1) its grown-ups, to a shop at the route's end; to
+   * school (2) its pupils. The same person every time it is asked. Null for a route that is not this month's, or a road
+   * with nobody of the city on it.
    */
-  traveller(routeIndex: number, k: number): Person | null {
+  traveller(routeIndex: number, k: number): Traveller | null {
     const trips: CityTrips | null = this.input.map.trips ?? null;
     const route = trips?.result.routes[routeIndex];
     if (!trips || !route) return null;
@@ -549,9 +599,26 @@ export class CityRegister {
         this.homesByRoad.set(segment, list);
       }
     }
-    const going = (this.homesByRoad.get(route.fromSegment) ?? []).flatMap((home) => this.residents(home.id))
-      .filter((p) => route.purpose === 0 ? p.role === "worker" : p.band === "adult" || p.band === "young" || p.band === "elder");
-    return going.length ? going[((k % going.length) + going.length) % going.length] : null;
+    const purpose = route.purpose;
+    const people = (this.homesByRoad.get(route.fromSegment) ?? []).flatMap((home) => this.residents(home.id));
+    const going = people.filter((p) => purpose === 0 ? p.role === "worker" : purpose === 2 ? p.role === "pupil"
+      : p.band === "adult" || p.band === "young" || p.band === "elder");
+    // (those whose own workplace is where the route ends, first)
+    const there = purpose === 0 ? going.filter((p) => p.workplace?.segment === route.toSegment) : [];
+    const pool = there.length ? there : going;
+    if (!pool.length) return null;
+    const person = pool[((k % pool.length) + pool.length) % pool.length];
+    const destination = purpose === 0 ? person.workplace
+      : purpose === 1 ? this.workplaces.find((w) => w.kind === "shop" && w.segment === route.toSegment) ?? null : null;
+    return { person, purpose, destination, minutes: route.minutes };
+  }
+
+  /** The businesses whose name has this in it (Thai or romanised, any case), at most `most` */
+  searchBusinesses(text: string, most = 20): Workplace[] {
+    const want = text.trim().toLowerCase();
+    if (!want) return [];
+    return this.workplaces.filter((w) => w.business && (w.business.th.includes(want) || w.business.en.toLowerCase().includes(want)))
+      .slice(0, most);
   }
   home(id: number): HomeEntry | null { return this.byHome.get(id) ?? null; }
   workplace(id: number): Workplace | null { return this.byWorkplace.get(id) ?? null; }

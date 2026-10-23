@@ -18,6 +18,8 @@ export interface RegisterWindowSource {
   register(): CityRegister;
   /** A person picked: the game opens their card and shows their home */
   openPerson(id: string): void;
+  /** A business picked: the game opens its building's card */
+  openObject(id: number): void;
 }
 
 const number = (n: number): string => n.toLocaleString("en-US");
@@ -69,11 +71,13 @@ export const RegisterWindow = (ModalWindow as unknown as (constructor: (this: Re
       if (e.key === "Enter") { e.preventDefault(); window.clearTimeout(timer); this.find(); }
     });
     document.querySelector("#registerResults")?.addEventListener("click", (e) => {
-      const button = (e.target as HTMLElement).closest<HTMLElement>("[data-person]");
-      if (!button?.dataset.person || !this.source) return;
-      const id = button.dataset.person;
+      const target = e.target as HTMLElement, source = this.source;
+      const person = target.closest<HTMLElement>("[data-person]")?.dataset.person;
+      const object = target.closest<HTMLElement>("[data-object]")?.dataset.object;
+      if (!source || (!person && !object)) return;
       this.close();
-      this.source.openPerson(id);
+      if (person) source.openPerson(person);
+      else source.openObject(Number(object));
     });
     onLanguageChange(() => this.render());
   });
@@ -91,6 +95,7 @@ RegisterWindow.prototype.render = function(this: RegisterWindowThis): void {
     block(doc, t("register.window.buildings"), [
       [t("register.count.homes"), c.homes], [t("register.count.shops"), c.shops], [t("register.count.factories"), c.factories],
       [t("register.count.farms"), c.farms], [t("register.count.fields"), c.fields], [t("register.count.services"), c.services],
+      [t("register.count.businesses"), register.workplaces.filter((w) => w.business).length],
     ]),
     block(doc, t("register.window.people"), [
       [t("register.count.households"), c.households], [t("register.count.people"), c.people],
@@ -113,15 +118,27 @@ RegisterWindow.prototype.find = function(this: RegisterWindowThis): void {
   const text = document.querySelector<HTMLInputElement>("#registerSearch")?.value ?? "";
   if (!results || !this.source) return;
   if (!text.trim()) { results.replaceChildren(); return; }
-  const found = this.source.register().search(text, 30), language = getLanguage();
-  if (!found.length) {
+  const register = this.source.register(), found = register.search(text, 30), language = getLanguage();
+  // Businesses by their name first, each opening its building's card
+  const businesses = register.searchBusinesses(text, 10).filter((w) => w.id >= 0).map((w) => {
+    const item = document.createElement("li");
+    const name = document.createElement("button");
+    name.type = "button";
+    name.dataset.object = String(w.id);
+    name.textContent = w.business![language];
+    const about = document.createElement("span");
+    about.textContent = t("register.window.businesses");
+    item.append(name, about);
+    return item;
+  });
+  if (!found.length && !businesses.length) {
     const none = document.createElement("li");
     none.className = "registerNone";
     none.textContent = t("register.window.not_found");
     results.replaceChildren(none);
     return;
   }
-  results.replaceChildren(...found.map((person) => {
+  results.replaceChildren(...businesses, ...found.map((person) => {
     const item = document.createElement("li");
     const name = document.createElement("button");
     name.type = "button";

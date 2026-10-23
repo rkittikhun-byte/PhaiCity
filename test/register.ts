@@ -15,7 +15,7 @@ import { CityRegister } from "../src/register/cityRegister";
 import { fullHousehold, householdsOf } from "../src/register/households";
 import { surname, SURNAMES } from "../src/register/names";
 import { VEHICLE_TIERS, FARM_CARTS } from "../src/register/registerRules";
-import { homeRoster, personCard, roleKey, vehicleKey, workplaceRoster } from "../src/register/registerCards";
+import { homeRoster, lorryCard, personCard, roleKey, vehicleCard, vehicleKey, workplaceRoster } from "../src/register/registerCards";
 import { hasKey } from "../src/i18n/index";
 
 function open() {
@@ -125,6 +125,28 @@ describe("the register in the cards", () => {
     expect(short.length).toBeLessThanOrEqual(register.workplaces.length * 0.05);
   });
 
+  test("every business has a made-up name and, when any of its people is of the city, an owner who lives nearest", () => {
+    const businesses = register.workplaces.filter((w) => ["shop", "factory", "farm", "harbour"].includes(w.kind));
+    expect(businesses.length).toBeGreaterThan(10);
+    for (const w of businesses) {
+      expect(w.business!.th.length).toBeGreaterThan(3);
+      expect(w.business!.en.length).toBeGreaterThan(3);
+      if (!w.workers.length) { expect(w.owner).toBeNull(); continue; }
+      expect(w.owner).toBe(w.workers[0]);
+      for (const p of w.workers) expect(p.commuteM).toBeGreaterThanOrEqual(w.owner!.commuteM);
+      expect(["shop_owner", "business_owner"]).toContain(w.owner!.job);
+    }
+    expect(register.searchBusinesses(businesses[0].business!.th)).toContain(businesses[0]);
+    // plates: Thai letters and a number, the same every time
+    // (a farming village's carts and bicycles have none)
+    const hh = register.homes[0].households[0];
+    expect(register.plateOf(hh, 0, "era1/bicycle")).toBeNull();
+    const plate = register.plateOf(hh, 0, "era3/pickup")!;
+    expect(plate).toMatch(/^[ก-ฮ]{2} \d{1,4}$/);
+    expect(register.plateOf(hh, 0, "era3/pickup")).toBe(plate);
+    expect(register.plateOf(hh, 1, "era3/pickup")).not.toBe(plate);
+  });
+
   test("a home lists its households, a workplace its people, a person their own lines, all translated", () => {
     const home = register.homes.find((h) => h.households.length > 1)!;
     const sections = homeRoster(register, home.id);
@@ -138,12 +160,24 @@ describe("the register in the cards", () => {
     for (const section of workplaceRoster(register, busy.id)) keys.push(section.heading.key, ...(section.note ? [section.note.key] : []));
     const worker = busy.workers[0];
     const card = personCard(register, worker.id, () => "object.kind.shop")!;
-    expect(card.person.name.en).toMatch(/^(Mr|Mrs|Miss) /);
-    expect(card.person.work).not.toBeNull();
+    expect(card.person!.name.en).toMatch(/^(Mr|Mrs|Miss) /);
+    expect(card.person!.work).not.toBeNull();
     for (const fact of card.facts) {
       keys.push(fact.key);
-      for (const value of Object.values(fact.params ?? {})) if (typeof value === "string") keys.push(value);
+      for (const value of Object.values(fact.params ?? {})) if (typeof value === "string" && !value.startsWith("@")) keys.push(value);
     }
+    // ... a car on the road with its owner and plate, and a factory's lorry
+    const map = core.map as any;
+    for (let r = 0; r < (map.trips?.result.routes.length ?? 0) && r < 30; r++) {
+      const trip = register.traveller(r, 0);
+      const car = trip ? vehicleCard(register, trip, () => "object.kind.shop") : null;
+      if (!car) continue;
+      keys.push(car.title?.key ?? "register.person.title", ...car.facts.map((f) => f.key));
+      for (const f of car.facts) for (const v of Object.values(f.params ?? {})) if (typeof v === "string" && !v.startsWith("@")) keys.push(v);
+    }
+    const factory = register.workplaces.find((w) => w.kind === "factory")!;
+    const lorry = lorryCard(register, factory.id, 0)!;
+    keys.push(lorry.title!.key, ...lorry.facts.map((f) => f.key), String(lorry.title!.params.vehicle));
     for (const p of register.people) keys.push(roleKey(p));
     for (const id of Object.keys(register.counts.vehicles)) keys.push(vehicleKey(id));
     for (const key of new Set(keys)) expect([key, hasKey(key)]).toEqual([key, true]);
@@ -160,10 +194,12 @@ describe("travellers on the road", () => {
     let found = 0;
     routes.slice(0, 40).forEach((route: any, r: number) => {
       for (let k = 0; k < 5; k++) {
-        const person = register.traveller(r, k);
-        if (!person) continue;
+        const trip = register.traveller(r, k);
+        if (!trip) continue;
+        const person = trip.person;
         found++;
-        expect(register.traveller(r, k)).toBe(person);
+        expect(register.traveller(r, k)!.person).toBe(person);
+        if (route.purpose === 0) expect(trip.destination).toBe(person.workplace);
         if (route.purpose === 0) expect(person.role).toBe("worker");
         else expect(["young", "adult", "elder"]).toContain(person.band);
       }

@@ -1966,8 +1966,22 @@
 | `register.fact.commute` | `src/register/registerCards.ts` | — | `About {minutes} min to work ({km} km)` | `ไปทำงานราว {minutes} นาที ({km} กม.)` |  |
 | `register.fact.commute_m` | `src/register/registerCards.ts` | — | `About {minutes} min to work ({metres} m)` | `ไปทำงานราว {minutes} นาที ({metres} ม.)` | ไม่ถึงกิโลเมตร |
 | `register.more_households` | `src/register/registerCards.ts` | — | `{households} more households ({people} people)` | `และอีก {households} ครัวเรือน ({people} คน)` | บ้านหลังใหญ่ |
-| `register.fact.trip_work` | `src/register/registerCards.ts` | — | `On the way to work, about {minutes} min` | `กำลังเดินทางไปทำงาน ราว {minutes} นาที` | คลิกคนหรือรถบนถนน |
-| `register.fact.trip_shop` | `src/register/registerCards.ts` | — | `Out shopping, about {minutes} min each way` | `กำลังไปซื้อของ ราว {minutes} นาที` |  |
+| `register.fact.trip_work` | `src/register/registerCards.ts` | — | `From home to work, about {minutes} min` | `กำลังเดินทางจากบ้านไปทำงาน ราว {minutes} นาที` | คลิกคนหรือรถบนถนน |
+| `register.fact.trip_shop` | `src/register/registerCards.ts` | — | `From home to the shops, about {minutes} min` | `กำลังเดินทางจากบ้านไปซื้อของ ราว {minutes} นาที` |  |
+| `register.business` | `src/register/registerCards.ts` | — | `{business}` | `{business}` | ชื่อกิจการ (สร้างจากชื่อเจ้าของ ไม่ใช่ยี่ห้อจริง) เหนือเจ้าของ |
+| `register.business_outside` | `src/register/registerCards.ts` | — | `{business} (its owner lives outside the city)` | `{business} (เจ้าของอยู่นอกเมือง)` |  |
+| `register.owner` | `src/register/registerCards.ts` | — | `Owner` | `เจ้าของ` | การ์ดรถ |
+| `register.vehicle_card` | `src/register/registerCards.ts` | — | `{owner}'s {vehicle}` | `{vehicle}ของ{owner}` | ชื่อการ์ดรถที่คลิกบนถนน |
+| `register.fact.plate` | `src/register/registerCards.ts` | — | `Plate {plate}` | `ทะเบียน {plate}` | ทะเบียนเขียนเป็นภาษาไทยทั้งสองภาษา |
+| `register.fact.vehicle_plate` | `src/register/registerCards.ts` | — | `Vehicle: {vehicle}, plate {plate}` | `มี{vehicle} ทะเบียน {plate}` |  |
+| `register.fact.owner_works` | `src/register/registerCards.ts` | — | `{role} at {place}` | `{role} · {place}` |  |
+| `register.fact.trip_work_at` | `src/register/registerCards.ts` | — | `From home to work at {place}, about {minutes} min` | `กำลังเดินทางจากบ้านไปทำงานที่ {place} ราว {minutes} นาที` |  |
+| `register.fact.trip_shop_at` | `src/register/registerCards.ts` | — | `From home to shop at {place}, about {minutes} min` | `กำลังเดินทางจากบ้านไปซื้อของที่ {place} ราว {minutes} นาที` |  |
+| `register.fact.trip_school` | `src/register/registerCards.ts` | — | `From home to school, about {minutes} min` | `กำลังเดินทางจากบ้านไปโรงเรียน ราว {minutes} นาที` |  |
+| `register.fact.delivering` | `src/register/registerCards.ts` | — | `Carrying goods for {business}` | `ขนสินค้าของ{business}` | รถบรรทุกของโรงงาน |
+| `register.job.business_owner` | `src/register/registerCards.ts` | — | `Business owner` | `เจ้าของกิจการ` |  |
+| `register.count.businesses` | `src/registerWindow.ts` | — | `Businesses` | `ร้านและกิจการ` |  |
+| `register.window.businesses` | `src/registerWindow.ts` | — | `Businesses` | `ร้านและกิจการ` | ผลค้นหา |
 | `register.fact.income` | `src/register/registerCards.ts` | — | `Earns {income} a month` | `รายได้ {income} ต่อเดือน` | เงินบาทจริง ไม่ใช่หน่วยของคลังเมือง |
 | `register.fact.household_income` | `src/register/registerCards.ts` | — | `Household: {income} in, {living} living costs a month` | `ครัวเรือน: รายได้ {income} ค่าครองชีพ {living} ต่อเดือน` |  |
 | `register.fact.savings` | `src/register/registerCards.ts` | — | `Household savings {savings}` | `เงินออมของครัวเรือน {savings}` |  |

@@ -98,3 +98,74 @@ export function title(male: boolean, age: number, married: boolean): Name {
 export function fullName(titleOf: Name, given: Name, family: Name, language: "th" | "en"): string {
   return language === "th" ? `${titleOf.th}${given.th} ${family.th}` : `${titleOf.en} ${given.en} ${family.en}`;
 }
+
+/** What a shop's name ends with (ร้านสมชายการค้า, Somchai Trading) */
+const SHOP_ENDINGS: readonly Pair[] = [
+  ["การค้า", "Trading"], ["พานิช", "Store"], ["โภคภัณฑ์", "Goods"], ["ค้าส่ง", "Wholesale"], ["วัสดุ", "Supplies"],
+  ["ยนต์", "Motors"], ["บริการ", "Services"], ["ผ้าไหม", "Silk"], ["ของชำ", "Grocery"], ["เครื่องเย็น", "Cooling"],
+];
+/** What a factory makes, by era (โรงงานทอผ้า…, … Weaving) */
+const FACTORY_MAKES: Readonly<Record<number, readonly Pair[]>> = {
+  1: [["ทอผ้า", "Weaving"], ["อิฐ", "Brickworks"], ["น้ำปลา", "Fish Sauce"], ["เครื่องจักสาน", "Basketry"]],
+  2: [["ทอผ้า", "Weaving"], ["น้ำแข็ง", "Ice Works"], ["อิฐ", "Brickworks"], ["โม่หิน", "Stone Crushing"], ["เส้นหมี่", "Noodle Works"]],
+  3: [["เฟอร์นิเจอร์", "Furniture"], ["อาหารกระป๋อง", "Canning"], ["น้ำแข็ง", "Ice Works"], ["ปูนซีเมนต์บล็อก", "Concrete Blocks"],
+    ["เสื้อผ้าสำเร็จรูป", "Garments"]],
+  4: [["ชิ้นส่วนยนต์", "Auto Parts"], ["อาหารแช่แข็ง", "Frozen Foods"], ["บรรจุภัณฑ์", "Packaging"], ["อิเล็กทรอนิกส์", "Electronics"]],
+  5: [["แบตเตอรี่", "Batteries"], ["หุ่นยนต์", "Robotics"], ["ชีวภัณฑ์", "Bioproducts"], ["อิเล็กทรอนิกส์", "Electronics"]],
+};
+/** ... and a big business's word (บริษัท แก้วพนาอุตสาหกรรม จำกัด) */
+const COMPANY_WORDS: readonly Pair[] = [
+  ["อุตสาหกรรม", "Industry"], ["พัฒนา", "Development"], ["กรุ๊ป", "Group"], ["โฮลดิ้ง", "Holdings"], ["เทรดดิ้ง", "Trading"],
+];
+
+/** The first two parts of a surname, as a business takes it (แก้วพนา, Kaeophana) */
+export function familyStem(n: number): Name {
+  const k = ((n % SURNAMES) + SURNAMES) % SURNAMES;
+  const a = SURNAME_FIRST[k % SURNAME_FIRST.length], b = SURNAME_MIDDLE[Math.floor(k / SURNAME_FIRST.length) % SURNAME_MIDDLE.length];
+  return { th: a[0] + b[0], en: a[1] + b[1] };
+}
+
+const pick = <T>(list: readonly T[], u: number): T => list[Math.min(list.length - 1, Math.floor(u * list.length))];
+
+/**
+ * A business's name, made up from its owner's names and its trade (never a real brand): a small shop ร้าน<given><ending>,
+ * a bigger one a partnership (ห้างหุ้นส่วนจำกัด <stem><ending>), the biggest of a modern era a company; a factory
+ * โรงงาน<what it makes><stem>, a big one a company; a farm's hub by what it is to its fields; a harbour's fish market.
+ */
+export function businessName(kind: string, sort: string, level: number, era: number, given: Name, stem: Name, u: number): Name {
+  if (kind === "shop") {
+    const end = pick(SHOP_ENDINGS, u);
+    if (level >= 4 && era >= 4) {
+      const word = pick(COMPANY_WORDS, u);
+      return { th: `บริษัท ${stem.th}${word[0]} จำกัด`, en: `${stem.en} ${word[1]} Co., Ltd.` };
+    }
+    if (level >= 3) return { th: `ห้างหุ้นส่วนจำกัด ${stem.th}${end[0]}`, en: `${stem.en} ${end[1]} Ltd. Partnership` };
+    return { th: `ร้าน${given.th}${end[0]}`, en: `${given.en} ${end[1]}` };
+  }
+  if (kind === "factory") {
+    if (level >= 3 && era >= 3) {
+      const word = pick(COMPANY_WORDS, u);
+      return { th: `บริษัท ${stem.th}${word[0]} จำกัด`, en: `${stem.en} ${word[1]} Co., Ltd.` };
+    }
+    const make = pick(FACTORY_MAKES[era] ?? FACTORY_MAKES[1], u);
+    return { th: `โรงงาน${make[0]}${stem.th}`, en: `${stem.en} ${make[1]}` };
+  }
+  if (kind === "farm") {
+    if (sort === "rice_mill") return { th: `โรงสีข้าว${stem.th}`, en: `${stem.en} Rice Mill` };
+    if (sort === "cold_store") return { th: `ห้องเย็น${stem.th}`, en: `${stem.en} Cold Store` };
+    return { th: `สหกรณ์การเกษตร${stem.th}`, en: `${stem.en} Farmers' Cooperative` };
+  }
+  return { th: `แพปลา${given.th}`, en: `${given.en} Fish Market` };
+}
+
+/** The consonants a plate's letters are drawn from (those Thai plates use) */
+const PLATE_LETTERS = "กขคฆงจฉชซฌญฎฐฒณดตถทธนบปผพภมยรลวศษสหฬอฮ";
+
+/** A made-up Thai plate (กข 1234 ขอนแก่น): two letters and a number, and the province when known; plates are written in
+ * Thai in either language */
+export function plate(u1: number, u2: number, province: string | null): string {
+  const n = PLATE_LETTERS.length;
+  const a = PLATE_LETTERS[Math.floor(u1 * n) % n], b = PLATE_LETTERS[Math.floor(u2 * n) % n];
+  const number = 1 + Math.floor(((u1 * 7919 + u2 * 104729) % 1) * 9999);
+  return `${a}${b} ${number}${province ? ` ${province}` : ""}`;
+}

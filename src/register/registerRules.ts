@@ -47,7 +47,7 @@ export const COMMUTE_KMH = 30;
 /** The jobs people do, each with its pay a month in the modern city (era 4) in baht */
 export const JOB_PAY = {
   farmer: 7000, rice_farmer: 7000, orchard_farmer: 8000, field_farmer: 6500, fish_farmer: 7500, fisher: 8000,
-  shop_owner: 16000, shop_staff: 10000, office_worker: 20000,
+  shop_owner: 16000, shop_staff: 10000, office_worker: 20000, business_owner: 30000,
   factory_worker: 11000, technician: 17000, supervisor: 25000, engineer: 40000,
   teacher: 22000, principal: 42000, nurse: 20000, doctor: 70000,
   police: 19000, firefighter: 17000, power_worker: 19000, water_worker: 16000, clerk: 18000,
@@ -125,6 +125,12 @@ export const VEHICLE_TIERS: Readonly<Record<number, readonly [readonly string[],
   5: [["era5/ev_scooter", "era4/scooter"], ["era5/ev_pod", "era5/ev_car"], ["era5/ev_car", "era5/flying_taxi"]],
 };
 export const FARM_CARTS: Readonly<Record<number, string>> = { 1: "era1/ox_cart", 2: "era1/buffalo_cart" };
+/** What carries a factory's goods to and from it, by era (a factory's own lorry) */
+export const FACTORY_LORRY: Readonly<Record<number, string>> = {
+  1: "era1/buffalo_cart", 2: "era2/truck", 3: "era3/box_truck", 4: "era3/box_truck", 5: "era5/cargo_drone",
+};
+/** Vehicles with no plate: pedalled, pushed or drawn by animals */
+export const NO_PLATE: ReadonlySet<string> = new Set(["era1/bicycle", "era1/hand_cart", "era1/ox_cart", "era1/buffalo_cart", "era2/samlor"]);
 /** A household's income over its living that buys a vehicle of each tier: below the first, none */
 export const VEHICLE_INCOME = [0.9, 1.6, 3] as const;
 /** What a vehicle of each tier costs, in months of the era's factory pay, for the loan still owed on it */
