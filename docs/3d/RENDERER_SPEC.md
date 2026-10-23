@@ -115,6 +115,30 @@ just above the tallest ground piece so it is never hidden by roads. Part of it m
 - The target stays inside the map. Keep the camera above the tallest model near it.
 - Remember nothing between sessions for now (no storage).
 
+### 5A. The smart camera and the edge (added 23 Oct 2026, owner: "อยากให้เกมส์รู้สึกว่ามันฉลาดในการเลื่อนมุมกล้อง")
+
+- **A tool picked up** glides the camera (0.7 s, eased in and out, `src/smartCamera.ts`) to where that tool is used,
+  the point at the screen's centre kept: only tilt and distance change, and the heading for a brush. Presets
+  (`PRESETS`): zone and farm brushes 65° and 250 m across, turned so the road nearest the centre runs across the screen
+  (the grids lie along the roads); roads, railways and canals 60° and 600 m; a building 45° and 150 m; buying land 60°
+  and 1,500 m. The bulldozer, the inspector and the move tool move nothing; a choice within the same kind (another road
+  level) moves nothing; putting the tool down (Esc) leaves the camera where it is. Within 5° and 20% of a preset it does
+  not move (a dead band). What the player sets by hand while holding a tool is kept for that kind
+  (`phaicity.smartCamera.poses`) and used next time. Never during a stroke or drag, nor during the flight home, nor in
+  the 2D view, nor on a whole province's map (tiles hundreds of metres). The settings window's Graphics box has the
+  switch (`phaicity.smartCamera`, on by default, per viewer).
+- **A building clicked** with no tool in hand flies to frame it: 35°, about four times its size across, a little left
+  of the middle so the card on the right leaves it in sight. **A data layer** of the city map is seen from 80°.
+- **The edge:** drawing a line or painting, the pointer within 56 px of an edge slides the camera (`edgeScroll`), and
+  a stroke held there goes on over the ground sliding under it (every 0.1 s); rectangles and the bulldozer's drag keep
+  their pixels and do not slide. Otherwise only the outermost 8 px move it, after the pointer has rested there 0.2 s,
+  faster nearer the edge, half as fast with a building in hand (`edgeBand`). Nothing moves with the pointer over a
+  card, panel, button or window, outside the window or with it unfocused, while typing, during the flight home, or
+  before the mouse has moved since the city opened.
+- **The hand:** a left drag let go coasts on and slows to a stop (`CityCamera.coast`, falling to a third in 0.26 s; a
+  press catches it). A **right drag** turns round the ground under the pointer (`rotateAbout`), Shift with it slides;
+  the middle button slides. A **double click** on the ground with no tool in hand flies there (0.7 s).
+
 ## 6. From tiles to models
 
 All of this lives in `src/render3d/city/` (suggested files: `tileModels.ts`, `chunks.ts`, `picking.ts`,

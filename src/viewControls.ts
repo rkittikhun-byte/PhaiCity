@@ -40,12 +40,18 @@ interface ViewLike {
   resetView?(): void;
   pan?(dx: number, dy: number): void;
   height?: number;
+  /** The tile (fractional) under pixels over the view, or null */
+  pointAt?(x: number, y: number): { x: number; y: number } | null;
   /** The 3D view's own camera (src/render3d/city/camera.ts), until it has rotate and resetView itself. */
   navigation?: CameraLike;
 }
 
 /** How long the camera takes to fly home when ⌂ is pressed. */
 export const HOME_FLIGHT_MS = 1100;
+/** How long a double click's flight takes (ms) */
+export const DOUBLE_CLICK_FLIGHT_MS = 700;
+/** Whether the flight home (⌂) is under way: nothing else moves the camera meanwhile */
+export const homeFlying = (): boolean => homeFlight !== 0;
 
 /** Part of the way from one pose to another (t from 0 to 1), turning the short way round. */
 export function blendPose(from: Pose, to: Pose, t: number): Pose {
@@ -174,6 +180,9 @@ export function dragTurnOf(view: ViewLike): ((dx: number, dy: number) => void) |
 /** Pixels the mouse must move with the button down before a press becomes a drag, and its direction is read. */
 export const DRAG_START_PX = 8;
 
+/** The moves of a slide within this long of letting go set how fast it coasts on (ms) */
+export const COAST_WINDOW_MS = 90;
+
 /** A drag that starts closer than this to straight across or straight up and down turns; one in between slides. */
 export const DIAGONAL_FROM_DEGREES = 25;
 
@@ -201,7 +210,8 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   const turn = dragTurnOf(view);
   const canvas = doc.getElementById("MicropolisCanvas");
   if (!pan || !canvas) return;
-  let drag: { id: number; x: number; y: number; moved: boolean; shift: boolean; turning: boolean } | null = null;
+  let drag: { id: number; x: number; y: number; moved: boolean; shift: boolean; turning: boolean; panned: boolean;
+    moves: Array<[number, number, number]> } | null = null;
   let spaceHeld = false;
 
   if (typeof window !== "undefined") {
@@ -223,9 +233,12 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
   canvas.addEventListener("wheel", stopHomeFlight, { passive: true });
   canvas.addEventListener("pointerdown", (event) => {
     stopHomeFlight();
+    // (a press catches a coasting or gliding camera)
+    (view as { navigation?: { stop?(): void } }).navigation?.stop?.();
     const canPanWithTool = event.shiftKey || spaceHeld;
     if (event.button !== 0 || (holdingTool() && !canPanWithTool)) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey || spaceHeld, turning: false };
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, shift: event.shiftKey || spaceHeld, turning: false,
+      panned: false, moves: [] };
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
@@ -253,6 +266,12 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
       navigation?.zoom?.(dy * 4, rect.width / 2, rect.height / 2, rect.width, rect.height);
     } else if (drag.turning) turn?.(dx, dy);
     else pan(dx, dy);
+    // ... the last moves of a slide, for how fast it goes when let go (coast)
+    if (camera === "pan" || (camera === "free" && !drag.turning)) {
+      drag.panned = true;
+      drag.moves.push([performance.now(), dx, dy]);
+      if (drag.moves.length > 8) drag.moves.shift();
+    }
     drag.x = event.clientX;
     drag.y = event.clientY;
   });
@@ -260,6 +279,15 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     if (!drag || event.pointerId !== drag.id) return;
     // A press that never became a drag is a click: what is there (src/inspect.ts), in pixels over the canvas
     const clicked = !drag.moved && event.type === "pointerup" && cameraMode() === "free";
+    // A slide let go glides on and slows to a stop (owner, 23 Oct 2026), unless the hand stopped before letting go
+    if (drag.panned && event.type === "pointerup") {
+      const now = performance.now(), recent = drag.moves.filter(([at]) => now - at <= COAST_WINDOW_MS);
+      const navigation = (view as { navigation?: { coast?(vx: number, vy: number, height: number): void } }).navigation;
+      if (recent.length >= 2 && navigation?.coast) {
+        const span = Math.max(16, now - recent[0][0]), sx = recent.reduce((a, m) => a + m[1], 0), sy = recent.reduce((a, m) => a + m[2], 0);
+        navigation.coast(sx / span, sy / span, Math.max(1, view.height ?? canvas.clientHeight));
+      }
+    }
     drag = null;
     canvas.classList.remove("panning");
     if (clicked && onClick) {
@@ -268,6 +296,15 @@ export function installMousePan(view: ViewLike, holdingTool: () => boolean, doc:
     }
   };
   canvas.addEventListener("pointerup", end);
+  // A double click on the ground with no tool in hand flies there (owner, 23 Oct 2026)
+  canvas.addEventListener("dblclick", (event) => {
+    if (holdingTool() || cameraMode() !== "free") return;
+    const rect = canvas.getBoundingClientRect(), at = view.pointAt?.(event.clientX - rect.left, event.clientY - rect.top);
+    const navigation = (view as { navigation?: { glide?(to: { x: number; z: number }, ms: number): void } }).navigation;
+    if (!at || !navigation?.glide) return;
+    stopHomeFlight();
+    navigation.glide({ x: at.x * TILE_M, z: at.y * TILE_M }, DOUBLE_CLICK_FLIGHT_MS);
+  });
   canvas.addEventListener("pointercancel", end);
 }
 

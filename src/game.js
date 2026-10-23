@@ -76,7 +76,7 @@ import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { aroundCorners, curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
-import { edgeScroll } from './edgeScroll.ts';
+import { BAND_BUILDING_SHARE, BAND_DWELL_MS, BAND_PX, edgeBand, edgeScroll } from './edgeScroll.ts';
 import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices, toolLabel } from './toolShortcuts.ts';
@@ -100,9 +100,10 @@ import {
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
 import { canalMarkStands, isBridgeTile, isWaterTile } from './canals.ts';
-import { installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
+import { homeFlying, installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
-import { installCameraBar } from './cameraModes.ts';
+import { cameraMode, installCameraBar } from './cameraModes.ts';
+import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
 import { skyAt } from './rainSpells.ts';
@@ -466,6 +467,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   this.mapWindow.onLayer = function(tiles, layer) {
     if (typeof this.cityView.showLayer === 'function')
       this.cityView.showLayer(tiles, layer);
+    // ... looked at from nearly straight above (src/smartCamera.ts)
+    if (tiles && this.smartCamera)
+      this.smartCamera.layerShown();
   }.bind(this);
   this.mapWindow.addEventListener(Messages.MAP_WINDOW_CLOSED, function(target) {
     this.genericDialogClosure();
@@ -709,8 +713,16 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   installCameraBar(this.cityView, function() { self.inputStatus.clearTool(); });
   // The date and the game's speeds at the bottom left (src/timeControls.ts)
   installTimeControls(this);
+  // The smart camera (src/smartCamera.ts): a tool picked up moves the view to where it is used, never during a stroke
+  this.smartCamera = new SmartCamera(this.cityView, function() {
+    var input = self.inputStatus;
+    return input._dragging || input.areaDrag !== null || input.pathDrag !== null || homeFlying();
+  });
+  bindSmartCameraSetting();
+  this.watchPointer();
   document.addEventListener('phaicity:active_tool_changed', function(event) {
     self.updateContextualOverlay(event.detail && event.detail.tool);
+    self.smartCamera.toolChanged(event.detail && event.detail.tool);
   });
   onLanguageChange(function() { if (self.inspectCard) self.inspectCard.render(); });
   document.addEventListener('keydown', function(event) {
@@ -765,9 +777,12 @@ Game.prototype.inspectTile = function(x, y, point) {
   // painted plot is not plain ground: it has its checklist)
   var isPlainGround = found && ['object.kind.land', 'object.kind.woods', 'object.kind.water'].indexOf(found.title.key) !== -1 &&
                       !found.checklist;
-  if (found && !(this.inspectCard.isOpen && isPlainGround))
+  if (found && !(this.inspectCard.isOpen && isPlainGround)) {
     this.inspectCard.open(found);
-  else
+    // ... a building framed beside its card (src/smartCamera.ts)
+    if (found.sector && this.smartCamera)
+      this.smartCamera.frame(found.rect);
+  } else
     this.inspectCard.close();
 };
 
@@ -3872,22 +3887,82 @@ var tick = function() {
 };
 
 
-// With a tool in hand (owner, 19 Oct 2026; until then only with a line half drawn), the mouse near an edge of the screen
-// slides the camera towards it, so the next point can be reached when it lies beyond the screen or under a card
-// (src/edgeScroll.ts; owner, 18 Oct 2026). Drags of a rectangle or of the
-// bulldozer keep their pixels, which a moving camera would spoil, so they do not slide.
+// Where the pointer is, for the camera's slides at the edge (edgeScrollView): over the city itself (not a card, panel,
+// button or window over it), in this window, and moved at least once since the city opened
+Game.prototype.watchPointer = function() {
+  var self = this, canvas = document.querySelector(this.inputStatus.canvasID);
+  this._pointer = {onCanvas: false, moved: false};
+  document.addEventListener('pointermove', function(event) {
+    self._pointer.onCanvas = event.target === canvas;
+    self._pointer.moved = true;
+  }, true);
+  document.addEventListener('mouseout', function(event) {
+    if (!event.relatedTarget)
+      self._pointer.onCanvas = false;
+  });
+  window.addEventListener('blur', function() { self._pointer.onCanvas = false; });
+};
+
+
+// Whether the player is typing (a city's name, a search), when nothing moves the camera
+var typingNow = function() {
+  var element = document.activeElement;
+  if (!element)
+    return false;
+  if (element.isContentEditable || element.tagName === 'TEXTAREA')
+    return true;
+  return element.tagName === 'INPUT' && ['text', 'search', 'number', 'email', 'password'].indexOf(element.type) !== -1;
+};
+
+
+// The camera slides at the edge of the screen (src/edgeScroll.ts). Drawing a road, railway or canal, or painting zones,
+// the mouse near an edge slides it (owner, 18 Oct 2026), so the next point can be reached when it lies beyond the screen
+// or under a card, and a stroke of the brush goes on as it slides (owner, 23 Oct 2026); drags of a rectangle or of the
+// bulldozer keep their pixels, which a moving camera would spoil. Otherwise only a thin band at the very edge moves it,
+// after the pointer rests there a moment, slower with a building in hand. Nothing moves with the pointer over a card,
+// panel, button or window, outside the window, while typing, during the flight home, or before the mouse has moved.
 Game.prototype.edgeScrollView = function() {
   var now = performance.now(), last = this._edgeTime || now;
   this._edgeTime = now;
-  var input = this.inputStatus, pan = panOf(this.cityView);
-  if (pan === null || input.currentTool === null || input.mouseX < 0 || input.pathDrag !== null ||
-      input.areaDrag !== null)
-    return;
+  var input = this.inputStatus, pan = panOf(this.cityView), pointer = this._pointer;
   var canvas = document.querySelector(input.canvasID);
-  if (!canvas)
+  if (pan === null || !canvas || !pointer || !pointer.onCanvas || !pointer.moved || input.mouseX < 0 ||
+      (typeof document.hasFocus === 'function' && !document.hasFocus()) || typingNow() || homeFlying() ||
+      cameraMode() !== 'free') {
+    this._bandSince = null;
     return;
-  var box = canvas.getBoundingClientRect();
-  var move = edgeScroll(input.mouseX, input.mouseY, box.width, box.height, (now - last) / 1000);
+  }
+  var box = canvas.getBoundingClientRect(), seconds = (now - last) / 1000, move;
+  var group = modeGroupOf(input.toolName);
+  if (group === 'line' || group === 'paint') {
+    this._bandSince = null;
+    if (input.pathDrag !== null || input.areaDrag !== null)
+      return;
+    move = edgeScroll(input.mouseX, input.mouseY, box.width, box.height, seconds);
+    if (move.dx === 0 && move.dy === 0)
+      return;
+    pan(move.dx, move.dy);
+    // ... and a stroke held still at the edge goes on over the ground sliding under it
+    if (input._dragging && now - (this._strokeSlideAt || 0) >= 100) {
+      this._strokeSlideAt = now;
+      input._emitEvent(Messages.TOOL_CLICKED, {x: input.mouseX, y: input.mouseY, stroke: input.stroke});
+    }
+    return;
+  }
+  if (input._dragging || input.pathDrag !== null || input.areaDrag !== null) {
+    this._bandSince = null;
+    return;
+  }
+  var x = input.mouseX, y = input.mouseY;
+  if (x >= BAND_PX && y >= BAND_PX && box.width - x >= BAND_PX && box.height - y >= BAND_PX) {
+    this._bandSince = null;
+    return;
+  }
+  if (this._bandSince === null || this._bandSince === undefined)
+    this._bandSince = now;
+  if (now - this._bandSince < BAND_DWELL_MS)
+    return;
+  move = edgeBand(x, y, box.width, box.height, seconds, input.currentTool !== null ? BAND_BUILDING_SHARE : 1);
   if (move.dx !== 0 || move.dy !== 0)
     pan(move.dx, move.dy);
 };

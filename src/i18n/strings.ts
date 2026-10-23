@@ -949,6 +949,7 @@ export const STRINGS: Record<string, Translation> = {
   "graphics.low": { en: "Low", th: "ต่ำ" },
   "graphics.medium": { en: "Medium", th: "กลาง" },
   "graphics.high": { en: "High", th: "สูง" },
+  "graphics.smart_camera": { en: "Smart camera: each tool moves the view to where it is best used", th: "กล้องอัจฉริยะ: เลือกเครื่องมือแล้วกล้องเลื่อนไปมุมที่ใช้งานง่าย" },
   "graphics.hint": { en: "Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.", th: "อัตโนมัติจะปรับให้ภาพลื่นเอง ระดับกลางเพิ่มแสงเรืองของไฟและภาพเบลอขอบแบบเมืองจำลอง ระดับสูงเพิ่มเงานุ่มตามซอกมุม" },
   "footer.map_credit": { en: "Province maps: map data © {osm} (ODbL) · province shapes from {ne}.", th: "แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}" },
   "splash.tagline": { en: "Choose a province of Thailand and build it up as its ruler.", th: "เลือกจังหวัดในประเทศไทย แล้วสร้างบ้านแปงเมืองในฐานะเจ้าเมือง" },

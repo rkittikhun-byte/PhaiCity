@@ -1119,6 +1119,7 @@
 | `graphics.low` | `index.html` | `-` | `Low` | `ต่ำ` | ตัวเลือกคุณภาพภาพ: ไม่มีเอฟเฟกต์ |
 | `graphics.medium` | `index.html` | `-` | `Medium` | `กลาง` | ตัวเลือกคุณภาพภาพ: แสงเรือง + เบลอแบบโมเดลจิ๋ว |
 | `graphics.high` | `index.html` | `-` | `High` | `สูง` | ตัวเลือกคุณภาพภาพ: เพิ่มเงาตามมุม |
+| `graphics.smart_camera` | `index.html` | `-` | `Smart camera: each tool moves the view to where it is best used` | `กล้องอัจฉริยะ: เลือกเครื่องมือแล้วกล้องเลื่อนไปมุมที่ใช้งานง่าย` | สวิตช์ในหน้าตั้งค่า (src/smartCamera.ts) |
 | `graphics.hint` | `index.html` | `-` | `Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.` | `อัตโนมัติจะปรับให้ภาพลื่นเอง ระดับกลางเพิ่มแสงเรืองของไฟและภาพเบลอขอบแบบเมืองจำลอง ระดับสูงเพิ่มเงานุ่มตามซอกมุม` | คำอธิบายใต้ตัวเลือก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 

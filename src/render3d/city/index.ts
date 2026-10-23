@@ -132,7 +132,7 @@ export class CityView3D implements CityView {
   readonly pixelRatioLimit:number;
   private snapshot:TileSnapshot;private sprites=new CitySprites();private pedestrians:CityPedestrians;private roadTraffic:CityRoadTraffic;private foliage:CityFoliage;private outline:ToolOutline;private zones:ZoneGrid;
   private sun=new DirectionalLight(0xffe4bc,3.3);private hemi=new HemisphereLight(0xd7edff,0xb5a385,1.25);private now:()=>number;private disposed=false;private resizeObserver?:ResizeObserver;
-  private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number}|null=null;
+  private listeners:{type:string;listener:EventListener}[]=[];private drag:{button:number;x:number;y:number;pivot?:{x:number;z:number}|null}|null=null;
   /** The era the buildings are drawn in (eraBuildings.ts) */
   private shownEra=0;
   /** The era vehicles (eraVehicles.ts, art/vehicles) once their index is in, and the share of the buildings in the next era as last counted */
@@ -433,9 +433,12 @@ export class CityView3D implements CityView {
   private bindMouse():void {
     const listen=(type:string,fn:EventListener):void=>{this.canvas.addEventListener(type,fn,{passive:false});this.listeners.push({type,listener:fn});};
     listen('contextmenu',e=>e.preventDefault());
-    listen('pointerdown',e=>{const p=e as PointerEvent;if(p.button!==1&&p.button!==2)return;e.preventDefault();this.drag={button:p.button,x:p.clientX,y:p.clientY};this.canvas.setPointerCapture?.(p.pointerId);});
+    listen('pointerdown',e=>{const p=e as PointerEvent;if(p.button!==1&&p.button!==2)return;e.preventDefault();
+      // (a right drag turns round the ground under the pointer, owner 23 Oct 2026)
+      const rect=this.canvas.getBoundingClientRect(),pivot=p.button===2?groundAt(this.navigation.camera,p.clientX-rect.left,p.clientY-rect.top,this.width,this.height,this.terrain):null;
+      this.drag={button:p.button,x:p.clientX,y:p.clientY,pivot:pivot?{x:pivot.x,z:pivot.z}:null};this.canvas.setPointerCapture?.(p.pointerId);});
     listen('pointermove',e=>{const p=e as PointerEvent;if(!this.drag)return;const dx=p.clientX-this.drag.x,dy=p.clientY-this.drag.y;
-      if(this.drag.button===2){if(p.shiftKey)this.navigation.rotate(dx,dy);else this.navigation.pan(dx,dy,this.height);}
+      if(this.drag.button===2){if(p.shiftKey)this.navigation.pan(dx,dy,this.height);else this.navigation.rotateAbout(dx,dy,this.drag.pivot??null);}
       else this.navigation.pan(dx,dy,this.height);this.drag.x=p.clientX;this.drag.y=p.clientY;});
     listen('pointerup',()=>{this.drag=null;});listen('pointercancel',()=>{this.drag=null;});
     listen('wheel',e=>{const w=e as WheelEvent;w.preventDefault();const rect=this.canvas.getBoundingClientRect();
@@ -479,6 +482,12 @@ export class CityView3D implements CityView {
   landChanged():void {this.chunks.surfaces?.updateMask();this.cells?.refresh();}
   /** What each tile is to the trees (foliage, pedestrians.ts): 1 bare ground, 2 woods, 0 anything else */
   private treeGround:Uint8Array|null=null;
+  /** The direction of the road whose middle line comes nearest (x, z) within reach (world units), or null: the smart
+   * camera turns a brush's view so it runs across the screen (src/smartCamera.ts) */
+  roadAlong(x:number,z:number,reach:number):{tx:number;tz:number}|null{const near=this.curves.nearest(x,z,reach);return near?{tx:near.tx,tz:near.tz}:null;}
+  /** World units a metre (10 a tile of the map's own size); 0 on a whole province's map, whose tiles are hundreds of
+   * metres, where the smart camera's presets in metres mean nothing */
+  unitsPerMetre():number{const m=(this.setup.map as {tileSizeM?:number|null}).tileSizeM||10;return m>40?0:10/m;}
   /** While the loading screen stands the chunks build and decode in a bigger share of each frame (cityView.ts) */
   setLoading(on:boolean):void{this.chunks.sliceMs=on?LOADING_SLICE_MS:3;}
   dressing():{done:number;total:number;missing:string[]}{return this.chunks.dressing(this.visibleTiles());}

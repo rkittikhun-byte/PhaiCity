@@ -7,6 +7,26 @@
 // under a card, so with the mouse near an edge the city slides that way, faster the closer the mouse is to the edge. Plain
 // code: no DOM, nothing random.
 
+/** Away from drawing (no tool, or a building in hand), only a thin band at the very edge moves the camera, and only after
+ * the pointer has rested in it a moment, so passing the edge on the way to a card moves nothing (owner, 23 Oct 2026) */
+export const BAND_PX = 8;
+export const BAND_DWELL_MS = 200;
+/** ... its speed on the very edge (pixels of a drag a second), a building in hand moving at this share of it */
+export const BAND_SPEED = 900;
+export const BAND_BUILDING_SHARE = 0.5;
+
+/**
+ * The thin band's slide in this frame, as a drag of dx, dy pixels: nothing outside the band; inside, faster the nearer
+ * the edge (from a third of the speed at the band's inner side to all of it on the edge). `share` slows it.
+ */
+export function edgeBand(x: number, y: number, width: number, height: number, seconds: number, share = 1): { dx: number; dy: number } {
+  if (x < 0 || y < 0 || x > width || y > height || width <= 0 || height <= 0) return { dx: 0, dy: 0 };
+  const step = BAND_SPEED * share * Math.min(Math.max(seconds, 0), MAX_FRAME_SECONDS);
+  const depth = (distance: number): number => (distance >= BAND_PX ? 0 : 1 / 3 + (2 / 3) * (1 - Math.max(0, distance) / BAND_PX));
+  const dx = depth(x) * step - depth(width - x) * step, dy = depth(y) * step - depth(height - y) * step;
+  return { dx: Math.round(dx * 100) / 100, dy: Math.round(dy * 100) / 100 };
+}
+
 /** How near the edge (pixels) the mouse must be for the camera to start sliding */
 export const EDGE_PX = 56;
 /** The camera's speed with the mouse on the very edge, in pixels of a mouse drag a second (src/viewControls.ts panOf) */
