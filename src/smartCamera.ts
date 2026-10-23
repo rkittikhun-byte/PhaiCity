@@ -22,12 +22,12 @@ const FOV_DEGREES = 38;
  * and whether the view turns so the road nearest the centre runs across it */
 export interface CameraPreset { pitchDeg: number; widthM: number; alongRoad?: boolean }
 
-/** The presets by kind of tool (widened on 23 Oct 2026, the owner: "ตอนคลิก tool วาด object ใดๆ zoom ใกล้ไป zoom ออกมาอีก";
- * first 250, 600 and 150 m) */
+/** The presets by kind of tool (owner, 23 Oct 2026: first 250, 600 and 150 m were "zoom ใกล้ไป", then 450, 900 and 400 m
+ * were twice too far, "ปรับลดลงมาครึ่งนึง": halfway back) */
 export const PRESETS = {
-  paint: { pitchDeg: 65, widthM: 450, alongRoad: true },
-  line: { pitchDeg: 60, widthM: 900 },
-  build: { pitchDeg: 50, widthM: 400 },
+  paint: { pitchDeg: 65, widthM: 350, alongRoad: true },
+  line: { pitchDeg: 60, widthM: 750 },
+  build: { pitchDeg: 48, widthM: 275 },
   land: { pitchDeg: 60, widthM: 1500 },
 } as const satisfies Record<string, CameraPreset>;
 export type PresetKind = keyof typeof PRESETS;

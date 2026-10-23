@@ -119,8 +119,8 @@ just above the tallest ground piece so it is never hidden by roads. Part of it m
 
 - **A tool picked up** glides the camera (0.7 s, eased in and out, `src/smartCamera.ts`) to where that tool is used,
   the point at the screen's centre kept: only tilt and distance change, and the heading for a brush. Presets
-  (`PRESETS`): zone and farm brushes 65° and 450 m across, turned so the road nearest the centre runs across the screen
-  (the grids lie along the roads); roads, railways and canals 60° and 900 m; a building 50° and 400 m (widened on 23 Oct 2026, the owner: "zoom ใกล้ไป"; first 250, 600 and 150 m); buying land 60°
+  (`PRESETS`): zone and farm brushes 65° and 350 m across, turned so the road nearest the centre runs across the screen
+  (the grids lie along the roads); roads, railways and canals 60° and 750 m; a building 48° and 275 m (owner, 23 Oct 2026: first 250, 600 and 150 m were too close, then 450, 900 and 400 m too far, "ปรับลดลงมาครึ่งนึง"); buying land 60°
   and 1,500 m. The bulldozer, the inspector and the move tool move nothing; a choice within the same kind (another road
   level) moves nothing; putting the tool down (Esc) leaves the camera where it is. Within 5° and 20% of a preset it does
   not move (a dead band). What the player sets by hand while holding a tool is kept for that kind
