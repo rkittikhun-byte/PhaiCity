@@ -107,6 +107,9 @@ export interface CityView {
   paint(hover: ToolHover | null, sprites: unknown[] | null, isPaused: boolean): void;
   /** Where the game's clock puts the sun (src/dayClock.ts): 0 rising, π setting, to 2π through the night (3D only) */
   setSunAngle?(angle: number): void;
+  /** The moon from the game's clock (src/moon.ts): its phase (0 new, 0.5 full) and where it stands, as the sun's angle;
+   * by night its light casts the shadows (3D only) */
+  setMoon?(phase: number, angle: number): void;
   /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, in place of the map's (3D only) */
   setSky?(sky: Weather | null): void;
   /** The map tile under a point of the view (CSS pixels from its top-left), or null when it is not on the map. */

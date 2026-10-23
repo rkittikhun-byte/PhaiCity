@@ -125,6 +125,9 @@ export const SCENE = {
     glowDay: RAMPS.sand[0], glowTwilight: RAMPS.gold[300], glowNight: RAMPS.gold[200],
     /** The sun in the sky, high and low */
     sunHigh: RAMPS.gold[50], sunLow: RAMPS.clay[300],
+    /** The moon in the sky and the moonlight it casts on the city at night (src/render3d/city/skyLight.ts): cool lavender
+     * with the sand's warmth in the disc, never a cold blue */
+    moonDisc: RAMPS.sand[50], moonLight: RAMPS.lavender[200],
     /** The picture's darker edge */
     vignette: RAMPS.lavender[800],
   },

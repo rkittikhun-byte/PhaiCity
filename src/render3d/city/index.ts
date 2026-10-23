@@ -11,6 +11,9 @@ import { seasonWind } from '../../wind.js';
 import type { Weather } from '../../weather.js';
 import { SCENE } from '../../theme/tokens.js';
 import { CityWeather, type WeatherLook } from './weather.js';
+import { skyLight } from './skyLight.js';
+import { gameFeel } from '../../gameFeel.js';
+import { moonLit } from '../../moon.js';
 import { applyWorldUV } from '../util/geometry.js';
 import { CityCamera } from './camera.js';
 import { groundAt, pickTile, visibleTileRect } from './picking.js';
@@ -79,6 +82,8 @@ const LOADING_SLICE_MS=40;
 const tDrawSize=new Vector2();
 const tSunWay=new Vector3();
 const cSunHigh=new Color(SCENE.post.sunHigh),cSunLow=new Color(SCENE.post.sunLow);
+const cMoonDisc=new Color(SCENE.post.moonDisc),cMoonLight=new Color(SCENE.post.moonLight);
+const tMoonWay=new Vector3(),tMoonColour=new Color();
 const cGlowDay=new Color(SCENE.post.glowDay),cGlowTwilight=new Color(SCENE.post.glowTwilight),cGlowNight=new Color(SCENE.post.glowNight);
 const tSunColour=new Color();
 const clamp01=(value:number):number=>Math.min(1,Math.max(0,value));
@@ -95,7 +100,6 @@ const cHemiGndDay = new Color(0xb5a385);
 const cHemiGndNight = new Color(0x181f2c);
 const cHemiGndTwilight = new Color(0x6a402d);
 const cSunDay = new Color(0xffe4bc);
-const cSunNight = new Color(0x9bb8ff);
 const cSunTwilight = new Color(0xff7a33);
 const cZenithDay = new Color(0x4f8fd0);
 const cZenithNight = new Color(0x060b18);
@@ -160,6 +164,13 @@ export class CityView3D implements CityView {
   private weather:CityWeather;private look:WeatherLook;private litLook=new Float32Array(6).fill(-1);
   /** How far the sun is in its rising or setting (0-1), for the glow of the low sun */
   private twilight=0;
+  /** The moon from the game's clock (src/moon.ts setMoon): its phase, 0 new to 0.5 full, and its angle as the sun's; null
+   * until the game sends one, when a full moon stands opposite the sun */
+  private moonPhase:number|null=null;private moonAngle=0;
+  /** Where the shadow-casting light comes from now (skyLight.ts): the sun, the moon or between them at twilight */
+  private lightAngle=Math.PI*0.35;
+  /** The night's sky light on everything before the moon brightens it (applyDayNight), and the night's share */
+  private hemiBase=1.25;private nightNow=0;
   /** The diorama lens (postFx.ts), null where it cannot be drawn (headless, no WebGL 2): then the view draws straight
    * to the screen; which of its effects are on (quality.ts), how they look this frame, and the card's frame timer */
   private post:CityPostLike|null=null;private ladder=new EffectLadder(DEFAULT_QUALITY);private gpuTimer:CityViewDependencies['gpuTimer']=null;
@@ -311,14 +322,10 @@ export class CityView3D implements CityView {
     // 20 Oct 2026: "ค่อยๆ มืดค่ำ ... เหมือนกับของจริง")
     this.hemi.intensity=(1.25*(1-nightFactor)+0.38*nightFactor)+twilight*0.2;
     // ... duller under the clouds, and for a moment bright with lightning
-    this.hemi.intensity=this.hemi.intensity*(1-0.35*gloom)+w.flash*2.5;this.hemi.color.lerp(cFlash,w.flash*0.8);
+    this.hemi.intensity=this.hemiBase=this.hemi.intensity*(1-0.35*gloom)+w.flash*2.5;this.hemi.color.lerp(cFlash,w.flash*0.8);this.nightNow=nightFactor;
     // ... the daylight sky's light on every surface (the HDRI, loadSky) goes down with the sun, and the clouds
     this.scene.environmentIntensity=(1-0.85*nightFactor)*(1-0.45*gloom);
 
-    tSun.copy(cSunDay).lerp(cSunNight,nightFactor).lerp(cSunTwilight,twilight*0.85);
-    // ... and the sun goes behind the clouds, into the fog and dim in the smoke
-    const sunShows=Math.max(0.1,1-0.85*Math.min(1,Math.max(0,(w.cloud-0.35)/0.6))-0.3*w.fog-0.35*w.smoke);
-    this.sun.color.copy(tSun);this.sun.intensity=Math.max(0.3*sunShows,(3.3*(1-nightFactor)+0.45*nightFactor)*sunShows);
 
     tZenith.copy(cZenithDay).lerp(cZenithNight,nightFactor).lerp(cZenithTwilight,twilight*0.75);
     tHorizon.copy(cHorizonDay).lerp(cHorizonNight,nightFactor).lerp(cHorizonTwilight,twilight*0.85);
@@ -350,6 +357,22 @@ export class CityView3D implements CityView {
   /** Where the game's clock puts the sun (src/dayClock.ts sunAngle): 0 rising, π setting, on to 2π through the night;
    * the auto cycle follows it from then on */
   setSunAngle(angle:number):void{this.clockAngle=Number.isFinite(angle)?angle:null;}
+  /** The moon from the game's clock (src/moon.ts): its phase (0 new, 0.5 full) and where it stands, as setSunAngle */
+  setMoon(phase:number,angle:number):void{if(Number.isFinite(phase)&&Number.isFinite(angle)){this.moonPhase=phase;this.moonAngle=angle;}}
+  /**
+   * The one shadow-casting light (skyLight.ts): the sun by day, the moon by night in its phase, handed over at twilight;
+   * its shadows fade out under cloud, rain and fog. Every frame, as the moon moves while the night stays dark.
+   */
+  private updateLight():void {
+    const phase=this.moonPhase??0.5,moonAngle=this.moonPhase===null?this.sunAngle+Math.PI:this.moonAngle,moon=gameFeel().moon;
+    const light=skyLight(this.sunAngle,moonAngle,phase,this.look,moon,this.lightAngle);
+    this.lightAngle=light.angle;
+    tSun.copy(cSunDay).lerp(cSunTwilight,this.twilight*0.85).lerp(cMoonLight,light.moonShare);
+    this.sun.color.copy(tSun);this.sun.intensity=light.intensity;this.sun.shadow.intensity=light.shadow;
+    // ... and a full moon's night sky lights the city a little more
+    const moonUp=smooth(-0.04,0.12,Math.sin(moonAngle))*moonLit(phase)*this.nightNow;
+    this.hemi.intensity=this.hemiBase+moon.sky*moonUp*(1-0.35*clamp01(this.look.cloud));
+  }
   /** The hour of the day (0-24) the sun says: risen at 6, set at 18 (setSunAngle), for the trips' cars */
   private hourOfDay():number{const angle=this.clockAngle??((this.seconds/this.CYCLE_DURATION)%1.0)*Math.PI*2;return (6+angle/Math.PI*12)%24;}
   /** The sky now (src/rainSpells.ts): the month's weather with its rain spells, shown in its place */
@@ -418,6 +441,12 @@ export class CityView3D implements CityView {
     const low=1-clamp01(elevation/.5),shows=clamp01(1-.92*overcast)*(1-.75*w.fog)*(1-.5*w.smoke)*smooth(-.08,.04,elevation);
     tSunColour.copy(cSunHigh).lerp(cSunLow,low).multiplyScalar(shows);
     this.sky.setSun(tSunWay,tSunColour,low);
+    // ... and the moon in its phase, behind the same clouds, pale by day
+    const m=this.moonPhase===null?this.sunAngle+Math.PI:this.moonAngle,mh=Math.sin(m);
+    tMoonWay.set(Math.cos(m)*260,mh*400,160);
+    const moonShows=clamp01(1-.95*overcast)*(1-.8*w.fog)*(1-.5*w.smoke)*smooth(-.04,.04,mh)*(0.25+0.75*smooth(.1,-.1,elevation));
+    tMoonColour.copy(cMoonDisc).multiplyScalar(moonShows);
+    this.sky.setMoon(tMoonWay,tMoonColour,this.moonPhase??0.5);
   }
   get width():number{return this.setup.container.clientWidth;}
   get height():number{return this.setup.container.clientHeight;}
@@ -581,7 +610,7 @@ export class CityView3D implements CityView {
     // The sky now (src/rainSpells.ts: the month's weather with its rain spells; the map's month without a game),
     // eased in, in real seconds so a paused storm still rains
     this.weather.update(this.skyNow!==undefined?this.skyNow:(this.setup.map as {weather?:Weather|null}).weather??null,dt,this.sunAngle);
-    this.updateDayNight();this.updateSun();
+    this.updateDayNight();this.updateLight();this.updateSun();
     // The month's festivals, read from the map (src/festivals.ts): lanterns along the roads, krathong on the water, sky
     // lanterns and rockets, lit by the hour, moving in real seconds as the weather does, so a paused festival still shows
     {const festive=this.setup.map as unknown as FestivalViewMap;if(this.festivals||festive.festivals?.held?.length){
@@ -647,7 +676,7 @@ export class CityView3D implements CityView {
   }
   private render():void {
     const t=this.navigation.target,span=Math.min(340,Math.max(85,this.navigation.distance*.58));
-    const steppedAngle=Math.round(this.sunAngle*SUN_STEPS)/SUN_STEPS;
+    const steppedAngle=Math.round(this.lightAngle*SUN_STEPS)/SUN_STEPS;
     const sunHeight=Math.max(120,Math.sin(steppedAngle)*400),sunX=Math.cos(steppedAngle)*260;
     const sx=t.x+sunX,sy=t.y+sunHeight,sz=t.z+160;
     if(Math.abs(sx-this.sun.position.x)>1.5||Math.abs(sy-this.sun.position.y)>1.5||Math.abs(sz-this.sun.position.z)>1.5){

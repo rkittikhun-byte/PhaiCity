@@ -686,6 +686,27 @@ then), still inside the 288 units each way a scan reaches.
 the bench, changes a tile (15–24 ms, one frame in twenty); the street names (`streetLabels.ts`, up to 20 ms) and the
 trees round the camera (`CityFoliage.update`, up to 20 ms) when the camera reaches new ground. None of them is the people's.
 
+## 8C. The moon, and shadows by the sky (added 23 Oct 2026)
+
+Owner, 23 Oct 2026: "กลางวันมันจะมีเงาพระอาทิตย์ และกลางคืนจะมีเงาพระจันทร์ มีข้างขึ้น ข้างแรม และเงาเปลี่ยนองศาไปเรื่อยๆ ถ้าฝนตก
+จะไม่มีเงา". Still one shadow-casting `DirectionalLight` (1024² map), nothing heavier on integrated graphics.
+
+- **The moon** (`src/moon.ts`): its phase goes by the game clock's own days (`DayClock.days`, saved as `moonDay`), 29.53
+  days a lunation, not the calendar, which turns a month in seconds. A new city starts from the real moon of its first
+  month. It stands opposite the sun at the full (rises at 18:00, highest at midnight) and keeps it company at the new,
+  rising about 49 minutes later each day. The game hands it to the view each frame with `setMoon(phase, angle)` (optional
+  on `CityView`, beside `setSunAngle`); without a game the view keeps a full moon opposite the sun.
+- **The light** (`skyLight.ts`, every frame in `updateLight`): the sun's light fades out as the sun reaches the horizon,
+  and only then does the moonlight fade in, so the lamp turns from the sun to the moon while it gives no light and its
+  shadows never jump. Its strength and shadow darkness come from the phase and `data/game-feel.json` `moon`
+  (`fullLight` 0.6, `shadow` 0.55; the sun is 3.3 and 1). Its colour is `SCENE.post.moonLight`. A new-moon night has no
+  directional light: only the sky's hemisphere light, a little brighter under a full moon (`moon.sky`), and the windows.
+- **Weather** (`weatherShadow`): `shadow.intensity` goes to 0 under an overcast sky, in rain, a storm or thick fog, and
+  back as it clears, following the weather's own easing (`weather.ts`), so it sets in and clears over the same 20–30 s.
+- **The disc** (`sky.ts setMoon`): in the dome's shader, lit on its side toward the sun as far as the phase says, faint
+  earthshine on the rest, added to the sky so a pale day moon never darkens it, hidden by the same clouds as the sun.
+  Colour `SCENE.post.moonDisc`.
+
 ## 9. What stays 2D for now
 
 - **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game does not create it; the

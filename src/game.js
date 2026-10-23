@@ -107,6 +107,7 @@ import { cameraMode, installCameraBar } from './cameraModes.ts';
 import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
+import { moonDayAt } from './moon.ts';
 import { bindDayLengthSetting } from './dayLength.ts';
 import { bindGamePaceSetting, gamePaceFactor, onGamePace } from './gamePace.ts';
 import { skyAt } from './rainSpells.ts';
@@ -247,6 +248,9 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // The time of day (src/dayClock.ts): runs while the game runs, and the 3D view's sun follows it
   this.dayClock = new DayClock();
   this._clockAt = null;
+  // ... and the moon's days (src/moon.ts): a new city's first night has the real moon of its starting month
+  var startDate = this.simulation.getDate();
+  this.dayClock.days = Math.floor(moonDayAt(startDate.year, startDate.month));
   // ... and the sky now: the month's weather (src/weather.ts) with a rain spell now and then (src/rainSpells.ts), which
   // the 3D view, the time bar and the sounds show; the simulation keeps to the month's
   this.skyNow = null;
@@ -909,7 +913,7 @@ Game.prototype.saveData = function() {
     provinceId: this.provinceId, districtId: this.districtId || undefined, worldId: this.worldId,
     rulerRank: this.rulerRank,
     goals: this.rulerGoals.state(), news: this.newsLog.items(),
-    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000
+    timeOfDay: Math.round(this.dayClock.hour * 1000) / 1000, moonDay: this.dayClock.days
   });
 };
 
@@ -978,9 +982,11 @@ Game.prototype.load = function(saveData) {
   // The core has loaded the city itself (src/core/cityCore.ts); the game keeps its name and whether it was clicked
   this.name = saveData.name;
   this.everClicked = saveData.everClicked;
-  // ... and the time of day it was saved at (a city saved before the clock wakes at seven)
-  if (typeof saveData.timeOfDay === 'number')
-    this.dayClock = new DayClock(saveData.timeOfDay);
+  // ... and the time of day it was saved at (a city saved before the clock wakes at seven), with the moon's days (a city
+  // saved before the moon takes the real moon of its month)
+  var savedDate = this.simulation.getDate();
+  this.dayClock = new DayClock(typeof saveData.timeOfDay === 'number' ? saveData.timeOfDay : this.dayClock.hour,
+                               typeof saveData.moonDay === 'number' ? saveData.moonDay : moonDayAt(savedDate.year, savedDate.month));
 };
 
 
@@ -4023,6 +4029,9 @@ var commonAnimate = function() {
     this.dayClock.advance(frameSeconds, this.simulation._speed, month);
   if (this.cityView && typeof this.cityView.setSunAngle === 'function')
     this.cityView.setSunAngle(this.dayClock.sunAngle(month));
+  // ... and the moon where it stands, in its phase (src/moon.ts)
+  if (this.cityView && typeof this.cityView.setMoon === 'function')
+    this.cityView.setMoon(this.dayClock.moonPhase(), this.dayClock.moonAngle());
   var sim = this.simulation;
   this.skyNow = skyAt(this.gameMap.weather || null, sim._climate(), sim._cityTime + sim._phaseCycle / 16,
                       this.dayClock.hour, month);

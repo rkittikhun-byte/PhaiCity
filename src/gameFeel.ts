@@ -27,6 +27,9 @@ export interface GameFeel {
   /** The camera at the screen's edge (src/edgeScroll.ts): the thin band away from drawing, and the wide margin while
    * a line is drawn */
   edge: { bandPx: number; bandDwellMs: number; bandSpeed: number; bandBuildingShare: number; edgePx: number; edgeSpeed: number };
+  /** The moon at the full (src/moon.ts, src/render3d/city/skyLight.ts): its light (three.js units; the sun's is 3.3), how
+   * dark its shadows are, and how much it brightens the night sky's light on everything; less as it wanes to new */
+  moon: { fullLight: number; shadow: number; sky: number };
 }
 
 export type FeelGroup = keyof GameFeel;
@@ -41,6 +44,7 @@ export const DEFAULT_FEEL: Readonly<GameFeel> = Object.freeze({
     glideSeconds: 0.7, stillPitchDeg: 5, stillDistanceShare: 0.2, stillHeadingDeg: 8,
   },
   edge: { bandPx: 8, bandDwellMs: 200, bandSpeed: 900, bandBuildingShare: 0.5, edgePx: 56, edgeSpeed: 750 },
+  moon: { fullLight: 0.6, shadow: 0.55, sky: 0.15 },
 }) as Readonly<GameFeel>;
 
 /** One number of the feel: where it is ("camera.paint.widthM"), its unit and the range it may take */
@@ -63,6 +67,7 @@ export const FEEL_FIELDS: readonly FeelField[] = [
   field("edge.bandPx", "px", 0, 64, 1), field("edge.bandDwellMs", "ms", 0, 2000, 50),
   field("edge.bandSpeed", "px/s", 0, 4000, 50), field("edge.bandBuildingShare", "share", 0, 1, 0.05),
   field("edge.edgePx", "px", 0, 200, 2), field("edge.edgeSpeed", "px/s", 0, 4000, 50),
+  field("moon.fullLight", "light", 0, 3, 0.05), field("moon.shadow", "share", 0, 1, 0.05), field("moon.sky", "share", 0, 1, 0.05),
 ];
 
 type Tree = { [key: string]: number | Tree };

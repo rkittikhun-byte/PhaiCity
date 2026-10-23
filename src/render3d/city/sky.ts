@@ -6,7 +6,8 @@
 // takes no fog and no light, and is only scenery. The weather (src/weather.ts, weather.ts here) spreads the clouds over
 // the sky and darkens them, and the clouds take the light of the hour (setClouds). The sun shows where it stands, a
 // disc brighter than white in a halo that widens and warms as it sinks, so the diorama lens (postFx.ts) makes it glow;
-// the clouds and the haze below the horizon hide it (setSun).
+// the clouds and the haze below the horizon hide it (setSun). The moon shows in its phase (src/moon.ts), its lit side
+// toward the sun, the rest faintly by earthshine, pale by day and hidden by the same clouds (setMoon).
 import { BackSide, Color, Mesh, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
 
 const VERTEX = `
@@ -29,6 +30,9 @@ uniform vec3 cloudColour;
 uniform vec3 sunDirection;
 uniform vec3 sunColour;
 uniform float sunHalo;
+uniform vec3 moonDirection;
+uniform vec3 moonColour;
+uniform float moonPhase;
 varying vec3 vDirection;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -47,6 +51,24 @@ void main() {
   // The sun: a small disc and its halo, wider the lower it stands (sunHalo)
   float toSun = max(dot(d, sunDirection), 0.0);
   sky += sunColour * (smoothstep(0.99978, 0.99988, toSun) * 6.0 + pow(toSun, mix(900.0, 140.0, sunHalo)) * 1.6 + pow(toSun, 9.0) * 0.18 * sunHalo);
+  // The moon: a disc lit on the side toward the sun as much as its phase says, and a faint glow round it
+  float toMoon = dot(d, moonDirection);
+  if (toMoon > 0.9990) {
+    vec3 across = sunDirection - moonDirection * dot(sunDirection, moonDirection);
+    across = length(across) > 1e-4 ? normalize(across) : normalize(cross(moonDirection, vec3(0.0, 1.0, 0.0)) + vec3(1e-4));
+    vec3 upward = cross(moonDirection, across);
+    vec2 q = vec2(dot(d - moonDirection, across), dot(d - moonDirection, upward)) / 0.02;
+    float r = length(q);
+    if (r < 1.0) {
+      // ... a sphere's face, lit from the sun at the phase's angle from the viewer (waxing and waning alike face the sun)
+      float angle = 6.2831853 * moonPhase;
+      vec3 n = vec3(q, sqrt(max(0.0, 1.0 - r * r)));
+      float lit = smoothstep(0.0, 0.08, dot(n, vec3(abs(sin(angle)), 0.0, -cos(angle))));
+      // (added to the sky, so a pale day moon never darkens it; the dark side faint with earthshine)
+      sky += moonColour * (0.05 + 1.25 * lit) * smoothstep(1.0, 0.92, r);
+    }
+  }
+  sky += moonColour * pow(max(toMoon, 0.0), 600.0) * 0.12 * (1.0 - cos(6.2831853 * moonPhase));
   // Clouds on a plane high above: flatter and thinner towards the horizon
   vec2 uv = d.xz / (d.y + 0.12) * 1.6 + vec2(time * 0.004, time * 0.0015);
   // ... more of them, and closer together, the cloudier the weather; darker underneath in a storm
@@ -69,6 +91,7 @@ export class SkyDome {
         zenith: { value: new Color(0x4f8fd0) }, horizon: { value: new Color(0xd5e6ef) }, haze: { value: haze.clone() },
         time: { value: 0 }, cover: { value: 0 }, gloom: { value: 0 }, cloudColour: { value: new Color(1, 1, 1) },
         sunDirection: { value: new Vector3(0, 1, 0) }, sunColour: { value: new Color(0, 0, 0) }, sunHalo: { value: 0 },
+        moonDirection: { value: new Vector3(0, -1, 0) }, moonColour: { value: new Color(0, 0, 0) }, moonPhase: { value: 0.5 },
       },
     });
     this.mesh = new Mesh(new SphereGeometry(radius, 32, 16), this.material);
@@ -97,6 +120,12 @@ export class SkyDome {
     this.material.uniforms.sunDirection.value.copy(direction).normalize();
     this.material.uniforms.sunColour.value.copy(colour);
     this.material.uniforms.sunHalo.value = Math.min(1, Math.max(0, low));
+  }
+  /** The moon: the way to it, its colour and brightness (black hides it) and its phase (src/moon.ts: 0 new, 0.5 full) */
+  setMoon(direction: Vector3, colour: Color, phase: number): void {
+    this.material.uniforms.moonDirection.value.copy(direction).normalize();
+    this.material.uniforms.moonColour.value.copy(colour);
+    this.material.uniforms.moonPhase.value = phase;
   }
   dispose(): void { this.mesh.geometry.dispose(); this.material.dispose(); }
 }

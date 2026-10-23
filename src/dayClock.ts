@@ -11,6 +11,7 @@
 
 import { DEFAULT_FEEL, gameFeel } from "./gameFeel.js";
 import { dayLengthFactor } from "./dayLength.js";
+import { moonAngle, moonPhase } from "./moon.js";
 
 /** The month's sunrise and sunset (0 January), hours of the day, Thai time, about as they are at Khon Kaen (16.4° N) */
 export const SUN_HOURS: ReadonlyArray<readonly [number, number]> = [
@@ -71,11 +72,14 @@ export function clockText(hour: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-/** The game's clock: the hour of the day, which only moves while the game runs */
+/** The game's clock: the hour of the day, which only moves while the game runs, and the days it has counted since a new
+ * moon (src/moon.ts), which the moon's phase goes by */
 export class DayClock {
   hour: number;
-  constructor(hour: number = FIRST_HOUR) {
+  days: number;
+  constructor(hour: number = FIRST_HOUR, days = 0) {
     this.hour = Number.isFinite(hour) ? ((hour % 24) + 24) % 24 : FIRST_HOUR;
+    this.days = Number.isFinite(days) && days >= 0 ? Math.floor(days) : 0;
   }
 
   /** Moves the clock on by realSeconds at a game speed (0 paused: it stands), in the month of the calendar */
@@ -90,7 +94,8 @@ export class DayClock {
     while (left > 0) {
       const rate = isNight(this.hour, month) ? dayRate * nightPace : dayRate;
       const step = Math.min(left, 0.25);
-      this.hour = (this.hour + rate * step) % 24;
+      this.hour += rate * step;
+      if (this.hour >= 24) { this.hour -= 24; this.days++; }
       left -= step;
     }
   }
@@ -98,4 +103,8 @@ export class DayClock {
   sunAngle(month: number): number { return sunAngle(this.hour, month); }
   text(): string { return clockText(this.hour); }
   night(month: number): boolean { return isNight(this.hour, month); }
+  /** The moon's phase now: 0 new, 0.5 full */
+  moonPhase(): number { return moonPhase(this.days + this.hour / 24); }
+  /** Where the moon stands now, as sunAngle */
+  moonAngle(): number { return moonAngle(this.hour, this.moonPhase()); }
 }
