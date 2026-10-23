@@ -1963,15 +1963,15 @@
 | `register.fact.age_female` | `src/register/registerCards.ts` | — | `Female, {age} years old` | `หญิง อายุ {age} ปี` |  |
 | `register.fact.role` | `src/register/registerCards.ts` | — | `{role}` | `{role}` | อาชีพหรือสถานะ |
 | `register.fact.workplace` | `src/register/registerCards.ts` | — | `Works at: {place}` | `ทำงานที่: {place}` |  |
-| `register.fact.commute` | `src/register/registerCards.ts` | — | `About {minutes} minutes to work ({km} km)` | `ไปทำงานราว {minutes} นาที ({km} กม.)` |  |
-| `register.fact.commute_m` | `src/register/registerCards.ts` | — | `About {minutes} minutes to work ({metres} m)` | `ไปทำงานราว {minutes} นาที ({metres} ม.)` | ไม่ถึงกิโลเมตร |
+| `register.fact.commute` | `src/register/registerCards.ts` | — | `About {minutes} min to work ({km} km)` | `ไปทำงานราว {minutes} นาที ({km} กม.)` |  |
+| `register.fact.commute_m` | `src/register/registerCards.ts` | — | `About {minutes} min to work ({metres} m)` | `ไปทำงานราว {minutes} นาที ({metres} ม.)` | ไม่ถึงกิโลเมตร |
 | `register.more_households` | `src/register/registerCards.ts` | — | `{households} more households ({people} people)` | `และอีก {households} ครัวเรือน ({people} คน)` | บ้านหลังใหญ่ |
 | `register.fact.income` | `src/register/registerCards.ts` | — | `Earns {income} a month` | `รายได้ {income} ต่อเดือน` | เงินบาทจริง ไม่ใช่หน่วยของคลังเมือง |
 | `register.fact.household_income` | `src/register/registerCards.ts` | — | `Household: {income} in, {living} living costs a month` | `ครัวเรือน: รายได้ {income} ค่าครองชีพ {living} ต่อเดือน` |  |
 | `register.fact.savings` | `src/register/registerCards.ts` | — | `Household savings {savings}` | `เงินออมของครัวเรือน {savings}` |  |
 | `register.fact.debt` | `src/register/registerCards.ts` | — | `Household debt {debt}` | `หนี้ของครัวเรือน {debt}` |  |
 | `register.fact.no_debt` | `src/register/registerCards.ts` | — | `The household owes nothing` | `ครัวเรือนไม่มีหนี้` |  |
-| `register.fact.vehicle` | `src/register/registerCards.ts` | — | `Has a {vehicle}` | `มี{vehicle}` |  |
+| `register.fact.vehicle` | `src/register/registerCards.ts` | — | `Vehicle: {vehicle}` | `มี{vehicle}` |  |
 | `register.fact.no_vehicle` | `src/register/registerCards.ts` | — | `No vehicle` | `ไม่มียานพาหนะ` |  |
 | `register.go_home` | `src/register/registerCards.ts` | — | `Home` | `ดูบ้าน` | ปุ่มในการ์ดของคน |
 | `register.go_work` | `src/register/registerCards.ts` | — | `Workplace` | `ดูที่ทำงาน` |  |
