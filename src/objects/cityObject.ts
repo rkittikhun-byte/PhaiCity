@@ -27,6 +27,9 @@ export interface CityReader {
   readonly mineKinds?: Readonly<Record<string, string>> | null;
   readonly stationKinds?: Readonly<Record<string, string>> | null;
   readonly rulerHouse?: { readonly x: number; readonly y: number; readonly level: number } | null;
+  /** The shops' jobs and the cap the department stores set them, as the census's people, on a real-scale city map
+   * (src/departmentStores.ts), and whether the shops are held back there */
+  readonly shopCap?: { readonly shops: number; readonly cap: number; readonly held: boolean } | null;
   /** The temples and their levels (src/temples.ts) */
   readonly temples?: { readonly temples: ReadonlyArray<{ readonly tile: number; readonly level: number }> } | null;
   /** Where the water reaches (src/waterManager.ts WaterView): each zone's mark as last scanned */

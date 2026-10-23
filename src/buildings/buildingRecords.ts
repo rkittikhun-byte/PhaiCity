@@ -13,6 +13,7 @@ import { groupOfCentre, LEVEL_GROUPS } from "../buildingLevels";
 import { MINE_TOOLS } from "../mining";
 import { PLANT_TOOLS } from "../powerPlants";
 import { SERVICE_KINDS } from "../services";
+import { STORE_KIND } from "../departmentStores";
 import { STATION_KINDS } from "../transit";
 import { WASTE_KINDS } from "../waste";
 import { NUCLEAR_KIND } from "../plantBlocks";
@@ -199,7 +200,7 @@ function fieldOfTool(tool: string): string | null {
   if (among(Object.values(PLANT_TOOLS)) || tool === "nuclear") return "powerKinds";
   if (among(Object.values(MINE_TOOLS))) return "mineKinds";
   // (a temple too, which its community built, src/temples.ts)
-  if (tool === "ruler_house" || tool === "temple" || among(SERVICE_KINDS)) return "civicKinds";
+  if (tool === "ruler_house" || tool === "temple" || tool === STORE_KIND || among(SERVICE_KINDS)) return "civicKinds";
   if (among(WASTE_KINDS)) return "wasteKinds";
   if (among(STATION_KINDS)) return "stationKinds";
   return null;

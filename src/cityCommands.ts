@@ -69,7 +69,7 @@ export const TOOL_NAMES = [
   "secondary_school", "vocational_college", "university", "health_centre", "community_hospital", "provincial_hospital",
   "regional_hospital", "landfill", "incinerator", "recycling_plant", "waste_power_plant", "wastewater_plant", "bus_stop", "train_station", "metro_station", "hsr_station",
   "zone_residential", "zone_commercial", "zone_industrial", "zone_erase", "zone_farm", "farm_erase",
-  "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade", "canal",
+  "police_box", "police_large", "police_hq", "fire_post", "fire_centre", "building_upgrade", "canal", "department_store",
 ] as const;
 export type ToolName = typeof TOOL_NAMES[number];
 

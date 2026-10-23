@@ -14,6 +14,9 @@ import type { RoadGraph } from "../roads/roadGraph";
 import { roadNet, type RoadNet } from "./roadNetwork";
 import { segmentLevel, type UpkeepMap } from "./roadUpkeep";
 import { wornSpeed } from "./disasterLand";
+import { roadsMet } from "./roadAccess";
+import { STORE_KIND, STORE_RULES } from "../departmentStores";
+import { CIVIC } from "../tileValues";
 import type { TripNet, TripPlaces } from "./trips";
 
 /** People a home, shop or factory plot of each level counts (the census's 20 people a level, src/plots.ts) */
@@ -72,6 +75,15 @@ export function tripPlaces(map: TripMap, roads: RoadNet, riders?: (x: number, y:
     } else {
       jobs.push([tile, k, access?.t ?? 0, people, plot.kind === "commercial" ? people : 0]);
     }
+  }
+  // ... and the department stores, finished, each a place of work and of shopping where it meets its road
+  // (src/departmentStores.ts)
+  const civic = (map as { civicKinds?: Record<string, string> | null; sites?: Record<string, unknown> | null });
+  for (const [key, kind] of Object.entries(civic.civicKinds ?? {})) {
+    const tile = Number(key), x = tile % map.width, y = (tile - x) / map.width;
+    if (kind !== STORE_KIND || map.getTileValue(x, y) !== CIVIC || (civic.sites && key in civic.sites)) continue;
+    const meet = roadsMet(map as never, tile, 3)[0], k = meet ? roads.segmentIndex.get(meet.segment) ?? -1 : -1;
+    jobs.push([tile, k, meet?.t ?? 0, STORE_RULES.staff, STORE_RULES.shoppers]);
   }
   return {
     homeTile: Int32Array.from(homes, (h) => h[0]), homeSegment: Int32Array.from(homes, (h) => h[1]),

@@ -59,6 +59,8 @@ export const MAP_WINDOW_CLOSED = "City map window closed";
 export const MONSTER_SIGHTED = "Monster sighted";
 export const NAG_WINDOW_CLOSED = "Nag window closed";
 export const NEED_AIRPORT = "Airport needed";
+// PhaiCity: the shops wait for a department store on a real-scale city map (src/departmentStores.ts)
+export const NEED_DEPARTMENT_STORE = "Department store needed";
 export const NEED_ELECTRICITY = "More power needed";
 export const NEED_FIRE_STATION = "Fire station needed";
 export const NEED_MORE_COMMERCIAL = "More commercial zones needed";

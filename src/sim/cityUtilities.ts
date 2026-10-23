@@ -155,11 +155,11 @@ export function plotAttach(map: UtilityMap, roads: RoadNet, tile: number): Attac
 /** Whether the building on centre tile `centre` is one of the ruler's services, which take their power before every
  *  home, shop and factory on their roads (src/sim/roadSupply.ts SupplyUser.first; decided 22 Oct 2026, docs/GAME_DESIGN.md
  *  16): a police or fire station, the water works, and the civic buildings (the ruler's house, schools, hospitals), but
- *  not a temple, which the people built (src/temples.ts) */
+ *  not a temple, which the people built (src/temples.ts), nor a department store, a shop (src/departmentStores.ts) */
 export function servesFirst(map: UtilityMap & { civicKinds?: Record<string, string> | null }, centre: number): boolean {
   const value = map.getTileValue(centre % map.width, Math.floor(centre / map.width));
   if (value === POLICESTATION || value === FIRESTATION || value === WATER_WORKS) return true;
-  return value === CIVIC && map.civicKinds?.[centre] !== "temple";
+  return value === CIVIC && map.civicKinds?.[centre] !== "temple" && map.civicKinds?.[centre] !== "department_store";
 }
 
 /** The tiles a building on centre tile `centre` stands on: as laid turned, else its square block */

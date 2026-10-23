@@ -78,6 +78,9 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   bus_stop: { era: 2, first: ["paved_road"] },
   train_station: { era: 2, first: ["rail"], months: 4 },
   stadium: { era: 2, trained: { technician: 30 }, months: 6 },
+  // ... and the department store, whose lights and lifts want power, which the shops wait for on a real-scale city map
+  // (src/departmentStores.ts)
+  department_store: { era: 2, trained: { technician: 20 }, first: ["power_plant"], months: 6 },
   // Era 3, the factory town: the university, then with its graduates the provincial hospital and the dam; four-lane
   // roads and highways, the port and a small airport, incinerators and wastewater plants
   university: { era: 3, first: ["secondary_school"], months: 12 },

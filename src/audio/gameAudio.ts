@@ -114,6 +114,7 @@ const TOOL_SOUNDS: Record<string, string> = {
   community_hospital: "tool.building",
   provincial_hospital: "tool.building",
   regional_hospital: "tool.building",
+  department_store: "tool.building",
   landfill: "tool.building",
   incinerator: "tool.building",
   recycling_plant: "tool.building",

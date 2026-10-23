@@ -532,6 +532,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
       pollutionTaxIncome: this.simulation.budget.pollutionTaxIncome,
       // ... and public transport (src/transit.ts)
       transitCost: this.simulation.budget.transitCost,
+      // ... and the department stores (src/departmentStores.ts)
+      storeCost: this.simulation.budget.storeCost,
       // ... and last year's festivals, paid in their months (src/festivals.ts)
       festivalCost: this.simulation.budget.festivalCost
     };

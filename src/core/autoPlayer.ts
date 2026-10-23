@@ -34,6 +34,7 @@ import { roadLevelAt } from "../roadLevels.js";
 import { houseSpec } from "../rulerHouse.js";
 import type { TrainedKind } from "../trainedPeople.js";
 import { POWER_TOOLS, unlockCity } from "../unlocks.js";
+import { shopCap, STORE_KIND, storesCapShops } from "../departmentStores.js";
 import type { FestivalNews, FestivalScale } from "../festivals.js";
 import { FARM_PAINT_TOOL, fieldLevelOf, isFieldValue, kindOfCode, wayField } from "../farmZone.js";
 import { isOpenLand } from "../plots.js";
@@ -73,7 +74,7 @@ export function yearAccounts(budget: Budget): YearAccounts {
     roads: budget.roadSpend ?? 0, police: budget.policeSpend ?? 0, fire: budget.fireSpend ?? 0,
     fuel: budget.fuelCost ?? 0, house: budget.houseCost ?? 0, education: budget.educationCost ?? 0,
     health: budget.healthCost ?? 0, waste: budget.wasteCost ?? 0, policies: budget.policyCost ?? 0,
-    transit: budget.transitCost ?? 0,
+    transit: budget.transitCost ?? 0, stores: budget.storeCost ?? 0,
     // ... and the festivals, paid from the treasury in their months rather than at the year's end (src/festivals.ts)
     festivals: budget.festivalCost ?? 0,
   };
@@ -202,12 +203,15 @@ const ERA_ASKS: ReadonlyArray<["health" | "education", string[]]> = [
   ["health", ["provincial_hospital", "community_hospital", "health_centre"]],
   ["education", ["secondary_school", "primary_school", "kindergarten"]]];
 
-/** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go */
+/** The buildings a kind of zone waits for, as the valves' caps say, and where round the town they go; on a real-scale
+ * city map the shops wait for a department store in the airport's place, near the town (src/departmentStores.ts) */
 const CAPS: ReadonlyArray<[string, string, number, number]> = [["resCap", "stadium", -20, -12],
   ["indCap", "port", 30, 12], ["comCap", "airport", 30, -20]];
+const STORE_NEAR: readonly [number, number] = [-6, 12];
 /** ... which come once the census counts this many of the kind (src/simulation.js _sendMessages: homes 500, about
- * 10,000 people in them; factories 70; shops 100), its count as the census's history keeps it; and money is kept for
- * each from CAP_AHEAD of that on, as for power (planCapacity), so it goes up the year the cap comes */
+ * 10,000 people in them; factories 70; shops 100, or on a real-scale city map the cap of the stores standing), its count
+ * as the census's history keeps it; and money is kept for each from CAP_AHEAD of that on, as for power (planCapacity),
+ * so it goes up the year the cap comes */
 const CAP_AT: ReadonlyArray<[string, number, (census: Record<string, number[]>) => number]> = [
   ["stadium", 500, (c) => (c.resHist10?.[0] ?? 0) * 8], ["port", 70, (c) => c.indHist10?.[0] ?? 0],
   ["airport", 100, (c) => c.comHist10?.[0] ?? 0]];
@@ -434,8 +438,10 @@ export class AutoPlayer {
     let saving = false;
     this.savingFor = 0;
     const saveFor = (price: number): void => { saving = true; this.savingFor = Math.max(this.savingFor, price); };
-    for (const [cap, tool, dx, dy] of CAPS) {
+    for (const [cap, capTool, cx, cy] of CAPS) {
       if (!valves[cap]) continue;
+      const store = capTool === "airport" && storesCapShops(core.map);
+      const tool = store ? STORE_KIND : capTool, [dx, dy] = store ? STORE_NEAR : [cx, cy];
       // (one the city cannot build yet is not saved for: what unlocks it comes first, src/unlocks.ts)
       if (this.waits(tool)) continue;
       const price = core.tools?.[tool]?.toolCost ?? 0;
@@ -669,14 +675,17 @@ export class AutoPlayer {
         }
       }
     }
-    // ... and the stadium, port or airport a kind of zone will soon wait for, unless it waits for more than the
-    // technicians a secondary school brings (the airport's engineers are years away): kept from the zones and the
-    // services by numbers only, not from what the era card asks (kept as needed now, a stadium's ฿5,000 held the
-    // nurses' district office and the health posts back for three years, and the town's care fell to a third)
+    // ... and the stadium, port or airport (or department store) a kind of zone will soon wait for, unless it waits for
+    // more than the technicians a secondary school brings (the airport's engineers are years away): kept from the zones
+    // and the services by numbers only, not from what the era card asks (kept as needed now, a stadium's ฿5,000 held
+    // the nurses' district office and the health posts back for three years, and the town's care fell to a third)
     const city = unlockCity(core.map);
-    for (const [tool, at, count] of CAP_AT) {
+    for (const [capTool, capAt, count] of CAP_AT) {
+      // (on a real-scale city map the next department store, however many stand: each lifts the shops' cap)
+      const store = capTool === "airport" && storesCapShops(core.map);
+      const tool = store ? STORE_KIND : capTool, at = store ? shopCap(city.count(STORE_KIND)) : capAt;
       const share = Math.min(1, Math.max(0, (count(census) / at - CAP_AHEAD) / (1 - CAP_AHEAD)));
-      if (!share || city.count(tool) > 0 || this.underway([tool])) continue;
+      if (!share || (!store && city.count(tool) > 0) || this.underway([tool])) continue;
       const lock = core.commands.lock(tool);
       if (lock && !(lock.reason === "unlock.trained" && lock.params.kind === "technician")) continue;
       const keep = Math.round(((core.tools?.[tool]?.toolCost ?? 0) + CAPACITY_SPARE) * share);

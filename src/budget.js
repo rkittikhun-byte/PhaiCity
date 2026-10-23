@@ -84,6 +84,8 @@ var Budget = EventEmitter(function() {
   this.pollutionTaxIncome = 0;
   // ... and what public transport cost last year (src/transit.ts)
   this.transitCost = 0;
+  // ... and what the department stores cost (src/departmentStores.ts)
+  this.storeCost = 0;
   // ... and what the festivals cost (src/festivals.ts): each is paid from the treasury at the start of its month, so
   // this is only counted, not charged again at the year's end: this year's so far, and last year's (the window's line)
   this.festivalFund = 0;
@@ -123,7 +125,7 @@ var saveProps = ['autoBudget', 'totalFunds', 'policePercent', 'roadPercent', 'fi
                  'tourismIncome', 'fuelCost', 'miningFund', 'miningIncome',
                  'farmFund', 'farmIncome', 'tollFund', 'tollIncome', 'houseCost', 'comTax', 'indTax', 'waterFee',
                  'touristFee', 'waterIncome', 'educationCost', 'healthCost', 'wasteFund', 'recyclingIncome',
-                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost', 'festivalFund', 'festivalCost',
+                 'wasteCost', 'policyCost', 'pollutionTaxIncome', 'transitCost', 'storeCost', 'festivalFund', 'festivalCost',
                  'grantIncome'];
 
 Budget.prototype.save = function(saveData) {
@@ -163,6 +165,7 @@ Budget.prototype.load = function(saveData) {
   this.policyCost = this.policyCost || 0;
   this.pollutionTaxIncome = this.pollutionTaxIncome || 0;
   this.transitCost = this.transitCost || 0;
+  this.storeCost = this.storeCost || 0;
   this.festivalFund = this.festivalFund || 0;
   this.festivalCost = this.festivalCost || 0;
 
@@ -381,6 +384,9 @@ Budget.prototype.collectTax = function(gameLevel, census) {
   // ... and public transport costs its upkeep (src/transit.ts)
   this.transitCost = Math.round(census.transitUpkeep || 0);
   this.taxFund -= this.transitCost;
+  // ... and the department stores theirs (src/departmentStores.ts)
+  this.storeCost = Math.round(census.storeUpkeep || 0);
+  this.taxFund -= this.storeCost;
   // ... and the year's festivals, already paid in their months, are only counted (src/festivals.ts); a festival held in
   // January, before the year's taxes come in, counts with the year before (the country's New Year costs the city nothing)
   this.festivalCost = Math.round(this.festivalFund || 0);

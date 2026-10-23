@@ -215,6 +215,7 @@
 | `tool.vocational_college` | `index.html` | — | `Vocational College {price}` | `วิทยาลัยอาชีวะ {price}` |  |
 | `tool.university` | `index.html` | — | `University {price}` | `มหาวิทยาลัย {price}` |  |
 | `tool.health_centre` | `index.html` | — | `Health Centre {price}` | `โรงพยาบาลส่งเสริมสุขภาพตำบล {price}` |  |
+| `tool.department_store` | `index.html` | — | `Department Store {price}` | `ห้างสรรพสินค้า {price}` | อาคาร 3x3 ของเจ้าเมือง ร้านค้ารอห้าง (src/departmentStores.ts, GAME_DESIGN 22; ไม้ไผ่45) |
 | `tool.community_hospital` | `index.html` | — | `Community Hospital {price}` | `โรงพยาบาลชุมชน {price}` |  |
 | `tool.provincial_hospital` | `index.html` | — | `Provincial Hospital {price}` | `โรงพยาบาลจังหวัด {price}` |  |
 | `tool.regional_hospital` | `index.html` | — | `Regional Hospital {price}` | `โรงพยาบาลศูนย์ {price}` |  |
@@ -512,6 +513,7 @@
 | `budget.waste` | `index.html` | — | `Rubbish and wastewater: ` | `ขยะและน้ำเสีย: ` | ค่าบำรุงอาคารขยะและน้ำเสีย แสดงเมื่อมี |
 | `budget.recycling` | `index.html` | — | `Recycling sold: ` | `รายได้จากขายของรีไซเคิล: ` | แสดงเมื่อมี |
 | `budget.transit` | `index.html` | — | `Public transport: ` | `ขนส่งสาธารณะ: ` | ค่าบำรุงรถเมล์และสถานี แสดงเมื่อมี |
+| `budget.stores` | `index.html` | — | `Department stores: ` | `ห้างสรรพสินค้า: ` | ค่าบำรุงห้าง แสดงเมื่อมี |
 | `budget.policies` | `index.html` | — | `Ruler's policies: ` | `นโยบายเจ้าเมือง: ` | ค่าใช้จ่ายนโยบาย แสดงเมื่อมี |
 | `budget.festivals` | `index.html` | — | `Festivals: ` | `งานเทศกาล: ` | ค่าจัดงานเทศกาลของปีที่แล้ว จ่ายไปแล้วตอนต้นเดือนของแต่ละงาน แสดงเมื่อมี (`src/festivals.ts`, Claude Code 21 ต.ค. 2026) |
 | `budget.pollution_tax` | `index.html` | — | `Pollution tax: ` | `ภาษีมลพิษ: ` | แสดงเมื่อมี |
@@ -828,6 +830,7 @@
 | `msg.need.stadium` | `src/text.js` | `Residents demand a Stadium` | `Residents demand a Sports Stadium` | `ประชาชนเรียกร้องให้สร้างสนามกีฬา` | ต้องการสันทนาการ |
 | `msg.need.electricity` | `src/text.js` | `Build a Power Plant` | `City needs more power: build a Power Plant` | `ไฟฟ้าไม่พอ โปรดสร้างโรงไฟฟ้าเพิ่ม` | ขาดพลังงาน |
 | `msg.need.airport` | `src/text.js` | `Commerce requires an Airport` | `Commerce requires an Airport for trade` | `ย่านการค้าต้องการสนามบินเพื่อขยายการขนส่ง` | เมืองใหญ่ต้องการบิน |
+| `msg.need.store` | `src/text.js` | — | `Shops are waiting for a department store` | `ร้านค้ารอห้างสรรพสินค้า ยังขยายต่อไม่ได้` | แผนที่เมืองขนาดจริงแทนสนามบิน (GAME_DESIGN 22) |
 | `msg.need.seaport` | `src/text.js` | `Industry requires a Sea Port` | `Industry requires a Seaport for exports` | `โรงงานอุตสาหกรรมต้องการท่าเรือพาณิชย์` | ขนส่งทางน้ำ |
 | `msg.need.more_res` | `src/text.js` | `More residential zones needed` | `More residential zones needed` | `เมืองต้องการเขตที่อยู่อาศัยเพิ่มขึ้น` | ขาดโซนบ้าน |
 | `msg.need.more_com` | `src/text.js` | `More commercial zones needed` | `More commercial zones needed` | `เมืองต้องการเขตพาณิชยกรรมเพิ่มขึ้น` | ขาดร้านค้า/ตลาด |
@@ -990,6 +993,7 @@
 | `about.building.watertower` | `about.html` | — | `Water Tower: Stores water through the rains and gives it back in the dry season. Build it beside a road that carries water.` | `หอถังสูง: เก็บน้ำไว้ในหน้าฝน แล้วปล่อยออกมาช่วยในหน้าแล้ง ต้องตั้งติดถนนที่มีน้ำประปา` | คำอธิบายอาคาร |
 | `about.building.stadium` | `about.html` | `Stadium: After a day struggling...` | `Stadium: Large arena boosting resident morale, drawing spectators, and stimulating nearby commerce.` | `สนามกีฬาประจำเมือง: ศูนย์รวมการแข่งขันกีฬา ช่วยยกระดับความสุขประชาชนและกระตุ้นการค้าโดยรอบ` | คำอธิบายอาคาร |
 | `about.building.airport` | `about.html` | `Airport: As your creation grows...` | `Airport: Connects your metropolis to global logistics, tourism, and national commerce.` | `ท่าอากาศยาน: เชื่อมต่อเมืองสู่โครงข่ายการบินระดับประเทศ รองรับนักท่องเที่ยวและการขนส่งทางอากาศ` | คำอธิบายอาคาร |
+| `about.building.department_store` | `src/toolShortcuts.ts` | — | `Department store: the shops of a city grow only so far before they wait for one; each store lets them grow further, adds land value nearby and draws shoppers and visitors.` | `ห้างสรรพสินค้า: ร้านค้าในเมืองโตได้ถึงขีดหนึ่งแล้วต้องรอห้าง ห้างแต่ละแห่งให้ร้านค้าโตต่อได้อีก เพิ่มราคาที่ดินรอบ ๆ และดึงคนมาซื้อของและนักท่องเที่ยว` | GAME_DESIGN 22 |
 | `about.building.port` | `about.html` | `Seaport: Making stuff is hard work!...` | `Seaport: Coastal or riverside terminal vital for waterborne logistics and industrial freight.` | `ท่าเรือพาณิชย์: ประตูระบายสินค้าทางน้ำริมฝั่งแม่น้ำและทะเล จำเป็นต่อการเติบโตของภาคอุตสาหกรรม` | คำอธิบายอาคาร |
 | `about.building.park` | `about.html` | `Park: Sometimes you need to get away...` | `Park: Green sanctuaries improving air quality, community well-being, and surrounding land values.` | `สวนสาธารณะ: พื้นที่สีเขียวร่มรื่น ฟอกอากาศบริสุทธิ์ ช่วยเพิ่มความสุขและเพิ่มราคาที่ดินรอบข้าง` | คำอธิบายอาคาร |
 | `about.infra.road_rail` | `about.html` | `Road, Rail: Your citizens are going places...` | `Roads & Railways: Connect zones so citizens can commute and raw materials can reach markets.` | `ถนนและทางรถไฟ: เส้นทางสัญจรเชื่อมต่อเมือง เพื่อให้ประชาชนเดินทางสะดวกและสินค้ากระจายได้ทั่วถึง` | คำอธิบายโครงสร้าง |
@@ -1242,6 +1246,7 @@
 | `rules.cost.coal` | `src/provinceRules.ts` | `-` | `Coal plants cost {change}` | `ราคาโรงไฟฟ้าถ่านหิน {change}` |  |
 | `rules.cost.nuclear` | `src/provinceRules.ts` | `-` | `Nuclear plants cost {change}` | `ราคาโรงไฟฟ้านิวเคลียร์ {change}` |  |
 | `rules.cost.stadium` | `src/provinceRules.ts` | `-` | `Stadiums cost {change}` | `ราคาสนามกีฬา {change}` |  |
+| `rules.cost.department_store` | `src/provinceRules.ts` | — | `Department stores cost {change}` | `ราคาห้างสรรพสินค้า {change}` |  |
 | `rules.cost.port` | `src/provinceRules.ts` | `-` | `Seaports cost {change}` | `ราคาท่าเรือ {change}` |  |
 | `rules.cost.airport` | `src/provinceRules.ts` | `-` | `Airports cost {change}` | `ราคาสนามบิน {change}` |  |
 | `rules.cost.bulldozer` | `src/provinceRules.ts` | `-` | `Bulldozing costs {change}` | `ค่ารื้อถอน {change}` |  |
@@ -1651,6 +1656,8 @@
 | `object.fact.powered` | `src/inspect.ts` | — | `Has power` | `มีไฟฟ้า` |  |
 | `object.fact.unpowered` | `src/inspect.ts` | — | `No power` | `ไม่มีไฟฟ้า` |  |
 | `object.fact.temple_level` | `src/inspect.ts` | — | `Level {level} of 3: it grows with its community` | `ระดับ {level} จาก 3 โตตามชุมชน` | วัด (src/temples.ts, GAME_DESIGN 9; ไม้ไผ่30 21 ต.ค. 2026) |
+| `object.fact.store_shops` | `src/inspect.ts` | — | `Shops in the city: {shops} jobs of the {cap} its department stores carry` | `ร้านค้าในเมือง: งาน {shops} คน จาก {cap} คนที่ห้างรองรับ` | ห้างสรรพสินค้า (src/departmentStores.ts, GAME_DESIGN 22) |
+| `object.fact.store_held` | `src/inspect.ts` | — | `The shops have reached that: another store lets them grow` | `ร้านค้าเต็มขีดแล้ว ห้างอีกแห่งจะให้โตต่อได้` | ห้างสรรพสินค้า |
 | `object.fact.watered` | `src/inspect.ts` | — | `Has water` | `มีน้ำประปา` |  |
 | `object.fact.dry` | `src/inspect.ts` | — | `No water` | `ไม่มีน้ำประปา` |  |
 | `object.fact.people` | `src/inspect.ts` | — | `About {people} people live here` | `มีคนอยู่ราว {people} คน` | ตัวเลขประมาณจากสูตรเดิมของเกม จนกว่าจะมีครัวเรือน (เฟส 7) |

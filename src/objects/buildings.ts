@@ -7,6 +7,7 @@
 // zone building, a shop 1–5, a factory 1–4; the land class is 0–3 (factories 0–1). Plain code: no DOM.
 
 import { readPlotValue } from "../plots.js";
+import { STORE_KIND } from "../departmentStores.js";
 import { ZONEBIT } from "../tileFlags.js";
 import {
   AIRPORT, BUS_STOP, CIVIC, FARM, FIRESTATION, FULLSTADIUM, HARBOUR, HHTHR, LHTHR, MINE, NUCLEAR, PLANT2, PLANT3,
@@ -104,6 +105,14 @@ export class PowerPlant extends RecordedBuilding {
 export class Civic extends RecordedBuilding {
   readonly kind = "civic";
   protected record(city: CityReader) { return city.civicKinds; }
+  /** A department store's card says how far the city's shops may grow with the stores standing (src/departmentStores.ts) */
+  override facts(city: CityReader): Fact[] {
+    const facts = super.facts(city), cap = city.shopCap;
+    if (this.sort(city) !== STORE_KIND || !cap) return facts;
+    facts.push({ key: "object.fact.store_shops", params: { shops: cap.shops, cap: cap.cap } });
+    if (cap.held) facts.push({ key: "object.fact.store_held" });
+    return facts;
+  }
 }
 /** A temple (วัด, src/temples.ts): the community's, on the civic 3 × 3; it needs no power, and its card says its level */
 export class Temple extends CommunityBuilding {
