@@ -682,6 +682,16 @@
                 </div>
                 <p class="dayLengthHint" data-i18n="day_length.hint">How fast the clock turns morning to night: short is half as long, long twice as long. The calendar and the city go on as they do.</p>
               </fieldset>
+              <!-- The pace of the game's time applies immediately and is kept for this browser (src/gamePace.ts), so OK and Cancel do not affect it -->
+              <fieldset id="gamePaceSettings" class="padding10">
+                <legend data-i18n="game_pace.title">Pace of the game's time</legend>
+                <div class="dayLengthChoices">
+                  <input type="radio" name="gamePace" id="gamePaceSlow" value="slow"><label for="gamePaceSlow" data-i18n="game_pace.slow">Slow</label>
+                  <input type="radio" name="gamePace" id="gamePaceNormal" value="normal" checked="checked"><label for="gamePaceNormal" data-i18n="game_pace.normal">Normal</label>
+                  <input type="radio" name="gamePace" id="gamePaceFast" value="fast"><label for="gamePaceFast" data-i18n="game_pace.fast">Fast</label>
+                </div>
+                <p class="dayLengthHint" data-i18n="game_pace.hint">How long a month takes at every speed of the time bar: slow twice as long, fast half as long. The city grows the same, only sooner or later.</p>
+              </fieldset>
             </div>
             <button id="settingsCancel" data-i18n="settings.btn.cancel" class="cancel">Cancel</button>
             <input type="submit" id="settingsOK" data-i18n-value="settings.btn.ok" class="dialogOK" value="OK">

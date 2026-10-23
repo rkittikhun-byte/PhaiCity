@@ -285,6 +285,13 @@ Simulation.prototype.setSpeed = function(s) {
 };
 
 
+// PhaiCity: how many times as long as its own the time between two steps is, the player's pace (src/gamePace.ts); it
+// only spaces the steps in real time, so the city is the same at any pace
+Simulation.prototype.setPace = function(factor) {
+  this._pace = typeof factor === 'number' && factor > 0 && isFinite(factor) ? factor : 1;
+};
+
+
 Simulation.prototype.isPaused = function() {
   return this._speed === Simulation.SPEED_PAUSED;
 };
@@ -366,7 +373,7 @@ Simulation.prototype._simFrame = function() {
   }
 
   var d = new Date();
-  if (d - this._lastTickTime < threshold)
+  if (d - this._lastTickTime < threshold * (this._pace || 1))
     return;
 
   var simData = this._constructSimData();

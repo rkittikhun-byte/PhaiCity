@@ -108,6 +108,7 @@ import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
 import { bindDayLengthSetting } from './dayLength.ts';
+import { bindGamePaceSetting, gamePaceFactor, onGamePace } from './gamePace.ts';
 import { skyAt } from './rainSpells.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
@@ -723,6 +724,10 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   bindSmartCameraSetting();
   // The player's length of a day (src/dayLength.ts): how fast the clock turns the hours, kept for this browser
   bindDayLengthSetting();
+  // The player's pace of the game's time (src/gamePace.ts): how long a month takes at every speed, kept for this browser
+  bindGamePaceSetting();
+  this.simulation.setPace(gamePaceFactor());
+  onGamePace(function() { self.simulation.setPace(gamePaceFactor()); });
   this.watchPointer();
   document.addEventListener('phaicity:active_tool_changed', function(event) {
     self.updateContextualOverlay(event.detail && event.detail.tool);

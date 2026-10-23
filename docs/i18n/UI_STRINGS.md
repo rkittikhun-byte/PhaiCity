@@ -1125,6 +1125,11 @@
 | `day_length.normal` | `index.html` | `-` | `Normal` | `ปกติ` | วันตามที่เจ้าของตั้ง |
 | `day_length.long` | `index.html` | `-` | `Long` | `ยาว` | สองเท่าของวันที่เจ้าของตั้ง |
 | `day_length.hint` | `index.html` | `-` | `How fast the clock turns morning to night: short is half as long, long twice as long. The calendar and the city go on as they do.` | `นาฬิกาเดินจากเช้าถึงค่ำเร็วแค่ไหน สั้นคือครึ่งหนึ่ง ยาวคือสองเท่า ปฏิทินและเมืองยังเดินเท่าเดิม` | คำอธิบายใต้ตัวเลือก |
+| `game_pace.title` | `index.html` | `-` | `Pace of the game's time` | `ความเร็วของเวลาในเกม` | หัวข้อในหน้าต่างตั้งค่า เก็บไว้ในเบราว์เซอร์ของผู้เล่น (`src/gamePace.ts`) |
+| `game_pace.slow` | `index.html` | `-` | `Slow` | `ช้า` | หนึ่งเดือนในเกมยาวเป็นสองเท่า ทุกความเร็ว 1x 2x 3x |
+| `game_pace.normal` | `index.html` | `-` | `Normal` | `ปกติ` | ความเร็วเดิมของเกม |
+| `game_pace.fast` | `index.html` | `-` | `Fast` | `เร็ว` | หนึ่งเดือนในเกมสั้นลงครึ่งหนึ่ง (3x เร็วกว่านี้ไม่ได้แล้ว) |
+| `game_pace.hint` | `index.html` | `-` | `How long a month takes at every speed of the time bar: slow twice as long, fast half as long. The city grows the same, only sooner or later.` | `หนึ่งเดือนในเกมยาวแค่ไหน ทุกความเร็วในแถบเวลา: ช้ายาวเป็นสองเท่า เร็วสั้นลงครึ่งหนึ่ง เมืองโตเหมือนเดิม แค่ถึงเร็วหรือช้ากว่า` | ใต้ตัวเลือกความเร็วของเวลา |
 | `graphics.hint` | `index.html` | `-` | `Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.` | `อัตโนมัติจะปรับให้ภาพลื่นเอง ระดับกลางเพิ่มแสงเรืองของไฟและภาพเบลอขอบแบบเมืองจำลอง ระดับสูงเพิ่มเงานุ่มตามซอกมุม` | คำอธิบายใต้ตัวเลือก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 
