@@ -50,11 +50,39 @@ describe('the zone cells in 3D', () => {
       view.update(point, '#e0b020', strip);
       expect(drawn(view.root)).toEqual([strip.length]);
       expect(strip.length).toBeLessThan(layout.cells.length / 10);
-      // Painted cells show as painted, the brush's strip besides
+      // Painted cells show as painted while a tool that builds is in hand
       expect(core.apply({ type: 'zoneCells', zone: 'industrial', cells: strip }).accepted).toBe(true);
       view.show(false);
+      view.wash(true, true);
       view.update(null, null);
       expect(drawn(view.root)).toEqual([strip.length]);
+      // ... and with none in hand the ground is clean (owner, 23 Oct 2026: "ถ้าไม่คลิก tool สีจะหายไป")
+      view.wash(false, true);
+      view.update(null, null);
+      expect(drawn(view.root)).toEqual([]);
+    } finally { view.dispose(); }
+  });
+
+  test('the colour wash fades in and out over a quarter of a second, not at once', () => {
+    const core = city(), map = core.map as any, view = new ZoneCellsView(map, flat);
+    try {
+      const layout = cellsOf(map);
+      expect(core.apply({ type: 'zoneCells', zone: 'residential', cells: layout.cells.slice(0, 20).map((c) => c.key) }).accepted).toBe(true);
+      view.update(null, null);
+      expect(drawn(view.root)).toEqual([]);
+      view.wash(true);
+      view.fade(0.1);
+      const material = (view as any).paintMaterial;
+      expect(material.opacity).toBeGreaterThan(0);
+      expect(material.opacity).toBeLessThan(0.48);
+      expect(drawn(view.root)).toEqual([20]);
+      view.fade(0.2);
+      expect(material.opacity).toBeCloseTo(0.48, 6);
+      view.wash(false);
+      view.fade(0.1);
+      expect(material.opacity).toBeGreaterThan(0);
+      view.fade(0.2);
+      expect(drawn(view.root)).toEqual([]);
     } finally { view.dispose(); }
   });
 });

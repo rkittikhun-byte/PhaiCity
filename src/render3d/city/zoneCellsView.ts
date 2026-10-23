@@ -12,6 +12,8 @@ import type { CityHeightField } from './heightfield.js';
 /** The zones' colours, as the zone buttons wear them */
 const ZONE_COLOURS = [0, 0x4fbf5a, 0x3f86d8, 0xe2b83c];
 const LIFT = 0.22, FILL = 0.98;
+/** Seconds the zones' colour wash takes to fade in or out (the HUD's motion, css/style.css "Motion") */
+export const WASH_SECONDS = 0.25;
 
 export class ZoneCellsView {
   readonly root = new Group();
@@ -32,6 +34,10 @@ export class ZoneCellsView {
   private readonly borderMaterial = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.90,
     depthWrite: false, depthTest: false, polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12 });
   private showing = false;
+  /** Whether the paint is to be shown (a tool that builds in hand), and how much of it shows now, 0-1 */
+  private washing = false;
+  private washShown = 0;
+  private faded = -1;
   private area: InstancedMesh | null = null;
   private areaKey = '';
   private version = -1;
@@ -62,9 +68,26 @@ export class ZoneCellsView {
   show(on: boolean): void {
     const changed = this.showing !== on;
     this.showing = on;
-    this.paintMaterial.opacity = on ? 0.68 : 0.48;
     if (!on) this.hoverGroup.visible = false;
     if (changed) this.drawPaint();
+  }
+
+  /** The paint shown at all only while a tool that builds is in hand (CityView.zoneWash), faded in and out over
+   * WASH_SECONDS; at once when first told */
+  wash(on: boolean, now = false): void {
+    this.washing = on;
+    if (now) this.washShown = on ? 1 : 0;
+  }
+
+  /** Each frame: the wash a step nearer what it should be */
+  fade(dt: number): void {
+    const target = this.washing ? 1 : 0;
+    if (this.washShown !== target) {
+      const step = Math.min(1, Math.max(0, dt) / WASH_SECONDS);
+      this.washShown = target > this.washShown ? Math.min(target, this.washShown + step) : Math.max(target, this.washShown - step);
+    }
+    this.paintMaterial.opacity = (this.showing ? 0.68 : 0.48) * this.washShown;
+    if (this.painted) this.painted.visible = this.washShown > 0;
   }
 
   /** The roads, the land or the buildings changed: the cells are laid again when next needed, for the paint or the
@@ -89,6 +112,9 @@ export class ZoneCellsView {
    * the rectangle it drags */
   update(point: { x: number; y: number } | null, colour: string | null, area: readonly number[] | null = null): void {
     if ((this.map.zoneCellsVersion ?? 0) !== this.version) this.drawPaint();
+    const now = performance.now() / 1000;
+    this.fade(this.faded < 0 ? 0 : now - this.faded);
+    this.faded = now;
     const rawCell = !area && point && this.showing
       ? cellAt(this.laid(), this.map.width, point.x * 10, point.y * 10)
       : null;
@@ -180,6 +206,7 @@ export class ZoneCellsView {
     });
     if (!painted.length) return;
     this.painted = this.cellMesh(painted, this.paintMaterial, (key) => ZONE_COLOURS[paint.get(key) ?? 0] ?? 0xffffff);
+    this.painted.visible = this.washShown > 0;
     this.painted.renderOrder = 21;
     this.root.add(this.painted);
   }

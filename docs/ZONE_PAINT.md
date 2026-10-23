@@ -137,3 +137,18 @@ and the painted cells on those tiles go (`src/paintUnder.ts`, `paintAt` on the m
 tools' auto-bulldoze in `src/baseTool.js` and `src/buildingTool.js`, the cells in `src/cityCommands.ts`). Temples, the
 ruler's other buildings and old 3 × 3 zones still stand in the way. When the bulldozer is still needed, the reason now
 shows beside the tool, not only in the hidden panel title.
+
+## The colours show only while a tool is in hand (owner, 23 Oct 2026)
+
+"พื้นที่ต่างๆ เช่น ที่อยู่อาศัย ร้านค้า อุตสาหกรรม ตอนคลิก tool วาดจะเห็นว่าพื้นที่นั้นๆ สีอะไร แต่ถ้าไม่คลิก tool สีจะหายไป ไม่แสดงอีก
+หรือจะคลิกสร้าง tool ใดๆ ค่อยแสดง": the zones' colour wash (the painted cells of homes, shops and factories, painted or
+grown, and the farm zone's tint on fields painted and not grown yet) shows only while a tool that builds is in hand, any
+zone brush or eraser, a road, rail or canal tool or any building tool, and fades out in a quarter of a second with no
+tool or the query tool (`game.js` calls the view's `zoneWash`, `zoneCellsView.ts` `wash`, `farmFields.ts` `wash`;
+RENDERER_SPEC 6L). What is really there stays drawn: buildings, the fields' crops, ponds and dikes, fences.
+
+## Every painted grid runs along its road or canal (owner, 23 Oct 2026)
+
+"ช่องสี่เหลี่ยม หรือตาราง ที่วาด มันจะต้องขนานกับถนนทุกเส้น" and "จะต้องขนานกับถนน และคลองด้วยนะ": the zones' cells already lay along
+their roads; the zones' rectangle brush is now turned with the road nearest where it starts (`zoneCells.ts` `roadRect`,
+`game.js` `cellsInArea`), and the farm zone's cells lie in rows along the nearest road or canal (GAME_DESIGN 7.5).

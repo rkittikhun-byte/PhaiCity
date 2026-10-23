@@ -3932,6 +3932,13 @@ var commonAnimate = function() {
     this._zoneGrid = zoneGrid;
     this.cityView.zoneGrid(zoneGrid);
   }
+  // ... and the zones' colours show at all only while a tool that builds is in hand, none or the query tool leaving the
+  // ground clean (owner, 23 Oct 2026: "ถ้าไม่คลิก tool สีจะหายไป ไม่แสดงอีก หรือจะคลิกสร้าง tool ใดๆ ค่อยแสดง")
+  var zoneWash = this.gameMap.paintedZones === true && !!toolName && toolName !== 'query';
+  if (zoneWash !== this._zoneWash && this.cityView.zoneWash) {
+    this._zoneWash = zoneWash;
+    this.cityView.zoneWash(zoneWash);
+  }
 
   this.cityView.paint(this.mouse, this.spritesIn(this.cityView.visibleTiles()), this.isPaused);
   if (!this._curtainFaded) {

@@ -118,6 +118,29 @@ describe('the farm zone in 3D', () => {
   });
 });
 
+describe('the zone tint only while a tool is in hand (owner, 23 Oct 2026)', () => {
+  test('a field painted and not grown is the zone tint, faded in with a tool and out without; grown fields stay', () => {
+    const map = newMap(1), view = new CityFarmFields(map, flat);
+    view.update([], MAY, 300, 0);
+    const paint = () => view.root.children.find((c) => c.name === 'farm_fields/paint') as Mesh;
+    // the level-0 field at (5, 20) alone is tint
+    expect(paint()).toBeDefined();
+    expect(paint().visible).toBe(false);
+    expect(view.root.children.find((c) => c.name === 'farm_fields/ground')!.visible).toBe(true);
+    view.wash(true);
+    view.update([], MAY, 300, 0.1);
+    expect(paint().visible).toBe(true);
+    expect((paint().material as any).opacity).toBeGreaterThan(0.2);
+    expect((paint().material as any).opacity).toBeLessThan(1);
+    view.update([], MAY, 300, 0.5);
+    expect((paint().material as any).opacity).toBe(1);
+    view.wash(false);
+    view.update([], MAY, 300, 1);
+    expect(paint().visible).toBe(false);
+    view.dispose();
+  });
+});
+
 describe('the farm zone painted in cells (docs/NO_GRID_PLAN.md 3C)', () => {
   // (the fields drawn on the road-aligned cells painted beside a slanted road: test/farmGrid.ts)
   test('the brush shows the cells it would paint, turned with their road, and nothing when put away', () => {

@@ -163,6 +163,8 @@ export class CityView3D implements CityView {
   /** The festivals' lanterns, krathong, sky lanterns and rockets (festivals3d.ts), made when the first is held */
   private festivals?:CityFestivals;
   private farms?:CityFarmFields;
+  /** Whether the zones' colour wash shows (zoneWash) */
+  private washOn=false;
   private compounds?:CityCompounds;
   constructor(readonly setup:CityViewSetup,dependencies:CityViewDependencies={}) {
     this.now=dependencies.now??(()=>performance.now());this.created=this.now();this.last=this.created;this.headless=dependencies.headless??false;
@@ -436,6 +438,9 @@ export class CityView3D implements CityView {
   }
   /** Shows the tiles that can take painted zones along the roads (src/plots.ts), while a brush or a road tool is in hand. */
   zoneGrid(on:boolean):void {if(this.cells)this.cells.show(on);else this.zones.show(on);}
+  /** The zones' colour wash only while a tool that builds is in hand (CityView.zoneWash): the painted cells' and the farm
+   * zone's painted tint, faded in and out */
+  zoneWash(on:boolean):void {this.washOn=on;this.cells?.wash(on);this.farms?.wash(on);}
   pointAt(x:number,y:number):{x:number;y:number}|null{const p=groundAt(this.navigation.camera,x,y,this.width,this.height,this.terrain);
     return p&&p.x>=0&&p.z>=0&&p.x<this.setup.map.width*10&&p.z<this.setup.map.height*10?{x:p.x/10,y:p.z/10}:null;}
   /** A layer of the city map over the ground, or none (layerOverlay.ts); the traffic, power and water layers also on the
@@ -486,7 +491,7 @@ export class CityView3D implements CityView {
     {const dug=this.canals.update(this.navigation.distance);if(dug.length){this.chunks.dirty(dug);this.foliage.invalidate();}}
     // The farm zone's paddies, fields, orchards and ponds (farmFields.ts), by the month and the era; a farm building whose
     // fields changed is drawn again as their cooperative, rice mill or cold store
-    if((this.setup.map as {paintedZones?:boolean}).paintedZones){if(!this.farms){this.farms=new CityFarmFields(this.setup.map as unknown as FarmViewMap,this.terrain,this.setup.region,this.snapshot.realUnits??1);this.scene.add(this.farms.root);}
+    if((this.setup.map as {paintedZones?:boolean}).paintedZones){if(!this.farms){this.farms=new CityFarmFields(this.setup.map as unknown as FarmViewMap,this.terrain,this.setup.region,this.snapshot.realUnits??1);this.farms.wash(this.washOn,true);this.scene.add(this.farms.root);}
       if(raised.length)this.farms.invalidate(this.seconds);
       const hubs=this.farms.update(changed,this.setup.date().month,this.navigation.distance,this.seconds);if(hubs.length)this.chunks.dirty(hubs);}
     // The ground each building of the ruler's reserves, fenced in its era's look (compounds.ts)

@@ -383,6 +383,15 @@ On a real-scale city map (16 m a tile, `docs/CITY_SCALE.md`) homes, shops and fa
   `PLOT_REACH`) as 2 × 2 pale cells. On a map painted a cell at a time (`cellZones`) it shows no grid (owner, 21 Oct 2026:
   "เราไม่ได้สร้างตามช่องแล้วไม่ใช่เหรอ?"): the painted cells as painted, clearer, and the cells the brush would paint
   (`ToolHover.cellKeys`, the strip along the road by default, `src/zoneCells.ts` `cellsInStrip`) soft in its colour.
+- `zoneWash(on)` (owner, 23 Oct 2026: "ถ้าไม่คลิก tool สีจะหายไป ไม่แสดงอีก หรือจะคลิกสร้าง tool ใดๆ ค่อยแสดง"): the game
+  calls it with `true` while any tool that builds is in hand (a zone brush or eraser, a road, rail or canal tool, any
+  building tool) and `false` with none or the query tool. The zones' colour wash, the painted cells of homes, shops and
+  factories (`zoneCellsView.ts`) and the farm zone's tint on fields painted and not grown yet (`farmFields.ts`
+  `farm_fields/paint`), shows only then, fading in and out over `WASH_SECONDS` (0.25 s), never popping. What is really
+  there stays drawn: grown buildings, the fields' crops, ponds and dikes, fences.
+- The farm zone's fields on a map painted a cell at a time are drawn on the road-aligned farm cells painted
+  (`src/farmGrid.ts`; GAME_DESIGN 7.5): each a patch turned with the road or canal it lies along, dikes where the field
+  ends; `ToolHover.farmCells` gives the cells the farm brush would paint, with their middles and angles.
 - The open ground of a real-scale city map shows no tile either: no checkerboard of lighter and darker squares, and a
   land cover's edge along a slanted road fades over the tiles round it (`province-surface.ts` `corner`, `smoothPatch`).
 - `ToolHover.path`: while a line is drawn by clicks, a grid or rectangle dragged or a fill pointed at

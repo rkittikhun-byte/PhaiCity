@@ -24,6 +24,7 @@ import { paintedCells, type FarmGridMap } from '../../farmGrid.js';
 import { isOpenLand, plotKindOfValue } from '../../plots.js';
 import { tileMetres } from '../../units.js';
 import { CELL_M } from '../../zoneCells.js';
+import { WASH_SECONDS } from './zoneCellsView.js';
 import { FARM, FIELD_BASE } from '../../tileValues.js';
 import { SCENE } from '../../theme/tokens.js';
 import { getRegionKit } from '../regional/index.js';
@@ -111,10 +112,17 @@ export class CityFarmFields {
   readonly root = new Group();
   private readonly details = new Group();
   private ground: Mesh | null = null;
+  /** The fields painted and not grown yet: the zone's tint, faded in while a tool that builds is in hand (wash) */
+  private paint: Mesh | null = null;
+  private washing = false;
+  private washShown = 0;
+  private washedAt = -1;
   // (drawn over the land's detail, terrain-detail.ts at -2, -2, which hid the fields of a city map's woods and fields
   // of open land; under the roads and their gravel, which no field cell reaches)
   private readonly groundMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -5 });
+  private readonly paintMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0,
+    transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -5 });
   private readonly materials = new Map<number, MeshStandardMaterial>();
   private readonly meshes = new Map<string, InstancedMesh[]>();
   private fields: Field[] = [];
@@ -144,6 +152,16 @@ export class CityFarmFields {
     this.root.name = 'farm_fields';
     this.details.name = 'farm_details';
     this.root.add(this.details);
+  }
+
+  /**
+   * The zone's tint on the fields painted and not grown yet shown only while a tool that builds is in hand
+   * (CityView.zoneWash; owner, 23 Oct 2026), faded in and out over WASH_SECONDS; at once when now. The paddies, crops,
+   * ponds and dikes of the grown fields stay, being what is there.
+   */
+  wash(on: boolean, now = false): void {
+    this.washing = on;
+    if (now) this.washShown = on ? 1 : 0;
   }
 
   /** The ground moved: draw the fields on it again */
@@ -177,6 +195,12 @@ export class CityFarmFields {
       this.shownEra = era;
     }
     this.details.visible = distance < FARM_DETAIL_DISTANCE && this.fields.length > 0;
+    // The tint a step nearer what the tool in hand says
+    const step = this.washedAt < 0 ? 0 : Math.max(0, seconds - this.washedAt) / WASH_SECONDS;
+    this.washedAt = seconds;
+    this.washShown = this.washing ? Math.min(1, this.washShown + step) : Math.max(0, this.washShown - step);
+    this.paintMaterial.opacity = this.washShown;
+    if (this.paint) this.paint.visible = this.washShown > 0;
     // The drones of a smart farm hover and bob
     for (const d of this.drones) {
       const m = new Matrix4().makeTranslation(d.x, d.y + Math.sin(seconds * 2 + d.x) * 0.25, d.z);
@@ -227,6 +251,8 @@ export class CityFarmFields {
     this.shapeCache.clear();
     this.ground?.geometry.dispose();
     this.groundMaterial.dispose();
+    this.paint?.geometry.dispose();
+    this.paintMaterial.dispose();
     this.materials.forEach((m) => m.dispose());
     this.brush?.dispose();
     this.brushPlane.dispose();
@@ -325,9 +351,15 @@ export class CityFarmFields {
     this.ground?.geometry.dispose();
     if (this.ground) this.root.remove(this.ground);
     this.ground = null;
+    this.paint?.geometry.dispose();
+    if (this.paint) this.root.remove(this.paint);
+    this.paint = null;
     this.verts = [];
     if (!this.fields.length) return;
     const positions: number[] = [], colours: number[] = [], outer = new Color(), inner = new Color();
+    // (a field painted and not grown yet is the zone's tint, shown only while a tool is in hand: wash)
+    const tintPositions: number[] = [], tintColours: number[] = [];
+    let target = { positions, colours };
     // The cells drawn, by where their middles lie, to find each one's neighbours in its grid
     const bucket = new Map<number, DrawnCell[]>(), bucketOf = (x: number, z: number): number => Math.floor(z / BUCKET) * 65536 + Math.floor(x / BUCKET);
     for (const f of this.fields) for (const c of f.cells) {
@@ -358,8 +390,8 @@ export class CityFarmFields {
       const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
       const p = (u: number, v: number): void => {
         const x = c.x + cos * u + sin * v, z = c.z - sin * u + cos * v;
-        positions.push(x, this.terrain.sample(x, z) + lift, z);
-        colours.push(tone.r, tone.g, tone.b);
+        target.positions.push(x, this.terrain.sample(x, z) + lift, z);
+        target.colours.push(tone.r, tone.g, tone.b);
       };
       p(u0, v0); p(u0, v1); p(u1, v0);
       p(u1, v0); p(u0, v1); p(u1, v1);
@@ -369,7 +401,8 @@ export class CityFarmFields {
     // between them; a whole tile as it is)
     const grow = (c: DrawnCell): number => (c.size < UNITS ? CELL_GROW : 1);
     for (const field of this.fields) {
-      const insideToo = this.tones(field, month, outer, inner);
+      const insideToo = this.tones(field, month, outer, inner), tint = field.level === 0 || !field.kind;
+      target = tint ? { positions: tintPositions, colours: tintColours } : { positions, colours };
       // Each cell's dike on each side where the field ends: [across left, right, along back, front]
       const insets = field.cells.map((c): [number, number, number, number] => {
         if (!insideToo) return [0, 0, 0, 0];
@@ -389,7 +422,19 @@ export class CityFarmFields {
         const half = c.size / 2 * grow(c), halfV = half * c.span, [l, r, b, f] = insets[n];
         innerVerts += patch(c, -half + l, -halfV + b, half - r, halfV - f, INNER_LIFT, inner);
       });
-      this.verts.push([outerVerts, innerVerts]);
+      // (the tint's vertices are in its own mesh, never recoloured: the month does not change it)
+      this.verts.push(tint ? [0, 0] : [outerVerts, innerVerts]);
+    }
+    if (tintPositions.length) {
+      const tintGeometry = new BufferGeometry();
+      tintGeometry.setAttribute('position', new BufferAttribute(new Float32Array(tintPositions), 3));
+      tintGeometry.setAttribute('color', new BufferAttribute(new Float32Array(tintColours), 3));
+      tintGeometry.computeVertexNormals();
+      tintGeometry.computeBoundingSphere();
+      this.paint = new Mesh(tintGeometry, this.paintMaterial);
+      this.paint.name = 'farm_fields/paint';
+      this.paint.visible = this.washShown > 0;
+      this.root.add(this.paint);
     }
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));

@@ -154,6 +154,12 @@ export interface CityView {
    * roads while a zone brush or a road tool is in hand, as Cities: Skylines shows its zone cells.
    */
   zoneGrid?(on: boolean): void;
+  /**
+   * 3D only, optional: shows or hides the zones' colour wash (homes, shops, factories and the farm zone's painted tint,
+   * painted or grown), shown only while a tool that builds is in hand and faded out with none or the query tool (owner,
+   * 23 Oct 2026: "ถ้าไม่คลิก tool สีจะหายไป ไม่แสดงอีก หรือจะคลิกสร้าง tool ใดๆ ค่อยแสดง"). What stands there stays drawn.
+   */
+  zoneWash?(on: boolean): void;
 }
 
 /** The functions every view has; tests of each view check them (test/cityView.ts, and the 3D view's own test). */
