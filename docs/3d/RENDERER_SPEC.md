@@ -233,6 +233,14 @@ which the renderer only reads:
     whose ground moved are told), and the near ground (`terrain-detail.ts`) refills changed tiles in place, a few a frame,
     never taking a patch away (thrown away and rebuilt over many frames, it let the far ground show through each time a
     plot grew).
+  - **Driveways to the door (owner, 23 Oct 2026: "ทางเข้าวัด หรือเข้าบ้าน ควรจะตรงประตูบ้าน ไม่ใช่วาดมามั่วๆ"; `roadCurves.ts`
+    `drivewayOf`).** One per building, worked out from its entrance: the gate in its fence for a fenced building of the
+    ruler's (`compounds.ts compoundSides`, the gate on the side it faces), else the middle of its front as drawn (a
+    temple's main gate is the middle of its wall's front). It runs straight out the way the entrance faces to the edge of
+    the road in front, cut along that edge and flared 0.8 m each side, square to the building at the entrance. None where
+    the building meets its road already, where no road lies in front of the entrance, or where the road runs past at
+    its side. Half widths (`driveHalfWidth`): a home 0.6 m in eras 1-2 (a footpath), 1.2 m later; a shop 1.5 m; the
+    ruler's buildings and temples 1.5 m in eras 1-2, 2.2 m later.
   - `tileAt` picks against the raised ground, and the camera's target follows it.
 - `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
   `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.

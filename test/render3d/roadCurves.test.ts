@@ -450,3 +450,67 @@ describe('road curves', () => {
     expect(visibleMeshes(open).length).toBeLessThan(visibleMeshes(ground).length);
   });
 });
+
+describe('driveways lead from the road to the entrance (owner, 23 Oct 2026: "ทางเข้าวัด หรือเข้าบ้าน ควรจะตรงประตูบ้าน")', () => {
+  /** A road along row 20 and a building's 3 x 3 north of it, set back a tile from it, the road at the given slant */
+  function town(slant = 0): { curves: RoadCurves; snapshot: TileSnapshot; W: number } {
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let x = 5; x < 36; x++) snapshot.values[(20 + Math.round((x - 20) * slant)) * W + x] = 66;
+    snapshot.curves = true;
+    // the ruler's house, its centre tile (20, 17)
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    return { curves: new RoadCurves(snapshot, flat), snapshot, W };
+  }
+
+  test('a building set back from its road gets one driveway, from the road edge, square to it, to its front', () => {
+    const { curves, snapshot, W } = town();
+    const p = snapshot.placement(17 * W + 20, 'central')!;
+    const drives = curves.driveways();
+    expect(drives).toHaveLength(1);
+    const d = drives[0];
+    // its end is the middle of the building's front (within a metre: 10 world units a tile of 10 m here)
+    const front = p.front ?? 0, entrance = [p.x, p.z + front];
+    expect(Math.hypot(d.to[0] - entrance[0], d.to[1] - entrance[1])).toBeLessThan(1);
+    // ... its start at the road's edge, straight out in front of the entrance
+    const road = 20 * 10 + 5;
+    expect(d.from[0]).toBeCloseTo(d.to[0], 4);
+    expect(road - d.from[1]).toBeCloseTo(roadReach(1, snapshot.realUnits) * 0.72, 1);
+    curves.dispose();
+  });
+
+  test("a fenced building of the ruler's on a real-scale map: its driveway ends at the gate in its fence", () => {
+    const { snapshot, W } = town();
+    // 16 m tiles, the house kept in metres facing south (its front (sin 0, cos 0)), fenced (compounds.ts)
+    const b = { id: 1, tool: 'police', x: 20.5 * 16, z: 17.5 * 16, rot: 0, size: 3, tile: 17 * W + 20 };
+    snapshot.realUnits = 10 / 16;
+    snapshot.source = { tileSizeM: 16, buildings: { all: () => [b], atTile: (t: number) => (t === b.tile ? b : undefined), version: 1 },
+      getTileValue: (x: number, y: number) => snapshot.values[y * W + x], getTile: (x: number, y: number) => ({ isZone: () => y * W + x === b.tile }),
+      width: W, height: 40 } as never;
+    const curves = new RoadCurves(snapshot, flat), drives = curves.driveways();
+    expect(drives).toHaveLength(1);
+    // the gate: the middle of the fence's south side, (20.5, 19) tiles, in world units
+    const gate = [20.5 * 10, 19 * 10], d = drives[0], metre = 10 / 16;
+    expect(Math.hypot(d.to[0] - gate[0], d.to[1] - gate[1])).toBeLessThan(metre);
+    expect(d.from[0]).toBeCloseTo(gate[0], 3);
+    // a lane for a building of the ruler's in a village
+    expect(d.halfWidth).toBeCloseTo(1.5 * Math.min(1, metre), 4);
+    curves.dispose();
+  });
+
+  test('no driveway to a road running past at the side, and none where the building already meets its road', () => {
+    // the road turned along the building's side: north-south past its east side
+    const W = 40, snapshot = new TileSnapshot(W, 40);
+    for (let y = 5; y < 36; y++) snapshot.values[y * W + 24] = 66;
+    snapshot.curves = true;
+    for (let k = 0; k < 9; k++) snapshot.values[(16 + Math.floor(k / 3)) * W + 19 + k % 3] = 414 + k;
+    snapshot.flags[17 * W + 20] = ZONEBIT;
+    const curves = new RoadCurves(snapshot, flat);
+    for (const d of curves.driveways()) {
+      // whatever is laid leads straight from the road to the entrance, across the road's way
+      const dx = d.to[0] - d.from[0], dz = d.to[1] - d.from[1];
+      expect(Math.abs(dz) / Math.hypot(dx, dz)).toBeLessThan(0.2);
+    }
+    curves.dispose();
+  });
+});
