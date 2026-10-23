@@ -9,31 +9,33 @@
     <link rel="icon" type="image/png" href="assets/icons/app/icon-32.png" sizes="32x32">
     <link rel="apple-touch-icon" href="assets/icons/app/icon-180.png">
     <title>PhaiCity — หลังบ้าน</title>
+    <link rel="stylesheet" href="css/theme.css">
     <style>
       @font-face { font-family: Sarabun; src: url('assets/fonts/Sarabun-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
-      :root { --ink: #213b38; --muted: #667a73; --paper: #f2f4ed; --line: #d6ddd1; --card: #fffef8; --accent: #226b57;
-              --gold: #b8860b; --bad: #b3261e; --good: #2e7d4f; }
+      :root { --ink: var(--ph-ink); --muted: var(--ph-ink-dim); --paper: var(--ph-paper); --line: var(--ph-line);
+              --card: var(--ph-paper-hi); --accent: var(--ph-accent-strong); --gold: var(--ph-gold-deep);
+              --bad: var(--ph-danger); --good: var(--ph-success); }
       * { box-sizing: border-box; }
       [hidden] { display: none !important; }
-      body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 Sarabun, system-ui, sans-serif; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 var(--ph-font-body); }
       header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; padding: 10px 24px;
                background: var(--card); border-bottom: 1px solid var(--line); }
       header h1 { margin: 0; font-size: 18px; font-weight: 400; }
       header .status { margin-left: auto; color: var(--muted); }
       header .status.dirty { color: var(--gold); }
       header .status.error { color: var(--bad); }
-      button { font: inherit; border: 1px solid var(--line); border-radius: 6px; background: white; padding: 4px 12px; cursor: pointer; }
-      button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+      button { font: inherit; color: inherit; border: 1px solid var(--line); border-radius: var(--ph-radius-button); background: var(--card); padding: 4px 12px; cursor: pointer; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: var(--ph-on-accent); }
       button:disabled { opacity: 0.5; cursor: default; }
       .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: calc(100vh - 52px); }
-      aside { border-right: 1px solid var(--line); padding: 12px; background: #eef1e8; }
+      aside { border-right: 1px solid var(--line); padding: 12px; background: var(--ph-sand-200); }
       aside input, aside select { width: 100%; font: inherit; padding: 4px 8px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; }
       #provinceList { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 160px); overflow: auto; }
       #provinceList button { width: 100%; text-align: left; border: none; background: none; padding: 3px 8px; border-radius: 5px; display: flex; gap: 6px; }
-      #provinceList button:hover { background: white; }
-      #provinceList button.selected { background: var(--accent); color: white; }
+      #provinceList button:hover { background: var(--card); }
+      #provinceList button.selected { background: var(--accent); color: var(--ph-on-accent); }
       #provinceList .id { margin-left: auto; color: var(--muted); font-size: 12px; }
-      #provinceList .selected .id { color: #d9efe7; }
+      #provinceList .selected .id { color: var(--ph-on-accent); }
       #provinceList .mark { color: var(--gold); }
       main { padding: 16px 28px 60px; max-width: 1180px; }
       h2 { margin: 0 0 2px; font-size: 24px; font-weight: 400; }
@@ -53,28 +55,51 @@
       select.level { font: inherit; padding: 1px 4px; }
       textarea { width: 100%; min-height: 60px; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
       .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-      .tabs button.selected { background: var(--accent); color: white; border-color: var(--accent); }
+      .tabs button.selected { background: var(--accent); color: var(--ph-on-accent); border-color: var(--accent); }
       .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
       .fields label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); }
       .fields input { font: inherit; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
-      .fields input.own { border-color: var(--accent); background: #f3faf6; }
+      .fields input.own { border-color: var(--accent); background: var(--ph-accent-soft); }
       .months { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 6px 0; }
       .months label { font-size: 13px; color: var(--ink); flex-direction: row; gap: 3px; }
       .effects { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
       .effects li { padding: 2px 10px; border-radius: 999px; font-size: 12px; }
-      .effects li.good { background: #e3f3e8; color: var(--good); }
-      .effects li.bad { background: #fbe7e4; color: var(--bad); }
+      .effects li.good { background: var(--ph-rice-50); color: var(--good); }
+      .effects li.bad { background: var(--ph-chili-50); color: var(--bad); }
       .problems { color: var(--bad); white-space: pre-wrap; }
       .hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+      header nav { display: flex; gap: 6px; }
+      header nav button.selected { background: var(--accent); border-color: var(--accent); color: var(--ph-on-accent); }
+      /* How the game feels (src/gameFeel.ts): one card a group, a row a number */
+      #feel { padding: 16px 28px 60px; max-width: 1100px; }
+      .feelCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 16px; align-items: start; }
+      .feelCard { background: var(--card); border: 1px solid var(--line); border-radius: var(--ph-radius-card); box-shadow: var(--ph-shadow-lift); padding: 12px 16px; }
+      .feelCard h3 { margin-top: 0; }
+      .feelCard h4 { margin: 12px 0 2px; font-weight: 400; color: var(--ink); }
+      .feelRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+      .feelRow:last-child { border-bottom: none; }
+      .feelRow .name { color: var(--ink); }
+      .feelRow .why { grid-column: 1; color: var(--muted); font-size: 12px; }
+      .feelRow .value { grid-row: 1 / span 2; grid-column: 2; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+      .feelRow input { width: 84px; font: inherit; color: var(--ink); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--ph-radius-chip); background: var(--card); text-align: right; }
+      .feelRow input.changed { border-color: var(--accent); background: var(--ph-accent-soft); }
+      .feelRow input.wrong { border-color: var(--bad); background: var(--ph-chili-50); }
+      .feelRow .unit { color: var(--muted); font-size: 12px; min-width: 64px; }
+      .feelRow .reads { grid-column: 1; color: var(--accent); font-size: 12px; }
+      .feelRow button.reset { font-size: 12px; padding: 1px 8px; }
     </style>
   </head>
   <body>
     <header>
-      <h1>PhaiCity — หลังบ้าน: กติกาและทรัพยากรของภาคและจังหวัด</h1>
+      <h1>PhaiCity — หลังบ้าน</h1>
+      <nav>
+        <button id="showProvinces" class="selected">กติกาและทรัพยากรของภาคและจังหวัด</button>
+        <button id="showFeel">ความรู้สึกของเกม</button>
+      </nav>
       <span id="status" class="status">กำลังโหลด…</span>
       <button id="save" class="primary" disabled>บันทึก</button>
     </header>
-    <div class="layout">
+    <div id="provinces" class="layout">
       <aside>
         <input id="search" type="search" placeholder="ค้นหาจังหวัด">
         <select id="regionFilter"><option value="">ทุกภาค</option></select>
@@ -85,5 +110,6 @@
         <p class="sub">เลือกจังหวัดทางซ้าย</p>
       </main>
     </div>
+    <main id="feel" hidden></main>
   </body>
 </html>

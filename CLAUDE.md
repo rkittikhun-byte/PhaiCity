@@ -409,6 +409,11 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   `npm run dev` only, never in a build: the owner sees each province's measurements and sets its resources and its own
   and its region's rules; saving goes through the dev server's endpoint (`scripts/admin/adminServer.mjs`, localhost
   pages only), checked with the game's own checks, into the two data files.
+  Its "ความรู้สึกของเกม" view (owner, 23 Oct 2026; `src/admin/feelPanel.ts`) sets `data/game-feel.json` (`src/gameFeel.ts`,
+  `docs/GAME_DESIGN.md` 19): the day's length, the weather's easing, the smart camera's views and the edge scroll, never the
+  simulation; the game reads it when it opens, plays with the game's own numbers where it is missing or wrong, and a game
+  open in the same browser takes a save at once; the player's settings window makes the day short, normal or long
+  (`src/dayLength.ts`, `phaicity.dayLength`).
 - **City map (แผนที่เมือง):** `src/mapWindow.js` draws `src/cityMap.ts`, the whole city at one pixel per tile or one
   of the simulation's overlays (power, the water supply, groundwater, traffic, pollution, crime, land value,
   population, police and fire cover);

@@ -12,9 +12,11 @@
 // Only the view moves: nothing here changes the city.
 
 import { modeGroupOf } from "./drawModes.js";
+import { DEFAULT_FEEL, gameFeel } from "./gameFeel.js";
 
-/** How long a glide takes (ms) */
-export const GLIDE_MS = 700;
+/** How long a glide takes (ms), as the game comes; the owner sets it in data/game-feel.json (src/gameFeel.ts) */
+export const GLIDE_MS = DEFAULT_FEEL.camera.glideSeconds * 1000;
+const glideMs = (): number => gameFeel().camera.glideSeconds * 1000;
 /** The camera's lens: its vertical field of view (degrees, render3d/city/camera.ts) */
 const FOV_DEGREES = 38;
 
@@ -22,15 +24,21 @@ const FOV_DEGREES = 38;
  * and whether the view turns so the road nearest the centre runs across it */
 export interface CameraPreset { pitchDeg: number; widthM: number; alongRoad?: boolean }
 
-/** The presets by kind of tool (owner, 23 Oct 2026: first 250, 600 and 150 m were "zoom ใกล้ไป", then 450, 900 and 400 m
- * were twice too far, "ปรับลดลงมาครึ่งนึง": halfway back) */
+/** The presets by kind of tool as the game comes (owner, 23 Oct 2026: first 250, 600 and 150 m were "zoom ใกล้ไป", then
+ * 450, 900 and 400 m were twice too far, "ปรับลดลงมาครึ่งนึง": halfway back); the owner sets their tilt and width in
+ * data/game-feel.json (src/gameFeel.ts), and presetOf is what the camera uses */
 export const PRESETS = {
-  paint: { pitchDeg: 65, widthM: 350, alongRoad: true },
-  line: { pitchDeg: 60, widthM: 750 },
-  build: { pitchDeg: 48, widthM: 275 },
-  land: { pitchDeg: 60, widthM: 1500 },
+  paint: { ...DEFAULT_FEEL.camera.paint, alongRoad: true },
+  line: { ...DEFAULT_FEEL.camera.line },
+  build: { ...DEFAULT_FEEL.camera.build },
+  land: { ...DEFAULT_FEEL.camera.land },
 } as const satisfies Record<string, CameraPreset>;
 export type PresetKind = keyof typeof PRESETS;
+
+/** A kind of tool's preset now, with the owner's tilt and width */
+export function presetOf(kind: PresetKind): CameraPreset {
+  return { ...PRESETS[kind], ...gameFeel().camera[kind] };
+}
 
 /** Tools that never move the camera: the bulldozer, the inspector (its click frames what it shows), the move tool */
 const STILL_TOOLS = new Set(["bulldozer", "query", "move"]);
@@ -65,11 +73,13 @@ export function headingAlong(tx: number, tz: number, current: number): number {
   return current + (Math.abs(a) <= Math.abs(b) ? a : b);
 }
 
-/** Close enough that a glide would only twitch: within 5 degrees of tilt and 20% of distance (8 degrees of heading) */
+/** Close enough that a glide would only twitch: within 5 degrees of tilt and 20% of distance (8 degrees of heading), as
+ * the game comes (data/game-feel.json camera.still…) */
 export function nearPose(now: CameraPose, want: Partial<CameraPose>): boolean {
-  if (want.pitch !== undefined && Math.abs(now.pitch - want.pitch) > 5 * Math.PI / 180) return false;
-  if (want.distance !== undefined && Math.abs(Math.log(now.distance / want.distance)) > 0.2) return false;
-  if (want.heading !== undefined && Math.abs(turnBetween(now.heading, want.heading)) > 8 * Math.PI / 180) return false;
+  const still = gameFeel().camera;
+  if (want.pitch !== undefined && Math.abs(now.pitch - want.pitch) > still.stillPitchDeg * Math.PI / 180) return false;
+  if (want.distance !== undefined && Math.abs(Math.log(now.distance / want.distance)) > still.stillDistanceShare) return false;
+  if (want.heading !== undefined && Math.abs(turnBetween(now.heading, want.heading)) > still.stillHeadingDeg * Math.PI / 180) return false;
   if (want.x !== undefined && want.z !== undefined && Math.hypot(now.x - want.x, now.z - want.z) > now.distance * 0.05) return false;
   return true;
 }
@@ -161,8 +171,9 @@ export class SmartCamera {
     if (!on || !c || !now || c.flat || this.busy() || c.isAnimating(this.now())) return false;
     if (want.distance !== undefined) want.distance = Math.max(c.minDistance, Math.min(c.maxDistance, want.distance));
     if (nearPose(now, want)) return false;
-    c.glide(want, GLIDE_MS);
-    this.glidedUntil = this.now() + GLIDE_MS;
+    const ms = glideMs();
+    c.glide(want, ms);
+    this.glidedUntil = this.now() + ms;
     return true;
   }
 
@@ -174,7 +185,7 @@ export class SmartCamera {
     this.kind = kind;
     // Putting a tool down (Esc) leaves the camera where it is
     if (kind === null) return;
-    const preset: CameraPreset = PRESETS[kind], c = this.camera;
+    const preset = presetOf(kind), c = this.camera;
     if (!c) return;
     const units = this.view.unitsPerMetre?.() ?? 1, aspect = this.view.width / Math.max(1, this.view.height);
     if (units <= 0) return;

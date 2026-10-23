@@ -1120,6 +1120,11 @@
 | `graphics.medium` | `index.html` | `-` | `Medium` | `กลาง` | ตัวเลือกคุณภาพภาพ: แสงเรือง + เบลอแบบโมเดลจิ๋ว |
 | `graphics.high` | `index.html` | `-` | `High` | `สูง` | ตัวเลือกคุณภาพภาพ: เพิ่มเงาตามมุม |
 | `graphics.smart_camera` | `index.html` | `-` | `Smart camera: each tool moves the view to where it is best used` | `กล้องอัจฉริยะ: เลือกเครื่องมือแล้วกล้องเลื่อนไปมุมที่ใช้งานง่าย` | สวิตช์ในหน้าตั้งค่า (src/smartCamera.ts) |
+| `day_length.title` | `index.html` | `-` | `Length of a day` | `ความยาวหนึ่งวัน` | หัวข้อในหน้าต่างตั้งค่า เก็บแยกตามเบราว์เซอร์ (`src/dayLength.ts`, ไม้ไผ่43 23 ต.ค. 2026) |
+| `day_length.short` | `index.html` | `-` | `Short` | `สั้น` | ครึ่งหนึ่งของวันที่เจ้าของตั้ง (`data/game-feel.json`) |
+| `day_length.normal` | `index.html` | `-` | `Normal` | `ปกติ` | วันตามที่เจ้าของตั้ง |
+| `day_length.long` | `index.html` | `-` | `Long` | `ยาว` | สองเท่าของวันที่เจ้าของตั้ง |
+| `day_length.hint` | `index.html` | `-` | `How fast the clock turns morning to night: short is half as long, long twice as long. The calendar and the city go on as they do.` | `นาฬิกาเดินจากเช้าถึงค่ำเร็วแค่ไหน สั้นคือครึ่งหนึ่ง ยาวคือสองเท่า ปฏิทินและเมืองยังเดินเท่าเดิม` | คำอธิบายใต้ตัวเลือก |
 | `graphics.hint` | `index.html` | `-` | `Auto keeps the city smooth by itself. Medium adds the glow of lights and the model-like blur; High adds soft contact shadows.` | `อัตโนมัติจะปรับให้ภาพลื่นเอง ระดับกลางเพิ่มแสงเรืองของไฟและภาพเบลอขอบแบบเมืองจำลอง ระดับสูงเพิ่มเงานุ่มตามซอกมุม` | คำอธิบายใต้ตัวเลือก |
 | `footer.map_credit` | `index.html` | `Province maps: map data © OpenStreetMap contributors (ODbL) · province shapes from Natural Earth.` | `Province maps: map data © {osm} (ODbL) · province shapes from {ne}.` | `แผนที่จังหวัด: ข้อมูลแผนที่ © {osm} (ODbL) · รูปร่างจังหวัดจาก {ne}` | เครดิตตามสัญญาอนุญาต ODbL: ลิงก์ {osm} คงข้อความ "OpenStreetMap contributors" ทั้งสองภาษา |
 

@@ -76,7 +76,8 @@ import { BUILDING_SCALE } from './render3d/city/tileModels.ts';
 import { aroundCorners, curvePath, END_SNAP_REACH, GRID_SPACING, gridLines, gridPath, joinAngle, linePath, MAX_SNAP_REACH, MIN_SNAP_REACH, rectanglePath,
   snapAlong, snapAngle, SNAP_DEGREES, snapPoint } from './drawPaths.ts';
 import { dozeStroke, dozeTile, loneRoads } from './dozing.ts';
-import { BAND_BUILDING_SHARE, BAND_DWELL_MS, BAND_PX, edgeBand, edgeScroll } from './edgeScroll.ts';
+import { edgeBand, edgeScroll } from './edgeScroll.ts';
+import { gameFeel } from './gameFeel.ts';
 import { ERASE_TOOL, fillRegion, isOpenLand, PAINT_PRICE_SHARE, PAINT_TOOLS, PLOT_KINDS } from './plots.ts';
 import { farmLevel, fisheryLevel } from './farming.ts';
 import { relabelTools, showToolPrices, toolLabel } from './toolShortcuts.ts';
@@ -106,6 +107,7 @@ import { cameraMode, installCameraBar } from './cameraModes.ts';
 import { bindSmartCameraSetting, SmartCamera } from './smartCamera.ts';
 import { installTimeControls } from './timeControls.ts';
 import { DayClock } from './dayClock.ts';
+import { bindDayLengthSetting } from './dayLength.ts';
 import { skyAt } from './rainSpells.ts';
 import { inspectAt } from './inspect.ts';
 import { InspectCard } from './inspectCard.ts';
@@ -719,6 +721,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     return input._dragging || input.areaDrag !== null || input.pathDrag !== null || homeFlying();
   });
   bindSmartCameraSetting();
+  // The player's length of a day (src/dayLength.ts): how fast the clock turns the hours, kept for this browser
+  bindDayLengthSetting();
   this.watchPointer();
   document.addEventListener('phaicity:active_tool_changed', function(event) {
     self.updateContextualOverlay(event.detail && event.detail.tool);
@@ -3980,16 +3984,17 @@ Game.prototype.edgeScrollView = function() {
     this._bandSince = null;
     return;
   }
-  var x = mx, y = my;
-  if (x >= BAND_PX && y >= BAND_PX && box.width - x >= BAND_PX && box.height - y >= BAND_PX) {
+  // (the band's width, the rest in it and a building's share of its speed: the owner's, src/gameFeel.ts)
+  var x = mx, y = my, band = gameFeel().edge;
+  if (x >= band.bandPx && y >= band.bandPx && box.width - x >= band.bandPx && box.height - y >= band.bandPx) {
     this._bandSince = null;
     return;
   }
   if (this._bandSince === null || this._bandSince === undefined)
     this._bandSince = now;
-  if (now - this._bandSince < BAND_DWELL_MS)
+  if (now - this._bandSince < band.bandDwellMs)
     return;
-  move = edgeBand(x, y, box.width, box.height, seconds, input.currentTool !== null ? BAND_BUILDING_SHARE : 1);
+  move = edgeBand(x, y, box.width, box.height, seconds, input.currentTool !== null ? band.bandBuildingShare : 1);
   if (move.dx !== 0 || move.dy !== 0)
     pan(move.dx, move.dy);
 };

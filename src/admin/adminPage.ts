@@ -6,7 +6,8 @@
 // (its measurements, resources and rules) to see, and its resources and its own and its region's rules to set.
 // It edits the two data files as they are, comments and all, and saves them through the dev server's endpoint
 // (scripts/admin/adminServer.mjs), which checks them with the game's own checks. An owner's tool in Thai, like the
-// map review page (geo-review.html); the resources' names, gains and costs come from the game's strings.
+// map review page (geo-review.html); the resources' names, gains and costs come from the game's strings. Its second view
+// is how the game feels (data/game-feel.json, src/admin/feelPanel.ts).
 
 import { t } from "../i18n/index";
 import {
@@ -16,6 +17,7 @@ import {
   checkProfilesData, type Indicators, type Levels, MADE_UP, MAX_LEVEL, measuredLevels, provinceLevels,
   type ProfileEntry, type ResourceId,
 } from "../geo/provinceResources";
+import { saveFeel, showFeel } from "./feelPanel";
 
 interface Region { id: string; nameTh: string; nameEn: string }
 interface Province { id: string; nameTh: string; nameEn: string; region: string }
@@ -32,6 +34,8 @@ let measured: Record<string, Levels> = {};
 let selected: string | null = null;
 let layer: "province" | "region" = "province";
 let dirty = false;
+/** The feel changed and not saved yet */
+let feelDirty = false;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -55,9 +59,26 @@ function setStatus(text: string, kind: "" | "dirty" | "error" = ""): void {
 
 function markDirty(): void {
   dirty = true;
+  markUnsaved();
+  renderList();
+}
+
+function markUnsaved(): void {
   ($("save") as HTMLButtonElement).disabled = false;
   setStatus("ยังไม่ได้บันทึก", "dirty");
-  renderList();
+}
+
+/** The provinces' view or the game's feel */
+function showView(feel: boolean): void {
+  $("provinces").hidden = feel;
+  $("feel").hidden = !feel;
+  $("showProvinces").classList.toggle("selected", !feel);
+  $("showFeel").classList.toggle("selected", feel);
+  try {
+    window.location.hash = feel ? "feel" : selected ?? "";
+  } catch {
+    // The hash only brings the owner back to the same view
+  }
 }
 
 function checkedRules(): RulesData {
@@ -399,15 +420,23 @@ async function save(): Promise<void> {
   ($("save") as HTMLButtonElement).disabled = true;
   setStatus("กำลังบันทึก…");
   try {
-    const response = await fetch("__admin/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rules: rulesRaw, profiles: profilesRaw }),
-    });
-    const result = await response.json() as { saved?: string[]; problems?: string[] };
-    if (!response.ok) throw new Error((result.problems ?? [`HTTP ${response.status}`]).join("\n"));
-    dirty = false;
-    setStatus(`บันทึกแล้ว: ${(result.saved ?? []).join(", ")}`);
+    const saved: string[] = [];
+    if (dirty) {
+      const response = await fetch("__admin/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules: rulesRaw, profiles: profilesRaw }),
+      });
+      const result = await response.json() as { saved?: string[]; problems?: string[] };
+      if (!response.ok) throw new Error((result.problems ?? [`HTTP ${response.status}`]).join("\n"));
+      dirty = false;
+      saved.push(...(result.saved ?? []));
+    }
+    if (feelDirty) {
+      saved.push(...await saveFeel());
+      feelDirty = false;
+    }
+    setStatus(`บันทึกแล้ว: ${saved.join(", ")}`);
   } catch (error) {
     ($("save") as HTMLButtonElement).disabled = false;
     setStatus(`บันทึกไม่ได้: ${(error as Error).message}`, "error");
@@ -421,7 +450,7 @@ async function load(): Promise<void> {
     return await response.json() as T;
   };
   const [files, list, measuredFile] = await Promise.all([
-    fetchJson<{ rules: typeof rulesRaw; profiles: typeof profilesRaw }>("__admin/data"),
+    fetchJson<{ rules: typeof rulesRaw; profiles: typeof profilesRaw; feel: Json | null }>("__admin/data"),
     fetchJson<{ regions: Region[]; provinces: Province[] }>("data/thailand-provinces.json"),
     fetchJson<{ provinces: Record<string, Indicators> }>("data/geo/province-indicators.json"),
   ]);
@@ -441,12 +470,19 @@ async function load(): Promise<void> {
   $("search").addEventListener("input", renderList);
   $("save").addEventListener("click", () => void save());
   window.addEventListener("beforeunload", (event) => {
-    if (dirty) event.preventDefault();
+    if (dirty || feelDirty) event.preventDefault();
   });
+  showFeel($("feel"), files.feel, () => {
+    feelDirty = true;
+    markUnsaved();
+  });
+  $("showProvinces").addEventListener("click", () => showView(false));
+  $("showFeel").addEventListener("click", () => showView(true));
   setStatus("พร้อม");
   renderList();
   const fromHash = window.location.hash.slice(1);
   select(provinces.some((p) => p.id === fromHash) ? fromHash : provinces[0].id);
+  if (fromHash === "feel") showView(true);
 }
 
 load().catch((error: Error) => setStatus(`โหลดไม่ได้: ${error.message} (เปิดผ่าน npm run dev เท่านั้น)`, "error"));

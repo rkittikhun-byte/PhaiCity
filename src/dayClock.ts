@@ -9,6 +9,9 @@
 // the simulation's and goes its own pace. The game owns the clock and tells the 3D view where the sun stands; the
 // simulation never reads it. Plain code, no DOM.
 
+import { DEFAULT_FEEL, gameFeel } from "./gameFeel.js";
+import { dayLengthFactor } from "./dayLength.js";
+
 /** The month's sunrise and sunset (0 January), hours of the day, Thai time, about as they are at Khon Kaen (16.4° N) */
 export const SUN_HOURS: ReadonlyArray<readonly [number, number]> = [
   [6 + 43 / 60, 18 + 2 / 60], [6 + 40 / 60, 18 + 17 / 60], [6 + 27 / 60, 18 + 24 / 60], [6 + 9 / 60, 18 + 29 / 60],
@@ -16,11 +19,21 @@ export const SUN_HOURS: ReadonlyArray<readonly [number, number]> = [
   [6 + 9 / 60, 18 + 17 / 60], [6 + 13 / 60, 17 + 56 / 60], [6 + 22 / 60, 17 + 42 / 60], [6 + 36 / 60, 17 + 46 / 60],
 ];
 
-/** Real seconds a whole day takes at each speed (1 slow, 2 normal, 3 fast): 8, 6 and 4 minutes (owner, 23 Oct 2026:
- * "ช่วงสลับ กลางวัน กลางคืน ... มันเร็วไป"; it was 4, 3 and 2) */
-export const DAY_SECONDS: Readonly<Record<number, number>> = { 1: 480, 2: 360, 3: 240 };
-/** The night goes this many times as fast as the day */
-export const NIGHT_PACE = 2;
+/** Real seconds a whole day takes at each speed (1 slow, 2 normal, 3 fast) as the game comes: 8, 6 and 4 minutes (owner,
+ * 23 Oct 2026: "ช่วงสลับ กลางวัน กลางคืน ... มันเร็วไป"; it was 4, 3 and 2). The owner sets them in data/game-feel.json
+ * (src/gameFeel.ts) and the player makes the day shorter or longer (src/dayLength.ts): daySeconds is what the clock uses */
+export const DAY_SECONDS: Readonly<Record<number, number>> =
+  { 1: DEFAULT_FEEL.day.seconds1x, 2: DEFAULT_FEEL.day.seconds2x, 3: DEFAULT_FEEL.day.seconds3x };
+/** The night goes this many times as fast as the day, as the game comes (data/game-feel.json day.nightPace) */
+export const NIGHT_PACE = DEFAULT_FEEL.day.nightPace;
+
+/** Real seconds a whole day takes now at a speed: the owner's day times the player's length; 0 for a paused game */
+export function daySeconds(speed: number): number {
+  const day = gameFeel().day;
+  const seconds = speed === 1 ? day.seconds1x : speed === 2 ? day.seconds2x : speed === 3 ? day.seconds3x : 0;
+  return seconds * dayLengthFactor();
+}
+
 /** A new city's first morning */
 export const FIRST_HOUR = 7;
 
@@ -67,15 +80,15 @@ export class DayClock {
 
   /** Moves the clock on by realSeconds at a game speed (0 paused: it stands), in the month of the calendar */
   advance(realSeconds: number, speed: number, month: number): void {
-    const daySeconds = DAY_SECONDS[speed];
-    if (!daySeconds || !(realSeconds > 0)) return;
+    const seconds = daySeconds(speed), nightPace = gameFeel().day.nightPace;
+    if (!seconds || !(realSeconds > 0)) return;
     // A real second is worth more hours at night: the day's hours and the night's, as quick, make the whole day
     const { rise, set } = sunHours(month), dayHours = set - rise, nightHours = 24 - dayHours;
-    const dayRate = (dayHours + nightHours / NIGHT_PACE) / daySeconds;
+    const dayRate = (dayHours + nightHours / nightPace) / seconds;
     // Never more than a few game minutes a frame, so a long stall does not jump the clock
     let left = Math.min(realSeconds, 1);
     while (left > 0) {
-      const rate = isNight(this.hour, month) ? dayRate * NIGHT_PACE : dayRate;
+      const rate = isNight(this.hour, month) ? dayRate * nightPace : dayRate;
       const step = Math.min(left, 0.25);
       this.hour = (this.hour + rate * step) % 24;
       left -= step;

@@ -7,9 +7,10 @@
 // the project, which git keeps the history of (docs/PROVINCE_PROFILE.md). Once the game is online the same page talks
 // to the server's database instead (ONLINE_PLAN 5.2).
 //
-// GET  /__admin/data  the two files as they are on disk
+// GET  /__admin/data  the two files as they are on disk, and the game's feel (data/game-feel.json; null without it)
 // POST /__admin/save  { rules, profiles }: both checked with the game's own checks (src/provinceRules.ts,
 //                     src/geo/provinceResources.ts) and written only when nothing is wrong
+// POST /__admin/feel  { feel }: how the game feels (src/gameFeel.ts), checked the same way, into data/game-feel.json
 //
 // Only this machine's own pages may save: a request must come from a localhost page, as JSON, and be small.
 
@@ -68,11 +69,29 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-/** Adds the two routes to the dev server's app. root: the project folder. */
+/** Writes a data file as the hand-written ones are laid out, keeping the line endings it has on this machine */
+function writeJson(file, value) {
+  const crlf = fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes('\r\n');
+  const text = formatJson(value) + '\n';
+  fs.writeFileSync(file, crlf ? text.replace(/\n/g, '\r\n') : text);
+}
+
+/** Whether a save may go ahead: from this machine's own page, as JSON (else it is answered 403) */
+function fromLocalPage(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !LOCAL_ORIGIN.test(origin) || !/^application\/json\b/.test(req.headers['content-type'] ?? '')) {
+    send(res, 403, { problems: ['only this machine\'s admin page may save'] });
+    return false;
+  }
+  return true;
+}
+
+/** Adds the routes to the dev server's app. root: the project folder. */
 export function addAdminRoutes(app, root) {
   const files = {
     rules: path.join(root, 'data', 'province-rules.json'),
     profiles: path.join(root, 'data', 'province-profiles.json'),
+    feel: path.join(root, 'data', 'game-feel.json'),
   };
   // The game's own checks, run here as they are (Node 22.18+ strips their types), loaded on the first save
   const loadChecks = () => Promise.all([
@@ -85,6 +104,7 @@ export function addAdminRoutes(app, root) {
       send(res, 200, {
         rules: JSON.parse(fs.readFileSync(files.rules, 'utf8')),
         profiles: JSON.parse(fs.readFileSync(files.profiles, 'utf8')),
+        feel: fs.existsSync(files.feel) ? JSON.parse(fs.readFileSync(files.feel, 'utf8')) : null,
       });
     } catch (error) {
       send(res, 500, { problems: [String(error.message)] });
@@ -92,11 +112,7 @@ export function addAdminRoutes(app, root) {
   });
 
   app.post('/__admin/save', async (req, res) => {
-    const origin = req.headers.origin;
-    if (!origin || !LOCAL_ORIGIN.test(origin) || !/^application\/json\b/.test(req.headers['content-type'] ?? '')) {
-      send(res, 403, { problems: ['only this machine\'s admin page may save'] });
-      return;
-    }
+    if (!fromLocalPage(req, res)) return;
     let body;
     try {
       body = JSON.parse(await readBody(req));
@@ -116,12 +132,33 @@ export function addAdminRoutes(app, root) {
       send(res, 400, { problems });
       return;
     }
-    // Each file keeps the line endings it has on this machine
-    for (const [file, value] of [[files.rules, body.rules], [files.profiles, body.profiles]]) {
-      const crlf = fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes('\r\n');
-      const text = formatJson(value) + '\n';
-      fs.writeFileSync(file, crlf ? text.replace(/\n/g, '\r\n') : text);
-    }
+    writeJson(files.rules, body.rules);
+    writeJson(files.profiles, body.profiles);
     send(res, 200, { saved: [path.relative(root, files.rules), path.relative(root, files.profiles)] });
+  });
+
+  app.post('/__admin/feel', async (req, res) => {
+    if (!fromLocalPage(req, res)) return;
+    let body;
+    try {
+      body = JSON.parse(await readBody(req));
+    } catch (error) {
+      send(res, 400, { problems: ['not JSON, or too large'] });
+      return;
+    }
+    let checkFeelData;
+    try {
+      ({ checkFeelData } = await import(pathToFileURL(path.join(root, 'src', 'gameFeel.ts')).href));
+    } catch (error) {
+      send(res, 500, { problems: [`the checks could not load (Node 22.18 or newer is needed): ${error.message}`] });
+      return;
+    }
+    const { data, problems } = checkFeelData(body?.feel);
+    if (problems.length > 0) {
+      send(res, 400, { problems });
+      return;
+    }
+    writeJson(files.feel, body.feel);
+    send(res, 200, { saved: [path.relative(root, files.feel)], feel: data });
   });
 }

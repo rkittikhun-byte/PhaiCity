@@ -14,6 +14,7 @@ import { BufferAttribute, BufferGeometry, Color, type Group, LineSegments, Mater
 import type { Weather } from '../../weather.js';
 import { fogAtHour } from '../../rainSpells.js';
 import { SCENE } from '../../theme/tokens.js';
+import { gameFeel } from '../../gameFeel.js';
 
 /** What the view shows of the weather this frame, each 0–1 */
 export interface WeatherLook {
@@ -30,13 +31,12 @@ export interface WeatherLook {
 /** A clear day: how a city looks before its weather is read */
 export const CLEAR_LOOK: Readonly<WeatherLook> = { cloud: 0.15, storm: 0, rain: 0, fog: 0, smoke: 0, wet: 0, flash: 0 };
 
-/** How fast each part follows the month's weather, a share a second: about 20 s for the clouds to gather and the rain to
- * set in or stop, about half a minute for fog (owner, 23 Oct 2026: "ฝนตก มีหมอก มันเร็วไป"; it was 3 to 6 s) */
-const EASE = { cloud: 0.15, rain: 0.2, fog: 0.1, smoke: 0.08, storm: 0.15 };
+// How fast each part follows the month's weather is the owner's (data/game-feel.json "weather", src/gameFeel.ts): about
+// 20 s for the clouds to gather and the rain to set in or stop, about half a minute for fog (owner, 23 Oct 2026: "ฝนตก
+// มีหมอก มันเร็วไป"; it was 3 to 6 s), and the ground wet in a downpour and dry about a minute after it
+
 /** The rain falls once the clouds have gathered to this share of the month's cover */
 const RAIN_WAITS_FOR = 0.85;
-/** How fast the ground gets wet in a downpour, and dries after it, a share a second */
-const WETTING = 0.35, DRYING = 0.02;
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
@@ -45,16 +45,18 @@ export { fogAtHour };
 
 /** One frame of the look following the map's weather (none: a clear day), over dt seconds at an hour of the day */
 export function easeLook(look: WeatherLook, weather: Readonly<Weather> | null, dt: number, sunAngle: number): void {
+  // (how fast each part follows, a share a second, and the ground wets and dries: the owner's, src/gameFeel.ts)
+  const ease = gameFeel().weather;
   const step = (rate: number): number => 1 - Math.exp(-rate * Math.max(0, dt));
   const cloud = weather ? weather.cloud : CLEAR_LOOK.cloud;
-  look.cloud += (cloud - look.cloud) * step(EASE.cloud);
+  look.cloud += (cloud - look.cloud) * step(ease.cloud);
   // The rain waits for its clouds
   const rain = weather && look.cloud >= cloud * RAIN_WAITS_FOR ? weather.rain : 0;
-  look.rain += (rain - look.rain) * step(EASE.rain);
-  look.storm += ((weather?.kind === 'storm' ? 1 : 0) - look.storm) * step(EASE.storm);
-  look.fog += ((weather ? weather.fog * fogAtHour(sunAngle) : 0) - look.fog) * step(EASE.fog);
-  look.smoke += ((weather ? weather.smoke : 0) - look.smoke) * step(EASE.smoke);
-  look.wet = clamp01(look.rain > 0.05 ? look.wet + look.rain * WETTING * dt : look.wet - DRYING * dt);
+  look.rain += (rain - look.rain) * step(ease.rain);
+  look.storm += ((weather?.kind === 'storm' ? 1 : 0) - look.storm) * step(ease.storm);
+  look.fog += ((weather ? weather.fog * fogAtHour(sunAngle) : 0) - look.fog) * step(ease.fog);
+  look.smoke += ((weather ? weather.smoke : 0) - look.smoke) * step(ease.smoke);
+  look.wet = clamp01(look.rain > 0.05 ? look.wet + look.rain * ease.wetting * dt : look.wet - ease.drying * dt);
 }
 
 // --- Rain ----------------------------------------------------------------------------------------------------------

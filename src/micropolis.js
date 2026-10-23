@@ -31,6 +31,7 @@ import { installHudTooltips } from './hudTooltip.ts';
 import { installToolShortcuts } from './toolShortcuts.ts';
 import { installToolLevels } from './toolLevels.ts';
 import { installToolDock } from './toolDock.ts';
+import { loadGameFeel } from './gameFeel.ts';
 
 /*
  *
@@ -47,6 +48,11 @@ var onTilesLoaded = function() {
   var snowTiles = $('#snowtiles')[1];
   snowTileSet = new TileSet(snowTiles, onAllTilesLoaded, onFallbackTilesLoaded);
 };
+
+
+// How the game feels (src/gameFeel.ts): the owner's day, weather and camera numbers from data/game-feel.json, read
+// while the tiles load; until then, or if the file cannot be read, the game's own
+loadGameFeel();
 
 
 var onAllTilesLoaded = function() {
