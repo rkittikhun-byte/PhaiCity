@@ -13,7 +13,8 @@ import { CIVIC, FARM, HARBOUR, MINE, PLANT2, PLANT2_BASE, PLANT3, PLANT3_BASE, P
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, plotTile, PLOT_TOP, readPlotValue } from '../../plots.js';
-import { LOT_COLUMNS, type PlotBuilding, type PlotBuildings, type PlotListMap, usesPlotList } from '../../plotBuildings.js';
+import { builtLevel, constructionShare, constructionStage, isVacant, LOT_COLUMNS, type PlotBuilding, type PlotBuildings, type PlotListMap,
+  usesPlotList } from '../../plotBuildings.js';
 import type { CityMapReader } from './types.js';
 import { FrontagePlacement, type FrontageGround, Placement, RoadsidePlacement, type PlacementFields } from './placement.js';
 import { FRONTAGE_DEPTH_M, frontagePieces, listFrontagePieces, mapFrontagePlan, type FrontagePlan, type FrontagePlot } from './frontage.js';
@@ -308,7 +309,7 @@ export class TileSnapshot implements CityMapReader {
     this.plotsSeen = list.version;
     const signs = new Map<number, string>();
     for (const [anchor, ids] of list.byAnchor) {
-      signs.set(anchor, ids.map(id => { const p = list.get(id); return p ? `${id}:${p.level}:${p.value}:${p.style}:${p.columns.join(',')}` : ''; }).join(';'));
+      signs.set(anchor, ids.map(id => { const p = list.get(id); return p ? `${id}:${p.level}:${builtLevel(p)}:${this.stageOf(list,p)}:${p.value}:${p.style}:${p.columns.join(',')}` : ''; }).join(';'));
     }
     const moved: number[] = [];
     for (const [anchor, sign] of signs) if (this.plotSigns.get(anchor) !== sign) moved.push(anchor);
@@ -619,12 +620,18 @@ export class TileSnapshot implements CityMapReader {
    * bays or 12 m house along its own columns (frontage.ts), or its one model standing on them, its front against the
    * road, no wider than they are; null where none counted here has a building
    */
+  /** The stage a plot of the list's building is drawn at (src/plotBuildings.ts constructionStage): going up over its months
+   * (owner, 24 Oct 2026: "ต้องมีการเริ่มก่อสร้างด้วย ไม่ใช่หายแว๊บขึ้นมาเลย"), else finished */
+  private stageOf(list:PlotBuildings,plot:PlotBuilding):'stage_1'|'stage_2'|'closed' {
+    return this.enableConstruction?constructionStage(constructionShare(plot,list.now)):'closed';
+  }
   private listPlacement(i:number,region:RegionId,list:PlotBuildings):Placement|null {
-    const plots=list.atAnchor(i).filter(p=>p.level>0);
+    // (a building its people left still stands, as built: builtLevel)
+    const plots=list.atAnchor(i).filter(p=>builtLevel(p)>0);
     if(!plots.length||!this.source)return null;
     const metre=unitsPerMetre(tileMetres(this.source)),cu=CELL_M*metre,placed:Placement[]=[];
     let ground:FrontageGround|null=null;
-    const frontPlot=(p:PlotBuilding):FrontagePlot=>({kind:p.kind,level:p.level,lot:p.columns.length>=LOT_COLUMNS,era:this.eraOf(list.places.get(p.id)?.anchor??i)});
+    const frontPlot=(p:PlotBuilding):FrontagePlot=>({kind:p.kind,level:builtLevel(p),lot:p.columns.length>=LOT_COLUMNS,era:this.eraOf(list.places.get(p.id)?.anchor??i)});
     for(const plot of plots){
       const place=list.places.get(plot.id);
       const own=place?this.plotGround(list,plot):null;
@@ -638,7 +645,8 @@ export class TileSnapshot implements CityMapReader {
         ground={x:g.x+rx*mid,z:g.z+rz*mid,rotation:g.rotation,width:hi-lo,depth:g.depth};
       }
       const fp=frontPlot(plot);
-      const pieces=this.eraModels?.hasFrontage?listFrontagePieces(list.columns,cu,place.cols,fp,metre,k=>{
+      const building=this.stageOf(list,plot)!=='closed';
+      const pieces=this.eraModels?.hasFrontage&&!building?listFrontagePieces(list.columns,cu,place.cols,fp,metre,k=>{
         const other=list.ofColumn(k);return other?frontPlot(other):null;}):null;
       if(pieces?.length){
         let ok=true;const mine:Placement[]=[];
@@ -647,7 +655,7 @@ export class TileSnapshot implements CityMapReader {
           if(height===null){ok=false;break;}
           const base=this.listModel(i,plot,region,own);
           if(!base){ok=false;break;}
-          mine.push(new RoadsidePlacement({...base,id:eraModelId(fp.era,piece.kind),x:piece.x,z:piece.z,rotation:piece.rotation,
+          mine.push(new RoadsidePlacement({...base,powered:base.powered&&!isVacant(plot),id:eraModelId(fp.era,piece.kind),x:piece.x,z:piece.z,rotation:piece.rotation,
             height,scale:metre,fill:metre,eraKind:piece.kind,
             options:{...base.options,seed:0,variant:0,state:'closed',worldOrigin:[piece.x,piece.z],worldRotationY:piece.rotation}}));
         }
@@ -683,16 +691,19 @@ export class TileSnapshot implements CityMapReader {
   /** A plot of the list's one model, standing on its columns (own: the ground they make, world units), its front against
    * the road, drawn no wider than they are */
   private listModel(i:number,plot:PlotBuilding,region:RegionId,own:FrontageGround):Placement|null {
-    const top=plot.level>=PLOT_TOP[plot.kind],size=top?LOT_SIZE:1;
-    const named=`plot.${PLOT_MODEL_PREFIX[plot.kind]}_${plot.level}`;
-    const id=plot.kind==='residential'&&plot.level===1?TILE_TABLE[plotTile(plot.kind,1,plot.value,plot.style)]?.id??null:registry[named]?named:null;
+    // its building as built (people who left leave it standing, dark: isVacant), or its construction site in the era's
+    // way of building while it goes up (models/plot/construction.ts)
+    const level=builtLevel(plot),top=level>=PLOT_TOP[plot.kind],size=top?LOT_SIZE:1,list=this.plotList();
+    const stage=list?this.stageOf(list,plot):'closed',state=stage==='closed'?'closed':`${stage}:e${this.eraOf(list?.places.get(plot.id)?.anchor??i)}`;
+    const named=`plot.${PLOT_MODEL_PREFIX[plot.kind]}_${level}`;
+    const id=plot.kind==='residential'&&level===1&&stage==='closed'?TILE_TABLE[plotTile(plot.kind,1,plot.value,plot.style)]?.id??null:registry[named]?named:null;
     const x=i%this.width,y=Math.floor(i/this.width);
     const roadLevel=typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel;
-    let p:Placement|null=new Placement({index:i,x:own.x,z:own.z,id,kind:plot.kind,eraKind:plotEraKind(plot.kind,plot.level,top),
-      footprint:[size,size],height:PLOT_HEIGHTS[plot.kind][plot.level]??6,
+    let p:Placement|null=new Placement({index:i,x:own.x,z:own.z,id,kind:plot.kind,eraKind:plotEraKind(plot.kind,level,top),
+      footprint:[size,size],height:PLOT_HEIGHTS[plot.kind][level]??6,
       color:{residential:0x78a58a,commercial:0x718cb0,industrial:0xc7a473}[plot.kind],water:false,rotation:own.rotation,scale:1,
-      powered:Boolean(this.flags[i]&POWERBIT),options:{region,roadLevel,seed:(plot.id*2654435761>>>0)%SEED_BUCKETS,variant:plot.value,
-        state:'closed',waterMask:0,landMask:15,worldOrigin:[own.x,own.z],worldRotationY:own.rotation}});
+      powered:Boolean(this.flags[i]&POWERBIT)&&!isVacant(plot),options:{region,roadLevel,seed:(plot.id*2654435761>>>0)%SEED_BUCKETS,variant:plot.value,
+        state,waterMask:0,landMask:15,worldOrigin:[own.x,own.z],worldRotationY:own.rotation}});
     p=this.atRealSize(this.toEra(p));
     if(!p)return null;
     const factor=this.realUnits?shareOf(p):1,scale=BUILDING_SCALE*factor;
@@ -731,7 +742,7 @@ export class TileSnapshot implements CityMapReader {
   private toEra(p:Placement|null):Placement|null {
     if(!p||!this.eraModels||p.index<0)return p;
     const state=p.options.state;
-    if(state==='stage_1'||state==='stage_2'||p.procedural)return p;
+    if(state?.startsWith('stage_')||p.procedural)return p;
     const era=this.eraOf(p.index),kind=eraKindFor(p.id,p.eraKind,era);
     if(!kind)return p;
     const height=this.eraModels.height(era,p.options.region??'central',kind);

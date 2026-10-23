@@ -57,8 +57,10 @@ export function createPlot(id: string, options: ModelOptions = {}): Group {
   const plot = PLOT_SPECS.find(s => s.id === id);
   if (!plot) throw new RangeError(`Unknown plot model: ${id}`);
   const b = new PlotBuilder(options, plot.variants.length - 1);
-  const metadata = options.state === 'stage_1' || options.state === 'stage_2'
-    ? buildConstructionStage(b, options.state, plot.category, plot.level, plot.footprint)
+  // (a construction site: stage_1 or stage_2, and the era it is built in, `stage_2:e1`, src/render3d/city/tileModels.ts)
+  const site = /^(stage_[12])(?::e([1-5]))?$/.exec(options.state ?? '');
+  const metadata = site
+    ? buildConstructionStage(b, site[1] as 'stage_1' | 'stage_2', plot.category, plot.level, plot.footprint, Number(site[2] ?? 3))
     : plot.build(b);
   return b.finishPlot(plot.id, plot.category, plot.regionTier, plot.level, plot.labels, metadata, plot.footprint);
 }

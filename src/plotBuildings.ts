@@ -97,6 +97,8 @@ export interface PlotBuilding {
   since?: number;
   /** The city's time its last people left, while it stands empty (the auto player clears the oldest) */
   left?: number;
+  /** The city's time it was last looked at while going up (not saved): when its stage changes it is drawn again */
+  seen?: number;
 }
 
 /** The level of the building standing on a plot: its people's, or higher while some or all of them have left */
@@ -110,6 +112,12 @@ export const isVacant = (plot: Pick<PlotBuilding, "level" | "built">): boolean =
  * factory two */
 export function buildMonths(kind: PlotKind, level: number): number {
   return Math.max(1, level) + (kind === "commercial" ? 1 : kind === "industrial" ? 2 : 0);
+}
+
+/** The stage a building is drawn at by how far it has gone up: its ground cleared and pegged with its foundations or
+ * stilts (stage_1), its frame or scaffold with the roof open (stage_2), finished (closed) */
+export function constructionStage(share: number): "stage_1" | "stage_2" | "closed" {
+  return share >= 1 ? "closed" : share < 0.4 ? "stage_1" : "stage_2";
 }
 
 /** How far a plot's building has gone up at the city's time `now`: 0 cleared ground, 1 finished (and finished when it
@@ -147,6 +155,8 @@ export class PlotBuildings {
   private next = 1;
   /** Counts every change to the plots (formed, grown, joined, gone), for whoever draws them */
   version = 0;
+  /** The city's time at the last look over the plots, for whoever draws their construction sites (not saved) */
+  now = 0;
   /** The columns the plots were last formed from, their keys, and whose each one is (a plot's id, 0 for none) */
   columns: FrontageColumn[] = [];
   keys: number[] = [];
@@ -627,7 +637,14 @@ function growPlot(map: PlotScanMap & PlotListMap, list: PlotBuildings, plot: Plo
   }
   // A building finished going up keeps no start; one whose stage changed is drawn again (constructionShare)
   const now = sim.cityTime ?? 0;
-  if (plot.since !== undefined && constructionShare(plot, now) >= 1) { delete plot.since; list.version++; }
+  list.now = now;
+  // ... and a site that passed a stage of its going up (constructionStage) is drawn again
+  if (plot.since !== undefined) {
+    const before = constructionStage(constructionShare(plot, plot.seen ?? plot.since));
+    if (constructionShare(plot, now) >= 1) { delete plot.since; list.version++; }
+    else if (constructionStage(constructionShare(plot, now)) !== before) list.version++;
+    plot.seen = now;
+  }
   const grow = (to: number): void => {
     if (to < 0 || to > PLOT_TOP[kind]) return;
     // (an emptied building keeps its class: it still stands as it was built)

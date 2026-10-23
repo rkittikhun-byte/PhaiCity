@@ -96,6 +96,27 @@ const leftToRight = (a: Placement, b: Placement): number =>
   (a.x * Math.cos(a.rotation) - a.z * Math.sin(a.rotation)) - (b.x * Math.cos(b.rotation) - b.z * Math.sin(b.rotation));
 
 describe('frontage: era models by the painted cells along the road', () => {
+  // Owner, 24 Oct 2026: a building goes up through its stages, and one its people left stands, dark, until bulldozed
+  test("a plot's building going up is a construction site in its era's way; one its people left stands dark", () => {
+    const core = city();
+    paint(core, 'commercial', 200, 260);
+    const list = (core.map as any).plotBuildings, plots = list.all().filter((p: any) => list.places.get(p.id)?.anchor !== undefined);
+    for (const p of plots) putPlotLevel(core.map as any, p, 2, 1, 0);
+    const s = snapshot(core); s.enableConstruction = true;
+    const states = (): string[] => { const out: string[] = []; for (let x = 0; x < s.width; x++) {
+      const p = s.placement(11 * s.width + x, 'central'); for (const q of p ? [p, ...(p.parts ?? [])] : []) if (q.kind === 'commercial') out.push(String(q.options.state)); } return out; };
+    list.now = 1;
+    expect(states().some(st => st.startsWith('stage_1:e'))).toBe(true);
+    list.now = 1000;
+    expect([...new Set(states())]).toEqual(['closed']);
+    // its people leave: the building still stands, drawn with no light
+    for (const p of plots) putPlotLevel(core.map as any, p, 0, 1, 2000);
+    const s2 = snapshot(core); s2.enableConstruction = true; list.now = 2000;
+    const standing = drawn(s2, 0, s2.width - 1);
+    expect(standing.length).toBeGreaterThan(0);
+    for (const p of standing) expect(p.powered).toBe(false);
+  });
+
   test('a shop street is a terrace of shophouse bays, one on every 4 m cell, joined across its plots', () => {
     const core = city();
     paint(core, 'commercial', 120, 180);
