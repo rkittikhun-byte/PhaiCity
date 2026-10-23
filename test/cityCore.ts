@@ -96,9 +96,10 @@ describe("the game's core", () => {
     // (src/powerManager.js); every month turned once
     expect(heard.filter(h => h.startsWith("built")).sort()).toEqual(
       ["built civic", "built home", "built home", "built home", "built home", "built home", "built home", "built home",
-        "built power_plant", "built shop", "built shop", "built shop",
-        // ... and the temple its villagers built once 400 of them lived there (src/temples.ts)
-        "built temple"]);
+        "built power_plant", "built shop", "built shop", "built shop"]);
+    // ... and no temple: a few homes are not the 400 people a temple needs, and the ruler's house is no one's home
+    // (src/temples.ts; until 23 Oct 2026 the house on the church's old tiles counted as 640 people and founded one)
+    expect(kinds).not.toContain("temple");
     // The first step reports the month the city starts in, then twelve months turn
     expect(heard.filter(h => h.startsWith("month"))).toHaveLength(13);
     expect(core.simulation.getDate().year).toBe(start + 1);
