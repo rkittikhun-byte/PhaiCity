@@ -131,6 +131,20 @@ describe("ground levelled under what stands on it (src/terrain/groundGrade.ts)",
     expect(pads[0].level).toBeCloseTo(slope(72, 9 * T), 6);
   });
 
+  it("keeps a building's level where a plot's pad reaches under its corner", () => {
+    // a plot facing a road at z = 9 tiles, overlapping the south-east corner of a building whose road is further south
+    const units = 10 / T, columns = [0, 1, 2].map((k) => ({ x: (6.5 * T + 4 * k) * units, z: (8 * T + 2) * units, nx: 0, nz: -1 }));
+    const map = cityMap([building(1, 5, 6)], 9 * T);
+    map.plotBuildings = { all: () => [{ id: 1, level: 1 }], places: new Map([[1, { cols: [0, 1, 2] }]]), columns };
+    const pads = gradePads(map, slope, { run: 3 }), b = pads.find((p) => p.id === "b1")!, p = pads.find((q) => q.id === "p1")!;
+    expect(Math.abs(b.level - p.level)).toBeGreaterThan(0.1);
+    // a point inside both outlines, deeper inside the plot's
+    const x = 6.85 * T, z = 7.75 * T;
+    expect(outsideBy(b.outline, x, z)).toBeLessThan(0);
+    expect(outsideBy(p.outline, x, z)).toBeLessThan(outsideBy(b.outline, x, z));
+    expect(gradedAt(pads, slope, x, z)).toBe(b.level);
+  });
+
   it("gives the simulation a pad's level under it, and the ground back when the building is gone", () => {
     const heights = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) heights[y * W + x] = x + y / 2 + 0.5 * 1.5;

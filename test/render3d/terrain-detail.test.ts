@@ -84,6 +84,31 @@ describe('camera-local terrain resolution', () => {
       for (const child of detail.root.children) expect((child as Mesh).geometry.getAttribute('position').getX(0)).toBeGreaterThanOrEqual(240);
     } finally { detail.dispose(); }
   });
+  it('fills a changed tile again in place, so the patch is never taken away and the far ground never shows through', () => {
+    const {detail,values,snapshot,terrain,map} = fixture();
+    try {
+      detail.update(focus,250,noTime,1);
+      const before = [...detail.root.children] as Mesh[], count = before.length;
+      // a lake appears: its tile and those round it change
+      values[12*24+12] = 2;
+      const changed = snapshot.sync(map), raised = terrain.update(changed);
+      detail.dirty([...changed,...raised]);
+      expect(detail.pending).toBeGreaterThan(0);
+      let clock = 0;
+      for (let n = 0; n < 3000 && detail.pending; n++) {
+        detail.update(focus,250,() => clock += 0.3,clock+0.5);
+        // the same meshes all along
+        expect(detail.root.children).toHaveLength(count);
+        for (const mesh of before) expect(detail.root.children).toContain(mesh);
+      }
+      expect(detail.pending).toBe(0);
+      // ... and they show the ground as it is now
+      for (const mesh of before) {
+        const p = mesh.geometry.getAttribute('position');
+        for (let i = 0; i < p.count; i += 37) expect(p.getY(i)-DETAIL_LIFT).toBeCloseTo(terrain.sample(p.getX(i),p.getZ(i)),4);
+      }
+    } finally { detail.dispose(); }
+  });
   it('does not allocate detailed meshes for province-scale or heightless practice maps', () => {
     const {detail,map,snapshot} = fixture(24,24,600);
     const flat = new TerrainDetail(new CityHeightField(snapshot,{...map,heights:null}),(_x,_y,_wet,out) => { out.setHex(0x7a9150); return 0; });

@@ -21,6 +21,7 @@ import { tint } from '../materials/library.js';
 import { loadMaterialTextures } from '../materials/textures.js';
 import { applyWorldUV } from '../util/geometry.js';
 import type { ModelOptions } from '../models/registry.js';
+import { GRADE_STEPS } from '../../terrain/groundGrade.js';
 import { assemble, groundHeight, PIECE_RANGE, RoadBuilder, SLEEPER_SIZE, UNDER_LIFT, type MeshData, type Piece, type PieceIndex, type RoadBuild,
   type RoadMap, type RoadReply, type RoadRequest } from './roadBuild.js';
 
@@ -676,8 +677,8 @@ export class RoadCurves {
       const front = p.front ?? ground.depth / 2, at = (u: number, v: number): Point => [ground.x + cos * u + sin * v, ground.z - sin * u + cos * v];
       const uMin = -(p.side ?? front), uMax = p.side ?? front, vMin = -(p.back ?? front), vMax = front;
       const rect = [at(uMin, vMin), at(uMax, vMin), at(uMax, vMax), at(uMin, vMax)];
-      // A quad about every half tile, so the lot lies on hills
-      const columns = Math.ceil((uMax - uMin) / 5), rows = Math.ceil((vMax - vMin) / 5);
+      // A quad as often as the levelled ground is sampled, so the lot lies on hills and on the slope round a levelled yard
+      const columns = Math.ceil((uMax - uMin) / (10 / GRADE_STEPS)), rows = Math.ceil((vMax - vMin) / (10 / GRADE_STEPS));
       for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
         const u0 = uMin + (uMax - uMin) * column / columns, u1 = uMin + (uMax - uMin) * (column + 1) / columns;
         const v0 = vMin + (vMax - vMin) * row / rows, v1 = vMin + (vMax - vMin) * (row + 1) / rows;
@@ -735,17 +736,36 @@ export class RoadCurves {
       const a1: Point = [rx0 + tx * (wRoad + border), rz0 + tz * (wRoad + border)];
       const a2: Point = [rx1 + tx * (wBldg + border), rz1 + tz * (wBldg + border)];
       const a3: Point = [rx1 - tx * (wBldg + border), rz1 - tz * (wBldg + border)];
-      this.flat([a0, a1, a2], apronColour, UNDER_LIFT + 0.006, positions, colors);
-      this.flat([a0, a2, a3], apronColour, UNDER_LIFT + 0.006, positions, colors);
+      this.quad([a0, a1, a2, a3], apronColour, UNDER_LIFT + 0.006, positions, colors);
 
       // Inner paved driveway surface
       const b0: Point = [rx0 - tx * wRoad, rz0 - tz * wRoad];
       const b1: Point = [rx0 + tx * wRoad, rz0 + tz * wRoad];
       const b2: Point = [rx1 + tx * wBldg, rz1 + tz * wBldg];
       const b3: Point = [rx1 - tx * wBldg, rz1 - tz * wBldg];
-      this.flat([b0, b1, b2], paveColour, UNDER_LIFT + 0.012, positions, colors);
-      this.flat([b0, b2, b3], paveColour, UNDER_LIFT + 0.012, positions, colors);
+      this.quad([b0, b1, b2, b3], paveColour, UNDER_LIFT + 0.012, positions, colors);
       return { positions, colors };
+    }
+  }
+
+  /**
+   * A quad (corners going round) lying on the ground, lifted, in pieces no longer than the levelled ground's samples are
+   * apart (src/terrain/groundGrade.ts GRADE_STEPS), so it follows the slope from a levelled yard to its road and the ground
+   * never rises through it (owner, 23 Oct 2026: driveways flickered there, sampled only at their ends)
+   */
+  private quad(corners: [Point, Point, Point, Point], colour: Color, lift: number, positions: number[], colors: number[]): void {
+    const [a, b, c, d] = corners, step = 10 / GRADE_STEPS;
+    const along = Math.max(1, Math.ceil(Math.max(Math.hypot(d[0] - a[0], d[1] - a[1]), Math.hypot(c[0] - b[0], c[1] - b[1])) / step));
+    const across = Math.max(1, Math.ceil(Math.max(Math.hypot(b[0] - a[0], b[1] - a[1]), Math.hypot(c[0] - d[0], c[1] - d[1])) / step));
+    const at = (u: number, v: number): Point => {
+      const x0 = a[0] + (b[0] - a[0]) * u, z0 = a[1] + (b[1] - a[1]) * u, x1 = d[0] + (c[0] - d[0]) * u, z1 = d[1] + (c[1] - d[1]) * u;
+      return [x0 + (x1 - x0) * v, z0 + (z1 - z0) * v];
+    };
+    for (let j = 0; j < along; j++) for (let i = 0; i < across; i++) {
+      const p00 = at(i / across, j / along), p10 = at((i + 1) / across, j / along);
+      const p11 = at((i + 1) / across, (j + 1) / along), p01 = at(i / across, (j + 1) / along);
+      this.flat([p00, p10, p11], colour, lift, positions, colors);
+      this.flat([p00, p11, p01], colour, lift, positions, colors);
     }
   }
 

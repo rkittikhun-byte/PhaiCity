@@ -45,6 +45,14 @@ describe('the 3D ground levelled under a building (src/terrain/groundGrade.ts)',
       expect(groundHeight(grid,24,24,x,z)).toBeCloseTo(groundHeight(terrain,24,24,x,z),5);
     }
   });
+  it("levels nothing again when a zone's tiles change but the pads do not (a plot growing)", () => {
+    const { terrain } = fixture(), samples = new Map(terrain.grade!.tiles), snapshot = terrain.snapshot as unknown as { coverage: Int32Array };
+    // a tile far from the building joins a zone
+    const i = 3*24+3; snapshot.coverage[i] = i;
+    const changed = terrain.update([i]);
+    expect(changed.length).toBeLessThan(10);
+    for (const [k,t] of samples) expect(terrain.grade!.tiles.get(k)).toBe(t);
+  });
   it('eases back to the hills without a step, and gives the ground back when the building goes', () => {
     const { terrain, remove } = fixture();
     // walking east out of the yard a world unit at a time

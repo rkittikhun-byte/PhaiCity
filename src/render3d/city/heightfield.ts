@@ -84,14 +84,20 @@ export class CityHeightField {
     if(!this.enabled)return [];
     if(!indices.some(i=>this.wet[i]!==Number(isWaterNeighbor(this.snapshot.values[i]))||this.zones[i]!==this.snapshot.coverage[i]||this.single[i]!==Number(this.isSingle(i))))
       return this.regrade(indices.length>0);
-    const before=this.corners.slice(),water=this.water.slice(),pads=this.pads.slice(),graded=new Set(this.grade?.tiles.keys()??[]);this.rebuild();const changed:number[]=[],w=this.snapshot.width;
-    // the natural ground moved (a shore came or went): every pad is levelled again on it
-    this.grade=null;this.regrade(true);for(const i of (this.grade as GroundGrade|null)?.tiles.keys()??[])graded.add(i);
+    const before=this.corners.slice(),water=this.water.slice(),pads=this.pads.slice();this.rebuild();const changed=new Set<number>(),w=this.snapshot.width;
     for(let i=0;i<this.tileHeights.length;i++){
       const x=i%w,y=Math.floor(i/w),a=y*(w+1)+x;
-      if(graded.has(i)||[a,a+1,a+w+1,a+w+2].some(j=>before[j]!==this.corners[j])||!Object.is(water[i],this.water[i])||!Object.is(pads[i],this.pads[i]))changed.push(i);
+      if([a,a+1,a+w+1,a+w+2].some(j=>before[j]!==this.corners[j])||!Object.is(water[i],this.water[i])||!Object.is(pads[i],this.pads[i]))changed.add(i);
     }
-    return changed;
+    // A zone's tiles changing (a plot growing) leaves the natural ground as it was, and the pads are levelled again as at
+    // any change, only those that came, went or changed (owner, 23 Oct 2026: the picture flickered round the levelled
+    // ground while every levelled tile was drawn again each time a plot grew). Only a shore that came or went moves the
+    // natural ground under the pads: then they are all levelled again on it, and only the tiles whose ground moved told.
+    if(changed.size&&this.grade){
+      const old=this.grade.tiles;this.grade=null;this.regrade(true);const now=(this.grade as GroundGrade|null)?.tiles;
+      for(const i of new Set([...old.keys(),...(now?.keys()??[])]))if(!sameSamples(old.get(i),now?.get(i)))changed.add(i);
+    }else for(const i of this.regrade(true))changed.add(i);
+    return [...changed].sort((a,b)=>a-b);
   }
   /** The ground under a map's buildings and plots levelled again, when they or the roads changed (or force, when tiles
    * did: a building whose centre burnt gives its ground back); the tiles whose ground changed */
@@ -172,6 +178,7 @@ export class CityHeightField {
     this.min = 0; this.max = 0;
     for (const c of this.corners) { this.min = Math.min(this.min, c); this.max = Math.max(this.max, c); }
     for(const c of this.pads)if(Number.isFinite(c)){this.min=Math.min(this.min,c);this.max=Math.max(this.max,c);}
+    if(this.grade)for(const t of this.grade.tiles.values())for(const c of t){this.min=Math.min(this.min,c);this.max=Math.max(this.max,c);}
     this.version++;
   }
   corner(x: number, y: number): number { return this.corners[Math.max(0, Math.min(this.snapshot.height, y)) * (this.snapshot.width + 1) + Math.max(0, Math.min(this.snapshot.width, x))]; }
@@ -338,5 +345,8 @@ function chaikin(points: number[][], closed: boolean): number[][] {
   }
   if (!closed) result.push(points[points.length - 1]);
   return result;
+}
+function sameSamples(a:Float32Array|undefined,b:Float32Array|undefined):boolean {
+  if(!a||!b)return a===b;if(a.length!==b.length)return false;for(let k=0;k<a.length;k++)if(a[k]!==b[k])return false;return true;
 }
 function singleBuilding(value:number):boolean {const entry=TILE_TABLE[value];return !!entry?.id&&entry.footprint[0]===1&&BUILDING_KINDS.has(entry.kind);}

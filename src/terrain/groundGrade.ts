@@ -157,7 +157,18 @@ function padLevel(o: Outline, natural: NaturalGround, roads: GradeMap["roadGraph
   return points.reduce((sum, [x, z]) => sum + natural(x, z), 0) / points.length;
 }
 
-/** The levelled ground at a point from the pads near it: a pad's level inside it (the one it lies deepest in), else the
+/**
+ * Whether a point on two pads stands on the first (id a, d metres inside it, d <= 0) rather than the second: a building
+ * of the ruler's before a plot that reaches under its corner (owner, 23 Oct 2026: a plot's lower pad cut into a health
+ * centre's lot, which sank into the step and flickered), else the one it lies deeper in, else the lower id
+ */
+function before(a: string, d: number, b: string, deepest: number): boolean {
+  const ra = a[0] === "b" ? 0 : 1, rb = b[0] === "b" ? 0 : 1;
+  if (ra !== rb) return ra < rb;
+  return d < deepest || d === deepest && a < b;
+}
+
+/** The levelled ground at a point from the pads near it: a pad's level inside it (a building's before a plot's, else the one it lies deepest in), else the
  * ground blended toward each pad within its slope's reach, so the levels meet the hills smoothly and two pads side by
  * side meet each other without a step */
 export function gradedAt(pads: readonly GradePad[], natural: NaturalGround, x: number, z: number): number {
@@ -166,7 +177,7 @@ export function gradedAt(pads: readonly GradePad[], natural: NaturalGround, x: n
     if (x < p.x0 || x > p.x1 || z < p.z0 || z > p.z1) continue;
     const d = outsideBy(p.outline, x, z) - PAD_APRON_M;
     if (d <= 0) {
-      if (!inside || d < deepest) { inside = p; deepest = d; }
+      if (!inside || before(p.id, d, inside.id, deepest)) { inside = p; deepest = d; }
       continue;
     }
     if (d >= p.skirt) continue;
@@ -255,7 +266,7 @@ export class GroundGrade {
     let best: GradePad | null = null, deepest = 0;
     for (const p of this.buckets.get(tz * this.width + tx) ?? []) {
       const d = outsideBy(p.outline, x, z) - PAD_APRON_M;
-      if (d <= 0 && (!best || d < deepest)) { best = p; deepest = d; }
+      if (d <= 0 && (!best || before(p.id, d, best.id, deepest))) { best = p; deepest = d; }
     }
     return best;
   }
@@ -406,7 +417,7 @@ export function gradedTileHeight(map: GradedHeightsMap, tile: number): number {
       f = { id: `b${item.id}`, outline: buildingFooting(map, item, size) };
     } else f = item;
     const d = outsideBy(f.outline, x, z) - PAD_APRON_M;
-    if (d <= 0 && (!best || d < deepest || d === deepest && f.id < best.id)) { best = f; deepest = d; }
+    if (d <= 0 && (!best || before(f.id, d, best.id, deepest))) { best = f; deepest = d; }
   }
   if (!best) return heights[tile];
   const roads = map.roadGraph ?? null, o = best.outline;

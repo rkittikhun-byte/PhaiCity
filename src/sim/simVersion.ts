@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 18;
+export const SIM_VERSION = 19;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -57,6 +57,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   18: "on a map painted a cell at a time the farm zone is painted in 4 m cells laid in rows along the nearest road, " +
     "kept as 2 m squares, a field counting as much of its tile as its squares cover; the farm brush's tile command " +
     "paints the road-aligned cells whose middles lie on the tile (NO_GRID_PLAN 3C, GAME_DESIGN 7.5)",
+  19: "where a grown plot reaches under a corner of a building of the ruler's, a flood reads the building's level, not " +
+    "the plot's (src/terrain/groundGrade.ts, GAME_DESIGN 17)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

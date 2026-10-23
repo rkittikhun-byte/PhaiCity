@@ -16,7 +16,11 @@ interface Patch {
   x: number; y: number; width: number; height: number; divisions: number; cursor: number;
   positions: Float32Array; normals: Float32Array; colors: Float32Array; outside: Float32Array;
   mesh?: Mesh;
+  /** Tiles of a drawn patch whose ground changed, filled again in place a few a frame while the rest stays drawn */
+  stale: Set<number>;
 }
+/** How far round a changed tile a patch's tiles are filled again: its corners' colours blend over the tiles two away */
+const DIRTY_REACH = 2;
 
 /** A bounded 3×3 window of 2 m / 4 m terrain. Far ground remains visible during every rebuild.
  * Vertices sample the SAME triangles as buildings and picking: subdivision adds shading detail, not invented DEM data.
@@ -36,7 +40,7 @@ export class TerrainDetail {
     const height = Math.min(DETAIL_PATCH_TILES, this.terrain.snapshot.height-y);
     const count = width*height*(divisions+1)**2;
     return { x, y, width, height, divisions, cursor: 0, positions: new Float32Array(count*3),
-      normals: new Float32Array(count*3), colors: new Float32Array(count*3), outside: new Float32Array(count) };
+      normals: new Float32Array(count*3), colors: new Float32Array(count*3), outside: new Float32Array(count), stale: new Set() };
   }
   private remove(key: string, patch: Patch): void {
     if (patch.mesh) { this.root.remove(patch.mesh); patch.mesh.geometry.dispose(); }
@@ -61,15 +65,17 @@ export class TerrainDetail {
     for (const [key,patch] of this.patches) if (!wanted.has(key) || patch.divisions !== divisions) this.remove(key,patch);
     for (const [key,[x,y]] of wanted) if (!this.patches.has(key)) this.patches.set(key,this.create(x,y,divisions));
   }
-  private tile(p: Patch): void {
-    const x = p.x+p.cursor%p.width, y = p.y+Math.floor(p.cursor/p.width), d = p.divisions, stride = d+1;
+  private tile(p: Patch): void { this.fill(p,p.cursor); p.cursor++; }
+  /** A tile's vertices of a patch, at its slot (its place in the patch, row by row) */
+  private fill(p: Patch, slot: number): void {
+    const x = p.x+slot%p.width, y = p.y+Math.floor(slot/p.width), d = p.divisions, stride = d+1;
     const index = y*this.terrain.snapshot.width+x, wet = isWaterNeighbor(this.terrain.snapshot.values[index]);
     const coordinates = [[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
     const outside = coordinates.map(([cx,cy],i) => this.cornerShade(cx,cy,wet,this.corners[i]));
     const flat = Number.isFinite(this.terrain.flatHeight(index)) || wet, reach = this.terrain.graded(index) ? 10/GRADE_STEPS/2 : 5;
     for (let row = 0; row <= d; row++) for (let column = 0; column <= d; column++) {
       const u = column/d, v = row/d, wx = (x+u)*10, wz = (y+v)*10;
-      const vertex = p.cursor*stride*stride+row*stride+column, offset = vertex*3;
+      const vertex = slot*stride*stride+row*stride+column, offset = vertex*3;
       p.positions.set([wx,this.terrain.sampleTile(x,y,wx,wz)+DETAIL_LIFT,wz],offset);
       // A common world-space derivative makes neighbouring patches light identically at their shared edge.
       // (on ground levelled under a building or plot, over a shorter reach, so its flat pad is lit flat to its edge)
@@ -85,7 +91,21 @@ export class TerrainDetail {
       }
       this.shade.toArray(p.colors,offset); p.outside[vertex] = beyond;
     }
-    p.cursor++;
+  }
+  /** A drawn patch's changed tiles filled again in place, as many as the time allows, and handed to the GPU together */
+  private refresh(p: Patch, now: () => number, deadline: number): void {
+    if (!p.mesh || !p.stale.size) return;
+    const g = p.mesh.geometry, per = (p.divisions+1)**2;
+    const attributes = [[g.getAttribute('position'),p.positions,3],[g.getAttribute('normal'),p.normals,3],
+      [g.getAttribute('color'),p.colors,3],[g.getAttribute('cityOutside'),p.outside,1]] as const;
+    for (const slot of [...p.stale]) {
+      this.fill(p,slot); p.stale.delete(slot);
+      for (const [attribute,source,size] of attributes)
+        (attribute.array as Float32Array).set(source.subarray(slot*per*size,(slot+1)*per*size),slot*per*size);
+      if (now() >= deadline) break;
+    }
+    for (const [attribute] of attributes) attribute.needsUpdate = true;
+    g.computeBoundingSphere();
   }
   private publish(p: Patch): void {
     const d = p.divisions, stride = d+1, vertices = p.positions.length/3;
@@ -110,6 +130,7 @@ export class TerrainDetail {
     terrainDetailUniforms.cityTerrainFocus.value.set(target.x,target.z,distance);
     terrainDetailUniforms.cityMetresPerUnit.value = (this.terrain.map.tileSizeM ?? 16)/10;
     this.select(target,distance);
+    for (const patch of this.patches.values()) if (patch.mesh && patch.stale.size) { this.refresh(patch,now,deadline); if (now() >= deadline) return; }
     const pending = [...this.patches.values()].filter(p => !p.mesh).sort((a,b) =>
       Math.hypot(a.x*10+40-target.x,a.y*10+40-target.z)-Math.hypot(b.x*10+40-target.x,b.y*10+40-target.z));
     for (const patch of pending) {
@@ -118,15 +139,28 @@ export class TerrainDetail {
       if (now() >= deadline) break;
     }
   }
+  /**
+   * Tiles whose ground may have changed: each patch fills those near them again in place, keeping the rest drawn (owner,
+   * 23 Oct 2026: the picture flickered round the levelled ground while every patch near a growing plot was thrown away
+   * and built again over many frames, the far ground showing through meanwhile). A patch still being built fills again
+   * those it has already done.
+   */
   dirty(indices: readonly number[]): void {
     const width = this.terrain.snapshot.width;
-    for (const [key,patch] of [...this.patches]) if (indices.some(i => {
-      const x = i%width, y = Math.floor(i/width);
-      return x >= patch.x-1 && x <= patch.x+patch.width && y >= patch.y-1 && y <= patch.y+patch.height;
-    })) {
-      this.remove(key,patch); this.patches.set(key,this.create(patch.x,patch.y,patch.divisions));
+    for (const patch of this.patches.values()) {
+      const done = patch.mesh ? patch.width*patch.height : patch.cursor;
+      for (const i of indices) {
+        const x = i%width, y = Math.floor(i/width);
+        if (x < patch.x-DIRTY_REACH || x >= patch.x+patch.width+DIRTY_REACH || y < patch.y-DIRTY_REACH || y >= patch.y+patch.height+DIRTY_REACH) continue;
+        for (let ty = Math.max(patch.y,y-DIRTY_REACH); ty <= Math.min(patch.y+patch.height-1,y+DIRTY_REACH); ty++)
+          for (let tx = Math.max(patch.x,x-DIRTY_REACH); tx <= Math.min(patch.x+patch.width-1,x+DIRTY_REACH); tx++) {
+            const slot = (ty-patch.y)*patch.width+tx-patch.x;
+            if (slot >= done) continue;
+            if (patch.mesh) patch.stale.add(slot); else this.fill(patch,slot);
+          }
+      }
     }
   }
-  get pending(): number { return [...this.patches.values()].filter(p => !p.mesh).length; }
+  get pending(): number { return [...this.patches.values()].filter(p => !p.mesh || p.stale.size).length; }
   dispose(): void { for (const [key,patch] of this.patches) this.remove(key,patch); this.selection = ''; }
 }

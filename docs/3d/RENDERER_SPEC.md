@@ -227,7 +227,12 @@ which the renderer only reads:
     ordinary tile, and a quarter of a tile that does is drawn as two triangles (about 17 triangles a levelled tile
     instead of 32). `sample`, picking (`intersect`), the near ground (`terrain-detail.ts`), the roads and their
     worker (`roadBuild.ts gradedHeight`) and the fences read the same surface; a model stands at its pad's level
-    (`standOn`).
+    (`standOn`). Where pads overlap, a building's wins over a plot's, else the deeper. Lots and driveways are laid in
+    pieces a sample step long, so they follow the slope round a pad. **No flicker (owner, 23 Oct 2026):** a zone's tiles
+    changing never levels the whole city again (only a shore moving the natural ground does, and then only the tiles
+    whose ground moved are told), and the near ground (`terrain-detail.ts`) refills changed tiles in place, a few a frame,
+    never taking a patch away (thrown away and rebuilt over many frames, it let the far ground show through each time a
+    plot grew).
   - `tileAt` picks against the raised ground, and the camera's target follows it.
 - `reset()` / `resetView()` look at `gameMap.town` when there is one, else the middle of the map. Until
   `resetView()` exists the game moves `navigation.target` to the town itself after `navigation.reset()`.
