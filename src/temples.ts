@@ -14,6 +14,7 @@
 // (src/buildings/turnedFootprint.ts). Its level and the community gathering for the next are gameMap.temples (saved as
 // `temples`). The core's monthly "temples" system runs it (src/core/cityCore.ts). Plain code: no DOM, nothing random.
 
+import { overlapDepth, standingOutline } from "./buildings/outlineOverlap.js";
 import { blockOf, PlacedBuildings } from "./buildings/placedBuildings.js";
 import { familyValue, isTurned, outlineOf, outlineTiles, outsideBy, type Outline, RAIL_REACH_M, turnedTilesOf }
   from "./buildings/turnedFootprint.js";
@@ -25,7 +26,7 @@ import { roadReach } from "./roadGeometry.js";
 import { isRoadTile } from "./roadLevels.js";
 import type { RoadGraph } from "./roads/roadGraph.js";
 import { BIT_MASK, BURNBIT, CONDBIT, ZONEBIT } from "./tileFlags.js";
-import { CIVIC, COMBASE, LASTRAIL, RAILBASE, RESBASE } from "./tileValues.js";
+import { CIVIC, COMBASE, HOSPITALBASE, LASTRAIL, RAILBASE, RESBASE } from "./tileValues.js";
 import { TILE_UNITS, tileMetres, unitsPerMetre } from "./units.js";
 import { RASTER_M } from "./zoneCells.js";
 
@@ -44,6 +45,8 @@ export const TEMPLE_CAPACITY = 6000;
 export const TEMPLE_APART_M = 400;
 /** How far a temple's front may stand off its road's edge (metres) */
 export const FRONT_SLACK_M = 6;
+/** The open ground at least between a temple's wall and the fence of any other building (metres) */
+export const TEMPLE_CLEAR_M = 6;
 /** The people in homes with no temple within reach that make a community build one */
 export const FOUND_PEOPLE = 400;
 /** The months the community gathers before it builds, and the months it builds */
@@ -206,7 +209,9 @@ export function homePeople(map: TempleMap, x: number, y: number): number {
     const plot = plotOf(map as never, x, y);
     if (plot) return plot.kind === "residential" ? plot.level * PEOPLE_A_LEVEL : 0;
   }
-  if (value >= RESBASE && value < COMBASE && map.getTileFlags(x, y) & ZONEBIT) {
+  // (the hospital's and church's old tiles, 405-422, lie in the homes' range too but hold the ruler's civic buildings,
+  // the house first of all: no one lives there, or a new city's house alone would found a temple, 23 Oct 2026)
+  if (value >= RESBASE && value < HOSPITALBASE && map.getTileFlags(x, y) & ZONEBIT) {
     return (Residential as unknown as { getZonePopulation(m: unknown, x: number, y: number, v: number): number })
       .getZonePopulation(map, x, y, value) * PEOPLE_A_LEVEL;
   }
@@ -378,6 +383,19 @@ function blockTiles(map: TempleMap, cx: number, cy: number): number[] {
   return out;
 }
 
+/** Whether a temple's outline stands TEMPLE_CLEAR_M or more from every building of the ruler's (and other temples):
+ * its wall never touches or runs into another's fence (owner, 23 Oct 2026: a temple's wall stood against the ruler's
+ * house's yard) */
+function clearOfBuildings(map: TempleMap, o: Outline): boolean {
+  const reach = o.half * Math.SQRT2 + TEMPLE_CLEAR_M;
+  for (const b of map.buildings?.all() ?? []) {
+    const other = standingOutline(map as never, b), far = reach + other.half * Math.SQRT2;
+    if (Math.abs(other.x - o.x) > far || Math.abs(other.z - o.z) > far) continue;
+    if (-overlapDepth(o, other) < TEMPLE_CLEAR_M) return false;
+  }
+  return true;
+}
+
 /**
  * The places round (hx, hy) (within a temple's reach) where a temple may stand, facing its road: along the
  * roads drawn in metres when the map has them (turned to a slanted road, on its turned outline's tiles), else on
@@ -392,6 +410,7 @@ export function templeSpots(map: TempleMap, hx: number, hy: number, unserved: Fl
   const free = (tiles: readonly number[]): boolean => tiles.every((i) => freeTile(map, i, painted));
   const add = (spot: Omit<TempleSpot, "serves">): void => {
     if (temples.some((t) => Math.hypot(t.tile % map.width - spot.cx, Math.floor(t.tile / map.width) - spot.cy) < apart)) return;
+    if (!clearOfBuildings(map, outlineOf(spot.x, spot.z, spot.rot ?? 0, 3, metres))) return;
     const key = `${spot.cx},${spot.cy},${spot.rot === null ? "-" : spot.rot.toFixed(2)}`;
     if (!spots.has(key)) spots.set(key, { ...spot, serves: sums.around(spot.cx, spot.cy, r) });
   };

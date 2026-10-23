@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 20;
+export const SIM_VERSION = 21;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -62,6 +62,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
   20: "on a real-scale city map the shops wait for department stores, not the airport: from 40 units with none, each " +
     "store lifting that by 60; a store adds land value round it, visitors, and draws shoppers and workers on the month's " +
     "trips (src/departmentStores.ts, GAME_DESIGN 22)",
+  21: "the ruler's house and the civic buildings on the hospital's and church's old tiles are no one's home, so they found " +
+    "no temple; a temple stands 6 m or more clear of every other building's outline (GAME_DESIGN 9.1)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

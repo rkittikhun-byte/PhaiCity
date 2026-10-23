@@ -8,6 +8,7 @@
 
 import { CityCore } from "../src/core/cityCore";
 import { isTurned, outlineTiles } from "../src/buildings/turnedFootprint";
+import { overlapDepth, standingOutline } from "../src/buildings/outlineOverlap";
 import { MapGenerator } from "../src/mapGenerator.js";
 import { plotTile } from "../src/plots";
 import { isRoadTile } from "../src/roadTiles";
@@ -17,7 +18,7 @@ import { scoreEra } from "../src/eraScore";
 import { buildingAt } from "../src/objects/buildings";
 import {
   BUILD_MONTHS, FOUND_PEOPLE, GATHER_MONTHS, GROW_MONTHS, festivalTemple, neediest, peopleGrid, reachTiles, readTemples,
-  TEMPLE_APART_M, TEMPLE_CAPACITY, TEMPLE_IN_THE_WAY, TEMPLE_KIND, templeAt, templeCheer, templeMonth, templesOf, writeTemples,
+  TEMPLE_APART_M, TEMPLE_CAPACITY, TEMPLE_CLEAR_M, TEMPLE_IN_THE_WAY, TEMPLE_KIND, templeAt, templeCheer, templeMonth, templesOf, writeTemples,
 } from "../src/temples";
 
 const W = 90, H = 90, M = 16;
@@ -61,6 +62,29 @@ describe("a community builds its temple", () => {
     expect(neediest(map, peopleGrid(map), []).people).toBe(320);
     expect(months(map, 0, 12)).toEqual([]);
     expect(templesOf(map).temples).toHaveLength(0);
+  });
+
+  test("the ruler's house is no one's home: a new city's house alone founds no temple", () => {
+    // (playtest, 23 Oct 2026: the house on the church's old tiles counted as 640 people and a temple rose at 0 people)
+    const { core, map } = city([5 * M, 40.5 * M], [85 * M, 40.5 * M]);
+    expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 33, y: 42 }).accepted).toBe(true);
+    expect(peopleGrid(map).reduce((a, b) => a + b, 0)).toBe(0);
+    expect(months(map, 0, 24)).toEqual([]);
+    expect(templesOf(map).temples).toHaveLength(0);
+  });
+
+  test("stands clear of the ruler's house: open ground between its wall and the house's fence", () => {
+    const { core, map } = city([5 * M, 40.5 * M], [85 * M, 40.5 * M]);
+    expect(core.apply({ type: "tool", tool: "ruler_house" as any, x: 30, y: 42 }).accepted).toBe(true);
+    // homes right round the house, so the best spot would be next door
+    homes(map, [...row(26, 44, 2), ...row(34, 44, 4), ...row(28, 38, 6)]);
+    months(map, 0, GATHER_MONTHS);
+    const t = templesOf(map).temples[0];
+    expect(t).toBeDefined();
+    const house = map.buildings.all().find((b: any) => b.tool === "ruler_house");
+    const temple = map.buildings.atTile(t.tile);
+    const gap = -overlapDepth(standingOutline(map, house), standingOutline(map, temple));
+    expect(gap).toBeGreaterThanOrEqual(TEMPLE_CLEAR_M - 1e-6);
   });
 
   test("gathers, then lays a temple beside its road facing it, as a construction site", () => {
