@@ -3,7 +3,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { TOOL_CATEGORIES, TOOL_GROUP_LABELS, categoryForTool, choiceToArm } from '../src/toolDock.js';
+import { TOOL_CATEGORIES, TOOL_GROUP_LABELS, categoryForTool, choiceToArm, escapeStep } from '../src/toolDock.js';
 import { activateToolChoice, TOOL_CHOICE_EVENT } from '../src/toolLevels.js';
 import { hasKey } from '../src/i18n/index.js';
 import { toolIconUrl } from '../src/toolShortcuts.js';
@@ -59,6 +59,15 @@ describe('category, family and actual-tool navigation', () => {
     expect(choiceToArm(power,'gas')?.tool).toBe('coal');
     expect(choiceToArm(power.slice(1,2),undefined)).toBeNull();
     expect(choiceToArm([{tool:'ruler_house_wings',available:true,action}],undefined)).toBeNull();
+  });
+  it('Esc puts any tool in hand down, its card too, in one press; with none it steps back through the card', () => {
+    // (playtest, 23 Oct 2026: after painting homes Esc only put the zones card away, the brush and its chip stayed)
+    expect(escapeStep(true,true,false)).toBe('drop');
+    expect(escapeStep(true,true,true)).toBe('drop');
+    expect(escapeStep(true,false,false)).toBe('drop');
+    expect(escapeStep(false,true,true)).toBe('back');
+    expect(escapeStep(false,true,false)).toBe('close');
+    expect(escapeStep(false,false,false)).toBe('none');
   });
   it('never arms locked choices and lets action cards open the original city windows', () => {
     const f = input(), action = jest.fn();

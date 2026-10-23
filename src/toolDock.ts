@@ -59,6 +59,14 @@ export function choiceToArm(choices: readonly ToolChoice[], activeTool: string |
   return choices.find(choice => choice.tool === activeTool && usable(choice)) ?? choices.find(usable) ?? null;
 }
 
+/** What Esc does: with a tool in hand it puts it down and the card away ("drop"); with none, it steps back from a
+ * family's levels to its category ("back"), then puts the card away ("close"); nothing open, nothing ("none") */
+export function escapeStep(toolInHand: boolean, cardOpen: boolean, inFamily: boolean): "drop" | "back" | "close" | "none" {
+  if (toolInHand) return "drop";
+  if (!cardOpen) return "none";
+  return inFamily ? "back" : "close";
+}
+
 /** What puts the tool card away, once the dock is installed */
 let trayCloser: (() => void) | null = null;
 
@@ -516,18 +524,15 @@ export function installToolDock(doc: Document = document): void {
   pillCancel.addEventListener("click", dropCurrentTool);
   doc.getElementById("toolCancel")?.addEventListener("click", dropCurrentTool);
 
+  // Esc puts the tool in hand down, its card and chip with it, in one press (playtest, 23 Oct 2026: after painting homes
+  // Esc only put the card away and the brush stayed in hand; the game's own Esc, src/game.js handleInput, sees the key
+  // only when a tick of the simulation comes while it is held); with no tool in hand it steps back through the card
   doc.addEventListener("keydown", event => {
     if (event.code === "Escape") {
-      if (!tray.hidden) {
-        if (currentGroup) {
-          currentGroup = null;
-          renderTray();
-        } else {
-          closeTray();
-        }
-      } else {
-        dropCurrentTool();
-      }
+      const step = escapeStep(originals.some(b => b.classList.contains("selected")), !tray.hidden, currentGroup !== null);
+      if (step === "drop") dropCurrentTool();
+      else if (step === "close") closeTray();
+      else if (step === "back") { currentGroup = null; renderTray(); }
     }
   });
 
