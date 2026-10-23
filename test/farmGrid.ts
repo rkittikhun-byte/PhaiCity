@@ -95,10 +95,37 @@ describe("the farm grid along every road", () => {
     for (const c of cells) expect(turnBetween(c.angle, foot(line, [c.x, c.z]).angle)).toBeLessThan(0.12);
   });
 
+  test("beside a canal the cells run along it too, the nearer of a road and a canal winning; none on its water or banks", () => {
+    // (owner, 23 Oct 2026: "จะต้องขนานกับถนน และคลองด้วยนะ")
+    const core = city([40, 440], [920, 440]), map = core.map as any;
+    expect(core.apply({ type: "road", tool: "canal" as never, from: [100, 80], to: [700, 420], stroke: 2 }).accepted).toBe(true);
+    expect(map.canalGraph.segments.size).toBe(1);
+    const canal: Array<[number, number]> = [[100 * 10 / M, 80 * 10 / M], [700 * 10 / M, 420 * 10 / M]], along = Math.atan2(600, 340);
+    const cells = allCells(core);
+    const byCanal = cells.filter((c) => foot(canal, [c.x, c.z]).d < foot(roadLine(core), [c.x, c.z]).d);
+    expect(byCanal.length).toBeGreaterThan(500);
+    for (const c of byCanal) {
+      const d = foot(canal, [c.x, c.z]).d;
+      // not on its water or banks (8 m from its middle at its highest level), and those beside it turned with it
+      expect(d).toBeGreaterThan(8 * 10 / M);
+      if (d < 20 && c.x > 100 && c.x < 400) expect(turnBetween(c.angle, along)).toBeLessThan(1e-6);
+    }
+    // ... and those nearer the road with the road
+    for (const c of cells.filter((c) => !byCanal.includes(c) && foot(roadLine(core), [c.x, c.z]).d < 20)) expect(turnBetween(c.angle, Math.PI / 2)).toBeLessThan(1e-6);
+    // paddies along the canal paint, the rows over its tiles' margin too (the field's way is to the road, 128 m)
+    const strip = byCanal.filter((c) => c.row <= 3 && c.x > 300 && c.x < 360 && turnBetween(c.angle, along) < 1e-6 && c.nz > 0);
+    expect(strip.length).toBeGreaterThan(8);
+    expect(core.apply({ type: "farmCells", erase: false, cells: strip.map((c) => c.key), stroke: 3 })).toMatchObject({ accepted: true });
+    expect(strip.filter((c) => cellPainted(map, c)).length).toBeGreaterThan(strip.length * 0.8);
+    // the zones' cells never lie along a canal (they face roads)
+    const zones = cellLayout(map);
+    for (const c of zones.cells) expect(turnBetween(c.angle, along)).toBeGreaterThan(0.1);
+  });
+
   test("laid a chunk at a time, the cells are the whole map's", () => {
     const core = city([80, 80], [880, 520]);
     const whole = cellLayout(core.map as any, () => true, { depth: farmRows({ tileSizeM: M }, 8), plots: false,
-      ground: (v) => isOpenLand(v) || isFieldValue(v) || isRoadTile(v) });
+      ground: (v) => isOpenLand(v) || isFieldValue(v) || isRoadTile(v), canals: true });
     const parts = allCells(core);
     expect(parts.length).toBe(whole.cells.length);
     for (const c of parts) expect(whole.byKey.has(c.key)).toBe(true);

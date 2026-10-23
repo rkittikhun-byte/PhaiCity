@@ -20,6 +20,8 @@ import { DIRT } from "./tileValues";
 import { isLineRoad, networkOf, realUnits, roadLines, roadReach, smoothLine, type Point } from "./roadGeometry";
 import { servesZones } from "./roadLevels";
 import { graphLines, withGraph } from "./roads/graphLines";
+import { canalGraphLines } from "./roads/canalLines";
+import { isBridgeTile, isWaterTile } from "./canals";
 import type { RoadGraph } from "./roads/roadGraph";
 import { TILE_UNITS, tileMetres, tileOfUnits, unitsOfTile, unitsPerMetre as metreUnits } from "./units";
 
@@ -31,6 +33,8 @@ export const CELL_DEPTH = 4;
  * (owner, 18 Oct 2026: "ไม่มีแปลงหลัง มีแค่แปลงเดียวติดถนน", after 32 m, two plots, which it had asked for earlier and which
  * stacked buildings); a lot of 2 × 2 plots (src/plots.ts lotOf) then forms only where two roads' plots meet */
 export const PLOT_ROWS = 4;
+/** How far from a canal's middle its water and banks reach at its highest level (metres) */
+export const CANAL_REACH_M = 8;
 /** The gap between a road's edge and its first row (world units) */
 const EDGE_GAP = 0.25;
 /** How much sooner (world units of distance) the cells of a junction's corner come, for the road the corner belongs to */
@@ -57,6 +61,10 @@ export interface CellMap {
   /** The roads and railways drawn in metres (src/roads/roadGraph.ts): the cells lie along them exactly as drawn */
   readonly roadGraph?: RoadGraph | null;
   readonly railGraph?: RoadGraph | null;
+  /** The canals dug in metres (src/roads/canalLines.ts) and each tile's canal level (src/canals.ts): the farm zone's
+   * cells lie along them too (LayoutOptions.canals) */
+  readonly canalGraph?: RoadGraph | null;
+  readonly canals?: Uint8Array | null;
   readonly insideProvince?: Uint8Array | null;
   getTileValue(x: number, y: number): number;
   /** The cells as the map keeps them (value & BIT_MASK, flags above), for a pass over every tile (src/gameMap.js) */
@@ -248,8 +256,11 @@ export interface LayoutWindow { x0: number; z0: number; x1: number; z1: number }
 export interface LayoutOptions {
   /** How many rows deep from each road's edge (CELL_DEPTH) */
   depth?: number;
-  /** Ground a cell may lie on (cellGround) */
-  ground?: (value: number) => boolean;
+  /** Ground a cell may lie on (cellGround), by its tile's value and index */
+  ground?: (value: number, index: number) => boolean;
+  /** Whether rows of cells lie along the canals dug in metres as well as along the roads, the nearer line's winning
+   * (the farm zone's: owner, 23 Oct 2026, "จะต้องขนานกับถนน และคลองด้วยนะ") */
+  canals?: boolean;
   /** Whether each cell belongs to a plot tile, which must be land a plot may take (byPlotTile; the zones' cells) */
   plots?: boolean;
   /** Only the cells whose middles lie in this part of the map, laid with the cells round it as far as margin (world
@@ -259,7 +270,7 @@ export interface LayoutOptions {
 }
 
 /** The roads and railways a layout lays its cells along, as lines (world units), with what each cell needs of them */
-interface RoadLine { rail: boolean; level: number; line: readonly Point[]; first: number;
+interface RoadLine { rail: boolean; canal?: boolean; level: number; line: readonly Point[]; first: number;
   stroke: { points: Point[]; along: number[] } | undefined; box: [number, number, number, number] }
 interface RoadFrame { lines: RoadLine[]; cornersOf: Map<number, Point[]>; stretchAt: Map<number, number> }
 
@@ -285,7 +296,8 @@ function roadFrame(map: CellMap): RoadFrame {
   const roadTiles = changes === undefined ? 0 : kept && kept.changes === changes ? kept.roads : roadTileStamp(map);
   const stamp = changes === undefined ? "" : [roadTiles, map.width, map.height, tileMetres(map), arrayStamp(map.roadLevels),
     arrayStamp(map.roadPieces), map.roadGraph?.version ?? -1, map.roadGraph?.segments.size ?? -1, map.railGraph?.version ?? -1,
-    map.railGraph?.segments.size ?? -1, map.roadPaths ? Object.keys(map.roadPaths).length : -1].join();
+    map.railGraph?.segments.size ?? -1, map.roadPaths ? Object.keys(map.roadPaths).length : -1,
+    map.canalGraph?.version ?? -1, map.canalGraph?.segments.size ?? -1, arrayStamp(map.canals)].join();
   if (kept && kept.stamp === stamp) { kept.changes = changes!; return kept.frame; }
   const units = unitsPerMetre(map);
   // The tiles read once: the roads' lines below read each tile a few times, through the map about 1.5 million calls on
@@ -332,6 +344,11 @@ function roadFrame(map: CellMap): RoadFrame {
       stroke: road.piece ? strokes.get(road.piece) : undefined, box: boxOf(road.points) })),
     ...rails.stretches.map((stretch) => { const line = smoothLine(stretch.points); return { rail: true, level: 0, line, first: 0, stroke: undefined, box: boxOf(line) }; }),
     ...(railGraph?.runs ?? []).map((run) => ({ rail: true, level: 0, line: run.points, first: 0, stroke: undefined, box: boxOf(run.points) })),
+    // The canals dug in metres, as they are drawn (src/roads/canalLines.ts), for the layouts that lie along them
+    ...(map.canalGraph?.segments.size ? canalGraphLines(map.canalGraph, { width: map.width, height: map.height,
+      tileSizeM: tileMetres(map), canal: (i) => (map.canals?.[i] ?? 0) > 0,
+      wet: (i) => isWaterTile(value(i)) || isBridgeTile(value(i)) }).lines : [])
+      .map((line) => ({ rail: false, canal: true, level: 0, line, first: 0, stroke: undefined, box: boxOf(line) })),
   ];
   // Each junction's corners belong to one of the roads meeting there: the one running on through it, else the
   // highest, else the longest. Its rows run on to the other road's edge and the other's rows begin behind them, so a
@@ -357,8 +374,13 @@ function roadFrame(map: CellMap): RoadFrame {
 export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean = () => true, options: LayoutOptions = {}): CellLayout {
   const units = unitsPerMetre(map), cellUnits = CELL_M * units, rasterUnits = RASTER_M * units;
   const depth = options.depth ?? CELL_DEPTH, ground = options.ground ?? cellGround, plots = options.plots ?? true;
+  const withCanals = options.canals === true;
   // The roads at their real width on a real-scale city map (src/roadGeometry.ts), so the first row lies at its edge
   const real = realUnits(tileMetres(map));
+  // ... a railway's, and a canal's water and banks at their widest, a canal's highest level (src/render3d/models/water/
+  // canal.ts: 7.9 m), so its cells stay where they are as it grows a level
+  const lineReach = (rail: boolean, canal: boolean | undefined, level: number): number =>
+    canal ? CANAL_REACH_M * units : rail ? 1.9 * Math.min(1, real ?? 1) : roadReach(level, real);
   const rasterWidth = Math.ceil(unitsOfTile(map.width) / rasterUnits), rasterHeight = Math.ceil(unitsOfTile(map.height) / rasterUnits);
   // The part of the map laid: the window and its margin, or all of it; the rasters below cover only that part
   const window = options.window ?? null, margin = window ? options.margin ?? 8 * cellUnits : 0;
@@ -406,9 +428,10 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
     return mayBuild[i] === 2;
   };
   // The roads and railways themselves, out to their edges, take their ground first
-  for (const { rail, level, line, box } of lines) {
+  for (const { rail, canal, level, line, box } of lines) {
+    if (canal && !withCanals) continue;
     // Raster squares whose middles lie on the road or its shoulders, so the first row of cells fits beside it
-    const reach = (rail ? 1.9 * Math.min(1, real ?? 1) : roadReach(level, real)) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
+    const reach = lineReach(rail, canal, level) - rasterUnits / 2, r = Math.ceil(reach / rasterUnits) + 1;
     if (!near(box, reach + rasterUnits)) continue;
     for (const [px, pz] of line) {
       const cx = Math.floor(px / rasterUnits), cz = Math.floor(pz / rasterUnits);
@@ -424,9 +447,9 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
   }
   // Every row of cells beside the roads zones may face, nearest the road first, its junctions' corners before that
   const candidates: Array<Cell & { distance: number }> = [];
-  for (const [n, { rail, level, line, first, stroke, box }] of lines.entries()) {
-    if (rail || !servesZones(level) || line.length < 2) continue;
-    const edge = roadReach(level, real) + EDGE_GAP;
+  for (const [n, { rail, canal, level, line, first, stroke, box }] of lines.entries()) {
+    if (rail || canal && !withCanals || !canal && !servesZones(level) || line.length < 2) continue;
+    const edge = lineReach(false, canal, level) + EDGE_GAP;
     if (!near(box, edge + depth * cellUnits)) continue;
     let road = first;
     const along = [0];
@@ -512,7 +535,7 @@ export function cellLayout(map: CellMap, owns: (x: number, y: number) => boolean
       // (x and z not below 0, the spot being on the raster)
       const tx = (x / TILE_UNITS) | 0, ty = (z / TILE_UNITS) | 0;
       if (tx >= map.width || ty >= map.height ||
-          !ground(tiles[ty * map.width + tx]) || !ownsAt(tx, ty) ||
+          !ground(tiles[ty * map.width + tx], ty * map.width + tx) || !ownsAt(tx, ty) ||
           (map.insideProvince && !map.insideProvince[ty * map.width + tx])) return false;
       // A road's tile is wider than the road drawn on it (taken above), so a cell may reach over its margin; a road
       // across one end of its row only, it may fit cut short (below)

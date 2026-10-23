@@ -20,14 +20,14 @@ import { CANAL_TOOL, isBridgeTile, isWaterTile } from "./canals";
 import { besideWater3, farmLevel, fisheryLevel } from "./farming";
 import { FARM_ERASE_TOOL, FARM_PAINT_TOOL, farmSide, FIELD_FLAGS, fieldLevelOf, fieldOutcome, fieldTile, isFieldValue,
   type FieldMap } from "./farmZone";
-import { ALL_SQUARES, cellPainted, cellSquares, farmCellOfKey, farmCellsOfTiles, homeSquare, SQUARES, squareCount } from "./farmGrid";
+import { ALL_SQUARES, cellPainted, cellSquares, farmCellOfKey, farmCellsOfTiles, homeSquare, lineTile, SQUARES, squareCount } from "./farmGrid";
 import { FARM_ZONE } from "./provinceRules";
 import { isWoodsValue } from "./plots";
 import { canDig, MINE_KINDS } from "./mining";
 import { isRoadTile, roadLevelAt, ROAD_TOOLS, UPGRADE_TOOL } from "./roadLevels";
 import { RoadGraph } from "./roads/roadGraph";
 import { cutTile, LostTiles } from "./roads/roadCut";
-import { isAnyRail, isAnyRoad, isLineRoad } from "./roadTiles";
+import { isAnyRail, isAnyRoad } from "./roadTiles";
 import { lineOnGraph, linePrice } from "./roads/roadDraw";
 import { drawnRoads, graphLines } from "./roads/graphLines";
 import { isCityTileSize, tileMetres, tileOfUnits, unitsPerMetre } from "./units";
@@ -1011,7 +1011,7 @@ export class CityCommands {
       if (!cell || !home || (!command.erase && !paintable(home.owner))) continue;
       // (its squares over a road tile's margin too, which keep a cell beside the road painted and count for nothing)
       for (const [tile, bits] of cellSquares(map, cell, units)) {
-        if (!command.erase && tile !== home.owner && !paintable(tile) && !isLineRoad(value(tile % width, Math.floor(tile / width)))) continue;
+        if (!command.erase && tile !== home.owner && !paintable(tile) && !lineTile(map, tile)) continue;
         const sum = want.get(tile) ?? new Uint8Array(SQUARES);
         for (let r = 0; r < SQUARES; r++) sum[r] |= bits[r];
         want.set(tile, sum);
@@ -1029,8 +1029,8 @@ export class CityCommands {
     for (const [tile, bits] of [...want].sort((a, b) => a[0] - b[0])) {
       const x = tile % width, y = (tile - x) / width, v = value(x, y), field = isFieldValue(v);
       const before = now(tile, field), next = new Uint8Array(SQUARES);
-      if (isLineRoad(v)) {
-        // A road tile's margin: its squares alone, for nothing
+      if (lineTile(map, tile)) {
+        // A road's or a canal's tile's margin: its squares alone, for nothing
         for (let r = 0; r < SQUARES; r++) next[r] = command.erase ? before[r] & ~bits[r] : before[r] | bits[r];
         if (squareCount(next) !== squareCount(before)) plans.push({ x, y, tile, squares: next, to: null });
         continue;
@@ -1068,7 +1068,7 @@ export class CityCommands {
     const changes: TileChange[] = [];
     for (const p of plans) {
       // (a field painted whole keeps no squares, as a whole tile painted always has)
-      const whole = squareCount(p.squares) === ALL_SQUARES && !isLineRoad(tiles.getTile(p.x, p.y).getRawValue() & BIT_MASK);
+      const whole = squareCount(p.squares) === ALL_SQUARES && !lineTile(map, p.tile);
       kept.set(whole ? new Uint8Array(SQUARES) : p.squares, p.tile * SQUARES);
       if (p.to === null) continue;
       const before = tiles.getTile(p.x, p.y).getRawValue();

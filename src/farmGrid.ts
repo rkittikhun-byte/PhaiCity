@@ -22,6 +22,7 @@ import { isOpenLand, plotKindOfValue } from "./plots";
 import { isLineRoad } from "./roadGeometry";
 import { FIELD_BASE, FIELD_LAST } from "./tileValues";
 import { BIT_MASK } from "./tileFlags";
+import { isBridgeTile, isWaterTile } from "./canals";
 import { TILE_UNITS, tileMetres, tileOfUnits } from "./units";
 import { FARM_ZONE } from "./provinceRules";
 
@@ -38,9 +39,22 @@ export interface FarmGridMap extends CellMap {
 
 const isField = (value: number): boolean => value >= FIELD_BASE && value <= FIELD_LAST;
 
-/** Ground a farm cell may lie on: open land, fields, the margin of a road's tile, and the zones' plots (the same cells
- * whether a tile is painted or grown, so painting never moves them; a plot's are not painted, src/cityCommands.ts) */
-const farmGround = (value: number): boolean => isOpenLand(value) || isField(value) || isLineRoad(value) || plotKindOfValue(value) !== null;
+/** Whether a tile is a dug canal's water or a bridge over it (src/canals.ts): its margin beside the banks is like a road
+ * tile's to the farm cells */
+const isCanalTile = (map: FarmGridMap, value: number, index: number): boolean =>
+  (map.canals?.[index] ?? 0) > 0 && (isWaterTile(value) || isBridgeTile(value));
+
+/** Whether a tile is a road's or a canal's, whose margin the farm cells beside them may reach over */
+const lineTile = (map: FarmGridMap, index: number): boolean => {
+  const v = map.getTileValue(index % map.width, Math.floor(index / map.width)) & BIT_MASK;
+  return isLineRoad(v) || isCanalTile(map, v, index);
+};
+
+/** Ground a farm cell may lie on: open land, fields, the margin of a road's or a canal's tile, and the zones' plots (the
+ * same cells whether a tile is painted or grown, so painting never moves them; a plot's are not painted,
+ * src/cityCommands.ts) */
+const farmGround = (map: FarmGridMap) => (value: number, index: number): boolean =>
+  isOpenLand(value) || isField(value) || isLineRoad(value) || plotKindOfValue(value) !== null || isCanalTile(map, value, index);
 
 /** How many rows of cells a road's farm grid has: as far as a field may lie from the road (reach tiles), and one more */
 export const farmRows = (map: { tileSizeM?: number | null }, reach: number): number =>
@@ -58,17 +72,17 @@ function chunkStamp(map: FarmGridMap, cx: number, cy: number, pad: number): numb
   const x0 = Math.max(0, cx * FARM_CHUNK - pad), y0 = Math.max(0, cy * FARM_CHUNK - pad);
   const x1 = Math.min(map.width, (cx + 1) * FARM_CHUNK + pad), y1 = Math.min(map.height, (cy + 1) * FARM_CHUNK + pad);
   const raw = map.rawCells?.() ?? null, levels = map.roadLevels, pieces = map.roadPieces, inside = map.insideProvince;
-  const imul = Math.imul;
+  const imul = Math.imul, ground = farmGround(map);
   let hash = (x0 * 7919 + y0 * 104729 + x1 * 31 + y1) | 0;
   for (let y = y0; y < y1; y++) for (let x = x0, i = y * map.width + x0; x < x1; x++, i++) {
     const v = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(x, y);
-    let kind = v >= 64 && v <= 238 ? v * 4096 + (levels?.[i] ?? 1) * 256 + (pieces?.[i] ?? 0) % 256 : farmGround(v) ? 1 : 2;
+    let kind = v >= 64 && v <= 238 ? v * 4096 + (levels?.[i] ?? 1) * 256 + (pieces?.[i] ?? 0) % 256 : ground(v, i) ? 1 : 2;
     if (inside && !inside[i]) kind += 3;
     hash = (imul(hash, 16777619) ^ imul(i, 31) ^ kind) | 0;
   }
   // ... and the roads and railways drawn in metres that come near it, by their ends, bends, levels and strokes
   const metres = tileMetres(map), box = [x0 * metres, y0 * metres, x1 * metres, y1 * metres];
-  for (const graph of [map.roadGraph, map.railGraph]) {
+  for (const graph of [map.roadGraph, map.railGraph, map.canalGraph]) {
     if (!graph) { hash = imul(hash, 31) | 0; continue; }
     for (const s of graph.segments.values()) {
       const a = graph.node(s.a), b = graph.node(s.b), xs = [a.x, b.x, s.c1?.[0] ?? a.x, s.c2?.[0] ?? b.x], zs = [a.z, b.z, s.c1?.[1] ?? a.z, s.c2?.[1] ?? b.z];
@@ -88,7 +102,7 @@ export function farmChunk(map: FarmGridMap, cx: number, cy: number, reach: numbe
   const id = cy * 65536 + cx, found = kept.get(id);
   if (found && found.stamp === stamp) return found.layout;
   const span = FARM_CHUNK * TILE_UNITS;
-  const layout = cellLayout(map, () => true, { depth: rows, plots: false, ground: farmGround,
+  const layout = cellLayout(map, () => true, { depth: rows, plots: false, ground: farmGround(map), canals: true,
     window: { x0: cx * span, z0: cy * span, x1: (cx + 1) * span, z1: (cy + 1) * span } });
   if (kept.size >= KEPT_CHUNKS && !found) kept.delete(kept.keys().next().value as number);
   kept.delete(id);
@@ -287,10 +301,12 @@ export interface Home extends Square { owner: number }
  * tiles belongs to the first land tile out from the road along it, and is kept by the square under its middle (squares
  * on a road's tile count for nothing in the simulation, src/farmZone.ts fieldShare).
  */
+export { lineTile };
+
 export function homeSquare(map: FarmGridMap, cell: Cell): Home | null {
   const middle = squareAt(map, cell.x, cell.z);
   if (!middle) return null;
-  const road = (tile: number): boolean => isLineRoad(map.getTileValue(tile % map.width, Math.floor(tile / map.width)) & BIT_MASK);
+  const road = (tile: number): boolean => lineTile(map, tile);
   if (!road(middle.tile)) return { ...middle, owner: middle.tile };
   const size = TILE_UNITS / SQUARES, units = TILE_UNITS * CELL_M / tileMetres(map);
   let best: Home | null = null, bestD = Infinity;
@@ -331,7 +347,7 @@ export function paintedCells(map: FarmGridMap, tiles: Iterable<number>, reach: n
     const x = tile % map.width, y = (tile - x) / map.width;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       const nx = x + dx, ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height && isLineRoad(map.getTileValue(nx, ny) & BIT_MASK)) look.add(ny * map.width + nx);
+      if (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height && lineTile(map, ny * map.width + nx)) look.add(ny * map.width + nx);
     }
   }
   const out: Array<{ cell: Cell; tile: number }> = [];
@@ -352,7 +368,7 @@ export function farmSquaresKept(map: FarmGridMap): Record<string, string> | null
   for (let i = 0; i < map.width * map.height; i++) {
     // (and those over a road tile's margin, which keep the cells beside the road painted)
     const n = squareCount(squares, i * SQUARES), v = map.getTileValue(i % map.width, Math.floor(i / map.width)) & BIT_MASK;
-    if (!n || !(isField(v) && n < ALL_SQUARES || isLineRoad(v))) continue;
+    if (!n || !(isField(v) && n < ALL_SQUARES || lineTile(map, i))) continue;
     let hex = "";
     for (let r = 0; r < SQUARES; r++) hex += squares[i * SQUARES + r].toString(16).padStart(2, "0");
     kept[i] = hex;
