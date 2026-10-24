@@ -40,6 +40,7 @@ import { BLBNCNBIT, POWERBIT, ZONEBIT } from "./tileFlags";
 import { DIRT } from "./tileValues";
 import { isCityTileSize } from "./units";
 import { mapEra } from "./era";
+import { buildMonthsOf } from "./buildTimes";
 
 /** How many columns (4 m each) along its road each kind's plot takes: a shophouse bay, a 12 m house, a 16 m works */
 export const PLOT_FRONTAGE: Readonly<Record<PlotKind, number>> = { residential: 3, commercial: 1, industrial: 4 };
@@ -110,10 +111,9 @@ export const builtLevel = (plot: Pick<PlotBuilding, "level" | "built">): number 
 export const isVacant = (plot: Pick<PlotBuilding, "level" | "built">): boolean => plot.level === 0 && builtLevel(plot) > 0;
 
 /** The months a plot's building of a level takes to go up (owner, 24 Oct 2026: "ต้องมีการเริ่มก่อสร้างด้วย ไม่ใช่หายแว๊บ
- * ขึ้นมาเลย"): a stilt house a month, each level of a home a month more, a shophouse a month more than a home, a
- * factory two */
+ * ขึ้นมาเลย", "ยิ่งบ้านใหญ่ขึ้น ยิ่งสร้างนาน"): src/buildTimes.ts */
 export function buildMonths(kind: PlotKind, level: number): number {
-  return Math.max(1, level) + (kind === "commercial" ? 1 : kind === "industrial" ? 2 : 0);
+  return buildMonthsOf(kind === "residential" ? "home" : kind === "commercial" ? "shop" : "factory", Math.max(1, level));
 }
 
 /** The months an empty building stands dark and still, then weathered, before it is run-down (owner, 24 Oct 2026: "อาคาร

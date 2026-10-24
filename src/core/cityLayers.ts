@@ -90,6 +90,12 @@ export function readCityLayers(map: Legacy, saved: Legacy | null): void {
     map.eraHistory = Array.isArray(saved.eraHistory) ? saved.eraHistory.filter((v: unknown) => typeof v === "number") : [];
     map.eraDawn = saved.eraDawn === true;
     map.buildingEras = saved.buildingEras ? decodePresetLayer(saved.buildingEras, map.width, map.height) : null;
+    // ... and the buildings being rebuilt in another era's look: [tile, from, since, months] each (src/eraScore.ts)
+    map.eraRebuilds = {};
+    for (const row of Array.isArray(saved.eraRebuilds) ? saved.eraRebuilds : []) {
+      if (Array.isArray(row) && row.length === 4 && row.every((n: unknown) => Number.isFinite(n)))
+        map.eraRebuilds[row[0]] = { from: row[1], since: row[2], months: row[3] };
+    }
     // ... and the frame of its district it plays (src/cityFrame.ts), null on a map that is not a frame
     map.frame = saved.frame || null;
     // ... and the civic buildings, the ruler's house first (src/rulerHouse.ts); a city saved before the house was in
@@ -314,6 +320,9 @@ export function writeCityLayers(map: Legacy): Record<string, unknown> {
     eraHistory: Array.isArray(map.eraHistory) && map.eraHistory.length ? map.eraHistory.map((v: number) => Math.round(v * 1e4) / 1e4) : undefined,
     eraDawn: map.eraDawn ? true : undefined,
     buildingEras: map.buildingEras && map.buildingEras.some((e: number) => e > 0) ? encodePresetLayer(map.buildingEras) : undefined,
+    eraRebuilds: map.eraRebuilds && Object.keys(map.eraRebuilds).length
+      ? Object.entries(map.eraRebuilds as Record<string, { from: number; since: number; months: number }>).map(([t, r]) => [Number(t), r.from, r.since, r.months])
+      : undefined,
     // ... and the month's weather, with the seed of its chances (src/weather.ts)
     weather: map.weather ? { ...map.weather } : undefined,
     // ... and the festivals (src/festivals.ts)

@@ -23,6 +23,7 @@ import { SEED_BUCKETS } from './types.js';
 import type { RegionId } from '../regional/types.js';
 import { type EraModels, eraKindFor, eraModelId, parseEraId, plotEraKind } from './eraBuildings.js';
 import { mapEra } from '../../era.js';
+import { type EraRebuild, rebuildShare } from '../../eraScore.js';
 import { laidOutline, outlineOf, type Outline, quarterTurn, TURNED_SIZES, turnedTilesOf, type FootprintMap } from '../../buildings/turnedFootprint.js';
 import type { PlacedBuilding } from '../../buildings/placedBuildings.js';
 import { type FieldMap, hubKind, type HubKind, isFieldValue } from '../../farmZone.js';
@@ -37,6 +38,8 @@ import { TEMPLE_ID } from '../models/civic/temple.js';
 
 export interface TileResolution { kind: string; id: string | null; footprint: readonly [number, number]; density: number }
 const debug = (): TileResolution => ({ kind: 'debug', id: 'debug.box_3x3', footprint: [1, 1], density: 0 });
+/** The share of an era rebuild's months its old self stands inside a scaffold, before the site of its new look (eraScore.ts) */
+const REBUILD_WRAPPED = 0.45;
 /** Shared joint tile ranges are a single mask-selected family, not competing model claims. */
 export function makeTileTable(): readonly TileResolution[] {
   const table = Array.from({ length: 1024 }, debug);
@@ -260,6 +263,8 @@ export class TileSnapshot implements CityMapReader {
     changed.push(...this.posesMoved(map));
     // ... and a big building's site that came or was finished changes no tile either (src/construction.ts)
     changed.push(...this.sitesMoved(map));
+    // ... and a building's era rebuild that began, passed from its scaffold to its site, or ended (rebuildAt)
+    changed.push(...this.rebuildsMoved());
     // ... and a plot of the list that grew, joined or went, which the tile it is counted at may not show (plotsMoved)
     changed.push(...this.plotsMoved());
     if (count >= 0 && count === this.seenChanges && !this.initialSync) {
@@ -409,6 +414,17 @@ export class TileSnapshot implements CityMapReader {
     if (!this.initialSync) for (const tile of this.poseCopy.keys()) if (!now.has(tile)) moved.push(tile);
     this.poseCopy = now;
     return moved;
+  }
+  /** Each era rebuild's tile and stage (w: wrapped in scaffold, s: a site) when last looked at */
+  private rebuildsSeen=new Map<number,string>();
+  private rebuildsMoved():number[] {
+    const s=this.source as {eraRebuilds?:Record<string,EraRebuild>|null}|null,now=new Map<number,string>();
+    for(const key of Object.keys(s?.eraRebuilds??{})){const r=this.rebuildAt(Number(key));if(r)now.set(Number(key),r.share<REBUILD_WRAPPED?'w':'s');}
+    const moved:number[]=[];
+    for(const[t,st]of now)if(this.rebuildsSeen.get(t)!==st)moved.push(t);
+    for(const t of this.rebuildsSeen.keys())if(!now.has(t))moved.push(t);
+    this.rebuildsSeen=now;
+    return this.initialSync?[]:moved;
   }
   /** The centre tiles of the construction sites when last looked at, sorted and joined */
   private sitesSeen = '';
@@ -620,10 +636,41 @@ export class TileSnapshot implements CityMapReader {
    * bays or 12 m house along its own columns (frontage.ts), or its one model standing on them, its front against the
    * road, no wider than they are; null where none counted here has a building
    */
+  /** A building's era rebuild under way at tile i (src/eraScore.ts rebuildShare), or null; only while construction shows */
+  rebuildAt(i:number):{from:number;share:number}|null {
+    const s=this.source as {eraRebuilds?:Record<string,EraRebuild>|null;eraRebuildNow?:number}|null;
+    return this.enableConstruction&&s?.eraRebuilds?rebuildShare(s,i,s.eraRebuildNow??0):null;
+  }
+  /** A building of the ruler's or the community's being rebuilt in another era's look (rebuildAt): its old self inside a
+   * scaffold, then a construction site of its size until its new look stands (owner, 24 Oct 2026: "การเปลี่ยนยุค ต้องมี
+   * ก่อสร้างด้วย") */
+  private rebuilt(p:Placement|null,region:RegionId):Placement|null {
+    if(!p||p.index<0)return p;
+    const r=this.rebuildAt(p.index);
+    if(!r)return p;
+    if(r.share<REBUILD_WRAPPED){p.parts=[...(p.parts??[]),this.scaffoldFor(p,r.from)];return p;}
+    const s=Math.max(...p.footprint),x=p.index%this.width,y=Math.floor(p.index/this.width),size=s>=6?6:s>=4?4:s>=3?3:2,id=siteId(size);
+    if(!registry[id])return p;
+    return new Placement({index:p.index,x:p.x,z:p.z,id,kind:'services',footprint:[size,size],height:size>=4?16:6,color:RAMPS.sand[400],
+      water:false,rotation:p.rotation,scale:1,powered:false,baseY:p.baseY,options:{region,roadLevel:typeof this.roadLevel==='function'?this.roadLevel(x,y):this.roadLevel,
+        seed:0,variant:size>=4?1:0,state:'closed',waterMask:0,landMask:15,worldOrigin:[p.x,p.z],worldRotationY:p.rotation}});
+  }
+  /** The scaffold standing round a building rebuilt in another era's look, in its old era's way (bamboo, timber, steel and
+   * netting: models/plot/construction.ts `scaffold`), as wide and tall as the building drawn */
+  private scaffoldFor(p:Placement,era:number):Placement {
+    const width=Math.max(...p.footprint)*10*(p.fill??1),h=p.height*(p.scale||1),level=h<6?1:h<10?2:h<18?3:h<35?4:5;
+    return new RoadsidePlacement({index:p.index,x:p.x,z:p.z,id:`plot.com_${level}`,kind:p.kind,footprint:[1,1],height:h,color:p.color,
+      water:false,rotation:p.rotation,scale:width/10,powered:false,procedural:true,baseY:p.baseY,
+      options:{...p.options,seed:0,variant:0,state:`scaffold:e${era}`,worldOrigin:[p.x,p.z],worldRotationY:p.rotation}});
+  }
   /** The stage a plot of the list's building is drawn at (src/plotBuildings.ts constructionStage): going up over its months
    * (owner, 24 Oct 2026: "ต้องมีการเริ่มก่อสร้างด้วย ไม่ใช่หายแว๊บขึ้นมาเลย"), else finished */
   private stageOf(list:PlotBuildings,plot:PlotBuilding):'stage_1'|'stage_2'|'closed' {
-    return this.enableConstruction?constructionStage(constructionShare(plot,list.now)):'closed';
+    if(!this.enableConstruction)return 'closed';
+    // ... and one being rebuilt in the next era's look, once its old self is down (rebuildAt)
+    const rebuild=this.rebuildAt(list.places.get(plot.id)?.anchor??-1);
+    if(rebuild&&rebuild.share>=REBUILD_WRAPPED)return 'stage_2';
+    return constructionStage(constructionShare(plot,list.now));
   }
   private listPlacement(i:number,region:RegionId,list:PlotBuildings):Placement|null {
     // (a building its people left still stands, as built: builtLevel)
@@ -664,6 +711,9 @@ export class TileSnapshot implements CityMapReader {
       const one=this.listModel(i,plot,region,own);
       if(one)placed.push(one);
     }
+    // A building being rebuilt in another era's look stands in its old look inside a scaffold first (rebuildAt)
+    const wrapped=this.rebuildAt(i);
+    if(wrapped&&wrapped.share<REBUILD_WRAPPED&&placed.length)placed.push(this.scaffoldFor(placed[0],wrapped.from));
     // A run-down empty building's rubbish by its door (src/plotBuildings.ts decayOf): a small heap of rubble on its ground,
     // gone when it is bulldozed (owner, 24 Oct 2026: "อาคารที่คนย้ายออก ให้ผุพัง มีกองขยะ")
     for(const plot of plots){
@@ -747,6 +797,8 @@ export class TileSnapshot implements CityMapReader {
    * 1-5), else the city's era (src/era.ts) */
   eraOf(i:number):number {
     const map=this.source as {era?:unknown;buildingEras?:ArrayLike<number>|null}|null;
+    // (a building being rebuilt in another era's look keeps its old one while the scaffold stands round it: rebuildAt)
+    const rebuild=this.rebuildAt(i);if(rebuild&&rebuild.share<REBUILD_WRAPPED)return rebuild.from;
     const own=map?.buildingEras?.[i]??0;
     return own>=1&&own<=5?own:mapEra(map);
   }
@@ -806,7 +858,7 @@ export class TileSnapshot implements CityMapReader {
     if(list&&!(this.flags[i]&ZONEBIT)&&plotKindOfValue(this.values[i])!==null)return this.listPlacement(i,region,list);
     if(this.curves&&isPowerCrossing(this.values[i]))return this.wiresOnly(i,region);
     if(this.curves&&(isCurved(this.values[i])||(this.values[i]===0||isWoods(this.values[i]))&&this.besideCurve(i)))return null;
-    const p=this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i]))));
+    const p=this.rebuilt(this.narrowBridge(this.atRealSize(this.toEra(this.placementOf(i,region,this.values[i])))),region);
     const front=this.frontage(p);
     if(front)return front;
     return this.toRoadEdge(this.houseCompound(p&&this.curves&&this.roadSnap?this.againstRoad(p):p));

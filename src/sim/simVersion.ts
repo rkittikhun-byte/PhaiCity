@@ -9,7 +9,7 @@
 // with today's rules and is saved with today's number.
 
 /** Today's rules */
-export const SIM_VERSION = 22;
+export const SIM_VERSION = 23;
 
 /** What each version of the rules changed */
 export const SIM_VERSIONS: Readonly<Record<number, string>> = {
@@ -68,6 +68,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "is bulldozed or people move back; a vacant building is never joined into its neighbour nor its land taken by an " +
     "empty plot beside it; a new level's building is a construction site for its months; an empty building run down " +
     "after 9 months takes nobody back and its rubbish pollutes round it (GAME_DESIGN 23)",
+  23: "a building that takes another era's look while it stands is rebuilt over its months (src/buildTimes.ts), kept with " +
+    "the city; its people and work go on meanwhile; a plot's building takes the table's months by kind and level (GAME_DESIGN 23)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */
