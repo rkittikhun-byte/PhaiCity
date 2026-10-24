@@ -323,6 +323,11 @@ body:has(#activeToolPill:not([hidden])) #cornerNote { bottom: 62px; max-width: 4
 }
 #activeToolPill .pillCancel:hover { background: var(--ph-chili-400); color: var(--ph-sand-0); }
 
+/* A window too narrow for the time bar beside the dock lifts the bar (css/time-controls.css), so the tray rises over it too */
+@media (min-width: 701px) and (max-width: 1150px) {
+  body.toolDockReady #toolTray { bottom: 128px; }
+}
+
 /* Camera bar sits comfortably */
 body.toolDockReady #cameraBar { bottom: 84px; }
 

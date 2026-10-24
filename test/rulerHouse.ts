@@ -93,7 +93,7 @@ describe("the ruler's house", () => {
       expect(HOUSE_SPECS[level - 1].price).toBeGreaterThan(HOUSE_SPECS[level - 2].price);
       expect(HOUSE_SPECS[level - 1].upkeep).toBeGreaterThan(HOUSE_SPECS[level - 2].upkeep);
       expect(HOUSE_SPECS[level - 1].rank).toBe(level - 1);
-      expect(HOUSE_SPECS[level - 1].wings).toBe(level - 1);
+      expect(HOUSE_SPECS[level - 1].wings).toBe(level);
     }
     expect(BASE_PRICES.ruler_house).toBe(HOUSE_SPECS[0].price);
     expect(BASE_PRICES.ruler_house_upgrade).toBe(houseUpgradeCost(1));
@@ -130,7 +130,7 @@ describe("the ruler's house", () => {
   test("reads a saved house carefully", () => {
     expect(readHouse({ x: 3, y: 4, level: 2, wings: ["treasury", "nope", "treasury"] }))
       .toEqual({ x: 3, y: 4, level: 2, wings: ["treasury"] });
-    expect(readHouse({ x: 3, y: 4, level: 1, wings: ["treasury"] })).toEqual({ x: 3, y: 4, level: 1, wings: [] });
+    expect(readHouse({ x: 3, y: 4, level: 1, wings: ["treasury", "granary"] })).toEqual({ x: 3, y: 4, level: 1, wings: ["treasury"] });
     expect(readHouse({ x: 3, y: 4, level: 9 })).toBeNull();
     expect(readHouse(null)).toBeNull();
   });
@@ -145,8 +145,8 @@ describe("the house's wings", () => {
     return c;
   }
 
-  test("one more for each level from the second; each pays its price, comes off without a refund", () => {
-    const { map, sim, commands } = raised(2);
+  test("one for each level; each pays its price, comes off without a refund", () => {
+    const { map, sim, commands } = raised(1);
     const funds = sim.budget.totalFunds;
     expect(commands.apply({ type: "wing", wing: "treasury", add: true }).accepted).toBe(true);
     expect(funds - sim.budget.totalFunds).toBe(WING_SPECS.treasury.price);
@@ -182,10 +182,12 @@ describe("the house's wings", () => {
   });
 
   test("the window shows what each wing can do now", () => {
-    const rows = wingRows({ x: 0, y: 0, level: 2, wings: ["treasury"] }, 100);
+    const rows = wingRows({ x: 0, y: 0, level: 2, wings: ["treasury", "granary"] }, 100);
     expect(rows.find((row) => row.wing === "treasury")?.state).toBe("remove");
-    expect(rows.find((row) => row.wing === "granary")?.state).toBe("no_room");
-    expect(rows.find((row) => row.wing === "council_hall")?.state).toBe("no_room");
+    expect(rows.find((row) => row.wing === "front_garden")?.state).toBe("needs_level");
+    expect(rows.find((row) => row.wing === "council_hall")?.state).toBe("needs_level");
+    expect(wingRows({ x: 0, y: 0, level: 6, wings: ["treasury", "granary", "front_garden", "council_hall", "culture_court",
+      "warning_tower"] }, 100).find((row) => row.wing === "planning_office")?.state).toBe("no_room");
     expect(rows.find((row) => row.wing === "trade_office")?.state).toBe("waits_network");
     expect(wingRows({ x: 0, y: 0, level: 3, wings: [] }, 100).find((row) => row.wing === "granary")?.state)
       .toBe("no_money");

@@ -1759,7 +1759,8 @@ body .modal.dockFromRight { --window-from: 14px; }
 /* The title: small and bold with its menu button's colour as a mark, instead of the striped bar */
 body #budgetHeader, body #evalHeader, body #graphHeader, body #mapHeader, body #disasterHeader, body #queryHeader,
 body #congratsHeader, body #nagHeader, body #saveHeader, body #mainMenuHeader, body #screenshotLinkHeader,
-body #screenshotHeader, body #settingsHeader, body #debugHeader, body #touchHeader, body #registerHeader {
+body #screenshotHeader, body #settingsHeader, body #debugHeader, body #touchHeader, body #registerHeader,
+body #houseWindow > header, body #policyWindow > header {
   position: relative; height: auto; padding: 10px 12px 2px 28px; background: none; color: var(--hud-text);
   font: 700 13px/1.3 'Sarabun Thai', 'Open Sans', sans-serif; text-align: left;
 }
@@ -1778,6 +1779,7 @@ body #screenshotWindow, body #screenshotLinkWindow { --accent: var(--ph-chili-40
 body #mainMenuWindow { --accent: var(--ph-clay-600); }
 body #congratsWindow { --accent: var(--ph-gold-600); }
 body #registerWindow { --accent: var(--ph-rice-600); }
+body #houseWindow, body #policyWindow { --accent: var(--ph-gold-600); }
 
 body .modal .padding10 { padding: 6px 12px 10px; }
 body .modal .margin10 { margin: 8px 0 0; }
@@ -2134,7 +2136,7 @@ body.houseFirst #buttons .toolButton[data-tool="ruler_house"] { box-shadow: 0 0 
 /* ... and the ruler's policies window, laid out the same (src/policyWindow.ts) */
 body :is(#houseWindow, #policyWindow) { max-width: 360px; }
 body :is(#houseSummary, #policySummary) { margin-bottom: 6px; }
-body :is(#houseWings, #policyList) { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow: auto; }
+body :is(#houseWings, #policyList) { list-style: none; margin: 0; padding: 0; }
 body :is(#houseWings, #policyList) .houseWing {
   display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 5px 0;
   border-top: 1px solid rgba(var(--ph-sand-800-rgb), 0.12); font-weight: 400;
@@ -2144,7 +2146,9 @@ body :is(#houseWings, #policyList) .houseWing .name { font-weight: 400; }
 body :is(#houseWings, #policyList) .houseWing .wingGain { color: var(--ph-rice-600); }
 body :is(#houseWings, #policyList) .houseWing .wingCost { color: var(--ph-chili-600); }
 body :is(#houseWings, #policyList) .houseWing .wingMoney { opacity: 0.75; }
-body :is(#houseWings, #policyList) .houseWing button { grid-column: 2; grid-row: 1 / span 4; align-self: center; font: inherit; }
+body #houseWings .houseWing .wingWhy:empty { display: none; }
+body #houseWings .houseWing .wingWhy { color: var(--ph-gold-600); }
+body :is(#houseWings, #policyList) .houseWing button { grid-column: 2; grid-row: 1 / span 5; align-self: center; font: inherit; }
 body :is(#houseWings, #policyList) .houseWing.owned .name::after { content: " ✓"; }
 /* The ruler's tasks take the tools' old place on the right */
 body #rulerGoals { top: 48px; }

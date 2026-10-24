@@ -415,7 +415,9 @@
 | `house.wing.state.build` | `src/houseWindow.ts` | — | `Build` | `สร้าง` |  |
 | `house.wing.state.remove` | `src/houseWindow.ts` | — | `Take off` | `รื้อออก` |  |
 | `house.wing.state.waits_network` | `src/houseWindow.ts` | — | `Network mode` | `โหมดเครือข่าย` |  |
-| `house.wing.state.no_room` | `src/houseWindow.ts` | — | `No room` | `ไม่มีช่องว่าง` |  |
+| `house.wing.state.needs_level` | `src/houseWindow.ts` | — | `Raise the house` | `ต้องยกระดับจวน` | ช่องเต็ม แต่จวนยังยกระดับได้ (24 ต.ค. 2026) |
+| `house.wing.needs_level` | `src/houseWindow.ts` | — | `Raise the house to level {level} first ({price}) for more wings` | `ยกระดับจวนเป็นขั้น {level} ก่อน ({price}) จึงได้ที่ต่อเติมเพิ่ม` |  |
+| `house.wing.state.no_room` | `src/houseWindow.ts` | — | `No room left` | `ช่องเต็มแล้ว` |  |
 | `house.wing.state.no_money` | `src/houseWindow.ts` | — | `Not enough money` | `เงินไม่พอ` |  |
 | `policy.window.title` | `index.html` | — | `Ruler's policies` | `นโยบายเจ้าเมือง` | หน้าต่างนโยบาย (Claude Code 13 ต.ค. 2026) |
 | `policy.window.none` | `src/policyWindow.ts` | — | `Policies need the {office}` | `ต้องมี{office}ก่อนจึงออกนโยบายได้` |  |
