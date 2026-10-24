@@ -158,7 +158,7 @@ describe("the farm grid along every road", () => {
     view.update([], 6, 300, 0);
     const ground = view.root.children.find((c) => c.name === "farm_fields/ground") as Mesh;
     const position = ground.geometry.getAttribute("position") as BufferAttribute;
-    expect(position.count).toBeGreaterThan(32 * 6);
+    expect(position.count).toBe(20 * 12 + 12 * 6);
     // (each patch two triangles, (u0, v0) (u0, v1) (u1, v0) and (u1, v0) (u0, v1) (u1, v1): their sides, not the diagonal)
     for (let t = 0; t < position.count; t += 3) {
       for (const [a, b] of (t / 3) % 2 === 0 ? [[0, 1], [0, 2]] : [[2, 0], [2, 1]]) {
@@ -241,5 +241,72 @@ describe("the farm grid along every road", () => {
     expect(squareAt({ width: W, height: H }, 10 + 1.3, 20 + 8.9)).toEqual({ tile: 2 * W + 1, row: 7, column: 1 });
     expect(SQUARES * SQUARES).toBe(ALL_SQUARES);
     expect(SIM_VERSION).toBeGreaterThanOrEqual(18);
+  });
+
+  test("on a bend of radius 30 m with a field 40 rows deep, neighbouring cells in a row leave no slivers of grass", () => {
+    const k = 30 * 4 * (Math.SQRT2 - 1) / 3;
+    const core = city([240, 290], [270, 320], [[240 + k, 290], [270, 320 - k]]);
+    const map = core.map as any;
+    map.farmReach = 10;
+    (core as any).tools.zone_farm.reach = 15;
+    const cells = farmCellsOnTiles(map, 0, 0, W - 1, H - 1, 10)
+      .filter((c) => c.row < 40 && c.nx > 0.1 && c.nz < -0.1);
+    expect(Math.max(...cells.map((c) => c.row))).toBe(39);
+    expect(core.apply({ type: "farmCells", erase: false, cells: cells.map((c) => c.key), stroke: 2 }).accepted).toBe(true);
+    for (let i = 0; i < W * H; i++) {
+      if (!isFieldValue(map.getTileValue(i % W, Math.floor(i / W)))) continue;
+      map.setTile(i % W, Math.floor(i / W), fieldTile(2), FIELD_FLAGS);
+      (map.farmKinds ??= new Uint8Array(W * H))[i] = kindCode("paddy");
+    }
+    const view = new CityFarmFields(map, { sample: () => 0 });
+    view.update([], 6, 300, 0);
+    const ground = view.root.children.find((c) => c.name === "farm_fields/ground") as Mesh;
+    const pos = ground.geometry.getAttribute("position") as BufferAttribute;
+    const tris: Array<[number, number, number, number, number, number, number, number, number, number]> = [];
+    for (let i = 0; i < pos.count; i += 3) {
+      const ax = pos.getX(i), az = pos.getZ(i), bx = pos.getX(i + 1), bz = pos.getZ(i + 1), cx = pos.getX(i + 2), cz = pos.getZ(i + 2);
+      tris.push([ax, az, bx, bz, cx, cz, Math.min(ax, bx, cx), Math.min(az, bz, cz), Math.max(ax, bx, cx), Math.max(az, bz, cz)]);
+    }
+    const covered = (px: number, pz: number): boolean => {
+      for (const [ax, az, bx, bz, cx, cz, x0, z0, x1, z1] of tris) {
+        if (px < x0 - 1e-6 || px > x1 + 1e-6 || pz < z0 - 1e-6 || pz > z1 + 1e-6) continue;
+        const c1 = (bx - ax) * (pz - az) - (bz - az) * (px - ax);
+        const c2 = (cx - bx) * (pz - bz) - (cz - bz) * (px - bx);
+        const c3 = (ax - cx) * (pz - cz) - (az - cz) * (px - cx);
+        if ((c1 >= -1e-6 && c2 >= -1e-6 && c3 >= -1e-6) || (c1 <= 1e-6 && c2 <= 1e-6 && c3 <= 1e-6)) return true;
+      }
+      return false;
+    };
+    const shown = paintedCells(map, Array.from({ length: W * H }, (_, i) => i), 10).map((p) => p.cell);
+    const half = CELL / 2 * 1.06;
+    const unstretched = (px: number, pz: number): boolean => shown.some((c) => {
+      const ox = px - c.x, oz = pz - c.z, sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+      return Math.abs(ox * cos - oz * sin) <= half && Math.abs(ox * sin + oz * cos) <= half * (c.span ?? 1);
+    });
+    let total = 0, missed = 0, beforeMissed = 0;
+    for (let row = 0; row < 40; row++) {
+      const rowCells = shown.filter((c) => c.row === row && c.nx > 0.1 && c.nz < -0.1)
+        .sort((a, b) => a.angle - b.angle || (a.x + a.z) - (b.x + b.z));
+      for (let i = 0; i + 1 < rowCells.length; i++) {
+        const a = rowCells[i], b = rowCells[i + 1];
+        const ca = Math.cos(a.angle), sa = Math.sin(a.angle), cb = Math.cos(b.angle), sb = Math.sin(b.angle);
+        const stepsT = 16, stepsU = 6;
+        for (let ti = 0; ti <= stepsT; ti++) {
+          const t = ti / stepsT;
+          for (let ui = 0; ui <= stepsU; ui++) {
+            const u = ((ui + 0.5) / (stepsU + 1) - 0.5) * CELL;
+            const ax = a.x + ca * u, az = a.z - sa * u, bx = b.x + cb * u, bz = b.z - sb * u;
+            const sx = ax + (bx - ax) * t, sz = az + (bz - az) * t;
+            total++;
+            if (!unstretched(sx, sz)) beforeMissed++;
+            if (!covered(sx, sz)) missed++;
+          }
+        }
+      }
+    }
+    expect(beforeMissed / total).toBeGreaterThan(0.5);
+    expect(missed / total).toBeLessThan(0.005);
+    expect(pos.count).toBeLessThanOrEqual(shown.length * 12);
+    view.dispose();
   });
 });
