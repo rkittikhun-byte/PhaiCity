@@ -63,6 +63,17 @@ describe('the walks of the city', () => {
     expect(arrived).toBeGreaterThan(3);
   });
 
+  test('a road bulldozed since the trips of the month leaves its walks out and breaks nothing (owner, 24 Oct 2026: "No road segment 64")', () => {
+    const { map } = street(), walkers = new TripWalkers(map, U);
+    walkers.hour = () => 7.5;
+    for (let t = 0; t < 20; t += 0.2) walkers.update(250, 125, 300, t);
+    expect(walkers.walkers.length).toBeGreaterThan(0);
+    // the street is gone from the graph, but the trips still name its segment
+    for (const id of [...map.roadGraph.segments.keys()]) map.roadGraph.remove(id);
+    expect(() => { for (let t = 20; t < 60; t += 0.2) walkers.update(250, 125, 300, t); }).not.toThrow();
+    expect(walkers.walkers.length).toBe(0);
+  });
+
   test('no walks where nothing to walk to is near enough, and fewer at night', () => {
     const { map } = street(), walkers = new TripWalkers(map, U);
     walkers.hour = () => 7.5;

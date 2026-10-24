@@ -94,6 +94,9 @@ export class TripWalkers {
     const key = `${home}:${dest}`;
     if (this.ways.has(key)) return this.ways.get(key)!;
     const trips = this.map.trips!, graph = this.map.roadGraph!, pl = trips.places, ids = trips.roads.segmentIds;
+    // (the trips are a month old at most: a road drawn over or bulldozed since has no segment in the graph now, and the
+    // walk starting or ending on it is left out until the trips are worked out again; owner, 24 Oct 2026, "No road segment 64")
+    if (!graph.segments.has(ids[pl.homeSegment[home]]) || !graph.segments.has(ids[pl.jobSegment[dest]])) { this.ways.set(key, null); return null; }
     const metre = (seg: number, t: number): [number, number] => graph.pointAt(ids[seg], t);
     const from = metre(pl.homeSegment[home], pl.homeT[home]), to = metre(pl.jobSegment[dest], pl.jobT[dest]);
     const way = wayBetween(graph, from, to, this.units, 2);
