@@ -99,6 +99,8 @@ export interface PlotBuilding {
   left?: number;
   /** The city's time it was last looked at while going up (not saved): when its stage changes it is drawn again */
   seen?: number;
+  /** How far it had decayed at its last look (decayOf; not saved): a run-down one's rubbish dirties the streets round it */
+  decay?: number;
 }
 
 /** The level of the building standing on a plot: its people's, or higher while some or all of them have left */
@@ -112,6 +114,18 @@ export const isVacant = (plot: Pick<PlotBuilding, "level" | "built">): boolean =
  * factory two */
 export function buildMonths(kind: PlotKind, level: number): number {
   return Math.max(1, level) + (kind === "commercial" ? 1 : kind === "industrial" ? 2 : 0);
+}
+
+/** The months an empty building stands dark and still, then weathered, before it is run-down (owner, 24 Oct 2026: "อาคาร
+ * ที่คนย้ายออก ให้ผุพัง มีกองขยะ") */
+export const DECAY_MONTHS: readonly [number, number] = [3, 9];
+
+/** How far an empty building has decayed at the city's time `now`: 0 lived in, 1 empty and dark, 2 weathered, 3 run-down
+ * with rubbish at its door (which nobody may move back into: it must be bulldozed) */
+export function decayOf(plot: PlotBuilding, now: number): 0 | 1 | 2 | 3 {
+  if (!isVacant(plot)) return 0;
+  const months = (now - (plot.left ?? now)) / TIME_PER_MONTH;
+  return months >= DECAY_MONTHS[1] ? 3 : months >= DECAY_MONTHS[0] ? 2 : 1;
 }
 
 /** The stage a building is drawn at by how far it has gone up: its ground cleared and pegged with its foundations or
@@ -645,8 +659,13 @@ function growPlot(map: PlotScanMap & PlotListMap, list: PlotBuildings, plot: Plo
     else if (constructionStage(constructionShare(plot, now)) !== before) list.version++;
     plot.seen = now;
   }
+  // ... and an empty one that decayed a stage further (decayOf)
+  const decay = decayOf(plot, now);
+  if (decay !== (plot.decay ?? 0)) { plot.decay = decay; list.version++; }
   const grow = (to: number): void => {
     if (to < 0 || to > PLOT_TOP[kind]) return;
+    // (nobody moves back into a run-down building: it must be bulldozed first)
+    if (to > level && decay >= 3) return;
     // (an emptied building keeps its class: it still stands as it was built)
     const value = to === 0 ? (builtLevel(plot) > 0 ? plot.value : 0) : plotEnvironmentClass(map, sim, x, y, kind, luck);
     if (to === level && value <= plot.value) return;

@@ -115,6 +115,11 @@ describe('frontage: era models by the painted cells along the road', () => {
     const standing = drawn(s2, 0, s2.width - 1);
     expect(standing.length).toBeGreaterThan(0);
     for (const p of standing) expect(p.powered).toBe(false);
+    // ... and run down, rubbish lies by its door
+    list.now = 2000 + 12 * 4;
+    const rubbish: string[] = [];
+    for (let x = 0; x < s2.width; x++) { const p = s2.placement(11 * s2.width + x, 'central'); for (const q of p ? [p, ...(p.parts ?? [])] : []) if (q.id === 'terrain.rubble') rubbish.push(q.id); }
+    expect(rubbish.length).toBeGreaterThan(0);
   });
 
   test('a shop street is a terrace of shophouse bays, one on every 4 m cell, joined across its plots', () => {

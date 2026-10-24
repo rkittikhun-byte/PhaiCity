@@ -13,7 +13,7 @@ import { CIVIC, FARM, HARBOUR, MINE, PLANT2, PLANT2_BASE, PLANT3, PLANT3_BASE, P
 import { HOSPITAL_HEIGHTS } from '../models/civic/hospitals.js';
 import { WASTE_HEIGHTS } from '../models/waste/waste.js';
 import { LOT_SIZE, lotFacing, lotOf, type Plot, type PlotKind, plotFacing, plotKindOfValue, plotOf, plotTile, PLOT_TOP, readPlotValue } from '../../plots.js';
-import { builtLevel, constructionShare, constructionStage, isVacant, LOT_COLUMNS, type PlotBuilding, type PlotBuildings, type PlotListMap,
+import { builtLevel, constructionShare, constructionStage, decayOf, isVacant, LOT_COLUMNS, type PlotBuilding, type PlotBuildings, type PlotListMap,
   usesPlotList } from '../../plotBuildings.js';
 import type { CityMapReader } from './types.js';
 import { FrontagePlacement, type FrontageGround, Placement, RoadsidePlacement, type PlacementFields } from './placement.js';
@@ -309,7 +309,7 @@ export class TileSnapshot implements CityMapReader {
     this.plotsSeen = list.version;
     const signs = new Map<number, string>();
     for (const [anchor, ids] of list.byAnchor) {
-      signs.set(anchor, ids.map(id => { const p = list.get(id); return p ? `${id}:${p.level}:${builtLevel(p)}:${this.stageOf(list,p)}:${p.value}:${p.style}:${p.columns.join(',')}` : ''; }).join(';'));
+      signs.set(anchor, ids.map(id => { const p = list.get(id); return p ? `${id}:${p.level}:${builtLevel(p)}:${this.stageOf(list,p)}:${decayOf(p,list.now)}:${p.value}:${p.style}:${p.columns.join(',')}` : ''; }).join(';'));
     }
     const moved: number[] = [];
     for (const [anchor, sign] of signs) if (this.plotSigns.get(anchor) !== sign) moved.push(anchor);
@@ -663,6 +663,17 @@ export class TileSnapshot implements CityMapReader {
       }
       const one=this.listModel(i,plot,region,own);
       if(one)placed.push(one);
+    }
+    // A run-down empty building's rubbish by its door (src/plotBuildings.ts decayOf): a small heap of rubble on its ground,
+    // gone when it is bulldozed (owner, 24 Oct 2026: "อาคารที่คนย้ายออก ให้ผุพัง มีกองขยะ")
+    for(const plot of plots){
+      if(decayOf(plot,list.now)<3||!placed.length)continue;
+      const own=this.plotGround(list,plot);if(!own)continue;
+      const metre=unitsPerMetre(tileMetres(this.source)),fx=-Math.sin(own.rotation),fz=-Math.cos(own.rotation),ax=Math.cos(own.rotation),az=-Math.sin(own.rotation);
+      const x=own.x-fx*(own.depth/2-2*metre)+ax*own.width*.3,z=own.z-fz*(own.depth/2-2*metre)+az*own.width*.3;
+      placed.push(new Placement({index:i,x,z,id:'terrain.rubble',kind:'terrain',footprint:[1,1],height:.6,color:0x8a7f6a,water:false,
+        rotation:own.rotation,scale:.28*Math.max(.6,metre*1.6),powered:false,options:{region,seed:plot.id%SEED_BUCKETS,variant:plot.id%4,state:'closed',
+          waterMask:0,landMask:15,worldOrigin:[x,z],worldRotationY:own.rotation}}));
     }
     if(!placed.length||!ground)return null;
     const [main,...parts]=placed;

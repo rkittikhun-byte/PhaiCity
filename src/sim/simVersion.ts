@@ -66,7 +66,8 @@ export const SIM_VERSIONS: Readonly<Record<number, string>> = {
     "no temple; a temple stands 6 m or more clear of every other building's outline (GAME_DESIGN 9.1)",
   22: "on a map painted a cell at a time a plot whose people leave keeps its building standing, vacant at none, until it " +
     "is bulldozed or people move back; a vacant building is never joined into its neighbour nor its land taken by an " +
-    "empty plot beside it; a new level's building is a construction site for its months (GAME_DESIGN 23)",
+    "empty plot beside it; a new level's building is a construction site for its months; an empty building run down " +
+    "after 9 months takes nobody back and its rubbish pollutes round it (GAME_DESIGN 23)",
 };
 
 /** The rules a save was played with: its own number, or 1 for one from before the number was kept */

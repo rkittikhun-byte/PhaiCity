@@ -13,9 +13,10 @@ import { Random } from "../src/random";
 import { plotOf, plotTile } from "../src/plots";
 import {
   cutRun, formPlots, joinNeighbour, LOT_COLUMNS, needColumns, PLOT_FRONTAGE, PlotBuildings, plotMayRise, plotShare,
-  putPlotLevel, TILE_COLUMNS, usesPlotList, builtLevel, buildMonths, constructionShare, isVacant,
+  putPlotLevel, TILE_COLUMNS, usesPlotList, builtLevel, buildMonths, constructionShare, isVacant, decayOf, DECAY_MONTHS,
 } from "../src/plotBuildings";
 import { plotObject } from "../src/objects/buildings";
+import { RUNDOWN_POLLUTION } from "../src/waste";
 import { cellsOf, PLOT_ROWS, syncCellPlots } from "../src/zoneCells";
 import { BLBNCNBIT } from "../src/tileFlags";
 
@@ -244,6 +245,24 @@ describe("plots as buildings (docs/NO_GRID_PLAN.md 3B)", () => {
     // the tools put a building as it is, at once
     putPlotLevel(core.map, house, 1);
     expect([builtLevel(house), house.since]).toEqual([1, undefined]);
+  });
+
+  // Owner, 24 Oct 2026: "อาคารที่คนย้ายออก << ให้ผุพัง มีกองขยะ"
+  test("an empty building decays: dark, weathered, then run-down with rubbish that dirties the streets round it", () => {
+    const core = city(), cols = columns(core, 100, 400);
+    core.apply({ type: "zoneCells", zone: "residential", cells: cols.slice(0, 3).flat() });
+    const [house] = list(core).all();
+    putPlotLevel(core.map, house, 1, 1, 0);
+    expect(decayOf(house, 100)).toBe(0);
+    putPlotLevel(core.map, house, 0, 1, 100);
+    expect([decayOf(house, 100), decayOf(house, 100 + DECAY_MONTHS[0] * 4), decayOf(house, 100 + DECAY_MONTHS[1] * 4)]).toEqual([1, 2, 3]);
+    // run down, its rubbish is pollution on its tiles (src/waste.ts), until it is bulldozed
+    house.decay = 3;
+    const place = list(core).places.get(house.id)!, t = [...place.tiles].find((k) => list(core).shownBy.get(k) === house.id)!;
+    const x = t % core.map.width, y = Math.floor(t / core.map.width), waste = (core.simulation as any)._waste;
+    expect(waste.pollutionAt(core.map, x, y, core.map.getTileValue(x, y))).toBe(RUNDOWN_POLLUTION);
+    house.decay = 1;
+    expect(waste.pollutionAt(core.map, x, y, core.map.getTileValue(x, y))).toBe(0);
   });
 
   test("an empty building's land is not free: no neighbour joins it, no empty plot takes its columns; bulldozed, it goes", () => {

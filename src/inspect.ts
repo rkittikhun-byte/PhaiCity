@@ -8,7 +8,7 @@
 // the city. Plain code: no DOM.
 
 import { isSite, monthsLeft } from "./construction.js";
-import { constructionShare, isVacant, type PlotBuilding } from "./plotBuildings";
+import { constructionShare, decayOf, type PlotBuilding } from "./plotBuildings";
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { CANAL_NEEDS, isCanalAt } from "./canals.js";
 import { fieldKindAt, fieldLevelOf, hubKind, isFieldValue } from "./farmZone.js";
@@ -212,7 +212,8 @@ export function inspectBuilding(city: InspectCity, building: Building): Inspecti
   // ... and a home, shop or factory of the list going up, or standing empty since its people left (src/plotBuildings.ts)
   const plotId = (building as { plot?: number | null }).plot;
   const plot = plotId != null ? (map as { plotBuildings?: { get(id: number): PlotBuilding | undefined } | null }).plotBuildings?.get(plotId) : undefined;
-  if (plot && isVacant(plot)) facts.unshift({ key: "object.fact.vacant" });
+  const decay = plot ? decayOf(plot, city.cityTime) : 0;
+  if (decay) facts.unshift({ key: decay >= 3 ? "object.fact.rundown" : decay === 2 ? "object.fact.weathered" : "object.fact.vacant" });
   else if (plot && constructionShare(plot, city.cityTime) < 1)
     facts.unshift({ key: "object.fact.going_up", params: { percent: Math.floor(constructionShare(plot, city.cityTime) * 100) } });
   if (building.kind === "home") facts.push({ key: "object.fact.people", params: { people: homePeopleOf(building, map) } });
