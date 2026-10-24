@@ -262,7 +262,7 @@ export class CityChunks {
   /** Puts the batch's placements `members` (indices into its placements, the first n) into a mesh, in that order */
   private fill(mesh:InstancedMesh,batch:Batch,members:ArrayLike<number>,n:number):void {
     const g=mesh.geometry,province=g.getAttribute('cityOutside') as InstancedBufferAttribute,slopes=g.getAttribute('cityTerrain') as InstancedBufferAttribute,bridgeDepth=g.getAttribute('cityBridgeDepth') as InstancedBufferAttribute;
-    for(let i=0;i<n;i++){const p=batch.placements[members[i]],base=p.baseY??0;p.modelMatrix(matrix);mesh.setMatrixAt(i,matrix);mesh.instanceColor!.setX(i,batch.fade);mesh.instanceColor!.setY(i,1-(p.weather??0));
+    for(let i=0;i<n;i++){const p=batch.placements[members[i]],base=p.baseY??0;p.modelMatrix(matrix);mesh.setMatrixAt(i,matrix);mesh.instanceColor!.setX(i,batch.fade);mesh.instanceColor!.setY(i,1-(p.wear??0));
       province.setX(i,p.outside?1:0);
       bridgeDepth.setX(i,this.terrain?.enabled&&isBridge(p)&&Number.isFinite(this.terrain.water[p.index])?Math.max(0,base-this.terrain.water[p.index]):0);
       if(this.terrain?.enabled&&(p.kind==='road'||p.kind==='rail'||p.id==='terrain.dirt')&&!isBridge(p)){

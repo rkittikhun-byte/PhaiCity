@@ -103,7 +103,7 @@ describe('a plume in the world', () => {
 
 describe('which chimneys smoke', () => {
   const sources = [{ x: 1, y: 10, z: 2, r: 0.8 }, { x: -3, y: 12, z: 0, r: 0.4 }];
-  const placement = (fields: { powered: boolean; weather?: number }) => ({
+  const placement = (fields: { powered: boolean; wear?: number }) => ({
     index: 7, scale: 0.625, ...fields, modelMatrix: (m: Matrix4) => m.makeScale(0.625, 0.625, 0.625).setPosition(100, 3, 200),
   });
   const emit = (p: ReturnType<typeof placement>): Emitter[] => { const out: Emitter[] = []; emittersOf(p, sources, out, new Matrix4(), new Vector3()); return out; };
@@ -117,9 +117,9 @@ describe('which chimneys smoke', () => {
 
   it('gives none when the building has no power, stands empty and weathered, or is not there', () => {
     expect(emit(placement({ powered: false }))).toHaveLength(0);
-    expect(emit(placement({ powered: true, weather: 0.5 }))).toHaveLength(0);
-    expect(emit(placement({ powered: true, weather: 1 }))).toHaveLength(0);
-    expect(smokes({ powered: true, weather: 0.2 })).toBe(true);
+    expect(emit(placement({ powered: true, wear: 0.5 }))).toHaveLength(0);
+    expect(emit(placement({ powered: true, wear: 1 }))).toHaveLength(0);
+    expect(smokes({ powered: true, wear: 0.2 })).toBe(true);
   });
 });
 

@@ -118,7 +118,7 @@ export interface Emitter { key: string; x: number; y: number; z: number; scale: 
 
 /** What the view reads of a placed building to know whether it smokes: its place, its model's sources and its state */
 export interface SmokingPlacement {
-  index: number; powered: boolean; weather?: number; scale: number;
+  index: number; powered: boolean; wear?: number; scale: number;
   modelMatrix(target: Matrix4): Matrix4;
 }
 
@@ -137,7 +137,7 @@ export const STEAM_RADIUS = 2.2;
 /** A building smokes only while it stands used: powered (src/blockMapUtils.js: factories only make smoke, and the
  * pollution the simulation counts, while they work), and not left standing empty to weather (src/plotBuildings.ts decayOf,
  * whose weather is 0.5 once weathered); a construction site and rubble are not era models and have no sources */
-export const smokes = (p: { powered: boolean; weather?: number }): boolean => p.powered && (p.weather ?? 0) < 0.5;
+export const smokes = (p: { powered: boolean; wear?: number }): boolean => p.powered && (p.wear ?? 0) < 0.5;
 
 /** Each chimney of a placed building, in the world; none when it does not smoke */
 export function emittersOf(p: SmokingPlacement, sources: readonly SmokeSource[], target: Emitter[], matrix: Matrix4,

@@ -936,13 +936,20 @@ export class AutoPlayer {
    *  (a town that never had the money to paint them again stayed at 2,500 people for 14 years) */
   private readonly cellsLater: Array<[string, number[]]> = [];
 
+  /** Whether a zone's cells wait: the brush of the factories is open to the player from the start (owner, 24 Oct 2026),
+   *  but nothing grows on it without power, so the auto player paints them once its power plant is finished, which is
+   *  what the old 3 x 3 industrial tool's unlock says (src/unlocks.ts) */
+  private zoneWaits(zone: string): boolean {
+    return Boolean(this.core.commands.lock(zone === "industrial" ? "industrial" : `zone_${zone}`));
+  }
+
   /** The cells waiting for their zone's unlock painted, those whose zone is unlocked and the treasury pays for */
   private paintLater(): void {
     const core = this.core, budget = core.simulation.budget;
     for (const wanted of this.cellsLater.splice(0)) {
       const [zone, cells] = wanted;
       const before = budget.totalFunds;
-      const outcome = core.commands.lock(`zone_${zone}`) ? null : core.apply({ type: "zoneCells", zone: zone as never, cells });
+      const outcome = this.zoneWaits(zone) ? null : core.apply({ type: "zoneCells", zone: zone as never, cells });
       if (outcome?.accepted) {
         this.built += before - budget.totalFunds;
         this.note(`painted ${cells.length} ${zone} cells once unlocked`);
@@ -1425,6 +1432,7 @@ export class AutoPlayer {
       const keys = byZone[zone].slice(0, counts[zone]).map((c) => c.key);
       for (let i = 0; i < keys.length; i += 4000) {
         const before = budget.totalFunds, batch = keys.slice(i, i + 4000);
+        if (this.zoneWaits(zone)) { this.cellsLater.push([zone, batch]); continue; }
         const outcome = core.apply({ type: "zoneCells", zone, cells: batch });
         if (outcome.accepted) {
           painted += batch.length;

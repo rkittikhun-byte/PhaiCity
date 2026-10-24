@@ -142,7 +142,7 @@ describe('frontage: era models by the painted cells along the road', () => {
     // ... its walls faded and stained (Placement.weather, drawn by materials/library.ts)
     const weathered = drawn(s2, 0, s2.width - 1);
     expect(weathered.length).toBeGreaterThan(0);
-    for (const p of weathered) expect(p.weather).toBe(1);
+    for (const p of weathered) expect(p.wear).toBe(1);
   });
 
   test('a shop street is a terrace of shophouse bays, one on every 4 m cell, joined across its plots', () => {

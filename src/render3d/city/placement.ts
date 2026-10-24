@@ -18,7 +18,7 @@ export interface PlacementFields {
   scale: number; powered: boolean;
   baseY?: number; outside?: boolean; fill?: number;
   /** How weathered it is drawn, 0-1: an empty building faded and stained as it decays (src/plotBuildings.ts decayOf) */
-  weather?: number;
+  wear?: number;
   /** The share of its model's size it is drawn at on a real-scale city map, where its id's (tileModels.ts
    * CITY_MODEL_SCALE) does not fit: a power plant on a 3 × 3 or a 2 × 2 (tileModels.ts PLANT_SHARE) */
   share?: number;
@@ -38,7 +38,7 @@ export class Placement implements PlacementFields {
   declare rotation: number; declare footprint: readonly [number, number]; declare height: number; declare color: number;
   declare kind: string; declare water: boolean; declare scale: number; declare powered: boolean;
   /** The ground under it on a map with hills, and whether it lies outside the province (province-surface.ts) */
-  declare baseY?: number; declare outside?: boolean; declare weather?: number;
+  declare baseY?: number; declare outside?: boolean; declare wear?: number;
   /** How much of its tiles it covers as drawn, across and up: 1 fills them; less when it is drawn at its real size on
    * a real-scale city map (10/16 of a 16 m tile, TileSnapshot.atRealSize) or smaller against its road */
   declare fill?: number;
