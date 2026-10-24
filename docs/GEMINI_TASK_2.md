@@ -44,7 +44,8 @@ cell knows its line, its row and its place along the line), `src/render3d/city/f
    wrong rule value is refused. `test/theme.ts` and `test/i18n.ts` pass.
 6. **Look at it** (Playwright, headless, muted, your own dev server on a free port, stopped after): Mueang Khon Kaen with a
    farm zone painted on both sides of a road, grown (use the auto player or a test city), in the rainy season and the dry
-   season: two or three screenshots, and the draw calls and frame time before and after
+   season: two or three screenshots (one on a tight bend: since task 1 a row's cells stretch to meet on a bend, and the crop
+   rows and trees must fill those stretched cells too, not only each cell's own 4 m square), and the draw calls and frame time before and after
    (`renderer.info.render.calls`). It must stay smooth on integrated graphics: no more than about 12 extra draw calls.
 
 ## Only these files
