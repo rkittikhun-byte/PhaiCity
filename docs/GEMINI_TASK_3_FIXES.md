@@ -8,6 +8,14 @@ a new conversation (an old one costs much more).
 outline anywhere. So the look was never checked, and the report's "measured on every kind of building" is not true. Fix
 the code below, then check it for real.
 
+0. **Outline the object the game already picked, not a guess from one tile.** Everything clickable is a `CityObject`
+   (`src/objects/`, found by `core.objects.at(x, y)`); the hover pick (`src/hoverTarget.ts` `hoverTargetAt`, used in
+   `Game.hoverOutline` and `Game.selectionOutline` in `src/game.js`) already knows which one it is: a building's anchor
+   tile (`target.x`, `target.y`, class 0) and its rect (`shown.rect`), a road's path. Pass that object's tiles to the view
+   (one field on `ToolHover`, e.g. `inspectTiles: {x, y, width, height}`) and take the meshes of every placement on those
+   tiles, so a building of many tiles is outlined whole and nothing beside it is. **A new city has no buildings** (0
+   people): to test, open a city with homes, shops, a factory and a temple (build them with the auto player
+   `src/core/autoPlayer.ts`, or `CoreSetup.sandbox` and commands), never an empty map.
 1. **Nothing may be rebuilt every frame.** `CityHoverOutline.update` runs each frame and each time disposes and builds again
    the lot's ground geometry (`groundQuads`), the road's edge geometry (`roadEdgeGeometry`, sampling the terrain) and the
    list of meshes (`chunks.objectMeshes`, a new `Matrix4` per placement). Build them only when the hovered object changes
