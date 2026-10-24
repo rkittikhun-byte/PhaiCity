@@ -295,7 +295,7 @@ export class ToolOutline {
     // A drawn line, grid or fill is shown tile by tile; its signature is a hash, as it may be long
     let path=0;for(const t of hover?.path??[])path=(Math.imul(path,31)+t.x*1009+t.y)|0;
     const marker=hover?.linePoint?[Math.round(hover.linePoint.x*20),Math.round(hover.linePoint.y*20)]:null;
-    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,hover?.snapKind??null,hover?.snapWay??null,hover?.snapGuide??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false,hover?.inspect?[Math.round(hover.inspect.x*20),Math.round(hover.inspect.y*20)]:null,hover?.inspectPath?.length??0,hover?.inspectRoad??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
+    const signature=JSON.stringify([r,hover?.pose??null,hover?.straight??false,hover?.controls??null,hover?.colour,this.terrain?.version,hover?.path?.length??0,path,hover?.line??false,marker,hover?.lineStart??null,hover?.cursorPoint??null,hover?.blocked?.length??0,hover?.snapDots?.length??0,hover?.snapDots?.[0]??null,hover?.snapKind??null,hover?.snapWay??null,hover?.snapGuide??null,Math.round(hover?.tilePixels??0),hover?.roadWidth??0,hover?.drawMode??'',hover?.doze??false,hover?.inspect?[Math.round(hover.inspect.x*20),Math.round(hover.inspect.y*20)]:null,hover?.inspectPath?.length??0,hover?.inspectRoad??null,hover?.inspectFade??null]);if(signature===this.signature)return;this.signature=signature;this.clear();
     if(!r||!hover)return;
     if(hover.inspect){this.inspected(hover);return;}
     const halfW=hover.roadWidth?hover.roadWidth*.5:3.6;
@@ -494,11 +494,14 @@ export class ToolOutline {
    * very point, in metres.
    */
   private inspected(hover:ToolHover):void {
-    const point=hover.inspect!,tx=Math.floor(point.x),ty=Math.floor(point.y),index=ty*this.width+tx;
+    const white='#ffffff',point=hover.inspect!,tx=Math.floor(point.x),ty=Math.floor(point.y),index=ty*this.width+tx;
     const shape=tx>=0&&ty>=0&&tx<this.width&&ty<this.height?this.objectOf?.(index)??this.lotOf?.(index)??null:null;
+    // The hover's own outline (inspectFade): a thin white edge only, fading in and out, never a fill
+    const soft=(fade:number)=>{const m=cityToolMaterial(white).clone();m.userData.hoverClone=true;m.opacity*=fade*.8;return m;};
     if(shape){
+      if(hover.inspectFade!==undefined){const edge=new Mesh(groundQuads(edgeStrips(shape,.25),.72,this.terrain),soft(hover.inspectFade));edge.renderOrder=26;this.root.add(edge);return;}
       const fill=new Mesh(groundQuads([shape],.7,this.terrain),cityToolMaterial(hover.colour,true));fill.renderOrder=25;
-      const edge=new Mesh(groundQuads(edgeStrips(shape,.35),.72,this.terrain),cityToolMaterial('#ffffff'));edge.renderOrder=26;
+      const edge=new Mesh(groundQuads(edgeStrips(shape,.35),.72,this.terrain),cityToolMaterial(white));edge.renderOrder=26;
       this.root.add(fill,edge);return;
     }
     // A road: its stretch edged in white along both sides at its own width, the whole stretch without gaps, never a pale
@@ -506,10 +509,11 @@ export class ToolOutline {
     // lay across it while its card was open); a card of the land a drawn road passes marks the point instead
     const tiles=new Set((hover.inspectPath??[{x:tx,y:ty}]).map(t=>t.y*this.width+t.x));
     const strips=hover.inspectRoad===false?null:this.roadStrips?.(tiles,true);
-    if(strips?.quads.length){const edge=new Mesh(roadEdgeGeometry(strips.quads,.35,.72,this.terrain),cityToolMaterial('#ffffff'));edge.renderOrder=26;this.root.add(edge);return;}
+    if(strips?.quads.length){const edge=new Mesh(roadEdgeGeometry(strips.quads,hover.inspectFade!==undefined?.25:.35,.72,this.terrain),hover.inspectFade!==undefined?soft(hover.inspectFade):cityToolMaterial(white));edge.renderOrder=26;this.root.add(edge);return;}
     const x=point.x*10,z=point.y*10,y=(this.terrain?.enabled?this.terrain.sample(x,z):0)+.7;
+    if(hover.inspectFade!==undefined){const ring=new Mesh(new RingGeometry(3.2,3.6,40).rotateX(-Math.PI/2),soft(hover.inspectFade));ring.position.set(x,y,z);ring.renderOrder=26;this.root.add(ring);return;}
     const disc=new Mesh(new CircleGeometry(3.2,32).rotateX(-Math.PI/2),cityToolMaterial(hover.colour,true));disc.position.set(x,y,z);disc.renderOrder=25;
-    const ring=new Mesh(new RingGeometry(3.2,3.75,40).rotateX(-Math.PI/2),cityToolMaterial('#ffffff',true));ring.position.set(x,y+.01,z);ring.renderOrder=26;
+    const ring=new Mesh(new RingGeometry(3.2,3.75,40).rotateX(-Math.PI/2),cityToolMaterial(white,true));ring.position.set(x,y+.01,z);ring.renderOrder=26;
     this.root.add(disc,ring);
   }
   /** Flat rings (or discs, from 0) round points in tiles, on the ground, all in one geometry; sides 4 for diamonds */
@@ -532,7 +536,7 @@ export class ToolOutline {
     for(let s=r0*.8;s+dash<length-r0;s+=dash*2){const x=cx+dx*(s+dash/2)/length,z=cz+dz*(s+dash/2)/length;
       const piece=new Mesh(new BoxGeometry(.18,.04,dash),cityToolMaterial('#ffffff'));piece.position.set(x,ground(x,z),z);piece.rotation.y=turn;piece.renderOrder=26;this.root.add(piece);}
   }
-  private clear():void {this.root.traverse(n=>{if(n instanceof Mesh)n.geometry.dispose();});this.root.clear();}
+  private clear():void {this.root.traverse(n=>{if(n instanceof Mesh){n.geometry.dispose();if(!Array.isArray(n.material)&&n.material.userData.hoverClone)n.material.dispose();}});this.root.clear();}
   dispose():void {this.clear();}
 }
 

@@ -91,6 +91,9 @@ export interface ToolHover {
   inspectPath?: readonly TilePoint[] | null;
   /** ... and whether the card shows a road: false, a road drawn across the point is not marked (the card is the land's) */
   inspectRoad?: boolean;
+  /** ... drawn as the hover's thin outline, with no fill, at this share (0-1) of its strength: it fades in and out
+   * (src/hoverPick.ts) */
+  inspectFade?: number;
   /** A police or fire station, school or hospital in hand on a real-scale city map: the roads it would reach from there
    * and how far along them (src/sim/reachPreview.ts), shown on the roads fading with the distance (docs/NO_GRID_PLAN.md
    * 4.3) */

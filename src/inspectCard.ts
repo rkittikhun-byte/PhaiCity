@@ -26,7 +26,7 @@ function word(name: string, value: string | number): string {
 }
 
 /** A line in the player's language; a param "@key" is the name names[key] (a business's, a person's) */
-function line(key: string, params: Record<string, string | number> = {}, names: Record<string, Name> = {}): string {
+export function inspectLine(key: string, params: Record<string, string | number> = {}, names: Record<string, Name> = {}): string {
   const words: Record<string, string> = {};
   for (const [name, value] of Object.entries(params)) {
     const named = typeof value === "string" && value.startsWith("@") ? names[value.slice(1)] : undefined;
@@ -77,14 +77,14 @@ export class InspectCard {
     title.className = "inspectTitle";
     // (a person's card is titled with their name, in the player's language)
     const names = inspection.names ?? {};
-    title.textContent = inspection.person ? inspection.person.name[getLanguage()] : line(inspection.title.key, inspection.title.params, names);
+    title.textContent = inspection.person ? inspection.person.name[getLanguage()] : inspectLine(inspection.title.key, inspection.title.params, names);
     const close = doc.createElement("button");
     close.type = "button"; close.className = "inspectClose"; close.textContent = "✕";
     close.setAttribute("aria-label", t("object.card.close"));
     header.append(title, close);
     element.append(header);
     const sub: string[] = [];
-    if (inspection.street) sub.push(line(inspection.street.key, inspection.street.params));
+    if (inspection.street) sub.push(inspectLine(inspection.street.key, inspection.street.params));
     if (inspection.sector) sub.push(t(`object.sector.${inspection.sector}`));
     if (sub.length) {
       const subtitle = doc.createElement("div");
@@ -119,7 +119,7 @@ export class InspectCard {
     const list = doc.createElement("ul");
     for (const fact of inspection.facts) {
       const item = doc.createElement("li");
-      item.textContent = line(fact.key, fact.params, names);
+      item.textContent = inspectLine(fact.key, fact.params, names);
       list.append(item);
     }
     element.append(list);
@@ -151,7 +151,7 @@ export class InspectCard {
     box.className = "inspectPeople";
     const heading = doc.createElement("div");
     heading.className = "inspectPeopleTitle";
-    heading.textContent = line(section.heading.key, section.heading.params, section.names ?? {});
+    heading.textContent = inspectLine(section.heading.key, section.heading.params, section.names ?? {});
     const rows = doc.createElement("ul");
     for (const row of section.rows) {
       const item = doc.createElement("li");
@@ -162,7 +162,7 @@ export class InspectCard {
       name.textContent = row.name[language];
       const about = doc.createElement("span");
       about.className = "personLine";
-      about.textContent = line(row.line.key, row.line.params);
+      about.textContent = inspectLine(row.line.key, row.line.params);
       item.append(name, about);
       rows.append(item);
     }
@@ -176,7 +176,7 @@ export class InspectCard {
     if (section.note) {
       const note = doc.createElement("div");
       note.className = "inspectPeopleMore";
-      note.textContent = line(section.note.key, section.note.params);
+      note.textContent = inspectLine(section.note.key, section.note.params);
       box.append(note);
     }
     this.element.append(box);
@@ -218,7 +218,7 @@ export class InspectCard {
       mark.className = "checkMark";
       mark.textContent = row.ok ? "✓" : "✗";
       const text = doc.createElement("span");
-      text.textContent = line(row.key, row.params);
+      text.textContent = inspectLine(row.key, row.params);
       item.append(mark, text);
       if (row.hint) {
         const hint = doc.createElement("span");
