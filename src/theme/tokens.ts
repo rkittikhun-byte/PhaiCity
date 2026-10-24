@@ -179,11 +179,23 @@ export const SCENE = {
     /** The paint on the ground and the brush */
     zone: 0xa59630,
     /** A paddy's water when planted, its young rice, the ripe rice before the harvest and the stubble after */
-    paddyWater: RAMPS.water[300], paddyYoung: RAMPS.rice[400], paddyRipe: RAMPS.gold[400], stubble: RAMPS.gold[600],
+    paddyWater: RAMPS.water[300], paddyYoung: RAMPS.rice[400], paddyRipe: RAMPS.gold[400], glutinousRipe: RAMPS.gold[500], stubble: RAMPS.gold[600],
     /** The dikes between paddies, and the bare earth of a field */
-    dike: 0xa8794a, earth: 0xb86a40,
+    dike: 0xa8794a, earth: 0xb86a40, burntEarth: RAMPS.sand[800],
     /** A crop field's rows, an orchard's trees, a pond's water */
-    crop: RAMPS.rice[500], orchard: RAMPS.rice[700], pond: 0x7f9b97,
+    crop: RAMPS.rice[500], orchard: RAMPS.rice[700], pond: 0x7f9b97, shrimpPond: RAMPS.water[500],
+    /** Field crops: maize stalks and tassels, sugar cane, cassava bushes, vegetable beds and netting, pineapple rosettes */
+    maizeLeaf: RAMPS.rice[500], maizeTassel: RAMPS.gold[300],
+    caneLeaf: RAMPS.rice[400], caneStalk: RAMPS.gold[600],
+    cassavaLeaf: RAMPS.rice[600], cassavaStem: RAMPS.clay[600],
+    vegetableBed: RAMPS.rice[300], vegetableDark: RAMPS.rice[500], netting: RAMPS.sand[50],
+    pineappleLeaf: RAMPS.rice[600], pineappleFruit: RAMPS.gold[400],
+    /** Orchard trees: mango, papaya, banana, longan, durian, mangosteen, pale-barked rubber, coconut and oil palm */
+    mangoCrown: RAMPS.rice[700], papayaCrown: RAMPS.rice[500], papayaFruit: RAMPS.gold[400],
+    bananaLeaf: RAMPS.rice[400], longanCrown: RAMPS.rice[600],
+    durianCrown: RAMPS.rice[800], mangosteenCrown: RAMPS.rice[800],
+    rubberCrown: RAMPS.rice[600], rubberBark: RAMPS.sand[200],
+    coconutFrond: RAMPS.rice[500], oilPalmFrond: RAMPS.rice[700],
     /** Huts and granaries of thatch and teak; the machines' paint; solar panels */
     thatch: 0xe3ac5b, teak: 0x845438, machine: RAMPS.chili[500], solar: RAMPS.lavender[700],
     /** A buffalo */

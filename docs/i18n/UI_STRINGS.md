@@ -288,6 +288,24 @@
 | `farm.kind.orchard` | `src/inspect.ts` | — | `Orchard` | `สวน` |  |
 | `farm.kind.pond` | `src/inspect.ts` | — | `Fish pond` | `บ่อปลา` |  |
 | `farm.kind.empty` | `src/inspect.ts` | — | `Farmland, not yet planted` | `โซนเกษตรที่ยังไม่ได้ปลูก` |  |
+| `farm.crop.jasmine_rice` | `src/inspect.ts` | — | `Jasmine rice paddy` | `นาข้าวหอมมะลิ` | พืชในโซนเกษตรตามจังหวัดและสภาพดิน (docs/GAME_DESIGN.md ข้อ 7.6) |
+| `farm.crop.glutinous_rice` | `src/inspect.ts` | — | `Glutinous rice paddy` | `นาข้าวเหนียว` |  |
+| `farm.crop.maize` | `src/inspect.ts` | — | `Maize field` | `ไร่ข้าวโพด` |  |
+| `farm.crop.sugarcane` | `src/inspect.ts` | — | `Sugarcane field` | `ไร่อ้อย` |  |
+| `farm.crop.cassava` | `src/inspect.ts` | — | `Cassava field` | `ไร่มันสำปะหลัง` |  |
+| `farm.crop.vegetables` | `src/inspect.ts` | — | `Vegetable garden` | `แปลงผัก` |  |
+| `farm.crop.pineapple` | `src/inspect.ts` | — | `Pineapple field` | `ไร่สับปะรด` |  |
+| `farm.crop.mango` | `src/inspect.ts` | — | `Mango orchard` | `สวนมะม่วง` |  |
+| `farm.crop.papaya` | `src/inspect.ts` | — | `Papaya orchard` | `สวนมะละกอ` |  |
+| `farm.crop.banana` | `src/inspect.ts` | — | `Banana orchard` | `สวนกล้วย` |  |
+| `farm.crop.longan` | `src/inspect.ts` | — | `Longan orchard` | `สวนลำไย` |  |
+| `farm.crop.durian` | `src/inspect.ts` | — | `Durian orchard` | `สวนทุเรียน` |  |
+| `farm.crop.mangosteen` | `src/inspect.ts` | — | `Mangosteen orchard` | `สวนมังคุด` |  |
+| `farm.crop.rubber` | `src/inspect.ts` | — | `Rubber plantation` | `สวนยางพารา` |  |
+| `farm.crop.coconut` | `src/inspect.ts` | — | `Coconut grove` | `สวนมะพร้าว` |  |
+| `farm.crop.oil_palm` | `src/inspect.ts` | — | `Oil palm plantation` | `สวนปาล์มน้ำมัน` |  |
+| `farm.crop.fish` | `src/inspect.ts` | — | `Fish pond` | `บ่อปลา` |  |
+| `farm.crop.shrimp` | `src/inspect.ts` | — | `Shrimp pond` | `บ่อกุ้ง` |  |
 | `farm.hub.cooperative` | `src/inspect.ts` | — | `Farm cooperative` | `สหกรณ์การเกษตร` | อาคาร 3x3 ในย่านไร่ หรือไม่มีแปลงรอบ ๆ |
 | `farm.hub.rice_mill` | `src/inspect.ts` | — | `Rice mill` | `โรงสีข้าว` | ในย่านนา |
 | `farm.look.buffalo` | `src/eraCard.ts` | — | `Buffalo in the fields` | `ควายไถนา` | สิ่งที่แปลงเกษตรได้ในยุคถัดไป (docs/GAME_DESIGN.md ข้อ 7.2) |
