@@ -10,6 +10,7 @@ import { GameMap } from "../src/gameMap.js";
 import { GameTools } from "../src/gameTools.js";
 import { Simulation } from "../src/simulation.js";
 import { CIVIC, POWERPLANT, RAILBASE, ROADS } from "../src/tileValues";
+import { ROAD_TOOLS } from "../src/roadLevels";
 import { noTrained } from "../src/trainedPeople";
 import { eraUnlocks, FREE_TOOLS, NEEDS, type UnlockCity, unlockCity, type UnlockMap, unlockProblem, UNLOCKS } from "../src/unlocks";
 
@@ -39,16 +40,20 @@ describe("the unlock table", () => {
 
   test("follows section 6.2: what each era brings", () => {
     const era = (tool: string) => UNLOCKS[tool].era;
-    expect(["road", "canal", "residential", "farm", "fishing", "primary_school", "health_centre", "police_box",
-      "fire_post", "landfill", "watertower", "coal"].map(era)).toEqual(Array(12).fill(1));
-    expect(["road_asphalt", "gas", "secondary_school", "vocational_college", "community_hospital", "bus_stop",
-      "train_station", "limestone_mine"].map(era)).toEqual(Array(8).fill(2));
-    expect(["university", "provincial_hospital", "hydro", "road_concrete4", "port", "airport", "incinerator",
-      "wastewater_plant"].map(era)).toEqual(Array(8).fill(3));
-    expect(["solar", "wind", "metro_station", "motorway", "tollway", "regional_hospital", "recycling_plant",
-      "waste_power_plant"].map(era)).toEqual(Array(8).fill(4));
+    expect(["canal", "residential", "farm", "fishing", "primary_school", "health_centre", "police_box",
+      "fire_post", "landfill", "watertower", "coal"].map(era)).toEqual(Array(11).fill(1));
+    expect(["gas", "secondary_school", "vocational_college", "community_hospital", "bus_stop",
+      "train_station", "limestone_mine"].map(era)).toEqual(Array(7).fill(2));
+    expect(["university", "provincial_hospital", "hydro", "port", "airport", "incinerator",
+      "wastewater_plant"].map(era)).toEqual(Array(7).fill(3));
+    expect(["solar", "wind", "metro_station", "regional_hospital", "recycling_plant",
+      "waste_power_plant"].map(era)).toEqual(Array(6).fill(4));
     expect(["nuclear", "hsr_station"].map(era)).toEqual([5, 5]);
-    expect(UNLOCKS.road_asphalt.trained).toEqual({ technician: 20 });
+    // Every road level is open from the start, whatever the era or the trained people (owner, 24 Oct 2026)
+    for (const tool of ROAD_TOOLS) {
+      expect(UNLOCKS[tool]).toBeUndefined();
+      expect(unlockProblem(tool, city({ era: 1, trained: noTrained() }))).toBeNull();
+    }
     expect(UNLOCKS.community_hospital.trained).toEqual({ nurse: 10 });
     expect(UNLOCKS.solar.trained).toEqual({ engineer: 200 });
     expect(UNLOCKS.hydro.months).toBe(12);
@@ -123,16 +128,16 @@ describe("the unlock table", () => {
     // ... one small lignite plant in the first era
     expect(tool("coal", 20, 20)).toMatchObject({ accepted: false, reason: "unlock.limit", detail: { count: 1, era: 2 } });
     expect(tool("industrial", 30, 10).toolResult).toBe(0);
-    // A laterite road is raised to asphalt only by a city that may lay asphalt
+    // A laterite road is raised at once, in the first era with no trained people: its price is all that holds it back
     for (let x = 0; x < 8; x++) tool("road", x, 30);
-    expect(lockProblem(city, "road_upgrade", 3, 30)).toMatchObject({ reason: "unlock.era" });
-    expect(tool("road_upgrade", 3, 30)).toMatchObject({ accepted: false, reason: "unlock.era" });
+    expect(lockProblem(city, "road_upgrade", 3, 30)).toBeNull();
+    expect(tool("road_upgrade", 3, 30).toolResult).toBe(0);
+    expect(tool("motorway", 3, 32).toolResult).toBe(0);
     map.era = 2;
     expect(tool("gas", 20, 20)).toMatchObject({ accepted: false, reason: "unlock.trained",
       detail: { kind: "technician", need: 30, have: 0 } });
     map.trained = { counts: { technician: 30, nurse: 0, engineer: 0, doctor: 0 } };
     expect(tool("gas", 20, 20).toolResult).toBe(0);
-    expect(tool("road_upgrade", 3, 30).toolResult).toBe(0);
     // ... and the next level of a police box is the old station, which the first era has
     expect(lockProblem(city, "building_upgrade", 0, 0)).toBeNull();
     expect(lockProblem(city, "zone_industrial", 0, 0)).toBeNull();

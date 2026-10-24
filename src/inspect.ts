@@ -18,8 +18,9 @@ import type { CityObjects } from "./objects/cityObjects.js";
 import { DENSITY_GRADES, gradeAt, LAND_GRADES, type Satisfaction, type SatisfactionContext } from "./objects/satisfaction.js";
 import { MINE_TOOLS } from "./mining.js";
 import { PLANT_TOOLS } from "./powerPlants.js";
-import { isRoadTile, ROAD_TOOLS, roadLevelAt } from "./roadLevels.js";
+import { isRoadTile, MAX_ROAD_LEVEL, ROAD_TOOLS, roadCapacity, roadLevelAt } from "./roadLevels.js";
 import { roadSegmentAt } from "./objects/roadSegment.js";
+import type { RoadStretch } from "./roadUpgrade.js";
 import { cellsOf } from "./zoneCells.js";
 import { type CityTrips, roadTrips } from "./sim/cityTrips.js";
 import type { RoadGraph } from "./roads/roadGraph.js";
@@ -50,6 +51,8 @@ export interface Inspection {
   rect: { x: number; y: number; width: number; height: number };
   /** A stretch of road: its tiles in order, outlined along it rather than as a square */
   path?: Array<{ x: number; y: number }>;
+  /** ... and the stretch itself, which its card offers to raise a level (src/roadUpgrade.ts) */
+  road?: RoadStretch;
   /** The people of a home, a workplace or a person's household (src/register/registerCards.ts) */
   people?: RosterSection[];
   /** A person's card: whose it is, and where they live and work */
@@ -251,7 +254,7 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     if (map.isNationalTransport?.(x, y)) facts.push({ key: "object.fact.state_road" });
     // The whole stretch it is on, as an object (src/objects/roadSegment.ts): how long, how busy, the cells facing it
     const segment = roadSegmentAt(map, x, y);
-    let path: Inspection["path"];
+    let path: Inspection["path"], road: Inspection["road"];
     if (segment) {
       facts.push({ key: "object.fact.length", params: { metres: segment.lengthM } });
       const traffic = city.blockMaps?.trafficDensityMap;
@@ -268,6 +271,11 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
         if (trips.cars > 0) {
           facts.push({ key: "object.fact.road_cars", params: { cars: trips.cars, capacity: trips.capacity } });
           facts.push({ key: "object.fact.road_speed", params: { speed: trips.speedKmh, clear: trips.clearKmh } });
+          // ... over what it takes, it says what a higher level would carry
+          if (trips.cars > trips.capacity && level < MAX_ROAD_LEVEL) {
+            facts.push({ key: "object.fact.road_jam", params: { road: `tool.${ROAD_TOOLS[level - 1] ?? "road"}`,
+              capacity: roadCapacity(level), next: `tool.${ROAD_TOOLS[level] ?? "road"}`, more: roadCapacity(level + 1) } });
+          }
           facts.push({ key: "object.fact.road_users", params: { homes: trips.homes, work: trips.work, shop: trips.shop } });
         } else facts.push({ key: "object.fact.road_empty" });
       } else if (traffic) {
@@ -281,9 +289,10 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
         facts.push({ key: "object.fact.cells", params: { painted, cells: own.length } });
       }
       path = segment.points;
+      road = { tiles: [...segment.tiles], lengthM: segment.lengthM };
     }
     return { title: { key: "object.kind.road" }, street: street ? streetLabel(street, city.language) : undefined,
-      sector: "central", facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect, path };
+      sector: "central", facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect, path, road };
   }
   if (value >= RAILBASE && value <= LASTRAIL) return { title: { key: "object.kind.rail" }, facts: outside, rect };
   if (value >= RIVER && value <= LASTRIVEDGE) {

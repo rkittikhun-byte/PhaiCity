@@ -11,6 +11,8 @@ import { formatMoney, formatYear, getLanguage, hasKey, t } from "./i18n/index.js
 import type { Inspection } from "./inspect.js";
 import type { PlotChecklist } from "./plotChecklist.js";
 import { hide, show } from "./motion.js";
+import { MAX_ROAD_LEVEL, ROAD_TOOLS } from "./roadLevels.js";
+import type { RoadStretch, UpgradeOffer } from "./roadUpgrade.js";
 import type { RosterSection } from "./register/registerCards.js";
 import type { Name } from "./register/names.js";
 
@@ -24,6 +26,11 @@ function word(name: string, value: string | number): string {
   if (typeof value === "string" && hasKey(value)) return t(value, { price: "" }).trim();
   return String(value);
 }
+
+const baht = (value: number): string => formatMoney(value).replace(/\d+/, (d) => Number(d).toLocaleString("en-US"));
+
+/** What a stretch of road can be raised to now: its level, the choices, and the funds that pay for them */
+export interface RoadOffers { level: number; offers: UpgradeOffer[]; funds: number; unowned?: boolean }
 
 /** A line in the player's language; a param "@key" is the name names[key] (a business's, a person's) */
 function line(key: string, params: Record<string, string | number> = {}, names: Record<string, Name> = {}): string {
@@ -41,6 +48,10 @@ export class InspectCard {
   onPerson: (id: string) => void = () => {};
   /** A person's home or workplace asked for: the game shows that building (by its object's id), or what is at the tile */
   onPlace: (x: number, y: number, id: number | null) => void = () => {};
+  /** The choices for raising a stretch of road, and the raising itself: the game prices them and applies them through
+   * the upgrade tool's command (src/roadUpgrade.ts); without them a road's card has no button */
+  roadOffers: (road: RoadStretch) => RoadOffers | null = () => null;
+  onUpgrade: (road: RoadStretch, level: number) => void = () => {};
   constructor(private readonly element: HTMLElement, private readonly onClose: () => void = () => {}) {
     element.setAttribute("aria-label", t("object.card.label"));
     element.addEventListener("click", event => {
@@ -48,6 +59,8 @@ export class InspectCard {
       if (target.closest(".inspectClose")) this.close();
       const person = target.closest<HTMLElement>("[data-person]");
       if (person?.dataset.person) this.onPerson(person.dataset.person);
+      const raise = target.closest<HTMLButtonElement>("button[data-raise]");
+      if (raise && !raise.disabled && this.shown?.road) this.onUpgrade(this.shown.road, Number(raise.dataset.raise));
       const place = target.closest<HTMLElement>("[data-place-x]");
       if (place) this.onPlace(Number(place.dataset.placeX), Number(place.dataset.placeY),
         place.dataset.placeId ? Number(place.dataset.placeId) : null);
@@ -123,6 +136,7 @@ export class InspectCard {
       list.append(item);
     }
     element.append(list);
+    if (inspection.road) this.renderUpgrade(inspection.road);
     // A person's home and workplace, to go to
     const person = inspection.person;
     if (person) {
@@ -142,6 +156,42 @@ export class InspectCard {
       element.append(places);
     }
     for (const section of inspection.people ?? []) this.renderPeople(section);
+  }
+
+  /** A stretch of road's choices: raise it to the next level (or the one after) for the price of its length, at once */
+  private renderUpgrade(road: RoadStretch): void {
+    const found = this.roadOffers(road);
+    if (!found) return;
+    const doc = this.element.ownerDocument;
+    const box = doc.createElement("section");
+    box.className = "inspectUpgrade";
+    const heading = doc.createElement("div");
+    heading.className = "inspectUpgradeTitle";
+    heading.textContent = t("road.upgrade.heading");
+    box.append(heading);
+    if (found.level >= MAX_ROAD_LEVEL || !found.offers.length) {
+      const top = doc.createElement("div");
+      top.className = "inspectPeopleMore";
+      top.textContent = t(found.unowned ? "road.upgrade.unowned" : "road.upgrade.top");
+      box.append(top);
+    }
+    found.offers.forEach((offer, n) => {
+      const button = doc.createElement("button");
+      button.type = "button";
+      button.className = n === 0 ? "raiseRoad primary" : "raiseRoad";
+      button.dataset.raise = String(offer.level);
+      const road = word("road", `tool.${ROAD_TOOLS[offer.level - 1] ?? "road"}`);
+      const short = offer.price - found.funds;
+      button.disabled = short > 0;
+      button.textContent = t(offer.upkeep > 0 ? "road.upgrade.button" : "road.upgrade.button_free", { road, price: baht(offer.price), upkeep: baht(offer.upkeep) });
+      const note = doc.createElement("span");
+      note.className = "raiseNote";
+      note.textContent = short > 0 ? t("road.upgrade.short", { short: baht(short) }) :
+        t("road.upgrade.capacity", { capacity: offer.capacity.toLocaleString("en-US") });
+      button.append(note);
+      box.append(button);
+    });
+    this.element.append(box);
   }
 
   /** A list of people (a household, a workplace's staff): each name opens that person's card */

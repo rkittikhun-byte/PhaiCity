@@ -2180,6 +2180,17 @@ body #inspectCard .inspectPeople .personLine { opacity: 0.75; }
 body #inspectCard .inspectPeopleMore { opacity: 0.6; }
 body #inspectCard .inspectPlaces { display: flex; gap: 6px; margin-top: 6px; }
 body #inspectCard .inspectPlaces button { font: inherit; padding: 1px 8px; min-height: 0; }
+/* ... and a road's choices to raise it a level (src/roadUpgrade.ts) */
+body #inspectCard .inspectUpgrade { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+body #inspectCard .inspectUpgradeTitle { opacity: 0.75; }
+body #inspectCard button.raiseRoad {
+  font: inherit; text-align: left; padding: 3px 8px; min-height: 0; height: auto; width: 100%; box-sizing: border-box;
+  white-space: normal; line-height: 1.3;
+  border: 1px solid var(--ph-sand-300); background: var(--ph-sand-50); cursor: pointer;
+}
+body #inspectCard button.raiseRoad.primary { background: var(--ph-rice-600); border-color: var(--ph-rice-600); color: var(--ph-sand-0); }
+body #inspectCard button.raiseRoad:disabled { opacity: 0.55; cursor: default; }
+body #inspectCard button.raiseRoad .raiseNote { display: block; opacity: 0.8; }
 
 /* The tool in hand and the places for its levels, above the dock; it moves up out of the way when the dock rises
    (src/toolLevels.ts, owner 12 Oct 2026) */

@@ -1760,6 +1760,14 @@
 | `object.fact.cells` | `src/inspect.ts` | — | `Zone cells facing it: {painted} of {cells} painted` | `ช่องเขตริมถนนนี้: ทาแล้ว {painted} จาก {cells} ช่อง` | อำเภอที่ทาทีละช่อง (src/zoneCells.ts) |
 | `object.fact.outside` | `src/inspect.ts` | — | `Outside the province: nothing can be built` | `นอกเขตจังหวัด สร้างไม่ได้` |  |
 | `object.fact.unowned` | `src/inspect.ts` | — | `Land not yet bought` | `ที่ดินยังไม่ได้ซื้อ` |  |
+| `object.fact.road_jam` | `src/inspect.ts` | — | `More cars than a {road} takes ({capacity} an hour); a {next} takes {more}` | `รถมากกว่าที่{road}รับได้ ({capacity} คัน/ชม.) ระดับ{next}รับได้ {more} คัน/ชม.` | ถนนที่รถเกินความจุ บอกว่าระดับสูงกว่ารับได้เท่าไร |
+| `road.upgrade.heading` | `src/inspectCard.ts` | — | `Raise this stretch` | `ยกระดับถนนช่วงนี้` | การ์ดถนน (owner 24 ต.ค. 2026) |
+| `road.upgrade.button` | `src/inspectCard.ts` | — | `Upgrade to {road} · {price} · upkeep +{upkeep} a year` | `อัปเกรดเป็น{road} · {price} · ค่าบำรุง +{upkeep}/ปี` |  |
+| `road.upgrade.button_free` | `src/inspectCard.ts` | — | `Upgrade to {road} · {price}` | `อัปเกรดเป็น{road} · {price}` | ถนนของรัฐ ไม่มีค่าบำรุง |
+| `road.upgrade.unowned` | `src/inspectCard.ts` | — | `This road is on land the city has not bought yet` | `ถนนนี้อยู่บนที่ดินที่เมืองยังไม่ได้ซื้อ` |  |
+| `road.upgrade.short` | `src/inspectCard.ts` | — | `Short by {short}` | `เงินขาดอีก {short}` | ปุ่มอัปเกรดที่เงินไม่พอ |
+| `road.upgrade.top` | `src/inspectCard.ts` | — | `This road is at the highest level` | `ถนนนี้อยู่ระดับสูงสุดแล้ว` |  |
+| `road.upgrade.capacity` | `src/inspectCard.ts` | — | `takes {capacity} cars an hour` | `รับได้ {capacity} คัน/ชม.` |  |
 | `object.card.close` | `src/inspect.ts` | — | `Close` | `ปิด` |  |
 | `object.card.label` | `src/inspect.ts` | — | `Inspect` | `ตรวจดู` | ชื่อการ์ดสำหรับโปรแกรมอ่านจอ |
 | `object.satisfaction` | `src/objects/satisfaction.ts` | — | `Satisfaction {score}%` | `ความพอใจ {score}%` | ความพอใจของวัตถุ (src/objects/satisfaction.ts; GAME_PLAN เฟส 7 ข้อ 2) |

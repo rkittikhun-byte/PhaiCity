@@ -42,13 +42,13 @@ const MINE = { era: 2, trained: { technician: 20 }, months: 3 } as const satisfi
 
 /**
  * The unlock table (docs/GAME_DESIGN.md 6.2), one row a tool, every tool of src/gameTools.js that builds something.
- * Tools not in it (the bulldozer, parks, the eraser, buying land, the ruler's house and its levels, which the rank
+ * Tools not in it (every road level, the bulldozer, parks, the eraser, buying land, the ruler's house and its levels, which the rank
  * allows) are never locked; the upgrade tools ask the row of the level they build.
  */
 export const UNLOCKS: Readonly<Record<string, Unlock>> = {
-  // Era 1, the farming village: dirt and laterite roads, canals, homes and small shops, farms and fishing, the first
+  // Era 1, the farming village: canals, homes and small shops, farms and fishing, the first
   // schools and health posts, police boxes and fire posts, a landfill, a water tower, and one small lignite plant
-  road: { era: 1 }, canal: { era: 1 }, wire: { era: 1 },
+  canal: { era: 1 }, wire: { era: 1 },
   residential: { era: 1 }, commercial: { era: 1 }, zone_residential: { era: 1 }, zone_commercial: { era: 1 },
   // ... factories only once there is power for them (a village's factories mill its crops); their land may be painted
   // before, as homes' may (owner, 24 Oct 2026: "เขตอุตสาหกรรม วาดไม่ติด"): nothing grows on it without power anyway
@@ -63,11 +63,9 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   landfill: { era: 1 }, watertower: { era: 1 },
   coal: { era: 1, months: 6, limit: { count: 1, until: 2 } },
   // Era 2, the market town: piped water from water works (a village pumps its own wells into its water towers,
-  // src/waterManager.ts TOWER_WELL), paved roads and railways with technicians, gas, mines, secondary schools and colleges, the
+  // src/waterManager.ts TOWER_WELL), railways with technicians, gas, mines, secondary schools and colleges, the
   // community hospital with nurses, buses on paved roads, train stations on railways, the stadium
   waterworks: { era: 2, first: ["power_plant"], months: 4 },
-  road_asphalt: { era: 2, trained: { technician: 20 } },
-  road_concrete2: { era: 2, trained: { technician: 40 } },
   rail: { era: 2, trained: { technician: 20 } },
   gas: { era: 2, trained: { technician: 30 }, months: 3 },
   limestone_mine: MINE, potash_mine: MINE, tin_mine: MINE, zinc_mine: MINE, gold_mine: MINE, gem_mine: MINE,
@@ -82,26 +80,20 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   // ... and the department store, whose lights and lifts want power, which the shops wait for on a real-scale city map
   // (src/departmentStores.ts)
   department_store: { era: 2, trained: { technician: 20 }, first: ["power_plant"], months: 6 },
-  // Era 3, the factory town: the university, then with its graduates the provincial hospital and the dam; four-lane
-  // roads and highways, the port and a small airport, incinerators and wastewater plants
+  // Era 3, the factory town: the university, then with its graduates the provincial hospital and the dam; the port and a small airport, incinerators and wastewater plants
   university: { era: 3, first: ["secondary_school"], months: 12 },
   provincial_hospital: { era: 3, trained: { doctor: 20, nurse: 40 }, months: 6 },
   hydro: { era: 3, trained: { engineer: 30 }, months: 12 },
-  road_concrete4: { era: 3, trained: { technician: 80, engineer: 10 } },
-  road_concrete6: { era: 3, trained: { technician: 120, engineer: 20 } },
   port: { era: 3, trained: { technician: 60 }, months: 6 },
   airport: { era: 3, trained: { engineer: 20 }, months: 9 },
   incinerator: { era: 3, trained: { technician: 40 }, months: 4 },
   wastewater_plant: { era: 3, trained: { technician: 40 }, months: 4 },
   police_hq: { era: 3 },
-  // Era 4, the modern city: solar and wind with 200 engineers, the metro, expressways and tollways, the regional
+  // Era 4, the modern city: solar and wind with 200 engineers, the metro, the regional
   // hospital, waste-to-power and recycling
   solar: { era: 4, trained: { engineer: 200 }, months: 3 },
   wind: { era: 4, trained: { engineer: 200 }, months: 4 },
   metro_station: { era: 4, trained: { engineer: 100 }, months: 12 },
-  road_concrete8: { era: 4, trained: { engineer: 40 } },
-  motorway: { era: 4, trained: { engineer: 60 } },
-  tollway: { era: 4, trained: { engineer: 80 } },
   regional_hospital: { era: 4, trained: { doctor: 100, nurse: 150 }, months: 9 },
   recycling_plant: { era: 4, trained: { engineer: 20 }, months: 4 },
   waste_power_plant: { era: 4, trained: { engineer: 50 }, months: 6 },
@@ -110,8 +102,10 @@ export const UNLOCKS: Readonly<Record<string, Unlock>> = {
   hsr_station: { era: 5, trained: { engineer: 500 }, months: 18 },
 };
 
-/** Tools never locked: they build nothing that needs a reason, or the rank already decides them */
+/** Tools never locked: they build nothing that needs a reason, or the rank already decides them; every road level is
+ * open from the start, only its price holds it back (owner, 24 Oct 2026: "ถ้ามีเงินก็สร้างไปเลย") */
 export const FREE_TOOLS: readonly string[] = ["bulldozer", "park", "zone_erase", "farm_erase", "ruler_house", "ruler_house_upgrade",
+  "road", "road_asphalt", "road_concrete2", "road_concrete4", "road_concrete6", "road_concrete8", "motorway", "tollway",
   "road_upgrade", "building_upgrade", "building_move", "land", "query"];
 
 /** The tools a city may build from an era on that it could not before, in the table's order (the era card) */

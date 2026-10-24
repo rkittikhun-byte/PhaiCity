@@ -100,6 +100,7 @@ import {
   houseSpec, houseStanding, MAX_HOUSE_LEVEL, NEEDS_RANK, NEEDS_ROAD, PLANNING_DISCOUNT, readHouse
 } from './rulerHouse.ts';
 import { isRoadTile, newRoadLevels, ROAD_TOOLS, roadLevelAt, UPGRADE_TOOL } from './roadLevels.ts';
+import { raiseStretch, stretchLevel, upgradeOffers } from './roadUpgrade.ts';
 import { canalMarkStands, isBridgeTile, isWaterTile } from './canals.ts';
 import { homeFlying, installMousePan, installViewControls, panOf, setViewHome } from './viewControls.ts';
 import { focusDrawPoint, setDrawingLine } from './drawAssist.ts';
@@ -746,6 +747,8 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
   // ... where a person's name opens their card, and their home or workplace what is there (src/register/)
   if (this.inspectCard) {
     this.inspectCard.onPerson = function(id) { self.inspectPerson(id); };
+    this.inspectCard.roadOffers = function(road) { return self.roadOffers(road); };
+    this.inspectCard.onUpgrade = function(road, level) { self.raiseRoadStretch(road, level); };
     this.inspectCard.onPlace = function(x, y, id) {
       var building = id !== null ? self.core.objects.get(id) : null;
       if (building)
@@ -835,6 +838,46 @@ Game.prototype.inspectTile = function(x, y, point) {
       this.smartCamera.frame(found.rect);
   } else
     this.inspectCard.close();
+};
+
+
+// A road card's choices for raising its stretch (src/roadUpgrade.ts): priced as the upgrade tool prices it, with the
+// province's and the planning office's factor
+Game.prototype.roadOffers = function(road) {
+  var map = this.gameMap, tool = this.inputStatus.gameTools[UPGRADE_TOOL];
+  if (!tool || !road.tiles.length)
+    return null;
+  // Only the tiles of the city's own land are raised and priced (the commands refuse the rest, src/landBlocks.ts)
+  var inside = canBuildIn(map);
+  var own = road.tiles.filter(function(i) { var x = i % map.width, y = Math.floor(i / map.width); return ownsLand(map, x, y) && inside(x, y); });
+  if (!own.length)
+    return {level: stretchLevel(map, road.tiles), funds: this.simulation.budget.totalFunds, offers: [], unowned: true};
+  var offers = upgradeOffers(map, {tiles: own, lengthM: road.lengthM * own.length / road.tiles.length}, tileMetres(map), tool.costFactor || 1);
+  // ... the state's roads cost the city nothing to keep (src/gameMap.js nationalTransport)
+  if (map.isNationalTransport && road.tiles.every(function(i) { return map.isNationalTransport(i % map.width, Math.floor(i / map.width)); }))
+    offers.forEach(function(offer) { offer.upkeep = 0; });
+  return {level: stretchLevel(map, road.tiles), funds: this.simulation.budget.totalFunds, offers: offers};
+};
+
+
+// The card's button: the stretch goes up to the level chosen through the upgrade tool's own command, tile by tile (its
+// price, levels, saves and log); the card is read again with the new level and speeds
+Game.prototype.raiseRoadStretch = function(road, level) {
+  var map = this.gameMap, tool = this.inputStatus.gameTools[UPGRADE_TOOL];
+  var offer = this.roadOffers(road).offers.filter(function(o) { return o.level === level; })[0];
+  if (!tool || !offer || offer.price > this.simulation.budget.totalFunds)
+    return;
+  var self = this;
+  var taken = raiseStretch(map, road, level, function(x, y) {
+    return self.applyCommand({type: 'tool', tool: UPGRADE_TOOL, x: x, y: y}).accepted;
+  });
+  if (taken > 0 && this.inspectCard && this.inspectCard.inspection) {
+    var at = this.inspectCard.inspection.rect;
+    this.core.objects.scan(map, this.simulation._cityTime);
+    var found = inspectAt(this.inspectCity(), at.x, at.y);
+    if (found)
+      this.inspectCard.open(found);
+  }
 };
 
 
