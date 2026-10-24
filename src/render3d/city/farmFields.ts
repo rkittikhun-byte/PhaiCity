@@ -399,8 +399,6 @@ export class CityFarmFields {
     };
     // (a road-aligned cell a little larger than its 4 m, so the cells of a bend, laid square, leave no slivers of grass
     // between them; a whole tile as it is)
-    // (a road-aligned cell a little larger than its 4 m, so the cells of a bend, laid square, leave no slivers of grass
-    // between them; a whole tile as it is)
     const grow = (c: DrawnCell): number => (c.size < UNITS ? CELL_GROW : 1);
     // Neighbouring painted cells in the same row along a road, matched by the road step they were laid from
     // (src/zoneCells.ts: x = px + nx * distance), so their side edges can stretch to meet across a bend
@@ -478,12 +476,10 @@ export class CityFarmFields {
         if (!insideToo) return [0, 0, 0, 0];
         const sin = Math.sin(c.angle), cos = Math.cos(c.angle), along = c.size * c.span;
         const inset = Math.min(field.kind === 'pond' ? 1.4 : 0.7, 0.3 * c.size);
-        // (across the road: (cos, -sin); along it: (sin, cos))
-
+        // (across the road: (cos, -sin); along it: (sin, cos)); no dike between a row's neighbours of one kind
         const back = prev.get(c), front = next.get(c);
         const sameKind = (o: DrawnCell | undefined): boolean => !!o && o.field.kind === field.kind && o.field.level > 0;
         return [joins(c, -cos * c.size, sin * c.size) ? 0 : inset, joins(c, cos * c.size, -sin * c.size) ? 0 : inset,
-
           joins(c, -sin * along, -cos * along) || sameKind(back) ? 0 : inset, joins(c, sin * along, cos * along) || sameKind(front) ? 0 : inset];
       });
       // The earth or the bank under each cell, unless the water covers it whole, then the water or the pond inside
