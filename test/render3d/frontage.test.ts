@@ -120,6 +120,10 @@ describe('frontage: era models by the painted cells along the road', () => {
     const rubbish: string[] = [];
     for (let x = 0; x < s2.width; x++) { const p = s2.placement(11 * s2.width + x, 'central'); for (const q of p ? [p, ...(p.parts ?? [])] : []) if (q.id === 'terrain.rubble') rubbish.push(q.id); }
     expect(rubbish.length).toBeGreaterThan(0);
+    // ... its walls faded and stained (Placement.weather, drawn by materials/library.ts)
+    const weathered = drawn(s2, 0, s2.width - 1);
+    expect(weathered.length).toBeGreaterThan(0);
+    for (const p of weathered) expect(p.weather).toBe(1);
   });
 
   test('a shop street is a terrace of shophouse bays, one on every 4 m cell, joined across its plots', () => {

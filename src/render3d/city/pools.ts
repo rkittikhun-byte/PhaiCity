@@ -23,6 +23,8 @@ import { lodDistance, lodLevel } from './lod.js';
  * scale, whether it lies outside the province, and the level it was last drawn at (-1 none yet) */
 export interface PoolPlacements {
   matrices: Float32Array; centres: Float32Array; reach: Float32Array; scale: Float32Array; outside: Float32Array; at: Int8Array;
+  /** How weathered each is drawn (Placement.weather), carried in its instance colour's green */
+  weather: Float32Array;
 }
 /** A batch a pool draws: its placements and how far it has faded in (chunks.ts Batch) */
 export interface PoolMember { readonly placements: readonly Placement[]; fade: number; selected: boolean; pooled?: PoolPlacements }
@@ -33,11 +35,12 @@ const matrix = new Matrix4(), point = new Vector3(), sphere = new Sphere(), prod
 export function poolPlacements(placements: readonly Placement[], prototype: Prototype): PoolPlacements {
   const n = placements.length, bounds = prototype.parts[0]?.geometry.boundingSphere;
   const out: PoolPlacements = { matrices: new Float32Array(n * 16), centres: new Float32Array(n * 3), reach: new Float32Array(n),
-    scale: new Float32Array(n), outside: new Float32Array(n), at: new Int8Array(n).fill(-1) };
+    scale: new Float32Array(n), outside: new Float32Array(n), at: new Int8Array(n).fill(-1), weather: new Float32Array(n) };
   placements.forEach((p, i) => {
     p.modelMatrix(matrix); matrix.toArray(out.matrices, i * 16);
     (bounds ? point.copy(bounds.center) : point.set(0, 0, 0)).applyMatrix4(matrix).toArray(out.centres, i * 3);
     out.scale[i] = p.scale; out.reach[i] = (bounds?.radius ?? 0) * p.scale; out.outside[i] = p.outside ? 1 : 0;
+    out.weather[i] = p.weather ?? 0;
   });
   return out;
 }
@@ -122,7 +125,7 @@ export class ModelPool {
   private static put(slots: Slots, member: PoolMember, i: number): void {
     const k = slots.count++, pooled = member.pooled!;
     (slots.matrix.array as Float32Array).set(pooled.matrices.subarray(i * 16, i * 16 + 16), k * 16);
-    slots.color.setX(k, member.fade); slots.outside.setX(k, pooled.outside[i]);
+    slots.color.setX(k, member.fade); slots.color.setY(k, 1 - (pooled.weather?.[i] ?? 0)); slots.outside.setX(k, pooled.outside[i]);
   }
   /** Fills the meshes with the members' placements in sight, each at its level */
   refill(view: PoolView): void {

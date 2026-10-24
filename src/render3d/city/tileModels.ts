@@ -655,7 +655,7 @@ export class TileSnapshot implements CityMapReader {
           if(height===null){ok=false;break;}
           const base=this.listModel(i,plot,region,own);
           if(!base){ok=false;break;}
-          mine.push(new RoadsidePlacement({...base,powered:base.powered&&!isVacant(plot),id:eraModelId(fp.era,piece.kind),x:piece.x,z:piece.z,rotation:piece.rotation,
+          mine.push(new RoadsidePlacement({...base,powered:base.powered&&!isVacant(plot),weather:base.weather,id:eraModelId(fp.era,piece.kind),x:piece.x,z:piece.z,rotation:piece.rotation,
             height,scale:metre,fill:metre,eraKind:piece.kind,
             options:{...base.options,seed:0,variant:0,state:'closed',worldOrigin:[piece.x,piece.z],worldRotationY:piece.rotation}}));
         }
@@ -717,6 +717,8 @@ export class TileSnapshot implements CityMapReader {
         state,waterMask:0,landMask:15,worldOrigin:[own.x,own.z],worldRotationY:own.rotation}});
     p=this.atRealSize(this.toEra(p));
     if(!p)return null;
+    // ... weathered as it stands empty: none at first, half once weathered, all once run-down (decayOf)
+    const decay=list?decayOf(plot,list.now):0;if(decay>=2)p.weather=decay>=3?1:.5;
     const factor=this.realUnits?shareOf(p):1,scale=BUILDING_SCALE*factor;
     // as deep as its model: an era model is in metres, a tile 16 m deep, the others 10 model units a tile
     const deep=size*(p.id?.startsWith('era.')?16:10)*scale,wide=deep;
