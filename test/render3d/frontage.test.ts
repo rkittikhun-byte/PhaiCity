@@ -96,6 +96,25 @@ const leftToRight = (a: Placement, b: Placement): number =>
   (a.x * Math.cos(a.rotation) - a.z * Math.sin(a.rotation)) - (b.x * Math.cos(b.rotation) - b.z * Math.sin(b.rotation));
 
 describe('frontage: era models by the painted cells along the road', () => {
+  // Owner, 24 Oct 2026: "การเปลี่ยนยุค ต้องมีก่อสร้างด้วย": an era rebuild wraps the old look in scaffold, then is a site
+  test("a building rebuilt in the next era's look stands in its old look in a scaffold, then as a site, then anew", () => {
+    const core = city();
+    paint(core, 'commercial', 200, 260);
+    grow(core, 0, 59, 2);
+    const list = (core.map as any).plotBuildings, anchor = list.places.get(list.all()[0].id).anchor;
+    const map = core.map as any;
+    map.buildingEras = new Uint8Array(map.width * map.height).fill(0); map.buildingEras[anchor] = 2;
+    map.eraRebuilds = { [anchor]: { from: 1, since: 0, months: 4 } };
+    const at = (now: number): Placement[] => { map.eraRebuildNow = now; const s = snapshot(core); s.enableConstruction = true; list.now = 1e6;
+      const p = s.placement(anchor, 'central'); return p ? [p, ...(p.parts ?? [])] : []; };
+    const early = at(2);
+    expect(early.some(q => String(q.options.state).startsWith('scaffold:e1'))).toBe(true);
+    expect(early.filter(q => q.id?.startsWith('era.')).every(q => q.id!.startsWith('era.1.'))).toBe(true);
+    expect(at(10).some(q => String(q.options.state).startsWith('stage_2:e2'))).toBe(true);
+    const done = at(16);
+    expect(done.some(q => String(q.options.state).startsWith('scaffold') || String(q.options.state).startsWith('stage'))).toBe(false);
+  });
+
   // Owner, 24 Oct 2026: a building goes up through its stages, and one its people left stands, dark, until bulldozed
   test("a plot's building going up is a construction site in its era's way; one its people left stands dark", () => {
     const core = city();

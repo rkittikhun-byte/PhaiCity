@@ -20,7 +20,7 @@ const SAND_BUFF = 0xd6be8a;
  */
 export function buildConstructionStage(
   b: PlotBuilder,
-  stage: 'stage_1' | 'stage_2',
+  stage: 'stage_1' | 'stage_2' | 'scaffold',
   category: PlotCategory,
   level: number,
   footprint: readonly [number, number],
@@ -41,7 +41,9 @@ export function buildConstructionStage(
   const frameFloors = stage === 'stage_1' ? 1 : Math.max(1, Math.min(8, Math.ceil(targetFloors * 0.65)));
   const storey = 3.0;
 
-  b.feature('site-ground-and-foundation', () => {
+  // (scaffold: only the scaffold standing round a building rebuilt in another era's look, its old self inside, src/eraScore.ts)
+  const wrap = stage === 'scaffold';
+  if (!wrap) b.feature('site-ground-and-foundation', () => {
     // Compacted laterite earth pad, cleared and pegged; a concrete foundation slab from the factory town on
     b.tone(0x9e7352, W + 0.3, 0.08, span - 1.1, 0, 0.04, 0, b.stone);
     if (!old) b.body(0xa9a59c, W - 0.6, 0.45, D - 0.6, 0, 0, zc, 0.08);
@@ -99,21 +101,21 @@ export function buildConstructionStage(
   }
 
   // Stage 2: Rising concrete frame + scaffolding + green safety netting + tower crane (for level >= 3)
-  const frameTop = 0.45 + frameFloors * storey;
-  const bw = W - 1.0;
-  const bd = D - 1.0;
+  const frameTop = wrap ? 0.45 + targetFloors * storey : 0.45 + frameFloors * storey;
+  const bw = wrap ? W + 0.4 : W - 1.0;
+  const bd = wrap ? D + 0.4 : D - 1.0;
 
   b.feature('concrete-frame-and-scaffolding', () => {
     // Structural core & floor slabs
-    if (!old) b.body(0x9e9b93, bw * 0.42, frameTop, bd * 0.42, 0, 0.45, zc, 0.12);
-    for (let f = 1; f <= frameFloors; f++) {
+    if (!old && !wrap) b.body(0x9e9b93, bw * 0.42, frameTop, bd * 0.42, 0, 0.45, zc, 0.12);
+    for (let f = 1; f <= (wrap ? 0 : frameFloors); f++) {
       const y = 0.45 + f * storey;
       b.tone(SLAB, bw, 0.22, bd, 0, y - 0.11, zc, old ? b.wood : b.stone);
     }
     // Perimeter concrete columns
     const cols = footprint[0] > 1 ? [-bw / 2 + 0.25, -bw / 6, bw / 6, bw / 2 - 0.25] : [-bw / 2 + 0.22, 0, bw / 2 - 0.22];
     const rows = [zc - bd / 2 + 0.22, zc, zc + bd / 2 - 0.22];
-    b.colored(FRAME, () => {
+    if (!wrap) b.colored(FRAME, () => {
       for (const cx of cols) {
         for (const cz of rows) {
           b.box(0.32, frameTop + 0.7, 0.32, cx, 0.45 + (frameTop + 0.7) / 2, cz, b.stone);
@@ -142,7 +144,7 @@ export function buildConstructionStage(
     });
   });
 
-  if (level >= 3 && !old) {
+  if (level >= 3 && !old && !wrap) {
     b.feature('tower-crane', () => {
       const mastH = frameTop + 4.8;
       const cx = bw * 0.22;

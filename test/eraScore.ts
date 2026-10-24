@@ -6,7 +6,8 @@
 // they live, counted per person; from 0.8 its buildings begin to change, at 1 the city is in the next era.
 
 import { ERA_RULES, FACTORS, FLOOR_CAP, LITERATE_WANTED, TECHNICIANS_WANTED } from "../src/eraRules";
-import { eraMonth, literateCount, scoreEra, techniciansCount } from "../src/eraScore";
+import { eraMonth, literateCount, rebuildShare, scoreEra, techniciansCount } from "../src/eraScore";
+import { BUILD_MONTHS, buildMonthsOf } from "../src/buildTimes";
 import { noTrained } from "../src/trainedPeople";
 import { Random } from "../src/random";
 import { readCityLayers, writeCityLayers } from "../src/core/cityLayers";
@@ -203,5 +204,38 @@ describe("eras moving on", () => {
     expect(loaded.era).toBe(3);
     expect(loaded.eraHistory.length).toBe(2);
     expect(Array.from(loaded.buildingEras as Uint8Array)).toEqual(Array.from(map.buildingEras as Uint8Array));
+  });
+
+  // Owner, 24 Oct 2026: "การเปลี่ยนยุค ต้องมีก่อสร้างด้วย ไม่ใช่จะอยู่ดีๆ โผล่ปุ๊ปปั๊ปเลย ยิ่งบ้านใหญ่ขึ้น ยิ่งสร้างนาน"
+  test("a building taking the next era's look is rebuilt over its months, bigger ones longer, and kept with the city", () => {
+    for (const kind of ["home", "shop", "factory"] as const) {
+      const months = BUILD_MONTHS[kind];
+      for (let l = 1; l < months.length; l++) expect(months[l]).toBeGreaterThan(months[l - 1]);
+    }
+    expect(buildMonthsOf("shop", 2)).toBeGreaterThan(buildMonthsOf("home", 2));
+    expect(buildMonthsOf("factory", 2)).toBeGreaterThan(buildMonthsOf("shop", 2));
+    expect(buildMonthsOf("temple", 1)).toBeGreaterThan(buildMonthsOf("home", 3));
+    Random.seed(11);
+    const map = city(), list = wellBuilt(), levels = { stamps: null as Uint8Array | null };
+    Object.assign(map, { insideProvince: null, roadLevels: null, roadPieces: null, canals: null, buildingLevels: {},
+      buildingPoses: {}, buses: [], policies: [], mineKinds: {} });
+    let seen: { tile: number; since: number; months: number } | null = null;
+    for (let month = 0; month < 36 && !seen; month++) {
+      const s = sim(1800); s._cityTime = month * 4;
+      eraMonth(map, s, objects(list), levels);
+      const [tile, r] = Object.entries(map.eraRebuilds ?? {})[0] ?? [];
+      if (r) seen = { tile: Number(tile), since: (r as any).since, months: (r as any).months };
+    }
+    expect(seen).not.toBeNull();
+    // a home or shop of level 2 takes the table's months for its kind and level, and keeps its old era meanwhile
+    expect(seen!.months).toBe(buildMonthsOf(seen!.tile < 40 ? "home" : "shop", 2));
+    expect(rebuildShare(map, seen!.tile, seen!.since)).toEqual({ from: 1, share: 0 });
+    const saved = JSON.parse(JSON.stringify(writeCityLayers(map))), loaded = { width: 20, height: 20 } as any;
+    readCityLayers(loaded, saved);
+    expect(loaded.eraRebuilds[seen!.tile]).toEqual(map.eraRebuilds[seen!.tile]);
+    // ... and forgotten once built
+    const s = sim(1800); s._cityTime = seen!.since + seen!.months * 4;
+    eraMonth(map, s, objects(list), levels);
+    expect(map.eraRebuilds[seen!.tile]).toBeUndefined();
   });
 });

@@ -28,6 +28,10 @@ import { roadLevelAt } from "./roadLevels.js";
 import { segmentLevel } from "./sim/roadUpkeep.js";
 import { isCityTileSize } from "./units.js";
 import { modeRule } from "./gameModes.js";
+import { buildMonthsOf } from "./buildTimes.js";
+
+/** The city's time a month (src/construction.ts TIME_PER_MONTH) */
+const TIME_PER_MONTH = 4;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Legacy = any;
@@ -194,6 +198,17 @@ export function scoreEra(map: Legacy, sim: Legacy, objects: Objects, era: Era = 
   return { era, month, people, peopleWanted, peopleDone, quality: clamp01(quality), factors, symbols, heldBy };
 }
 
+/** A building being rebuilt in another era's look: the era it had, the city's time it began, and its months */
+export interface EraRebuild { from: number; since: number; months: number }
+
+/** How far a building's era rebuild has gone at the city's time `now` (0-1), or null when none is under way */
+export function rebuildShare(map: { eraRebuilds?: Record<string, EraRebuild> | null }, tile: number, now: number): { from: number; share: number } | null {
+  const r = map.eraRebuilds?.[tile];
+  if (!r) return null;
+  const share = (now - r.since) / (r.months * TIME_PER_MONTH);
+  return share >= 0 && share < 1 ? { from: r.from, share } : null;
+}
+
 /** What the era system tells the game: the transition began, or a new era came */
 export type EraNews = { type: "dawn"; era: Era } | { type: "era"; era: Era };
 
@@ -259,11 +274,18 @@ export function eraMonth(map: Legacy, sim: Legacy, objects: Objects, levels: { s
   let ahead = 0;
   for (const b of all) if (eras[tileOf(b)] >= next && era < 5) ahead++;
   const mayAdvance = (): boolean => era < 5 && ahead < transition * all.length;
+  // A building that takes another era's look while it stands, at the same level, is rebuilt over its months (owner, 24 Oct
+  // 2026: "การเปลี่ยนยุค ต้องมีก่อสร้างด้วย ไม่ใช่จะอยู่ดีๆ โผล่ปุ๊ปปั๊ปเลย"): kept by its tile with the era it had, when it began
+  // and its months (src/buildTimes.ts), for the 3D view to draw; its people stay and its work goes on meanwhile
+  const now: number = sim._cityTime ?? 0;
+  const rebuilds: Record<string, EraRebuild> = map.eraRebuilds ??= {};
+  map.eraRebuildNow = now;
   for (const b of all) {
     const t = tileOf(b);
     standing[t] = 1;
     const level = ((b as Building & { level?(m: Legacy): number }).level?.(map) ?? 0) + 1;
     const own = eras[t];
+    const sameLevel = !fresh && stamps[t] === level;
     if (own === 0) {
       // A building of a city that kept no eras yet stands in the era it is in; a new one may be the next
       eras[t] = first ? era : eraForNew(era, mayAdvance() ? transition : 0, pull(sim, b));
@@ -278,7 +300,13 @@ export function eraMonth(map: Legacy, sim: Legacy, objects: Objects, levels: { s
       eras[t] = Math.min(5, era + 1);
     }
     if (eras[t] >= next && (own < next) && era < 5) ahead++;
+    if (own > 0 && eras[t] !== own && sameLevel) rebuilds[t] = { from: own, since: now, months: buildMonthsOf(b.kind, Math.max(1, level - 1)) };
     stamps[t] = level;
+  }
+  // ... forgotten once built, or when its building is gone
+  for (const key of Object.keys(rebuilds)) {
+    const r = rebuilds[key];
+    if (!standing[Number(key)] || now - r.since >= r.months * TIME_PER_MONTH) delete rebuilds[key];
   }
   // A building gone leaves no era behind it
   for (let i = 0; i < size; i++) if (eras[i] && !standing[i]) { eras[i] = 0; stamps[i] = 0; }
