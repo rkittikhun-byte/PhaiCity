@@ -206,6 +206,13 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
   The save format and its migrations are still `src/storage.js` (version 4); the old single save
   `micropolisJSGame` is copied in once and left untouched. "My cities" on the start screen carries on or deletes them.
   Saves record the map size and optional `provinceId` / `worldId`; migrations live in `transitionOldSave`.
+- **Hover for everything (owner, 24 Oct 2026):** with no tool in hand the pointer outlines the object on or near it (a thin
+  white edge fading in and out over 120 ms, `ToolHover.inspectFade`) and, after resting 250 ms, a small tooltip beside it
+  names it (`src/hoverTip.ts`, `#hoverTip`); a click opens the card as before, on the object the hover meant. The pick
+  (`src/hoverPick.ts`, `src/hoverTarget.ts`, `Game.updateHover`) takes the nearest object within 16 px, buildings before
+  roads before fields and canals, keeps the held one (no flicker), runs every 50 ms from the map and never raycasts the
+  scene; nothing shows over a card, with a tool in hand, while a button is held or the camera flies. Words are the
+  inspector card's own keys (`tooltipLines`).
 - **Ruler rank (ยศเจ้าเมือง):** `src/rulerRank.ts` maps the game's city classes to หมื่น … เจ้าพระยา. A rank only
   rises (`keepHigherRank`), is saved as `rulerRank` (and `rank` in the city list), shows under the city name, and the
   congratulations window opens once per new rank (`game.processFrontEndMessage`).

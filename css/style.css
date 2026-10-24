@@ -2457,3 +2457,14 @@ body #inspectCard .plotLater { margin: 0 0 6px; color: var(--hud-dim); font-size
 @media (prefers-reduced-motion: reduce) {
   #loadingScreen .lsBrand, #loadingScreen .lsFill, #loadingScreen .lsSpin, #loadingScreen .lsHead, #loadingScreen .lsLine.lsIn { animation: none; }
 }
+
+/* The hover's tooltip beside the pointer over an object of the city (src/hoverTip.ts): small words, nothing bold, never
+   under the pointer (it has no pointer events) */
+#hoverTip {
+  position: fixed; z-index: 40; max-width: 220px; padding: 3px 8px; border-radius: 7px; pointer-events: none;
+  background: rgba(var(--ph-sand-900-rgb), 0.82); color: var(--ph-sand-100); white-space: pre-line;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font: 9px/1.5 'Sarabun Thai', 'Open Sans', sans-serif;
+  animation: hoverTipIn 0.12s ease-out backwards;
+}
+#hoverTip[hidden] { display: none; }
+@keyframes hoverTipIn { from { opacity: 0; } }

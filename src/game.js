@@ -117,6 +117,9 @@ import { inspectAt, inspectBuilding, inspectLorry, inspectPerson, inspectTravell
 import { registerOf } from './register/cityRegister.ts';
 import { RegisterWindow } from './registerWindow.ts';
 import { InspectCard } from './inspectCard.ts';
+import { chooseHover, hoverAllowed, PICK_EVERY_MS, SAMPLE_OFFSETS, tooltipLines, tooltipShows } from './hoverPick.ts';
+import { hoverTargetAt } from './hoverTarget.ts';
+import { HoverTip } from './hoverTip.ts';
 import * as Messages from './messages.ts';
 import { MonsterTV } from './monsterTV.js';
 import { installNewsLog } from './newsLog.ts';
@@ -948,11 +951,162 @@ Game.prototype.inspectPerson = function(id) {
 };
 
 
+// The candidates of one hover pick, reused so the pick allocates nothing on its way
+var HOVER_CANDIDATES = SAMPLE_OFFSETS.map(function() { return {key: '', cls: 0, dist: 0}; });
+var HOVER_FADE_MS = 120;
+var HOVER_COLOUR = 'white';
+
+// The object near the pixel (x, y) of the view, or null: {target (its identity and the tile the inspector reads it from),
+// point (the ground it was found at)}. The pointer's own pixel first, then a ring of samples about as far as a hand
+// misses; buildings before roads before fields and canals (src/hoverPick.ts). A few lookups of the map, never a raycast.
+Game.prototype.hoverPickAt = function(x, y, current) {
+  var view = this.cityView;
+  if (typeof view.pointAt !== 'function' || this.inputStatus.currentTool !== null)
+    return null;
+  var map = this.gameMap, objects = this.core.objects, count = 0;
+  var found = this._hoverFound || (this._hoverFound = new Map());
+  var seen = this._hoverSeen || (this._hoverSeen = new Map());
+  found.clear();
+  seen.clear();
+  for (var i = 0; i < SAMPLE_OFFSETS.length; i++) {
+    var offset = SAMPLE_OFFSETS[i], point = view.pointAt(x + offset[0], y + offset[1]);
+    if (!point)
+      continue;
+    var tile = view.tileAt(x + offset[0], y + offset[1]);
+    if (!tile)
+      continue;
+    // (a tile met already by a nearer sample says nothing new, but the ruler's buildings are found by their outlines)
+    var building = this.buildingUnder(point, tile), tileKey = tile.y * map.width + tile.x, target;
+    if (!building && seen.has(tileKey))
+      target = seen.get(tileKey);
+    else {
+      target = hoverTargetAt(map, objects, tile.x, tile.y, building);
+      if (!building)
+        seen.set(tileKey, target);
+    }
+    if (target === null)
+      continue;
+    var candidate = HOVER_CANDIDATES[count++];
+    candidate.key = target.key;
+    candidate.cls = target.cls;
+    candidate.dist = offset[2];
+    if (!found.has(target.key))
+      found.set(target.key, {target: target, point: point});
+  }
+  if (count === 0)
+    return null;
+  var key = chooseHover(HOVER_CANDIDATES, current, count);
+  return key === null ? null : found.get(key);
+};
+
+
+// Called every frame: what the pointer is on or near with no tool in hand, outlined at once (fading in) and named after
+// it rests a moment. Nothing shows over a card, while a button is held or the camera moves, or with a tool in hand.
+Game.prototype.updateHover = function() {
+  var now = performance.now(), p = this._pointer, input = this.inputStatus;
+  var hover = this._hover || (this._hover = {key: null, target: null, point: null, found: null, tip: null, since: 0, leftAt: 0});
+  var context = {
+    toolInHand: input.currentTool !== null,
+    onCity: !!p && p.onCanvas && p.x >= 0 && p.moved && !this.dialogShowing,
+    dragging: !!(p && p.down) || input._dragging || input.areaDrag !== null || input.pathDrag !== null,
+    flying: homeFlying()
+  };
+  if (!hoverAllowed(context) || typeof this.cityView.pointAt !== 'function') {
+    this.hoverLeave(hover, now, !context.toolInHand);
+    return;
+  }
+  // A pick at most every 50 ms
+  if (now - (this._hoverAt || 0) >= PICK_EVERY_MS) {
+    this._hoverAt = now;
+    var picked = this.hoverPickAt(p.x, p.y, hover.key);
+    if (!picked)
+      this.hoverLeave(hover, now, true);
+    else if (picked.target.key !== hover.key) {
+      hover.key = picked.target.key;
+      hover.target = picked.target;
+      hover.point = picked.point;
+      hover.since = now;
+      hover.leftAt = 0;
+      // (what the inspector reads of it, without the register's people: the pick stays light)
+      var city = {map: this.gameMap, objects: this.core.objects, blockMaps: this.simulation.blockMaps,
+        cityTime: this.simulation._cityTime, startingYear: this.simulation._startingYear, language: getLanguage(), register: null};
+      // (a building put up since the month's look over the map is found now, as a click does)
+      if (picked.target.cls === 0 && !this.core.objects.at(picked.target.x, picked.target.y))
+        this.core.objects.scan(this.gameMap, this.simulation._cityTime);
+      hover.found = inspectAt(city, picked.target.x, picked.target.y);
+      hover.tip = hover.found ? tooltipLines(hover.found) : null;
+    } else
+      hover.leftAt = 0;
+  }
+  // The tooltip: once the pointer has rested, never for the object whose card is open
+  if (!this._hoverTip)
+    this._hoverTip = new HoverTip();
+  if (hover.key !== null && hover.leftAt === 0 && hover.tip && tooltipShows(context, now - (p.movedAt || 0)) &&
+      hover.key !== this.selectedHoverKey())
+    this._hoverTip.show(hover.tip, p.cx, p.cy);
+  else
+    this._hoverTip.hide();
+};
+
+
+// The pointer left what it was on (or a tool or a drag forbids hover): the outline fades out, the tooltip goes
+Game.prototype.hoverLeave = function(hover, now, fade) {
+  if (this._hoverTip)
+    this._hoverTip.hide();
+  if (hover.key === null)
+    return;
+  if (fade && hover.leftAt === 0)
+    hover.leftAt = now;
+  if (!fade || now - hover.leftAt >= HOVER_FADE_MS) {
+    hover.key = null;
+    hover.target = null;
+    hover.found = null;
+    hover.tip = null;
+  }
+};
+
+
+// The key (src/hoverTarget.ts) of what the inspector's card shows, null when it shows nothing
+Game.prototype.selectedHoverKey = function() {
+  var shown = this.inspectCard && this.inspectCard.isOpen ? this.inspectCard.inspection : null;
+  if (!shown)
+    return null;
+  if (this._selectedFor !== shown) {
+    this._selectedFor = shown;
+    var target = hoverTargetAt(this.gameMap, this.core.objects, shown.rect.x, shown.rect.y, null);
+    this._selectedKey = target ? target.key : null;
+  }
+  return this._selectedKey;
+};
+
+
+// The hover's outline for the view (ToolHover.inspect, drawn thin and fading in or out: inspectFade), null when none
+Game.prototype.hoverOutline = function() {
+  var hover = this._hover;
+  if (!hover || hover.key === null || !hover.found || hover.key === this.selectedHoverKey())
+    return null;
+  var now = performance.now();
+  var fade = hover.leftAt !== 0 ? 1 - (now - hover.leftAt) / HOVER_FADE_MS : (now - hover.since) / HOVER_FADE_MS;
+  fade = Math.max(0.05, Math.min(1, Math.round(fade * 8) / 8));
+  var target = hover.target, rect = hover.found.rect;
+  return {tile: {x: rect.x, y: rect.y}, size: 1, colour: HOVER_COLOUR,
+          inspect: target.cls === 0 ? {x: target.x + 0.5, y: target.y + 0.5} : hover.point,
+          inspectPath: hover.found.path && hover.found.path.length > 1 ? hover.found.path : null,
+          inspectRoad: Boolean(hover.found.title && hover.found.title.key === 'object.kind.road'),
+          inspectFade: fade};
+};
+
+
 // With no tool in hand, the outline round what the inspector's card shows (a building's centre is one tile in from
 // its top-left corner, as the tools place it; roads do not draw a floating ghost band over adjacent buildings)
 Game.prototype.selectionOutline = function() {
+  if (this.inputStatus.currentTool !== null)
+    return null;
+  var hovered = this.hoverOutline();
+  if (hovered)
+    return hovered;
   var shown = this.inspectCard && this.inspectCard.inspection;
-  if (!shown || this.inputStatus.currentTool !== null)
+  if (!shown)
     return null;
   // The view shows it by its own outline, a road by its drawn stretch, plain ground by a mark at the point clicked
   var rect = shown.rect;
@@ -1048,6 +1202,12 @@ Game.prototype.updateContextualOverlay = function(activeTool) {
 
 // ... from a click at (x, y) pixels over the city
 Game.prototype.inspectAtPixel = function(x, y) {
+  // The object the hand meant: the nearest within reach, the one outlined by the hover while still near (src/hoverPick.ts)
+  var meant = this.hoverPickAt(x, y, this._hover ? this._hover.key : null);
+  if (meant) {
+    this.inspectTile(meant.target.x, meant.target.y, meant.point);
+    return;
+  }
   var tile = this.cityView.tileAt(x, y);
   if (tile)
     this.inspectTile(tile.x, tile.y, typeof this.cityView.pointAt === 'function' ? this.cityView.pointAt(x, y) : null);
@@ -2361,6 +2521,7 @@ Game.prototype.placesBuilding = function() {
 
 // The tool's outline under the mouse, in map tiles (src/cityView.ts ToolHover), or null
 Game.prototype.calculateMouseForPaint = function() {
+  this.updateHover();
   // How big a tile is on the screen, on the camera bar while a line tool is in hand (src/drawReadout.ts)
   var tilePixels = null;
   if (modeGroupOf(this.inputStatus.toolName) !== 'line') {
@@ -4063,12 +4224,18 @@ Game.prototype.watchPointer = function() {
     // dock, owner, 23 Oct 2026: "บนล่าง ไม่เลื่อน"), not over a card, button or window
     self._pointer.onCanvas = event.target === canvas || !overSolidHud(event.target);
     self._pointer.moved = true;
+    self._pointer.movedAt = performance.now();
+    self._pointer.cx = event.clientX;
+    self._pointer.cy = event.clientY;
     if (canvas) {
       var box = canvas.getBoundingClientRect();
       self._pointer.x = event.clientX - box.left;
       self._pointer.y = event.clientY - box.top;
     }
   }, true);
+  document.addEventListener('pointerdown', function() { self._pointer.down = true; }, true);
+  document.addEventListener('pointerup', function() { self._pointer.down = false; }, true);
+  document.addEventListener('pointercancel', function() { self._pointer.down = false; }, true);
   document.addEventListener('mouseout', function(event) {
     if (!event.relatedTarget)
       self._pointer.onCanvas = false;
