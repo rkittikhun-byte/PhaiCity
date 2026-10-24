@@ -16,6 +16,7 @@
 
 import { BufferAttribute, type BufferGeometry, type Mesh, type Object3D } from 'three';
 import type { RegionId } from '../regional/types.js';
+import { splitSmoke, type SmokeSource } from './smokeSources.js';
 import type { PrototypeProvider, PrototypeRequest, SerializedPart, SerializedPrototype } from './prototypes.js';
 import { loadSimplifier, makeLevels, makeShadow, type Simplifier } from './lod.js';
 
@@ -133,7 +134,7 @@ export async function loadEraIndex(base = ERA_BUILDINGS_BASE): Promise<EraIndex 
  * simplifier its lighter copies for far away (lod.ts), which the city's chunks draw by distance */
 export function serializeEraScene(key: string, scene: Object3D, simplifier: Simplifier | null = null): SerializedPrototype {
   scene.updateMatrixWorld(true);
-  const parts: SerializedPart[] = [];
+  const parts: SerializedPart[] = [], smoke: SmokeSource[] = [];
   let top = 0;
   scene.traverse(node => {
     const mesh = node as Mesh;
@@ -157,13 +158,25 @@ export function serializeEraScene(key: string, scene: Object3D, simplifier: Simp
       const white = new Float32Array(geometry.getAttribute('position').count * 3).fill(1);
       attributes.color = { array: white, size: 3 };
     }
+    const windows = /window/i.test(mesh.name) || /window/i.test(mesh.parent?.name ?? '');
+    // The models' baked smoke (a row of grey spheres) comes out of the body; its chimneys' plumes are drawn by the
+    // world instead (smokeSources.ts, plumes.ts)
+    let index = geometry.index ? new Uint32Array(geometry.index.array) : null;
+    if (!windows) {
+      const split = splitSmoke(attributes.position.array, attributes.color.array, index);
+      if (split.sources.length) {
+        attributes.position = { array: split.position, size: 3 }; attributes.color = { array: split.color, size: 3 };
+        index = split.index; smoke.push(...split.sources);
+        geometry.setAttribute('position', new BufferAttribute(split.position, 3));
+        geometry.setIndex(index ? new BufferAttribute(index, 1) : null);
+      }
+    }
     geometry.computeBoundingBox(); geometry.computeBoundingSphere();
     const box = geometry.boundingBox!, sphere = geometry.boundingSphere!;
     top = Math.max(top, box.max.y);
-    const windows = /window/i.test(mesh.name) || /window/i.test(mesh.parent?.name ?? '');
     parts.push({
       attributes,
-      index: geometry.index ? new Uint32Array(geometry.index.array) : null,
+      index,
       material: { key: windows ? 'emissive_window' : 'stucco_ornament', name: `era-building-${windows ? 'windows' : 'body'}`,
         // the colour is the vertices' (eraBuildingMaterial); this one is not read
         color: 0, data: { eraBuilding: windows ? 'windows' : 'body' } },
@@ -176,7 +189,7 @@ export function serializeEraScene(key: string, scene: Object3D, simplifier: Simp
   const sources = parts.map(p => ({ attributes: p.attributes, index: p.index }));
   const lods = simplifier ? makeLevels(sources, simplifier) : [];
   // ... and the shadow's, much lighter, as the shadow map sees no crease or colour
-  return { key, parts, height: top, ...(lods.length ? { lods } : {}), ...(simplifier ? { shadow: makeShadow(sources, simplifier) } : {}) };
+  return { key, parts, height: top, ...(smoke.length ? { smoke } : {}), ...(lods.length ? { lods } : {}), ...(simplifier ? { shadow: makeShadow(sources, simplifier) } : {}) };
 }
 
 /** Loads era models on the page (GLTFLoader with Draco); every other model goes to `inner`, the model worker. */

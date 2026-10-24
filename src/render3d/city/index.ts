@@ -42,6 +42,7 @@ import { EraVehicles, loadVehicleIndex, nextEraShare, paintFor, pickVehicle, tra
 import { mapEra } from '../../era.js';
 import { ProblemIcons } from './problemIcons.js';
 import { CityFestivals, type FestivalViewMap } from './festivals3d.js';
+import { CityPlumes } from './plumes.js';
 import { CityFarmFields, type FarmViewMap } from './farmFields.js';
 import { CityCompounds, type CompoundMap } from './compounds.js';
 import type { CellMap } from '../../zoneCells.js';
@@ -182,6 +183,8 @@ export class CityView3D implements CityView {
   private fogRange={near:0,far:0};
   /** The festivals' lanterns, krathong, sky lanterns and rockets (festivals3d.ts), made when the first is held */
   private festivals?:CityFestivals;
+  /** The smoke of chimneys (plumes.ts): one draw for every plume of the city */
+  private plumes?:CityPlumes;
   private farms?:CityFarmFields;
   /** Whether the zones' colour wash shows (zoneWash) */
   private washOn=false;
@@ -634,6 +637,9 @@ export class CityView3D implements CityView {
       if(!this.festivals){this.festivals=new CityFestivals(festive,this.terrain,this.sprites.size,this.snapshot.realUnits);this.scene.add(this.festivals.root);}
       this.festivals.moonShows=this.moonShows;
       this.festivals.update(this.curves.drawnLines,Math.max(0,this.lastNightFactor),(start-this.created)/1000,{x:this.wind.x,y:this.wind.y});}}
+    // The smoke of chimneys, leaning downwind, low in rain and fog, by the light of the hour (plumes.ts)
+    if(!this.plumes){this.plumes=new CityPlumes();this.scene.add(this.plumes.root);}
+    this.plumes.update(this.chunks,this.navigation.camera.position,(start-this.created)/1000,{wind:this.wind,rain:this.look.rain,fog:this.look.fog,night:Math.max(0,this.lastNightFactor),twilight:this.twilight});
     this.weather.place(this.navigation.camera,this.navigation.distance,this.wind,1-this.lastNightFactor*0.8,this.navigation.flat);
     // ... wet ground, roofs and roads after rain
     setCityWetness(this.look.wet);this.weather.wetRoads(this.curves.root);
@@ -769,7 +775,7 @@ export class CityView3D implements CityView {
 
   dispose():void {
     if(this.disposed)return;this.disposed=true;this.resizeObserver?.disconnect();this.listeners.forEach(({type,listener})=>this.canvas.removeEventListener(type,listener));
-    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.reachLayer?.dispose();this.trains?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
+    this.chunks.dispose();this.sprites.dispose();this.pedestrians.dispose();this.roadTraffic.dispose();this.tripCars?.dispose();this.trafficLayer?.dispose();this.reachLayer?.dispose();this.trains?.dispose();this.foliage.dispose();this.outline.dispose();this.zones.dispose();this.cells?.dispose();this.layer?.dispose();this.buses?.dispose();this.problems?.dispose();this.streets?.dispose();this.province?.dispose();this.curves.dispose();this.canals.dispose();this.festivals?.dispose();this.plumes?.dispose();this.farms?.dispose();this.compounds?.dispose();this.sky.dispose();this.weather.dispose();this.post?.dispose();this.gpuTimer?.dispose();this.bed.geometry.dispose();this.environment?.dispose();this.sun.shadow.dispose();this.scene.clear();this.overlay.clear();this.renderer.dispose();this.canvas.remove();
   }
 }
 export function createCityView3D(setup:CityViewSetup):CityView3D{return new CityView3D(setup);}

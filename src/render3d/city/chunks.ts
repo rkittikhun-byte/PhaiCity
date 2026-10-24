@@ -10,6 +10,7 @@ import type { RegionId } from '../regional/types.js';
 import type { TileRect } from '../../cityView.js';
 import type { CityHeightField } from './heightfield.js';
 import { ProvinceSurface } from './province-surface.js';
+import type { SmokeSource } from './smokeSources.js';
 import { frustumOf, ModelPool, poolPlacements, type PoolPlacements } from './pools.js';
 interface Batch { group:Group; placements:Placement[]; key:string; calls:number; selected:boolean;fade:number;
   /** The pool that draws it with the other batches of its model when the model has levels of detail (pools.ts, lod.ts),
@@ -235,6 +236,18 @@ export class CityChunks {
     this.solid.instanceMatrix.needsUpdate=true;this.water.instanceMatrix.needsUpdate=true;this.ground.instanceMatrix.needsUpdate=true;
     if(this.solid.instanceColor)this.solid.instanceColor.needsUpdate=true;
     this.surfaces?.finish();
+  }
+  /** The placed buildings drawn within `radius` of (x, z) whose model has chimneys (smokeSources.ts), for their plumes
+   * (plumes.ts); a building whose batch is not drawn gives none */
+  smokers(visit:(placement:Placement,sources:readonly SmokeSource[])=>void,x:number,z:number,radius:number):void {
+    for(const c of this.chunks){
+      if(Math.abs(c.x*10+80-x)>radius+114||Math.abs(c.y*10+80-z)>radius+114)continue;
+      for(const b of c.batches){
+        if(!b.selected&&b.fade<=0)continue;
+        const sources=this.prototypes.get(b.key)?.smoke;if(!sources)continue;
+        for(const p of b.placements)visit(p,sources);
+      }
+    }
   }
   /** A part's instanced mesh for a batch over `geometry` (the part's own or a lighter level's), its own copy so its
    * per-instance attributes are its own, with room for every placement of the batch */
