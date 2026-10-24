@@ -9,17 +9,19 @@ import { MaterialKey, getMaterial, tint, vertexFinish, eraBuildingMaterial, road
 import { hospitalAtlas, thaiSign, thaiSignAtlas } from '../materials/signs.js';
 import type { ModelOptions } from '../models/registry.js';
 import type { LodGeometry, LodLevel } from './lod.js';
+import type { SmokeSource } from './smokeSources.js';
 export interface MaterialDescription { key:MaterialKey|VehicleMaterialKey; name:string; color:number; data:Record<string,any> }
 export interface SerializedPart { attributes:Record<string,{array:Float32Array;size:number}>;index:Uint32Array|null;material:MaterialDescription;ground?:boolean;
   castShadow?:boolean;receiveShadow?:boolean;
   bounds?:{min:[number,number,number];max:[number,number,number];center:[number,number,number];radius:number} }
 /** A prototype's lighter copies for far away (lod.ts): each level's error (the model's units) and its parts, null where
  * a part is gone at that level; and its parts for the sun's shadow alone (makeShadow) */
-export interface SerializedPrototype { key:string; parts:SerializedPart[]; height:number; error?:string; lods?:LodLevel[]; shadow?:(LodGeometry|null)[] }
+export interface SerializedPrototype { key:string; parts:SerializedPart[]; height:number; error?:string; lods?:LodLevel[]; shadow?:(LodGeometry|null)[];
+  /** Where its chimneys smoke (smokeSources.ts), in the model's metres */ smoke?:SmokeSource[] }
 export interface PrototypeRequest {key:string;id:string;options:ModelOptions}
 export interface PrototypeProvider { request(request:PrototypeRequest):void; take():SerializedPrototype[]; dispose():void }
 export interface Prototype { parts:{geometry:BufferGeometry;material:MeshStandardMaterial;ground?:boolean;castShadow?:boolean;receiveShadow?:boolean}[];height:number;
-  lods?:{error:number;parts:(BufferGeometry|null)[]}[];shadow?:(BufferGeometry|null)[] }
+  lods?:{error:number;parts:(BufferGeometry|null)[]}[];shadow?:(BufferGeometry|null)[];smoke?:SmokeSource[] }
 function material(d:MaterialDescription):MeshStandardMaterial {
   const u=d.data,key=d.key as MaterialKey;
   if(u.provinceSurface)return citySurfaceMaterial();
@@ -47,7 +49,7 @@ function lodGeometry(p:LodGeometry):BufferGeometry {
   geometry.setIndex(new BufferAttribute(p.index,1));geometry.computeBoundingBox();geometry.computeBoundingSphere();return geometry;
 }
 export function decodePrototype(value:SerializedPrototype):Prototype {
-  return {height:value.height,lods:value.lods?.map(l=>({error:l.error,parts:l.parts.map(p=>p?lodGeometry(p):null)})),
+  return {height:value.height,smoke:value.smoke,lods:value.lods?.map(l=>({error:l.error,parts:l.parts.map(p=>p?lodGeometry(p):null)})),
     shadow:value.shadow?.map(p=>p?lodGeometry(p):null),parts:value.parts.map(p=>{
     const geometry=new BufferGeometry();for(const[name,a]of Object.entries(p.attributes))geometry.setAttribute(name,new BufferAttribute(a.array,a.size));
     if(p.index)geometry.setIndex(new BufferAttribute(p.index,1));

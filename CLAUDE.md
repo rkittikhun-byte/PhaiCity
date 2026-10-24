@@ -131,6 +131,10 @@ the icons) are now Claude Code's own to-do list, built to the same specs.
     (`src/render3d/city/pools.ts`) and switch to lighter meshoptimizer copies where the change is under a pixel
     (`lod.ts`). `index.html?khonkaen&bench`, then `await phaicityBench.run({plots: 3000})` (`bench.ts`), measures a
     3,000-plot town.
+  - **Smoke (24 Oct 2026; RENDERER_SPEC §8D):** the era models' baked grey bead smoke is cut out when a glb loads
+    (`src/render3d/city/smokeSources.ts`) and each chimney's plume is drawn in one instanced call (`plumes.ts`): soft puffs
+    that lean with the season's wind, stay low in rain and fog, are thick and dark from heavy industry and thin and pale from a
+    bakery, and show only while the building is powered and not standing empty. Colours `SCENE.plume`.
   - The camera bar at the bottom right (`src/cameraModes.ts`, owner 14 Oct 2026) sets what a left drag does (free, move,
     rotate, zoom, tilt) and has 2D, straight down and whole city. Its 2D is the 3D view's flat camera from straight
     above (`CityCamera.setFlat`), not the old 2D view, so it does not break the rule against a 2D/3D switch.

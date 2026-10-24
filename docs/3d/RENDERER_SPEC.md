@@ -720,6 +720,44 @@ Owner, 23 Oct 2026: "กลางวันมันจะมีเงาพร�
   shows, from just before sunset to midnight, with `setMoonFestivals(shows)` (optional on `CityView`), which
   `festivals3d.ts` reads as `moonShows`. The other festivals still show in their month.
 
+## 8D. The smoke of chimneys (added 24 Oct 2026)
+
+Owner, 24 Oct 2026, of a factory town: "ควันไฟ ทำให้มันดีกว่านี้ได้ไหมน่ะ". The era buildings' smoke was a few grey spheres
+baked into the glb by Blender (`drift` in `art/buildings/scripts/lib/era3_parts.py`, `smoke` in `lib/props.py`, in the
+palette's `smoke` colour): a string of hard-edged beads, the same for every chimney, still, and drawn whether the
+building worked or not. Nothing in the city view drew smoke; the procedural models only have `anchor_smoke_*` anchors.
+
+- **Taking the beads out (`smokeSources.ts`, `eraBuildings.ts serializeEraScene`).** When a glb is loaded, the triangles whose
+  three vertices are in the smoke colour (linear or sRGB, within 0.02 a channel; the palette's nearest whites are three times
+  as far) are cut out of the body mesh and the vertices left packed. Each sphere (a component of those triangles) counts only
+  if it is round and 0.35-6 m across, so a small pale part of a building stays. Spheres follow one another up and away into a
+  chain; its lowest sphere gives the **source**: where the smoke leaves (the sphere's base, in the model's metres) and its
+  radius, which is how thick that chimney's smoke is. The sources travel with the prototype (`SerializedPrototype.smoke`).
+  The Blender scripts are untouched and the glbs are not re-exported (no repo diff of 25 MB of models); a rebuilt model's
+  beads are cut out the same way.
+- **What smokes.** Each placed building (`CityChunks.smokers`: drawn batches only) gives one plume per source while it
+  `smokes()`: powered (factories make smoke, and the pollution the simulation counts, only while they work: `src/blockMapUtils.js`)
+  and not weathered by standing empty (`Placement.weather` below 0.5, the vacant state of `src/plotBuildings.ts`). A construction
+  site, a scaffold and rubble are not era models and have no sources. A chimney that stops fades over about two seconds.
+  Thickness (`outputOf`): the source's radius over 1.2 m, 0.3 (a cooking fire or bakery chimney, thin and pale) to 1.6 (heavy
+  industry); soot (`sootOf`) from 0.55 up, so only the thick plumes are dark; a source wider than 2.2 m is a cooling tower's
+  steam, white.
+- **Drawing (`plumes.ts`).** Soft round puffs of one instanced quad (`CityPlumes`: ONE draw call for every plume of the city),
+  whose place is worked out in the vertex shader from the puff's age: it rises fast, then slows, widens about five times,
+  swirls a little (a sine per puff) and thins and fades toward the top; a lumpy soft edge and a paler top make a puff a cloud,
+  not a disc. **Wind:** the plume leans downwind by the season's wind (`seasonWind`, `uWind` = its way times its strength), more
+  with height, straight up in still air; the same maths is `plumeLean`. **Weather:** rain and fog lower the plume's rise and
+  fade it (`uRise`, `uDim`, `plumeHeight`, `plumeAlpha`), and the haze's fog covers it (`fog: true`). **Light:** pale smoke
+  (SCENE.plume.day) warms toward the sunset's clay and goes a dim lavender by night, the soot with it; no scene light is read.
+  Colours `SCENE.plume` in `src/theme/tokens.ts`.
+- **Cost.** The processor writes the puffs again only twice a second (a chimney comes, goes, or the camera crosses a ring) and
+  sets a few uniforms a frame: no allocation per frame. Rings by distance from the camera (`RINGS`, world units): within 170 a plume
+  has 26 puffs, within 480 11 (bigger), within 1100 four (twice the size), past that none; at most `MAX_NEAR` = 14 plumes have the
+  full near puffs, the rest of those near have mid ones, and the whole city has at most `PLUME_BUDGET` = 1100 puffs (the instance
+  buffer's size). Measurements are in the commit message of this section.
+- **Tests:** `test/render3d/plumes.test.ts` (the beads found and cut, the lean follows the wind, thickness and density follow
+  the building and the weather, the budget and the near cap hold, a building that loses power fades out).
+
 ## 9. What stays 2D for now
 
 - **MonsterTV**, the small window that follows disasters, is 2D only. In 3D the game does not create it; the

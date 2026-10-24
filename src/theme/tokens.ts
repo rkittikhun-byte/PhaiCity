@@ -124,6 +124,11 @@ export const SCENE = {
     rain: RAMPS.water[100], flash: RAMPS.gold[50],
   },
   /**
+   * The smoke of chimneys (src/render3d/city/plumes.ts; docs/3d/RENDERER_SPEC.md 8D): a thin plume is pale, a thick one
+   * from heavy industry has soot in it; the light of the hour tints it, warm at dusk and a dim lavender by night.
+   */
+  plume: { day: RAMPS.sand[100], dusk: RAMPS.clay[300], night: RAMPS.lavender[700], soot: RAMPS.sand[700] },
+  /**
    * The diorama lens over the city (src/render3d/city/postFx.ts): contact shadows that go the concept's lavender, never
    * black; the glow of lamps, windows and lanterns by night and of the low sun; the sun itself in the sky (sky.ts); and
    * a darker lavender edge round the picture. Read by the renderer now, before the rest of SCENE is adopted.
