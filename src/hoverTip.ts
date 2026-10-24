@@ -23,7 +23,7 @@ export class HoverTip {
 
   /** Shows the lines beside the pointer at (x, y) in the window's CSS pixels */
   show(lines: readonly TooltipLine[], x: number, y: number): void {
-    const text = lines.map(line => line.map(part => inspectLine(part.key, part.params)).join(" · ")).join("\n");
+    const text = formatTooltip(lines);
     if (text !== this.text) {
       this.text = text;
       this.element.textContent = text;
@@ -44,4 +44,17 @@ export class HoverTip {
     this.text = "";
     this.element.hidden = true;
   }
+}
+
+/** Formats the tooltip's lines; a farm field says its crop and level together ("ไร่ข้าวโพด ระดับ 3" / "Maize field, level 3") */
+export function formatTooltip(lines: readonly TooltipLine[]): string {
+  return lines.map((line) => {
+    if (line.length === 2 && line[0].key.startsWith("farm.") && line[1].key === "object.fact.level" && line[1].params?.level !== undefined) {
+      return inspectLine("farm.crop_level", {
+        crop: inspectLine(line[0].key, line[0].params),
+        level: line[1].params.level,
+      });
+    }
+    return line.map(part => inspectLine(part.key, part.params)).join(" · ");
+  }).join("\n");
 }

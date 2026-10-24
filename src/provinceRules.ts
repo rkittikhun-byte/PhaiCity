@@ -169,11 +169,64 @@ export interface FarmZoneSpec {
   /** Farm-goods factories a level of fields asks for */
   factoriesPerLevel: number;
   kinds: Record<FarmKind, FarmKindSpec>;
+  crops: Record<FarmCropId, FarmCropSpec>;
 }
 
-export interface FarmZonePatch extends Partial<Omit<FarmZoneSpec, "kinds">> {
-  kinds?: Partial<Record<FarmKind, Partial<FarmKindSpec>>>;
+/** The eighteen crops grown across the four kinds of field (src/farmCrops.ts, docs/GAME_DESIGN.md section 7.6) */
+export const FARM_CROP_IDS = [
+  "glutinous_rice", "jasmine_rice",
+  "maize", "sugarcane", "cassava", "vegetables", "pineapple",
+  "mango", "papaya", "banana", "longan", "durian", "mangosteen", "rubber", "coconut", "oil_palm",
+  "fish", "shrimp",
+] as const;
+export type FarmCropId = typeof FARM_CROP_IDS[number];
+
+/** What one crop is like in the rules: its kind of field, how much the province grows it, and the land it likes best */
+export interface FarmCropSpec {
+  /** Which of the four kinds of field grows this crop */
+  kind: FarmKind;
+  /** How much the province grows it, 0–1 (0: not grown there) */
+  weight: number;
+  /** Height above water in metres [min, max] it likes best, 0–500 */
+  rise: readonly [number, number];
+  /** Local slope in metres a tile [min, max] it likes best, 0–100 */
+  slope: readonly [number, number];
+  /** The ground's water [min, max] (0–1 of full) it likes best */
+  ground: readonly [number, number];
+  /** Distance to water in tiles [min, max] it likes best, 0–128 */
+  water: readonly [number, number];
+  /** Distance to town in tiles [min, max] it likes best, 0–128 */
+  town: readonly [number, number];
 }
+
+export type FarmCropsPatch = Partial<Record<FarmCropId, Partial<FarmCropSpec>>>;
+
+export interface FarmZonePatch extends Partial<Omit<FarmZoneSpec, "kinds" | "crops">> {
+  kinds?: Partial<Record<FarmKind, Partial<FarmKindSpec>>>;
+  crops?: FarmCropsPatch;
+}
+
+/** The game's own crops, before the region's and the province's (durian, mangosteen and coastal shrimp start at 0) */
+export const FARM_CROPS: Readonly<Record<FarmCropId, FarmCropSpec>> = {
+  glutinous_rice: { kind: "paddy", weight: 0.15, rise: [0, 6], slope: [0, 2], ground: [0.4, 0.95], water: [0, 14], town: [0, 64] },
+  jasmine_rice: { kind: "paddy", weight: 0.85, rise: [0, 4], slope: [0, 1.5], ground: [0.5, 1], water: [0, 10], town: [0, 64] },
+  maize: { kind: "field", weight: 0.5, rise: [5, 120], slope: [1, 20], ground: [0.2, 0.55], water: [3, 48], town: [4, 64] },
+  sugarcane: { kind: "field", weight: 0.6, rise: [3, 45], slope: [0, 6], ground: [0.1, 0.4], water: [3, 48], town: [4, 64] },
+  cassava: { kind: "field", weight: 0.5, rise: [6, 80], slope: [0, 12], ground: [0, 0.32], water: [5, 64], town: [6, 64] },
+  vegetables: { kind: "field", weight: 0.45, rise: [0, 8], slope: [0, 3], ground: [0.35, 1], water: [0, 6], town: [0, 12] },
+  pineapple: { kind: "field", weight: 0.2, rise: [4, 60], slope: [1, 12], ground: [0.15, 0.45], water: [2, 40], town: [3, 64] },
+  mango: { kind: "orchard", weight: 0.7, rise: [2, 50], slope: [0, 10], ground: [0.2, 0.6], water: [2, 48], town: [1, 48] },
+  papaya: { kind: "orchard", weight: 0.5, rise: [2, 30], slope: [0, 6], ground: [0.3, 0.7], water: [1, 20], town: [0, 18] },
+  banana: { kind: "orchard", weight: 0.6, rise: [1, 25], slope: [0, 6], ground: [0.4, 0.9], water: [0, 12], town: [0, 24] },
+  longan: { kind: "orchard", weight: 0.1, rise: [4, 50], slope: [0, 10], ground: [0.4, 0.85], water: [1, 20], town: [1, 40] },
+  durian: { kind: "orchard", weight: 0, rise: [6, 60], slope: [1, 12], ground: [0.45, 0.9], water: [2, 24], town: [2, 48] },
+  mangosteen: { kind: "orchard", weight: 0, rise: [5, 50], slope: [0.5, 10], ground: [0.5, 0.95], water: [1, 20], town: [2, 48] },
+  rubber: { kind: "orchard", weight: 0.05, rise: [8, 120], slope: [2, 25], ground: [0.3, 0.75], water: [3, 64], town: [4, 64] },
+  coconut: { kind: "orchard", weight: 0.45, rise: [0, 10], slope: [0, 4], ground: [0.35, 0.95], water: [0, 8], town: [0, 48] },
+  oil_palm: { kind: "orchard", weight: 0.05, rise: [1, 35], slope: [0, 8], ground: [0.45, 0.95], water: [1, 32], town: [3, 64] },
+  fish: { kind: "pond", weight: 0.9, rise: [0, 6], slope: [0, 2], ground: [0.3, 1], water: [0, 2], town: [0, 48] },
+  shrimp: { kind: "pond", weight: 0, rise: [0, 3], slope: [0, 1.5], ground: [0.4, 1], water: [0, 2], town: [0, 64] },
+};
 
 /** The game's own farm zone, before the region's and the province's */
 export const FARM_ZONE: FarmZoneSpec = {
@@ -186,6 +239,7 @@ export const FARM_ZONE: FarmZoneSpec = {
     orchard: { sale: 0.08, jobs: 0.018, draw: 1, chemicals: 0.4, burns: false, mud: 0, ground: 0.25 },
     pond: { sale: 0.1, jobs: 0.015, draw: 0, chemicals: 0.2, burns: false, mud: 12, ground: 0 },
   },
+  crops: { ...FARM_CROPS },
 };
 
 /** The range each farm zone number may take (whole: a whole number) */
@@ -200,6 +254,10 @@ const FARM_RANGES: Readonly<Record<string, { min: number; max: number; whole?: b
 const FARM_KIND_RANGES: Readonly<Record<string, { min: number; max: number }>> = {
   sale: { min: 0, max: 10 }, jobs: { min: 0, max: 1 }, draw: { min: 0, max: 32 }, chemicals: { min: 0, max: 32 },
   mud: { min: 0, max: 255 }, ground: { min: 0, max: 1 },
+};
+const FARM_CROP_PAIR_RANGES: Readonly<Record<string, { min: number; max: number }>> = {
+  rise: { min: 0, max: 500 }, slope: { min: 0, max: 100 }, ground: { min: 0, max: 1 },
+  water: { min: 0, max: 128 }, town: { min: 0, max: 128 },
 };
 
 /** A layer's farm zone, checked: what is valid is kept, the rest is reported in problems */
@@ -241,6 +299,40 @@ export function checkFarmZonePatch(raw: unknown, where: string, problems: string
         kinds[kind] = kept;
       }
       patch.kinds = kinds;
+    } else if (key === "crops") {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) { problems.push(`${at}: not an object`); continue; }
+      const crops: Record<string, Record<string, unknown>> = {};
+      for (const [crop, entry] of Object.entries(value as Record<string, unknown>)) {
+        if (crop.startsWith("_")) continue;
+        if (!(FARM_CROP_IDS as readonly string[]).includes(crop)) {
+          problems.push(`${at}.${crop}: unknown crop (one of ${FARM_CROP_IDS.join(", ")})`);
+          continue;
+        }
+        if (typeof entry !== "object" || entry === null || Array.isArray(entry)) { problems.push(`${at}.${crop}: not an object`); continue; }
+        const kept: Record<string, unknown> = {};
+        const ownKind = FARM_CROPS[crop as FarmCropId].kind;
+        for (const [name, field] of Object.entries(entry as Record<string, unknown>)) {
+          if (name.startsWith("_")) continue;
+          if (name === "kind") {
+            if (field === ownKind) kept.kind = field;
+            else problems.push(`${at}.${crop}.kind: must be ${ownKind}`);
+          } else if (name === "weight") {
+            if (inRange(field, { min: 0, max: 1 })) kept.weight = field;
+            else problems.push(`${at}.${crop}.weight: must be 0–1`);
+          } else if (FARM_CROP_PAIR_RANGES[name]) {
+            const r = FARM_CROP_PAIR_RANGES[name];
+            if (Array.isArray(field) && field.length === 2 && inRange(field[0], r) && inRange(field[1], r) && field[0] <= field[1]) {
+              kept[name] = [field[0], field[1]];
+            } else {
+              problems.push(`${at}.${crop}.${name}: must be 2 numbers, each ${r.min}–${r.max}`);
+            }
+          } else {
+            problems.push(`${at}.${crop}.${name}: unknown`);
+          }
+        }
+        crops[crop] = kept;
+      }
+      patch.crops = crops;
     } else if (FARM_RANGES[key]) {
       const range = FARM_RANGES[key];
       if (inRange(value, range)) patch[key] = value;
@@ -252,12 +344,14 @@ export function checkFarmZonePatch(raw: unknown, where: string, problems: string
   return patch as FarmZonePatch;
 }
 
-/** A layer's farm zone over the one below: the numbers it gives, and each kind's numbers it gives */
+/** A layer's farm zone over the one below: the numbers it gives, each kind's numbers, and each crop's numbers */
 export function applyFarmZone(below: FarmZoneSpec, patch: FarmZonePatch | undefined): FarmZoneSpec {
   if (!patch) return below;
   const kinds = { ...below.kinds };
   for (const kind of FARM_KINDS) if (patch.kinds?.[kind]) kinds[kind] = { ...kinds[kind], ...patch.kinds[kind] };
-  return { ...below, ...patch, kinds };
+  const crops = { ...below.crops };
+  for (const id of FARM_CROP_IDS) if (patch.crops?.[id]) crops[id] = { ...crops[id], ...patch.crops[id] };
+  return { ...below, ...patch, kinds, crops };
 }
 
 export interface RulesData {

@@ -307,6 +307,15 @@ describe("the farm grid along every road", () => {
     expect(beforeMissed / total).toBeGreaterThan(0.5);
     expect(missed / total).toBeLessThan(0.005);
     expect(pos.count).toBeLessThanOrEqual(shown.length * 12);
+    // crop rows and orchard trees also stretch and fill across the bend
+    for (let i = 0; i < W * H; i++) if (map.farmKinds?.[i]) map.farmKinds[i] = kindCode("field");
+    view.invalidate(1);
+    view.update([], 7, 300, 2);
+    expect(view.counts().row).toBeGreaterThan(shown.length * 2);
+    for (let i = 0; i < W * H; i++) if (map.farmKinds?.[i]) map.farmKinds[i] = kindCode("orchard");
+    view.invalidate(3);
+    view.update([], 7, 300, 4);
+    expect(view.counts().tree).toBeGreaterThan(shown.length / 4);
     view.dispose();
   });
 });

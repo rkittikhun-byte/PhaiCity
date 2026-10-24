@@ -18,6 +18,7 @@ import { BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, Cyli
   PlaneGeometry, Quaternion, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mapEra } from '../../era.js';
+import { fieldCropOfCell, type CropMap, type FarmCropId } from '../../farmCrops.js';
 import { FARM_ERA_LOOKS, farmSide, type FarmLook, FIELD_BURNING_MONTHS, fieldLevelOf, kindOfCode,
   type FarmKind } from '../../farmZone.js';
 import { paintedCells, type FarmGridMap } from '../../farmGrid.js';
@@ -71,10 +72,12 @@ const colour = (hex: number): Color => new Color().setHex(hex);
 const F = SCENE.farm;
 
 /** How the month (0 January) colours a paddy: dry stubble after the harvest, the burning months' earth, flooded for the
- * planting in May, green through the rains, gold for the harvest in October and November (the Northeast's rain-fed rice) */
-export function paddyColour(month: number, level: number, out = new Color()): Color {
+ * planting in May, green through the rains, gold for the harvest in October and November (or deeper amber-brown for
+ * glutinous rice in the North and Isan) */
+export function paddyColour(month: number, level: number, out = new Color(), crop: FarmCropId | null = 'jasmine_rice'): Color {
   const m = ((month % 12) + 12) % 12;
-  const water = colour(F.paddyWater), young = colour(F.paddyYoung), ripe = colour(F.paddyRipe), stubble = colour(F.stubble);
+  const water = colour(F.paddyWater), young = colour(F.paddyYoung);
+  const ripe = colour(crop === 'glutinous_rice' ? F.glutinousRipe : F.paddyRipe), stubble = colour(F.stubble);
   const earth = colour(F.earth);
   if (m === 0 || m === 11) out.copy(stubble);
   else if (FIELD_BURNING_MONTHS.includes(m)) out.copy(stubble).lerp(earth, 0.5);
@@ -97,16 +100,36 @@ export function cropHeight(month: number): number {
 
 /** What stands among the fields in each era (src/farmZone.ts FARM_ERA_LOOKS), and what every field of a kind has */
 const ERA_PROPS = FARM_ERA_LOOKS;
-type Prop = FarmLook | 'row' | 'tree' | 'trunk' | 'aerator';
+const ROW_PROPS = ['row', 'row_maize', 'row_sugarcane', 'row_cassava', 'row_vegetables', 'row_pineapple'] as const;
+const TREE_PROPS = ['tree', 'tree_mango', 'tree_durian', 'tree_papaya', 'tree_banana', 'tree_rubber', 'tree_palm'] as const;
+type RowProp = (typeof ROW_PROPS)[number];
+type TreeProp = (typeof TREE_PROPS)[number];
+type Prop = FarmLook | RowProp | TreeProp | 'vegetable_net' | 'trunk' | 'aerator';
 
 /** A stable number for a tile, for which fields get which prop */
 const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>> 15; return Math.imul(h, 2246822519) >>> 0; };
 
-/** A field as drawn: its tile, level and kind, and its painted cells (src/farmGrid.ts), or the whole tile as one cell */
-interface Field { index: number; level: number; kind: FarmKind | null; cells: DrawnCell[] }
+/** A field as drawn: its tile, level, kind and dominant crop, and its painted cells (src/farmGrid.ts) */
+interface Field { index: number; level: number; kind: FarmKind | null; crop: FarmCropId | null; cells: DrawnCell[] }
 /** A cell drawn: its middle (world units), the way its road runs (radians, 0 along +z), its side and its length along
- * its row as a share of its side (a cell a road cut short) */
-interface DrawnCell { x: number; z: number; angle: number; size: number; span: number; row: number; nx: number; nz: number; field: Field }
+ * its row as a share of its side (a cell a road cut short), its crop, and its neighbours in the same row */
+interface DrawnCell {
+  x: number; z: number; angle: number; size: number; span: number; row: number; nx: number; nz: number;
+  crop: FarmCropId | null; field: Field; back?: DrawnCell; front?: DrawnCell;
+}
+
+const cellBent = (a: DrawnCell | undefined, b: DrawnCell | undefined): boolean =>
+  !!a && !!b && (Math.abs(a.angle - b.angle) > 1e-5 || Math.hypot(b.x - a.x, b.z - a.z) > (a.span + b.span) * a.size / 2 * CELL_GROW);
+
+/** Where two neighbouring cells a (back) and b (front) in a row meet at offset u across the road */
+const cellSeamAt = (a: DrawnCell, b: DrawnCell, u: number, shift: number, sin: number, cos: number): [number, number] => {
+  const sa = Math.sin(a.angle), ca = Math.cos(a.angle), sb = Math.sin(b.angle), cb = Math.cos(b.angle);
+  const ax = a.x + ca * u, az = a.z - sa * u, bx = b.x + cb * u, bz = b.z - sb * u;
+  const dx = bx - ax, dz = bz - az, denom = Math.max(0.2, 1 + sa * sb + ca * cb);
+  const va = Math.max(-a.size, Math.min(8 * a.size, (dx * sa + dz * ca) / denom));
+  const vb = Math.max(-b.size, Math.min(8 * b.size, (dx * sb + dz * cb) / denom));
+  return [0.5 * (ax + sa * va + bx - sb * vb) + sin * shift, 0.5 * (az + ca * va + bz - cb * vb) + cos * shift];
+};
 
 export class CityFarmFields {
   readonly root = new Group();
@@ -242,6 +265,11 @@ export class CityFarmFields {
   counts(): Record<string, number> {
     const out: Record<string, number> = { fields: this.fields.length };
     for (const [name, list] of this.meshes) out[name] = list[0]?.count ?? 0;
+    let rows = 0, trees = 0;
+    for (const k of ROW_PROPS) rows += out[k] ?? 0;
+    for (const k of TREE_PROPS) trees += out[k] ?? 0;
+    if (rows) out.row = rows;
+    if (trees) out.tree = trees;
     return out;
   }
 
@@ -288,12 +316,13 @@ export class CityFarmFields {
   private rebuild(month: number, era: number): number[] {
     const { width, height } = this.map, kinds = this.map.farmKinds;
     const before = this.drawn, now = new Uint8Array(width * height), fields: Field[] = [];
+    const cropMap = this.map as unknown as CropMap;
     let changedHub = false;
     for (let i = 0; i < width * height; i++) {
       const v = this.valueAt(i);
       if (v < FIELD_BASE || v > FIELD_BASE + 5) continue;
       const level = v - FIELD_BASE, kind = level > 0 ? kindOfCode(kinds?.[i] ?? 0) : null;
-      fields.push({ index: i, level, kind, cells: [] });
+      fields.push({ index: i, level, kind, crop: null, cells: [] });
       now[i] = 1 + level * 5 + (kind ? 1 + ['paddy', 'field', 'orchard', 'pond'].indexOf(kind) : 0);
     }
     for (let i = 0; i < now.length && !changedHub; i++) if (now[i] !== before[i]) changedHub = true;
@@ -305,16 +334,21 @@ export class CityFarmFields {
       const grid = this.map as unknown as FarmGridMap;
       for (const { cell, tile } of paintedCells(grid, byTile.keys(), this.map.farmReach ?? undefined)) {
         const f = byTile.get(tile);
-        if (f) f.cells.push({ x: cell.x, z: cell.z, angle: cell.angle, size, span: cell.span ?? 1, row: cell.row, nx: cell.nx, nz: cell.nz, field: f });
+        if (!f) continue;
+        const crop = f.kind ? fieldCropOfCell(cropMap, cell, f.kind) : null;
+        f.cells.push({ x: cell.x, z: cell.z, angle: cell.angle, size, span: cell.span ?? 1, row: cell.row, nx: cell.nx, nz: cell.nz, crop, field: f });
       }
     } else {
       for (const f of fields) {
-        const x = f.index % width, y = Math.floor(f.index / width);
-        f.cells.push({ x: (x + 0.5) * UNITS, z: (y + 0.5) * UNITS, angle: 0, size, span: 1, row: -1, nx: 0, nz: 0, field: f });
+        const x = (f.index % width + 0.5) * UNITS, z = (Math.floor(f.index / width) + 0.5) * UNITS;
+        const crop = f.kind ? fieldCropOfCell(cropMap, { x, z, angle: 0, row: -1, nx: 0, nz: 0 }, f.kind) : null;
+        f.cells.push({ x, z, angle: 0, size, span: 1, row: -1, nx: 0, nz: 0, crop, field: f });
       }
     }
+    for (const f of fields) f.crop = f.cells[0]?.crop ?? null;
     this.drawn = now;
     this.fields = fields;
+    this.linkRowNeighbours();
     this.near = this.cellMap() && fields.length ? this.nearFields(fields) : new Uint8Array(0);
     this.buildGround(month);
     this.props(era, month);
@@ -326,17 +360,70 @@ export class CityFarmFields {
     return hubs;
   }
 
+  /** Neighbouring painted cells in the same row along a road, matched by the road step they were laid from
+   * (src/zoneCells.ts: x = px + nx * distance), so their side edges and rows can stretch to meet across a bend */
+  private linkRowNeighbours(): void {
+    const rowBucket = new Map<string, DrawnCell[]>(), rowKey = (r: number, bx: number, bz: number): string => `${r}:${bx}:${bz}`;
+    const roadBase = (c: DrawnCell): [number, number] => {
+      const d = (c.row + 1.6) * c.size;
+      return [c.x - c.nx * d, c.z - c.nz * d];
+    };
+    for (const f of this.fields) for (const c of f.cells) {
+      c.back = undefined;
+      c.front = undefined;
+      if (c.row < 0) continue;
+      const [rx, rz] = roadBase(c), k = rowKey(c.row, Math.floor(rx / BUCKET), Math.floor(rz / BUCKET));
+      let list = rowBucket.get(k);
+      if (!list) rowBucket.set(k, list = []);
+      list.push(c);
+    }
+    const prevRaw = new Map<DrawnCell, DrawnCell>(), nextRaw = new Map<DrawnCell, DrawnCell>();
+    for (const f of this.fields) for (const c of f.cells) {
+      if (c.row < 0) continue;
+      const [rx, rz] = roadBase(c), bx = Math.floor(rx / BUCKET), bz = Math.floor(rz / BUCKET);
+      const sc = Math.sin(c.angle), cc = Math.cos(c.angle), tint = c.field.level === 0 || !c.field.kind;
+      let bestPrev: DrawnCell | undefined, bestNext: DrawnCell | undefined, prevD = Infinity, nextD = Infinity;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        for (const o of rowBucket.get(rowKey(c.row, bx + dx, bz + dz)) ?? []) {
+          if (o === c || (o.field.level === 0 || !o.field.kind) !== tint) continue;
+          const so = Math.sin(o.angle), co = Math.cos(o.angle);
+          if (c.nx * o.nx + c.nz * o.nz < 0.85 || sc * so + cc * co < 0.85) continue;
+          let tx = sc + so, tz = cc + co;
+          const tLen = Math.hypot(tx, tz) || 1;
+          tx /= tLen; tz /= tLen;
+          const [ox, oz] = roadBase(o);
+          const along = (o.x - c.x) * tx + (o.z - c.z) * tz, across = Math.abs((o.x - c.x) * tz - (o.z - c.z) * tx);
+          const rAlong = (ox - rx) * tx + (oz - rz) * tz, rAcross = Math.abs((ox - rx) * tz - (oz - rz) * tx);
+          if (across > 0.55 * c.size || rAcross > 0.65 * c.size || Math.abs(along) < 0.25 * c.size) continue;
+          if (along * rAlong < 0 && Math.abs(along) > 1.65 * c.size) continue;
+          if (Math.min(Math.abs(rAlong), Math.abs(along)) > 1.65 * c.size) continue;
+          if (along > 0 && along < nextD) { nextD = along; bestNext = o; }
+          else if (along < 0 && -along < prevD) { prevD = -along; bestPrev = o; }
+        }
+      }
+      if (bestPrev) prevRaw.set(c, bestPrev);
+      if (bestNext) nextRaw.set(c, bestNext);
+    }
+    for (const [a, b] of nextRaw) if (prevRaw.get(b) === a) { a.front = b; b.back = a; }
+  }
+
   /** The colour of a field's ground: its outer part (dikes, earth) and its inner part (water, crop) */
   private tones(field: Field, month: number, outer: Color, inner: Color): boolean {
     if (field.level === 0 || !field.kind) {
       outer.setHex(F.zone).lerp(colour(F.earth), 0.35);
       return false;
     }
+    const m = ((month % 12) + 12) % 12;
+    const burns = Boolean((this.map as { burns?: unknown }).burns);
     switch (field.kind) {
-      case 'paddy': outer.setHex(F.dike); paddyColour(month, field.level, inner); return true;
-      case 'pond': outer.setHex(F.dike); inner.setHex(F.pond); return true;
+      case 'paddy': outer.setHex(F.dike); paddyColour(month, field.level, inner, field.crop); return true;
+      case 'pond': outer.setHex(F.dike); inner.setHex(field.crop === 'shrimp' ? F.shrimpPond : F.pond); return true;
       case 'orchard': outer.setHex(F.crop).lerp(colour(F.earth), 0.3); return false;
-      default: outer.setHex(F.earth); return false;
+      default:
+        if (field.crop === 'sugarcane' && burns && FIELD_BURNING_MONTHS.includes(m)) outer.setHex(F.burntEarth);
+        else if (field.crop === 'vegetables') outer.setHex(F.earth).lerp(colour(F.vegetableBed), 0.22);
+        else outer.setHex(F.earth);
+        return false;
     }
   }
 
@@ -400,65 +487,12 @@ export class CityFarmFields {
     // (a road-aligned cell a little larger than its 4 m, so the cells of a bend, laid square, leave no slivers of grass
     // between them; a whole tile as it is)
     const grow = (c: DrawnCell): number => (c.size < UNITS ? CELL_GROW : 1);
-    // Neighbouring painted cells in the same row along a road, matched by the road step they were laid from
-    // (src/zoneCells.ts: x = px + nx * distance), so their side edges can stretch to meet across a bend
-    const rowBucket = new Map<string, DrawnCell[]>(), rowKey = (r: number, bx: number, bz: number): string => `${r}:${bx}:${bz}`;
-    const roadBase = (c: DrawnCell): [number, number] => {
-      const d = (c.row + 1.6) * c.size;
-      return [c.x - c.nx * d, c.z - c.nz * d];
-    };
-    for (const f of this.fields) for (const c of f.cells) {
-      if (c.row < 0) continue;
-      const [rx, rz] = roadBase(c), k = rowKey(c.row, Math.floor(rx / BUCKET), Math.floor(rz / BUCKET));
-      let list = rowBucket.get(k);
-      if (!list) rowBucket.set(k, list = []);
-      list.push(c);
-    }
-    const prevRaw = new Map<DrawnCell, DrawnCell>(), nextRaw = new Map<DrawnCell, DrawnCell>();
-    for (const f of this.fields) for (const c of f.cells) {
-      if (c.row < 0) continue;
-      const [rx, rz] = roadBase(c), bx = Math.floor(rx / BUCKET), bz = Math.floor(rz / BUCKET);
-      const sc = Math.sin(c.angle), cc = Math.cos(c.angle), tint = c.field.level === 0 || !c.field.kind;
-      let bestPrev: DrawnCell | undefined, bestNext: DrawnCell | undefined, prevD = Infinity, nextD = Infinity;
-      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
-        for (const o of rowBucket.get(rowKey(c.row, bx + dx, bz + dz)) ?? []) {
-          if (o === c || (o.field.level === 0 || !o.field.kind) !== tint) continue;
-          const so = Math.sin(o.angle), co = Math.cos(o.angle);
-          if (c.nx * o.nx + c.nz * o.nz < 0.85 || sc * so + cc * co < 0.85) continue;
-          let tx = sc + so, tz = cc + co;
-          const tLen = Math.hypot(tx, tz) || 1;
-          tx /= tLen; tz /= tLen;
-          const [ox, oz] = roadBase(o);
-          const along = (o.x - c.x) * tx + (o.z - c.z) * tz, across = Math.abs((o.x - c.x) * tz - (o.z - c.z) * tx);
-          const rAlong = (ox - rx) * tx + (oz - rz) * tz, rAcross = Math.abs((ox - rx) * tz - (oz - rz) * tx);
-          if (across > 0.55 * c.size || rAcross > 0.65 * c.size || Math.abs(along) < 0.25 * c.size) continue;
-          if (along * rAlong < 0 && Math.abs(along) > 1.65 * c.size) continue;
-          if (Math.min(Math.abs(rAlong), Math.abs(along)) > 1.65 * c.size) continue;
-          if (along > 0 && along < nextD) { nextD = along; bestNext = o; }
-          else if (along < 0 && -along < prevD) { prevD = -along; bestPrev = o; }
-        }
-      }
-      if (bestPrev) prevRaw.set(c, bestPrev);
-      if (bestNext) nextRaw.set(c, bestNext);
-    }
-    const prev = new Map<DrawnCell, DrawnCell>(), next = new Map<DrawnCell, DrawnCell>();
-    for (const [a, b] of nextRaw) if (prevRaw.get(b) === a) { next.set(a, b); prev.set(b, a); }
-    const bent = (a: DrawnCell | undefined, b: DrawnCell | undefined): boolean =>
-      !!a && !!b && (Math.abs(a.angle - b.angle) > 1e-5 || Math.hypot(b.x - a.x, b.z - a.z) > (a.span + b.span) * a.size / 2 * CELL_GROW);
-    // Where two neighbouring cells a (back) and b (front) in a row meet at offset u across the road
-    const seamAt = (a: DrawnCell, b: DrawnCell, u: number, shift: number, sin: number, cos: number): [number, number] => {
-      const sa = Math.sin(a.angle), ca = Math.cos(a.angle), sb = Math.sin(b.angle), cb = Math.cos(b.angle);
-      const ax = a.x + ca * u, az = a.z - sa * u, bx = b.x + cb * u, bz = b.z - sb * u;
-      const dx = bx - ax, dz = bz - az, denom = Math.max(0.2, 1 + sa * sb + ca * cb);
-      const va = Math.max(-a.size, Math.min(8 * a.size, (dx * sa + dz * ca) / denom)), vb = Math.max(-b.size, Math.min(8 * b.size, (dx * sb + dz * cb) / denom));
-      return [0.5 * (ax + sa * va + bx - sb * vb) + sin * shift, 0.5 * (az + ca * va + bz - cb * vb) + cos * shift];
-    };
     const rowPatch = (c: DrawnCell, u0: number, v0: number, u1: number, v1: number, bIn: number, fIn: number, lift: number, tone: Color): number => {
-      const back = prev.get(c), front = next.get(c);
-      if (!bent(back, c) && !bent(c, front)) return patch(c, u0, v0, u1, v1, lift, tone);
+      const { back, front } = c;
+      if (!cellBent(back, c) && !cellBent(c, front)) return patch(c, u0, v0, u1, v1, lift, tone);
       const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
-      const backPt = (u: number): [number, number] => bent(back, c) ? seamAt(back!, c, u, bIn, sin, cos) : [c.x + cos * u + sin * v0, c.z - sin * u + cos * v0];
-      const frontPt = (u: number): [number, number] => bent(c, front) ? seamAt(c, front!, u, -fIn, sin, cos) : [c.x + cos * u + sin * v1, c.z - sin * u + cos * v1];
+      const backPt = (u: number): [number, number] => cellBent(back, c) ? cellSeamAt(back!, c, u, bIn, sin, cos) : [c.x + cos * u + sin * v0, c.z - sin * u + cos * v0];
+      const frontPt = (u: number): [number, number] => cellBent(c, front) ? cellSeamAt(c, front!, u, -fIn, sin, cos) : [c.x + cos * u + sin * v1, c.z - sin * u + cos * v1];
       const put = ([x, z]: [number, number]): void => {
         target.positions.push(x, this.terrain.sample(x, z) + lift, z);
         target.colours.push(tone.r, tone.g, tone.b);
@@ -477,10 +511,9 @@ export class CityFarmFields {
         const sin = Math.sin(c.angle), cos = Math.cos(c.angle), along = c.size * c.span;
         const inset = Math.min(field.kind === 'pond' ? 1.4 : 0.7, 0.3 * c.size);
         // (across the road: (cos, -sin); along it: (sin, cos)); no dike between a row's neighbours of one kind
-        const back = prev.get(c), front = next.get(c);
         const sameKind = (o: DrawnCell | undefined): boolean => !!o && o.field.kind === field.kind && o.field.level > 0;
         return [joins(c, -cos * c.size, sin * c.size) ? 0 : inset, joins(c, cos * c.size, -sin * c.size) ? 0 : inset,
-          joins(c, -sin * along, -cos * along) || sameKind(back) ? 0 : inset, joins(c, sin * along, cos * along) || sameKind(front) ? 0 : inset];
+          joins(c, -sin * along, -cos * along) || sameKind(c.back) ? 0 : inset, joins(c, sin * along, cos * along) || sameKind(c.front) ? 0 : inset];
       });
       // The earth or the bank under each cell, unless the water covers it whole, then the water or the pond inside
       let outerVerts = 0, innerVerts = 0;
@@ -544,6 +577,43 @@ export class CityFarmFields {
     this.drones = [];
   }
 
+  /** Where a cell's stretched line at offset u across its road runs from back to front across a bend */
+  private cellSpan(c: DrawnCell, u: number): { bx: number; bz: number; fx: number; fz: number; x: number; z: number; length: number; angle: number } {
+    const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+    const halfV = c.size / 2 * (c.size < UNITS ? CELL_GROW : 1) * c.span;
+    const [bx, bz] = cellBent(c.back, c) ? cellSeamAt(c.back!, c, u, 0, sin, cos) : [c.x + cos * u - sin * halfV, c.z - sin * u - cos * halfV];
+    const [fx, fz] = cellBent(c, c.front) ? cellSeamAt(c, c.front!, u, 0, sin, cos) : [c.x + cos * u + sin * halfV, c.z - sin * u + cos * halfV];
+    const dx = fx - bx, dz = fz - bz, length = Math.hypot(dx, dz);
+    return { bx, bz, fx, fz, x: 0.5 * (bx + fx), z: 0.5 * (bz + fz), length, angle: length > 1e-4 ? Math.atan2(dx, dz) : c.angle };
+  }
+
+  /** Which row prop and height factor a field crop uses */
+  private rowStyle(crop: FarmCropId | null): [RowProp, number, number] {
+    switch (crop) {
+      case 'maize': return ['row_maize', 1.35, 0.95];
+      case 'sugarcane': return ['row_sugarcane', 1.65, 1.15];
+      case 'cassava': return ['row_cassava', 0.95, 1.05];
+      case 'vegetables': return ['row_vegetables', 0.38, 1.25];
+      case 'pineapple': return ['row_pineapple', 0.45, 0.95];
+      default: return ['row_cassava', 1, 1];
+    }
+  }
+
+  /** Which tree prop and crown/trunk scales an orchard crop uses */
+  private treeStyle(crop: FarmCropId | null): { prop: TreeProp; trunkH: number; trunkW: number; crownY: number; sx: number; sy: number; sz: number } {
+    switch (crop) {
+      case 'durian': return { prop: 'tree_durian', trunkH: 1.35, trunkW: 1.05, crownY: 2.9, sx: 1.55, sy: 2.2, sz: 1.55 };
+      case 'mangosteen': return { prop: 'tree_durian', trunkH: 0.85, trunkW: 0.9, crownY: 1.95, sx: 1.25, sy: 1.35, sz: 1.25 };
+      case 'papaya': return { prop: 'tree_papaya', trunkH: 1.05, trunkW: 0.45, crownY: 1.85, sx: 0.95, sy: 0.85, sz: 0.95 };
+      case 'banana': return { prop: 'tree_banana', trunkH: 0.65, trunkW: 0.55, crownY: 1.35, sx: 1.25, sy: 1.1, sz: 1.25 };
+      case 'rubber': return { prop: 'tree_rubber', trunkH: 1.3, trunkW: 0.75, crownY: 2.75, sx: 1.55, sy: 1.45, sz: 1.55 };
+      case 'coconut': return { prop: 'tree_palm', trunkH: 1.6, trunkW: 0.55, crownY: 3.0, sx: 1.65, sy: 1.15, sz: 1.65 };
+      case 'oil_palm': return { prop: 'tree_palm', trunkH: 0.85, trunkW: 1.25, crownY: 1.85, sx: 2.05, sy: 1.3, sz: 2.05 };
+      case 'longan': return { prop: 'tree_mango', trunkH: 0.9, trunkW: 0.9, crownY: 2.1, sx: 1.45, sy: 1.25, sz: 1.45 };
+      default: return { prop: 'tree_mango', trunkH: 1, trunkW: 1, crownY: 2.3, sx: 1.8, sy: 1.4, sz: 1.8 };
+    }
+  }
+
   /** The things standing on the fields: crop rows, orchard trees, pond aerators, and the era's buffalo, huts, machines */
   private props(era: number, month: number): void {
     this.clearProps();
@@ -562,28 +632,55 @@ export class CityFarmFields {
     const rows = cropHeight(month);
     for (const f of grown) {
       if (f.kind === 'field') {
-        // Two rows of the crop along each cell, as its road runs (a whole tile's eight, across it)
-        const tall = (0.3 + 0.5 * rows) * (0.7 + 0.1 * f.level);
+        // Two rows of the crop along each cell, stretched across any bend so curved roads leave no bare wedges
+        const baseTall = (0.3 + 0.5 * rows) * (0.7 + 0.1 * f.level);
         for (const c of f.cells) {
-          const sin = Math.sin(c.angle), cos = Math.cos(c.angle), lines = c.size >= UNITS ? [-3.4, -1.13, 1.13, 3.4] : [-c.size / 4, c.size / 4];
-          const pieces = c.size >= UNITS ? [-2.5, 2.5] : [0];
-          for (const u of lines) for (const v of pieces) {
-            add('row', at(c.x + cos * u + sin * v, c.z - sin * u + cos * v, tall / 2, c.size >= UNITS ? 4.3 : c.size * 0.92 * c.span,
-              tall, c.size >= UNITS ? 0.9 : c.size * 0.22, c.angle - Math.PI / 2));
+          const [rowProp, hMul, wMul] = this.rowStyle(c.crop ?? f.crop);
+          const tall = baseTall * hMul, width = (c.size >= UNITS ? 0.9 : c.size * 0.22) * wMul;
+          if (c.size >= UNITS) {
+            const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+            for (const u of [-3.4, -1.13, 1.13, 3.4]) for (const v of [-2.5, 2.5]) {
+              add(rowProp, at(c.x + cos * u + sin * v, c.z - sin * u + cos * v, tall / 2, 4.3, tall, width, c.angle - Math.PI / 2));
+            }
+          } else {
+            for (const u of [-c.size / 4, c.size / 4]) {
+              const span = this.cellSpan(c, u);
+              const steps = cellBent(c.back, c) || cellBent(c, c.front) ? Math.max(1, Math.round(span.length / c.size)) : 1;
+              const segLen = Math.max(0.2 * c.size, (span.length / steps) * 0.92);
+              for (let s = 0; s < steps; s++) {
+                const t = (s + 0.5) / steps;
+                const rx = span.bx + (span.fx - span.bx) * t, rz = span.bz + (span.fz - span.bz) * t;
+                add(rowProp, at(rx, rz, tall / 2, segLen, tall, width, span.angle - Math.PI / 2));
+              }
+            }
+          }
+          // Modern vegetable market gardens have occasional low shade netting over beds
+          if (era >= 3 && (c.crop ?? f.crop) === 'vegetables' && c.row === 1 && hashOf(f.index + Math.round(c.x)) % 5 === 0) {
+            add('vegetable_net', at(c.x, c.z, 0.85, c.size * 1.8, 0.08, c.size * 1.8, c.angle));
           }
         }
       } else if (f.kind === 'orchard') {
-        // Trees in rows along the road, 8 m apart (every other cell of every other row; four a whole tile)
+        // Orchard trees along the road, with crop-specific crowns and trunks, filling stretched bend cells
         const grownUp = 0.6 + 0.12 * f.level;
         for (const c of f.cells) {
+          const style = this.treeStyle(c.crop ?? f.crop);
           for (const [x, z] of this.treeSpots(c)) {
-            add('trunk', at(x, z, 0.9 * grownUp, grownUp, grownUp, grownUp));
-            add('tree', at(x, z, 2.3 * grownUp, 1.7 * grownUp, 1.4 * grownUp, 1.7 * grownUp, hashOf(f.index)));
+            add('trunk', at(x, z, 0.9 * grownUp * style.trunkH, grownUp * style.trunkW, grownUp * style.trunkH, grownUp * style.trunkW));
+            add(style.prop, at(x, z, style.crownY * grownUp, style.sx * grownUp, style.sy * grownUp, style.sz * grownUp, hashOf(f.index + Math.round(x * 7 + z * 13))));
           }
         }
       } else if (f.kind === 'pond' && f.level >= 2 && this.painted(f) >= 0.5) {
         const [cx, cz] = this.paintedMiddle(f);
-        add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, f.cells[0].angle + hashOf(f.index) % 6));
+        const turn0 = f.cells[0].angle + hashOf(f.index) % 6;
+        if (f.crop === 'shrimp') {
+          const count = 2 + (hashOf(f.index * 17) % 3), r = Math.min(2.2, 0.75 * this.cellUnits());
+          for (let k = 0; k < count; k++) {
+            const a = turn0 + (k * Math.PI * 2) / count;
+            add('aerator', at(cx + Math.cos(a) * r, cz + Math.sin(a) * r, INNER_LIFT + 0.15, 1, 1, 1, a));
+          }
+        } else {
+          add('aerator', at(cx, cz, INNER_LIFT + 0.15, 1, 1, 1, turn0));
+        }
       }
     }
     // The era's things, one among so many grown fields, at a field's edge by its dike
@@ -613,13 +710,26 @@ export class CityFarmFields {
     }
   }
 
-  /** Where a cell's orchard trees stand (world units): a whole tile's four in its quarters; a city cell's one on every
-   * other cell of every other row, counted from its road, so the trees stand in rows 8 m apart along it */
+  /** Where a cell's orchard trees stand (world units): a whole tile's four in its quarters; a city cell's in even rows
+   * from the road, spaced along the row and filling stretched cells on road bends */
   private treeSpots(c: DrawnCell): Array<[number, number]> {
     if (c.size >= UNITS) return [[c.x - 2.5, c.z - 2.5], [c.x + 2.5, c.z - 2.5], [c.x - 2.5, c.z + 2.5], [c.x + 2.5, c.z + 2.5]];
     const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
-    const along = Math.round((c.x * sin + c.z * cos) / c.size), across = Math.round((c.x * cos - c.z * sin) / c.size);
-    return along % 2 === 0 && across % 2 === 0 ? [[c.x, c.z]] : [];
+    const evenRow = c.row >= 0 ? c.row % 2 === 0 : Math.round((c.x * cos - c.z * sin) / c.size) % 2 === 0;
+    if (!evenRow) return [];
+    const span = this.cellSpan(c, 0);
+    const crop = c.crop ?? c.field.crop;
+    const dense = crop === 'papaya' || crop === 'banana' || crop === 'rubber';
+    const isBent = cellBent(c.back, c) || cellBent(c, c.front);
+    if (isBent && span.length >= 1.75 * c.size) {
+      return [
+        [span.bx + (span.fx - span.bx) * 0.28, span.bz + (span.fz - span.bz) * 0.28],
+        [span.bx + (span.fx - span.bx) * 0.72, span.bz + (span.fz - span.bz) * 0.72],
+      ];
+    }
+    const along = Math.round((c.x * sin + c.z * cos) / c.size);
+    if (dense || along % 2 === 0 || (isBent && span.length >= 1.25 * c.size)) return [[span.x, span.z]];
+    return [];
   }
 
   /** How much of its tile a field's drawn cells cover, 0-1 */
@@ -645,8 +755,37 @@ export class CityFarmFields {
       ({ geometry, material: this.material(hex, extra) as Material });
     switch (prop) {
       case 'row': return [part(new BoxGeometry(1, 1, 1), F.crop)];
+      case 'row_maize': return [part(mergeGeometries([
+        new BoxGeometry(1, 0.85, 0.7).translate(0, -0.07, 0),
+        ...[-0.32, 0, 0.32].map((x) => new ConeGeometry(0.22, 0.35, 4).translate(x, 0.42, 0)),
+      ])!, F.maizeLeaf)];
+      case 'row_sugarcane': return [part(mergeGeometries([
+        new BoxGeometry(1, 0.9, 0.85),
+        new BoxGeometry(0.95, 0.35, 0.45).rotateX(0.25).translate(0, 0.4, 0),
+      ])!, F.caneLeaf)];
+      case 'row_cassava': return [part(mergeGeometries(
+        [-0.3, 0, 0.3].map((x) => new IcosahedronGeometry(0.38, 0).scale(0.95, 1.15, 1.1).translate(x, 0.05, 0)),
+      )!, F.cassavaLeaf)];
+      case 'row_vegetables': return [part(new BoxGeometry(1, 0.75, 0.95), F.vegetableBed)];
+      case 'row_pineapple': return [part(mergeGeometries(
+        [-0.3, 0, 0.3].map((x) => new ConeGeometry(0.36, 0.85, 5).translate(x, 0.05, 0)),
+      )!, F.pineappleLeaf)];
+      case 'vegetable_net': return [part(new BoxGeometry(1, 1, 1), F.netting, { transparent: true, opacity: 0.65 })];
       case 'trunk': return [part(new CylinderGeometry(0.16, 0.22, 1.8, 5), F.teak)];
-      case 'tree': return [part(new IcosahedronGeometry(1, 0), F.orchard)];
+      case 'tree':
+      case 'tree_mango': return [part(new IcosahedronGeometry(1, 0), F.mangoCrown)];
+      case 'tree_durian': return [part(mergeGeometries([
+        new ConeGeometry(0.92, 1.45, 6).translate(0, 0.25, 0),
+        new IcosahedronGeometry(0.78, 0).translate(0, -0.25, 0),
+      ])!, F.durianCrown)];
+      case 'tree_papaya': return [part(new ConeGeometry(0.95, 0.65, 6).rotateX(Math.PI), F.papayaCrown)];
+      case 'tree_banana': return [part(mergeGeometries(
+        [0, 1, 2, 3, 4].map((k) => new BoxGeometry(1.1, 0.14, 0.36).rotateZ(-0.35).rotateY((k * Math.PI * 2) / 5)),
+      )!, F.bananaLeaf)];
+      case 'tree_rubber': return [part(new IcosahedronGeometry(0.95, 0).scale(1, 1.15, 1), F.rubberCrown)];
+      case 'tree_palm': return [part(mergeGeometries(
+        [0, 1, 2, 3, 4, 5].map((k) => new BoxGeometry(1.25, 0.12, 0.32).rotateZ(-0.28).rotateY((k * Math.PI) / 3)),
+      )!, F.coconutFrond)];
       case 'aerator': return [part(new CylinderGeometry(0.18, 0.18, 0.5, 6), F.machine),
         part(new BoxGeometry(1.8, 0.12, 0.3), F.machine)];
       case 'buffalo': return [part(mergeGeometries([new BoxGeometry(1.5 * m * 1.6, 0.9 * m * 1.6, 0.7 * m * 1.6).translate(0, 1.1 * m * 1.6, 0),
@@ -691,6 +830,7 @@ export class CityFarmFields {
     let group = this.shapeCache.get(prop);
     if (!group) this.shapeCache.set(prop, group = mergeByMaterial(`farm.${prop}`, this.shapes(prop)));
     const list: InstancedMesh[] = [];
+    const isRow = (ROW_PROPS as readonly string[]).includes(prop);
     for (const child of group.children) {
       if (!(child instanceof Mesh)) continue;
       const mesh = new InstancedMesh(child.geometry, child.material as Material, matrices.length);
@@ -698,7 +838,7 @@ export class CityFarmFields {
       if (prop === 'drone') mesh.instanceMatrix.setUsage(DynamicDrawUsage);
       mesh.computeBoundingSphere();
       mesh.name = `farm_fields/${prop}`;
-      mesh.castShadow = prop !== 'row' && prop !== 'drone';
+      mesh.castShadow = !isRow && prop !== 'drone';
       mesh.receiveShadow = true;
       this.details.add(mesh);
       list.push(mesh);

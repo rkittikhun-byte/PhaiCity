@@ -11,6 +11,7 @@ import { isSite, monthsLeft } from "./construction.js";
 import { constructionShare, decayOf, type PlotBuilding } from "./plotBuildings";
 import { buildingLevelAt, groupOfCentre, levelSpec } from "./buildingLevels.js";
 import { CANAL_NEEDS, isCanalAt } from "./canals.js";
+import { fieldCropAt, type CropMap } from "./farmCrops.js";
 import { fieldKindAt, fieldLevelOf, hubKind, isFieldValue } from "./farmZone.js";
 import { ownsLand } from "./landBlocks.js";
 import type { Fact } from "./objects/cityObject.js";
@@ -305,11 +306,12 @@ export function inspectAt(city: InspectCity, x: number, y: number): Inspection |
     else if (next) facts.push({ key: "object.fact.canal_next", params: { people: next.people, value: next.landValue } });
     return { title: { key: "object.kind.canal" }, facts: [...facts, ...outside], rect };
   }
-  // A field of the farm zone: the kind its land grows and its level (src/farmZone.ts)
+  // A field of the farm zone: the crop its plot grows and its level (src/farmZone.ts, src/farmCrops.ts)
   if (isFieldValue(value)) {
     const level = fieldLevelOf(value), kind = level > 0 ? fieldKindAt(map, x, y) : null;
+    const crop = kind ? fieldCropAt(map as unknown as CropMap, x, y, kind) : null;
     const facts: Fact[] = level > 0 ? [{ key: "object.fact.level", params: { level } }] : [];
-    return { title: { key: kind ? `farm.kind.${kind}` : "farm.kind.empty" },
+    return { title: { key: crop ? `farm.crop.${crop}` : kind ? `farm.kind.${kind}` : "farm.kind.empty" },
       facts: [...facts, ...areaFacts(city.blockMaps, x, y), ...outside], rect };
   }
   if (value >= TREEBASE && value <= LASTTREE || value >= WOODS && value < WOODS2) {
