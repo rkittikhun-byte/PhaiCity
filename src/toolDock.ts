@@ -341,9 +341,16 @@ export function installToolDock(doc: Document = document): void {
             isArmed = Boolean(orig?.classList.contains("selected") && (orig?.dataset.activeTool ?? orig?.dataset.tool) === (hasPainted ? item.paintTool : item.tool));
           }
 
+          // A brush the city cannot use yet is greyed with a lock and says why, and a click arms nothing (owner, 24 Oct
+          // 2026: a locked industrial brush armed the commercial one in its place)
+          const paintChoice = toolChoicesFor(item.tool)?.find(c => c.tool === item.paintTool);
+          const locked = item.tool !== "zone_erase" &&
+            (paintChoice ? Boolean(paintChoice.locked) : Boolean(orig?.classList.contains("locked")));
+          const lockWhy = paintChoice?.reasonText ?? orig?.dataset.lockTitle ?? item.title;
+
           const card = doc.createElement("button");
           card.type = "button";
-          card.className = `trayCard${isArmed ? " is-active" : ""}`;
+          card.className = `trayCard${isArmed ? " is-active" : ""}${locked ? " unavailable locked" : ""}`;
           card.dataset.tool = item.paintTool;
           card.setAttribute("aria-label", item.title);
 
@@ -367,10 +374,10 @@ export function installToolDock(doc: Document = document): void {
           name.textContent = item.title;
 
           card.append(thumb, name);
-          tip(card, item.title, price);
+          tip(card, locked ? lockWhy : item.title, locked ? "" : price);
 
           card.addEventListener("click", () => {
-            if (!orig) return;
+            if (!orig || locked) return;
             if (item.tool === "zone_erase") {
               if (hasPainted) {
                 activateToolChoice(orig, { tool: "zone_erase", available: true, size: 1, colour: "#8c8c8c" }, doc);

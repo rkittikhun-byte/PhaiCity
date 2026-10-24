@@ -13,6 +13,8 @@ const GAP_PX = 10;
 const MARGIN_PX = 12;
 /** A press this recent counts as the one that opened the window. */
 const PRESS_MS = 1500;
+/** What a window never covers (owner, 24 Oct 2026): the tools dock with the card above it, the time bar and the top bar. */
+const HUD = "#controls, #toolTray, #toolLevels, #timeBar, #header";
 const CARDS = "#infobar, #miscButtons, #RCIContainer, #controls, #rulerGoals, #notifications, #newsLogButton";
 
 export interface Box { left: number; top: number; width: number; height: number }
@@ -59,6 +61,31 @@ export function replacingPosition(other: Box, from: Place["from"], size: Size, v
   return onScreen(left, other.top, size, view, from);
 }
 
+export interface Fit { top: number; maxHeight: number }
+
+/**
+ * Moves a window at `top` (with its natural height) clear of the HUD boxes it sits over: a box in the lower half of the
+ * screen is the floor, one in the upper part (the top bar) the ceiling. A window taller than the free space between is
+ * given a maxHeight and scrolls inside.
+ */
+export function clearOfHud(left: number, top: number, size: Size, view: Size, hud: Box[]): Fit {
+  let floor = view.height - MARGIN_PX;
+  let ceiling = MARGIN_PX;
+  for (const box of hud) {
+    if (box.left >= left + size.width || box.left + box.width <= left) continue;
+    if (box.top > view.height / 2) floor = Math.min(floor, box.top - GAP_PX);
+    else if (box.top + box.height < view.height * 0.2) ceiling = Math.max(ceiling, box.top + box.height + GAP_PX);
+  }
+  const maxHeight = Math.max(0, Math.min(size.height, floor - ceiling));
+  return { top: Math.round(clamp(top, ceiling, floor - maxHeight)), maxHeight: Math.floor(maxHeight) };
+}
+
+function hudBoxes(win: HTMLElement): Box[] {
+  return [...win.ownerDocument.querySelectorAll<HTMLElement>(HUD)]
+    .filter((el) => !el.contains(win) && !win.contains(el) && visible(el))
+    .map((el) => el.getBoundingClientRect());
+}
+
 let lastPress: { target: Element; time: number } | null = null;
 
 /** Remembers what the player last pressed, so a window can open beside it. */
@@ -88,9 +115,12 @@ let resizes: ResizeObserver | null = null;
 
 function refit(win: HTMLElement): void {
   if (!win.classList.contains("docked")) return;
-  const height = win.getBoundingClientRect().height;
-  const top = clamp(Number(win.dataset.wantedTop) || MARGIN_PX, MARGIN_PX, window.innerHeight - MARGIN_PX - height);
-  win.style.top = `${Math.round(top)}px`;
+  win.style.maxHeight = "";
+  const size = { width: win.getBoundingClientRect().width, height: win.getBoundingClientRect().height };
+  const fit = clearOfHud(win.getBoundingClientRect().left, Number(win.dataset.wantedTop) || MARGIN_PX, size,
+    { width: window.innerWidth, height: window.innerHeight }, hudBoxes(win));
+  win.style.top = `${fit.top}px`;
+  win.style.maxHeight = `${fit.maxHeight}px`;
 }
 
 function keepFitted(win: HTMLElement): void {
@@ -98,7 +128,6 @@ function keepFitted(win: HTMLElement): void {
     resizes = new ResizeObserver((entries) => entries.forEach((entry) => refit(entry.target as HTMLElement)));
     window.addEventListener("resize", () => {
       document.querySelectorAll<HTMLElement>(".modal.docked").forEach((open) => {
-        open.style.maxHeight = `${window.innerHeight - 2 * MARGIN_PX}px`;
         refit(open);
       });
     });
@@ -134,8 +163,10 @@ export function placeWindow(win: HTMLElement): void {
       : replacing.classList.contains("dockFromBelow") ? "below" : replacing.classList.contains("dockFromAbove") ? "above"
       : "left", size, view)
     : besidePosition(beside, size, view);
+  const fit = clearOfHud(place.left, place.top, size, view, hudBoxes(win));
   win.style.left = `${place.left}px`;
-  win.style.top = `${place.top}px`;
+  win.style.top = `${fit.top}px`;
+  win.style.maxHeight = `${fit.maxHeight}px`;
   // (one under the top bar keeps to its place below it as it grows)
   win.dataset.wantedTop = String(place.from === "above" ? place.top : Math.round(beside.top));
   win.classList.add(place.from === "left" ? "dockFromLeft" : place.from === "right" ? "dockFromRight"
