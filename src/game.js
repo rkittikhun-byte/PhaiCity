@@ -252,6 +252,7 @@ function Game(gameMap, tileSet, snowTileSet, spriteSheet, difficulty, name, view
     }
   });
   this.simulation = this.core.simulation;
+  this.gameMap.farmZone = this.farmZoneRules();
 
   // A new province city starts with that province's treasury (src/geo/provinceProfile.ts), and every new city with
   // more or less of it by its mode (src/gameModes.ts)

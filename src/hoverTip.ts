@@ -49,10 +49,11 @@ export class HoverTip {
 /** Formats the tooltip's lines; a farm field says its crop and level together ("ไร่ข้าวโพด ระดับ 3" / "Maize field, level 3") */
 export function formatTooltip(lines: readonly TooltipLine[]): string {
   return lines.map((line) => {
-    if (line.length === 2 && line[0].key.startsWith("farm.") && line[1].key === "object.fact.level") {
-      const title = inspectLine(line[0].key, line[0].params);
-      const level = inspectLine(line[1].key, line[1].params);
-      return /^Level\b/.test(level) ? `${title}, l${level.slice(1)}` : `${title} ${level}`;
+    if (line.length === 2 && line[0].key.startsWith("farm.") && line[1].key === "object.fact.level" && line[1].params?.level !== undefined) {
+      return inspectLine("farm.crop_level", {
+        crop: inspectLine(line[0].key, line[0].params),
+        level: line[1].params.level,
+      });
     }
     return line.map(part => inspectLine(part.key, part.params)).join(" · ");
   }).join("\n");

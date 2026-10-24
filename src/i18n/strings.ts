@@ -247,6 +247,7 @@ export const STRINGS: Record<string, Translation> = {
   "farm.crop.oil_palm": { en: "Oil palm plantation", th: "สวนปาล์มน้ำมัน" },
   "farm.crop.fish": { en: "Fish pond", th: "บ่อปลา" },
   "farm.crop.shrimp": { en: "Shrimp pond", th: "บ่อกุ้ง" },
+  "farm.crop_level": { en: "{crop}, level {level}", th: "{crop} ระดับ {level}" },
   "farm.hub.cooperative": { en: "Farm cooperative", th: "สหกรณ์การเกษตร" },
   "farm.hub.rice_mill": { en: "Rice mill", th: "โรงสีข้าว" },
   "farm.look.buffalo": { en: "Buffalo in the fields", th: "ควายไถนา" },

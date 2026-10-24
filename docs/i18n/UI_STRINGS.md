@@ -306,6 +306,7 @@
 | `farm.crop.oil_palm` | `src/inspect.ts` | — | `Oil palm plantation` | `สวนปาล์มน้ำมัน` |  |
 | `farm.crop.fish` | `src/inspect.ts` | — | `Fish pond` | `บ่อปลา` |  |
 | `farm.crop.shrimp` | `src/inspect.ts` | — | `Shrimp pond` | `บ่อกุ้ง` |  |
+| `farm.crop_level` | `src/hoverTip.ts` | — | `{crop}, level {level}` | `{crop} ระดับ {level}` | ป้ายชี้แปลงเกษตร: ชื่อพืชและระดับ |
 | `farm.hub.cooperative` | `src/inspect.ts` | — | `Farm cooperative` | `สหกรณ์การเกษตร` | อาคาร 3x3 ในย่านไร่ หรือไม่มีแปลงรอบ ๆ |
 | `farm.hub.rice_mill` | `src/inspect.ts` | — | `Rice mill` | `โรงสีข้าว` | ในย่านนา |
 | `farm.look.buffalo` | `src/eraCard.ts` | — | `Buffalo in the fields` | `ควายไถนา` | สิ่งที่แปลงเกษตรได้ในยุคถัดไป (docs/GAME_DESIGN.md ข้อ 7.2) |

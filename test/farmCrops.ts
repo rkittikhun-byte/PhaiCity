@@ -19,11 +19,16 @@ import { hasKey, setLanguage } from "../src/i18n/index";
 import { inspectAt } from "../src/inspect";
 import { CityObjects } from "../src/objects/cityObjects";
 import { checkRulesData, resolveRules } from "../src/provinceRules";
-import { ROADS } from "../src/tileValues";
+import { HOUSE, ROADS, RZB } from "../src/tileValues";
 import type { Cell } from "../src/zoneCells";
 
 const RULES_JSON = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/province-rules.json"), "utf8"));
 const RULES_DATA = checkRulesData(RULES_JSON).data;
+
+const PROVINCE_REGION: Record<string, string> = {
+  "TH-22": "east",
+  "TH-40": "northeast",
+};
 
 function makeMap(opts: {
   width?: number; height?: number; provinceId?: string; region?: string; seed?: number;
@@ -38,12 +43,15 @@ function makeMap(opts: {
       heights[y * width + x] = opts.elev ? opts.elev(x, y) : 10 + (x / width) * 30 + (y / height) * 10;
     }
   }
+  const region = opts.region ?? (opts.provinceId ? PROVINCE_REGION[opts.provinceId] ?? null : null);
+  const rules = (region || opts.provinceId) ? resolveRules(RULES_DATA, region, opts.provinceId ?? null) : null;
   return {
     width, height, values, heights, farmKinds,
     tileSizeM: 16, cellZones: true,
     provinceId: opts.provinceId ?? null,
-    region: opts.region ?? null,
+    region,
     seed: opts.seed ?? 12345,
+    farmZone: rules?.farmZone ?? null,
     getTileValue: (x: number, y: number) => (x >= 0 && y >= 0 && x < width && y < height ? values[y * width + x] : 0),
     getTileFlags: () => 0,
     put(x: number, y: number, v: number) { values[y * width + x] = v; },
@@ -236,5 +244,112 @@ describe("farmCrops: province crop rules and deterministic family plots", () => 
     setLanguage("en");
     expect(formatTooltip(lines)).toBe("Maize field, level 3");
     setLanguage("th");
+  });
+
+  test("a province layer in the rules that sets durian.weight is what fieldCropAt uses", () => {
+    const customData = checkRulesData({
+      version: 1,
+      regions: {
+        northeast: {
+          farmZone: {
+            crops: {
+              mango: { weight: 0.01 },
+              papaya: { weight: 0 },
+              banana: { weight: 0 },
+              coconut: { weight: 0 },
+              longan: { weight: 0 },
+              durian: { weight: 0 },
+              mangosteen: { weight: 0 },
+              oil_palm: { weight: 0 },
+              rubber: { weight: 0 },
+              vegetables: { weight: 0 },
+            },
+          },
+        },
+      },
+      provinces: {
+        "TH-40": {
+          farmZone: {
+            crops: {
+              durian: { weight: 0.95 },
+            },
+          },
+        },
+      },
+    }).data;
+
+    const rulesWithDurian = resolveRules(customData, "northeast", "TH-40");
+    const map = makeMap({
+      provinceId: "TH-40",
+      region: "northeast",
+      seed: 91,
+      elev: (x) => (x < 6 ? 2 : 12 + (x - 6) * 0.4),
+    }) as any;
+    map.farmZone = rulesWithDurian.farmZone;
+
+    const pickedWithDurian = new Set<FarmCropId>();
+    for (let x = 14; x < 36; x += 2) {
+      pickedWithDurian.add(fieldCropAt(map, x, 16, "orchard"));
+    }
+    expect(pickedWithDurian.has("durian")).toBe(true);
+
+    const rulesWithoutDurian = resolveRules(customData, "northeast", null);
+    const mapWithout = makeMap({
+      provinceId: "TH-40",
+      region: "northeast",
+      seed: 91,
+      elev: (x) => (x < 6 ? 2 : 12 + (x - 6) * 0.4),
+    }) as any;
+    mapWithout.farmZone = rulesWithoutDurian.farmZone;
+    for (let x = 14; x < 36; x += 2) {
+      expect(fieldCropAt(mapWithout, x, 16, "orchard")).toBe("mango");
+    }
+  });
+
+  test("changing ground.stores and adding a building near a plot leaves its crop unchanged", () => {
+    const width = 60, height = 40;
+    const natural = new Uint8Array(width * height).fill(4);
+    const stores = new Uint8Array(width * height).fill(200);
+    const map = makeMap({ width, height, provinceId: "TH-40", seed: 404 }) as any;
+    map.ground = { natural, stores };
+    map.town = { x: 30, y: 20 };
+    for (let x = 6; x < 54; x++) map.put(x, 20, ROADS);
+
+    const cells: Cell[] = farmCellsOnTiles(map, 8, 16, 50, 26, 4).filter((c: Cell) => c.nz > 0.9);
+    expect(cells.length).toBeGreaterThan(40);
+
+    const beforeCells = cells.map((c: Cell) => ({
+      paddy: fieldCropOfCell(map, c, "paddy"),
+      field: fieldCropOfCell(map, c, "field"),
+      orchard: fieldCropOfCell(map, c, "orchard"),
+    }));
+    const beforeTiles: FarmCropId[] = [];
+    for (let x = 8; x < 50; x += 2) {
+      for (let y = 16; y < 26; y += 2) {
+        beforeTiles.push(fieldCropAt(map, x, y, "field"), fieldCropAt(map, x, y, "orchard"));
+      }
+    }
+
+    // Dry out seasonal groundwater stores and build houses / residential zones right beside the plots
+    stores.fill(0);
+    map.put(12, 19, HOUSE);
+    map.put(18, 21, RZB);
+    map.put(26, 19, HOUSE);
+    map.put(34, 21, RZB);
+
+    const afterCells = cells.map((c: Cell) => ({
+      paddy: fieldCropOfCell(map, c, "paddy"),
+      field: fieldCropOfCell(map, c, "field"),
+      orchard: fieldCropOfCell(map, c, "orchard"),
+    }));
+    const afterTiles: FarmCropId[] = [];
+    for (let x = 8; x < 50; x += 2) {
+      for (let y = 16; y < 26; y += 2) {
+        afterTiles.push(fieldCropAt(map, x, y, "field"), fieldCropAt(map, x, y, "orchard"));
+      }
+    }
+
+    expect(afterCells).toEqual(beforeCells);
+    expect(afterTiles).toEqual(beforeTiles);
   });
 });

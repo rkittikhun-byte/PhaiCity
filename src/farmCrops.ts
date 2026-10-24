@@ -13,13 +13,13 @@
 
 import { cellPainted, farmCellsOnTiles, type FarmGridMap } from "./farmGrid";
 import { FARM_CELL_M, farmSide, fieldKindAt, fieldLevelOf, isFieldValue, type FieldMap } from "./farmZone";
-import { plotKindOfValue } from "./plots";
+import { GROUNDWATER_MAX } from "./groundwater";
 import {
-  applyFarmZone, FARM_CROP_IDS, FARM_CROPS, FARM_ZONE,
-  type FarmCropId, type FarmCropSpec, type FarmCropsPatch, type FarmKind, type FarmZoneSpec, type Rules,
+  FARM_CROP_IDS, FARM_CROPS,
+  type FarmCropId, type FarmCropSpec, type FarmKind, type FarmZoneSpec, type Rules,
 } from "./provinceRules";
 import { BIT_MASK } from "./tileFlags";
-import { FIELD_BASE, WATER_HIGH, WATER_LOW } from "./tileValues";
+import { WATER_HIGH, WATER_LOW } from "./tileValues";
 import { TILE_UNITS, tileMetres, tileOfUnits } from "./units";
 import type { Cell } from "./zoneCells";
 
@@ -84,7 +84,10 @@ export interface CropMap extends Omit<FieldMap, "getTileFlags"> {
   rules?: Rules | null;
   farmZone?: FarmZoneSpec | null;
   groundwater?: ArrayLike<number> | null;
-  ground?: { stores: ArrayLike<number>; natural?: ArrayLike<number> } | null;
+  ground?: { stores?: ArrayLike<number>; natural?: ArrayLike<number> } | null;
+  rulerHouse?: { x: number; y: number } | null;
+  town?: { x: number; y: number } | null;
+  canals?: ArrayLike<number> | null;
 }
 
 export interface CropOptions {
@@ -97,95 +100,14 @@ export interface CropOptions {
   seed?: number;
 }
 
-// --- Regional and provincial crop tables (mirroring data/province-rules.json for runtime lookup by provinceId) ------
-
-const REGION_CROPS: Readonly<Record<string, FarmCropsPatch>> = {
-  north: {
-    glutinous_rice: { weight: 0.75 }, jasmine_rice: { weight: 0.45 },
-    maize: { weight: 0.85 }, sugarcane: { weight: 0.35 }, cassava: { weight: 0.3 }, vegetables: { weight: 0.6 }, pineapple: { weight: 0.25 },
-    longan: { weight: 0.9 }, mango: { weight: 0.7 }, banana: { weight: 0.55 }, papaya: { weight: 0.45 }, coconut: { weight: 0.2 }, rubber: { weight: 0.15 }, oil_palm: { weight: 0 },
-  },
-  northeast: {
-    glutinous_rice: { weight: 0.8 }, jasmine_rice: { weight: 0.5 },
-    cassava: { weight: 0.85 }, sugarcane: { weight: 0.8 }, maize: { weight: 0.4 }, vegetables: { weight: 0.5 }, pineapple: { weight: 0.1 },
-    mango: { weight: 0.75 }, papaya: { weight: 0.65 }, banana: { weight: 0.6 }, coconut: { weight: 0.2 }, rubber: { weight: 0.2 }, longan: { weight: 0.05 }, oil_palm: { weight: 0 },
-  },
-  central: {
-    jasmine_rice: { weight: 0.95 }, glutinous_rice: { weight: 0.05 },
-    sugarcane: { weight: 0.7 }, maize: { weight: 0.55 }, cassava: { weight: 0.45 }, vegetables: { weight: 0.7 }, pineapple: { weight: 0.15 },
-    mango: { weight: 0.8 }, banana: { weight: 0.7 }, papaya: { weight: 0.55 }, coconut: { weight: 0.5 }, longan: { weight: 0.1 }, rubber: { weight: 0.05 }, oil_palm: { weight: 0.05 },
-  },
-  east: {
-    jasmine_rice: { weight: 0.8 }, glutinous_rice: { weight: 0.1 },
-    cassava: { weight: 0.75 }, sugarcane: { weight: 0.5 }, pineapple: { weight: 0.65 }, maize: { weight: 0.35 }, vegetables: { weight: 0.45 },
-    rubber: { weight: 0.75 }, oil_palm: { weight: 0.45 }, mango: { weight: 0.6 }, coconut: { weight: 0.6 }, banana: { weight: 0.5 }, papaya: { weight: 0.45 }, longan: { weight: 0.25 },
-    fish: { weight: 0.7 }, shrimp: { weight: 0.75 },
-  },
-  west: {
-    jasmine_rice: { weight: 0.85 }, glutinous_rice: { weight: 0.1 },
-    sugarcane: { weight: 0.85 }, cassava: { weight: 0.7 }, pineapple: { weight: 0.85 }, maize: { weight: 0.5 }, vegetables: { weight: 0.5 },
-    coconut: { weight: 0.75 }, mango: { weight: 0.65 }, banana: { weight: 0.6 }, papaya: { weight: 0.5 }, rubber: { weight: 0.25 }, oil_palm: { weight: 0.2 }, longan: { weight: 0.05 },
-  },
-  south: {
-    jasmine_rice: { weight: 0.7 }, glutinous_rice: { weight: 0.05 },
-    pineapple: { weight: 0.5 }, vegetables: { weight: 0.45 }, maize: { weight: 0.15 }, cassava: { weight: 0.1 }, sugarcane: { weight: 0.1 },
-    rubber: { weight: 0.95 }, oil_palm: { weight: 0.9 }, coconut: { weight: 0.8 }, banana: { weight: 0.55 }, papaya: { weight: 0.45 }, mango: { weight: 0.35 }, longan: { weight: 0 },
-    fish: { weight: 0.65 }, shrimp: { weight: 0.85 },
-  },
-};
-
-const PROVINCE_CROPS: Readonly<Record<string, FarmCropsPatch>> = {
-  "TH-40": {
-    glutinous_rice: { weight: 0.85 }, jasmine_rice: { weight: 0.4 },
-    cassava: { weight: 0.9 }, sugarcane: { weight: 0.85 }, maize: { weight: 0.4 }, vegetables: { weight: 0.55 }, pineapple: { weight: 0.1 },
-    mango: { weight: 0.8 }, papaya: { weight: 0.7 }, banana: { weight: 0.65 }, coconut: { weight: 0.2 }, rubber: { weight: 0.2 },
-    longan: { weight: 0 }, oil_palm: { weight: 0 }, durian: { weight: 0 }, mangosteen: { weight: 0 },
-    fish: { weight: 0.9 }, shrimp: { weight: 0 },
-  },
-  "TH-22": { durian: { weight: 0.95 }, mangosteen: { weight: 0.9 }, longan: { weight: 0.45 } },
-  "TH-21": { durian: { weight: 0.85 }, mangosteen: { weight: 0.8 }, pineapple: { weight: 0.75 } },
-  "TH-23": { durian: { weight: 0.85 }, mangosteen: { weight: 0.85 } },
-  "TH-86": { durian: { weight: 0.9 }, mangosteen: { weight: 0.8 } },
-  "TH-84": { durian: { weight: 0.75 }, mangosteen: { weight: 0.7 } },
-  "TH-80": { durian: { weight: 0.8 }, mangosteen: { weight: 0.85 } },
-  "TH-95": { durian: { weight: 0.8 }, mangosteen: { weight: 0.7 }, shrimp: { weight: 0 } },
-  "TH-53": { durian: { weight: 0.75 }, mangosteen: { weight: 0.5 } },
-  "TH-33": { durian: { weight: 0.7 }, mangosteen: { weight: 0.45 } },
-  "TH-25": { shrimp: { weight: 0 } },
-  "TH-27": { shrimp: { weight: 0 } },
-  "TH-93": { shrimp: { weight: 0 } },
-  "TH-11": { shrimp: { weight: 0.75 } },
-  "TH-74": { shrimp: { weight: 0.8 } },
-  "TH-75": { shrimp: { weight: 0.75 } },
-  "TH-76": { shrimp: { weight: 0.7 } },
-  "TH-77": { shrimp: { weight: 0.75 } },
-};
-
-/** Region of a province code TH-xx when only provinceId is on the map */
-function inferRegion(provinceId: string | null | undefined): string | null {
-  if (!provinceId || !/^TH-\d{2}$/.test(provinceId)) return null;
-  const code = Number(provinceId.slice(3));
-  if (code >= 50 && code <= 58) return "north";
-  if (code >= 30 && code <= 49) return "northeast";
-  if (code >= 20 && code <= 27 && code !== 26) return "east";
-  if (code === 63 || code === 70 || code === 71 || code === 76 || code === 77) return "west";
-  if (code >= 80 && code <= 96) return "south";
-  return "central";
-}
-
-/** The resolved crop table for a province and region, or from an explicit rules / farmZone object */
+/** The resolved crop table from the map's or options' province rules (map.farmZone), or the game's defaults (FARM_CROPS) */
 export function resolveCropTable(map?: CropMap | null, options?: CropOptions): Readonly<Record<FarmCropId, FarmCropSpec>> {
   if (options?.crops) return options.crops;
   if (options?.farmZone?.crops) return options.farmZone.crops;
   if (options?.rules?.farmZone?.crops) return options.rules.farmZone.crops;
   if (map?.farmZone?.crops) return map.farmZone.crops;
   if (map?.rules?.farmZone?.crops) return map.rules.farmZone.crops;
-  const provinceId = options?.provinceId ?? map?.provinceId ?? map?.provinceIso ?? null;
-  const regionId = options?.region ?? map?.region ?? inferRegion(provinceId);
-  let zone = FARM_ZONE;
-  if (regionId && REGION_CROPS[regionId]) zone = applyFarmZone(zone, { crops: REGION_CROPS[regionId] });
-  if (provinceId && PROVINCE_CROPS[provinceId]) zone = applyFarmZone(zone, { crops: PROVINCE_CROPS[provinceId] });
-  return zone.crops;
+  return FARM_CROPS;
 }
 
 // --- Deterministic hashing (no Math.random) -------------------------------------------------------------------------
@@ -227,7 +149,6 @@ export function mapSeedOf(map: CropMap, explicitSeed?: number): number {
 // --- Soil measurement and scoring (docs/GAME_DESIGN.md 7.6 point 3) -------------------------------------------------
 
 const isWater = (v: number): boolean => v >= WATER_LOW && v <= WATER_HIGH;
-const isTownTile = (v: number): boolean => plotKindOfValue(v) !== null || (v >= 240 && v < FIELD_BASE);
 
 interface LandSummary {
   minHeight: number;
@@ -252,48 +173,56 @@ function landSummaryOf(map: CropMap): LandSummary {
   return summary;
 }
 
-const soilCache = new WeakMap<object, Map<number, SoilSample>>();
+const waterCache = new WeakMap<object, Map<number, { waterDist: number; waterIdx: number }>>();
 
-/** Measures the soil at tile (x, y): height above water, local slope, groundwater, distance to water and to town */
+/** Measures the soil at tile (x, y): height above water, local slope, natural groundwater, distance to water and to the town centre */
 export function soilAt(map: CropMap, x: number, y: number, groundShare?: number): SoilSample {
   const width = map.width, height = map.height;
   const tx = Math.max(0, Math.min(width - 1, Math.floor(x)));
   const ty = Math.max(0, Math.min(height - 1, Math.floor(y)));
   const idx = ty * width + tx;
-  if (groundShare === undefined) {
-    const cached = soilCache.get(map)?.get(idx);
-    if (cached) return cached;
-  }
-  const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null;
-  const tileAt = (cx: number, cy: number): number => {
-    const i = cy * width + cx;
-    return raw !== null ? raw[i] & BIT_MASK : map.getTileValue(cx, cy) & BIT_MASK;
-  };
 
-  // Search rings out to 24 tiles for nearest water and nearest town building/plot
-  let waterDist = 32, waterIdx = -1, townDist = 32;
-  const maxR = 24;
-  for (let r = 0; r <= maxR && (waterIdx < 0 || townDist > r); r++) {
-    if (r === 0) {
-      const v = tileAt(tx, ty);
-      if (isWater(v)) { waterDist = 0; waterIdx = idx; }
-      if (isTownTile(v)) townDist = 0;
-      continue;
-    }
-    for (let dy = -r; dy <= r; dy++) {
-      const step = dy === -r || dy === r ? 1 : 2 * r;
-      const cy = ty + dy;
-      if (cy < 0 || cy >= height) continue;
-      for (let dx = -r; dx <= r; dx += step) {
-        const cx = tx + dx;
-        if (cx < 0 || cx >= width) continue;
-        const v = tileAt(cx, cy);
-        const d = Math.hypot(dx, dy);
-        if (d < waterDist && isWater(v)) { waterDist = d; waterIdx = cy * width + cx; }
-        if (d < townDist && isTownTile(v)) townDist = d;
+  let byTile = waterCache.get(map);
+  let waterInfo = byTile?.get(idx);
+  if (!waterInfo) {
+    const raw = (map as { rawCells?(): ArrayLike<number> }).rawCells?.() ?? null;
+    const canals = map.canals;
+    const naturalWaterAt = (cx: number, cy: number): boolean => {
+      const i = cy * width + cx;
+      if (canals && canals[i]) return false;
+      const v = raw !== null ? raw[i] & BIT_MASK : map.getTileValue(cx, cy) & BIT_MASK;
+      return isWater(v);
+    };
+    let waterDist = 32, waterIdx = -1;
+    const maxR = 24;
+    for (let r = 0; r <= maxR && waterIdx < 0; r++) {
+      if (r === 0) {
+        if (naturalWaterAt(tx, ty)) { waterDist = 0; waterIdx = idx; }
+        continue;
+      }
+      for (let dy = -r; dy <= r; dy++) {
+        const step = dy === -r || dy === r ? 1 : 2 * r;
+        const cy = ty + dy;
+        if (cy < 0 || cy >= height) continue;
+        for (let dx = -r; dx <= r; dx += step) {
+          const cx = tx + dx;
+          if (cx < 0 || cx >= width) continue;
+          const d = Math.hypot(dx, dy);
+          if (d < waterDist && naturalWaterAt(cx, cy)) { waterDist = d; waterIdx = cy * width + cx; }
+        }
       }
     }
+    waterInfo = { waterDist, waterIdx };
+    if (!byTile) waterCache.set(map, byTile = new Map());
+    byTile.set(idx, waterInfo);
   }
+
+  const { waterDist, waterIdx } = waterInfo;
+  // Town distance measured from the ruler's house or the town centre (gameMap.town), never from buildings added month to month
+  const centre = map.rulerHouse ?? map.town;
+  const cx = centre && typeof centre.x === "number" ? centre.x : width * 0.5;
+  const cy = centre && typeof centre.y === "number" ? centre.y : height * 0.5;
+  const townDist = Math.min(32, Math.hypot(tx - cx, ty - cy));
 
   const heights = map.heights;
   let rise = 2;
@@ -309,26 +238,21 @@ export function soilAt(map: CropMap, x: number, y: number, groundShare?: number)
     slope = Math.hypot((hx1 - hx0) * 0.5, (hy1 - hy0) * 0.5);
   }
 
+  // Only the land's natural water (ground.natural, or the estimate from water distance and rise), never ground.stores
   let ground = groundShare;
   if (typeof ground !== "number" || !Number.isFinite(ground)) {
-    const stores = map.ground?.stores ?? map.groundwater;
-    if (stores && stores.length > idx) {
-      ground = Math.max(0, Math.min(1, (stores[idx] ?? 100) / 255));
+    const natural = map.ground?.natural;
+    if (natural && natural.length > idx) {
+      const level = natural[idx] ?? 1;
+      ground = Math.max(0, Math.min(1, level <= 1 && level > 0 && !(natural instanceof Uint8Array) ? level : level / GROUNDWATER_MAX));
     } else {
-      // Natural groundwater estimate from water distance and rise
       const nearWater = Math.max(0, 1 - waterDist / 20);
       const lowBonus = Math.max(0, 1 - rise / 25);
       ground = Math.max(0.12, Math.min(0.95, 0.22 + 0.42 * nearWater + 0.25 * lowBonus));
     }
   }
 
-  const sample: SoilSample = { rise, slope, ground, water: waterDist, town: townDist };
-  if (groundShare === undefined) {
-    let byTile = soilCache.get(map);
-    if (!byTile) soilCache.set(map, byTile = new Map());
-    byTile.set(idx, sample);
-  }
-  return sample;
+  return { rise, slope, ground, water: waterDist, town: townDist };
 }
 
 function rangeFit(value: number, range: readonly [number, number], scale: number): number {

@@ -149,6 +149,7 @@ export class CityCore {
     }
     // How far a field may lie from a road here, which the farm cells along the roads reach (src/farmGrid.ts)
     this.map.farmReach = this.simulation.rules?.farmZone?.reach ?? null;
+    this.map.farmZone = setup.rules?.farmZone ?? this.map.farmZone ?? this.simulation.rules?.farmZone ?? null;
     // An older save's fields painted on part of their tile, seen through the road-aligned farm cells
     if (this.map.farmSquaresOld) {
       showOldFarmCells(this.map, this.map.farmSquaresOld, this.simulation.rules?.farmZone?.reach);
