@@ -1,10 +1,19 @@
 {
-  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when only rain or a storm fills the ground, a little) is 0-0.9. weather (src/weather.ts) lists twelve numbers 0-1 for each month, January first: rain, the chance the month is wet; storm, the share of wet months that are storms (heavy rain); fog, the share of dry months that are foggy; smoke, the haze of burning fields and forests; and flood, the chance a storm month floods low land beside the water (only while disasters are on). festivals (src/festivals.ts) adds a region's or province's festivals to the country's own (New Year, Songkran, Loy Krathong), by id, each with its month 1-12 and any of its numbers to change (draw, homecoming, waterUse, and pairs for modest and grand: cost, land, fire, rubbish, dirt; cheer has not held, modest, grand); null takes one away. farmZone (src/farmZone.ts, docs/GAME_DESIGN.md section 7) changes any of the farm zone's numbers (price a tile, reach in tiles, eraTop, feeds, exportPerLevel, the land's choice of kind, dryYield, dryDraw, hubReach, hubBonus, landValue, visitors, haze, factoriesPerLevel) and, under kinds, any of a paddy's, field's, orchard's or pond's (sale, jobs, draw, chemicals, burns, mud, ground). Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
+  "_note": "How each region and province plays (src/provinceRules.ts, docs/ONLINE_PLAN.md 5.2). Each layer lists only what it changes: the game's defaults, then the region's, then the province's. Multipliers are 0.1-5 (1 = as the game is), months are 1-12, chancePerMonth is 0-1, drought.share (how much less a water works gives in a dry-season month, when only rain or a storm fills the ground, a little) is 0-0.9. weather (src/weather.ts) lists twelve numbers 0-1 for each month, January first: rain, the chance the month is wet; storm, the share of wet months that are storms (heavy rain); fog, the share of dry months that are foggy; smoke, the haze of burning fields and forests; and flood, the chance a storm month floods low land beside the water (only while disasters are on). festivals (src/festivals.ts) adds a region's or province's festivals to the country's own (New Year, Songkran, Loy Krathong), by id, each with its month 1-12 and any of its numbers to change (draw, homecoming, waterUse, and pairs for modest and grand: cost, land, fire, rubbish, dirt; cheer has not held, modest, grand); null takes one away. farmZone (src/farmZone.ts, src/farmCrops.ts, docs/GAME_DESIGN.md section 7) changes any of the farm zone's numbers (price a tile, reach in tiles, eraTop, feeds, exportPerLevel, the land's choice of kind, dryYield, dryDraw, hubReach, hubBonus, landValue, visitors, haze, factoriesPerLevel), under kinds any of a paddy's, field's, orchard's or pond's (sale, jobs, draw, chemicals, burns, mud, ground), and under crops any of the eighteen crops' numbers (kind, weight 0-1 where 0 means not grown there, and [min, max] pairs for rise, slope, ground, water, town; section 7.6). Edited by the owner; once the game is online the same data lives in the server's database and an admin page edits it.",
   "version": 1,
   "regions": {
     "north": {
       "_note": "Tourism: shops are wanted. Thick forest: clearing woods costs more. Yi Peng's sky lanterns rise with Loy Krathong.",
-      "farmZone": { "_note": "Maize on the hills, burned before the rains: more haze", "kinds": { "field": { "sale": 0.06 } }, "haze": 40 },
+      "farmZone": {
+        "_note": "Maize on the hills, burned before the rains: more haze; glutinous rice and longan orchards",
+        "kinds": { "field": { "sale": 0.06 } },
+        "haze": 40,
+        "crops": {
+          "glutinous_rice": { "weight": 0.75 }, "jasmine_rice": { "weight": 0.45 },
+          "maize": { "weight": 0.85 }, "sugarcane": { "weight": 0.35 }, "cassava": { "weight": 0.3 }, "vegetables": { "weight": 0.6 }, "pineapple": { "weight": 0.25 },
+          "longan": { "weight": 0.9 }, "mango": { "weight": 0.7 }, "banana": { "weight": 0.55 }, "papaya": { "weight": 0.45 }, "coconut": { "weight": 0.2 }, "rubber": { "weight": 0.15 }, "oil_palm": { "weight": 0 }
+        }
+      },
       "demand": { "commercial": 1.4 },
       "clearWoodsCost": 5,
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.3 },
@@ -19,7 +28,16 @@
     },
     "northeast": {
       "_note": "Cheap land and farm industry. Droughts: a long dry season for the water works, fires in the hot season. Bun Bang Fai's rockets ask the sky for the rains in May.",
-      "farmZone": { "_note": "Jasmine rice on the low land, cassava and cane on the dry uplands", "kinds": { "paddy": { "sale": 0.07 }, "field": { "sale": 0.06 } }, "orchardGround": 0.4 },
+      "farmZone": {
+        "_note": "Glutinous and jasmine rice on the low land, cassava and cane on the dry uplands",
+        "kinds": { "paddy": { "sale": 0.07 }, "field": { "sale": 0.06 } },
+        "orchardGround": 0.4,
+        "crops": {
+          "glutinous_rice": { "weight": 0.8 }, "jasmine_rice": { "weight": 0.5 },
+          "cassava": { "weight": 0.85 }, "sugarcane": { "weight": 0.8 }, "maize": { "weight": 0.4 }, "vegetables": { "weight": 0.5 }, "pineapple": { "weight": 0.1 },
+          "mango": { "weight": 0.75 }, "papaya": { "weight": 0.65 }, "banana": { "weight": 0.6 }, "coconut": { "weight": 0.2 }, "rubber": { "weight": 0.2 }, "longan": { "weight": 0.05 }, "oil_palm": { "weight": 0 }
+        }
+      },
       "cost": { "residential": 0.6, "commercial": 0.6, "industrial": 0.6 },
       "demand": { "industrial": 1.3 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.4 },
@@ -35,7 +53,16 @@
     },
     "central": {
       "_note": "Trade: shops are wanted. Floods in the rainy season.",
-      "farmZone": { "_note": "Irrigated paddies, two crops a year: the dry season takes less", "kinds": { "paddy": { "sale": 0.08 } }, "dryYield": 0.7 },
+      "farmZone": {
+        "_note": "Irrigated paddies, two crops a year: the dry season takes less",
+        "kinds": { "paddy": { "sale": 0.08 } },
+        "dryYield": 0.7,
+        "crops": {
+          "jasmine_rice": { "weight": 0.95 }, "glutinous_rice": { "weight": 0.05 },
+          "sugarcane": { "weight": 0.7 }, "maize": { "weight": 0.55 }, "cassava": { "weight": 0.45 }, "vegetables": { "weight": 0.7 }, "pineapple": { "weight": 0.15 },
+          "mango": { "weight": 0.8 }, "banana": { "weight": 0.7 }, "papaya": { "weight": 0.55 }, "coconut": { "weight": 0.5 }, "longan": { "weight": 0.1 }, "rubber": { "weight": 0.05 }, "oil_palm": { "weight": 0.05 }
+        }
+      },
       "demand": { "commercial": 1.4 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
       "weather": {
@@ -49,7 +76,16 @@
     },
     "east": {
       "_note": "Industry and seaports. High pollution.",
-      "farmZone": { "_note": "Durian and rambutan orchards", "kinds": { "orchard": { "sale": 0.12 } } },
+      "farmZone": {
+        "_note": "Fruit orchards, rubber and cassava; durian and mangosteen in Chanthaburi, Rayong and Trat",
+        "kinds": { "orchard": { "sale": 0.12 } },
+        "crops": {
+          "jasmine_rice": { "weight": 0.8 }, "glutinous_rice": { "weight": 0.1 },
+          "cassava": { "weight": 0.75 }, "sugarcane": { "weight": 0.5 }, "pineapple": { "weight": 0.65 }, "maize": { "weight": 0.35 }, "vegetables": { "weight": 0.45 },
+          "rubber": { "weight": 0.75 }, "oil_palm": { "weight": 0.45 }, "mango": { "weight": 0.6 }, "coconut": { "weight": 0.6 }, "banana": { "weight": 0.5 }, "papaya": { "weight": 0.45 }, "longan": { "weight": 0.25 },
+          "fish": { "weight": 0.7 }, "shrimp": { "weight": 0.75 }
+        }
+      },
       "demand": { "industrial": 1.4 },
       "cost": { "port": 0.5 },
       "industryPollution": 1.5,
@@ -64,7 +100,15 @@
     },
     "west": {
       "_note": "Hydropower: power plants give more. Little flat land: roads and rail cost more.",
-      "farmZone": { "_note": "Sugar cane and cassava", "kinds": { "field": { "sale": 0.06 } } },
+      "farmZone": {
+        "_note": "Sugar cane, pineapple and cassava",
+        "kinds": { "field": { "sale": 0.06 } },
+        "crops": {
+          "jasmine_rice": { "weight": 0.85 }, "glutinous_rice": { "weight": 0.1 },
+          "sugarcane": { "weight": 0.85 }, "cassava": { "weight": 0.7 }, "pineapple": { "weight": 0.85 }, "maize": { "weight": 0.5 }, "vegetables": { "weight": 0.5 },
+          "coconut": { "weight": 0.75 }, "mango": { "weight": 0.65 }, "banana": { "weight": 0.6 }, "papaya": { "weight": 0.5 }, "rubber": { "weight": 0.25 }, "oil_palm": { "weight": 0.2 }, "longan": { "weight": 0.05 }
+        }
+      },
       "powerPlantOutput": 1.5,
       "cost": { "road": 1.5, "rail": 1.5 },
       "drought": { "months": [12, 1, 2, 3, 4], "share": 0.25 },
@@ -78,7 +122,16 @@
     },
     "south": {
       "_note": "Tourism and seaports. Storms at the end of the year. The vegetarian festival in October.",
-      "farmZone": { "_note": "Rubber and oil palm, shrimp ponds by the coast", "kinds": { "orchard": { "sale": 0.1 }, "pond": { "sale": 0.12 }, "paddy": { "sale": 0.05 } } },
+      "farmZone": {
+        "_note": "Rubber and oil palm, shrimp ponds by the coast",
+        "kinds": { "orchard": { "sale": 0.1 }, "pond": { "sale": 0.12 }, "paddy": { "sale": 0.05 } },
+        "crops": {
+          "jasmine_rice": { "weight": 0.7 }, "glutinous_rice": { "weight": 0.05 },
+          "pineapple": { "weight": 0.5 }, "vegetables": { "weight": 0.45 }, "maize": { "weight": 0.15 }, "cassava": { "weight": 0.1 }, "sugarcane": { "weight": 0.1 },
+          "rubber": { "weight": 0.95 }, "oil_palm": { "weight": 0.9 }, "coconut": { "weight": 0.8 }, "banana": { "weight": 0.55 }, "papaya": { "weight": 0.45 }, "mango": { "weight": 0.35 }, "longan": { "weight": 0 },
+          "fish": { "weight": 0.65 }, "shrimp": { "weight": 0.85 }
+        }
+      },
       "demand": { "commercial": 1.3 },
       "cost": { "port": 0.5 },
       "drought": { "months": [2, 3, 4], "share": 0.15 },
@@ -96,8 +149,85 @@
   "provinces": {
     "_note": "Changes for one province over its region, e.g. \"TH-83\": { \"demand\": { \"commercial\": 1.6 } } for Phuket. A province that lists seasons replaces its region's list; one that lists weather replaces only the lists it gives, and festivals only the festivals it names.",
     "TH-40": {
-      "_note": "Khon Kaen: the silk festival and Phuk Siao, late November into December, counted in December.",
-      "festivals": { "silk": { "month": 12 } }
+      "_note": "Khon Kaen: the silk festival and Phuk Siao, late November into December, counted in December. Glutinous rice and some jasmine rice; cassava and cane on the uplands, maize, vegetables by water and town; mango, papaya, banana, a little coconut and rubber; no durian or mangosteen.",
+      "festivals": { "silk": { "month": 12 } },
+      "farmZone": {
+        "crops": {
+          "glutinous_rice": { "weight": 0.85 }, "jasmine_rice": { "weight": 0.4 },
+          "cassava": { "weight": 0.9 }, "sugarcane": { "weight": 0.85 }, "maize": { "weight": 0.4 }, "vegetables": { "weight": 0.55 }, "pineapple": { "weight": 0.1 },
+          "mango": { "weight": 0.8 }, "papaya": { "weight": 0.7 }, "banana": { "weight": 0.65 }, "coconut": { "weight": 0.2 }, "rubber": { "weight": 0.2 },
+          "longan": { "weight": 0 }, "oil_palm": { "weight": 0 }, "durian": { "weight": 0 }, "mangosteen": { "weight": 0 },
+          "fish": { "weight": 0.9 }, "shrimp": { "weight": 0 }
+        }
+      }
+    },
+    "TH-22": {
+      "_note": "Chanthaburi: durian and mangosteen orchards.",
+      "farmZone": { "crops": { "durian": { "weight": 0.95 }, "mangosteen": { "weight": 0.9 }, "longan": { "weight": 0.45 } } }
+    },
+    "TH-21": {
+      "_note": "Rayong: durian, mangosteen and pineapple.",
+      "farmZone": { "crops": { "durian": { "weight": 0.85 }, "mangosteen": { "weight": 0.8 }, "pineapple": { "weight": 0.75 } } }
+    },
+    "TH-23": {
+      "_note": "Trat: durian and mangosteen orchards.",
+      "farmZone": { "crops": { "durian": { "weight": 0.85 }, "mangosteen": { "weight": 0.85 } } }
+    },
+    "TH-86": {
+      "_note": "Chumphon: durian and mangosteen orchards.",
+      "farmZone": { "crops": { "durian": { "weight": 0.9 }, "mangosteen": { "weight": 0.8 } } }
+    },
+    "TH-84": {
+      "_note": "Surat Thani: durian and mangosteen orchards.",
+      "farmZone": { "crops": { "durian": { "weight": 0.75 }, "mangosteen": { "weight": 0.7 } } }
+    },
+    "TH-80": {
+      "_note": "Nakhon Si Thammarat: durian and mangosteen orchards.",
+      "farmZone": { "crops": { "durian": { "weight": 0.8 }, "mangosteen": { "weight": 0.85 } } }
+    },
+    "TH-95": {
+      "_note": "Yala, inland in the South: durian and mangosteen orchards, no coastal shrimp.",
+      "farmZone": { "crops": { "durian": { "weight": 0.8 }, "mangosteen": { "weight": 0.7 }, "shrimp": { "weight": 0 } } }
+    },
+    "TH-53": {
+      "_note": "Uttaradit: Laplae durian and mangosteen.",
+      "farmZone": { "crops": { "durian": { "weight": 0.75 }, "mangosteen": { "weight": 0.5 } } }
+    },
+    "TH-33": {
+      "_note": "Si Sa Ket: volcanic-soil durian and mangosteen.",
+      "farmZone": { "crops": { "durian": { "weight": 0.7 }, "mangosteen": { "weight": 0.45 } } }
+    },
+    "TH-25": {
+      "_note": "Prachin Buri, inland in the East: freshwater ponds only.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0 } } }
+    },
+    "TH-27": {
+      "_note": "Sa Kaeo, inland in the East: freshwater ponds only.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0 } } }
+    },
+    "TH-93": {
+      "_note": "Phatthalung, on the inner lake: freshwater ponds only.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0 } } }
+    },
+    "TH-11": {
+      "_note": "Samut Prakan, on the Gulf coast: coastal shrimp ponds.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0.75 } } }
+    },
+    "TH-74": {
+      "_note": "Samut Sakhon, on the Gulf coast: coastal shrimp ponds.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0.8 } } }
+    },
+    "TH-75": {
+      "_note": "Samut Songkhram, on the Gulf coast: coastal shrimp ponds.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0.75 } } }
+    },
+    "TH-76": {
+      "_note": "Phetchaburi, on the Gulf coast: coastal shrimp ponds.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0.7 } } }
+    },
+    "TH-77": {
+      "_note": "Prachuap Khiri Khan, on the Gulf coast: coastal shrimp ponds.",
+      "farmZone": { "crops": { "shrimp": { "weight": 0.75 } } }
     },
     "TH-85": {
       "_note": "Ranong, on the Andaman coast: the southwest monsoon's rains, May to October, not the east coast's.",
