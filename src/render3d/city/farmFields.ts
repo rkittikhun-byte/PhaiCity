@@ -106,7 +106,7 @@ const hashOf = (i: number): number => { let h = i * 2654435761 >>> 0; h ^= h >>>
 interface Field { index: number; level: number; kind: FarmKind | null; cells: DrawnCell[] }
 /** A cell drawn: its middle (world units), the way its road runs (radians, 0 along +z), its side and its length along
  * its row as a share of its side (a cell a road cut short) */
-interface DrawnCell { x: number; z: number; angle: number; size: number; span: number; field: Field }
+interface DrawnCell { x: number; z: number; angle: number; size: number; span: number; row: number; nx: number; nz: number; field: Field }
 
 export class CityFarmFields {
   readonly root = new Group();
@@ -305,12 +305,12 @@ export class CityFarmFields {
       const grid = this.map as unknown as FarmGridMap;
       for (const { cell, tile } of paintedCells(grid, byTile.keys(), this.map.farmReach ?? undefined)) {
         const f = byTile.get(tile);
-        if (f) f.cells.push({ x: cell.x, z: cell.z, angle: cell.angle, size, span: cell.span ?? 1, field: f });
+        if (f) f.cells.push({ x: cell.x, z: cell.z, angle: cell.angle, size, span: cell.span ?? 1, row: cell.row, nx: cell.nx, nz: cell.nz, field: f });
       }
     } else {
       for (const f of fields) {
         const x = f.index % width, y = Math.floor(f.index / width);
-        f.cells.push({ x: (x + 0.5) * UNITS, z: (y + 0.5) * UNITS, angle: 0, size, span: 1, field: f });
+        f.cells.push({ x: (x + 0.5) * UNITS, z: (y + 0.5) * UNITS, angle: 0, size, span: 1, row: -1, nx: 0, nz: 0, field: f });
       }
     }
     this.drawn = now;
@@ -400,6 +400,74 @@ export class CityFarmFields {
     // (a road-aligned cell a little larger than its 4 m, so the cells of a bend, laid square, leave no slivers of grass
     // between them; a whole tile as it is)
     const grow = (c: DrawnCell): number => (c.size < UNITS ? CELL_GROW : 1);
+    // Neighbouring painted cells in the same row along a road, matched by the road step they were laid from
+    // (src/zoneCells.ts: x = px + nx * distance), so their side edges can stretch to meet across a bend
+    const rowBucket = new Map<string, DrawnCell[]>(), rowKey = (r: number, bx: number, bz: number): string => `${r}:${bx}:${bz}`;
+    const roadBase = (c: DrawnCell): [number, number] => {
+      const d = (c.row + 1.6) * c.size;
+      return [c.x - c.nx * d, c.z - c.nz * d];
+    };
+    for (const f of this.fields) for (const c of f.cells) {
+      if (c.row < 0) continue;
+      const [rx, rz] = roadBase(c), k = rowKey(c.row, Math.floor(rx / BUCKET), Math.floor(rz / BUCKET));
+      let list = rowBucket.get(k);
+      if (!list) rowBucket.set(k, list = []);
+      list.push(c);
+    }
+    const prevRaw = new Map<DrawnCell, DrawnCell>(), nextRaw = new Map<DrawnCell, DrawnCell>();
+    for (const f of this.fields) for (const c of f.cells) {
+      if (c.row < 0) continue;
+      const [rx, rz] = roadBase(c), bx = Math.floor(rx / BUCKET), bz = Math.floor(rz / BUCKET);
+      const sc = Math.sin(c.angle), cc = Math.cos(c.angle), tint = c.field.level === 0 || !c.field.kind;
+      let bestPrev: DrawnCell | undefined, bestNext: DrawnCell | undefined, prevD = Infinity, nextD = Infinity;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        for (const o of rowBucket.get(rowKey(c.row, bx + dx, bz + dz)) ?? []) {
+          if (o === c || (o.field.level === 0 || !o.field.kind) !== tint) continue;
+          const so = Math.sin(o.angle), co = Math.cos(o.angle);
+          if (c.nx * o.nx + c.nz * o.nz < 0.85 || sc * so + cc * co < 0.85) continue;
+          let tx = sc + so, tz = cc + co;
+          const tLen = Math.hypot(tx, tz) || 1;
+          tx /= tLen; tz /= tLen;
+          const [ox, oz] = roadBase(o);
+          const along = (o.x - c.x) * tx + (o.z - c.z) * tz, across = Math.abs((o.x - c.x) * tz - (o.z - c.z) * tx);
+          const rAlong = (ox - rx) * tx + (oz - rz) * tz, rAcross = Math.abs((ox - rx) * tz - (oz - rz) * tx);
+          if (across > 0.55 * c.size || rAcross > 0.65 * c.size || Math.abs(along) < 0.25 * c.size) continue;
+          if (along * rAlong < 0 && Math.abs(along) > 1.65 * c.size) continue;
+          if (Math.min(Math.abs(rAlong), Math.abs(along)) > 1.65 * c.size) continue;
+          if (along > 0 && along < nextD) { nextD = along; bestNext = o; }
+          else if (along < 0 && -along < prevD) { prevD = -along; bestPrev = o; }
+        }
+      }
+      if (bestPrev) prevRaw.set(c, bestPrev);
+      if (bestNext) nextRaw.set(c, bestNext);
+    }
+    const prev = new Map<DrawnCell, DrawnCell>(), next = new Map<DrawnCell, DrawnCell>();
+    for (const [a, b] of nextRaw) if (prevRaw.get(b) === a) { next.set(a, b); prev.set(b, a); }
+    const bent = (a: DrawnCell | undefined, b: DrawnCell | undefined): boolean =>
+      !!a && !!b && (Math.abs(a.angle - b.angle) > 1e-5 || Math.hypot(b.x - a.x, b.z - a.z) > (a.span + b.span) * a.size / 2 * CELL_GROW);
+    // Where two neighbouring cells a (back) and b (front) in a row meet at offset u across the road
+    const seamAt = (a: DrawnCell, b: DrawnCell, u: number, shift: number, sin: number, cos: number): [number, number] => {
+      const sa = Math.sin(a.angle), ca = Math.cos(a.angle), sb = Math.sin(b.angle), cb = Math.cos(b.angle);
+      const ax = a.x + ca * u, az = a.z - sa * u, bx = b.x + cb * u, bz = b.z - sb * u;
+      const dx = bx - ax, dz = bz - az, denom = Math.max(0.2, 1 + sa * sb + ca * cb);
+      const va = Math.max(-a.size, Math.min(8 * a.size, (dx * sa + dz * ca) / denom)), vb = Math.max(-b.size, Math.min(8 * b.size, (dx * sb + dz * cb) / denom));
+      return [0.5 * (ax + sa * va + bx - sb * vb) + sin * shift, 0.5 * (az + ca * va + bz - cb * vb) + cos * shift];
+    };
+    const rowPatch = (c: DrawnCell, u0: number, v0: number, u1: number, v1: number, bIn: number, fIn: number, lift: number, tone: Color): number => {
+      const back = prev.get(c), front = next.get(c);
+      if (!bent(back, c) && !bent(c, front)) return patch(c, u0, v0, u1, v1, lift, tone);
+      const sin = Math.sin(c.angle), cos = Math.cos(c.angle);
+      const backPt = (u: number): [number, number] => bent(back, c) ? seamAt(back!, c, u, bIn, sin, cos) : [c.x + cos * u + sin * v0, c.z - sin * u + cos * v0];
+      const frontPt = (u: number): [number, number] => bent(c, front) ? seamAt(c, front!, u, -fIn, sin, cos) : [c.x + cos * u + sin * v1, c.z - sin * u + cos * v1];
+      const put = ([x, z]: [number, number]): void => {
+        target.positions.push(x, this.terrain.sample(x, z) + lift, z);
+        target.colours.push(tone.r, tone.g, tone.b);
+      };
+      const p00 = backPt(u0), p01 = frontPt(u0), p10 = backPt(u1), p11 = frontPt(u1);
+      put(p00); put(p01); put(p10);
+      put(p10); put(p01); put(p11);
+      return 6;
+    };
     for (const field of this.fields) {
       const insideToo = this.tones(field, month, outer, inner), tint = field.level === 0 || !field.kind;
       target = tint ? { positions: tintPositions, colours: tintColours } : { positions, colours };
@@ -408,19 +476,21 @@ export class CityFarmFields {
         if (!insideToo) return [0, 0, 0, 0];
         const sin = Math.sin(c.angle), cos = Math.cos(c.angle), along = c.size * c.span;
         const inset = Math.min(field.kind === 'pond' ? 1.4 : 0.7, 0.3 * c.size);
-        // (across the road: (cos, -sin); along it: (sin, cos))
+        // (across the road: (cos, -sin); along it: (sin, cos)); no dike between a row's neighbours of one kind
+        const back = prev.get(c), front = next.get(c);
+        const sameKind = (o: DrawnCell | undefined): boolean => !!o && o.field.kind === field.kind && o.field.level > 0;
         return [joins(c, -cos * c.size, sin * c.size) ? 0 : inset, joins(c, cos * c.size, -sin * c.size) ? 0 : inset,
-          joins(c, -sin * along, -cos * along) ? 0 : inset, joins(c, sin * along, cos * along) ? 0 : inset];
+          joins(c, -sin * along, -cos * along) || sameKind(back) ? 0 : inset, joins(c, sin * along, cos * along) || sameKind(front) ? 0 : inset];
       });
       // The earth or the bank under each cell, unless the water covers it whole, then the water or the pond inside
       let outerVerts = 0, innerVerts = 0;
       field.cells.forEach((c, n) => {
         const half = c.size / 2 * grow(c), halfV = half * c.span, [l, r, b, f] = insets[n];
-        if (!insideToo || l || r || b || f) outerVerts += patch(c, -half, -halfV, half, halfV, LIFT, outer);
+        if (!insideToo || l || r || b || f) outerVerts += rowPatch(c, -half, -halfV, half, halfV, 0, 0, LIFT, outer);
       });
       if (insideToo) field.cells.forEach((c, n) => {
         const half = c.size / 2 * grow(c), halfV = half * c.span, [l, r, b, f] = insets[n];
-        innerVerts += patch(c, -half + l, -halfV + b, half - r, halfV - f, INNER_LIFT, inner);
+        innerVerts += rowPatch(c, -half + l, -halfV + b, half - r, halfV - f, b, f, INNER_LIFT, inner);
       });
       // (the tint's vertices are in its own mesh, never recoloured: the month does not change it)
       this.verts.push(tint ? [0, 0] : [outerVerts, innerVerts]);
