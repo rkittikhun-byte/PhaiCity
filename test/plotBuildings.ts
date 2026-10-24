@@ -13,8 +13,10 @@ import { Random } from "../src/random";
 import { plotOf, plotTile } from "../src/plots";
 import {
   cutRun, formPlots, joinNeighbour, LOT_COLUMNS, needColumns, PLOT_FRONTAGE, PlotBuildings, plotMayRise, plotShare,
-  putPlotLevel, TILE_COLUMNS, usesPlotList,
+  putPlotLevel, TILE_COLUMNS, usesPlotList, builtLevel, buildMonths, constructionShare, isVacant, decayOf, DECAY_MONTHS,
 } from "../src/plotBuildings";
+import { plotObject } from "../src/objects/buildings";
+import { RUNDOWN_POLLUTION } from "../src/waste";
 import { cellsOf, PLOT_ROWS, syncCellPlots } from "../src/zoneCells";
 import { BLBNCNBIT } from "../src/tileFlags";
 
@@ -207,6 +209,75 @@ describe("plots as buildings (docs/NO_GRID_PLAN.md 3B)", () => {
     expect(list(core).get(house.id)).toBeUndefined();
     core.run(STEPS_PER_YEAR / 4);
     expect(list(core).all().some((p) => p.level === 0)).toBe(true);
+  });
+
+  // Owner, 24 Oct 2026: "บ้านหรือสิ่งก่อสร้าง ต้องมีการเริ่มก่อสร้างด้วย ไม่ใช่หายแว๊บขึ้นมาเลย และถ้าย้ายออก จะต้องมีสิ่งปลูกสร้าง
+  // คงค้างอยู่ ต้องให้ user รื้อถอนเท่านั้น"
+  test("a new level's building goes up over its months; people leaving leave it standing, empty, and saved", () => {
+    const core = city(), cols = columns(core, 100, 400);
+    core.apply({ type: "zoneCells", zone: "residential", cells: cols.slice(0, 3).flat() });
+    const [house] = list(core).all();
+    putPlotLevel(core.map, house, 2, 1, 100);
+    expect([builtLevel(house), house.since]).toEqual([2, 100]);
+    const months = buildMonths("residential", 2);
+    expect(months).toBe(2);
+    expect(buildMonths("commercial", 2)).toBeGreaterThan(months);
+    expect(buildMonths("industrial", 2)).toBeGreaterThan(buildMonths("commercial", 2));
+    expect(constructionShare(house, 100)).toBe(0);
+    expect(constructionShare(house, 100 + months * 2)).toBeCloseTo(0.5);
+    expect(constructionShare(house, 100 + months * 4)).toBe(1);
+    // its people leave: the building stands, empty, counted as nobody, still a home object to inspect and bulldoze
+    putPlotLevel(core.map, house, 1, 1, 200);
+    expect([house.level, builtLevel(house), isVacant(house)]).toEqual([1, 2, false]);
+    putPlotLevel(core.map, house, 0, 1, 210);
+    expect([house.level, builtLevel(house), isVacant(house), house.left]).toEqual([0, 2, true, 210]);
+    const place = list(core).places.get(house.id)!, t = place.anchor;
+    expect(plotOf(core.map, t % core.map.width, Math.floor(t / core.map.width))).toMatchObject({ level: 0 });
+    expect(plotObject(house, place, core.map.width, 1)).not.toBeNull();
+    // ... people moving back move into it, nothing is built
+    const since = house.since;
+    putPlotLevel(core.map, house, 1, 1, 300);
+    expect([house.level, builtLevel(house), house.since, house.left]).toEqual([1, 2, since, undefined]);
+    // ... and a save keeps it as it stands
+    putPlotLevel(core.map, house, 0, 1, 310);
+    const back = PlotBuildings.fromJSON(JSON.parse(JSON.stringify(list(core).toJSON()))).get(house.id)!;
+    expect([back.level, builtLevel(back), back.left]).toEqual([0, 2, 310]);
+    // the tools put a building as it is, at once
+    putPlotLevel(core.map, house, 1);
+    expect([builtLevel(house), house.since]).toEqual([1, undefined]);
+  });
+
+  // Owner, 24 Oct 2026: "อาคารที่คนย้ายออก << ให้ผุพัง มีกองขยะ"
+  test("an empty building decays: dark, weathered, then run-down with rubbish that dirties the streets round it", () => {
+    const core = city(), cols = columns(core, 100, 400);
+    core.apply({ type: "zoneCells", zone: "residential", cells: cols.slice(0, 3).flat() });
+    const [house] = list(core).all();
+    putPlotLevel(core.map, house, 1, 1, 0);
+    expect(decayOf(house, 100)).toBe(0);
+    putPlotLevel(core.map, house, 0, 1, 100);
+    expect([decayOf(house, 100), decayOf(house, 100 + DECAY_MONTHS[0] * 4), decayOf(house, 100 + DECAY_MONTHS[1] * 4)]).toEqual([1, 2, 3]);
+    // run down, its rubbish is pollution on its tiles (src/waste.ts), until it is bulldozed
+    house.decay = 3;
+    const place = list(core).places.get(house.id)!, t = [...place.tiles].find((k) => list(core).shownBy.get(k) === house.id)!;
+    const x = t % core.map.width, y = Math.floor(t / core.map.width), waste = (core.simulation as any)._waste;
+    expect(waste.pollutionAt(core.map, x, y, core.map.getTileValue(x, y))).toBe(RUNDOWN_POLLUTION);
+    house.decay = 1;
+    expect(waste.pollutionAt(core.map, x, y, core.map.getTileValue(x, y))).toBe(0);
+  });
+
+  test("an empty building's land is not free: no neighbour joins it, no empty plot takes its columns; bulldozed, it goes", () => {
+    const core = city(), cols = columns(core, 100, 400);
+    core.apply({ type: "zoneCells", zone: "residential", cells: cols.slice(0, 6).flat() });
+    const [a, b] = list(core).all();
+    putPlotLevel(core.map, a, 2, 1, 0);
+    putPlotLevel(core.map, b, 1, 1, 0);
+    putPlotLevel(core.map, b, 0, 1, 40);
+    expect(isVacant(b)).toBe(true);
+    expect(joinNeighbour(core.map, list(core), a)).toBe(false);
+    expect(list(core).get(b.id)).toBe(b);
+    const anchor = list(core).places.get(b.id)!.anchor, x = anchor % core.map.width, y = Math.floor(anchor / core.map.width);
+    expect(core.apply({ type: "tool", tool: "bulldozer", x, y }).accepted).toBe(true);
+    expect(list(core).get(b.id)).toBeUndefined();
   });
 
   test("a stroke of zone paint undoes as one: its cells and the plots they made, and the money (5.3)", () => {

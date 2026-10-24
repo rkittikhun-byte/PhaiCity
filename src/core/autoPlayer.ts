@@ -21,6 +21,7 @@ import { type CityCore, STEPS_PER_YEAR } from "./cityCore.js";
 import { blockColumns, blockPrice, blockRows, blockSizeOf, buildableTest, ownsLand } from "../landBlocks.js";
 import { LANDFILL_HOLDS, LANDFILL_WARN, rubbishOf, WASTE_SPECS } from "../waste.js";
 import { DENSITY_TO_RISE, nearestRoad, plotOf } from "../plots.js";
+import { isVacant, type PlotBuildings } from "../plotBuildings.js";
 import { besideRoad, NOTHING_TO_PAINT } from "../cityCommands.js";
 import { roadPose } from "../buildings/roadPose.js";
 import { TURNED_SIZES } from "../buildings/turnedFootprint.js";
@@ -359,6 +360,10 @@ export function festivalAnswer(costs: readonly [number, number], funds: number, 
   return funds >= modest && funds - modest < (livingShort ? FESTIVAL_KEEP : Math.max(FESTIVAL_KEEP, keep)) ? "none" : "modest";
 }
 
+/** How long a building stands empty before the auto player clears it (months), and how many it clears a month */
+const VACANT_CLEAR_MONTHS = 12;
+const VACANT_CLEAR_A_MONTH = 3;
+
 export class AutoPlayer {
   /** What it did, a line each, with the year */
   readonly log: string[] = [];
@@ -423,6 +428,7 @@ export class AutoPlayer {
       if (step % STEPS_PER_MONTH === 0) this.planCapacity(false);
       if (step % STEPS_PER_MONTH === STEPS_PER_MONTH / 2) this.easeTraffic();
       if (this.cellsLater.length && step % STEPS_PER_MONTH === 0) this.paintLater();
+      if (step % STEPS_PER_MONTH === STEPS_PER_MONTH / 4) this.clearVacant();
     }
     this.year++;
     this.noted.clear();
@@ -1014,6 +1020,26 @@ export class AutoPlayer {
 
   /** A tool at (x, y); true when it built, counting what it cost. A building of two tiles a side and up is put down
    * against its road as a player puts one (roadCommand), else, or where that is refused, at (x, y) by the tile */
+  /**
+   * Bulldozes the buildings that have stood empty a year (src/plotBuildings.ts isVacant), as a ruler wanting their land
+   * for new growth does: their people did not come back, and a vacant building's land takes nothing new until it is
+   * cleared (owner, 24 Oct 2026). A few a month, the longest empty first.
+   */
+  private clearVacant(): void {
+    const map = this.core.map as unknown as { plotBuildings?: PlotBuildings | null; width: number };
+    const list = map.plotBuildings, now = this.core.simulation._cityTime;
+    if (!list) return;
+    const old = list.all().filter((p) => isVacant(p) && p.left !== undefined && now - p.left >= VACANT_CLEAR_MONTHS * 4)
+      .sort((a, b) => a.left! - b.left! || a.id - b.id).slice(0, VACANT_CLEAR_A_MONTH);
+    for (const plot of old) {
+      for (const tile of list.places.get(plot.id)?.tiles ?? []) {
+        if (list.shownBy.get(tile) !== plot.id) continue;
+        this.core.apply({ type: "tool", tool: "bulldozer" as never, x: tile % map.width, y: Math.floor(tile / map.width) });
+      }
+      this.note(`bulldozed a ${plot.kind} plot empty since ${Math.floor((now - plot.left!) / 4)} months`);
+    }
+  }
+
   private apply(tool: string, x: number, y: number, quiet = false): boolean {
     const budget = this.core.simulation.budget, before = budget.totalFunds;
     const posed = this.roadCommand(tool, x, y);

@@ -24,7 +24,13 @@ export function buildConstructionStage(
   category: PlotCategory,
   level: number,
   footprint: readonly [number, number],
+  era = 3,
 ): Record<string, unknown> {
+  // Built in its era's way (owner, 24 Oct 2026): a farming village's bamboo poles and thatch, a market town's timber, then
+  // concrete, steel scaffold, netting and a crane
+  const bamboo = era <= 1, timber = era === 2, old = era <= 2;
+  const POLE = bamboo ? 0xc2a35a : 0x7e5634, FRAME = old ? (bamboo ? 0xa98552 : 0x8a5a33) : 0xb2aea4;
+  const SLAB = old ? 0x9c7a4f : 0xbab6ad;
   const span = footprint[0] * 10;
   const W = span - 1.2;
   const front = span / 2 - 0.65;
@@ -36,18 +42,23 @@ export function buildConstructionStage(
   const storey = 3.0;
 
   b.feature('site-ground-and-foundation', () => {
-    // Compacted laterite earth pad and concrete foundation slab
+    // Compacted laterite earth pad, cleared and pegged; a concrete foundation slab from the factory town on
     b.tone(0x9e7352, W + 0.3, 0.08, span - 1.1, 0, 0.04, 0, b.stone);
-    b.body(0xa9a59c, W - 0.6, 0.45, D - 0.6, 0, 0, zc, 0.08);
-    // Blue/green corrugated sheet-metal construction fence along the street front (+Z), leaving a truck gate
+    if (!old) b.body(0xa9a59c, W - 0.6, 0.45, D - 0.6, 0, 0, zc, 0.08);
+    // The street front (+Z), leaving a gate: a low bamboo or timber rail in the old eras, corrugated sheet later
     const gateW = footprint[0] > 1 ? 3.8 : 2.6;
     const wingW = (W - gateW) / 2;
     for (const side of [-1, 1]) {
       const fx = side * (gateW / 2 + wingW / 2);
-      b.tone(FENCE_BLUE, wingW, 1.85, 0.08, fx, 0.96, front + 0.04, b.metal);
-      b.tone(0x5c6466, wingW + 0.06, 0.07, 0.12, fx, 1.88, front + 0.04, b.metal);
+      if (old) {
+        b.tone(POLE, wingW, 0.07, 0.07, fx, 0.85, front + 0.04, b.wood);
+        b.tone(POLE, wingW, 0.07, 0.07, fx, 0.45, front + 0.04, b.wood);
+      } else {
+        b.tone(FENCE_BLUE, wingW, 1.85, 0.08, fx, 0.96, front + 0.04, b.metal);
+        b.tone(0x5c6466, wingW + 0.06, 0.07, 0.12, fx, 1.88, front + 0.04, b.metal);
+      }
     }
-    b.shopSign('กำลังก่อสร้าง', 2.1, 0.48, -gateW / 2 - wingW / 2, 1.45, front + 0.1, {
+    if (!old) b.shopSign('กำลังก่อสร้าง', 2.1, 0.48, -gateW / 2 - wingW / 2, 1.45, front + 0.1, {
       background: CRANE_YELLOW,
       foreground: 0x222526,
     });
@@ -59,6 +70,8 @@ export function buildConstructionStage(
       const rows = footprint[0] > 1 ? [-5.0, -1.2, 2.4] : [-2.4, 0.6];
       for (const cx of cols) {
         for (const cz of rows) {
+          // The old eras' stilts: a post on a stone, no rebar
+          if (old) { b.tone(POLE, 0.22, 1.9, 0.22, cx, 0.95, cz, b.wood); continue; }
           // Concrete footing stub + 4 starter rebar rods
           b.tone(0xb5b1a8, 0.65, 0.85, 0.65, cx, 0.45 + 0.425, cz, b.stone);
           b.colored(REBAR_RUST, () => {
@@ -70,8 +83,12 @@ export function buildConstructionStage(
           });
         }
       }
-      // Sand pile, brick pallets, and orange cement mixer in the front yard
+      // Sand pile, brick pallets, and orange cement mixer in the front yard; thatch bundles and a timber stack before
       b.tone(SAND_BUFF, 1.9, 0.65, 1.5, -W / 2 + 1.4, 0.36, front - 1.1, b.stone);
+      if (old) {
+        b.tone(bamboo ? 0xc9b06a : 0x8a5a33, 1.2, 0.5, 0.9, W / 2 - 1.4, 0.3, front - 1.1, b.wood);
+        return;
+      }
       b.tone(0x8a6e4e, 1.1, 0.12, 1.1, W / 2 - 1.4, 0.51, front - 1.1);
       b.tone(BRICK_RED, 0.95, 0.62, 0.95, W / 2 - 1.4, 0.88, front - 1.1);
       // Cement mixer drum
@@ -88,30 +105,30 @@ export function buildConstructionStage(
 
   b.feature('concrete-frame-and-scaffolding', () => {
     // Structural core & floor slabs
-    b.body(0x9e9b93, bw * 0.42, frameTop, bd * 0.42, 0, 0.45, zc, 0.12);
+    if (!old) b.body(0x9e9b93, bw * 0.42, frameTop, bd * 0.42, 0, 0.45, zc, 0.12);
     for (let f = 1; f <= frameFloors; f++) {
       const y = 0.45 + f * storey;
-      b.tone(0xbab6ad, bw, 0.22, bd, 0, y - 0.11, zc, b.stone);
+      b.tone(SLAB, bw, 0.22, bd, 0, y - 0.11, zc, old ? b.wood : b.stone);
     }
     // Perimeter concrete columns
     const cols = footprint[0] > 1 ? [-bw / 2 + 0.25, -bw / 6, bw / 6, bw / 2 - 0.25] : [-bw / 2 + 0.22, 0, bw / 2 - 0.22];
     const rows = [zc - bd / 2 + 0.22, zc, zc + bd / 2 - 0.22];
-    b.colored(0xb2aea4, () => {
+    b.colored(FRAME, () => {
       for (const cx of cols) {
         for (const cz of rows) {
           b.box(0.32, frameTop + 0.7, 0.32, cx, 0.45 + (frameTop + 0.7) / 2, cz, b.stone);
         }
       }
     });
-    // Green safety dust netting (ตาข่ายกันฝุ่นสีเขียว) wrapping the upper scaffolding
+    // Green safety dust netting (ตาข่ายกันฝุ่นสีเขียว) wrapping the upper scaffolding, from the factory town on
     const netBottom = Math.max(0.6, frameTop * 0.32);
     const netH = frameTop + 0.6 - netBottom;
-    for (const side of [-1, 1]) {
+    for (const side of old ? [] : [-1, 1]) {
       b.tone(SAFETY_GREEN, bw + 0.36, netH, 0.04, 0, netBottom + netH / 2, zc + side * (bd / 2 + 0.2), b.fabric);
       b.tone(SAFETY_GREEN, 0.04, netH, bd + 0.36, side * (bw / 2 + 0.2), netBottom + netH / 2, zc, b.fabric);
     }
-    // Scaffolding standards & ledgers
-    b.colored(0x6e7577, () => {
+    // Scaffolding standards & ledgers: bamboo, timber, then steel
+    b.colored(old ? POLE : 0x6e7577, () => {
       for (const cx of cols) {
         for (const side of [-1, 1]) {
           b.box(0.05, frameTop + 0.9, 0.05, cx, 0.45 + (frameTop + 0.9) / 2, zc + side * (bd / 2 + 0.24), b.metal);
@@ -125,7 +142,7 @@ export function buildConstructionStage(
     });
   });
 
-  if (level >= 3) {
+  if (level >= 3 && !old) {
     b.feature('tower-crane', () => {
       const mastH = frameTop + 4.8;
       const cx = bw * 0.22;
@@ -147,5 +164,5 @@ export function buildConstructionStage(
     });
   }
 
-  return { floors: frameFloors, constructionStage: 'stage_2', targetLevel: level, towerCrane: level >= 3 };
+  return { floors: frameFloors, constructionStage: 'stage_2', targetLevel: level, towerCrane: level >= 3 && !old, era, timber };
 }

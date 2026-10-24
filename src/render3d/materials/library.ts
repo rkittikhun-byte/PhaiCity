@@ -425,8 +425,8 @@ function configureCityLOD(material: Material, coarse: boolean): void {
             diffuseColor.a *= 1.0 + leafMip * 0.3;
           }
         #endif`);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround; uniform vec3 cityWind; uniform float cityTime;`)
-      .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityProvince = cityOutside;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${coarse?'attribute float instanceDetail;\n':''}attribute float cityOutside; attribute vec4 cityTerrain; attribute float cityBridgeDepth; attribute float cityGround; varying float cityProvince; varying float cityDetail; varying vec2 cityWorldXZ; varying float cityIsGround; varying float cityDecay; uniform vec3 cityWind; uniform float cityTime;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\ncityDetail = ${coarse?'instanceDetail':'instanceColor.r'}; cityDecay = ${coarse?'0.0':'1.0 - instanceColor.g'}; cityProvince = cityOutside;
         #ifdef USE_INSTANCING
           vec2 terrainUV = clamp(((mat3(instanceMatrix) * transformed).xz / 10.0) + 0.5, 0.0, 1.0);
           float u = terrainUV.x, v = terrainUV.y;
@@ -452,7 +452,7 @@ function configureCityLOD(material: Material, coarse: boolean): void {
       #undef USE_INSTANCING_COLOR
       #include <color_vertex>
       #define USE_INSTANCING_COLOR`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour; uniform float cityTime;\n' +
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float cityDetail; varying float cityProvince; varying vec2 cityWorldXZ; varying float cityIsGround; varying float cityDecay; uniform sampler2D cityMask; uniform vec2 cityMaskSize; uniform float cityMaskOn; uniform vec3 cityWaterColour; uniform vec3 cityBankColour; uniform float cityTime;\n' +
         // The mask a tile a texel, blurred over about a tile and a half round a point (world units / 10), so the province's
         // and the bought land's edges fade softly instead of stepping tile by tile (owner, 21 Oct 2026: "ที่สังเกต ช่อง หรือ
         // ตารางยังไม่หายไปเลย")
@@ -460,6 +460,13 @@ function configureCityLOD(material: Material, coarse: boolean): void {
         '  return (2.0 * texture2D(cityMask, cell * s) + texture2D(cityMask, (cell + vec2(r, r)) * s) + texture2D(cityMask, (cell + vec2(-r, r)) * s)\n' +
         '    + texture2D(cityMask, (cell + vec2(r, -r)) * s) + texture2D(cityMask, (cell - vec2(r, r)) * s)) / 6.0; }')
       .replace('#include <color_fragment>', `#include <color_fragment>
+        // An empty building left to decay (Placement.weather): its colours faded toward a dull grey-brown, streaked with
+        // damp stains, the more the longer it stands empty (owner, 24 Oct 2026: "อาคารที่คนย้ายออก ให้ผุพัง")
+        if (cityDecay > 0.01) {
+          float stain = sin(cityWorldXZ.x * 2.3 + cityWorldXZ.y * 1.7) * cos(cityWorldXZ.y * 3.1 - cityWorldXZ.x * 0.9);
+          vec3 faded = vec3(dot(diffuseColor.rgb, vec3(0.3, 0.45, 0.25))) * vec3(0.86, 0.8, 0.7) * (0.78 + 0.14 * stain);
+          diffuseColor.rgb = mix(diffuseColor.rgb, faded, cityDecay * 0.8);
+        }
         if (cityIsGround > 0.5) {
           float gMicro = sin(cityWorldXZ.x * 3.7 + sin(cityWorldXZ.y * 2.9)) * cos(cityWorldXZ.y * 4.1 - sin(cityWorldXZ.x * 3.1));
           float gMeso = sin(cityWorldXZ.x * 0.42 + cityWorldXZ.y * 0.31) * cos(cityWorldXZ.x * 0.27 - cityWorldXZ.y * 0.39);

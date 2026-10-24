@@ -75,6 +75,9 @@ export const WASTE_POWER = 300;
 /** People whose sewage the land takes without harm; untreated sewage of this many more is as dirty as it gets */
 export const OWN_SEWAGE = 5000;
 export const SEWAGE_FULL = 20000;
+/** The pollution a run-down empty building's rubbish puts on its own tiles, spread round them by the pollution map */
+export const RUNDOWN_POLLUTION = 60;
+
 /** How much untreated sewage adds to the pollution a fishing harbour measures (src/farming.ts DIRTY_WATER is 80) */
 export const SEWAGE_DIRT = 100;
 /** The share of visitors untreated sewage keeps away at its worst */
@@ -284,8 +287,13 @@ export class Waste {
       const spec = WASTE_SPECS[wasteKindAt(map.wasteKinds, centre)];
       return spec.smell + (this.working.has(centre) ? spec.smoke : 0);
     }
-    if (this.overflow > 0 && tileValue >= RESBASE && tileValue < INDBASE) return Math.round(RUBBISH_POLLUTION * this.overflow);
-    return 0;
+    // ... and the rubbish piled at the door of a building left to run down (src/plotBuildings.ts decayOf), until it is
+    // bulldozed: dirty streets round it, lower land value (owner, 24 Oct 2026: "อาคารที่คนย้ายออก ให้ผุพัง มีกองขยะ")
+    const list = (map as { plotBuildings?: { shownBy: ReadonlyMap<number, number>; get(id: number): { decay?: number } | undefined } | null }).plotBuildings;
+    const shown = list?.shownBy.get(y * map.width + x);
+    const rundown = shown !== undefined && (list!.get(shown)?.decay ?? 0) >= 3 ? RUNDOWN_POLLUTION : 0;
+    if (this.overflow > 0 && tileValue >= RESBASE && tileValue < INDBASE) return Math.round(RUBBISH_POLLUTION * this.overflow) + rundown;
+    return rundown;
   }
 }
 

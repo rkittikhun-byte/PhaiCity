@@ -72,6 +72,8 @@ export function needColumns(kind: PlotKind, level: number, era: number): number 
 }
 
 const ZONE_KIND: readonly (PlotKind | null)[] = [null, "residential", "commercial", "industrial"];
+/** The city's time a month (src/construction.ts TIME_PER_MONTH) */
+const TIME_PER_MONTH = 4;
 const codeOf = (kind: PlotKind): number => PLOT_KINDS.indexOf(kind) + 1;
 
 /** A plot and the building on it */
@@ -87,6 +89,56 @@ export interface PlotBuilding {
   born: number;
   /** Its columns, left to right as seen from its road: each one's key, the 1 m raster key of its front row's middle */
   columns: number[];
+  /** The level of the building standing on it when that is higher than its people's (`level`): people who left leave
+   * their building standing, vacant, until the ruler bulldozes it or people move back (owner, 24 Oct 2026: "ถ้าย้ายออก จะต้อง
+   * มีสิ่งปลูกสร้างคงค้างอยู่ ต้องให้ user รื้อถอนเท่านั้น"); builtLevel reads it */
+  built?: number;
+  /** The city's time its standing building began to go up, while it is still a construction site (constructionShare) */
+  since?: number;
+  /** The city's time its last people left, while it stands empty (the auto player clears the oldest) */
+  left?: number;
+  /** The city's time it was last looked at while going up (not saved): when its stage changes it is drawn again */
+  seen?: number;
+  /** How far it had decayed at its last look (decayOf; not saved): a run-down one's rubbish dirties the streets round it */
+  decay?: number;
+}
+
+/** The level of the building standing on a plot: its people's, or higher while some or all of them have left */
+export const builtLevel = (plot: Pick<PlotBuilding, "level" | "built">): number => Math.max(plot.level, plot.built ?? 0);
+
+/** Whether a plot's building stands empty: built, and nobody lives or works in it */
+export const isVacant = (plot: Pick<PlotBuilding, "level" | "built">): boolean => plot.level === 0 && builtLevel(plot) > 0;
+
+/** The months a plot's building of a level takes to go up (owner, 24 Oct 2026: "ต้องมีการเริ่มก่อสร้างด้วย ไม่ใช่หายแว๊บ
+ * ขึ้นมาเลย"): a stilt house a month, each level of a home a month more, a shophouse a month more than a home, a
+ * factory two */
+export function buildMonths(kind: PlotKind, level: number): number {
+  return Math.max(1, level) + (kind === "commercial" ? 1 : kind === "industrial" ? 2 : 0);
+}
+
+/** The months an empty building stands dark and still, then weathered, before it is run-down (owner, 24 Oct 2026: "อาคาร
+ * ที่คนย้ายออก ให้ผุพัง มีกองขยะ") */
+export const DECAY_MONTHS: readonly [number, number] = [3, 9];
+
+/** How far an empty building has decayed at the city's time `now`: 0 lived in, 1 empty and dark, 2 weathered, 3 run-down
+ * with rubbish at its door (which nobody may move back into: it must be bulldozed) */
+export function decayOf(plot: PlotBuilding, now: number): 0 | 1 | 2 | 3 {
+  if (!isVacant(plot)) return 0;
+  const months = (now - (plot.left ?? now)) / TIME_PER_MONTH;
+  return months >= DECAY_MONTHS[1] ? 3 : months >= DECAY_MONTHS[0] ? 2 : 1;
+}
+
+/** The stage a building is drawn at by how far it has gone up: its ground cleared and pegged with its foundations or
+ * stilts (stage_1), its frame or scaffold with the roof open (stage_2), finished (closed) */
+export function constructionStage(share: number): "stage_1" | "stage_2" | "closed" {
+  return share >= 1 ? "closed" : share < 0.4 ? "stage_1" : "stage_2";
+}
+
+/** How far a plot's building has gone up at the city's time `now`: 0 cleared ground, 1 finished (and finished when it
+ * keeps no start: older saves, the tools) */
+export function constructionShare(plot: PlotBuilding, now: number): number {
+  if (plot.since === undefined || builtLevel(plot) <= 0) return 1;
+  return Math.max(0, Math.min(1, (now - plot.since) / (buildMonths(plot.kind, builtLevel(plot)) * TIME_PER_MONTH)));
 }
 
 /** Where a plot stands now, worked out from its columns each time the plots are formed */
@@ -117,6 +169,8 @@ export class PlotBuildings {
   private next = 1;
   /** Counts every change to the plots (formed, grown, joined, gone), for whoever draws them */
   version = 0;
+  /** The city's time at the last look over the plots, for whoever draws their construction sites (not saved) */
+  now = 0;
   /** The columns the plots were last formed from, their keys, and whose each one is (a plot's id, 0 for none) */
   columns: FrontageColumn[] = [];
   keys: number[] = [];
@@ -176,9 +230,12 @@ export class PlotBuildings {
   }
 
   /** As a save keeps them: [id, kind (1 homes, 2 shops, 3 factories), level, value, style, born, ...column keys] each,
-   * and the next id */
-  toJSON(): { plots: number[][]; next: number } {
-    return { plots: this.all().map((p) => [p.id, codeOf(p.kind), p.level, p.value, p.style, p.born, ...p.columns]), next: this.next };
+   * the next id, and the buildings standing above their people or still going up: [id, built, since or -1, left or -1] */
+  toJSON(): { plots: number[][]; next: number; standing?: number[][] } {
+    const standing = this.all().filter((p) => builtLevel(p) > p.level || p.since !== undefined || p.left !== undefined)
+      .map((p) => [p.id, builtLevel(p), p.since ?? -1, p.left ?? -1]);
+    return { plots: this.all().map((p) => [p.id, codeOf(p.kind), p.level, p.value, p.style, p.born, ...p.columns]), next: this.next,
+      ...(standing.length ? { standing } : {}) };
   }
 
   /** From toJSON's data; what does not read as such is left out */
@@ -195,6 +252,14 @@ export class PlotBuildings {
       out.next = Math.max(out.next, id + 1);
     }
     if (typeof saved.next === "number" && saved.next > out.next) out.next = saved.next;
+    for (const row of Array.isArray((saved as { standing?: unknown }).standing) ? (saved as { standing: unknown[] }).standing : []) {
+      if (!Array.isArray(row) || row.length !== 4 || !row.every((n) => Number.isFinite(n))) continue;
+      const [id, built, since, left] = row as number[], plot = out.items.get(id);
+      if (!plot) continue;
+      plot.built = Math.max(plot.level, Math.min(PLOT_TOP[plot.kind], built));
+      if (since >= 0) plot.since = since;
+      if (left >= 0) plot.left = left;
+    }
     out.formed = out.items.size > 0;
     return out;
   }
@@ -295,7 +360,7 @@ export function formPlots(map: PlotListMap, layout: CellLayout, time = 0): numbe
   for (const id of gone) list.remove(id);
   // 2. An empty plot narrower than its kind's frontage takes the free columns of its zone beside it
   for (const plot of list.all()) {
-    if (plot.level > 0) continue;
+    if (builtLevel(plot) > 0) continue;
     const idxs = placed.get(plot.id)!, want = PLOT_FRONTAGE[plot.kind];
     while (idxs.length < want) {
       const right = cols[idxs[idxs.length - 1]].right, left = cols[idxs[0]].left;
@@ -441,8 +506,22 @@ export function refreshCellPlots(map: PlotListMap & CellPlotMap, layout: CellLay
   return usesPlotList(map) ? formPlots(map, layout, time) : syncCellPlots(map, layout, tiles);
 }
 
-/** A plot's building put to a level and class: the tiles it shows show it */
-function setPlot(map: PlotListMap, list: PlotBuildings, plot: PlotBuilding, level: number, value: number, style: number): void {
+/**
+ * A plot put to a level and class: the tiles it shows show its people's level. With the city's time `now` (the
+ * simulation's growth) a level above its standing building puts up a new one, a construction site from then; a level
+ * below leaves the building standing, vacant at 0. Without it (the tools, tests) the building is put up as it is, at
+ * once.
+ */
+function setPlot(map: PlotListMap, list: PlotBuildings, plot: PlotBuilding, level: number, value: number, style: number,
+  now?: number): void {
+  const standing = builtLevel(plot);
+  if (now === undefined) { plot.built = level; delete plot.since; delete plot.left; }
+  else {
+    if (level > standing) { plot.built = level; plot.since = now; }
+    else plot.built = standing;
+    if (level === 0 && plot.level > 0) plot.left = now;
+    else if (level > 0) delete plot.left;
+  }
   plot.level = level;
   plot.value = value;
   plot.style = style;
@@ -456,11 +535,11 @@ function setPlot(map: PlotListMap, list: PlotBuildings, plot: PlotBuilding, leve
   list.version++;
 }
 
-/** A plot's building put to a level (and class), as the simulation grows it, for tests and the tools: the tiles it shows
- * show it */
-export function putPlotLevel(map: PlotListMap, plot: PlotBuilding, level: number, value = plot.value): void {
+/** A plot's building put to a level (and class), for tests and the tools: the tiles it shows show it; with the city's
+ * time `now`, as the simulation grows it (a construction site going up, a building left standing when people leave) */
+export function putPlotLevel(map: PlotListMap, plot: PlotBuilding, level: number, value = plot.value, now?: number): void {
   const list = map.plotBuildings;
-  if (list && list.get(plot.id) === plot) setPlot(map, list, plot, Math.max(0, Math.min(PLOT_TOP[plot.kind], level)), value, plot.style);
+  if (list && list.get(plot.id) === plot) setPlot(map, list, plot, Math.max(0, Math.min(PLOT_TOP[plot.kind], level)), value, plot.style, now);
 }
 
 /** Whether a plot of the list is wide enough for its next level's building in an era (needColumns) */
@@ -481,7 +560,8 @@ export function joinNeighbour(map: PlotListMap, list: PlotBuildings, plot: PlotB
   for (const side of ["right", "left"] as const) {
     const end = side === "right" ? place.cols[place.cols.length - 1] : place.cols[0];
     const other = list.ofColumn(list.columns[end][side]);
-    if (!other || other.id === plot.id || other.kind !== plot.kind || other.level > plot.level ||
+    // (never a building standing empty or half empty: its land is not free until it is bulldozed)
+    if (!other || other.id === plot.id || other.kind !== plot.kind || builtLevel(other) > other.level || other.level > plot.level ||
       plot.columns.length + other.columns.length > MERGE_MAX_COLUMNS) continue;
     plot.columns = side === "right" ? [...plot.columns, ...other.columns] : [...other.columns, ...plot.columns];
     plot.value = Math.max(plot.value, other.value);
@@ -569,11 +649,28 @@ function growPlot(map: PlotScanMap & PlotListMap, list: PlotBuildings, plot: Plo
     census.indZonePop += PLOT_SHARE * share;
     census.indPop += level * PLOT_SHARE * share;
   }
+  // A building finished going up keeps no start; one whose stage changed is drawn again (constructionShare)
+  const now = sim.cityTime ?? 0;
+  list.now = now;
+  // ... and a site that passed a stage of its going up (constructionStage) is drawn again
+  if (plot.since !== undefined) {
+    const before = constructionStage(constructionShare(plot, plot.seen ?? plot.since));
+    if (constructionShare(plot, now) >= 1) { delete plot.since; list.version++; }
+    else if (constructionStage(constructionShare(plot, now)) !== before) list.version++;
+    plot.seen = now;
+  }
+  // ... and an empty one that decayed a stage further (decayOf)
+  const decay = decayOf(plot, now);
+  if (decay !== (plot.decay ?? 0)) { plot.decay = decay; list.version++; }
   const grow = (to: number): void => {
     if (to < 0 || to > PLOT_TOP[kind]) return;
-    const value = to === 0 ? 0 : plotEnvironmentClass(map, sim, x, y, kind, luck);
+    // (nobody moves back into a run-down building: it must be bulldozed first)
+    if (to > level && decay >= 3) return;
+    // (an emptied building keeps its class: it still stands as it was built)
+    const value = to === 0 ? (builtLevel(plot) > 0 ? plot.value : 0) : plotEnvironmentClass(map, sim, x, y, kind, luck);
     if (to === level && value <= plot.value) return;
-    setPlot(map, list, plot, to, value, luck.getRandom(2));
+    // ... and people moving back into a standing building move in; only a level above it builds anew
+    setPlot(map, list, plot, to, value, to > level && to <= builtLevel(plot) ? plot.style : luck.getRandom(2), now);
     if (to !== level) ZoneUtils.incRateOfGrowth(sim.blockMaps, x, y, to > level ? 1 : -1);
   };
   // Its trips, as a tile plot's (src/plots.ts plotFound): on a real-scale city map the month's trips say where it gets

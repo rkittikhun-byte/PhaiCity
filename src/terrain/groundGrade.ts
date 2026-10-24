@@ -55,7 +55,7 @@ export interface GradePad {
 export interface GradeMap extends FootprintMap {
   getTile?(x: number, y: number): { isZone(): boolean };
   plotBuildings?: {
-    all(): { id: number; level: number }[];
+    all(): { id: number; level: number; built?: number }[];
     readonly places: ReadonlyMap<number, { cols: number[] }>;
     readonly columns: readonly { x: number; z: number; nx: number; nz: number }[];
     version?: number;
@@ -86,7 +86,8 @@ function plotFootings(map: GradeMap): Footing[] {
   if (!plots) return out;
   for (const plot of plots.all()) {
     const place = plots.places.get(plot.id);
-    if (plot.level < 1 || !place?.cols.length) continue;
+    // (a building its people left still stands on its levelled ground)
+    if (Math.max(plot.level, plot.built ?? 0) < 1 || !place?.cols.length) continue;
     const cols = place.cols.map((k) => plots.columns[k]).filter(Boolean);
     if (!cols.length) continue;
     const first = cols[0], last = cols[cols.length - 1];
