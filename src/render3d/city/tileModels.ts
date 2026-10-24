@@ -30,7 +30,7 @@ import { type MineKind, mineKindAt } from '../../mining.js';
 import { isAnyRoad } from '../../roadTiles.js';
 import { tileMetres, unitsPerMetre } from '../../units.js';
 import { UNLOCKS } from '../../unlocks.js';
-import { RAMPS } from '../../theme/tokens.js';
+import { RAMPS, SITE } from '../../theme/tokens.js';
 import { siteId } from '../models/plot/site.js';
 import { parseRulerWings, rulerWingId, type RulerHouseWing } from '../models/civic/ruler-house.js';
 import { TEMPLE_ID } from '../models/civic/temple.js';
@@ -671,7 +671,7 @@ export class TileSnapshot implements CityMapReader {
       const own=this.plotGround(list,plot);if(!own)continue;
       const metre=unitsPerMetre(tileMetres(this.source)),fx=-Math.sin(own.rotation),fz=-Math.cos(own.rotation),ax=Math.cos(own.rotation),az=-Math.sin(own.rotation);
       const x=own.x-fx*(own.depth/2-2*metre)+ax*own.width*.3,z=own.z-fz*(own.depth/2-2*metre)+az*own.width*.3;
-      placed.push(new Placement({index:i,x,z,id:'terrain.rubble',kind:'terrain',footprint:[1,1],height:.6,color:0x8a7f6a,water:false,
+      placed.push(new Placement({index:i,x,z,id:'terrain.rubble',kind:'terrain',footprint:[1,1],height:.6,color:SITE.rubble,water:false,
         rotation:own.rotation,scale:.28*Math.max(.6,metre*1.6),powered:false,options:{region,seed:plot.id%SEED_BUCKETS,variant:plot.id%4,state:'closed',
           waterMask:0,landMask:15,worldOrigin:[x,z],worldRotationY:own.rotation}}));
     }

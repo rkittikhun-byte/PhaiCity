@@ -60,6 +60,16 @@ export const UI = {
  * The 3D look the concept asks for (assets/review/3d-recommendation.md, step 4). Proposed, not yet read by
  * src/render3d: until the renderer adopts it, models keep their material library colours, but new work aims here.
  */
+/**
+ * The building sites a plot's building goes up as (src/render3d/models/plot/site.ts): the poles and frames of bamboo and
+ * timber in the old eras, the slab and steel of the later ones, and the rubble of a vacant building (tileModels.ts).
+ */
+export const SITE = {
+  pole: { bamboo: 0xc2a35a, timber: 0x7e5634 }, frame: { bamboo: 0xa98552, timber: 0x8a5a33, steel: 0xb2aea4 },
+  slab: { old: 0x9c7a4f, concrete: 0xbab6ad }, concrete: 0xa9a59c, concreteDark: 0x9e9b93, steel: 0x5c6466, steelPole: 0x6e7577,
+  stack: { bamboo: 0xc9b06a, timber: 0x8a5a33 }, rubble: 0x8a7f6a,
+} as const;
+
 export const SCENE = {
   adopted: false,
   /** Each concept colour on its sunlit and its shaded side (assets/review/palette_proposal.png). */
